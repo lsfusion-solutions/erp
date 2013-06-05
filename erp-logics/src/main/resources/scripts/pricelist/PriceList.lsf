@@ -7,7 +7,7 @@ NAMESPACE PriceList;
 // --------------------------- Пользовательские виды цен ------------------------- //
 
 CLASS DataPriceListType 'Пользовательский вид цены' : LedgerPriceListType;
-batchLedgerPriceListType (priceListType) += priceListType IS DataPriceListType;
+batchLedgerPriceListType (priceListType) += WHEN priceListType IS DataPriceListType THEN TRUE;
 
 nameDataPriceListType 'Наименование' = DATA ISTRING[50](DataPriceListType);
 nameLedgerPriceListType(type) += nameDataPriceListType(type) IF type IS DataPriceListType;
@@ -619,12 +619,12 @@ EXTEND DESIGN userPriceList{
 
 addUserPriceList 'Добавить' = ACTION ADDFORM UserPriceList;
 editUserPriceList 'Редактировать' = ACTION EDITFORM UserPriceList;
-editPriceList 'Редактировать' = ABSTRACT ACTION (PriceList) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+editPriceList 'Редактировать' = ABSTRACT ACTION LIST (PriceList) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 editPriceList (p) += editUserPriceList(p);
 
 // ------------------ Копирование прайс-листов ------------------- //
 
-copyAbstractDataPriceList = ABSTRACT ACTION(PriceList, UserPriceList);
+copyAbstractDataPriceList = ABSTRACT ACTION LIST (PriceList, UserPriceList);
 
 copyDataPriceList = ACTION (priceList, userPriceList){
         SET currencyUserPriceList(userPriceList) <- currencyUserPriceList(priceList);
@@ -687,7 +687,7 @@ updatePriceList 'Обновить' = ACTION (priceList) NEWSESSION{
     }
 }
 
-printPriceList 'Распечатать' = ABSTRACT ACTION (PriceList);
+printPriceList 'Распечатать' = ABSTRACT ACTION LIST (PriceList);
 
 FORM priceLists 'Прайсы'
     OBJECTS p = PriceList

@@ -244,7 +244,7 @@ DESIGN addPercentUserRepricing FROM DEFAULT {
     }
 }
 
-overChangePriceUserRepricing = ABSTRACT ACTION (RepricingDetail);
+overChangePriceUserRepricing = ABSTRACT ACTION LIST (RepricingDetail);
 
 changePriceUserRepricing 'Изменить цену' (userRepricing) = ACTION (userRepricing) {
         FORM addPercentUserRepricing OBJECTS u = userRepricing MODAL;
@@ -455,7 +455,7 @@ DESIGN managementRepricing FROM DEFAULT {
     }
 }
 
-overManagementRepricing = ABSTRACT ACTION (RepricingDetail,Sku,Stock,DATETIME);
+overManagementRepricing = ABSTRACT ACTION LIST (RepricingDetail,Sku,Stock,DATETIME);
 
 prevPricePriceListCalcListSkuStockDateTime (priceList, calcList, sku, department, time) =
     IF prevPricePriceListTypeSkuStockDateTime(priceList, sku, department, time) AND calcList IS CalcPriceListType
@@ -612,14 +612,14 @@ skuPriceListLedger (ledger) += skuRepricingDetail(ledger);
 
 descriptionPriceListLedger (ledger) += descriptionRepricingDetail(ledger);
 
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += TRUE WHEN CLASS(priceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.supplierPricingPriceListType;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += priceRepricingDetail(ledger) WHEN CLASS(priceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.supplierPricingPriceListType;
+inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN TRUE;
+pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN priceRepricingDetail(ledger);
 
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += TRUE WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.retailPricingPriceListType;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += retailPriceRepricingDetail(ledger) WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.retailPricingPriceListType;
+inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
+pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN retailPriceRepricingDetail(ledger);
 
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += TRUE WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += retailPriceRepricingDetail(ledger) WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType;
+inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
+pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType THEN retailPriceRepricingDetail(ledger);
 
 inPriceListLedgerStock (ledger, stock) += departmentStoreRepricingDetail(ledger) == stock;
 

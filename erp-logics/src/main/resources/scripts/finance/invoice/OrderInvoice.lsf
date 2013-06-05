@@ -6,8 +6,8 @@ NAMESPACE Invoice;
 
 createdUserInvoiceOrder = DATA SESSION BOOLEAN (Invoice, Order);
 
-createUserInvoiceOrder 'Создать накладную' = ABSTRACT ACTION (Order);
-createUserInvoicePostedOrder 'Создать проведенную накладную' = ABSTRACT ACTION (Order);
+createUserInvoiceOrder 'Создать накладную' = ABSTRACT ACTION LIST (Order);
+createUserInvoicePostedOrder 'Создать проведенную накладную' = ABSTRACT ACTION LIST (Order);
 
 orderInvoiceDetail = ABSTRACT Order(InvoiceDetail);
 
@@ -142,7 +142,7 @@ META defineOrderInvoice(sign, stockProp)
         }
     }
 
-    createExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION (UserInvoice, Order);
+    createExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION LIST (UserInvoice, Order);
     useExplicitBatchDetailUserInvoiceOrder = ABSTRACT BOOLEAN (UserInvoice, Order);
 
     differentStocksInDetailsStock (stock) = differentStocksInDetailsLegalEntity(legalEntityStock(stock)) PERSISTENT;
@@ -150,7 +150,7 @@ META defineOrderInvoice(sign, stockProp)
     inOrderDetailUserInvoice (orderDetail, userInvoice) = (orderDetail IS OrderDetail AND userInvoice IS UserInvoice AND NOT supplierStockUserInvoice(userInvoice)) OR
                                                            supplierStockOrderDetail(orderDetail)==supplierStockUserInvoice(userInvoice);
 
-    overCreateDetailUserInvoiceDetailOrderDetail = ABSTRACT ACTION (UserInvoiceDetail, OrderDetail);
+    overCreateDetailUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
     createDetailUserInvoiceOrder = ACTION (userInvoice, order) {
         IF useExplicitBatchDetailUserInvoiceOrder(userInvoice, order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
             EXEC createExplicitBatchDetailUserInvoiceOrder(userInvoice, order);

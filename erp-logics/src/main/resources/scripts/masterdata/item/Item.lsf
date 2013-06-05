@@ -337,7 +337,7 @@ valueItemAttribute = ABSTRACT ISTRING[255] (Item, ItemAttribute) PERSISTENT;
 
 META implementItemAttribute(property, caption, itemType, attributeClass)
     EXTEND CLASS itemType##ItemAttribute { attributeClass caption }
-    value###itemType##ItemAttribute(i, a) += property(i) WHEN a == itemType##ItemAttribute.##attributeClass;
+    value###itemType##ItemAttribute(i, a) += WHEN a == itemType##ItemAttribute.##attributeClass THEN property(i);
 END
 
 META defineItemAttribute(attribute, formProperty, caption, group, itemType, attributeClass)
@@ -413,7 +413,7 @@ END
 // Строка
 CLASS StringItemAttribute 'Строковый атрибут' : ItemAttribute;
 
-valueStringItemAttribute = ABSTRACT ISTRING[255] (Item, StringItemAttribute) EXCLUSIVE PERSISTENT;
+valueStringItemAttribute = ABSTRACT CASE ISTRING[255] (Item, StringItemAttribute) PERSISTENT;
 valueItemAttribute(item, attribute) += valueStringItemAttribute(item, attribute);
 
 META defineStringItemAttribute(attribute, type, caption, group)
@@ -423,7 +423,7 @@ END
 // Целое число
 CLASS IntegerItemAttribute 'Целочисленный атрибут' : ItemAttribute;
 
-valueIntegerItemAttribute = ABSTRACT INTEGER (Item, IntegerItemAttribute) EXCLUSIVE PERSISTENT;
+valueIntegerItemAttribute = ABSTRACT CASE INTEGER (Item, IntegerItemAttribute) PERSISTENT;
 stringIntegerItemAttribute(item, attribute) = toString255(valueIntegerItemAttribute(item, attribute));
 valueItemAttribute(item, attribute) += stringIntegerItemAttribute(item, attribute);
 
@@ -434,7 +434,7 @@ END
 // Дробное число
 CLASS DoubleItemAttribute 'Дробный атрибут' : ItemAttribute;
 
-valueDoubleItemAttribute = ABSTRACT DOUBLE (Item, DoubleItemAttribute) EXCLUSIVE PERSISTENT;
+valueDoubleItemAttribute = ABSTRACT CASE DOUBLE (Item, DoubleItemAttribute) PERSISTENT;
 stringDoubleItemAttribute(item, attribute) = toString255(valueDoubleItemAttribute(item, attribute));
 valueItemAttribute(item, attribute) += stringDoubleItemAttribute(item, attribute);
 
@@ -580,7 +580,7 @@ grossWeightItem(sku) <- netWeightItem(sku) WHEN CHANGED(netWeightItem(sku));
 
 EXTEND DESIGN item { itemPrimaryColumn2 { ADD i.itemSizeGroup; } }
 
-loadDefaultItemAttributes 'Загрузить стандартные атрибуты товаров' = ABSTRACT ACTION ();
+loadDefaultItemAttributes 'Загрузить стандартные атрибуты товаров' = ABSTRACT ACTION LIST ();
 @implementLoadDefaultData(loadDefaultItemAttributes);
 
 // ---------------------------------------------- Формирование наименований -------------------------------------- //
@@ -653,8 +653,8 @@ weightNumeratorItem (item) = weightNumeratorItemGroup(itemGroupItem(item));
 barcodeNumeratorSku(item) += IF isWeightItem(item) THEN weightNumeratorItem(item) ELSE pieceNumeratorItem(item);
 
 // ---------------------------------------- Копирование товара ----------------------- //
-overCopyItem = ABSTRACT ACTION (Item, Item);
-overCopyItemBarcode = ABSTRACT ACTION (Barcode, Barcode, Sku);
+overCopyItem = ABSTRACT ACTION LIST (Item, Item);
+overCopyItemBarcode = ABSTRACT ACTION LIST (Barcode, Barcode, Sku);
 
 copyDataItem = ACTION (item, i) {
     SET itemGroupItem(i) <- itemGroupItem(item);

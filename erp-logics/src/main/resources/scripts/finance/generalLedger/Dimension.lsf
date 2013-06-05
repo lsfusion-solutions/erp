@@ -20,7 +20,7 @@ TABLE dimensionType(DimensionType);
 nameDimensionType 'Наименование' (type) = staticCaption(type) IF type IS DimensionType;
 
 idDimensionType 'Идентификатор' = DATA STRING[20] (DimensionType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
-dimensionTypeDimension = ABSTRACT DimensionType (Dimension) EXCLUSIVE PERSISTENT;
+dimensionTypeDimension = ABSTRACT CASE DimensionType (Dimension) PERSISTENT;
 nameDimensionTypeDimension 'Тип субконто' (dimension) = nameDimensionType(dimensionTypeDimension(dimension));
 
 TABLE GLAccountDimensionType(GLAccount, DimensionType);
@@ -38,20 +38,20 @@ prevGLAccountDimensionType (account, type) = PARTITION PREV type IF orderGLAccou
 namePrevGLAccountDimensionType 'Предок' (account, type) = nameDimensionType(prevGLAccountDimensionType(account, type));
 
 TABLE generalLedgerDimensionType(GeneralLedger, DimensionType);
-debitGeneralLedgerDimensionType = ABSTRACT Dimension (GeneralLedger, DimensionType) EXCLUSIVE PERSISTENT;
+debitGeneralLedgerDimensionType = ABSTRACT CASE Dimension (GeneralLedger, DimensionType) PERSISTENT;
 nameDebitGeneralLedgerDimensionType 'Субконто (дебет)' (generalLedger,dimensionType)= nameDimension(debitGeneralLedgerDimensionType(generalLedger,dimensionType));
 debitUserGeneralLedgerDimensionType = DATA Dimension (UserGeneralLedger, DimensionType);
 nameDebitUserGeneralLedgerDimensionType 'Субконто (дебет)' (userGeneralLedger,dimensionType)= nameDimension(debitUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType));
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += debitUserGeneralLedgerDimensionType(generalLedger,dimensionType);
+debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(debitUserGeneralLedgerDimensionType(generalLedger,dimensionType)) THEN debitUserGeneralLedgerDimensionType(generalLedger,dimensionType);
 CONSTRAINT debitUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType) IF NOT dimensionTypeDimension(debitUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType)) == dimensionType
     CHECKED BY debitUserGeneralLedgerDimensionType
         MESSAGE 'Субконто (дебет) проводки должен соответствовать субконто';
 
-creditGeneralLedgerDimensionType = ABSTRACT Dimension (GeneralLedger, DimensionType) EXCLUSIVE PERSISTENT;
+creditGeneralLedgerDimensionType = ABSTRACT CASE Dimension (GeneralLedger, DimensionType) PERSISTENT;
 nameCreditGeneralLedgerDimensionType 'Субконто (кредит)' (generalLedger,dimensionType)= nameDimension(creditGeneralLedgerDimensionType(generalLedger,dimensionType));
 creditUserGeneralLedgerDimensionType = DATA Dimension (UserGeneralLedger,DimensionType);
 nameCreditUserGeneralLedgerDimensionType 'Субконто (кредит)' (userGeneralLedger,dimensionType)= nameDimension(creditUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType));
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += creditUserGeneralLedgerDimensionType(generalLedger,dimensionType);
+creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(creditUserGeneralLedgerDimensionType(generalLedger,dimensionType)) THEN creditUserGeneralLedgerDimensionType(generalLedger,dimensionType);
 CONSTRAINT creditUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType) IF NOT dimensionTypeDimension(creditUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType)) == dimensionType
     CHECKED BY creditUserGeneralLedgerDimensionType
         MESSAGE 'Субконто (кредит) проводки должен соответствовать субконто';
@@ -262,6 +262,6 @@ NAVIGATOR {
 loadDefaultDimensionGLAccount 'Добавить субконто' = ACTION (integer, sidType, sidAccount, type) {
     SET orderGLAccountDimensionType(g,type) <- integer AS INTEGER WHERE g == GLAccountIdTypeIdGLAccount(sidType, sidAccount);
 }
-loadDefaultDimensionGLAccounts 'Загрузить стандарный субконто для счетов' () = ABSTRACT ACTION () IN loadDefaultGroup;
+loadDefaultDimensionGLAccounts 'Загрузить стандарный субконто для счетов' () = ABSTRACT ACTION LIST () IN loadDefaultGroup;
 
 @implementLoadDefaultData(loadDefaultDimensionGLAccounts);

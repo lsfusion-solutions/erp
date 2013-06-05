@@ -9,7 +9,7 @@ CLASS ABSTRACT LedgerPriceListType 'Регистровый вид цены' : Ba
 nameLedgerPriceListType 'Наименование' = ABSTRACT ISTRING[100](LedgerPriceListType);
 nameBasePriceListType(type) += nameLedgerPriceListType(type) IF type IS LedgerPriceListType;
 
-batchLedgerPriceListType 'Использовать для партий свои цены' = ABSTRACT BOOLEAN (PriceListType) EXCLUSIVE PERSISTENT;
+batchLedgerPriceListType 'Использовать для партий свои цены' = ABSTRACT CASE BOOLEAN (PriceListType) PERSISTENT;
 
 CLASS ABSTRACT PriceListLedger 'Изменение цены';
 TABLE priceListLedger(PriceListLedger);
@@ -179,13 +179,13 @@ CLASS SystemLedgerPriceListType 'Системный вид цены (регис�
 
 nameLedgerPriceListType (type) += staticCaption(type) IF type IS SystemLedgerPriceListType;
 
-batchLedgerPriceListType(type) += type == SystemLedgerPriceListType.accountPriceListType;
+batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
 
-includeVATSystemLedgerPriceListType 'Цена с НДС' = ABSTRACT BOOLEAN (SystemLedgerPriceListType) EXCLUSIVE;
+includeVATSystemLedgerPriceListType 'Цена с НДС' = ABSTRACT CASE BOOLEAN (SystemLedgerPriceListType);
 includeVATLedgerPriceListType (type) += includeVATSystemLedgerPriceListType(type);
 
-inPriceListLedgerSystemLedgerPriceListType = ABSTRACT BOOLEAN (PriceListLedger, SystemLedgerPriceListType) EXCLUSIVE PERSISTENT;
-pricePriceListLedgerSystemLedgerPriceListType = ABSTRACT NUMERIC[14,2] (PriceListLedger, SystemLedgerPriceListType) EXCLUSIVE PERSISTENT;
+inPriceListLedgerSystemLedgerPriceListType = ABSTRACT CASE BOOLEAN (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
+pricePriceListLedgerSystemLedgerPriceListType = ABSTRACT CASE NUMERIC[14,2] (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
 inPriceListLedgerLedgerPriceListType(ledger, type) += inPriceListLedgerSystemLedgerPriceListType(ledger, type);
 pricePriceListLedgerLedgerPriceListType(ledger, type) += pricePriceListLedgerSystemLedgerPriceListType(ledger, type);
 
@@ -258,8 +258,8 @@ META implementSystemLedgerPriceListType (type, objectClass, companyProp, stockPr
 
     companyPriceListLedger (ledger) += companyProp###objectClass(ledger);
 
-    inPriceListLedgerSystemLedgerPriceListType (ledger, type) += TRUE WHEN CLASS(prefix###price###objectClass(ledger)) AND type == SystemLedgerPriceListType.##type##PriceListType;
-    pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += prefix###price###objectClass(ledger) WHEN CLASS(prefix###price###objectClass(ledger)) AND type == SystemLedgerPriceListType.##type##PriceListType;
+    inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(prefix###price###objectClass(ledger)) AND type == SystemLedgerPriceListType.##type##PriceListType THEN TRUE;
+    pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(prefix###price###objectClass(ledger)) AND type == SystemLedgerPriceListType.##type##PriceListType THEN prefix###price###objectClass(ledger);
 
     inPriceListLedgerStock (ledger, stock) += stockProp###objectClass(ledger) == stock;
 END
