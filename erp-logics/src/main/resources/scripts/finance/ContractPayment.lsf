@@ -59,19 +59,19 @@ setRateExchangeContractPayment = ACTION (payment){
 
 //----------------------------------------------- Цвета --------------------------------------------------------------//
 
-backgroundSumContractLedgerDate 'Цвет' (contractLedger, date) = OVERRIDE RGB(255,238,165) IF dateContractLedger(contractLedger) <= (date AS DATE),
-                                                                         RGB(255,160,160) IF dateContractLedger(contractLedger) > (date AS DATE);
-backgroundContractLedgerDate 'Цвет' (contractLedger, date) = RGB(255,160,160) IF dateContractLedger(contractLedger) > (date AS DATE);
+backgroundSumContractLedgerDate 'Цвет' (contractLedger, date) = OVERRIDE RGB(255,238,165) IF dateContractLedger(contractLedger) <= date,
+                                                                         RGB(255,160,160) IF dateContractLedger(contractLedger) > date;
+backgroundContractLedgerDate 'Цвет' (contractLedger, date) = RGB(255,160,160) IF dateContractLedger(contractLedger) > date;
 backgroundSumContract 'Цвет' (contract) = RGB(255,238,165) IF contract IS Contract;
-backgroundSumContractALedgerDate 'Цвет' (contractALedger, date) = OVERRIDE RGB(232,184,146) IF dateContractALedger(contractALedger) <= (date AS DATE),
-                                                                           RGB(255,160,160) IF dateContractALedger(contractALedger) > (date AS DATE);
-backgroundContractALedgerDate 'Цвет' (contractALedger, date) = RGB(255,160,160) IF dateContractALedger(contractALedger) > (date AS DATE);
+backgroundSumContractALedgerDate 'Цвет' (contractALedger, date) = OVERRIDE RGB(232,184,146) IF dateContractALedger(contractALedger) <= date,
+                                                                           RGB(255,160,160) IF dateContractALedger(contractALedger) > date;
+backgroundContractALedgerDate 'Цвет' (contractALedger, date) = RGB(255,160,160) IF dateContractALedger(contractALedger) > date;
 backgroundSumContractA 'Цвет' (contract) = RGB(232,184,146) IF contract IS Contract;
 backgroundBonusSumInContractLedger 'Цвет' (inContractLedger) = RGB(213,249,185) IF inContractLedger IS InContractLedger;
 backgroundBonusSumContract 'Цвет' (contract) = RGB(213,249,185) IF contract IS Contract;
-backgroundPaymentRequestDate 'Цвет' (paymentRequest, date) = RGB(255,160,160) IF datePaymentRequest(paymentRequest) > (date AS DATE);
-backgroundOutContractLedgerDate 'Цвет' (outContractLedger, date) = RGB(255,160,160) IF dateOutContractLedger(outContractLedger) > (date AS DATE);
-backgroundInContractLedgerDate 'Цвет' (inContractLedger, date) = RGB(255,160,160) IF dateInContractLedger(inContractLedger) > (date AS DATE);
+backgroundPaymentRequestDate 'Цвет' (paymentRequest, date) = RGB(255,160,160) IF datePaymentRequest(paymentRequest) > date;
+backgroundOutContractLedgerDate 'Цвет' (outContractLedger, date) = RGB(255,160,160) IF dateOutContractLedger(outContractLedger) > date;
+backgroundInContractLedgerDate 'Цвет' (inContractLedger, date) = RGB(255,160,160) IF dateInContractLedger(inContractLedger) > date;
 
 showTypeExchangeContractPayment(payment) = currencyContractPayment(payment) != currencyAccountToPayment(payment);
 
@@ -133,8 +133,8 @@ payContractDate 'Оплатить по договору' = ACTION (contract, dat
 
     ADDOBJ Payment;
     FOR pm == addedObject() DO {
-        SET datePayment(pm) <- date AS DATE;
-        SET contractPayment(pm) <- contract AS Contract;
+        SET datePayment(pm) <- date;
+        SET contractPayment(pm) <- contract;
         SET sumContractPayment(pm) <- debtSumContractDate(contract, date);
         SET sumFromPayment(pm) <- debtSumContractDate(contract, date) IF currencyContractPayment(pm) == currencyAccountFromPayment(pm);
         SET costOutContractLedgerInContractLedger(pm, inContractLedger) <- debtInContractLedgerDate(inContractLedger, date)
@@ -153,7 +153,7 @@ payPaymentConditionInContractLedgerDate 'Оплатить c учетом бон�
     IF bonusSumInContractLedger(inContractLedger, date) > 0.0 THEN {
         ADDOBJ Payment;
         FOR pm == addedObject() DO {
-            SET datePayment(pm) <- date AS DATE;
+            SET datePayment(pm) <- date;
             SET contractPayment(pm) <- contractInContractLedger(inContractLedger);
             SET sumContractPayment(pm) <- bonusDebtSumInContractLedgerDate(inContractLedger, date);
             SET sumFromPayment(pm) <- bonusDebtSumInContractLedgerDate(inContractLedger, date) IF currencyContractPayment(pm) == currencyAccountFromPayment(pm);
@@ -162,7 +162,7 @@ payPaymentConditionInContractLedgerDate 'Оплатить c учетом бон�
             IF formResult() == FormResult.ok THEN {
                 ADDOBJ CreditMemoOut;
                 FOR cm == addedObject() DO {
-                    SET dateCreditMemoOut(cm) <- date AS DATE;
+                    SET dateCreditMemoOut(cm) <- date;
                     SET contractCreditMemoOut(cm) <- contractInContractLedger(inContractLedger);
                     SET sumCreditMemoOut(cm) <- bonusSumInContractLedger(inContractLedger, date);
                     SET costOutContractLedgerInContractLedger(cm, inContractLedger) <- bonusSumInContractLedger(inContractLedger, date);
@@ -180,8 +180,8 @@ payPaymentConditionContractDate 'Оплатить c учетом бонусов 
     IF bonusSumContractDate(contract, date) > 0.0 THEN {
         ADDOBJ Payment;
         FOR pm == addedObject() DO {
-            SET datePayment(pm) <- date AS DATE;
-            SET contractPayment(pm) <- contract AS Contract;
+            SET datePayment(pm) <- date;
+            SET contractPayment(pm) <- contract;
             SET sumContractPayment(pm) <- bonusDebtSumContractDate(contract, date);
             SET sumFromPayment(pm) <- bonusDebtSumContractDate(contract, date) IF currencyContractPayment(pm) == currencyAccountFromPayment(pm);
             SET costOutContractLedgerInContractLedger(pm, inContractLedger) <- bonusDebtSumInContractLedgerDate(inContractLedger, date)
@@ -190,8 +190,8 @@ payPaymentConditionContractDate 'Оплатить c учетом бонусов 
             IF formResult() == FormResult.ok THEN {
                 ADDOBJ CreditMemoOut;
                 FOR cm == addedObject() DO {
-                    SET dateCreditMemoOut(cm) <- date AS DATE;
-                    SET contractCreditMemoOut(cm) <- contract AS Contract;
+                    SET dateCreditMemoOut(cm) <- date;
+                    SET contractCreditMemoOut(cm) <- contract;
                     SET sumCreditMemoOut(cm) <- bonusSumContractDate(contract, date);
                     SET costOutContractLedgerInContractLedger(cm, inContractLedger) <- bonusSumInContractLedger(inContractLedger, date)
                         WHERE contractCreditMemo(cm) == contractInContractLedger(inContractLedger);
@@ -207,7 +207,7 @@ payPaymentConditionContractDate 'Оплатить c учетом бонусов 
 
 addContractPayment 'Оплатить' = ACTION (contract) NEWSESSION{
     FOR ADDOBJ p = Payment DO{
-        SET contractPayment(p) <- contract AS Contract;
+        SET contractPayment(p) <- contract;
         FORM payment OBJECTS p=p MODAL;
         IF formResult() == FormResult.ok THEN
             EXEC apply();

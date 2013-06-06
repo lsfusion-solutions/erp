@@ -303,7 +303,7 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp)
             FOR terminalDocumentTerminalDocumentDetail(tdd) == document()  DO {
                 ADDOBJ class##Detail;
                 FOR o == addedObject() DO {
-                    SET object###object##Detail(o) <- object AS class;
+                    SET object###object##Detail(o) <- object;
                     SET skuProp###object##Detail(o) <- skuBarcode(barcodeIdDate(barcodeTerminalDocumentDetail(tdd), date###object(object)));
                     SET quantity###object##Detail(o) <- quantityTerminalDocumentDetail(tdd);
                 }
@@ -329,8 +329,8 @@ createMachineryPriceTransactionGroupMachinery (groupMachinery) += ACTION (groupM
 loadDefaultTerminalModel 'Добавить модель терминала' = ACTION (stringOne, stringTwo)  {
     ADDOBJ TerminalModel;
     FOR tm == addedObject() DO {
-         SET nameTerminalModel(tm) <- stringOne AS STRING[110];
-         SET handlerModel(tm) <- stringTwo AS STRING[200];
+         SET nameTerminalModel(tm) <- stringOne;
+         SET handlerModel(tm) <- stringTwo;
     }
 }
 
@@ -343,7 +343,7 @@ loadDefaultTerminalModels 'Загрузить стандартные модел�
 
 // Виды справочников терминалов сбора данных
 loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД' = ACTION (handbookTypeName, idString) {
-    SET idTerminalHandbookType(x) <- idString AS STRING[110] WHERE x==handbookTypeName;
+    SET idTerminalHandbookType(x) <- idString WHERE x==handbookTypeName;
 }
 
 loadDefaultTerminalHandbookTypes 'Загрузить стандартные виды справочников ТСД' = ACTION () {
@@ -356,11 +356,11 @@ loadDefaultTerminalHandbookTypes 'Загрузить стандартные ви
 loadDefaultTerminalDocumentType 'Добавить тип документа ТСД' = ACTION (nameString, gtdt, idTypeString, handbook1String, handbook2String) {
     ADDOBJ TerminalDocumentType;
     FOR tdt == addedObject() DO {
-        SET nameTerminalDocumentType(tdt) <- nameString AS STRING[110];
-        SET groupTerminalDocumentTypeTerminalDocumentType(tdt) <- gtdt AS GroupTerminalDocumentType;
+        SET nameTerminalDocumentType(tdt) <- nameString;
+        SET groupTerminalDocumentTypeTerminalDocumentType(tdt) <- gtdt;
         SET terminalHandbookType1TerminalDocumentType(tdt) <- terminalHandbookTypeID(handbook1String);
         SET terminalHandbookType2TerminalDocumentType(tdt) <- terminalHandbookTypeID(handbook2String);
-        SET idTerminalDocumentType(tdt) <- idTypeString AS STRING[10];
+        SET idTerminalDocumentType(tdt) <- idTypeString;
     }
 }
 
@@ -380,20 +380,20 @@ loadDefaultTerminalDocumentTypes 'Загрузить стандартные ти
 loadDefaultGroupTerminal 'Сгенерировать группу терминалов' = ACTION(equipmentServer, stock, model, gtdt, num) {
     ADDOBJ GroupTerminal;
     FOR g == addedObject() DO {
-        SET stockGroupTerminal(g) <- stock AS Stock;
-        SET equipmentServerGroupMachinery(g) <- equipmentServer AS EquipmentServer;
-        SET nameGroupMachinery(g) <- 'Группа ТСД по умолчанию' AS STRING[110];
-        SET groupTerminalDocumentTypeGroupTerminal(g) <- gtdt AS GroupTerminalDocumentType;
+        SET stockGroupTerminal(g) <- stock;
+        SET equipmentServerGroupMachinery(g) <- equipmentServer;
+        SET nameGroupMachinery(g) <- 'Группа ТСД по умолчанию';
+        SET groupTerminalDocumentTypeGroupTerminal(g) <- gtdt;
 
         LOCAL numTerminal = INTEGER();
         SET numTerminal() <- 0;
-        WHILE numTerminal() < (num AS INTEGER) DO {
+        WHILE numTerminal() < num DO {
             ADDOBJ Terminal;
             FOR t == addedObject() DO {
-                SET groupTerminalTerminal(t) <- g AS GroupTerminal;
+                SET groupTerminalTerminal(t) <- g;
                 SET numTerminal() <- numTerminal() + 1;
                 SET nppMachinery(t) <- numTerminal();
-                SET terminalModelTerminal(t) <- model AS TerminalModel;
+                SET terminalModelTerminal(t) <- model;
             }
         }
     }

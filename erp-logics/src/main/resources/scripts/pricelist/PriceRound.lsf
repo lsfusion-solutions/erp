@@ -31,22 +31,22 @@ fromPriceInterval 'от' = DATA NUMERIC[14,3](PriceInterval) IN base;
 toPriceInterval 'до' = DATA NUMERIC[14,3](PriceInterval) IN base;
 modifierPriceInterval 'Округлённая цена интервала' = DATA NUMERIC[14,2](PriceInterval) IN base;
 
-integerPriceRoundCondition 'Целое' (price, roundCondition) = divideInteger((price AS NUMERIC[14,2]), denominatorPriceRoundCondition(roundCondition));
+integerPriceRoundCondition 'Целое' (price, roundCondition) = divideInteger(price, denominatorPriceRoundCondition(roundCondition));
 
-fractionPriceRoundCondition 'Дробное' (price, roundCondition) = (price AS NUMERIC[14,2]) -
+fractionPriceRoundCondition 'Дробное' (price, roundCondition) = price -
     integerPriceRoundCondition(price, roundCondition) * denominatorPriceRoundCondition(roundCondition);
 
 inPriceIntervalPrice(priceInterval, price) = fractionPriceRoundCondition(price, roundConditionPriceInterval(priceInterval)) >= fromPriceInterval(priceInterval)
     AND fractionPriceRoundCondition(price, roundConditionPriceInterval(priceInterval)) <= toPriceInterval(priceInterval);
 
 priceIntervalPriceRoundCondition (price, roundCondition) = GROUP MAX priceInterval IF inPriceIntervalPrice(priceInterval, price)
-    BY price AS NUMERIC[14,2], roundConditionPriceInterval(priceInterval);
+    BY price, roundConditionPriceInterval(priceInterval);
 
 
-roundPriceRoundCondition (price, roundCondition) = toNumeric14p2(IF (price AS NUMERIC[14,2]) > minPriceRoundCondition(roundCondition) AND priceIntervalPriceRoundCondition (price, roundCondition)
+roundPriceRoundCondition (price, roundCondition) = toNumeric14p2(IF price > minPriceRoundCondition(roundCondition) AND priceIntervalPriceRoundCondition (price, roundCondition)
     THEN integerPriceRoundCondition(price, roundCondition)*denominatorPriceRoundCondition(roundCondition)
         + modifierPriceInterval(priceIntervalPriceRoundCondition (price, roundCondition))
-    ELSE round(price AS NUMERIC[14,2], priceRoundRoundCondition(roundCondition)));
+    ELSE round(price, priceRoundRoundCondition(roundCondition)));
 
 // -------------------- Группы для округления --------------- //
 

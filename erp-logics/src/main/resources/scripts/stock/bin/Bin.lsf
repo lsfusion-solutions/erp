@@ -120,23 +120,23 @@ META defineBinSkuLedgerBalanceProperties(postfix, caption)
                                                                quantityOut##postfix##SkuStockBinDate(sku, stock, bin, date) PERSISTENT;
 
     // без учета текущей даты/времени
-    balanceB##postfix##SkuStockBinDate 'Остаток на начало дня'###caption (sku, stock, bin, date) = (currentBalance##postfix##SkuStockBin(sku, stock, bin) IF date AS DATE)
-                                                                      (-) [GROUP SUM signedQuantity##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn >= (date AS DATE)
+    balanceB##postfix##SkuStockBinDate 'Остаток на начало дня'###caption (sku, stock, bin, date) = currentBalance##postfix##SkuStockBin(sku, stock, bin)
+                                                                      (-) [GROUP SUM signedQuantity##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn >= date
                                                                                  BY sku, stock, bin, date](sku, stock, bin, date);
 
     // с учетом текущей даты/времени
-    balanceA##postfix##SkuStockBinDate 'Остаток на конец дня'###caption (sku, stock, bin, date) = (currentBalance##postfix##SkuStockBin(sku, stock, bin) IF date AS DATE)
-                                                                     (-) [GROUP SUM signedQuantity##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn > (date AS DATE)
+    balanceA##postfix##SkuStockBinDate 'Остаток на конец дня'###caption (sku, stock, bin, date) = currentBalance##postfix##SkuStockBin(sku, stock, bin)
+                                                                     (-) [GROUP SUM signedQuantity##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn > date
                                                                                 BY sku, stock, bin, date](sku, stock, bin, date);
 
     // без учета текущей даты/времени
-    balanceB##postfix##SkuStockBinDateTime 'Остаток (до)'###caption (sku, stock, bin, dateTime) = (currentBalance##postfix##SkuStockBin(sku, stock, bin) IF dateTime AS DATETIME)
-                                                                              (-) [GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) >= (dateTime AS DATETIME)
+    balanceB##postfix##SkuStockBinDateTime 'Остаток (до)'###caption (sku, stock, bin, dateTime) = currentBalance##postfix##SkuStockBin(sku, stock, bin)
+                                                                              (-) [GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) >= dateTime
                                                                                          BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger), dateTime](sku, stock, bin, dateTime);
 
     // с учетом текущей даты/времени
-    balanceA##postfix##SkuStockBinDateTime 'Остаток (после)'###caption (sku, stock, bin, dateTime) = (currentBalance##postfix##SkuStockBin(sku, stock, bin) IF dateTime AS DATETIME)
-                                                                             (-) [GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) > (dateTime AS DATETIME)
+    balanceA##postfix##SkuStockBinDateTime 'Остаток (после)'###caption (sku, stock, bin, dateTime) = currentBalance##postfix##SkuStockBin(sku, stock, bin)
+                                                                             (-) [GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) > dateTime
                                                                                         BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger), dateTime](sku, stock, bin, dateTime);
 
     currentBalance##postfix##SkuBin 'Остаток (всего)'###caption (sku, bin) = GROUP SUM currentBalance##postfix##SkuStockBin(sku, stock, bin) BY sku, bin PERSISTENT;
@@ -161,13 +161,13 @@ META defineBinSkuLedgerBalanceProperties(postfix, caption)
                                                                sumOut##postfix##SkuStockBinDate(sku, stock, bin, date) PERSISTENT;
 
     // без учета текущей даты/времени
-    sumB##postfix##SkuStockBinDate 'Сумма на начало дня'###caption (sku, stock, bin, date) = (currentSum##postfix##SkuStockBin(sku, stock, bin) IF date AS DATE)
-                                                                      (-) [GROUP SUM signedSum##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn >= (date AS DATE)
+    sumB##postfix##SkuStockBinDate 'Сумма на начало дня'###caption (sku, stock, bin, date) = currentSum##postfix##SkuStockBin(sku, stock, bin)
+                                                                      (-) [GROUP SUM signedSum##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn >= date
                                                                                  BY sku, stock, bin, date](sku, stock, bin, date);
 
     // с учетом текущей даты/времени
-    sumA##postfix##SkuStockBinDate 'Сумма на конец дня'###caption (sku, stock, bin, date) = (currentSum##postfix##SkuStockBin(sku, stock, bin) IF date AS DATE)
-                                                                     (-) [GROUP SUM signedSum##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn > (date AS DATE)
+    sumA##postfix##SkuStockBinDate 'Сумма на конец дня'###caption (sku, stock, bin, date) = currentSum##postfix##SkuStockBin(sku, stock, bin)
+                                                                     (-) [GROUP SUM signedSum##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn > date
                                                                                 BY sku, stock, bin, date](sku, stock, bin, date);
 
     averagePrice##postfix##SkuStockBin 'Цена (средневзв.)'###caption (sku, stock, bin) = currentSum##postfix##SkuStockBin(sku, stock, bin) / currentBalance##postfix##SkuStockBin(sku, stock, bin);

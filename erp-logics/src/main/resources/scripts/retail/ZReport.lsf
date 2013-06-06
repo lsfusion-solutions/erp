@@ -372,11 +372,11 @@ discountSumReceiptZReport 'Сумма скидок по чекам Z-отчет�
 discountSumZReport 'Сумма скидок Z-отчета' (zReport) = discountSumReceiptDetailZReport(zReport) (+) discountSumReceiptZReport(zReport);
 
 sumCardDepartmentStoreDateFromTo 'Продано с использованием банк. карточек' (departmentStore, dateFrom, dateTo) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment)==PaymentMeans.paymentMeansCard
-    AND dateReceipt(receiptPayment(payment)) >= (dateFrom AS DATE) AND dateReceipt(receiptPayment(payment)) <= (dateTo AS DATE) AND isPostedReceipt(receiptPayment(payment))
+    AND dateReceipt(receiptPayment(payment)) >= dateFrom AND dateReceipt(receiptPayment(payment)) <= dateTo AND isPostedReceipt(receiptPayment(payment))
         BY departmentStoreReceipt(receiptPayment(payment)), dateFrom, dateTo;
 
 sumSaleDepartmentStoreDateFromTo 'Продано по кассе' (departmentStore, dateFrom, dateTo) = GROUP SUM sumReceiptDetailReceipt(receipt)
-    IF dateReceipt(receipt) >= (dateFrom AS DATE) AND dateReceipt(receipt) <= (dateTo AS DATE) AND isPostedReceipt(receipt)
+    IF dateReceipt(receipt) >= dateFrom AND dateReceipt(receipt) <= dateTo AND isPostedReceipt(receipt)
         BY departmentStoreReceipt(receipt), dateFrom, dateTo;
 
 // Aggregation zReport
@@ -536,9 +536,9 @@ DESIGN zReports FROM DEFAULT{
 loadDefaultPaymentType 'Добавить тип оплаты' = ACTION(string, paymentMeans, sid) {
     ADDOBJ PaymentType;
     FOR p == addedObject() DO {
-        SET namePaymentType(p) <- string AS STRING[110];
-        SET paymentMeansPaymentType(p) <- paymentMeans AS PaymentMeans;
-        SET sidPaymentType(p) <- sid AS STRING[10];
+        SET namePaymentType(p) <- string;
+        SET paymentMeansPaymentType(p) <- paymentMeans;
+        SET sidPaymentType(p) <- sid;
     }
 }
 

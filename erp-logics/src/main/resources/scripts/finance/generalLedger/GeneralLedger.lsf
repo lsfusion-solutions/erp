@@ -90,12 +90,12 @@ editGeneralLedger 'Редактировать' = ABSTRACT ACTION LIST (GeneralLe
 
 META  defineGLAccountSum (caption, concrete, prefix)
     // без учета текущей даты
-    prefix###sumB###concrete###GLAccountCompanyDate 'Сумма на начало дня '###caption (GLAccount, company, date) = (sum###concrete###GLAccountCompany(GLAccount, company) IF date AS DATE)
-                                                                      (-) [GROUP SUM sum###concrete###GLAccountCompanyDate(GLAccount, company, dateIn) IF dateIn >= (date AS DATE)
+    prefix###sumB###concrete###GLAccountCompanyDate 'Сумма на начало дня '###caption (GLAccount, company, date) = sum###concrete###GLAccountCompany(GLAccount, company)
+                                                                      (-) [GROUP SUM sum###concrete###GLAccountCompanyDate(GLAccount, company, dateIn) IF dateIn >= date
                                                                                  BY GLAccount, company, date](GLAccount, company, date);
     // с учетом текущей даты
-    prefix###sumA###concrete###GLAccountCompanyDate 'Сумма на конец дня '###caption (GLAccount, company, date) = (sum###concrete###GLAccountCompany(GLAccount, company) IF date AS DATE)
-                                                                     (-) [GROUP SUM sum###concrete###GLAccountCompanyDate(GLAccount, company, dateIn) IF dateIn > (date AS DATE)
+    prefix###sumA###concrete###GLAccountCompanyDate 'Сумма на конец дня '###caption (GLAccount, company, date) = sum###concrete###GLAccountCompany(GLAccount, company)
+                                                                     (-) [GROUP SUM sum###concrete###GLAccountCompanyDate(GLAccount, company, dateIn) IF dateIn > date
                                                                                 BY GLAccount, company, date](GLAccount, company, date);
 END
 META defineGLAccountBalance (caption, prefix)
@@ -116,10 +116,10 @@ balanceGLAccountCompanyDate 'Сальдо' (GLAccount, company, date) =
     sumDebitGLAccountCompanyDate(GLAccount, company, date) (-) sumCreditGLAccountCompanyDate(GLAccount, company, date);
 
 sumCreditGLAccountCompanyDateFromTo 'Сумма (кредит)' (GLAccount, company, dateFrom, dateTo) = GROUP SUM
-        sumCreditGLAccountCompanyDate(GLAccount, company, date) IF date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE)
+        sumCreditGLAccountCompanyDate(GLAccount, company, date) IF date >= dateFrom AND date <= dateTo
         BY GLAccount, company, dateFrom, dateTo;
 sumDebitGLAccountCompanyDateFromTo 'Сумма (дебет)' (GLAccount, company, dateFrom, dateTo) = GROUP SUM
-        sumDebitGLAccountCompanyDate(GLAccount, company, date) IF date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE)
+        sumDebitGLAccountCompanyDate(GLAccount, company, date) IF date >= dateFrom AND date <= dateTo
         BY GLAccount, company, dateFrom, dateTo;
 balanceGLAccountCompanyDateFromTo 'Сальдо' (GLAccount, company, dateFrom, dateTo) =
     sumDebitGLAccountCompanyDateFromTo(GLAccount, company, dateFrom, dateTo) (-) sumCreditGLAccountCompanyDateFromTo(GLAccount, company, dateFrom, dateTo);

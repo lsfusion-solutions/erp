@@ -252,7 +252,7 @@ quantityNaturalLossDetail (naturalLossDetail) <- percentNaturalLossDetail(natura
          CHANGED(quantityLossNaturalLossDetail(naturalLossDetail));
 
 quantitySoldSkuDepartmentNaturalLoss 'Продано' (sku, stock, dateFrom, dateTo, subNaturalLossGroupDetail) =
-    GROUP SUM quantitySaleLedger(ledger) IF dateSaleLedger(ledger) >= (dateFrom AS DATE) AND dateSaleLedger(ledger) <= (dateTo AS DATE)
+    GROUP SUM quantitySaleLedger(ledger) IF dateSaleLedger(ledger) >= dateFrom AND dateSaleLedger(ledger) <= dateTo
               AND inIntervalNaturalLoss(dateSaleLedger(ledger), subNaturalLossGroupDetail)
               AND subNaturalLossGroupCountrySku(countryStock(stockSaleLedger(ledger)), skuSaleLedger(ledger)) == subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail)
               BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateFrom, dateTo, subNaturalLossGroupDetail;
@@ -274,16 +274,16 @@ toFillNaturalLossDetail 'Заполнить на основе продаж' = AC
         DO {
         FOR ADDOBJ d = NaturalLossDetail DO {
             SET naturalLossNaturalLossDetail(d) <- naturalLoss;
-            SET skuNaturalLossDetail(d) <- sku AS Sku;
-            SET subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku AS Sku);
+            SET skuNaturalLossDetail(d) <- sku;
+            SET subNaturalLossGroupNaturalLossDetail(d) <- subNaturalLossGroupCountrySku(countryNaturalLoss(naturalLossNaturalLossDetail(d)), sku);
             SET quantityLossNaturalLossDetail(d) <- quantitySoldSkuDepartmentNaturalLoss(
-                                                                    sku AS Sku,
+                                                                    sku,
                                                                     stockNaturalLoss(naturalLoss),
                                                                     dateFromNaturalLoss(naturalLoss),
                                                                     dateToNaturalLoss(naturalLoss),
-                                                                    subNaturalLossGroupDetail AS SubNaturalLossGroupDetail);
-            SET subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail AS SubNaturalLossGroupDetail;
-            SET percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail AS SubNaturalLossGroupDetail);
+                                                                    subNaturalLossGroupDetail);
+            SET subNaturalDetailNaturalLossDetail(d) <- subNaturalLossGroupDetail;
+            SET percentNaturalLossDetail(d) <- percentNaturalLossGroupDetail(subNaturalLossGroupDetail);
             SET quantityNaturalLossDetail (d) <- percentNaturalLossDetail(d) * quantityLossNaturalLossDetail(d) /100;
             SET sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
         };
@@ -436,7 +436,7 @@ NAVIGATOR {
 loadDefaultNaturalLossGroup 'Добавить нормы естественной убыли' = ACTION (idCountry, string)  {
     ADDOBJ NaturalLossGroup;
     FOR cg == addedObject() DO {
-         SET nameNaturalLossGroup(cg) <- string AS STRING[110];
+         SET nameNaturalLossGroup(cg) <- string;
          SET countryNaturalLossGroup(cg) <- countrySID(idCountry);
     }
 }
@@ -444,19 +444,19 @@ loadDefaultNaturalLossGroup 'Добавить нормы естественно�
 loadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли' = ACTION (idCountry, string, stringOne, stringTwo, numeric)  {
     ADDOBJ SubNaturalLossGroup;
     FOR g == addedObject() DO {
-        SET parentNaturalLossGroup(g) <- nameToNaturalLossGroup(string AS STRING[110]);
-        SET nameSubNaturalLossGroup(g) <-  stringOne AS STRING[110];
+        SET parentNaturalLossGroup(g) <- nameToNaturalLossGroup(string);
+        SET nameSubNaturalLossGroup(g) <-  stringOne;
         SET countrySubNaturalLossGroup(g) <- countrySID(idCountry);
-        SET codeSubNaturalLossGroup(g) <- stringTwo AS STRING[3];
+        SET codeSubNaturalLossGroup(g) <- stringTwo;
 
         ADDOBJ SubNaturalLossGroupDetail;
         FOR d == addedObject() DO {
-            SET subNaturalLossGroupSubNaturalLossGroupDetail(d) <- g AS SubNaturalLossGroup;
-            SET percentNaturalLossGroupDetail(d) <- numeric AS NUMERIC[10,5];
+            SET subNaturalLossGroupSubNaturalLossGroupDetail(d) <- g;
+            SET percentNaturalLossGroupDetail(d) <- numeric;
             SET dayFromNaturalLossGroupDetail(d) <- 1;
-            SET monthFromNaturalLossGroupDetail(d) <- Month.january AS Month;
+            SET monthFromNaturalLossGroupDetail(d) <- Month.january;
             SET dayToNaturalLossGroupDetail(d) <- 31;
-            SET monthToNaturalLossGroupDetail(d) <- Month.december AS Month;
+            SET monthToNaturalLossGroupDetail(d) <- Month.december;
         }
     }
 }

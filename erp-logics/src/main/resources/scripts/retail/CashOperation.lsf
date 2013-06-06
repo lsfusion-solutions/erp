@@ -31,11 +31,11 @@ CLASS ABSTRACT OutcomeCashOrder 'РКО': CashDocument;
 sumCashIncomeCashOrder 'Сумма' = ABSTRACT NUMERIC[16,2] (IncomeCashOrder) IN documentSumGroup;
 isPrintedIncomeCashOrder 'Напечатан' = DATA BOOLEAN (IncomeCashOrder);
 isNotPrintedIncomeCashOrder 'Не распечатан' (incomeCashOrder) =
-    incomeCashOrder AS IncomeCashOrder  AND NOT isPrintedIncomeCashOrder(incomeCashOrder);
+    incomeCashOrder IS IncomeCashOrder  AND NOT isPrintedIncomeCashOrder(incomeCashOrder);
 
 isPrintedOutcomeCashOrder 'Напечатан' = DATA BOOLEAN (OutcomeCashOrder);
 isNotPrintedOutcomeCashOrder 'Не распечатан' (outcomeCashOrder) =
-    outcomeCashOrder AS OutcomeCashOrder  AND NOT isPrintedOutcomeCashOrder(outcomeCashOrder);
+    outcomeCashOrder IS OutcomeCashOrder  AND NOT isPrintedOutcomeCashOrder(outcomeCashOrder);
 
 curSumIncomeCashOrder 'Текущая сумма ПКО' (departmentStore) =
     GROUP SUM sumCashIncomeCashOrder(incomeCashOrder) IF isPostedCashDocument(incomeCashOrder)
@@ -43,11 +43,11 @@ curSumIncomeCashOrder 'Текущая сумма ПКО' (departmentStore) =
 
 sumAIncomeCashOrderDateTime 'Сумма ПКО после даты/время' (departmentStore, date) =
     GROUP SUM sumCashIncomeCashOrder(incomeCashOrder) IF isPostedCashDocument(incomeCashOrder) AND
-              dateTimeCashDocument(incomeCashOrder) > (date AS DATETIME)
+              dateTimeCashDocument(incomeCashOrder) > date
     BY departmentStoreCashDocument(incomeCashOrder), date;
 
 sumIncomeCashOrderDateTime 'Сумма ПКО на дату/время' (departmentStore, date) =
-    (curSumIncomeCashOrder(departmentStore) IF (date AS DATETIME)) (-)
+    curSumIncomeCashOrder(departmentStore) (-)
     sumAIncomeCashOrderDateTime(departmentStore, date);
 
 sumCashOutcomeCashOrder 'Сумма' = ABSTRACT NUMERIC[16,2] (OutcomeCashOrder) IN documentSumGroup;
@@ -58,11 +58,11 @@ curSumOutcomeCashOrder 'Текущая сумма РКО' (departmentStore) =
 
 sumAOutcomeCashOrderDateTime 'Сумма РКО после даты/время' (departmentStore, date) =
     GROUP SUM sumCashOutcomeCashOrder(outcomeCashOrder) IF isPostedCashDocument(outcomeCashOrder) AND
-              dateTimeCashDocument(outcomeCashOrder) > (date AS DATETIME)
+              dateTimeCashDocument(outcomeCashOrder) > date
     BY departmentStoreCashDocument(outcomeCashOrder), date;
 
 sumOutcomeCashOrderDateTime 'Сумма РКО на дату/время' (departmentStore, date) =
-    (curSumOutcomeCashOrder(departmentStore) IF (date AS DATETIME)) (-)
+    curSumOutcomeCashOrder(departmentStore) (-)
     sumAOutcomeCashOrderDateTime(departmentStore, date);
 
 curSumCashDepartmentStore 'Текущая сумма наличных в центральной кассе' (departmentStore) =
@@ -201,7 +201,7 @@ addCollectionForm 'Инкасация' () = ACTION () {
                 SET dateCollection(c) <- chosenDate('dt');
                 SET timeCollection(c) <- chosenTime('t');
                 SET sumCashCollection(c) <- sumCashForCollection(departmentStore);
-                EXEC setValueNumeratedObject(c AS Collection);
+                EXEC setValueNumeratedObject(c);
             }
         }
         EXEC apply();
@@ -261,11 +261,11 @@ curSumIncomeCashOperation 'Текущая сумма внесенных дене
 
 sumAIncomeCashOperationDateTime 'Сумма внесенных денег после даты/время' (cashRegister, date) =
     GROUP SUM sumCashIncomeCashOperation(incomeCashOperation) IF
-              dateTimeCashOperation(incomeCashOperation) > (date AS DATETIME)
+              dateTimeCashOperation(incomeCashOperation) > date
     BY cashRegisterCashOperation(incomeCashOperation), date;
 
 sumIncomeCashOperationDateTime 'Сумма внесенных денег на дату/время' (cashRegister, date) =
-    (curSumIncomeCashOperation(cashRegister) IF (date AS DATETIME)) (-)
+    curSumIncomeCashOperation(cashRegister) (-)
     sumAIncomeCashOperationDateTime(cashRegister, date);
 
 dateCashDocument(incomeCashOperation) += dateIncomeCashOperation(incomeCashOperation);
@@ -309,11 +309,11 @@ curSumOutcomeCashOperation 'Текущая сумма изъятых денег'
 
 sumAOutcomeCashOperationDateTime 'Сумма изъятых денег после даты/время' (cashRegister, date) =
     GROUP SUM sumCashOutcomeCashOperation(outcomeCashOperation) IF
-              dateTimeCashOperation(outcomeCashOperation) > (date AS DATETIME)
+              dateTimeCashOperation(outcomeCashOperation) > date
     BY cashRegisterCashOperation(outcomeCashOperation), date;
 
 sumOutcomeCashOperationDateTime 'Сумма изъятых денег на дату/время' (cashRegister, date) =
-    (curSumOutcomeCashOperation(cashRegister) IF (date AS DATETIME)) (-)
+    curSumOutcomeCashOperation(cashRegister) (-)
     sumAOutcomeCashOperationDateTime(cashRegister, date);
 
 curSumCashCashOperation 'Текущая сумма наличных в кассе(без Z-отчета)' (cashRegister) =
@@ -426,11 +426,11 @@ addIncomeCashOperationForm 'Внесение денег' () = ACTION () NEWSESSI
         FOR sumCashForIncomeCashOperation(cashRegister) DO {
             ADDOBJ IncomeCashOperation;
             FOR c == addedObject() DO {
-                SET cashRegisterIncomeCashOperation(c) <- (cashRegister AS CashRegister);
-                SET departmentStoreIncomeCashOperation(c) <- departmentStoreCashRegister(cashRegister AS CashRegister);
-                SET sumCashIncomeCashOperation(c) <- sumCashForIncomeCashOperation(cashRegister AS CashRegister);
-                EXEC setValueNumeratedObject(c AS IncomeCashOperation);
-                EXEC fiscalServiceCashRegisterCashOperation(c AS CashOperation);
+                SET cashRegisterIncomeCashOperation(c) <- cashRegister;
+                SET departmentStoreIncomeCashOperation(c) <- departmentStoreCashRegister(cashRegister);
+                SET sumCashIncomeCashOperation(c) <- sumCashForIncomeCashOperation(cashRegister);
+                EXEC setValueNumeratedObject(c);
+                EXEC fiscalServiceCashRegisterCashOperation(c);
             }
         }
         EXEC apply();
@@ -525,11 +525,11 @@ addOutcomeCashOperationForm 'Изъятие денег' () = ACTION () NEWSESSIO
         FOR sumCashForOutcomeCashOperation(cashRegister) DO {
             ADDOBJ OutcomeCashOperation;
             FOR c == addedObject() DO {
-                SET cashRegisterOutcomeCashOperation(c) <- (cashRegister AS CashRegister);
-                SET departmentStoreOutcomeCashOperation(c) <- departmentStoreCashRegister(cashRegister AS CashRegister);
-                SET sumCashOutcomeCashOperation(c) <- sumCashForOutcomeCashOperation(cashRegister AS CashRegister);
-                EXEC setValueNumeratedObject(c AS OutcomeCashOperation);
-                EXEC fiscalServiceCashRegisterCashOperation(c AS CashOperation);
+                SET cashRegisterOutcomeCashOperation(c) <- cashRegister;
+                SET departmentStoreOutcomeCashOperation(c) <- departmentStoreCashRegister(cashRegister);
+                SET sumCashOutcomeCashOperation(c) <- sumCashForOutcomeCashOperation(cashRegister);
+                EXEC setValueNumeratedObject(c);
+                EXEC fiscalServiceCashRegisterCashOperation(c);
             }
         }
         EXEC apply();
@@ -556,8 +556,8 @@ FORM operationCashRegister 'Кассовые операции'
     PROPERTIES editIncomeCashOperation(c) SHOWIF isIncomeCashOperation(c)
     PROPERTIES editOutcomeCashOperation(c) SHOWIF isOutcomeCashOperation(c)
 
-    FILTERS dateCashOperation(c) >= (dFrom AS DATE),
-            dateCashOperation(c) <= (dTo AS DATE)
+    FILTERS dateCashOperation(c) >= dFrom,
+            dateCashOperation(c) <= dTo
 
     PROPERTIES fiscalXReport() SHOWIF currentCashRegister()
     ORDER BY dateCashOperation, timeCashOperation
@@ -610,8 +610,8 @@ FORM centralCashRegister 'Центральная касса'
     ORDER BY dateCashDocument, timeCashDocument
 
     FILTERS departmentStoreCashDocument(i) == d,
-            dateCashDocument(i) >= (dFrom AS DATE),
-            dateCashDocument(i) <= (dTo AS DATE)
+            dateCashDocument(i) >= dFrom,
+            dateCashDocument(i) <= dTo
 
     OBJECTS o = OutcomeCashOrder
     PROPERTIES(o) READONLY numberCashDocument, dateCashDocument, timeCashDocument, nameDepartmentStoreCashDocument,
@@ -623,8 +623,8 @@ FORM centralCashRegister 'Центральная касса'
     PROPERTIES(o) DELETE
     ORDER BY dateCashDocument(o), timeCashDocument(o)
     FILTERS departmentStoreCashDocument(o) == d,
-            dateCashDocument(o) >= (dFrom AS DATE),
-            dateCashDocument(o) <= (dTo AS DATE),
+            dateCashDocument(o) >= dFrom,
+            dateCashDocument(o) <= dTo,
             isPostedCashDocument(i),
             isPostedCashDocument(o)
 ;

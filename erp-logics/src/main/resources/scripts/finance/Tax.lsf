@@ -32,8 +32,8 @@ maxDataRangeTax(tax, country) = OVERRIDE 0 IF tax IS Tax AND country IS Country,
 addNewRange 'Добавить шкалу' = ACTION (tax, country) {
     ADDOBJ Range;
     SET numberRange(r) <- maxDataRangeTax(tax, country) + 1 WHERE r == addedObject();
-    SET countryRange(r) <- country AS Country WHERE r == addedObject();
-    SET taxRange(r) <- tax AS Tax WHERE r == addedObject();
+    SET countryRange(r) <- country WHERE r == addedObject();
+    SET taxRange(r) <- tax WHERE r == addedObject();
 } TOOLBAR IMAGE 'add.png';
 
 CLASS RangeType 'Для каких подразделений действует шкала' {
@@ -91,7 +91,7 @@ valueRate 'Значение ставки' = DATA NUMERIC[10,5] (Rate) IN recogni
 dateFromRate 'Действует с' = DATA DATE (Rate) IN base;
 dateToRate 'Действует по' = DATA DATE (Rate) IN base;
 
-rateRangeDate(range, date) = GROUP MAX rate IF dateFromRate(rate) <= date AND NOT dateToRate(rate) < date AND date AS DATE
+rateRangeDate(range, date) = GROUP MAX rate IF dateFromRate(rate) <= date AND NOT dateToRate(rate) < date
                                          BY rangeRate(rate), date;
 valueRateRangeDate 'На дату' (range, date) = valueRate(rateRangeDate(range, date)) COMPLEX;
 
@@ -549,11 +549,11 @@ loadDefaultVAT 'Добавить значение НДС' = ACTION (idCountry, n
        SET rangeTypeRange(rn) <- RangeType.common;
        SET taxRange(rn) <- Tax.taxVAT;
        SET countryRange(rn) <- countrySID(idCountry);
-       SET numberRange(rn) <- number AS INTEGER;
+       SET numberRange(rn) <- number;
        ADDOBJ Rate;
        FOR ra == addedObject() DO {
-          SET rangeRate(ra) <- rn AS Range;
-          SET valueRate(ra) <- value AS NUMERIC[10,5];
+          SET rangeRate(ra) <- rn;
+          SET valueRate(ra) <- value;
           SET dateFromRate(ra) <- 2001_01_01;
        };
     };

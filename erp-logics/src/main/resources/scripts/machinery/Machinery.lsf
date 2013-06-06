@@ -391,7 +391,7 @@ inGroupMachinerySku 'Вкл' (groupMachinery, sku) = groupMachinery IS GroupMach
 snapshotAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
 
 snapshotGroupMachineryDepartmentStore 'Перезагрузить прайс' = ACTION (stock) NEWSESSION {
-    FORM groupMachineryInput OBJECTS s = (stock AS Stock) MODAL;
+    FORM groupMachineryInput OBJECTS s = stock MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL groupMachinery = GroupMachinery ();
         SET groupMachinery() <- chosenObject('g');
@@ -461,12 +461,12 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
         IF countBarcode() THEN {
             EXEC createMachineryPriceTransactionGroupMachinery(groupMachinery);
             FOR t == addedObject() DO {
-                SET groupMachineryMachineryPriceTransaction(t) <- groupMachinery AS GroupMachinery;
+                SET groupMachineryMachineryPriceTransaction(t) <- groupMachinery;
                 SET priceTransactionDocumentMachineryPriceTransaction(t) <- createMachineryPriceTransactionDocument();
                 SET commentMachineryPriceTransaction(t) <- createMachineryPriceTransactionComment();
                 SET inMachineryPriceTransactionBarcode(t, barcode) <- inBarcode(barcode);
                 EXEC createAttributeMachineryPriceTransaction(t);
-                EXEC createAttributeMachineryPriceTransactionStock(t, stock AS Stock); //добавлен AS Stock
+                EXEC createAttributeMachineryPriceTransactionStock(t, stock);
                 EXEC createAttributeMachineryPriceTransactionGroupMachinery(t, groupMachineryMachineryPriceTransaction(t));
                 SET priceMachineryPriceTransactionBarcode(t, barcode) <- priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
             }
@@ -486,13 +486,13 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
 createBalanceMachineryPriceTransaction 'Остатки' = ACTION (stock) NEWSESSION AUTOAPPLY {
     SET createMachineryPriceTransactionSku(sku) <- TRUE IF currentBalanceSkuStock(sku, stock);
     SET createMachineryPriceTransactionComment() <- 'Инкрементная загрузка остатков';
-    EXEC createMachineryPriceTransaction(stock AS Stock);
+    EXEC createMachineryPriceTransaction(stock);
 } CONFIRM IN incrementMachineryPriceGroup;
 
 createPriceMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION AUTOAPPLY {
     SET createMachineryPriceTransactionSku(sku) <- TRUE;
     SET createMachineryPriceTransactionComment() <- 'Инкрементная загрузка товаров';
-    EXEC createMachineryPriceTransaction(stock AS Stock);
+    EXEC createMachineryPriceTransaction(stock);
 } CONFIRM IN incrementMachineryPriceGroup;
 
 EXTEND FORM machineryPriceTransactions
@@ -549,7 +549,7 @@ END
 META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
     create###document##MachineryPriceTransaction 'Загрузить в оборудование' = ACTION (document) NEWSESSION AUTOAPPLY {
         SET createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
-        SET createMachineryPriceTransactionDocument() <- document AS Machinery.PriceTransactionDocument;
+        SET createMachineryPriceTransactionDocument() <- document;
         EXEC createMachineryPriceTransaction(stockProp###document(document));
         SET sentPriceTransactionDocument(document) <- TRUE;
     } TOOLBAR CONFIRM;
@@ -557,7 +557,7 @@ META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
     createSnapshot###document##MachineryPriceTransaction 'Перегрузить все позиции' = ACTION (document) NEWSESSION AUTOAPPLY {
         SET createMachineryPriceTransactionSnapshot() <- TRUE;
         SET createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
-        SET createMachineryPriceTransactionDocument() <- document AS Machinery.PriceTransactionDocument;
+        SET createMachineryPriceTransactionDocument() <- document;
         EXEC createMachineryPriceTransaction(stockProp###document(document));
         SET sentPriceTransactionDocument(document) <- TRUE;
     } CONFIRM;
