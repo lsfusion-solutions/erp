@@ -402,7 +402,7 @@ deleteComponentsOrder 'Очистить' =  ACTION (order) {
 } TOOLBAR;
 
 // Sku с учетом замены
-skuSkuOrder (sku, order) = OVERRIDE sku AS Sku IF order IS Order, substituteSkuOrder(sku,order) PERSISTENT;
+skuSkuOrder (sku, order) = OVERRIDE sku IF bruttoQuantitySkuOrder(sku, order), substituteSkuOrder(sku,order) PERSISTENT;
 
 nameSkuSkuOrder 'Итоговый sku' (sku,order)= nameSku(skuSkuOrder (sku,order));
 idBarcodeSkuSkuOrder 'Штрих-код' (sku,order) = idBarcodeSku(skuSkuOrder (sku, order));
@@ -413,7 +413,7 @@ priceSkuOrder 'Цена с учетом коэфф. замены' (sku, order) =
 // Надбавки на компоненты
 markupSkuOrder 'Надбавка, %' = DATA NUMERIC[8,2] (Sku, Order);
 
-multiplierCalcSkuOrder(sku, order) = ((100.00 IF sku IS Sku AND order IS Order) (+) markupSkuOrder(sku, order)) / 100 PERSISTENT;
+multiplierCalcSkuOrder(sku, order) = ((100.00 IF bruttoQuantitySkuOrder(sku, order)) (+) markupSkuOrder(sku, order)) / 100 PERSISTENT;
 
 // Цена компонент с надбавкой
 premiumPriceSkuOrder 'Цена с надбавкой' = DATA NUMERIC[14,2] (Sku, Order);
