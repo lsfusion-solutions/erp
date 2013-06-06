@@ -592,6 +592,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     quantityOut##postfix##SkuStockDate (sku, stock, date) =
         GROUP SUM quantityOutActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger) PERSISTENT;
 
+
     quantity##postfix##SkuStockDate (sku, stock, date) = quantityIn##postfix##SkuStockDate(sku, stock, date)
                                                          (+)
                                                          quantityOut##postfix##SkuStockDate(sku, stock, date) PERSISTENT;
@@ -599,6 +600,14 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     signedQuantity##postfix##SkuStockDate (sku, stock, date) = quantityIn##postfix##SkuStockDate(sku, stock, date)
                                                                (-)
                                                                quantityOut##postfix##SkuStockDate(sku, stock, date) PERSISTENT;
+
+    quantitySumIn##postfix##SkuStockDateDate 'Кол-во товара пришедшего за период' (sku, stock, date1, date2) =
+        GROUP SUM quantityIn##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn>=date1 IF dateIn<=date2 IF date1 AS DATE IF date2 AS DATE
+        BY sku, stock, date1, date2;
+
+    quantitySumOut##postfix##SkuStockDateDate 'Кол-во товара ушедшего за период' (sku, stock, date1, date2) =
+        GROUP SUM quantityOut##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn>=date1 IF dateIn<=date2 IF date1 AS DATE IF date2 AS DATE
+        BY sku, stock, date1, date2;
 
     // без учета текущей даты/времени
     balanceB##postfix##SkuStockDate 'Остаток на начало дня'###caption (sku, stock, date) = currentBalance##postfix##SkuStock(sku, stock)
@@ -668,10 +677,18 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
                                                                       (-) [GROUP SUM signedSum##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn >= date
                                                                                  BY sku, stock, date](sku, stock, date);
 
+    sumB##postfix##SkuGroupStockDate 'Учетная сумма группы товаров на начало дня' (group, stock, date) =
+        GROUP SUM sumB##postfix##SkuStockDate (sku, stock, date) IF isParentGroupSku(group, sku)
+        BY group, stock, date;
+
     // с учетом текущей даты/времени
     sumA##postfix##SkuStockDate 'Сумма на конец дня'###caption (sku, stock, date) = currentSum##postfix##SkuStock(sku, stock)
                                                                      (-) [GROUP SUM signedSum##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn > date
                                                                                 BY sku, stock, date](sku, stock, date);
+
+    sumA##postfix##SkuGroupStockDate 'Учетная сумма группы товаров на конец дня' (group, stock, date) =
+        GROUP SUM sumA##postfix##SkuStockDate (sku, stock, date) IF isParentGroupSku(group, sku)
+        BY group, stock, date;
 
     averagePrice##postfix##SkuStock 'Цена (средневзв.)'###caption (sku, stock) = currentSum##postfix##SkuStock(sku, stock) / currentBalance##postfix##SkuStock(sku, stock); // IF NOT currentBalance##postfix##SkuStock(sku, stock) == 0; (возможно не нужно, так как 0 не может быть в GROUP SUM )
 
@@ -725,11 +742,18 @@ balanceABatchStockDate 'Остаток на конец дня' (batch, stock, da
     (-) [GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateTimeSkuLedger(ledger) > dateTime
     BY batch, stockSkuLedger(ledger), dateTime](batch, stock, dateTime);
 
+
 // --------------------------------------- Суммы ----------------------------------------------------- //
 
-costSumBatchStockDateFrom 'Сумма на начало' (batch, stock, dateFrom) = costBatch(batch) * balanceBBatchStockDate(batch, stock, dateFrom);
+costSumBBatchStockDate 'Сумма на начало дня' (batch, stock, date) = costBatch(batch) * balanceBBatchStockDate(batch, stock, date);
+costSumBSkuGroupBatchStockDate 'Сумма на начало дня' (group, stock, date) =
+    GROUP SUM costSumBBatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
+    BY group, stock, date;
 
-costSumBatchStockDateTo 'Сумма на конец' (batch, stock, dateTo) = costBatch(batch) * balanceABatchStockDate(batch, stock, dateTo);
+costSumABatchStockDate 'Сумма на конец дня' (batch, stock, date) = costBatch(batch) * balanceABatchStockDate(batch, stock, date);
+costSumASkuGroupBatchStockDate 'Сумма на конец дня' (group, stock, date) =
+    GROUP SUM costSumABatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
+    BY group, stock, date;
 
 //---------------------------------------------- За период ------------------------------------------//
 
@@ -3509,238 +3533,6 @@ META implementDocumentSupplierCustomer(object)
     customerStockDocument(object) += customerStock###object(object);
 END
 
-//Печатные формы
-
-dataInSessionGroup 'Отм.' = DATA SESSION BOOLEAN (Group);
-
-levelParentGroup (group) = GROUP MIN levelGroupGroup(group, parent) IF dataInSessionGroup(parent)
-    BY group PERSISTENT;
-
-inParentGroup (group) = TRUE IF levelParentGroup(group) PERSISTENT;
-
-inSessionGroup 'Отм.' (group) = OVERRIDE
-    inParentGroup(group),
-    dataInSessionGroup(group);
-
-sessionConcatGroups 'Склады' (groupType) =
-    GROUP CONCAT nameGroup(group) IF inSessionGroup(group) AND NOT inSessionGroup(parentGroup(group)),','
-    BY groupTypeGroup(group);
-
-//остатки по товарам
-FORM printListBalanceSkusStock 'Остатки по товарам' PRINT
-    OBJECTS dt = DATETIME FIXED PANEL
-    PROPERTIES(dt) OBJVALUE
-
-    OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) SELECTOR nameStock
-
-    OBJECTS gt = GroupType FIXED PANEL
-    PROPERTIES(gt) SELECTOR nameGroupType
-    PROPERTIES(gt) READONLY sessionConcatGroups
-
-    TREE sk = Group
-    PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
-    FILTERS inSessionGroup(sk) AND isLeafGroup(sk)
-    FILTERS groupTypeGroup(sk) == gt
-
-//    PROPERTIES(sk, st, dt) READONLY balanceAGroupStockDateTime
-//    FILTERS balanceAGroupStockDateTime(sk, st, dt)
-
-    OBJECTS s = Sku
-    PROPERTIES(s) READONLY nameSku, shortNameUOMSku
-    ORDER BY nameSku
-    FILTERS isParentGroupSku(sk, s)
-
-    PROPERTIES(s, st, dt) READONLY balanceASkuStockDateTime
-    FILTERS balanceASkuStockDateTime(s, st, dt)
-;
-
-printListBalanceSkusStockDateTime 'Списком' (stock, dateTime) =
-    ACTION FORM printListBalanceSkusStock OBJECTS st = stock, dt = dateTime  IMAGE 'print.png' IN printGroup;
-
-FORM printBalanceSkusStock 'Остатки по товарам' PRINT
-    OBJECTS dt = DATETIME FIXED PANEL
-    PROPERTIES(dt) OBJVALUE
-
-    OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) SELECTOR nameStock
-
-    OBJECTS gt = GroupType FIXED PANEL
-    PROPERTIES(gt) SELECTOR nameGroupType
-    PROPERTIES(gt) READONLY sessionConcatGroups
-
-    TREE sk = Group
-    PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
-    FILTERS inSessionGroup(sk) AND isLeafGroup(sk)
-    FILTERS groupTypeGroup(sk) == gt
-
-//    PROPERTIES(sk, st, dt) READONLY balanceAGroupStockDateTime
-//    FILTERS balanceAGroupStockDateTime(sk, st, dt)
-
-    OBJECTS s = Sku
-    PROPERTIES(s) READONLY nameSku, shortNameUOMSku
-    ORDER BY nameSku
-    FILTERS isParentGroupSku(sk, s)
-
-    PROPERTIES(s, st, dt) READONLY balanceASkuStockDateTime
-    FILTERS balanceASkuStockDateTime(s, st, dt)
-;
-
-printBalanceSkusStockDateTime 'По группам' (stock, dateTime) =
-    ACTION FORM printBalanceSkusStock OBJECTS st = stock, dt = dateTime  IMAGE 'print.png' IN printGroup;
-
-//остатки по партиям
-FORM printListBalanceBatchesStock 'Остатки по партиям' PRINT
-    OBJECTS dt = DATETIME FIXED PANEL
-    PROPERTIES(dt) OBJVALUE
-
-    OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) SELECTOR nameStock
-
-    OBJECTS gt = GroupType FIXED PANEL
-    PROPERTIES(gt) SELECTOR nameGroupType
-    PROPERTIES(gt) READONLY sessionConcatGroups
-
-    TREE sk = Group
-    PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
-    FILTERS inSessionGroup(sk) AND isLeafGroup(sk)
-    FILTERS groupTypeGroup(sk) == gt
-
-//    PROPERTIES(sk, st, dt) READONLY balanceAGroupStockDateTime
-//    FILTERS balanceAGroupStockDateTime(sk, st, dt)
-
-    OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY dateBatch, nameBatch, nameSkuBatch, shortNameUOMBatch//, quantityBatch
-    FILTERS           isParentGroupBatch(sk, bt)
-    ORDER BY          dateBatch, nameBatch, nameSkuBatch
-
-    PROPERTIES(bt, st, dt) READONLY balanceABatchStockDateTime
-    FILTERS balanceABatchStockDateTime(bt, st, dt)
-;
-
-printListBalanceBatchesStockDateTime 'Списком' (stock, dateTime) =
-    ACTION FORM printListBalanceBatchesStock OBJECTS st = stock, dt = dateTime  IMAGE 'print.png' IN printGroup;
-
-FORM printBalanceBatchesStock 'Остатки по партиям' PRINT
-    OBJECTS dt = DATETIME FIXED PANEL
-    PROPERTIES(dt) OBJVALUE
-
-    OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) SELECTOR nameStock
-
-    OBJECTS gt = GroupType FIXED PANEL
-    PROPERTIES(gt) SELECTOR nameGroupType
-    PROPERTIES(gt) READONLY sessionConcatGroups
-
-    TREE sk = Group
-    PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
-    FILTERS inSessionGroup(sk) AND isLeafGroup(sk)
-    FILTERS groupTypeGroup(sk) == gt
-
-//    PROPERTIES(sk, st, dt) READONLY balanceAGroupStockDateTime
-//    FILTERS balanceAGroupStockDateTime(sk, st, dt)
-
-    OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY dateBatch, nameBatch, nameSkuBatch, shortNameUOMBatch//, quantityBatch
-    FILTERS           isParentGroupBatch(sk, bt)
-    ORDER BY          dateBatch, nameBatch, nameSkuBatch
-
-    PROPERTIES(bt, st, dt) READONLY balanceABatchStockDateTime
-    FILTERS balanceABatchStockDateTime(bt, st, dt)
-;
-
-printBalanceBatchesStockDateTime 'По группам' (stock, dateTime) =
-    ACTION FORM printBalanceBatchesStock OBJECTS st = stock, dt = dateTime  IMAGE 'print.png' IN printGroup;
-
-FORM reportBalanceStock 'Отчет по остакам'
-    OBJECTS dt=DATETIME FIXED PANEL
-    PROPERTIES(dt) OBJVALUE
-
-    OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) SELECTOR nameStock
-
-    OBJECTS gt = GroupType FIXED PANEL
-    PROPERTIES(gt) SELECTOR nameGroupType
-//    PROPERTIES(gt) READONLY sessionConcatGroups
-
-    TREE skuTree sk = Group PARENT parentGroup
-    PROPERTIES READONLY skuTreeName = nameGroup(sk)
-    PROPERTIES inSessionGroup(sk)
-    ORDER BY skuTreeName
-    FILTERS groupTypeGroup(sk) == gt
-
-//    PROPERTIES(sk, st, dt) READONLY balanceAGroupStockDateTime
-//    FILTERS balanceAGroupStockDateTime(sk, st, dt)
-
-    OBJECTS s = Sku
-    PROPERTIES(s) READONLY nameSku, shortNameUOMSku
-    ORDER BY nameSku
-    FILTERS isParentGroupSku(sk, s)
-
-    PROPERTIES(s, st, dt) READONLY balanceASkuStockDateTime
-    PROPERTIES(st, dt) printListBalanceSkusStockDateTime, printBalanceSkusStockDateTime
-    FILTERS balanceASkuStockDateTime(s, st, dt)
-
-    OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY dateBatch, nameBatch, nameSkuBatch, shortNameUOMBatch//, quantityBatch
-    FILTERS           isParentGroupBatch(sk, bt)
-    ORDER BY          dateBatch, nameBatch, nameSkuBatch
-
-    PROPERTIES(bt, st, dt) READONLY balanceABatchStockDateTime
-    PROPERTIES(st, dt) printListBalanceBatchesStockDateTime, printBalanceBatchesStockDateTime
-    FILTERS balanceABatchStockDateTime(bt, st, dt)
-;
-
-DESIGN reportBalanceStock FROM DEFAULT{
-    NEW topContainer{
-        childConstraints = TO THE RIGHT;
-        ADD dt.box;
-        ADD st.box;
-        ADD gt.box{ADD PROPERTY(inSessionGroup);}
-    }
-    NEW bottomContainer{
-        childConstraints = TO THE RIGHT;
-        type = SPLITH;
-        ADD skuTree.tree.box;
-        NEW tabContainer{
-            type = TABBED;
-            fillHorizontal = 2;
-            NEW skuContainer{
-                caption = 'Товары';
-                childConstraints = TO THE BOTTOM;
-                NEW printSkuContainer{
-                    childConstraints = TO THE RIGHT;
-                    caption = 'Печать';
-                    ADD PROPERTY(printListBalanceSkusStockDateTime);
-                    ADD PROPERTY(printBalanceSkusStockDateTime);
-                }
-                ADD s.box;
-            }
-            NEW batchContainer{
-                caption = 'Партии';
-                childConstraints = TO THE BOTTOM;
-                NEW printBatchContainer{
-                    childConstraints = TO THE RIGHT;
-                    caption = 'Печать';
-                    ADD PROPERTY(printListBalanceBatchesStockDateTime);
-                    ADD PROPERTY(printBalanceBatchesStockDateTime);
-                }
-                ADD bt.box;
-            }
-        }
-    }
-    ADD functions.box;
-}
-
-NAVIGATOR {
-    stockReports{
-        ADD reportBalanceStock;
-    }
-}
 
 // ------------------------------------------------ Стандартные значения --------------------------------------- //
 
