@@ -251,12 +251,44 @@ EXTEND FORM generalLedgers
     PROPERTIES(g) READONLY AFTER idCreditGeneralLedger(g) dimensionsCreditGeneralLedger
 ;
 
+
+
+//------------------- Пользовательское субконто ---------------------//
+CLASS UserDimension 'Субконто (польз.)' : Dimension;
+
+TABLE userDimension(UserDimension);
+nameUserDimension 'Название' = DATA ISTRING[255] (UserDimension) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+nameDimension(dimension)+= nameUserDimension(dimension);
+
+dimensionTypeUserDimension = DATA DimensionType (UserDimension);
+nameDimensionTypeUserDimension 'Тип субконто' (dimension) = nameDimensionType(dimensionTypeUserDimension(dimension));
+
+dimensionTypeDimension (dimension) += WHEN dimension IS UserDimension THEN dimensionTypeUserDimension(dimension);
+
+EXTEND CLASS DimensionType { userDimensionType 'Пользовательский тип' }
+
+
+FORM userDimension 'Субконто (польз.)'
+    OBJECTS t=UserDimension FIXED PANEL
+    PROPERTIES(t) nameUserDimension, nameDimensionTypeUserDimension
+    EDIT UserDimension OBJECT t
+;
+
+FORM userDimensions 'Субконто (польз.)'
+    OBJECTS t=UserDimension
+    PROPERTIES(t) nameUserDimension, nameDimensionTypeUserDimension READONLY, DELETE
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameUserDimension
+    DIALOG UserDimension OBJECT t
+;
+DESIGN userDimensions FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
 NAVIGATOR {
     accountType {
         ADD dimensionTypes;
+        ADD userDimensions;
     }
 }
-
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultDimensionGLAccount 'Добавить субконто' = ACTION (integer, sidType, sidAccount, type) {
