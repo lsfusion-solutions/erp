@@ -29,33 +29,19 @@ CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(retailPric
            CHECKED BY retailPriceListTypeUserInvoiceDetail
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
-retailPriceListTypeUserInvoiceDetail(detail) <- IF prevPricePriceListTypeSkuStockDateTime(calcRetailPriceListTypeUserInvoiceDetail(detail),
-                                                                                          skuUserInvoiceDetail(detail),
-                                                                                          customerStockUserInvoiceDetail(detail),
-                                                                                          dateTimeUserInvoiceDetail(detail))
-                                                    THEN calcRetailPriceListTypeUserInvoiceDetail(detail)
-                                                    ELSE calcRetailCalcPriceListTypeUserInvoiceDetail(detail)
-
-                                                WHEN CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
-                                                     CHANGED(skuUserInvoiceDetail(detail)) OR
-                                                     CHANGED(customerStockUserInvoiceDetail(detail)) OR
-                                                     CHANGED(dateTimeUserInvoiceDetail(detail));
-
 // Записываем в вид цены управленческий вид цены, если по нему есть цена, иначе - надбавку
-//WHEN SESSION FORMS userInvoice
-//     CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
-//     CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
-//     CHANGED(skuUserInvoiceDetail(detail)) OR
-//     CHANGED(customerStockUserInvoiceDetail(detail)) OR
-//     CHANGED(dateTimeUserInvoiceDetail(detail)) NOINLINE DO {
-//
-//     retailPriceListTypeUserInvoiceDetail(detail) <- IF prevPricePriceListTypeSkuStockDateTime(calcRetailPriceListTypeUserInvoiceDetail(detail),
-//                                                                                               skuUserInvoiceDetail(detail),
-//                                                                                               customerStockUserInvoiceDetail(detail),
-//                                                                                               dateTimeUserInvoiceDetail(detail))
-//                                                        THEN calcRetailPriceListTypeUserInvoiceDetail(detail)
-//                                                        ELSE calcRetailCalcPriceListTypeUserInvoiceDetail(detail);
-//}
+WHEN SESSION FORMS userInvoice PREVSTART ALL
+    (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
+     CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
+     CHANGED(skuUserInvoiceDetail(detail)) OR
+     CHANGED(customerStockUserInvoiceDetail(detail)) OR
+     CHANGED(dateTimeUserInvoiceDetail(detail))) AND pt == calcRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
+     retailPriceListTypeUserInvoiceDetail(detail) <- IF prevPricePriceListTypeSkuStockDateTime(pt,
+                                                                                               skuUserInvoiceDetail(detail),
+                                                                                               customerStockUserInvoiceDetail(detail),
+                                                                                               dateTimeUserInvoiceDetail(detail))
+                                                        THEN pt
+                                                        ELSE calcRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
 // Округление розничной цен (если указан расчетный вид цены, то от него, иначе от склада)
 roundConditionUserInvoiceDetail(userInvoiceDetail) =

@@ -39,16 +39,17 @@ CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(purchaseRe
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
 WHEN SESSION FORMS userInvoice PREVSTART ALL // цены берем на начало сессии, а не этого event'а
-        (CHANGED(calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail)) OR
-        CHANGED(calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
-        CHANGED(skuUserInvoiceDetail(detail)) OR
-        CHANGED(customerStockUserInvoiceDetail(detail)) OR
-        CHANGED(dateTimeUserInvoiceDetail(detail))) AND pt == calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
+   (CHANGED(calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail)) OR
+    CHANGED(calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
+    CHANGED(skuUserInvoiceDetail(detail)) OR
+    CHANGED(customerStockUserInvoiceDetail(detail)) OR
+    CHANGED(dateTimeUserInvoiceDetail(detail))) AND pt == calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
     purchaseRetailPriceListTypeUserInvoiceDetail(detail) <- IF prevPricePriceListTypeSkuStockDateTime(pt,
                                                                                           skuUserInvoiceDetail(detail),
                                                                                           customerStockUserInvoiceDetail(detail),
                                                                                           dateTimeUserInvoiceDetail(detail))
-                                                    THEN pt ELSE calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail);
+                                                            THEN pt
+                                                            ELSE calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
 
 // Базовая цена
