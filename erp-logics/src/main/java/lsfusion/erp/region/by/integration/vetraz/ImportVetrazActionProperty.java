@@ -149,7 +149,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             String[] ownership = getAndTrimOwnershipFromName(name);
             String type = getFieldValue(importFile, "K_VAN", "Cp866", null);
             Boolean isSupplier = "ПС".equals(type);
-            if (isSupplier && !name.isEmpty())
+            if (isSupplier && !idLegalEntity.isEmpty())
                 data.add(new LegalEntity(idLegalEntity, ownership[2], address, unp, okpo, null, null, ownership[1],
                         ownership[0], account, null, null, null, nameCountry, isSupplier ? true : null, null, null));
         }
@@ -376,7 +376,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
                     numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin, rateExchange, homePrice,
                     priceDuty, isHomeCurrency, showDeclaration, true, shortNameCurrency, codeCustomsGroup,
                     allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null));
-        }
+            }
         return data;
     }
 
@@ -387,7 +387,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
         if (data != null) {
             ImportField idItemField = new ImportField(LM.findLCPByCompoundName("idItem"));
             ImportField idSubstanceField = new ImportField(LM.findLCPByCompoundName("idSubstance"));
-            ImportField idPharmacyPriceGroupField = new ImportField(LM.findLCPByCompoundName("idPharmacyPriceGroup"));
+            ImportField idPharmacyPriceGroupField = new ImportField(LM.findLCPByCompoundName("ImportPharmacy.idPharmacyPriceGroup"));
 
             ImportKey<?> itemKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Item"),
                     LM.findLCPByCompoundName("itemId").getMapping(idItemField));
@@ -405,7 +405,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             props.add(new ImportProperty(idSubstanceField, LM.findLCPByCompoundName("substanceItem").getMapping(itemKey),
                     LM.object(LM.findClassByCompoundName("Substance")).getMapping(substanceKey)));
 
-            props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findLCPByCompoundName("idPharmacyPriceGroup").getMapping(pharmacyPriceGroupKey)));
+            props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findLCPByCompoundName("ImportPharmacy.idPharmacyPriceGroup").getMapping(pharmacyPriceGroupKey)));
             props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findLCPByCompoundName("namePharmacyPriceGroup").getMapping(pharmacyPriceGroupKey)));
             props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findLCPByCompoundName("pharmacyPriceGroupItem").getMapping(itemKey),
                     LM.object(LM.findClassByCompoundName("PharmacyPriceGroup")).getMapping(pharmacyPriceGroupKey)));
