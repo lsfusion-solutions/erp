@@ -1,0 +1,117 @@
+MODULE PaymentRequest;
+
+REQUIRE ContractLedger;
+
+CLASS PaymentRequest 'Платежное требование' : NumeratedObject, ContractLedger, InContractLedger;
+CLASS PaymentRequestPosted 'Проведенное платежное требование' : PaymentRequest, PostedObject;
+TABLE paymentRequest(PaymentRequest);
+
+@defineDocumentHeaderPosted(PaymentRequest);
+@defineNumeratedObjectDefault(PaymentRequest, 'Нумератор для платежных требований', 'ПТ');
+
+datePaymentRequest 'Дата' (paymentRequest) = DATA DATE (PaymentRequest);
+datePaymentRequest(paymentRequest) <- currentDate() WHEN ASSIGNED(paymentRequest IS PaymentRequest);
+timePaymentRequest 'Время' (paymentRequest) = DATA TIME (PaymentRequest);
+timePaymentRequest(paymentRequest) <- currentTime() WHEN ASSIGNED(paymentRequest IS PaymentRequest);
+dateTimePaymentRequest 'Дата время' (paymentRequest) = dateTimeToDateTime(datePaymentRequest(paymentRequest), timePaymentRequest(paymentRequest));
+
+contractPaymentRequest 'Контракт' (paymentRequest) = DATA Contract (PaymentRequest) AUTOSET;
+seriesNumberContractPaymentRequest 'Номер контракта' (paymentRequest) = seriesNumberContract(contractPaymentRequest(paymentRequest));
+
+notePaymentRequest 'Примечание' (paymentRequest) = DATA STRING[200] (PaymentRequest);
+
+payerPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
+payerPaymentRequest(paymentRequest) <- partyBContract(contractPaymentRequest(paymentRequest)) WHEN ASSIGNED (contractPaymentRequest(paymentRequest));
+namePayerPaymentRequest 'Организация (покупатель)' (paymentRequest) = nameLegalEntity(payerPaymentRequest(paymentRequest));
+lenderPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
+lenderPaymentRequest(paymentRequest) <- partyAContract(contractPaymentRequest(paymentRequest)) WHEN ASSIGNED (contractPaymentRequest(paymentRequest));
+nameLenderPaymentRequest 'Организация (поставщик)' (paymentRequest) = nameLegalEntity(lenderPaymentRequest(paymentRequest));
+
+sumPaymentRequest 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentRequest);
+
+descriptionPaymentRequest 'Название документа' =
+    [FORMULA STRING[200] '\'Платежное требование \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT) || \' \' || CAST($3 AS TEXT)'](
+    seriesNumberObject(paymentRequest), datePaymentRequest(paymentRequest), nameLenderPaymentRequest(paymentRequest)) PERSISTENT;
+
+@implementContractLedger( ,paymentRequest, contract);
+sumContractLedger(contractLedger) += sumPaymentRequest(contractLedger);
+
+FORM paymentRequest 'Платежное требование'
+
+    OBJECTS p = PaymentRequest FIXED PANEL
+    PROPERTIES(p) objectClassName, nameNumeratorObject, numberObject, seriesObject, datePaymentRequest, timePaymentRequest,
+                  seriesNumberContractPaymentRequest, notePaymentRequest
+    PROPERTIES(p) READONLY namePayerPaymentRequest, nameLenderPaymentRequest
+    PROPERTIES(p) sumPaymentRequest
+
+    EVENTS
+        ON OK prePostPaymentRequest(p)
+
+    EDIT PaymentRequest OBJECT p
+;
+
+DESIGN paymentRequest FROM DEFAULT{
+
+    main{
+
+        NEW headerContainer{
+
+            caption = 'Шапка документа';
+            childConstraints = TO THE RIGHT;
+            ADD PROPERTY(objectClassName);
+            ADD PROPERTY(namePayerPaymentRequest);
+            ADD PROPERTY(nameNumeratorObject);
+            ADD PROPERTY(numberObject);
+            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(datePaymentRequest);
+            ADD PROPERTY(timePaymentRequest);
+        }
+
+        NEW paramContainer {
+
+            caption = 'Параметры документа';
+            ADD PROPERTY(seriesNumberContractPaymentRequest);
+            ADD PROPERTY(nameLenderPaymentRequest);
+            ADD PROPERTY(notePaymentRequest);
+        }
+
+        NEW sumContainer{
+
+            caption = 'Суммы документа';
+            childConstraints = TO THE BOTTOM;
+            ADD PROPERTY(sumPaymentRequest);
+        }
+        POSITION sumContainer TO THE RIGHT headerContainer;
+        POSITION sumContainer TO THE RIGHT paramContainer;
+    }
+
+    PROPERTY(formOk) {
+        caption = 'Провести';
+    }
+
+    ADD functions.box;
+}
+
+// ------------------------- Расширяем управление задолженностями ------------------------ //
+
+backgroundPaymentRequestDate 'Цвет' (paymentRequest, date) = RGB(255,160,160) IF datePaymentRequest(paymentRequest) > date;
+
+EXTEND FORM contractLedger
+    OBJECTS pr = PaymentRequest
+    PROPERTIES(pr) READONLY numberObject BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            seriesObject BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            objectClassName BACKGROUND backgroundPaymentRequestDate(pr, d)
+    PROPERTIES(pr) ADDFORM, EDITFORM, DELETE
+    ORDER BY datePaymentRequest, timePaymentRequest
+    FILTERS contractPaymentRequest(pr) == c
+;
+
+EXTEND DESIGN contractLedger {
+    secondContainer {
+        ADD pr.box;
+    }
+}

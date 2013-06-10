@@ -1,0 +1,179 @@
+MODULE CreditMemo;
+
+REQUIRE ContractLedger;
+
+CLASS ABSTRACT CreditMemo 'Кредитная нота' : NumeratedObject;
+TABLE creditMemo(CreditMemo);
+
+META defineCreditMemoPrefix(prefix, caption, captionPost)
+
+    CLASS CreditMemo###prefix caption : CreditMemo, ContractLedger, ContractALedger, prefix##ContractLedger;
+    CLASS CreditMemo###prefix##Posted  captionPost : CreditMemo###prefix, PostedObject;
+
+    @defineDocumentHeaderPosted(CreditMemo###prefix);
+    @defineNumeratedObjectDefault(CreditMemo###prefix, 'Нумератор для кредитных нот', 'КН');
+
+    dateCreditMemo###prefix 'Дата' (creditMemo###prefix) = DATA DATE (CreditMemo###prefix);
+    dateCreditMemo###prefix(creditMemo###prefix) <- currentDate() WHEN ASSIGNED(creditMemo###prefix IS CreditMemo###prefix);
+    timeCreditMemo###prefix 'Время' (creditMemo###prefix) = DATA TIME (CreditMemo###prefix);
+    timeCreditMemo###prefix(creditMemo###prefix) <- currentTime() WHEN ASSIGNED(creditMemo###prefix IS CreditMemo###prefix);
+    dateTimeCreditMemo###prefix 'Дата время' (creditMemo###prefix) = dateTimeToDateTime(dateCreditMemo###prefix(creditMemo###prefix), timeCreditMemo###prefix(creditMemo###prefix));
+
+    contractCreditMemo###prefix 'Контракт' (creditMemo###prefix) = DATA Contract (CreditMemo###prefix) AUTOSET;
+    seriesNumberContractCreditMemo###prefix 'Номер контракта' (creditMemo###prefix) = seriesNumberContract(contractCreditMemo###prefix(creditMemo###prefix));
+
+    noteCreditMemo###prefix 'Примечание' (creditMemo###prefix) = DATA STRING[200] (CreditMemo###prefix);
+
+    partyBCreditMemo###prefix(creditMemo###prefix) = DATA LegalEntity (CreditMemo###prefix);
+    partyBCreditMemo###prefix(creditMemo###prefix) <- partyBContract(contractCreditMemo###prefix(creditMemo###prefix))
+        WHEN ASSIGNED (contractCreditMemo###prefix(creditMemo###prefix));
+    namePartyBCreditMemo###prefix 'Организация (покупатель)' (creditMemo###prefix) = nameLegalEntity(partyBCreditMemo###prefix(creditMemo###prefix));
+    partyACreditMemo###prefix(creditMemo###prefix) = DATA LegalEntity (CreditMemo###prefix);
+    partyACreditMemo###prefix(creditMemo###prefix) <- partyAContract(contractCreditMemo###prefix(creditMemo###prefix))
+        WHEN ASSIGNED (contractCreditMemo###prefix(creditMemo###prefix));
+    namePartyACreditMemo###prefix 'Организация (поставщик)' (creditMemo###prefix) = nameLegalEntity(partyACreditMemo###prefix(creditMemo###prefix));
+
+    sumCreditMemo###prefix 'Сумма' (creditMemo###prefix) = DATA NUMERIC[16,2] (CreditMemo###prefix);
+
+    descriptionCreditMemo###prefix 'Название документа' =
+        [FORMULA STRING[200] '\''###caption###' \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT) || \' \' || CAST($3 AS TEXT)'](
+        seriesNumberObject(creditMemo###prefix), dateCreditMemo###prefix(creditMemo###prefix), namePartyACreditMemo###prefix(creditMemo###prefix)) PERSISTENT;
+
+END
+
+META defineCreditMemoUnion (prop, caption)
+
+    prop##CreditMemo caption (creditMemo) = MULTI prop##CreditMemoIn(creditMemo), prop##CreditMemoOut(creditMemo);
+
+END
+
+@defineCreditMemoPrefix(In, 'Кредитная нота', 'Проведенная кредитная нота');
+@defineCreditMemoPrefix(Out, 'Дебетная нота', 'Проведенная дебетовая нота');
+
+prePostCreditMemo 'Провести' (creditMemo) = ABSTRACT ACTION LIST (CreditMemo);
+prePostCreditMemo(creditMemo) += prePostCreditMemoIn(creditMemo);
+prePostCreditMemo(creditMemo) += prePostCreditMemoOut(creditMemo);
+
+@defineCreditMemoUnion(date, 'Дата');
+@defineCreditMemoUnion(time, 'Время');
+dateTimeCreditMemo 'Дата/время' (creditMemo) = dateTimeToDateTime(dateCreditMemo(creditMemo), timeCreditMemo(creditMemo));
+@defineCreditMemoUnion(contract, 'Контракт');
+seriesNumberContractCreditMemo 'Номер контракта' (creditMemo) = seriesNumberContract(contractCreditMemo(creditMemo));
+@defineCreditMemoUnion(partyB, );
+namePartyBCreditMemo 'Организация (покупатель)' (creditMemo) = nameLegalEntity(partyBCreditMemo(creditMemo));
+@defineCreditMemoUnion(partyA, );
+namePartyACreditMemo 'Организация (поставщик)' (creditMemo) = nameLegalEntity(partyACreditMemo(creditMemo));
+@defineCreditMemoUnion(sum, 'Сумма');
+@defineCreditMemoUnion(description, 'Название документа');
+@defineCreditMemoUnion(note, 'Примечание');
+
+@implementContractLedger( ,creditMemoIn, contract);
+sumContractLedger(contractLedger) += sumCreditMemoIn(contractLedger);
+
+@implementContractLedger(a ,creditMemoIn, contract);
+sumContractALedger(contractALedger) += sumCreditMemoIn(contractALedger);
+
+@implementOutContractLedgerInContractLedgerPrefix(in, creditMemoIn, contract);
+sumInContractLedger(inContractLedger) += sumCreditMemoIn(inContractLedger);
+
+@implementContractLedger( ,creditMemoOut, contract);
+sumContractLedger(contractLedger) += -sumCreditMemoOut(contractLedger);
+
+@implementContractLedger(a ,creditMemoOut,contract);
+sumContractALedger(contractALedger) += -sumCreditMemoOut(contractALedger);
+
+@implementOutContractLedgerInContractLedgerPrefix(out, creditMemoOut, contract);
+sumOutContractLedger(outContractLedger) += sumCreditMemoOut(outContractLedger);
+
+FORM creditMemo 'Кредитная нота'
+
+    OBJECTS c = CreditMemo FIXED PANEL, i = InContractLedger
+    PROPERTIES(c) objectClassName, nameNumeratorObject, numberObject, seriesObject, dateCreditMemo, timeCreditMemo,
+                  seriesNumberContractCreditMemo, noteCreditMemo
+    PROPERTIES(c) READONLY namePartyBCreditMemo, namePartyACreditMemo
+    PROPERTIES(c) sumCreditMemo,
+                  costedInContractLedgerOutContractLedger SHOWIF isOutContractLedger(c),
+                  writeOutContractLedgerFIFO TODRAW i FORCE PANEL TOOLBAR SHOWIF isOutContractLedger(c),
+                  writeOutContractLedgerLIFO TODRAW i FORCE PANEL TOOLBAR SHOWIF isOutContractLedger(c)
+
+    PROPERTIES(i) READONLY descriptionInContractLedger SHOWIF isOutContractLedger(c), debtInContractLedger SHOWIF isOutContractLedger(c)
+    PROPERTIES(c, i) costOutContractLedgerInContractLedger SHOWIF isOutContractLedger(c)
+
+    FILTERS contractCreditMemo(c) == contractInContractLedger(i)
+
+    EVENTS
+        ON OK prePostCreditMemo(c)
+
+    EDIT CreditMemo OBJECT c
+;
+
+DESIGN creditMemo FROM DEFAULT{
+
+    main{
+
+        NEW headerContainer{
+
+            caption = 'Шапка документа';
+            childConstraints = TO THE RIGHT;
+            ADD PROPERTY(objectClassName);
+            ADD PROPERTY(namePartyBCreditMemo);
+            ADD PROPERTY(nameNumeratorObject);
+            ADD PROPERTY(numberObject);
+            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(dateCreditMemo);
+            ADD PROPERTY(timeCreditMemo);
+        }
+
+        NEW paramContainer {
+
+            caption = 'Параметры документа';
+            ADD PROPERTY(seriesNumberContractCreditMemo);
+            ADD PROPERTY(namePartyACreditMemo);
+            ADD PROPERTY(noteCreditMemo);
+        }
+
+        NEW sumContainer{
+
+            caption = 'Суммы документа';
+            childConstraints = TO THE BOTTOM;
+            ADD PROPERTY(sumCreditMemo);
+            ADD PROPERTY(costedInContractLedgerOutContractLedger);
+        }
+        POSITION sumContainer TO THE RIGHT headerContainer;
+        POSITION sumContainer TO THE RIGHT paramContainer;
+
+        ADD i.box;
+    }
+
+    POSITION PROPERTY(writeOutContractLedgerLIFO) TO THE RIGHT PROPERTY(writeOutContractLedgerFIFO);
+
+    PROPERTY(formOk) {
+        caption = 'Провести';
+    }
+
+    ADD functions.box;
+}
+
+EXTEND FORM contractLedger
+    OBJECTS cm = CreditMemo
+    PROPERTIES(cm) READONLY numberObject BACKGROUND backgroundOutContractLedgerDate(cm, d),
+                            seriesObject BACKGROUND backgroundOutContractLedgerDate(cm, d),
+                            dateCreditMemo BACKGROUND backgroundOutContractLedgerDate(cm, d),
+                            timeCreditMemo BACKGROUND backgroundOutContractLedgerDate(cm, d),
+                            sumCreditMemo BACKGROUND backgroundOutContractLedgerDate(cm, d),
+                            noteCreditMemo BACKGROUND backgroundOutContractLedgerDate(cm, d),
+                            objectClassName BACKGROUND backgroundOutContractLedgerDate(cm, d)
+
+    PROPERTIES(cm) FORCE GRID READONLY costedInContractLedgerOutContractLedger BACKGROUND backgroundOutContractLedgerDate(cm, d) SHOWIF isOutContractLedger(cm)
+    PROPERTIES(cm) FORCE PANEL TOOLBAR writeOutContractLedgerFIFO SHOWIF isOutContractLedger(cm),
+                                             writeOutContractLedgerLIFO SHOWIF isOutContractLedger(cm)
+    PROPERTIES(cm) ADDFORM, EDITFORM, DELETE
+    ORDER BY dateCreditMemo, timeCreditMemo
+    FILTERS contractCreditMemo(cm) == c
+;
+
+EXTEND DESIGN contractLedger {
+    secondContainer {
+        ADD cm.box;
+    }
+}
