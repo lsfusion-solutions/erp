@@ -465,12 +465,14 @@ public class ImportActionProperty {
 
                 ImportKey<?> supplierKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
                         LM.findLCPByCompoundName("legalEntityId").getMapping(idSupplierField));
-
-                ImportKey<?> customerStockKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Stock"),
-                        LM.findLCPByCompoundName("stockId").getMapping(idCustomerStockField));
+                supplierKey.skipKey = true;
 
                 ImportKey<?> supplierWarehouseKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Warehouse"),
                         LM.findLCPByCompoundName("warehouseId").getMapping(idSupplierWarehouseField));
+                supplierWarehouseKey.skipKey = true;
+
+                ImportKey<?> customerStockKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Stock"),
+                        LM.findLCPByCompoundName("stockId").getMapping(idCustomerStockField));
 
                 ImportKey<?> userInvoiceDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Purchase.UserInvoiceDetail"),
                         LM.findLCPByCompoundName("userInvoiceDetailId").getMapping(idUserInvoiceDetailField));
