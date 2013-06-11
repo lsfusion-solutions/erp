@@ -17,6 +17,17 @@ sessionConcatGroups 'Склады' (groupType) =
     GROUP CONCAT nameGroup(group) IF inSessionGroup(group) AND NOT inSessionGroup(parentGroup(group)),','
     BY groupTypeGroup(group);
 
+sumAGroupTypeStockDate 'Итоговая сумма товаров отчета' (groupType, stock, date) =
+    GROUP SUM sumASkuStockDate(sku, stock, date) IF inSessionGroup(groupGroupTypeSku(groupType, sku))
+    BY groupType, stock, date PREFCHARWIDTH 15;
+
+sumInGroupTypeStockDateDate 'Итоговая сумма пришедшего товара отчета' (groupType, stock, dateFrom, dateTo) =
+    GROUP SUM sumInSkuStockDateDate(sku, stock, dateFrom, dateTo) IF inSessionGroup(groupGroupTypeSku(groupType, sku))
+    BY groupType, stock, dateFrom, dateTo PREFCHARWIDTH 15;
+
+sumOutGroupTypeStockDateDate 'Итоговая сумма ушедшегоо товара отчета' (groupType, stock, dateFrom, dateTo) =
+    GROUP SUM sumOutSkuStockDateDate(sku, stock, dateFrom, dateTo) IF inSessionGroup(groupGroupTypeSku(groupType, sku))
+    BY groupType, stock, dateFrom, dateTo PREFCHARWIDTH 15;
 //остатки по товарам
 FORM printListBalanceSkusStock 'Остатки по товарам' PRINT
     OBJECTS d = DATE FIXED PANEL
@@ -28,6 +39,7 @@ FORM printListBalanceSkusStock 'Остатки по товарам' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
+    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
 
     TREE sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
@@ -58,6 +70,7 @@ FORM printBalanceSkusStock 'Остатки по товарам' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
+    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
@@ -89,6 +102,7 @@ FORM printListBalanceBatchesStock 'Остатки по партиям' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
+    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
 
     TREE sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
@@ -119,6 +133,7 @@ FORM printBalanceBatchesStock 'Остатки по партиям' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
+    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
@@ -149,6 +164,7 @@ FORM reportBalanceStock 'Отчет по остаткам'
 
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
     TREE skuTree sk = Group PARENT parentGroup
@@ -183,6 +199,11 @@ DESIGN reportBalanceStock FROM DEFAULT{
         ADD d.box;
         ADD st.box;
         ADD gt.box{ADD PROPERTY(inSessionGroup);}
+        NEW sumContainer{
+            caption = 'Итоговые суммы';
+            childConstraints = TO THE BOTTOM;
+            ADD PROPERTY(sumAGroupTypeStockDate(gt, st ,d)){caption = 'Товаров отчета';}
+        }
     }
     NEW bottomContainer{
         childConstraints = TO THE RIGHT;
@@ -218,8 +239,182 @@ DESIGN reportBalanceStock FROM DEFAULT{
     ADD functions.box;
 }
 
+//оборотная ведомость
+FORM printListBackSheet 'Оборотная ведомость' PRINT
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt) READONLY sessionConcatGroups
+    PROPERTIES sumAGroupTypeStockDate(gt, st, df)
+    PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
+    PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
+
+    OBJECTS sk = Group
+    PROPERTIES READONLY canonicalNameGroup(sk)
+    ORDER BY canonicalNameGroup
+    FILTERS inSessionGroup(sk) AND isLeafGroup(sk)
+    FILTERS groupTypeGroup(sk) == gt
+    PROPERTIES(sk, st, df) READONLY sumASkuGroupStockDate
+    PROPERTIES(sk, st, df, dt) READONLY sumInGroupSkuStockDateDate, sumOutGroupSkuStockDateDate
+    PROPERTIES(sk, st, dt) READONLY sumASkuGroupStockDate
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    ORDER BY nameSku
+    FILTERS isParentGroupSku(sk, s)
+
+    PROPERTIES(s, st, df) READONLY balanceASkuStockDate, sumASkuStockDate
+    PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
+    PROPERTIES(st, df) printListBalanceSkusStockDate, printBalanceSkusStockDate
+    PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
+    FILTERS balanceASkuStockDate(s, st, df) OR balanceASkuStockDate(s, st, dt)
+;
+
+printListBackSheet 'Списком' (stock, dateFrom, dateTo) =
+    ACTION FORM printListBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
+
+FORM printBackSheet 'Оборотная ведомость' PRINT
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt) READONLY sessionConcatGroups
+    PROPERTIES sumAGroupTypeStockDate(gt, st, df)
+    PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
+    PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
+
+    OBJECTS sk = Group
+    PROPERTIES READONLY canonicalNameGroup(sk)
+    ORDER BY canonicalNameGroup
+    FILTERS inSessionGroup(sk) AND isLeafGroup(sk)
+    FILTERS groupTypeGroup(sk) == gt
+    PROPERTIES(sk, st, df) READONLY sumASkuGroupStockDate
+    PROPERTIES(sk, st, df, dt) READONLY sumInGroupSkuStockDateDate, sumOutGroupSkuStockDateDate
+    PROPERTIES(sk, st, dt) READONLY sumASkuGroupStockDate
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    ORDER BY nameSku
+    FILTERS isParentGroupSku(sk, s)
+
+    PROPERTIES(s, st, df) READONLY balanceASkuStockDate, sumASkuStockDate
+    PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
+    PROPERTIES(st, df) printListBalanceSkusStockDate, printBalanceSkusStockDate
+    PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
+    FILTERS balanceASkuStockDate(s, st, df) OR balanceASkuStockDate(s, st, dt)
+;
+
+printBackSheet 'По группам' (stock, dateFrom, dateTo) =
+    ACTION FORM printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
+
+FORM reportBackSheet 'Оборотная ведомость'
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES sumAGroupTypeStockDate(gt, st, df)
+    PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
+    PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
+//    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    TREE skuTree sk = Group PARENT parentGroup
+    PROPERTIES READONLY skuTreeName = nameGroup(sk)
+    PROPERTIES(sk, st, df) READONLY sumASkuGroupStockDate
+    PROPERTIES(sk, st, df, dt) READONLY sumInGroupSkuStockDateDate, sumOutGroupSkuStockDateDate
+    PROPERTIES(sk, st, dt) READONLY sumASkuGroupStockDate
+    PROPERTIES inSessionGroup(sk)
+    ORDER BY skuTreeName
+    FILTERS groupTypeGroup(sk) == gt
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    ORDER BY nameSku
+    FILTERS isParentGroupSku(sk, s)
+
+    PROPERTIES(s, st, df) READONLY balanceASkuStockDate, sumASkuStockDate
+    PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
+    PROPERTIES(st, df, dt) printListBackSheet, printBackSheet
+    PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
+    FILTERS balanceASkuStockDate(s, st, df) OR balanceASkuStockDate(s, st, dt)
+;
+
+DESIGN reportBackSheet FROM DEFAULT{
+    NEW topContainer{
+        childConstraints = TO THE RIGHT;
+        NEW dateContainer{
+            caption = 'Период';
+            childConstraints = TO THE RIGHT;
+            ADD PROPERTY(dateFrom){caption = 'Дата (с)';}
+            ADD PROPERTY(dateTo){caption = 'Дата (по)';}
+        }
+        ADD st.box;
+        ADD gt.box{ADD PROPERTY(inSessionGroup);}
+        NEW sumContainer{
+            caption = 'Итоговые суммы';
+            childConstraints = TO THE BOTTOM;
+            ADD PROPERTY(sumAGroupTypeStockDate(gt, st, df)){caption = 'Начала периода';}
+            ADD PROPERTY(sumInGroupTypeStockDateDate){caption = 'Товара пришедшего за период';}
+            ADD PROPERTY(sumOutGroupTypeStockDateDate){caption = 'Товара ушедшего за период';}
+            ADD PROPERTY(sumAGroupTypeStockDate(gt, st, dt)){caption = 'Конца периода';}
+        }
+    }
+    NEW bottomContainer{
+        childConstraints = TO THE RIGHT;
+        type = SPLITH;
+        ADD skuTree.tree.box;
+        PROPERTY(sumASkuGroupStockDate(sk, st, df)){caption = 'Остаток на начало периода';}
+        PROPERTY(sumASkuGroupStockDate(sk, st, dt)){caption = 'Остаток на конец периода';}
+        NEW tabContainer{
+            type = TABBED;
+            fillHorizontal = 2;
+            NEW skuContainer{
+                caption = 'Товары';
+                childConstraints = TO THE BOTTOM;
+                NEW printSkuContainer{
+                    childConstraints = TO THE RIGHT;
+                    caption = 'Печать';
+                    ADD PROPERTY(printListBackSheet);
+                    ADD PROPERTY(printBackSheet);
+                }
+                ADD s.box;
+                PROPERTY(balanceASkuStockDate(s, st, df)){caption = 'Остаток на начало периода';}
+                PROPERTY(sumASkuStockDate(s, st, df)){caption = 'Сумма на начало периода';}
+                PROPERTY(balanceASkuStockDate(s, st, dt)){caption = 'Остаток на конец периода';}
+                PROPERTY(sumASkuStockDate(s, st, dt)){caption = 'Сумма на конец периода';}
+            }
+        }
+    }
+    ADD functions.box;
+}
+
 NAVIGATOR {
     stockReports{
         ADD reportBalanceStock;
+        ADD reportBackSheet;
     }
 }
