@@ -49,7 +49,7 @@ public class ImportActionProperty {
 
             importWarehouseGroups(importData.getWarehouseGroupsList());
 
-            importWarehouses(importData.getWarehousesList());
+            importWarehouses(importData.getWarehousesList(), importData.getSkipKeys());
 
             importStores(importData.getStoresList());
 
@@ -61,13 +61,13 @@ public class ImportActionProperty {
 
             importWares(importData.getWaresList());
 
-            importItems(importData.getItemsList(), importData.getNumberOfItemsAtATime());
+            importItems(importData.getItemsList(), importData.getNumberOfItemsAtATime(), importData.getSkipKeys());
 
             importPriceListStores(importData.getPriceListStoresList(), importData.getNumberOfPriceListsAtATime());
 
             importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime());
 
-            importUserInvoices(importData.getUserInvoicesList(), importData.getImportUserInvoicesPosted(), importData.getNumberOfUserInvoicesAtATime());
+            importUserInvoices(importData.getUserInvoicesList(), importData.getImportUserInvoicesPosted(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys());
 
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
@@ -178,7 +178,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             Integer numAtATime = (numberOfItemsAtATime == null || numberOfItemsAtATime <= 0) ? 5000 : numberOfItemsAtATime;
@@ -186,7 +186,7 @@ public class ImportActionProperty {
                 int amountOfImportIterations = (int) Math.ceil((double) itemsList.size() / numAtATime);
                 Integer rest = itemsList.size();
                 for (int i = 0; i < amountOfImportIterations; i++) {
-                    importPackOfItems(itemsList, i * numAtATime, rest > numAtATime ? numAtATime : rest);
+                    importPackOfItems(itemsList, i * numAtATime, rest > numAtATime ? numAtATime : rest, skipKeys);
                     rest -= numAtATime;
                     System.gc();
                 }
@@ -200,7 +200,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importPackOfItems(List<Item> itemsList, Integer start, Integer numberOfItems) throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException {
+    private void importPackOfItems(List<Item> itemsList, Integer start, Integer numberOfItems, boolean skipKeys) throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException {
         List<Item> dataItems = itemsList.subList(start, start + numberOfItems);
         if (dataItems.size() == 0) return;
 
@@ -261,6 +261,7 @@ public class ImportActionProperty {
 
         ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Range"),
                 LM.findLCPByCompoundName("valueCurrentVATDefaultValue").getMapping(valueVATItemCountryDateField));
+            VATKey.skipKey = skipKeys;
 
         ImportKey<?> wareKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Ware"),
                 LM.findLCPByCompoundName("wareId").getMapping(idWareField));
@@ -399,7 +400,7 @@ public class ImportActionProperty {
 
     public Boolean showWholesalePrice;
 
-    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Boolean posted, Integer numberAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Boolean posted, Integer numberAtATime, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (userInvoiceDetailsList != null) {
 
@@ -465,11 +466,11 @@ public class ImportActionProperty {
 
                 ImportKey<?> supplierKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
                         LM.findLCPByCompoundName("legalEntityId").getMapping(idSupplierField));
-                supplierKey.skipKey = true;
+                supplierKey.skipKey = skipKeys;
 
                 ImportKey<?> supplierWarehouseKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Warehouse"),
                         LM.findLCPByCompoundName("warehouseId").getMapping(idSupplierWarehouseField));
-                supplierWarehouseKey.skipKey = true;
+                supplierWarehouseKey.skipKey = skipKeys;
 
                 ImportKey<?> customerStockKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Stock"),
                         LM.findLCPByCompoundName("stockId").getMapping(idCustomerStockField));
@@ -500,6 +501,7 @@ public class ImportActionProperty {
 
                 ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Range"),
                         LM.findLCPByCompoundName("valueCurrentVATDefaultValue").getMapping(valueVATUserInvoiceDetailField));
+                VATKey.skipKey = skipKeys;
 
                 List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
 
@@ -987,7 +989,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importWarehouses(List<Warehouse> warehousesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importWarehouses(List<Warehouse> warehousesList, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (warehousesList != null) {
@@ -1005,6 +1007,7 @@ public class ImportActionProperty {
 
                 ImportKey<?> warehouseKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Warehouse"),
                         LM.findLCPByCompoundName("warehouseId").getMapping(idWarehouseField));
+                warehouseKey.skipKey = skipKeys;
 
                 List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
 

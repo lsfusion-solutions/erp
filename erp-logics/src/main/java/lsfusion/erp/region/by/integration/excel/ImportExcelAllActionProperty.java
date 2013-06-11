@@ -8,6 +8,7 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.IOException;
@@ -34,6 +35,9 @@ public class ImportExcelAllActionProperty extends ScriptingActionProperty {
                 for (Map.Entry<String, byte[]> file : fileList.entrySet()) {
 
                     ImportData importData = new ImportData();
+
+                    importData.setSkipKeys((Boolean)getLCP("skipKeysExcel").read(context));
+
                     if (file.getKey().contains("importItems")) {
                         importData.setItemsList(ImportExcelItemsActionProperty.importItems(file.getValue()));
                     }
@@ -72,6 +76,8 @@ public class ImportExcelAllActionProperty extends ScriptingActionProperty {
         } catch (ParseException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
     }

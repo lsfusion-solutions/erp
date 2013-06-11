@@ -24,6 +24,7 @@ public class ImportData {
     private Integer numberOfUserInvoicesAtATime;
     private Boolean importInactive;
     private Boolean importUserInvoicesPosted;
+    private Boolean skipKeys;
 
     public ImportData() {
     }
@@ -190,6 +191,14 @@ public class ImportData {
 
     public Boolean getImportUserInvoicesPosted() {
         return importUserInvoicesPosted==null ? false : importUserInvoicesPosted;
+    }
+
+    public Boolean getSkipKeys() {
+        return skipKeys==null ? false : skipKeys;
+    }
+
+    public void setSkipKeys(Boolean skipKeys) {
+        this.skipKeys = skipKeys;
     }
 
     public void setImportUserInvoicesPosted(Boolean importUserInvoicesPosted) {
