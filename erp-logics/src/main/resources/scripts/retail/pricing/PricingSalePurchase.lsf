@@ -51,6 +51,15 @@ WHEN SESSION FORMS userInvoice PREVSTART ALL // цены берем на нач�
                                                             THEN pt
                                                             ELSE calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
+// если не задана управленческая цена
+WHEN SESSION FORMS userInvoice PREVSTART ALL // цены берем на начало сессии, а не этого event'а
+   (CHANGED(calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail)) OR
+    CHANGED(calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
+    CHANGED(skuUserInvoiceDetail(detail)) OR
+    CHANGED(customerStockUserInvoiceDetail(detail)) OR
+    CHANGED(dateTimeUserInvoiceDetail(detail))) AND NOT calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail) DO
+    purchaseRetailPriceListTypeUserInvoiceDetail(detail) <- calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail);
+
 
 // Базовая цена
 overPurchasePricingPriceInvoiceDetail = ABSTRACT NUMERIC[14,2] (InvoiceDetail) PERSISTENT;
@@ -78,6 +87,7 @@ purchaseRoundConditionUserInvoiceDetail(userInvoiceDetail) =
 @changeDocumentDetailPriceCustomPrefix(userInvoiceDetail, purchaseRetail, purchasePricing, purchaseRetail, purchaseRetail, purchase);
 
 // Проставление цены по виду цен
+overLimitPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
 @deriveDocumentDetailPriceOnSessionPriceListType (UserInvoiceDetail, purchaseRetail, purchasePricing, customerStock, userInvoice);
 
 // -- Суммы по строкам

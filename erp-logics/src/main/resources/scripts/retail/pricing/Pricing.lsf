@@ -146,6 +146,92 @@ END
 
 //------------------------  derive or change ------------------------------------//
 
+//META deriveDocumentDetailPriceOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form)
+////    overLimitPrice###idetail = ABSTRACT NUMERIC[14,2] (###idetail);  // сюда д.б. имплементиться цена посчитанная от предельной надбавки
+//
+////    minRetailPrice###idetail 'Минимальная розничная цена' (detail)= MIN prevPricePriceListTypeSkuStockDateTime(retailPriceListType###idetail(detail),
+////                                                                                                               sku###idetail(detail),
+////                                                                                                               stockProp###idetail(detail),
+////                                                                                                               dateTime###idetail(detail)),
+////                                                                        overLimitPrice###idetail(detail);
+//
+////    minRetailPrice###idetail 'Минимальная розничная цена' (detail)= MIN roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
+////                                                                            prefixP###price###idetail(detail),
+////                                                                            prefix###markup###idetail(detail),
+////                                                                            value###prefix###VAT###idetail(detail)), roundConditionPriceListType(calcRetailCalcPriceListType###idetail(detail))),
+////                                                                        overLimitPrice###idetail(detail);
+//
+//    ON SESSION FORMS form PREVSTART pricePriceListTypeSkuStockDateTime { // цены берем на начало сессии, а не этого event'а
+//        LOCAL changedPriceListType = BOOLEAN (###idetail);
+//        LOCAL recursive = BOOLEAN ();
+//        IF recursive() THEN
+//            RETURN;
+//        SET changedPriceListType(detail) <- TRUE IF prefix###priceListType###idetail(detail) AND
+//                                                    sku###idetail(detail) AND
+//                                            (CHANGED(prefix###priceListType###idetail(detail)) OR
+//                                             CHANGED(prefixP###price###idetail(detail)) OR
+//                                             CHANGED(sku###idetail(detail)) OR
+//                                             CHANGED(stockProp###idetail(detail)) OR
+//                                             CHANGED(dateTime###idetail(detail)) OR
+//                                             CHANGED(value###prefix###VAT###idetail(detail)));
+//        FOR [GROUP MAX(changedPriceListType(detail)) BY prefix###priceListType###idetail(detail)](priceListType) DO {
+//            IF 1 == 2 THEN BREAK; // чтобы не компилировала в один запрос, а выполняло императивно
+//            IF priceListType IS CalcPriceListType THEN {
+//                SET prefix###markup###idetail(detail) <- markupCalcPriceListTypeSku(priceListType, sku###idetail(detail))
+//                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
+//                    MESSAGE 'Before';
+//                FOR changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType DO {
+////                    MESSAGE 'Минимальная';
+////                    MESSAGE minRetailPrice###idetail(detail);
+////                    MESSAGE 'Предельная цена';
+////                    MESSAGE overLimitPrice###idetail(detail);
+////                    MESSAGE 'PricingPrice';
+////                    MESSAGE prefixP###price###idetail(detail);
+////                    MESSAGE 'RetailMarkup';
+////                    MESSAGE prefix###markup###idetail(detail);
+//                    recursive() <- TRUE;
+////                    FORM userPricingDetail OBJECTS d = detail MODAL;
+//                    recursive() <- NULL;
+//                }
+//                SET prefix###price###idetail(detail) <- MIN roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
+//                                                                        prefixP###price###idetail(detail),
+//                                                                        prefix###markup###idetail(detail),
+//                                                                        value###prefix###VAT###idetail(detail)), roundConditionPriceListType(priceListType)),
+//                                                            overLimitPrice###idetail(detail)
+//                                                            WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
+//                     MESSAGE 'After';
+//                FOR changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType DO
+//                    MESSAGE prefix###price###idetail(detail);
+//            } ELSE {
+//                SET prefix###price###idetail(detail) <- MIN prevPricePriceListTypeSkuStockDateTime(priceListType,
+//                                                                                                   sku###idetail(detail),
+//                                                                                                   stockProp###idetail(detail),
+//                                                                                                   dateTime###idetail(detail)),
+//                                                            overLimitPrice###idetail(detail)
+//                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
+//                SET prefix###markup###idetail(detail) <- [round2(((X/Z*100/(100+Y))-1)*100)](
+//                                                                         prefix###price###idetail(detail),
+//                                                                         prefixP###price###idetail(detail),
+//                                                                         value###prefix###VAT###idetail(detail))
+//                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
+//            }
+//        }
+//
+//        // Изменяем розничную цену, если не задан вид цены
+//        SET changedPriceListType(detail) <- (CHANGED(prefixP###price###idetail(detail)) OR
+//                                             CHANGED(value###prefix###VAT###idetail(detail)) OR
+//                                             CHANGED(stockProp###idetail(detail))) AND NOT prefix###priceListType###idetail(detail);
+//        FOR changedPriceListType(detail) DO {
+//            SET prefix###price###idetail(detail) <-  MIN roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
+//                                                             prefixP###price###idetail(detail),
+//                                                             prefix###markup###idetail(detail),
+//                                                             value###prefix###VAT###idetail(detail)), roundConditionDepartmentStore(stockProp###idetail(detail))),
+//                                                         overLimitPrice###idetail(detail)
+//                                                         WHERE changedPriceListType(detail);
+//        }
+//    }
+//END
+
 META deriveDocumentDetailPriceOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form)
     ON SESSION FORMS form PREVSTART pricePriceListTypeSkuStockDateTime { // цены берем на начало сессии, а не этого event'а
         LOCAL changedPriceListType = BOOLEAN (###idetail);
@@ -309,17 +395,6 @@ CONSTRAINT currencyUserPricingDetail(detail) != currencyPriceListType(retailPric
            CHECKED BY retailPriceListTypeUserPricingDetail
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
-retailPriceListTypeUserPricingDetail(detail) <- IF prevPricePriceListTypeSkuStockDateTime(calcRetailPriceListTypeUserPricingDetail(detail),
-                                                                                          skuUserPricingDetail(detail),
-                                                                                          departmentStoreUserPricingDetail(detail),
-                                                                                          dateTimeUserPricingDetail(detail))
-                                                    THEN calcRetailPriceListTypeUserPricingDetail(detail)
-                                                    ELSE calcRetailCalcPriceListTypeUserPricingDetail(detail)
-
-                                                WHEN CHANGED(calcRetailPriceListTypeUserPricingDetail(detail)) OR
-                                                     CHANGED(skuUserPricingDetail(detail)) OR
-                                                     CHANGED(departmentStoreUserPricingDetail(detail)) OR
-                                                     CHANGED(dateTimeUserPricingDetail(detail));
 
 // Округление
 roundConditionUserPricingDetail(userPricingDetail) =
@@ -595,7 +670,40 @@ NAVIGATOR {
     }
 }
 
+WHEN SESSION FORMS userPricing PREVSTART ALL // цены берем на начало сессии, а не этого event'а
+   (CHANGED(calcRetailPriceListTypeUserPricingDetail(detail)) OR
+    CHANGED(calcRetailCalcPriceListTypeUserPricingDetail(detail)) OR
+    CHANGED(skuUserPricingDetail(detail)) OR
+    CHANGED(departmentStoreUserPricingDetail(detail)) OR
+    CHANGED(dateTimeUserPricingDetail(detail))) AND pt == calcRetailPriceListTypeUserPricingDetail(detail) NOINLINE (pt) DO
+   retailPriceListTypeUserPricingDetail(detail) <- IF prevPricePriceListTypeSkuStockDateTime(pt,
+                                                                                          skuUserPricingDetail(detail),
+                                                                                          departmentStoreUserPricingDetail(detail),
+                                                                                          dateTimeUserPricingDetail(detail))
+                                                            THEN pt
+                                                            ELSE calcRetailCalcPriceListTypeUserPricingDetail(detail);
+
+// если не задана управленческая цена
+WHEN SESSION FORMS userPricing PREVSTART ALL // цены берем на начало сессии, а не этого event'а
+   (CHANGED(calcRetailPriceListTypeUserPricingDetail(detail)) OR
+    CHANGED(calcRetailCalcPriceListTypeUserPricingDetail(detail)) OR
+    CHANGED(skuUserPricingDetail(detail)) OR
+    CHANGED(departmentStoreUserPricingDetail(detail)) OR
+    CHANGED(dateTimeUserPricingDetail(detail))) AND NOT calcRetailPriceListTypeUserPricingDetail(detail) DO
+    retailPriceListTypeUserPricingDetail(detail) <- calcRetailCalcPriceListTypeUserPricingDetail(detail);
+
 // Проставление надбавки и розничной цены при изменении sku, склада, времени, вида цен, цены расценки, НДС в форме userPricing
+//overLimitPriceUserPricingDetail = ABSTRACT NUMERIC[14,2] (UserPricingDetail);
+//
+//minRetailPriceUserPricingDetail 'Минимальная розничная цена' (detail)= MIN roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
+//                                                                        pricingPriceUserPricingDetail(detail),
+//                                                                        retailMarkupUserPricingDetail(detail),
+//                                                                        valueRetailVATUserPricingDetail(detail)), roundConditionPriceListType(calcRetailCalcPriceListTypeUserPricingDetail(detail))),
+//                                                                    overLimitPriceUserPricingDetail(detail);
+//FORM userPricingDetail 'Строка расценки'
+//    OBJECTS d = UserPricingDetail FIXED PANEL
+//    PROPERTIES (d) minRetailPriceUserPricingDetail
+//;
 @deriveDocumentDetailPriceOnSessionPriceListType (userPricingDetail, retail, pricing, departmentStore, userPricing);
 
 //----------------------------------------------- Операции -----------------------------------------------------//
@@ -628,7 +736,8 @@ calcRetailCalcPriceListTypeUserPricing (pricing) <- pricingCalcPriceListTypeOper
     WHEN CHANGED(operationUserPricing(pricing));
 
 EXTEND FORM userPricing
-    PROPERTIES(p) READONLY nameOperationUserPricing
+    PROPERTIES(p) nameOperationUserPricing
+//    PROPERTIES (d) overLimitPriceUserPricingDetail, overPricingPriceUserPricingDetail, pricingPriceUserPricingDetail, minRetailPriceUserPricingDetail
 ;
 EXTEND DESIGN userPricing{
     p.documentPrmGroup{

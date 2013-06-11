@@ -43,6 +43,15 @@ WHEN SESSION FORMS userInvoice PREVSTART ALL
                                                         THEN pt
                                                         ELSE calcRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
+WHEN SESSION FORMS userInvoice PREVSTART ALL
+    (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
+     CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
+     CHANGED(skuUserInvoiceDetail(detail)) OR
+     CHANGED(customerStockUserInvoiceDetail(detail)) OR
+     CHANGED(dateTimeUserInvoiceDetail(detail))) AND NOT calcRetailPriceListTypeUserInvoiceDetail(detail) DO
+     retailPriceListTypeUserInvoiceDetail(detail) <- calcRetailCalcPriceListTypeUserInvoiceDetail(detail);
+
+
 // Округление розничной цен (если указан расчетный вид цены, то от него, иначе от склада)
 roundConditionUserInvoiceDetail(userInvoiceDetail) =
     IF roundConditionPriceListType(retailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
@@ -99,6 +108,7 @@ EXTEND DESIGN userInvoice {
 EXTEND FORM invoices PROPERTIES(d) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) READONLY nameRetailPriceListTypeInvoiceDetail BEFORE retailMarkupInvoiceDetail;
 
 // расчет надбавок и цены при изменении priceListType
+overLimitPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
 @deriveDocumentDetailPriceOnSessionPriceListType (UserInvoiceDetail, retail, pricing, customerStock, userInvoice);
 
 // Изменяем учетную цену

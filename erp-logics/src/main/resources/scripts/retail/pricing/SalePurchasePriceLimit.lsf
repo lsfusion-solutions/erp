@@ -1,0 +1,54 @@
+MODULE SalePurchasePriceLimit;
+
+REQUIRE PurchasePriceLimit, PricingSalePurchase;
+
+NAMESPACE Sale;
+
+//------------------ Предельные надбавки ----------------------//
+
+@defineDocumentInterfaceCreate (invoice, showPurchaseLimitPrice, 'Предельная надбавка');
+@defineDocumentInterfaceDetailMarkupPrefix (invoice, purchaseLimit, ' (закупка) предельная');
+
+purchaseLimitMarkupUserInvoiceDetail(detail) <- markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail))
+    WHEN CHANGED (customerStockUserInvoiceDetail(detail)) OR
+         CHANGED (skuUserInvoiceDetail(detail));
+
+changePurchaseLimitMarkupUserInvoiceDetail = ACTION(detail) {
+    REQUEST NUMERIC[8,3] INPUT;
+    IF requestedNumeric() THEN {
+        SET dataMarkupCalcPriceListTypeSku(t, s) <- requestedNumeric() WHERE t == priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)) AND s == skuUserInvoiceDetail(detail);
+    }
+}
+
+//----------------------------------------------- Операции -----------------------------------------------------//
+
+// Записываем необходимо ли показывать предельную надбавку по умолчанию из операции
+showPurchaseLimitPriceUserInvoice (invoice) <- showLimitPriceOperation(purchasePricingOperationUserInvoice(invoice))
+    WHEN CHANGED(purchasePricingOperationUserInvoice(invoice));
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) showPurchaseLimitPriceUserInvoice SHOWIF createPurchasePricingUserInvoice(i)
+    PROPERTIES(d) SHOWIF showPurchaseLimitPriceUserInvoice(i) BEFORE purchaseRetailMarkupUserInvoiceDetail(d) purchaseLimitMarkupUserInvoiceDetail ON CHANGE changePurchaseLimitMarkupUserInvoiceDetail(d)
+;
+EXTEND DESIGN userInvoice{
+    headerCreateSalePricing {
+        ADD PROPERTY (showPurchaseLimitPriceUserInvoice);
+    }
+}
+
+EXTEND FORM invoices
+//    PROPERTIES(i) READONLY showPurchaseLimitPriceInvoice
+    PROPERTIES(d) READONLY SHOWIF showPurchaseLimitPriceInvoice(i) BEFORE purchaseRetailMarkupInvoiceDetail(d) purchaseLimitMarkupInvoiceDetail, overLimitPriceUserInvoiceDetail
+;
+
+// Имплементим для расчета оптимальной розничной цены
+
+overLimitPriceUserInvoiceDetail (detail) += roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
+                                                purchasePricingPriceUserInvoiceDetail(detail),
+                                                purchaseLimitMarkupUserInvoiceDetail(detail),
+                                                valuePurchaseRetailVATUserInvoiceDetail(detail)), roundConditionPriceListType(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail))))
+                                            IF showPurchaseLimitPriceUserInvoiceDetail(detail);
+
+
+
+
