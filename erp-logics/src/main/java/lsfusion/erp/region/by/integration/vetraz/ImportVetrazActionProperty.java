@@ -371,7 +371,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
             data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice + String.valueOf(date) + shortNameCurrency + idSupplier,
                     seriesUserInvoice, numberUserInvoice, null, true, k_mat, date, idItem, null, quantity, idSupplier,
-                    idWarehouse, idSupplier + "WH", (price==null || price.doubleValue() == 0) ? null : price, null,
+                    idWarehouse, idSupplier + "WH", (price==null || price.doubleValue() == 0) ? null : price, null, null,
                     manufacturingPrice, null, null, null, null, certificateText, null, numberDeclaration, dateDeclaration,
                     numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin, rateExchange, homePrice,
                     priceDuty, isHomeCurrency, showDeclaration, true, shortNameCurrency, codeCustomsGroup,

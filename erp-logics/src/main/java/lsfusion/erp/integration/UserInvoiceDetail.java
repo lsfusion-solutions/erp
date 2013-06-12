@@ -10,15 +10,16 @@ public class UserInvoiceDetail {
     public String number;
     public Boolean createPricing;
     public Boolean createShipment;
-    public String sid;
+    public String idUserInvoiceDetail;
     public Date date;
     public String idItem;
     public Boolean isWare;
     public BigDecimal quantity;
-    public String supplier;
-    public String customerWarehouse;
-    public String supplierWarehouse;
+    public String idSupplier;
+    public String idCustomerStock;
+    public String idSupplierStock;
     public BigDecimal price;
+    public BigDecimal shipmentSum;
     public BigDecimal chargePrice;
     public BigDecimal manufacturingPrice;
     public BigDecimal wholesalePrice;
@@ -46,9 +47,9 @@ public class UserInvoiceDetail {
 
 
     public UserInvoiceDetail(String idUserInvoice, String series, String number, Boolean createPricing,
-                             Boolean createShipment, String sid, Date date, String idItem, Boolean isWare,
-                             BigDecimal quantity, String supplier, String customerWarehouse, String supplierWarehouse,
-                             BigDecimal price, BigDecimal chargePrice, BigDecimal manufacturingPrice,
+                             Boolean createShipment, String idUserInvoiceDetail, Date date, String idItem, Boolean isWare,
+                             BigDecimal quantity, String idSupplier, String idCustomerStock, String idSupplierStock,
+                             BigDecimal price, BigDecimal shipmentSum, BigDecimal chargePrice, BigDecimal manufacturingPrice,
                              BigDecimal wholesalePrice, BigDecimal wholesaleMarkup, BigDecimal retailPrice,
                              BigDecimal retailMarkup, String certificateText, String idContract, String numberDeclaration,
                              Date dateDeclaration, String numberCompliance, Date fromDateCompliance, Date toDateCompliance,
@@ -60,15 +61,16 @@ public class UserInvoiceDetail {
         this.number = number;
         this.createPricing = createPricing;
         this.createShipment = createShipment;
-        this.sid = sid;
+        this.idUserInvoiceDetail = idUserInvoiceDetail;
         this.date = date;
         this.idItem = idItem;
         this.isWare = isWare;
         this.quantity = quantity;
-        this.supplier = supplier;
-        this.customerWarehouse = customerWarehouse;
-        this.supplierWarehouse = supplierWarehouse;
+        this.idSupplier = idSupplier;
+        this.idCustomerStock = idCustomerStock;
+        this.idSupplierStock = idSupplierStock;
         this.price = price;
+        this.shipmentSum = shipmentSum;
         this.chargePrice = chargePrice;
         this.manufacturingPrice = manufacturingPrice;
         this.wholesalePrice = wholesalePrice;
