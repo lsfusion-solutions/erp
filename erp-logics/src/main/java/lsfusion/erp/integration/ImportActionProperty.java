@@ -1007,7 +1007,6 @@ public class ImportActionProperty {
 
                 ImportKey<?> warehouseKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Warehouse"),
                         LM.findLCPByCompoundName("warehouseId").getMapping(idWarehouseField));
-                warehouseKey.skipKey = skipKeys;
 
                 List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
 
