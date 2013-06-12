@@ -309,6 +309,32 @@ META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, pr
     @changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, );
 END
 
+//-- С учетом предельных надбавок
+
+META changeDocumentDetailLimitPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixCondition)
+    calc###prefixA###price###detail(detail)  = roundPriceRoundCondition(NUMERIC[14,2]([X*(Y+100)*(Z+100)/10000](
+    prefixB###price###detail(detail),
+    prefixC###markup###detail(detail),
+    value###prefixD###VAT###detail(detail))), prefixCondition###roundCondition###detail(detail));
+
+    calcMin###prefixA###price###detail(detail)  = MIN calc###prefixA###price###detail(detail),
+                                                      overLimitPrice###detail(detail);
+
+    change###prefixC###markup###detail = ACTION (detail) {
+        REQUEST NUMERIC[8,3] INPUT;
+
+        IF requestedNumeric() THEN {
+            SET prefixC###markup###detail(detail) <- requestedNumeric();
+            SET prefixA###price###detail(detail) <- calc###prefixA###price###detail(detail) WHERE calcMin###prefixA###price###detail(detail);
+        } ELSE {
+            SET prefixC###markup###detail(detail) <- NULL;
+        }
+    }
+END
+META changeDocumentDetailLimitPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD)
+    @changeDocumentDetailLimitPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, );
+END
+
 //-- Для общего случая
 META changeDocumentDetailMarkupPrefixInner(detail, prefixA, prefixB, prefixC, prefixD, prefixE, prefixF)
     calc###prefixB###markup###detail(detail)  = [round2(((X/Z*100/(100+Y))-1)*100)](
@@ -436,6 +462,7 @@ pricingPricePricingDetail (detail) = OVERRIDE pricePricingDetail(detail), overPr
 @defineDocumentInterfaceDetailPricePrefix(pricing, retail, ' розничная');
 
 // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
+overLimitPriceUserPricingDetail = ABSTRACT NUMERIC[14,2] (UserPricingDetail);
 @changeDocumentDetailMarkupCustomPrefix(userPricingDetail, retail, pricing, retail, retail);
 @changeDocumentDetailPriceCustomPrefix(userPricingDetail, retail, pricing, retail, retail);
 
