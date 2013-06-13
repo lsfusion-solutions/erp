@@ -147,8 +147,8 @@ exposePaymentRequest 'Выставить платежное поручение' 
         SET datePaymentRequest(pr) <- date;
         SET contractPaymentRequest(pr) <- contract;
         SET sumPaymentRequest(pr) <- limitSumContractDate(contract, date);
-//        SET costOutContractLedgerInContractLedger(pr, inContractLedger) <- debtInContractLedgerDate(inContractLedger, date)
-//            WHERE contractPayment(pr) == contractInContractLedger(inContractLedger);
+        SET costPaymentRequestInContractLedger(pr, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(pr, inContractLedger)
+            WHERE contractPaymentRequest(pr) == contractInContractLedger(inContractLedger);
         FORM paymentRequest OBJECTS p = pr MODAL;
         IF formResult() == FormResult.ok THEN {
             EXEC apply();
@@ -184,5 +184,67 @@ EXTEND FORM contractLedger
 EXTEND DESIGN contractLedger {
     secondContainer {
         ADD pr.box;
+    }
+}
+
+toPaymentRequests 'Выставить платежные требования' = ACTION () {
+    FOR debtInContractLedger(inContractLedger) DO {
+        ADDOBJ PaymentRequest;
+        FOR pr == addedObject() DO {
+            SET datePaymentRequest(pr) <- currentDate();
+            SET timePaymentRequest(pr) <- currentTime();
+            SET contractPaymentRequest(pr) <- contractInContractLedger(inContractLedger);
+            SET sumPaymentRequest(pr) <- limitSumInContractLedger(inContractLedger);
+            SET costPaymentRequestInContractLedger(pr, inContractLedger) <- limitSumInContractLedger(inContractLedger);
+            EXEC prePostPaymentRequest(pr);
+        }
+    }
+}
+
+FORM paymentRequests 'Платежные поручения'
+    OBJECTS d = DATE FIXED PANEL
+    PROPERTIES(d) OBJVALUE
+
+    OBJECTS pr = PaymentRequest
+    PROPERTIES(pr) READONLY numberObject BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            seriesObject BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            objectClassName BACKGROUND backgroundPaymentRequestDate(pr, d)
+    PROPERTIES(pr) ADDFORM, EDITFORM, DELETE
+    ORDER BY datePaymentRequest, timePaymentRequest
+
+    OBJECTS i = InContractLedger
+    PROPERTIES(i) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, costedPaymentRequestInContractLedger
+    PROPERTIES(pr, i) costPaymentRequestInContractLedger
+    FILTERS costPaymentRequestInContractLedger(pr, i)
+    ORDER BY dateInContractLedger
+
+    OBJECTS ic = InContractLedger
+    PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, costedPaymentRequestInContractLedger
+    PROPERTIES() toPaymentRequests TODRAW ic FORCE PANEL TOOLBAR
+    FILTERS debtInContractLedger(ic)
+    ORDER BY dateInContractLedger
+;
+
+DESIGN paymentRequests FROM DEFAULT{
+    ADD d.box;
+    NEW splitContainer{
+        type = SPLITV;
+        ADD pr.box;
+        NEW bodyContainer{
+            type = TABBED;
+            ADD i.box;
+            ADD ic.box{caption = 'Неоплаченные приходы';}
+        }
+    }
+    ADD functions.box;
+}
+
+NAVIGATOR {
+    contractNavigator{
+        ADD paymentRequests;
     }
 }
