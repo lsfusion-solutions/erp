@@ -43,10 +43,20 @@ costedPaymentRequestInContractLedgerDate 'Выставлено по докуме
               isPostedInContractLedger(inContractLedger) AND isPostedPaymentRequest(paymentRequest) AND
               datePaymentRequest(paymentRequest) <= date
     BY inContractLedger, date;
+exposeSumContractDate 'Выставлено по договору на дату' (contract, date) =
+    GROUP SUM costedPaymentRequestInContractLedgerDate (inContractLedger, date) IF
+              dateInContractLedger(inContractLedger) <= date
+    BY contractInContractLedger(inContractLedger), date;
+
+limitSumInContractLedger (inContractLedger) =
+    MIN debtInContractLedger(inContractLedger), debtInContractLedger(inContractLedger) (-) costedPaymentRequestInContractLedger(inContractLedger);
+
+limitSumContractDate (contract, date) =
+    MIN debtSumContractDate(contract, date), debtSumContractDate(contract, date) (-) exposeSumContractDate (contract, date);
 
 sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
     PARTITION UNGROUP sumPaymentRequest
-              LIMIT debtInContractLedger(inContractLedger) IF
+              LIMIT limitSumInContractLedger(inContractLedger) IF
                     contractPaymentRequest(paymentRequest) == contractInContractLedger(inContractLedger) AND
                     isPostedInContractLedger(inContractLedger)
               BY paymentRequest
@@ -54,7 +64,7 @@ sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
 
 sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
     PARTITION UNGROUP sumPaymentRequest
-              LIMIT debtInContractLedger(inContractLedger) IF
+              LIMIT limitSumInContractLedger(inContractLedger) IF
                     contractPaymentRequest(paymentRequest) == contractInContractLedger(inContractLedger) AND
                     isPostedInContractLedger(inContractLedger)
               BY paymentRequest
@@ -63,7 +73,7 @@ sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
 writePaymentRequestFIFO 'Расписать по FIFO' = ACTION (paymentRequest) {
 
     SET costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- NULL;
-    SET costPaymentRequestInContractLedger(pPaymentRequest, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
+    SET costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
 }
 
 writePaymentRequestLIFO 'Расписать по LIFO' = ACTION (paymentRequest) {
@@ -136,8 +146,7 @@ exposePaymentRequest 'Выставить платежное поручение' 
     FOR pr == addedObject() DO {
         SET datePaymentRequest(pr) <- date;
         SET contractPaymentRequest(pr) <- contract;
-//        SET sumContractPayment(pr) <- debtSumContractDate(contract, date);
-//        SET sumFromPayment(pr) <- debtSumContractDate(contract, date) IF currencyContractPayment(pr) == currencyAccountFromPayment(pr);
+        SET sumPaymentRequest(pr) <- limitSumContractDate(contract, date);
 //        SET costOutContractLedgerInContractLedger(pr, inContractLedger) <- debtInContractLedgerDate(inContractLedger, date)
 //            WHERE contractPayment(pr) == contractInContractLedger(inContractLedger);
         FORM paymentRequest OBJECTS p = pr MODAL;
@@ -150,29 +159,30 @@ exposePaymentRequest 'Выставить платежное поручение' 
 }
 
 EXTEND FORM contractLedger
+    PROPERTIES(c, d) exposeSumContractDate BACKGROUND backgroundBonusSumContract(c)
     PROPERTIES(c, d) FORCE PANEL TOOLBAR exposePaymentRequest
 ;
 
-//// ------------------------- Расширяем управление задолженностями ------------------------ //
-//
-//backgroundPaymentRequestDate 'Цвет' (paymentRequest, date) = RGB(255,160,160) IF datePaymentRequest(paymentRequest) > date;
-//
-//EXTEND FORM contractLedger
-//    OBJECTS pr = PaymentRequest
-//    PROPERTIES(pr) READONLY numberObject BACKGROUND backgroundPaymentRequestDate(pr, d),
-//                            seriesObject BACKGROUND backgroundPaymentRequestDate(pr, d),
-//                            datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-//                            timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-//                            sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-//                            notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-//                            objectClassName BACKGROUND backgroundPaymentRequestDate(pr, d)
-//    PROPERTIES(pr) ADDFORM, EDITFORM, DELETE
-//    ORDER BY datePaymentRequest, timePaymentRequest
-//    FILTERS contractPaymentRequest(pr) == c
-//;
-//
-//EXTEND DESIGN contractLedger {
-//    secondContainer {
-//        ADD pr.box;
-//    }
-//}
+// ------------------------- Расширяем управление задолженностями ------------------------ //
+
+backgroundPaymentRequestDate 'Цвет' (paymentRequest, date) = RGB(255,160,160) IF datePaymentRequest(paymentRequest) > date;
+
+EXTEND FORM contractLedger
+    OBJECTS pr = PaymentRequest
+    PROPERTIES(pr) READONLY numberObject BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            seriesObject BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            objectClassName BACKGROUND backgroundPaymentRequestDate(pr, d)
+    PROPERTIES(pr) ADDFORM, EDITFORM, DELETE
+    ORDER BY datePaymentRequest, timePaymentRequest
+    FILTERS contractPaymentRequest(pr) == c
+;
+
+EXTEND DESIGN contractLedger {
+    secondContainer {
+        ADD pr.box;
+    }
+}
