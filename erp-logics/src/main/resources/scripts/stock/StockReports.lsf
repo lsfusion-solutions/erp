@@ -41,17 +41,10 @@ FORM printListBalanceSkusStock 'Остатки по товарам' PRINT
     PROPERTIES(gt) READONLY sessionConcatGroups
     PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
 
-    TREE sk = Group
-    PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
-    FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
-    FILTERS groupTypeGroup(sk) == gt
-    PROPERTIES(sk, st, d) READONLY sumASkuGroupStockDate
-
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    FILTERS inSessionGroup(groupGroupTypeSku(gt, s))
     ORDER BY nameSku
-    FILTERS isParentGroupSku(sk, s)
 
     PROPERTIES(s, st, d) READONLY balanceASkuStockDate, sumASkuStockDate
     FILTERS balanceASkuStockDate(s, st, d)
@@ -104,16 +97,9 @@ FORM printListBalanceBatchesStock 'Остатки по партиям' PRINT
     PROPERTIES(gt) READONLY sessionConcatGroups
     PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
 
-    TREE sk = Group
-    PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
-    FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
-    FILTERS groupTypeGroup(sk) == gt
-    PROPERTIES(sk, st, d) READONLY costSumASkuGroupBatchStockDate
-
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY dateBatch, nameBatch, idBarcodeSkuBatch, nameSkuBatch, shortNameUOMBatch//, quantityBatch
-    FILTERS           isParentGroupBatch(sk, bt)
+    FILTERS inSessionGroup(groupGroupTypeSku(gt, skuBatch(bt)))
     ORDER BY          dateBatch, nameBatch, nameSkuBatch
 
     PROPERTIES(bt, st, d) READONLY balanceABatchStockDate, costSumABatchStockDate
@@ -258,19 +244,10 @@ FORM printListBackSheet 'Оборотная ведомость' PRINT
     PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
     PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
 
-    OBJECTS sk = Group
-    PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
-    FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
-    FILTERS groupTypeGroup(sk) == gt
-    PROPERTIES(sk, st, df) READONLY sumASkuGroupStockDate
-    PROPERTIES(sk, st, df, dt) READONLY sumInGroupSkuStockDateDate, sumOutGroupSkuStockDateDate
-    PROPERTIES(sk, st, dt) READONLY sumASkuGroupStockDate
-
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    FILTERS inSessionGroup(groupGroupTypeSku(gt, s))
     ORDER BY nameSku
-    FILTERS isParentGroupSku(sk, s)
 
     PROPERTIES(s, st, df) READONLY balanceASkuStockDate, sumASkuStockDate
     PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
