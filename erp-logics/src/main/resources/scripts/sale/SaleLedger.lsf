@@ -114,18 +114,18 @@ calcQuantitySoldInterval = ACTION (dateFrom, dateTo) {
     LOCAL days = INTEGER (Sku, Stock);
     LOCAL dateCur = DATE();
 
-    SET dateCur() <- dateFrom;
-    SET balance(sku, stock) <- balanceBSkuStockDate(sku, stock, dateFrom);
+    ASSIGN dateCur() <- dateFrom;
+    ASSIGN balance(sku, stock) <- balanceBSkuStockDate(sku, stock, dateFrom);
 
     WHILE dateCur() <= dateTo DO {
-        SET days(sku, stock) <- days(sku, stock) (+)
+        ASSIGN days(sku, stock) <- days(sku, stock) (+)
                    (1 IF ((balance(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0)));
-        SET balance(sku, stock) <- balance(sku, stock) (+)
+        ASSIGN balance(sku, stock) <- balance(sku, stock) (+)
                    signedQuantitySkuStockDate(sku, stock, dateCur());
-        SET dateCur() <- sumDate(dateCur(), 1);
+        ASSIGN dateCur() <- sumDate(dateCur(), 1);
     }
 
-    SET averageSoldSkuStock(sku, stock) <- quantitySoldSkuStockDateFromTo (sku, stock, dateFrom, dateTo) / days(sku, stock);
+    ASSIGN averageSoldSkuStock(sku, stock) <- quantitySoldSkuStockDateFromTo (sku, stock, dateFrom, dateTo) / days(sku, stock);
 }
 calcCurrentQuantitySoldInterval 'Пересчитать однодневные продажи' = ACTION () NEWSESSION AUTOAPPLY {
     EXEC calcQuantitySoldInterval(subtractDate(currentDate(), skuStockAverageInterval()), subtractDate(currentDate(), 1));

@@ -130,10 +130,10 @@ GROUP shipmentGroup 'Информация о поставке' : base;
 @deriveDocumentOperationProperty(UserShipment, createPurchaseWriteOff);
 
 overCopyInvoice(s, d) += ACTION (s, d) {
-    SET createPurchaseWriteOffUserInvoice(d) <- createPurchaseWriteOffUserInvoice(s);
-    SET writeOffCommitteeUserInvoice(d) <- writeOffCommitteeUserInvoice(s);
-    SET writeOffOperationUserInvoice(d) <- writeOffOperationUserInvoice(s);
-    SET reasonUserInvoice(d) <- reasonUserInvoice(s);
+    ASSIGN createPurchaseWriteOffUserInvoice(d) <- createPurchaseWriteOffUserInvoice(s);
+    ASSIGN writeOffCommitteeUserInvoice(d) <- writeOffCommitteeUserInvoice(s);
+    ASSIGN writeOffOperationUserInvoice(d) <- writeOffOperationUserInvoice(s);
+    ASSIGN reasonUserInvoice(d) <- reasonUserInvoice(s);
 }
 
 @defineDocumentInterfaceOperationPrefix (shipment, writeOff, WriteOff, ' ( списания)');
@@ -323,20 +323,20 @@ fillShipmentUserWriteOff 'Заполнить на основе поставки'
     FORM writeOffShipments OBJECTS st = stockUserWriteOff(userWriteOff) MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL purchaseShipment = Shipment();
-        SET purchaseShipment() <- chosenObject('s');
+        ASSIGN purchaseShipment() <- chosenObject('s');
 
         FOR shipmentShipmentDetail(shipmentDetail) == purchaseShipment() AND
             customerStockShipmentDetail(shipmentDetail) == stockUserWriteOff(userWriteOff) AND
             calcWriteOffQuantityShipmentDetail(shipmentDetail) AND NOT writeOffQuantityShipmentDetail(shipmentDetail)
             ADDOBJ d = UserWriteOffDetail DO {
-                SET userWriteOffUserWriteOffDetail(d) <- userWriteOff;
-                SET shipmentDetailUserWriteOffDetail(d) <- shipmentDetail;
-                SET batchUserWriteOffDetail(d) <- batchShipmentDetail(shipmentDetail);
+                ASSIGN userWriteOffUserWriteOffDetail(d) <- userWriteOff;
+                ASSIGN shipmentDetailUserWriteOffDetail(d) <- shipmentDetail;
+                ASSIGN batchUserWriteOffDetail(d) <- batchShipmentDetail(shipmentDetail);
 
-                SET skuUserWriteOffDetail(d) <- skuShipmentDetail(shipmentDetail);
-                SET quantityUserWriteOffDetail (d) <- calcWriteOffQuantityShipmentDetail(shipmentDetail);
-                SET priceUserWriteOffDetail(d) <- calcWriteOffPriceShipmentDetail(shipmentDetail);
-//                SET sumUserWriteOffDetail(d) <- calcSumWriteOffShipmentDetail(shipmentDetail);
+                ASSIGN skuUserWriteOffDetail(d) <- skuShipmentDetail(shipmentDetail);
+                ASSIGN quantityUserWriteOffDetail (d) <- calcWriteOffQuantityShipmentDetail(shipmentDetail);
+                ASSIGN priceUserWriteOffDetail(d) <- calcWriteOffPriceShipmentDetail(shipmentDetail);
+//                ASSIGN sumUserWriteOffDetail(d) <- calcSumWriteOffShipmentDetail(shipmentDetail);
         }
     }
 } IN shipmentGroup;
@@ -421,21 +421,21 @@ moveUserWriteOffShipment 'Списание' =  ACTION (shipment) NEWSESSION{
 
     FOR ADDOBJ w = UserWriteOff DO {
 
-        SET stockUserWriteOff(w) <- customerStockShipment(shipment);
+        ASSIGN stockUserWriteOff(w) <- customerStockShipment(shipment);
 
-        SET currencyUserWriteOff(w) <- currencyShipment(shipment);
-        SET numberObject(w) <- numberShipment(shipment) WHERE w IS UserWriteOff;
-        SET seriesObject(w) <- seriesShipment(shipment) WHERE w IS UserWriteOff;
-        SET noteUserWriteOff(w) <- noteShipment(shipment);
+        ASSIGN currencyUserWriteOff(w) <- currencyShipment(shipment);
+        ASSIGN numberObject(w) <- numberShipment(shipment) WHERE w IS UserWriteOff;
+        ASSIGN seriesObject(w) <- seriesShipment(shipment) WHERE w IS UserWriteOff;
+        ASSIGN noteUserWriteOff(w) <- noteShipment(shipment);
 
         FOR shipmentShipmentDetail(detail) == shipment AND calcWriteOffQuantityShipmentDetail(detail) AND NOT writeOffQuantityShipmentDetail(detail) ADDOBJ d = UserWriteOffDetail DO {
-            SET userWriteOffUserWriteOffDetail(d) <- w;
-            SET shipmentDetailUserWriteOffDetail(d) <- detail;
-            SET batchUserWriteOffDetail(d) <- batchShipmentDetail(detail);
+            ASSIGN userWriteOffUserWriteOffDetail(d) <- w;
+            ASSIGN shipmentDetailUserWriteOffDetail(d) <- detail;
+            ASSIGN batchUserWriteOffDetail(d) <- batchShipmentDetail(detail);
 
-            SET skuUserWriteOffDetail(d) <- skuShipmentDetail(detail);
-            SET quantityUserWriteOffDetail (d) <- calcWriteOffQuantityShipmentDetail(detail);
-            SET priceUserWriteOffDetail(d) <- calcWriteOffPriceShipmentDetail(detail);
+            ASSIGN skuUserWriteOffDetail(d) <- skuShipmentDetail(detail);
+            ASSIGN quantityUserWriteOffDetail (d) <- calcWriteOffQuantityShipmentDetail(detail);
+            ASSIGN priceUserWriteOffDetail(d) <- calcWriteOffPriceShipmentDetail(detail);
         }
 
         FORM userWriteOff OBJECTS w = w MANAGESESSION DOCKEDMODAL;
@@ -463,9 +463,9 @@ NAVIGATOR {
 loadDefaultWriteOffRate 'Добавить нормы отходов' = ACTION (idCountry, string, numeric)  {
     ADDOBJ WriteOffRate;
     FOR g == addedObject() DO {
-        SET nameWriteOffRate(g) <- string;
-        SET percentWriteOffRate(g) <-  numeric;
-        SET countryWriteOffRate(g) <- countrySID(idCountry);
+        ASSIGN nameWriteOffRate(g) <- string;
+        ASSIGN percentWriteOffRate(g) <-  numeric;
+        ASSIGN countryWriteOffRate(g) <- countrySID(idCountry);
     }
 };
 

@@ -71,13 +71,13 @@ quantityShipmentDetailTripShipment (trip, shipment) = GROUP SUM quantityShipment
 quantityShippedTripSku 'Кол-во в поставках' (trip, sku) = GROUP SUM quantityShipmentDetail(shipmentDetail) BY tripShipment(shipmentShipmentDetail(shipmentDetail)), skuShipmentDetail(shipmentDetail);
 
 createShipmentsTrip 'Включить поставки' (trip) = ACTION (trip) {
-    SET tripShipment(shipment) <- NULL WHERE tripShipment(shipment) == trip;
-    SET tripShipment(shipment) <- trip WHERE quantityShipmentDetailTripShipment(trip, shipment);
+    ASSIGN tripShipment(shipment) <- NULL WHERE tripShipment(shipment) == trip;
+    ASSIGN tripShipment(shipment) <- trip WHERE quantityShipmentDetailTripShipment(trip, shipment);
 } TOOLBAR CONFIRM;
 
 // отображение на карте
 showPointsTrip 'Показать путь на карте' (trip) = ACTION (trip) {
-    SET numberPathPOI(stock) <- OVERRIDE 1 IF quantityTripStock(trip, stock) > 0, numberStockTrip(stock, trip);
+    ASSIGN numberPathPOI(stock) <- OVERRIDE 1 IF quantityTripStock(trip, stock) > 0, numberStockTrip(stock, trip);
     EXEC showOnMapPath();
 
 } TOOLBAR;
@@ -89,16 +89,16 @@ quantityAllToTripStock (trip, stock) = GROUP SUM 1 IF selectTripOrder(trip, orde
 quantityAllTripStock(trip, stock) = quantityAllFromTripStock(trip, stock) (+) quantityAllToTripStock(trip, stock);
 
 showPointOrders 'Показать отмеченные заказы' (trip) = ACTION (trip) {
-    SET numberPathPOI(stock) <- 1 IF quantityAllTripStock(trip, stock);
+    ASSIGN numberPathPOI(stock) <- 1 IF quantityAllTripStock(trip, stock);
     EXEC showOnMapPath();
 
 } TOOLBAR;
 
 createPathTrip 'Рассчитать путь' (trip) = ACTION (trip) {
-    SET startPathPOI() <- firstStockTrip(trip);
-    SET inPathPOI(stock) <- TRUE IF quantityTripStock(trip, stock);
+    ASSIGN startPathPOI() <- firstStockTrip(trip);
+    ASSIGN inPathPOI(stock) <- TRUE IF quantityTripStock(trip, stock);
     EXEC calculatePath();
-    SET numberStockTrip(stock, trip) <- numberPathPOI(stock);
+    ASSIGN numberStockTrip(stock, trip) <- numberPathPOI(stock);
 } TOOLBAR;
 
 FORM ordersTrip PRINT

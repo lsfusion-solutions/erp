@@ -22,21 +22,21 @@ numberSkuStockReserveSupplierStockPriceListTypeDateTime 'Кол-во товар�
 
 createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, priceListType, dateTime) NEWSESSION {
     FOR ADDOBJ o = Purchase.UserOrder DO {
-        SET dateUserOrder(o) <- toDate(dateTime);
-        SET timeUserOrder(o) <- toTime(dateTime);
-        SET supplierUserOrder(o) <- supplier;
-        SET supplierStockUserOrder(o) <- defaultStockEmployeeLegalEntity(currentUser(), supplier)
+        ASSIGN dateUserOrder(o) <- toDate(dateTime);
+        ASSIGN timeUserOrder(o) <- toTime(dateTime);
+        ASSIGN supplierUserOrder(o) <- supplier;
+        ASSIGN supplierStockUserOrder(o) <- defaultStockEmployeeLegalEntity(currentUser(), supplier)
             IF countAccessStockEmployeeLegalEntity (currentUser(), supplier) == 1;
-        SET customerUserOrder(o) <- legalEntityStock(stock);
-        SET customerStockUserOrder(o) <- stock;
-        SET priceListTypeUserOrder(o) <- priceListType;
+        ASSIGN customerUserOrder(o) <- legalEntityStock(stock);
+        ASSIGN customerStockUserOrder(o) <- stock;
+        ASSIGN priceListTypeUserOrder(o) <- priceListType;
 
         FOR priceLedgerPriceListTypeSkuStockCompanyDateTime(priceListType, sku, stock, supplier, dateTime)
             AND recommendedQuantitySkuStockUserOrder (sku, stock, o)
             ADDOBJ d = UserOrderDetail DO {
-                SET userOrderUserOrderDetail(d) <- o;
-                SET skuUserOrderDetail(d) <- sku;
-                SET quantityUserOrderDetail (d) <- recommendedQuantitySkuStockUserOrder (sku, stock, o);
+                ASSIGN userOrderUserOrderDetail(d) <- o;
+                ASSIGN skuUserOrderDetail(d) <- sku;
+                ASSIGN quantityUserOrderDetail (d) <- recommendedQuantitySkuStockUserOrder (sku, stock, o);
         }
 
         FORM userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;

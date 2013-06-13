@@ -235,7 +235,7 @@ END
 META deriveDocumentDetailPriceOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form)
     ON SESSION FORMS form PREVSTART pricePriceListTypeSkuStockDateTime { // цены берем на начало сессии, а не этого event'а
         LOCAL changedPriceListType = BOOLEAN (###idetail);
-        SET changedPriceListType(detail) <- TRUE IF prefix###priceListType###idetail(detail) AND
+        ASSIGN changedPriceListType(detail) <- TRUE IF prefix###priceListType###idetail(detail) AND
                                                     sku###idetail(detail) AND
                                             (CHANGED(prefix###priceListType###idetail(detail)) OR
                                              CHANGED(prefixP###price###idetail(detail)) OR
@@ -246,20 +246,20 @@ META deriveDocumentDetailPriceOnSessionPriceListType (idetail, prefix, prefixP, 
         FOR [GROUP MAX(changedPriceListType(detail)) BY prefix###priceListType###idetail(detail)](priceListType) DO {
             IF 1 == 2 THEN BREAK; // чтобы не компилировала в один запрос, а выполняло императивно
             IF priceListType IS CalcPriceListType THEN {
-                SET prefix###markup###idetail(detail) <- markupCalcPriceListTypeSku(priceListType, sku###idetail(detail))
+                ASSIGN prefix###markup###idetail(detail) <- markupCalcPriceListTypeSku(priceListType, sku###idetail(detail))
                                                              WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-                SET prefix###price###idetail(detail) <- roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
+                ASSIGN prefix###price###idetail(detail) <- roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
                                                                         prefixP###price###idetail(detail),
                                                                         prefix###markup###idetail(detail),
                                                                         value###prefix###VAT###idetail(detail)), roundConditionPriceListType(priceListType))
                                                              WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
             } ELSE {
-                SET prefix###price###idetail(detail) <- prevPricePriceListTypeSkuStockDateTime(priceListType,
+                ASSIGN prefix###price###idetail(detail) <- prevPricePriceListTypeSkuStockDateTime(priceListType,
                                                                                                    sku###idetail(detail),
                                                                                                    stockProp###idetail(detail),
                                                                                                    dateTime###idetail(detail))
                                                              WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-                SET prefix###markup###idetail(detail) <- [round2(((X/Z*100/(100+Y))-1)*100)](
+                ASSIGN prefix###markup###idetail(detail) <- [round2(((X/Z*100/(100+Y))-1)*100)](
                                                                          prefix###price###idetail(detail),
                                                                          prefixP###price###idetail(detail),
                                                                          value###prefix###VAT###idetail(detail))
@@ -279,10 +279,10 @@ META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, p
         REQUEST NUMERIC[14,2] INPUT;
 
         IF requestedNumeric() THEN {
-            SET prefixA###price###detail(detail) <- requestedNumeric();
-            SET prefixC###markup###detail(detail) <- calc###prefixC###markup###detail(detail) WHERE calc###prefixC###markup###detail(detail);
+            ASSIGN prefixA###price###detail(detail) <- requestedNumeric();
+            ASSIGN prefixC###markup###detail(detail) <- calc###prefixC###markup###detail(detail) WHERE calc###prefixC###markup###detail(detail);
         } ELSE {
-            SET prefixA###price###detail(detail) <- NULL;
+            ASSIGN prefixA###price###detail(detail) <- NULL;
         }
     }
 END
@@ -298,10 +298,10 @@ META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, pr
         REQUEST NUMERIC[8,3] INPUT;
 
         IF requestedNumeric() THEN {
-            SET prefixC###markup###detail(detail) <- requestedNumeric();
-            SET prefixA###price###detail(detail) <- calc###prefixA###price###detail(detail) WHERE calc###prefixA###price###detail(detail);
+            ASSIGN prefixC###markup###detail(detail) <- requestedNumeric();
+            ASSIGN prefixA###price###detail(detail) <- calc###prefixA###price###detail(detail) WHERE calc###prefixA###price###detail(detail);
         } ELSE {
-            SET prefixC###markup###detail(detail) <- NULL;
+            ASSIGN prefixC###markup###detail(detail) <- NULL;
         }
     }
 END
@@ -346,10 +346,10 @@ META changeDocumentDetailMarkupPrefixInner(detail, prefixA, prefixB, prefixC, pr
         REQUEST NUMERIC[14,2] INPUT;
 
         IF requestedNumeric() THEN {
-            SET prefixA###price###detail(detail) <- requestedNumeric();
-            SET prefixF###markup###detail(detail) <- calc###prefixB###markup###detail(detail) WHERE calc###prefixB###markup###detail(detail);
+            ASSIGN prefixA###price###detail(detail) <- requestedNumeric();
+            ASSIGN prefixF###markup###detail(detail) <- calc###prefixB###markup###detail(detail) WHERE calc###prefixB###markup###detail(detail);
         } ELSE {
-            SET prefixA###price###detail(detail) <- NULL;
+            ASSIGN prefixA###price###detail(detail) <- NULL;
         }
     }
 END
@@ -366,10 +366,10 @@ META changeDocumentDetailPricePrefix(detail, prefixA, prefixB, prefixC, prefixD,
         REQUEST NUMERIC[14,2] INPUT;
 
         IF requestedNumeric() THEN {
-            SET prefixA###price###detail(detail) <- requestedNumeric();
-            SET prefixF###price###detail(detail) <- calc###prefixB###price###detail(detail) WHERE calc###prefixB###price###detail(detail);
+            ASSIGN prefixA###price###detail(detail) <- requestedNumeric();
+            ASSIGN prefixF###price###detail(detail) <- calc###prefixB###price###detail(detail) WHERE calc###prefixB###price###detail(detail);
         } ELSE {
-            SET prefixA###price###detail(detail) <- NULL;
+            ASSIGN prefixA###price###detail(detail) <- NULL;
         }
     }
 END
@@ -1106,21 +1106,21 @@ META defineInvoicePricingRelation(sign, stockProp)
         FORM pricingInvoices OBJECTS s = supplierUserPricing(userPricing), c = departmentStoreUserPricing(userPricing) MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL saleInvoice = Invoice();
-            SET saleInvoice() <- chosenObject('i');
+            ASSIGN saleInvoice() <- chosenObject('i');
 
             FOR invoiceInvoiceDetail(invoiceDetail) == saleInvoice() AND
                 stockProp###invoiceDetail(invoiceDetail) == departmentStoreUserPricing(userPricing) AND
                 toPricingInvoiceDetail(invoiceDetail) > 0
                 ADDOBJ d = UserPricingDetail DO {
-                SET userPricingUserPricingDetail(d) <- userPricing;
-                SET invoiceDetailUserPricingDetail(d) <- invoiceDetail;
+                ASSIGN userPricingUserPricingDetail(d) <- userPricing;
+                ASSIGN invoiceDetailUserPricingDetail(d) <- invoiceDetail;
 
-                SET skuUserPricingDetail(d) <- skuInvoiceDetail(invoiceDetail);
-                SET quantityUserPricingDetail (d) <- toPricingInvoiceDetail(invoiceDetail);
-                SET priceUserPricingDetail (d) <- priceInvoiceDetail(invoiceDetail);
+                ASSIGN skuUserPricingDetail(d) <- skuInvoiceDetail(invoiceDetail);
+                ASSIGN quantityUserPricingDetail (d) <- toPricingInvoiceDetail(invoiceDetail);
+                ASSIGN priceUserPricingDetail (d) <- priceInvoiceDetail(invoiceDetail);
 
-                SET retailVATUserPricingDetail(d) <- VATInvoiceDetail(invoiceDetail);
-                SET valueRetailVATUserPricingDetail(d) <- valueVATInvoiceDetail(invoiceDetail);
+                ASSIGN retailVATUserPricingDetail(d) <- VATInvoiceDetail(invoiceDetail);
+                ASSIGN valueRetailVATUserPricingDetail(d) <- valueVATInvoiceDetail(invoiceDetail);
             }
         }
     } IN invoiceGroup;

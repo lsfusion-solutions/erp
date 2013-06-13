@@ -163,7 +163,7 @@ fillWastageTechnology 'Заполнить технологии на другой
     IF formResult() == FormResult.ok THEN {
 
         LOCAL newYear = INTEGER();
-        SET newYear() <- chosenInteger('y');
+        ASSIGN newYear() <- chosenInteger('y');
 
         FOR dataWastageTechnologyMaterialDate(technology, material, dateFrom) DO {
 
@@ -171,7 +171,7 @@ fillWastageTechnology 'Заполнить технологии на другой
                 BREAK;
 
             IF yearInDate(dateFrom) == (newYear() - 1) THEN {
-                SET dataWastageTechnologyMaterialDate(technology, material, dateTo) <- dataWastageTechnologyMaterialDate(technology, material, dateFrom) WHERE dateTo == incrementYearDate(dateFrom);
+                ASSIGN dataWastageTechnologyMaterialDate(technology, material, dateTo) <- dataWastageTechnologyMaterialDate(technology, material, dateFrom) WHERE dateTo == incrementYearDate(dateFrom);
             }
 
         }
@@ -256,7 +256,7 @@ descriptionProduct 'Название документа' (product) = description
 @defineDocumentHeaderQuantityCustomPrefix (BOM, product, , ' (изделие)');
 
 pricePercentProduct 'Удельный вес цены,%' = DATA NUMERIC[8,3] (Product);
-pricePercentProduct(product) <- 100.000 WHEN ASSIGNED (product IS Product);
+pricePercentProduct(product) <- 100.000 WHEN SET (product IS Product);
 priceCoeffProduct (product) = pricePercentProduct(product) / 100 PERSISTENT;
 
 pricePercentBOM 'Удельный вес цен, %' = GROUP SUM pricePercentProduct(product) BY BOMProduct(product) PERSISTENT IN documentSumGroup;
@@ -324,9 +324,9 @@ changeWastageComponent = ACTION (component) {
     REQUEST NUMERIC[8,3] INPUT;
 
     IF requestedNumeric() IF NOT technologyComponent(component) THEN {
-        SET wastageComponent(component) <- requestedNumeric();
+        ASSIGN wastageComponent(component) <- requestedNumeric();
     } ELSE {
-        SET wastageComponent(component) <- NULL;
+        ASSIGN wastageComponent(component) <- NULL;
     }
 }
 backgroundWastageComponent 'Цвет' (component) = RGB(229,229,229) IF technologyComponent(component);
@@ -350,9 +350,9 @@ changeBruttoQuantityComponent = ACTION (component) {
     REQUEST NUMERIC[14,3] INPUT;
 
     IF requestedNumeric() IF NOT technologyComponent(component) THEN {
-        SET bruttoQuantityComponent(component) <- requestedNumeric();
+        ASSIGN bruttoQuantityComponent(component) <- requestedNumeric();
     } ELSE {
-        SET bruttoQuantityComponent(component) <- NULL;
+        ASSIGN bruttoQuantityComponent(component) <- NULL;
     }
 }
 backgroundBruttoQuantityComponent 'Цвет' (component) = RGB(229,229,229) IF technologyComponent(component);
@@ -443,21 +443,21 @@ DESIGN BOM FROM DEFAULT{
 copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
     FOR ADDOBJ b = BOM DO {
 
-        SET noteBOM(b) <- noteBOM(BOM);
+        ASSIGN noteBOM(b) <- noteBOM(BOM);
         FOR BOMProduct(product) == BOM ADDOBJ p=Product DO {
-            SET BOMProduct(p) <- b;
-            SET skuProduct(p) <- skuProduct(product);
-            SET quantityProduct(p) <- quantityProduct(product);
-            SET pricePercentProduct(p) <- pricePercentProduct(product);
+            ASSIGN BOMProduct(p) <- b;
+            ASSIGN skuProduct(p) <- skuProduct(product);
+            ASSIGN quantityProduct(p) <- quantityProduct(product);
+            ASSIGN pricePercentProduct(p) <- pricePercentProduct(product);
         }
 
         FOR BOMComponent(component) == BOM ADDOBJ c=Component DO {
-            SET BOMComponent(c) <- b;
-            SET materialComponent(c) <- materialComponent(component);
-            SET nettoQuantityComponent(c) <- nettoQuantityComponent(component);
-            SET technologyComponent(c) <- technologyComponent(component);
-            SET bruttoQuantityComponent(c) <- bruttoQuantityComponent(component);
-            SET wastageComponent(c) <- wastageComponent(component);
+            ASSIGN BOMComponent(c) <- b;
+            ASSIGN materialComponent(c) <- materialComponent(component);
+            ASSIGN nettoQuantityComponent(c) <- nettoQuantityComponent(component);
+            ASSIGN technologyComponent(c) <- technologyComponent(component);
+            ASSIGN bruttoQuantityComponent(c) <- bruttoQuantityComponent(component);
+            ASSIGN wastageComponent(c) <- wastageComponent(component);
         }
 
         FORM BOM OBJECTS b = b MANAGESESSION DOCKEDMODAL;

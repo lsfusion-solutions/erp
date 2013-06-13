@@ -198,12 +198,12 @@ META defineInvoice(sign, stockProp)
 //        FORM documents MODAL;
 //        IF formResult() == FormResult.ok THEN {
 //            LOCAL chosenDocument = Document();
-//            SET chosenDocument() <- chosenObject('d');
+//            ASSIGN chosenDocument() <- chosenObject('d');
 //            FOR documentDocumentDetail(documentDetail) == chosenDocument() ADDOBJ i = UserInvoiceDetail DO {
-//                SET userInvoiceUserInvoiceDetail(i) <- userInvoice;
-//                SET skuInvoiceDetail(i) <- skuDocumentDetail(documentDetail);
-//                SET quantityInvoiceDetail(i) <- quantityDocumentDetail(documentDetail);
-//                SET priceInvoiceDetail(i) <- priceDocumentDetail(documentDetail);
+//                ASSIGN userInvoiceUserInvoiceDetail(i) <- userInvoice;
+//                ASSIGN skuInvoiceDetail(i) <- skuDocumentDetail(documentDetail);
+//                ASSIGN quantityInvoiceDetail(i) <- quantityDocumentDetail(documentDetail);
+//                ASSIGN priceInvoiceDetail(i) <- priceDocumentDetail(documentDetail);
 //            }
 //        }
 //    } TOOLBAR;
@@ -338,27 +338,27 @@ META defineInvoice(sign, stockProp)
 
     copyInvoice 'Копировать' = ACTION (invoice) NEWSESSION {
         FOR ADDOBJ i = UserInvoice DO {
-            SET supplierUserInvoice(i) <- supplierInvoice(invoice);
-            SET supplierStockUserInvoice(i) <- supplierStockInvoice(invoice);
-            SET customerUserInvoice(i) <- customerInvoice(invoice);
-            SET customerStockUserInvoice(i) <- customerStockInvoice(invoice);
-            SET contractSkuUserInvoice(i) <- contractSkuInvoice(invoice);
-            SET isCommissionUserInvoice(i) <- isCommissionInvoice(invoice);
-            SET currencyUserInvoice(i) <- currencyInvoice(invoice);
-            SET agreementUserInvoice(i) <- agreementInvoice(invoice);
-            SET priceListTypeUserInvoice(i) <- priceListTypeInvoice(invoice);
-            SET noteUserInvoice(i) <- noteInvoice(invoice);
-            //SET createShipmentUserInvoice(i) <- createShipmentUserInvoice(invoice);
+            ASSIGN supplierUserInvoice(i) <- supplierInvoice(invoice);
+            ASSIGN supplierStockUserInvoice(i) <- supplierStockInvoice(invoice);
+            ASSIGN customerUserInvoice(i) <- customerInvoice(invoice);
+            ASSIGN customerStockUserInvoice(i) <- customerStockInvoice(invoice);
+            ASSIGN contractSkuUserInvoice(i) <- contractSkuInvoice(invoice);
+            ASSIGN isCommissionUserInvoice(i) <- isCommissionInvoice(invoice);
+            ASSIGN currencyUserInvoice(i) <- currencyInvoice(invoice);
+            ASSIGN agreementUserInvoice(i) <- agreementInvoice(invoice);
+            ASSIGN priceListTypeUserInvoice(i) <- priceListTypeInvoice(invoice);
+            ASSIGN noteUserInvoice(i) <- noteInvoice(invoice);
+            //ASSIGN createShipmentUserInvoice(i) <- createShipmentUserInvoice(invoice);
 
             EXEC overCopyInvoice(invoice, i);
 
             FOR invoiceInvoiceDetail(invoiceDetail) == invoice DO {
                 FOR ADDOBJ d=UserInvoiceDetail DO {
-                    SET userInvoiceUserInvoiceDetail(d) <- i;
-                    SET skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
-                    SET quantityUserInvoiceDetail(d) <- quantityInvoiceDetail(invoiceDetail);
-                    SET priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
-                    SET data###stockProp###userInvoiceDetail(d) <- data###stockProp###invoiceDetail(invoiceDetail);
+                    ASSIGN userInvoiceUserInvoiceDetail(d) <- i;
+                    ASSIGN skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
+                    ASSIGN quantityUserInvoiceDetail(d) <- quantityInvoiceDetail(invoiceDetail);
+                    ASSIGN priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
+                    ASSIGN data###stockProp###userInvoiceDetail(d) <- data###stockProp###invoiceDetail(invoiceDetail);
                 }
             }
 
@@ -469,9 +469,9 @@ META defineInvoiceBatch(stockProp)
                                  sk = skuUserInvoiceDetail(userInvoiceDetail) MODAL SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {
-            SET batchUserInvoiceDetail(userInvoiceDetail) <- chosenObject('bt');
+            ASSIGN batchUserInvoiceDetail(userInvoiceDetail) <- chosenObject('bt');
         } ELSE IF formResult() == FormResult.drop THEN {
-            SET batchUserInvoiceDetail(userInvoiceDetail) <- NULL;
+            ASSIGN batchUserInvoiceDetail(userInvoiceDetail) <- NULL;
         }
 
     };
@@ -528,9 +528,9 @@ META defineInvoiceReturn(NS, NSR, stockProp)
     overRecalculatedPriceUserInvoiceDetail = ABSTRACT ACTION LIST (NSR.UserInvoiceDetail);
     recalculatedPriceUserInvoiceDetail(detail) = ACTION (detail) {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
         IF invoiceDetailUserInvoiceDetail(detail) THEN {
-            SET NSR.priceUserInvoiceDetail(detail) <-  NS.priceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
-            SET NSR.invoicePriceUserInvoiceDetail(detail) <-  NS.invoicePriceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
-            SET NSR.VATUserInvoiceDetail(detail) <- NS.VATInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+            ASSIGN NSR.priceUserInvoiceDetail(detail) <-  NS.priceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+            ASSIGN NSR.invoicePriceUserInvoiceDetail(detail) <-  NS.invoicePriceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+            ASSIGN NSR.VATUserInvoiceDetail(detail) <- NS.VATInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
             EXEC overRecalculatedPriceUserInvoiceDetail(detail);
         }
     }
@@ -669,15 +669,15 @@ END
 META defineInvoicePayment(dumb)
 
     addPaymentInvoice 'Оплатить' = ACTION (invoice) {
-        SET currentInContractLedger() <- invoice;
+        ASSIGN currentInContractLedger() <- invoice;
         FOR ADDOBJ p = Payment DO{
-            SET contractPayment(p) <- contractSkuUserInvoice(invoice);
-            SET datePayment(p) <- currentDate();
-            SET timePayment(p) <- currentTime();
-            SET payerPayment(p) <- customerUserInvoice(invoice);
-            SET beneficiaryPayment(p) <- supplierUserInvoice(invoice);
-            SET sumFromPayment(p) <- invoiceSumUserInvoiceDetailUserInvoice(invoice);
-            SET costOutContractLedgerInContractLedger(p, invoice) <- sumContractPayment(p);
+            ASSIGN contractPayment(p) <- contractSkuUserInvoice(invoice);
+            ASSIGN datePayment(p) <- currentDate();
+            ASSIGN timePayment(p) <- currentTime();
+            ASSIGN payerPayment(p) <- customerUserInvoice(invoice);
+            ASSIGN beneficiaryPayment(p) <- supplierUserInvoice(invoice);
+            ASSIGN sumFromPayment(p) <- invoiceSumUserInvoiceDetailUserInvoice(invoice);
+            ASSIGN costOutContractLedgerInContractLedger(p, invoice) <- sumContractPayment(p);
             FORM payment OBJECTS p=p MODAL;
             IF NOT formResult() == FormResult.ok THEN {
                 DELETE p;
@@ -686,7 +686,7 @@ META defineInvoicePayment(dumb)
     }
 
     editPaymentInvoice 'Редактировать' = ACTION (payment, invoice) {
-        SET currentInContractLedger() <- invoice;
+        ASSIGN currentInContractLedger() <- invoice;
         FORM payment OBJECTS p=payment MODAL;
     }
 

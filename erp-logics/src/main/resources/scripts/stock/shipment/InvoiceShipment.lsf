@@ -112,19 +112,19 @@ META defineInvoiceShipment(sign, stockProp)
         FORM shipmentInvoices OBJECTS s = supplierUserShipment(userShipment), c = customerUserShipment(userShipment) MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL saleInvoice = Invoice();
-            SET saleInvoice() <- chosenObject('i');
+            ASSIGN saleInvoice() <- chosenObject('i');
             EXEC overFillInvoiceUserShipmentInvoice(userShipment, saleInvoice());
 
             FOR invoiceInvoiceDetail(invoiceDetail) == saleInvoice() AND
                 toShipInvoiceDetail(invoiceDetail) > 0
                 ADDOBJ d = UserShipmentDetail DO {
-                    SET userShipmentUserShipmentDetail(d) <- userShipment;
-                    SET invoiceDetailUserShipmentDetail(d) <- invoiceDetail;
-                    SET orderUserShipmentDetail(d) <- orderInvoiceDetail(invoiceDetail);
+                    ASSIGN userShipmentUserShipmentDetail(d) <- userShipment;
+                    ASSIGN invoiceDetailUserShipmentDetail(d) <- invoiceDetail;
+                    ASSIGN orderUserShipmentDetail(d) <- orderInvoiceDetail(invoiceDetail);
 
-                    SET skuUserShipmentDetail(d) <- skuInvoiceDetail(invoiceDetail);
+                    ASSIGN skuUserShipmentDetail(d) <- skuInvoiceDetail(invoiceDetail);
 
-                    SET quantityUserShipmentDetail (d) <- toShipInvoiceDetail(invoiceDetail);
+                    ASSIGN quantityUserShipmentDetail (d) <- toShipInvoiceDetail(invoiceDetail);
 
                     EXEC overFillInvoiceUserShipmentDetailInvoiceDetail(d, invoiceDetail);
             }
@@ -161,7 +161,7 @@ META defineInvoiceShipment(sign, stockProp)
     @defineDocumentInterfaceDetailExpiryDate(invoice);
 
     overCopyInvoice(s, d) += ACTION (s, d) {
-        SET createShipmentUserInvoice(d) <- createShipmentUserInvoice(s);
+        ASSIGN createShipmentUserInvoice(d) <- createShipmentUserInvoice(s);
     }
 
     skipCreateShipmentInvoiceDetail = ABSTRACT BOOLEAN (InvoiceDetail) PERSISTENT;
@@ -280,7 +280,7 @@ META defineInvoiceShipmentBatch(dumb)
         PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail
     ;
 
-    overFillInvoiceUserShipmentDetailInvoiceDetail (sd, id) += ACTION SET batchUserShipmentDetail (sd) <- batchInvoiceDetail(id);
+    overFillInvoiceUserShipmentDetailInvoiceDetail (sd, id) += ACTION ASSIGN batchUserShipmentDetail (sd) <- batchInvoiceDetail(id);
 
     @defineDocumentAggregationDetailBatch (invoice, invoiceShipment);
     batchShipmentDetail (shipmentDetail) += batchInvoiceShipmentDetail(shipmentDetail);
@@ -295,9 +295,9 @@ META defineInvoiceShipmentPack(dumb)
                        amountPackInvoiceDetail, packQuantityInvoiceDetail
     ;
     overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
-        SET barcodePackUserShipmentDetail(s) <- barcodePackInvoiceDetail(i);
-        SET amountPackUserShipmentDetail(s) <- amountPackInvoiceDetail(i);
-        SET packQuantityUserShipmentDetail(s) <- toShipInvoiceDetail(i)/amountPackInvoiceDetail(i);
+        ASSIGN barcodePackUserShipmentDetail(s) <- barcodePackInvoiceDetail(i);
+        ASSIGN amountPackUserShipmentDetail(s) <- amountPackInvoiceDetail(i);
+        ASSIGN packQuantityUserShipmentDetail(s) <- toShipInvoiceDetail(i)/amountPackInvoiceDetail(i);
     }
 
     showPackShipment(shipment) += showPackInvoice(invoiceInvoiceShipment(shipment));
@@ -313,26 +313,26 @@ META defineInvoiceShipmentAction (sign)
 
         FOR ADDOBJ s = UserShipment DO {
 
-            SET supplierUserShipment(s) <- supplierInvoice(invoice);
-            SET supplierStockUserShipment(s) <- supplierStockInvoice(invoice);
-            SET customerUserShipment(s) <- customerInvoice(invoice);
-            SET customerStockUserShipment(s) <- customerStockInvoice(invoice);
-            SET currencyUserShipment(s) <- currencyInvoice(invoice);
-            SET numberObject(s) <- numberInvoice(invoice);
-            SET seriesObject(s) <- seriesInvoice(invoice);
-            SET noteUserShipment(s) <- noteInvoice(invoice);
+            ASSIGN supplierUserShipment(s) <- supplierInvoice(invoice);
+            ASSIGN supplierStockUserShipment(s) <- supplierStockInvoice(invoice);
+            ASSIGN customerUserShipment(s) <- customerInvoice(invoice);
+            ASSIGN customerStockUserShipment(s) <- customerStockInvoice(invoice);
+            ASSIGN currencyUserShipment(s) <- currencyInvoice(invoice);
+            ASSIGN numberObject(s) <- numberInvoice(invoice);
+            ASSIGN seriesObject(s) <- seriesInvoice(invoice);
+            ASSIGN noteUserShipment(s) <- noteInvoice(invoice);
             EXEC overFillInvoiceUserShipmentInvoice(s, invoice);
 
             FOR invoiceInvoiceDetail(detail) == invoice  ADDOBJ d = UserShipmentDetail DO {
-                SET userShipmentUserShipmentDetail(d) <- s;
-                SET invoiceDetailUserShipmentDetail(d) <- detail;
-                SET orderUserShipmentDetail(d) <- orderInvoiceDetail(detail);
+                ASSIGN userShipmentUserShipmentDetail(d) <- s;
+                ASSIGN invoiceDetailUserShipmentDetail(d) <- detail;
+                ASSIGN orderUserShipmentDetail(d) <- orderInvoiceDetail(detail);
 
-                SET dataCustomerStockUserShipmentDetail(d) <- dataCustomerStockInvoiceDetail(detail);
-                SET dataSupplierStockUserShipmentDetail(d) <- dataSupplierStockInvoiceDetail(detail);
+                ASSIGN dataCustomerStockUserShipmentDetail(d) <- dataCustomerStockInvoiceDetail(detail);
+                ASSIGN dataSupplierStockUserShipmentDetail(d) <- dataSupplierStockInvoiceDetail(detail);
 
-                SET skuUserShipmentDetail(d) <- skuInvoiceDetail(detail);
-                SET quantityUserShipmentDetail (d) <- toShipInvoiceDetail(detail);
+                ASSIGN skuUserShipmentDetail(d) <- skuInvoiceDetail(detail);
+                ASSIGN quantityUserShipmentDetail (d) <- toShipInvoiceDetail(detail);
                 EXEC overFillInvoiceUserShipmentDetailInvoiceDetail(d, detail);
             }
 

@@ -31,9 +31,9 @@ countRangeTaxCountry 'Кол-во шкал' (tax, country) = GROUP SUM 1 IF rang
 maxDataRangeTax(tax, country) = OVERRIDE 0 IF tax IS Tax AND country IS Country, [GROUP MAX numberRange(range) BY taxRange(range), countryRange(range)](tax, country);
 addNewRange 'Добавить шкалу' = ACTION (tax, country) {
     ADDOBJ Range;
-    SET numberRange(r) <- maxDataRangeTax(tax, country) + 1 WHERE r == addedObject();
-    SET countryRange(r) <- country WHERE r == addedObject();
-    SET taxRange(r) <- tax WHERE r == addedObject();
+    ASSIGN numberRange(r) <- maxDataRangeTax(tax, country) + 1 WHERE r == addedObject();
+    ASSIGN countryRange(r) <- country WHERE r == addedObject();
+    ASSIGN taxRange(r) <- tax WHERE r == addedObject();
 } TOOLBAR IMAGE 'add.png';
 
 CLASS RangeType 'Для каких подразделений действует шкала' {
@@ -51,7 +51,7 @@ nameRangeTypeRange 'Тип шкалы' = staticCaption(rangeTypeRange(range)) IN
 
 isUnitsTypeRange(range) = rangeTypeRange(range) == RangeType.units;
 
-rangeTypeRange(range) <- RangeType.common WHEN ASSIGNED(range IS Range);     /// потом согласовать, какое значение должно быть по-умолчанию ///
+rangeTypeRange(range) <- RangeType.common WHEN SET(range IS Range);     /// потом согласовать, какое значение должно быть по-умолчанию ///
 
 // ----------------------------- Разбиение шкалы для подразделений ------------------------------------- //
 
@@ -442,8 +442,8 @@ END
 META defineDocumentDetailPriceVATOnChangeCustom (detail)
     changePrice###detail (detail) = ACTION (detail) {
         REQUEST NUMERIC[14,2] INPUT;
-        SET price###detail (detail) <- requestedNumeric();
-        SET invoicePrice###detail (detail) <- price###detail (detail) * (100 + calcValueVAT###detail(detail)) / 100;
+        ASSIGN price###detail (detail) <- requestedNumeric();
+        ASSIGN invoicePrice###detail (detail) <- price###detail (detail) * (100 + calcValueVAT###detail(detail)) / 100;
     }
 END
 
@@ -457,11 +457,11 @@ META defineDocumentDetailNumberVATOnChangeCustom (detail, stockProp)
         REQUEST OBJECT r
             FORM rangeDialog OBJECTS c = country###stockProp###detail(detail) MODAL SHOWDROP;
         IF formResult() == FormResult.ok THEN {
-            SET VAT###detail (detail) <- requestedObject();
-            SET invoicePrice###detail (detail) <- price###detail (detail) * (100 + calcValueVAT###detail(detail))/100;
+            ASSIGN VAT###detail (detail) <- requestedObject();
+            ASSIGN invoicePrice###detail (detail) <- price###detail (detail) * (100 + calcValueVAT###detail(detail))/100;
         } ELSE IF formResult() == FormResult.drop THEN {
-            SET VAT###detail(detail) <- NULL;
-            SET invoicePrice###detail(detail) <- price###detail (detail);
+            ASSIGN VAT###detail(detail) <- NULL;
+            ASSIGN invoicePrice###detail(detail) <- price###detail (detail);
         }
     }
 END
@@ -474,8 +474,8 @@ END
 META defineDocumentDetailValueVATOnChangeCustom (detail)
     changeValueVAT###detail (detail) = ACTION (detail) {
         REQUEST NUMERIC[10,5] INPUT;
-        SET valueVAT###detail (detail) <- requestedNumeric();
-        SET invoicePrice###detail (detail) <- price###detail (detail) * (100 + requestedNumeric())/100;
+        ASSIGN valueVAT###detail (detail) <- requestedNumeric();
+        ASSIGN invoicePrice###detail (detail) <- price###detail (detail) * (100 + requestedNumeric())/100;
     }
 END
 
@@ -487,8 +487,8 @@ END
 META defineDocumentDetailInvoicePriceVATOnChangeCustom (detail)
     changeInvoicePrice###detail (detail) = ACTION (detail) {
         REQUEST NUMERIC[14,2] INPUT;
-        SET invoicePrice###detail (detail) <- requestedNumeric();
-        SET price###detail (detail) <- invoicePrice###detail (detail) * 100/(100 + calcValueVAT###detail(detail));
+        ASSIGN invoicePrice###detail (detail) <- requestedNumeric();
+        ASSIGN price###detail (detail) <- invoicePrice###detail (detail) * 100/(100 + calcValueVAT###detail(detail));
     }
 END
 
@@ -546,15 +546,15 @@ END
 loadDefaultVAT 'Добавить значение НДС' = ACTION (idCountry, number, value) {
     ADDOBJ Range;
     FOR rn == addedObject() DO {
-       SET rangeTypeRange(rn) <- RangeType.common;
-       SET taxRange(rn) <- Tax.taxVAT;
-       SET countryRange(rn) <- countrySID(idCountry);
-       SET numberRange(rn) <- number;
+       ASSIGN rangeTypeRange(rn) <- RangeType.common;
+       ASSIGN taxRange(rn) <- Tax.taxVAT;
+       ASSIGN countryRange(rn) <- countrySID(idCountry);
+       ASSIGN numberRange(rn) <- number;
        ADDOBJ Rate;
        FOR ra == addedObject() DO {
-          SET rangeRate(ra) <- rn;
-          SET valueRate(ra) <- value;
-          SET dateFromRate(ra) <- 2001_01_01;
+          ASSIGN rangeRate(ra) <- rn;
+          ASSIGN valueRate(ra) <- value;
+          ASSIGN dateFromRate(ra) <- 2001_01_01;
        };
     };
 };

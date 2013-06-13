@@ -158,9 +158,9 @@ META defineOrder(sign, legalEntityProp, stockProp)
 
     isOpenedUserOrder 'Не закрыт' (o) = isPostedUserOrder(o) AND NOT isClosedUserOrder(o) PERSISTENT;
 
-    closeUserOrder 'Закрыть' (o) = ACTION (o) NEWSESSION AUTOAPPLY { IF isPostedUserOrder(o) AND NOT isClosedUserOrder(o) THEN SET isDataClosedUserOrder(o) <- TRUE; } TOOLBAR CONFIRM;
+    closeUserOrder 'Закрыть' (o) = ACTION (o) NEWSESSION AUTOAPPLY { IF isPostedUserOrder(o) AND NOT isClosedUserOrder(o) THEN ASSIGN isDataClosedUserOrder(o) <- TRUE; } TOOLBAR CONFIRM;
 
-    openUserOrder 'Открыть' (o) = ACTION (o) NEWSESSION AUTOAPPLY { IF isClosedUserOrder(o) THEN SET isDataClosedUserOrder(o) <- NULL; } TOOLBAR CONFIRM;
+    openUserOrder 'Открыть' (o) = ACTION (o) NEWSESSION AUTOAPPLY { IF isClosedUserOrder(o) THEN ASSIGN isDataClosedUserOrder(o) <- NULL; } TOOLBAR CONFIRM;
 
     @defineDocumentInterfaceDescription(order, 'Заказ'###sign);
 
@@ -377,8 +377,8 @@ META defineOrder(sign, legalEntityProp, stockProp)
     @defineDocumentSkuStockPriceListType(userOrder, stockProp);
 
     overChangeQuantityValueSkuUserOrderUserOrderDetail (d, o) +=  ACTION (d, o) {
-        SET shipmentDataDateUserOrderDetail (d) <- shipmentDateUserOrder(o);
-        SET shipmentDataTimeUserOrderDetail (d) <- shipmentTimeUserOrder(o);
+        ASSIGN shipmentDataDateUserOrderDetail (d) <- shipmentDateUserOrder(o);
+        ASSIGN shipmentDataTimeUserOrderDetail (d) <- shipmentTimeUserOrder(o);
     };
 
     @extendFormDocumentSkuStockCustom(userOrder, userOrder, o, legalEntityProp, stockProp);
@@ -391,23 +391,23 @@ META defineOrder(sign, legalEntityProp, stockProp)
     overCopyOrder = ABSTRACT ACTION LIST (Order, Order);
     copyOrder 'Копировать' = ACTION (order) NEWSESSION {
         FOR ADDOBJ o = UserOrder DO {
-            SET supplierUserOrder(o) <- supplierOrder(order);
-            SET supplierStockUserOrder(o) <- supplierStockOrder(order);
-            SET customerUserOrder(o) <- customerOrder(order);
-            SET customerStockUserOrder(o) <- customerStockOrder(order);
-            SET currencyUserOrder(o) <- currencyOrder(order);
-            SET agreementUserOrder(o) <- agreementOrder(order);
-            SET priceListTypeUserOrder(o) <- priceListTypeOrder(order);
-            SET noteUserOrder(o) <- noteOrder(order);
+            ASSIGN supplierUserOrder(o) <- supplierOrder(order);
+            ASSIGN supplierStockUserOrder(o) <- supplierStockOrder(order);
+            ASSIGN customerUserOrder(o) <- customerOrder(order);
+            ASSIGN customerStockUserOrder(o) <- customerStockOrder(order);
+            ASSIGN currencyUserOrder(o) <- currencyOrder(order);
+            ASSIGN agreementUserOrder(o) <- agreementOrder(order);
+            ASSIGN priceListTypeUserOrder(o) <- priceListTypeOrder(order);
+            ASSIGN noteUserOrder(o) <- noteOrder(order);
 
             EXEC overCopyOrder(order, o);
 
             FOR orderOrderDetail(orderDetail) == order DO {
                 FOR ADDOBJ d=UserOrderDetail DO {
-                    SET userOrderUserOrderDetail(d) <- o;
-                    SET skuUserOrderDetail(d) <- skuOrderDetail(orderDetail);
-                    SET quantityUserOrderDetail(d) <- quantityOrderDetail(orderDetail);
-                    SET data###stockProp###userOrderDetail(d) <- data###stockProp###orderDetail(orderDetail);
+                    ASSIGN userOrderUserOrderDetail(d) <- o;
+                    ASSIGN skuUserOrderDetail(d) <- skuOrderDetail(orderDetail);
+                    ASSIGN quantityUserOrderDetail(d) <- quantityOrderDetail(orderDetail);
+                    ASSIGN data###stockProp###userOrderDetail(d) <- data###stockProp###orderDetail(orderDetail);
                 }
             }
 

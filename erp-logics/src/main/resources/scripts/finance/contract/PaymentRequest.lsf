@@ -10,9 +10,9 @@ TABLE paymentRequest(PaymentRequest);
 @defineNumeratedObjectDefault(PaymentRequest, 'Нумератор для платежных требований', 'ПТ');
 
 datePaymentRequest 'Дата' (paymentRequest) = DATA DATE (PaymentRequest);
-datePaymentRequest(paymentRequest) <- currentDate() WHEN ASSIGNED(paymentRequest IS PaymentRequest);
+datePaymentRequest(paymentRequest) <- currentDate() WHEN SET(paymentRequest IS PaymentRequest);
 timePaymentRequest 'Время' (paymentRequest) = DATA TIME (PaymentRequest);
-timePaymentRequest(paymentRequest) <- currentTime() WHEN ASSIGNED(paymentRequest IS PaymentRequest);
+timePaymentRequest(paymentRequest) <- currentTime() WHEN SET(paymentRequest IS PaymentRequest);
 dateTimePaymentRequest 'Дата время' (paymentRequest) = dateTimeToDateTime(datePaymentRequest(paymentRequest), timePaymentRequest(paymentRequest));
 
 contractPaymentRequest 'Контракт' (paymentRequest) = DATA Contract (PaymentRequest) AUTOSET;
@@ -21,10 +21,10 @@ seriesNumberContractPaymentRequest 'Номер контракта' (paymentReque
 notePaymentRequest 'Примечание' (paymentRequest) = DATA STRING[200] (PaymentRequest);
 
 payerPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
-payerPaymentRequest(paymentRequest) <- partyBContract(contractPaymentRequest(paymentRequest)) WHEN ASSIGNED (contractPaymentRequest(paymentRequest));
+payerPaymentRequest(paymentRequest) <- partyBContract(contractPaymentRequest(paymentRequest)) WHEN SET (contractPaymentRequest(paymentRequest));
 namePayerPaymentRequest 'Организация (покупатель)' (paymentRequest) = nameLegalEntity(payerPaymentRequest(paymentRequest));
 lenderPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
-lenderPaymentRequest(paymentRequest) <- partyAContract(contractPaymentRequest(paymentRequest)) WHEN ASSIGNED (contractPaymentRequest(paymentRequest));
+lenderPaymentRequest(paymentRequest) <- partyAContract(contractPaymentRequest(paymentRequest)) WHEN SET (contractPaymentRequest(paymentRequest));
 nameLenderPaymentRequest 'Организация (поставщик)' (paymentRequest) = nameLegalEntity(lenderPaymentRequest(paymentRequest));
 
 sumPaymentRequest 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentRequest);
@@ -72,14 +72,14 @@ sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
 
 writePaymentRequestFIFO 'Расписать по FIFO' = ACTION (paymentRequest) {
 
-    SET costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- NULL;
-    SET costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
+    ASSIGN costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- NULL;
+    ASSIGN costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
 }
 
 writePaymentRequestLIFO 'Расписать по LIFO' = ACTION (paymentRequest) {
 
-    SET costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- NULL;
-    SET costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
+    ASSIGN costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- NULL;
+    ASSIGN costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
 }
 
 FORM paymentRequest 'Платежное требование'
@@ -144,10 +144,10 @@ DESIGN paymentRequest FROM DEFAULT{
 exposePaymentRequest 'Выставить платежное поручение' = ACTION (contract, date) NEWSESSION {
     ADDOBJ PaymentRequest;
     FOR pr == addedObject() DO {
-        SET datePaymentRequest(pr) <- date;
-        SET contractPaymentRequest(pr) <- contract;
-        SET sumPaymentRequest(pr) <- limitSumContractDate(contract, date);
-        SET costPaymentRequestInContractLedger(pr, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(pr, inContractLedger)
+        ASSIGN datePaymentRequest(pr) <- date;
+        ASSIGN contractPaymentRequest(pr) <- contract;
+        ASSIGN sumPaymentRequest(pr) <- limitSumContractDate(contract, date);
+        ASSIGN costPaymentRequestInContractLedger(pr, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(pr, inContractLedger)
             WHERE contractPaymentRequest(pr) == contractInContractLedger(inContractLedger);
         FORM paymentRequest OBJECTS p = pr MODAL;
         IF formResult() == FormResult.ok THEN {
@@ -191,11 +191,11 @@ toPaymentRequests 'Выставить платежные требования' =
     FOR debtInContractLedger(inContractLedger) DO {
         ADDOBJ PaymentRequest;
         FOR pr == addedObject() DO {
-            SET datePaymentRequest(pr) <- currentDate();
-            SET timePaymentRequest(pr) <- currentTime();
-            SET contractPaymentRequest(pr) <- contractInContractLedger(inContractLedger);
-            SET sumPaymentRequest(pr) <- limitSumInContractLedger(inContractLedger);
-            SET costPaymentRequestInContractLedger(pr, inContractLedger) <- limitSumInContractLedger(inContractLedger);
+            ASSIGN datePaymentRequest(pr) <- currentDate();
+            ASSIGN timePaymentRequest(pr) <- currentTime();
+            ASSIGN contractPaymentRequest(pr) <- contractInContractLedger(inContractLedger);
+            ASSIGN sumPaymentRequest(pr) <- limitSumInContractLedger(inContractLedger);
+            ASSIGN costPaymentRequestInContractLedger(pr, inContractLedger) <- limitSumInContractLedger(inContractLedger);
             EXEC prePostPaymentRequest(pr);
         }
     }

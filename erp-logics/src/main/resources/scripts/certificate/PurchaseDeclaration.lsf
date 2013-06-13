@@ -12,7 +12,7 @@ NAMESPACE Purchase;
 declarationShipmentDetail(detail) += declarationInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
 
 overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
-    SET dataDeclarationUserShipmentDetail(s) <- declarationInvoiceDetail(i);
+    ASSIGN dataDeclarationUserShipmentDetail(s) <- declarationInvoiceDetail(i);
 }
 
 declarationBatch (batch) += declarationShipmentDetail(shipmentDetailShipmentBatch(batch));
@@ -256,26 +256,26 @@ sumRegistrationDeclaration 'Таможенный сбор' = DATA NUMERIC[14,3](
 //sumRegistrationDeclaration 'Таможенный сбор' (declaration) = OVERRIDE sumRateRegistrationDeclaration(declaration), sumRegistrationDataDeclaration(declaration);
 
 setSumDeclarationDetail 'Рассчитать суммы' = ACTION (declaration) {
-   SET sumRegistrationDeclaration(declaration) <- sumRateRegistrationDeclaration(declaration);
+   ASSIGN sumRegistrationDeclaration(declaration) <- sumRateRegistrationDeclaration(declaration);
    FOR declarationDeclarationDetail(declarationDetail) == declaration DO {
-      SET sumDataDeclarationDetail(declarationDetail) <- sumRateDeclarationDetail(declarationDetail);
-      SET percentDutyDataDeclarationDetail(declarationDetail) <- percentDutyCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
-      SET VATRangeDataDeclarationDetail (declarationDetail) <- supplierVATCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
-      //SET sumDutyDataDeclarationDetail(declarationDetail) <- sumRateDutyDeclarationDetail(declarationDetail);
-      //SET sumVATDataDeclarationDetail(declarationDetail) <- sumRateVATDeclarationDetail(declarationDetail);
+      ASSIGN sumDataDeclarationDetail(declarationDetail) <- sumRateDeclarationDetail(declarationDetail);
+      ASSIGN percentDutyDataDeclarationDetail(declarationDetail) <- percentDutyCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
+      ASSIGN VATRangeDataDeclarationDetail (declarationDetail) <- supplierVATCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
+      //ASSIGN sumDutyDataDeclarationDetail(declarationDetail) <- sumRateDutyDeclarationDetail(declarationDetail);
+      //ASSIGN sumVATDataDeclarationDetail(declarationDetail) <- sumRateVATDeclarationDetail(declarationDetail);
    };
 };
 
 toCreateDeclarationDetails 'Создать позиции' = ACTION (declaration) {
     FOR quantityGroupDeclaration(declaration, customsName, UOM, customsGroup, country, price)>0 ADDOBJ dd=DeclarationDetail DO {
-        SET declarationDeclarationDetail(dd) <- declaration;
-        SET nameCustomsDeclarationDetail(dd) <- customsName;
-        SET UOMDeclarationDetail(dd) <- UOM;
-        SET customsGroupDeclarationDetail(dd) <- customsGroup;
-        SET countryDeclarationDetail(dd) <- country;
-        SET priceDeclarationDetail(dd) <- price;
+        ASSIGN declarationDeclarationDetail(dd) <- declaration;
+        ASSIGN nameCustomsDeclarationDetail(dd) <- customsName;
+        ASSIGN UOMDeclarationDetail(dd) <- UOM;
+        ASSIGN customsGroupDeclarationDetail(dd) <- customsGroup;
+        ASSIGN countryDeclarationDetail(dd) <- country;
+        ASSIGN priceDeclarationDetail(dd) <- price;
 
-        SET declarationDetailInvoiceDetail(invoiceDetail) <- dd WHERE declarationUserInvoiceDetail(invoiceDetail) == declaration AND
+        ASSIGN declarationDetailInvoiceDetail(invoiceDetail) <- dd WHERE declarationUserInvoiceDetail(invoiceDetail) == declaration AND
             nameCustomsUserInvoiceDetail(invoiceDetail) == customsName AND UOMUserInvoiceDetail(invoiceDetail) == UOM AND
             customsGroupInvoiceDetail(invoiceDetail) == customsGroup AND countrySkuUserInvoiceDetail(invoiceDetail) == country AND
             priceUserInvoiceDetail(invoiceDetail) == price;
@@ -419,8 +419,8 @@ sumRegistrationCostDeclaration 'Таможенный сбор (факт)' (decla
 
 setPriceInvoiceDetailes 'Рассчитать расходы (за ед.)' = ACTION (declaration) {
    FOR declarationInvoiceDetail(invoiceDetail) == declaration DO {
-      SET priceDutyInvoiceDetail(invoiceDetail) <- calcPriceDutyInvoiceDetail(invoiceDetail);
-      SET priceRegistrationInvoiceDetail(invoiceDetail) <- calcPriceRegistrationInvoiceDetail(invoiceDetail);
+      ASSIGN priceDutyInvoiceDetail(invoiceDetail) <- calcPriceDutyInvoiceDetail(invoiceDetail);
+      ASSIGN priceRegistrationInvoiceDetail(invoiceDetail) <- calcPriceRegistrationInvoiceDetail(invoiceDetail);
    };
 } TOOLBAR;
 

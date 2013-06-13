@@ -30,7 +30,7 @@ dimensionsTypeGLAccount 'Субконто' (GLAccount) = GROUP CONCAT toString25
                                                 ORDER orderGLAccountDimensionType (GLAccount,dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80 PERSISTENT;
 
 overCopyGLAccount(from, to) += ACTION (from, to) {
-    SET orderGLAccountDimensionType(to, dimensionType) <- orderGLAccountDimensionType(from, dimensionType);
+    ASSIGN orderGLAccountDimensionType(to, dimensionType) <- orderGLAccountDimensionType(from, dimensionType);
 }
 
 prevGLAccountDimensionType (account, type) = PARTITION PREV type IF orderGLAccountDimensionType(account, type) BY account
@@ -57,8 +57,8 @@ CONSTRAINT creditUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType)
         MESSAGE 'Субконто (кредит) проводки должен соответствовать субконто';
 
 overCopyGeneralLedger(from, to) += ACTION (from, to) {
-    SET debitUserGeneralLedgerDimensionType(to, dimensionType) <- debitGeneralLedgerDimensionType(from, dimensionType);
-    SET creditUserGeneralLedgerDimensionType(to, dimensionType) <- creditGeneralLedgerDimensionType(from, dimensionType);
+    ASSIGN debitUserGeneralLedgerDimensionType(to, dimensionType) <- debitGeneralLedgerDimensionType(from, dimensionType);
+    ASSIGN creditUserGeneralLedgerDimensionType(to, dimensionType) <- creditGeneralLedgerDimensionType(from, dimensionType);
 }
 
 dimensionTypeIdDimensionType (string1) = GROUP AGGR dimensionType BY idDimensionType(dimensionType) WHERE dimensionType IS DimensionType;
@@ -292,7 +292,7 @@ NAVIGATOR {
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultDimensionGLAccount 'Добавить субконто' = ACTION (integer, sidType, sidAccount, type) {
-    SET orderGLAccountDimensionType(g,type) <- integer WHERE g == GLAccountIdTypeIdGLAccount(sidType, sidAccount);
+    ASSIGN orderGLAccountDimensionType(g,type) <- integer WHERE g == GLAccountIdTypeIdGLAccount(sidType, sidAccount);
 }
 loadDefaultDimensionGLAccounts 'Загрузить стандарный субконто для счетов' () = ABSTRACT ACTION LIST () IN loadDefaultGroup;
 

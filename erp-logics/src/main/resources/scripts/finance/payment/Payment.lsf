@@ -10,9 +10,9 @@ TABLE payment(Payment);
 @defineNumeratedObjectDefault(Payment, 'Нумератор для платежей', 'ПЛ');
 
 datePayment 'Дата' (payment) = DATA DATE (Payment);
-datePayment(payment) <- currentDate() WHEN ASSIGNED(payment IS Payment);
+datePayment(payment) <- currentDate() WHEN SET(payment IS Payment);
 timePayment 'Время' (payment) = DATA TIME (Payment);
-timePayment(payment) <- currentTime() WHEN ASSIGNED(payment IS Payment);
+timePayment(payment) <- currentTime() WHEN SET(payment IS Payment);
 dateTimePayment 'Дата время' (payment) = dateTimeToDateTime(datePayment(payment), timePayment(payment));
 
 payerPayment(payment) = DATA LegalEntity (Payment);
@@ -35,7 +35,7 @@ currencyAccountToPayment(payment) = PaymentLedger.currencyAccount(accountToPayme
 nameCurrencyAccountToPayment 'Валюта счета' (payment) = PaymentLedger.nameCurrencyAccount(accountToPayment(payment));
 sumToPayment 'Сумма' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16;
 sumToPayment(payment) <- sumFromPayment(payment)
-    WHEN ASSIGNED(sumFromPayment(payment));
+    WHEN SET(sumFromPayment(payment));
 
 rateFromPayment 'Курс' (payment) = [FORMULA NUMERIC[15,8] '$1/$2'](sumToPayment(payment),sumFromPayment(payment)) PREFCHARWIDTH 15;
 rateToPayment 'Курс' (payment) = [FORMULA NUMERIC[15,8] '$1/$2'](sumFromPayment(payment),sumToPayment(payment)) PREFCHARWIDTH 15;
@@ -66,11 +66,11 @@ CONSTRAINT PaymentLedger.legalEntityAccount(accountToPayment(payment)) != benefi
 
 setSumFromPayment = ACTION (payment){
     REQUEST NUMERIC[15,8] INPUT;
-    SET sumToPayment(payment) <- sumFromPayment(payment)*requestedNumeric();
+    ASSIGN sumToPayment(payment) <- sumFromPayment(payment)*requestedNumeric();
 }
 setSumToPayment = ACTION (payment){
     REQUEST NUMERIC[15,8] INPUT;
-    SET sumFromPayment(payment) <- sumToPayment(payment)*requestedNumeric();
+    ASSIGN sumFromPayment(payment) <- sumToPayment(payment)*requestedNumeric();
 }
 
 //-------------------------------------------- Форма платежей -------------------------------------------------------//

@@ -115,15 +115,15 @@ EXTEND DESIGN priceListManage {
 // Создание прайс-листов
 
 fillCompanyPriceList = ACTION (userPriceList, dateTime, dataPriceListType, company) {
-    SET fromDateUserPriceList(userPriceList) <- toDate(dateTime);
-    SET fromTimeUserPriceList(userPriceList) <- toTime(subtractDateTimeSeconds(dateTime,1));
-    SET companyUserPriceList(userPriceList) <- company;
-    SET currencyUserPriceList(userPriceList) <- currencyDataPriceListType(dataPriceListType);
-    SET inUserPriceListDataPriceListType(userPriceList, dataPriceListType) <- TRUE;
-    SET showUserPriceListPriceListType(userPriceList, dataPriceListType) <- TRUE;
+    ASSIGN fromDateUserPriceList(userPriceList) <- toDate(dateTime);
+    ASSIGN fromTimeUserPriceList(userPriceList) <- toTime(subtractDateTimeSeconds(dateTime,1));
+    ASSIGN companyUserPriceList(userPriceList) <- company;
+    ASSIGN currencyUserPriceList(userPriceList) <- currencyDataPriceListType(dataPriceListType);
+    ASSIGN inUserPriceListDataPriceListType(userPriceList, dataPriceListType) <- TRUE;
+    ASSIGN showUserPriceListPriceListType(userPriceList, dataPriceListType) <- TRUE;
     FOR inSkuCustomUser(sku, currentUser()) ADDOBJ d = UserPriceListDetail DO {
-        SET skuUserPriceListDetail(d) <- sku;
-        SET userPriceListUserPriceListDetail(d) <- userPriceList;
+        ASSIGN skuUserPriceListDetail(d) <- sku;
+        ASSIGN userPriceListUserPriceListDetail(d) <- userPriceList;
     }
 
     // Выставляем все склады, которые есть хотя бы один раз для товаров
@@ -230,17 +230,17 @@ EXTEND DESIGN priceListManage {
 
 createCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, stock) NEWSESSION {
     FOR ADDOBJ u = UserPriceList DO {
-        SET fromDateUserPriceList(u) <- toDate(dateTime);
-        SET fromTimeUserPriceList(u) <- toTime(subtractDateTimeSeconds(dateTime,1));
-        SET companyUserPriceList(u) <- company;
-        SET currencyUserPriceList(u) <- currencyDataPriceListType(dataPriceListType);
-        SET inUserPriceListDataPriceListType(u, dataPriceListType) <- TRUE;
-        SET showUserPriceListPriceListType(u, dataPriceListType) <- TRUE;
-        SET dataInUserPriceListStock(u, stock) <- TRUE;
+        ASSIGN fromDateUserPriceList(u) <- toDate(dateTime);
+        ASSIGN fromTimeUserPriceList(u) <- toTime(subtractDateTimeSeconds(dateTime,1));
+        ASSIGN companyUserPriceList(u) <- company;
+        ASSIGN currencyUserPriceList(u) <- currencyDataPriceListType(dataPriceListType);
+        ASSIGN inUserPriceListDataPriceListType(u, dataPriceListType) <- TRUE;
+        ASSIGN showUserPriceListPriceListType(u, dataPriceListType) <- TRUE;
+        ASSIGN dataInUserPriceListStock(u, stock) <- TRUE;
         FOR inSkuCustomUser(sku, currentUser()) AND companyLedgerPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, dateTime) == company
             ADDOBJ d = UserPriceListDetail DO {
-            SET skuUserPriceListDetail(d) <- sku;
-            SET userPriceListUserPriceListDetail(d) <- u;
+            ASSIGN skuUserPriceListDetail(d) <- sku;
+            ASSIGN userPriceListUserPriceListDetail(d) <- u;
         }
         FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
     }

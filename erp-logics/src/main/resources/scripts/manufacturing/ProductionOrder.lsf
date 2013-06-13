@@ -173,16 +173,16 @@ createComponentsOrder 'Заполнить компоненты из специф
 
         FOR BOMComponent(component) == BOM DO {
             FOR ADDOBJ d=ComponentDetail DO {
-                SET orderComponentDetail(d) <- order;
-                SET componentComponentDetail(d) <- component;
-                SET bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(order))*quantityProductsBOMOrder(BOM,order);
+                ASSIGN orderComponentDetail(d) <- order;
+                ASSIGN componentComponentDetail(d) <- component;
+                ASSIGN bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(order))*quantityProductsBOMOrder(BOM,order);
 
                 IF materialComponent(component) IS Sku THEN {
-                    SET bruttoSkuComponentDetail(d) <- materialComponent(component);
+                    ASSIGN bruttoSkuComponentDetail(d) <- materialComponent(component);
                 } ELSE {
                     IF materialComponent(component) IS Product THEN {
-                        SET productComponentDetail(d) <- materialComponent(component);
-                        SET bruttoSkuComponentDetail(d) <- skuProduct(materialComponent(component));
+                        ASSIGN productComponentDetail(d) <- materialComponent(component);
+                        ASSIGN bruttoSkuComponentDetail(d) <- skuProduct(materialComponent(component));
                     }
                 }
             }
@@ -195,9 +195,9 @@ recBruttoQuantityOrderSku 'Рекур.кол-во' (order, sku) = GROUP SUM quan
 createRecComponentsOrder 'Заполнить из спецификации (рекурсивно)' = ACTION (order)  {
 
     FOR q == recBruttoQuantityOrderSku(order, sku) ADDOBJ d = ComponentDetail DO {
-        SET orderComponentDetail(d) <- order;
-        SET bruttoSkuComponentDetail(d) <- sku;
-        SET bruttoQuantityComponentDetail(d) <- q;
+        ASSIGN orderComponentDetail(d) <- order;
+        ASSIGN bruttoSkuComponentDetail(d) <- sku;
+        ASSIGN bruttoQuantityComponentDetail(d) <- q;
     }
 } TOOLBAR;
 
@@ -213,10 +213,10 @@ createProductsOrder 'Заполнить изделия из спецификац
 
         FOR  BOM == BOMProduct(product)  DO {
             FOR ADDOBJ d=ProductDetail DO {
-                SET orderProductDetail(d) <- order;
-                SET skuProductDetail(d) <- skuProduct(product);
-                SET productProductDetail(d) <- product;
-                SET quantityProductDetail(d) <- quantityProduct(product)*quantityComponentsBOMOrder(BOM,order);
+                ASSIGN orderProductDetail(d) <- order;
+                ASSIGN skuProductDetail(d) <- skuProduct(product);
+                ASSIGN productProductDetail(d) <- product;
+                ASSIGN quantityProductDetail(d) <- quantityProduct(product)*quantityComponentsBOMOrder(BOM,order);
             }
         }
     }
@@ -227,17 +227,17 @@ expandComponentDetail 'Развернуть изделие' = ACTION (componentD
 
     FOR  BOMComponent(component) == BOMProduct(productComponentDetail(componentDetail))  DO {
         FOR ADDOBJ d=ComponentDetail DO {
-            SET orderComponentDetail(d) <- orderComponentDetail(componentDetail);
-            SET componentComponentDetail(d) <- component;
-            SET bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(orderComponentDetail(componentDetail)))*
+            ASSIGN orderComponentDetail(d) <- orderComponentDetail(componentDetail);
+            ASSIGN componentComponentDetail(d) <- component;
+            ASSIGN bruttoQuantityComponentDetail(d) <- bruttoQuantityComponentDate(component, dateOrder(orderComponentDetail(componentDetail)))*
                 bruttoQuantityComponentDetail(componentDetail)/quantityProduct(productComponentDetail(componentDetail));    //ceil
 
             IF materialComponent(component) IS Sku THEN {
-                SET bruttoSkuComponentDetail(d) <- materialComponent(component);
+                ASSIGN bruttoSkuComponentDetail(d) <- materialComponent(component);
             } ELSE {
                 IF materialComponent(component) IS Product THEN {
-                    SET productComponentDetail(d) <- materialComponent(component);
-                    SET bruttoSkuComponentDetail(d) <- skuProduct(materialComponent(component));
+                    ASSIGN productComponentDetail(d) <- materialComponent(component);
+                    ASSIGN bruttoSkuComponentDetail(d) <- skuProduct(materialComponent(component));
                 }
             }
         }
@@ -343,20 +343,20 @@ DESIGN substitutesSku FROM DEFAULT {
 }
 
 chooseSubstituteSkuOrder 'Выбрать замену' =  ACTION (fromSku, order) {
-    SET stockSubstitutesSku() <- NULL;
-    SET multiplierSubstitutesSku(s) <- NULL WHERE s IS Sku;
+    ASSIGN stockSubstitutesSku() <- NULL;
+    ASSIGN multiplierSubstitutesSku(s) <- NULL WHERE s IS Sku;
 
-    SET stockSubstitutesSku() <- componentsStockOrder(order) WHERE componentsStockOrder(order);
+    ASSIGN stockSubstitutesSku() <- componentsStockOrder(order) WHERE componentsStockOrder(order);
 
     FORM substitutesSku OBJECTS o= order, s=fromSku MODAL;
     IF formResult() == FormResult.ok THEN {
         FOR  multiplierSubstitutesSku(toSku) ADDOBJ sub = Substitute DO{
-            SET fromSkuSubstitute(sub) <- fromSku;
-            SET toSkuSubstitute(sub) <- toSku;
-            SET multiplierSubstitute(sub) <- multiplierSubstitutesSku(toSku);
+            ASSIGN fromSkuSubstitute(sub) <- fromSku;
+            ASSIGN toSkuSubstitute(sub) <- toSku;
+            ASSIGN multiplierSubstitute(sub) <- multiplierSubstitutesSku(toSku);
         }
-        SET substituteSkuOrder(fromSku, order) <- chosenObject('sk') WHERE multiplierSubstitutesSku(chosenObject('sk'));
-        SET multiplierSkuOrder(fromSku, order) <- multiplierSubstitutesSku(chosenObject('sk')) WHERE multiplierSubstitutesSku(chosenObject('sk'));
+        ASSIGN substituteSkuOrder(fromSku, order) <- chosenObject('sk') WHERE multiplierSubstitutesSku(chosenObject('sk'));
+        ASSIGN multiplierSkuOrder(fromSku, order) <- multiplierSubstitutesSku(chosenObject('sk')) WHERE multiplierSubstitutesSku(chosenObject('sk'));
     }
 }
 
@@ -380,19 +380,19 @@ isSubstituteSkuOrder 'Использовать замену' (substitute, sku, o
 changeSubstituteSkuOrder = ACTION (substitute, sku, order) {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
-        SET substituteSkuOrder(sku, order) <- toSkuSubstitute(substitute);
-        SET multiplierSkuOrder(sku, order) <- multiplierSubstitute(substitute);
+        ASSIGN substituteSkuOrder(sku, order) <- toSkuSubstitute(substitute);
+        ASSIGN multiplierSkuOrder(sku, order) <- multiplierSubstitute(substitute);
 
     } ELSE {
-        SET substituteSkuOrder(sku, order) <- NULL;
-        SET multiplierSkuOrder(sku, order) <- NULL;
+        ASSIGN substituteSkuOrder(sku, order) <- NULL;
+        ASSIGN multiplierSkuOrder(sku, order) <- NULL;
     }
 }
 
 resetSubstituteOrder 'Сбросить все замены' = ACTION (order) {
     FOR substituteSkuOrder(sku, order) OR multiplierSkuOrder(sku, order) DO {
-        SET substituteSkuOrder(sku, order) <- NULL;
-        SET multiplierSkuOrder(sku, order) <- NULL;
+        ASSIGN substituteSkuOrder(sku, order) <- NULL;
+        ASSIGN multiplierSkuOrder(sku, order) <- NULL;
     }
 } TOOLBAR;
 
@@ -421,19 +421,19 @@ premiumPriceSkuOrder 'Цена с надбавкой' = DATA NUMERIC[14,2] (Sku,
 // Изменение надбавок при вводе пользователем процента
 changeValueMarkupSkuOrder (sku, order) = ACTION (sku, order) {
     IF priceSkuOrder(sku, order) THEN {
-        SET premiumPriceSkuOrder(sku, order) <- priceSkuOrder(sku, order) * multiplierCalcSkuOrder(sku, order);
+        ASSIGN premiumPriceSkuOrder(sku, order) <- priceSkuOrder(sku, order) * multiplierCalcSkuOrder(sku, order);
     }
 }
 changeMarkupSkuOrder (sku, order) = ACTION (sku, order) {
     REQUEST NUMERIC[8,2] INPUT;
-    SET markupSkuOrder (sku, order) <- requestedNumeric();
+    ASSIGN markupSkuOrder (sku, order) <- requestedNumeric();
     EXEC changeValueMarkupSkuOrder(sku, order);
 }
 
 // Изменение надбавок при изменении вида цен
 recordMarkupOrder(order) = ACTION (order) {
     FOR componentsCalcPriceListTypeOrder(order) IF bruttoQuantitySkuOrder(sku, order) DO {
-        SET markupSkuOrder(sku, order) <- markupCalcPriceListTypeSku(componentsCalcPriceListTypeOrder(order), sku);
+        ASSIGN markupSkuOrder(sku, order) <- markupCalcPriceListTypeSku(componentsCalcPriceListTypeOrder(order), sku);
         EXEC changeValueMarkupSkuOrder(sku, order);
     }
 }
@@ -463,20 +463,20 @@ calcPremiumPriceProductDetail 'Цена расчетная (с надбавка�
 
 changeValueMarkupProductDetail (detail) = ACTION (detail) {
     IF calcPremiumPriceProductDetail(detail) THEN {
-        SET productsPriceProductDetail(detail) <- calcPremiumPriceProductDetail(detail);
+        ASSIGN productsPriceProductDetail(detail) <- calcPremiumPriceProductDetail(detail);
     }
 }
 changeMarkupProductDetail (detail) = ACTION (detail) {
     REQUEST NUMERIC[8,2] INPUT;
     IF requestedNumeric() THEN {
-        SET markupProductDetail (detail) <- requestedNumeric();
+        ASSIGN markupProductDetail (detail) <- requestedNumeric();
         EXEC changeValueMarkupProductDetail(detail);
     }
 }
 
 recordMarkupProductDetail(detail) = ACTION (detail) {
     IF calcPriceListTypeProductDetail(detail) THEN {
-        SET markupProductDetail(detail) <- markupCalcPriceListTypeSku(calcPriceListTypeProductDetail(detail), skuProductDetail(detail));
+        ASSIGN markupProductDetail(detail) <- markupCalcPriceListTypeSku(calcPriceListTypeProductDetail(detail), skuProductDetail(detail));
         EXEC changeValueMarkupProductDetail(detail);
     }
 }
@@ -501,9 +501,9 @@ valueVATProductDetail 'НДС, %' = DATA NUMERIC[10,5] (ProductDetail);
 // Расчет цен для изделий
 fillPriceProductsOrder 'Заполнить цены для изделий' = ACTION (order)  {
     FOR orderProductDetail(detail) == order DO {
-        SET componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
-        SET productsPriceProductDetail(detail) <- calcPremiumPriceProductDetail(detail);
-        SET valueVATProductDetail(detail) <- calcValueVATProductDetail(detail);
+        ASSIGN componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
+        ASSIGN productsPriceProductDetail(detail) <- calcPremiumPriceProductDetail(detail);
+        ASSIGN valueVATProductDetail(detail) <- calcValueVATProductDetail(detail);
     }
 } TOOLBAR;
 
@@ -573,12 +573,12 @@ DESIGN substitutesComponent FROM DEFAULT {
 }
 
 chooseSubstituteComponentDetail 'Выбрать замену' =  ACTION (detail){
-    SET stockSubstitutesSku() <- NULL;
-    SET stockSubstitutesSku() <- componentsStockOrder(orderComponentDetail(detail)) WHERE componentsStockOrder(orderComponentDetail(detail));
+    ASSIGN stockSubstitutesSku() <- NULL;
+    ASSIGN stockSubstitutesSku() <- componentsStockOrder(orderComponentDetail(detail)) WHERE componentsStockOrder(orderComponentDetail(detail));
 
     FORM substitutesComponent OBJECTS o= orderComponentDetail(detail) MODAL;
     IF formResult() == FormResult.ok THEN {
-        SET substituteSkuComponentDetail(detail) <- chosenObject('sk');
+        ASSIGN substituteSkuComponentDetail(detail) <- chosenObject('sk');
     }
 }
 
@@ -733,34 +733,34 @@ editOrder 'Редактировать' (order) = ACTION EDITFORM Order;
 
 copyOrder 'Копировать' = ACTION (order) NEWSESSION {
     FOR ADDOBJ o = Order DO {
-        SET componentsStockOrder(o) <- componentsStockOrder(order);
-        SET productsStockOrder(o) <- productsStockOrder(order);
-        SET fromDateOrder(o) <- fromDateOrder(order);
-        SET toDateOrder(o) <- toDateOrder(order);
-        SET calcPriceListTypeOrder(o) <- calcPriceListTypeOrder(order);
-        SET priceListTypeOrder(o) <- priceListTypeOrder(order);
-        SET includeVATOrder(o) <- includeVATOrder(order);
-        SET componentsCalcPriceListTypeOrder(o) <- componentsCalcPriceListTypeOrder(order);
-        SET noteOrder(o) <- noteOrder(order);
+        ASSIGN componentsStockOrder(o) <- componentsStockOrder(order);
+        ASSIGN productsStockOrder(o) <- productsStockOrder(order);
+        ASSIGN fromDateOrder(o) <- fromDateOrder(order);
+        ASSIGN toDateOrder(o) <- toDateOrder(order);
+        ASSIGN calcPriceListTypeOrder(o) <- calcPriceListTypeOrder(order);
+        ASSIGN priceListTypeOrder(o) <- priceListTypeOrder(order);
+        ASSIGN includeVATOrder(o) <- includeVATOrder(order);
+        ASSIGN componentsCalcPriceListTypeOrder(o) <- componentsCalcPriceListTypeOrder(order);
+        ASSIGN noteOrder(o) <- noteOrder(order);
 
         FOR orderProductDetail(productDetail) == order ADDOBJ p=ProductDetail DO {
-            SET orderProductDetail(p) <- o;
-            SET skuProductDetail(p) <- skuProductDetail(productDetail);
-            SET productProductDetail(p) <- productProductDetail(productDetail);
-            SET quantityProductDetail(p) <- quantityProductDetail(productDetail);
-            SET markupProductDetail(p) <- markupProductDetail(productDetail);
+            ASSIGN orderProductDetail(p) <- o;
+            ASSIGN skuProductDetail(p) <- skuProductDetail(productDetail);
+            ASSIGN productProductDetail(p) <- productProductDetail(productDetail);
+            ASSIGN quantityProductDetail(p) <- quantityProductDetail(productDetail);
+            ASSIGN markupProductDetail(p) <- markupProductDetail(productDetail);
         }
         FOR orderComponentDetail(componentDetail) == order ADDOBJ c=ComponentDetail DO {
-            SET orderComponentDetail(c) <- o;
-            SET bruttoSkuComponentDetail(c) <- bruttoSkuComponentDetail(componentDetail);
-            SET productComponentDetail(c) <- productComponentDetail(componentDetail);
-            SET componentComponentDetail(c) <- componentComponentDetail(componentDetail);
-            SET bruttoQuantityComponentDetail(c) <- bruttoQuantityComponentDetail(componentDetail);
+            ASSIGN orderComponentDetail(c) <- o;
+            ASSIGN bruttoSkuComponentDetail(c) <- bruttoSkuComponentDetail(componentDetail);
+            ASSIGN productComponentDetail(c) <- productComponentDetail(componentDetail);
+            ASSIGN componentComponentDetail(c) <- componentComponentDetail(componentDetail);
+            ASSIGN bruttoQuantityComponentDetail(c) <- bruttoQuantityComponentDetail(componentDetail);
         }
         FOR bruttoQuantitySkuOrder(sku,order) DO {
-            SET dataBruttoPriceSkuOrder(sku,o) <- dataBruttoPriceSkuOrder(sku,order);
-            SET substituteSkuOrder(sku,o) <- substituteSkuOrder(sku,order);
-            SET multiplierSkuOrder(sku,o) <- multiplierSkuOrder(sku,order);
+            ASSIGN dataBruttoPriceSkuOrder(sku,o) <- dataBruttoPriceSkuOrder(sku,order);
+            ASSIGN substituteSkuOrder(sku,o) <- substituteSkuOrder(sku,order);
+            ASSIGN multiplierSkuOrder(sku,o) <- multiplierSkuOrder(sku,order);
         }
 
         FORM order OBJECTS o = o MANAGESESSION DOCKEDMODAL;

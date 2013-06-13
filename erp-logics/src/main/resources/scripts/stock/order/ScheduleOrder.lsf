@@ -98,7 +98,7 @@ META defineScheduleOrder(sign, stockProp)
     TABLE scheduleOrderMonth(ScheduleOrder, Month);
     inMonthScheduleOrder 'Включать' = DATA BOOLEAN (ScheduleOrder, Month);
     inAllMonthScheduleOrder 'Включить все месяцы' = DATA BOOLEAN (ScheduleOrder);
-    inMonthScheduleOrder(scheduleOrder, month) <- inAllMonthScheduleOrder(scheduleOrder) WHEN ASSIGNED(inAllMonthScheduleOrder(scheduleOrder) AND month IS Month);
+    inMonthScheduleOrder(scheduleOrder, month) <- inAllMonthScheduleOrder(scheduleOrder) WHEN SET(inAllMonthScheduleOrder(scheduleOrder) AND month IS Month);
 
     TABLE scheduleOrderDOW(ScheduleOrder, DOW);
     inDayScheduleOrder 'Включать' = DATA BOOLEAN (ScheduleOrder, DOW);
@@ -136,68 +136,68 @@ META defineScheduleOrder(sign, stockProp)
     createScheduleOrder 'Генерировать предварительные заказы' = ACTION (scheduleOrder) {
         // генерация через N дней
         IF typeScheduleOrder(scheduleOrder) == GenType.genDays THEN {
-            SET tmpDate() <- dayLastOrderScheduleOrder(scheduleOrder);
+            ASSIGN tmpDate() <- dayLastOrderScheduleOrder(scheduleOrder);
             // итерируемся по всем датам через n дней
             WHILE tmpDate() <= endDateScheduleOrder(scheduleOrder) DO {
                 IF tmpDate() >= startDateScheduleOrder(scheduleOrder) THEN {
                     ADDOBJ ScheduleOrderDetail;
                     FOR o == addedObject() DO {
-                        SET dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDate(), dayBeforeScheduleOrder(scheduleOrder));
-                        SET dateSupplyScheduleOrderDetail(o) <- tmpDate();
-                        SET scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
+                        ASSIGN dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDate(), dayBeforeScheduleOrder(scheduleOrder));
+                        ASSIGN dateSupplyScheduleOrderDetail(o) <- tmpDate();
+                        ASSIGN scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
                     };
                 };
-                SET tmpDate() <- sumDate(tmpDate(), dayAfterScheduleOrder(scheduleOrder));
+                ASSIGN tmpDate() <- sumDate(tmpDate(), dayAfterScheduleOrder(scheduleOrder));
             };
         };
 
         // генерация по числам
         IF typeScheduleOrder(scheduleOrder) == GenType.genNumber THEN {
-            SET tmpDate() <- startDateScheduleOrder(scheduleOrder);
+            ASSIGN tmpDate() <- startDateScheduleOrder(scheduleOrder);
             // итерируемся по всем датам через 1 день
             WHILE tmpDate() <= endDateScheduleOrder(scheduleOrder) DO {
                 IF isWordInCSV(dayInDate(tmpDate()), stringNumberScheduleOrder(scheduleOrder)) == 1 THEN {
                     ADDOBJ ScheduleOrderDetail;
                     FOR o == addedObject() DO {
-                        SET tmpDateS() <- tmpDate();
-                        SET scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
+                        ASSIGN tmpDateS() <- tmpDate();
+                        ASSIGN scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
                         // если попали на субботу или воскресенье
                         IF numberDOWInDate(tmpDateS()) == 0 OR numberDOWInDate(tmpDateS()) == 6 THEN {
                             IF numberDOW(transferDayScheduleOrder(scheduleOrder)) == 1 THEN {
                             // если нужно переносить на понедельник, то добавляем
-                                WHILE numberDOWInDate(tmpDateS()) != 1 DO SET tmpDateS() <- sumDate(tmpDateS(), 1);
+                                WHILE numberDOWInDate(tmpDateS()) != 1 DO ASSIGN tmpDateS() <- sumDate(tmpDateS(), 1);
                             }
                             ELSE {
                                 // если нужно переносить на пятницу, то отнимаем
-                                WHILE numberDOWInDate(tmpDateS()) != 5 DO SET tmpDateS() <- subtractDate(tmpDateS(), 1);
+                                WHILE numberDOWInDate(tmpDateS()) != 5 DO ASSIGN tmpDateS() <- subtractDate(tmpDateS(), 1);
                             };
                         };
-                        SET dateSupplyScheduleOrderDetail(o) <- tmpDateS();
-                        SET dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDateS(), dayBeforeScheduleOrder(scheduleOrder));
+                        ASSIGN dateSupplyScheduleOrderDetail(o) <- tmpDateS();
+                        ASSIGN dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDateS(), dayBeforeScheduleOrder(scheduleOrder));
                     };
                 };
-                SET tmpDate() <- sumDate(tmpDate(), 1);
+                ASSIGN tmpDate() <- sumDate(tmpDate(), 1);
             };
         };
 
         // генерация по дням и месяцам
         IF typeScheduleOrder(scheduleOrder) == GenType.genDayMonth THEN {
-            SET tmpDate() <- startDateScheduleOrder(scheduleOrder);
+            ASSIGN tmpDate() <- startDateScheduleOrder(scheduleOrder);
             // итерируемся по всем датам через 1 день
             WHILE tmpDate() <= endDateScheduleOrder(scheduleOrder) DO {
-                SET tmpDateP() <- tmpDate();
+                ASSIGN tmpDateP() <- tmpDate();
                 WHILE tmpDate() < sumDate(tmpDateP(), 7) AND tmpDate() <= endDateScheduleOrder(scheduleOrder) DO {
                     IF inMonthScheduleOrder(scheduleOrder, monthInDate(tmpDate())) AND inDayScheduleOrder(scheduleOrder, DOWInDate(tmpDate())) THEN {
                         ADDOBJ ScheduleOrderDetail;
                         FOR o == addedObject() DO {
-                            SET dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDate(), dayBeforeScheduleOrder(scheduleOrder));
-                            SET dateSupplyScheduleOrderDetail(o) <- tmpDate();
-                            SET scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
+                            ASSIGN dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDate(), dayBeforeScheduleOrder(scheduleOrder));
+                            ASSIGN dateSupplyScheduleOrderDetail(o) <- tmpDate();
+                            ASSIGN scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
                         };
                     };
-                    SET tmpDate() <- sumDate(tmpDate(), 1);
+                    ASSIGN tmpDate() <- sumDate(tmpDate(), 1);
                 };
-                SET tmpDate() <- sumDate(tmpDate(), (overPeriodScheduleOrder(scheduleOrder) - 1) * 7);
+                ASSIGN tmpDate() <- sumDate(tmpDate(), (overPeriodScheduleOrder(scheduleOrder) - 1) * 7);
             };
         };
 
@@ -230,16 +230,16 @@ META defineScheduleOrder(sign, stockProp)
 
     createScheduleUserOrder 'Создать заказ' = ACTION (scheduleOrderDetail) NEWSESSION {
         FOR ADDOBJ o = UserOrder DO {
-            SET scheduleOrderDetailUserOrder(o) <- scheduleOrderDetail;
-            SET dateUserOrder(o) <- dateOrderScheduleOrderDetail(scheduleOrderDetail);
-            SET timeUserOrder(o) <- currentTime();
-            SET shipmentDateUserOrder(o) <- dateSupplyScheduleOrderDetail(scheduleOrderDetail);
-            SET shipmentTimeUserOrder(o) <- currentTime();
-            SET nextShipmentDateUserOrder(o) <- dateSupplyNextScheduleOrderDetail(scheduleOrderDetail);
-            SET supplierUserOrder(o) <- supplierScheduleOrderDetail(scheduleOrderDetail);
-            SET customerUserOrder(o) <- customerScheduleOrderDetail(scheduleOrderDetail);
-            SET supplierStockUserOrder(o) <- supplierStockScheduleOrderDetail(scheduleOrderDetail);
-            SET customerStockUserOrder(o) <- customerStockScheduleOrderDetail(scheduleOrderDetail);
+            ASSIGN scheduleOrderDetailUserOrder(o) <- scheduleOrderDetail;
+            ASSIGN dateUserOrder(o) <- dateOrderScheduleOrderDetail(scheduleOrderDetail);
+            ASSIGN timeUserOrder(o) <- currentTime();
+            ASSIGN shipmentDateUserOrder(o) <- dateSupplyScheduleOrderDetail(scheduleOrderDetail);
+            ASSIGN shipmentTimeUserOrder(o) <- currentTime();
+            ASSIGN nextShipmentDateUserOrder(o) <- dateSupplyNextScheduleOrderDetail(scheduleOrderDetail);
+            ASSIGN supplierUserOrder(o) <- supplierScheduleOrderDetail(scheduleOrderDetail);
+            ASSIGN customerUserOrder(o) <- customerScheduleOrderDetail(scheduleOrderDetail);
+            ASSIGN supplierStockUserOrder(o) <- supplierStockScheduleOrderDetail(scheduleOrderDetail);
+            ASSIGN customerStockUserOrder(o) <- customerStockScheduleOrderDetail(scheduleOrderDetail);
 
             EXEC overCreateOrder(o);
 
@@ -355,8 +355,8 @@ META defineScheduleOrder(sign, stockProp)
 
     addScheduleOrderSupplierCustomer 'Добавить'##sign = ACTION (supplier, customer) {
         FOR ADDOBJ s = ScheduleOrder DO {
-            SET supplierScheduleOrder(s) <- supplier;
-            SET customerScheduleOrder(s) <- customer;
+            ASSIGN supplierScheduleOrder(s) <- supplier;
+            ASSIGN customerScheduleOrder(s) <- customer;
 
             FORM scheduleOrder OBJECTS s = s MANAGESESSION DOCKEDMODAL;
             IF TRUE IF NOT formResult() == FormResult.ok THEN {

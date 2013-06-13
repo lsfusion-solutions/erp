@@ -198,8 +198,8 @@ moveCustomGroup 'Перенести отмеченные группы' = ACTION 
 
     FORM moveCustomGroup OBJECTS t = customGroupType MODAL;
     IF formResult() == FormResult.ok THEN {
-        SET parentCustomGroup(customGroup) <- chosenObject('g') WHERE inCustomGroup(customGroup);
-        SET inCustomGroup(customGroup) <- NULL;
+        ASSIGN parentCustomGroup(customGroup) <- chosenObject('g') WHERE inCustomGroup(customGroup);
+        ASSIGN inCustomGroup(customGroup) <- NULL;
     }
 }
 
@@ -490,19 +490,19 @@ needToCostDataSkuLedger 'Требуется расчет себестоимос�
                                                                         AND NOT quantitySkuLedger(ledger) == costedDataSkuLedger(ledger);
 
 resetCostDataSkuLedger 'Перерассчитать себестоимость' = ACTION (ledger) { //NEWSESSION AUTOAPPLY {
-    SET costDataSkuLedgerBatch(ledger, batch) <- NULL;
-    SET costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
+    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL;
+    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
 }
 
 iterate(i, from, to) = RECURSION i==from AND from IS INTEGER AND to IS INTEGER STEP i==$i+1 AND i<=to CYCLES IMPOSSIBLE;
 
 // мгновенный расчет себестоимости
-//WHEN ASSIGNED(isPostedDataSkuLedger(ledger)) DO EXEC resetCostDataSkuLedger (ledger) ORDER orderDataSkuLedger(ledger);
+//WHEN SET(isPostedDataSkuLedger(ledger)) DO EXEC resetCostDataSkuLedger (ledger) ORDER orderDataSkuLedger(ledger);
 changedCostDataSkuLedger 'Перерасчитывалась себестоимость' = DATA SESSION BOOLEAN (DataSkuLedger);
 
 ON APPLY {
     LOCAL changedLedger = BOOLEAN (DataSkuLedger);
-    SET changedLedger(ledger) <- ASSIGNED(isPostedDataSkuLedger(ledger)) OR ((
+    ASSIGN changedLedger(ledger) <- SET(isPostedDataSkuLedger(ledger)) OR ((
                                   CHANGED(quantityDataSkuLedger(ledger))
                                   OR CHANGED(skuDataSkuLedger(ledger))
                                   OR CHANGED(stockDataSkuLedger(ledger))
@@ -511,25 +511,25 @@ ON APPLY {
 
     IF [GROUP MAX changedLedger(ledger)]() THEN
         NEWSESSION SINGLE {
-            SET costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedLedger(ledger);
+            ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedLedger(ledger);
 
             LOCAL orderedLedger = INTEGER (DataSkuLedger);
-            SET orderedLedger(ledger) <- PARTITION SUM 1 IF changedLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
+            ASSIGN orderedLedger(ledger) <- PARTITION SUM 1 IF changedLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
 
             FOR iterate(i, 1, [GROUP MAX orderedLedger(ledger)]()) DO {
-                SET changedCostDataSkuLedger(ledger) <- TRUE WHERE orderedLedger(ledger) == i;
-                SET costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch) WHERE orderedLedger(ledger) == i;
+                ASSIGN changedCostDataSkuLedger(ledger) <- TRUE WHERE orderedLedger(ledger) == i;
+                ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch) WHERE orderedLedger(ledger) == i;
             }
         }
 }
 
 setDataSkuLedgerBatchCost 'Дорассчитать себестоимость' = ACTION () NEWSESSION {
 
-    SET costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE needToCostDataSkuLedger(ledger);
+    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE needToCostDataSkuLedger(ledger);
     EXEC apply();
 
     FOR needToCostDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger) DO {
-        SET costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
+        ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
         EXEC apply();
     }
 } CONFIRM;
@@ -539,11 +539,11 @@ resetDataSkuLedgerBatchCost 'Перерассчитать себестоимос
     IF formResult() == FormResult.ok THEN {
 
         FOR d == chosenDate('d') DO {
-            SET costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE dateDataSkuLedger(ledger) >= d;
+            ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE dateDataSkuLedger(ledger) >= d;
             EXEC apply();
 
             FOR dateSkuLedger(ledger) >= d AND isPostedDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger) DO {
-                SET costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
+                ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
                 EXEC apply();
             }
         }
@@ -551,7 +551,7 @@ resetDataSkuLedgerBatchCost 'Перерассчитать себестоимос
 } CONFIRM;
 
 clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость' = ACTION() NEWSESSION AUTOAPPLY {
-    SET costDataSkuLedgerBatch(ledger, batch) <- NULL;
+    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL;
 } CONFIRM;
 
 // Суммы
@@ -931,7 +931,7 @@ META implementBatch(object, skuProp, stockProp, costProp)
 END
 
 META defineConstraintSkuLedgerCosted (concrete, caption)
-    CONSTRAINT (ASSIGNED(changedCostDataSkuLedger(detail)) OR CHANGED(costedDataSkuLedger(detail))) AND isPosted###concrete##Detail(detail) AND NOT quantity###concrete##Detail(detail) == costedDataSkuLedger(detail)
+    CONSTRAINT (SET(changedCostDataSkuLedger(detail)) OR CHANGED(costedDataSkuLedger(detail))) AND isPosted###concrete##Detail(detail) AND NOT quantity###concrete##Detail(detail) == costedDataSkuLedger(detail)
         MESSAGE caption;
 END
 
@@ -1097,7 +1097,7 @@ META defineDocumentDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, 
     prefix###nameSku###detail 'SKU'###caption (detail) = nameSku(prefix###skuClass###detail(detail)) IN recognize;
     prefix###shortNameUOMSku###detail 'Ед. изм.'###caption = shortNameUOMSku(prefix###skuClass###detail(detail)) IN recognize;
     prefix###idBarcodeSku###detail 'Штрих-код'###caption (detail) = idBarcodeSku(prefix###skuClass###detail(detail)) IN recognize;
-    replaceSkuSku(s, d) += ACTION (s, d){SET prefix###skuClass###detail(detail) <- d WHERE prefix###skuClass###detail(detail) == s;}
+    replaceSkuSku(s, d) += ACTION (s, d){ASSIGN prefix###skuClass###detail(detail) <- d WHERE prefix###skuClass###detail(detail) == s;}
 END
 
 META defineDocumentAbstractDetailSkuCustomPrefix (detail, skuClass, prefix, caption)
@@ -1940,7 +1940,7 @@ META defineDocumentSkuStockCustom(object, detail, skuProp, stockProp)
 
         IF detail###Sku###object###stockProp(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
-                SET quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
+                ASSIGN quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
                 EXEC overChangeQuantityValueSku###object##Detail(detail###Sku###object###stockProp(sku, object, stock));
             } ELSE {
                 DELETE d WHERE d==detail###Sku###object###stockProp(sku, object, stock);
@@ -1949,10 +1949,10 @@ META defineDocumentSkuStockCustom(object, detail, skuProp, stockProp)
         } ELSE {
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
-                   SET object###detail(d) <- object;
-                   SET data###stockProp###detail (d) <- stock;
-                   SET skuProp###detail(d) <- sku;
-                   SET quantity###detail (d) <- requestedNumeric();
+                   ASSIGN object###detail(d) <- object;
+                   ASSIGN data###stockProp###detail (d) <- stock;
+                   ASSIGN skuProp###detail(d) <- sku;
+                   ASSIGN quantity###detail (d) <- requestedNumeric();
                    EXEC overChangeQuantityValueSku###object###object##Detail(d,object);
                    EXEC overChangeQuantityValueSku###object##Detail(d);
                 }
@@ -2033,13 +2033,13 @@ META extendFormDocumentSkuStockCustomAll(object, form, concrete)
     change###form###all= ACTION (sku, object, stock) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
-            SET requestedNumeric() <- NULL;
-            SET form###all (sku,stock) <- TRUE;
-            SET requestedNumeric() <- currentBalanceSkuStock(sku,stock) WHERE currentBalanceSkuStock(sku,stock);
+            ASSIGN requestedNumeric() <- NULL;
+            ASSIGN form###all (sku,stock) <- TRUE;
+            ASSIGN requestedNumeric() <- currentBalanceSkuStock(sku,stock) WHERE currentBalanceSkuStock(sku,stock);
             EXEC changeQuantityValueSku###object###Stock(sku, object, stock);
         } ELSE {
-            SET form###all (sku,stock) <- NULL;
-            SET requestedNumeric() <- NULL;
+            ASSIGN form###all (sku,stock) <- NULL;
+            ASSIGN requestedNumeric() <- NULL;
             EXEC changeQuantityValueSku###object###Stock(sku, object, stock);
         }
     }
@@ -2082,7 +2082,7 @@ META defineDocumentSkuInner(object, detail, detailClass, skuProp, stockProp)
     changeQuantityValueSku###object = ACTION (sku, object) {
         IF detail###Sku###object(sku, object) THEN {
             IF requestedNumeric() THEN {
-                SET quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
+                ASSIGN quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
                 EXEC overChangeQuantityValueSku###object##Detail(detail###Sku###object(sku, object));
             } ELSE {
                 DELETE d WHERE d==detail###Sku###object(sku, object);
@@ -2091,10 +2091,10 @@ META defineDocumentSkuInner(object, detail, detailClass, skuProp, stockProp)
             IF requestedNumeric() THEN {
                 ADDOBJ detailClass;
                 FOR d == addedObject() DO {
-                    SET object###detail(d) <- object;
-                    SET stockProp###detail(d) <- stockProp###object(object);
-                    SET skuProp###detail(d) <- sku;
-                    SET quantity###detail (d) <- requestedNumeric();
+                    ASSIGN object###detail(d) <- object;
+                    ASSIGN stockProp###detail(d) <- stockProp###object(object);
+                    ASSIGN skuProp###detail(d) <- sku;
+                    ASSIGN quantity###detail (d) <- requestedNumeric();
                     EXEC overChangeQuantityValueSku###object##Detail(d);
                 }
             }
@@ -2165,13 +2165,13 @@ META extendFormDocumentSkuAll(object, form, concrete)
     change###form###all= ACTION (sku, object) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
-            SET requestedNumeric() <- NULL;
-            SET form###all (sku,object) <- TRUE;
-            SET requestedNumeric() <- currentBalanceSku###object(sku,object) WHERE currentBalanceSku###object(sku,object);
+            ASSIGN requestedNumeric() <- NULL;
+            ASSIGN form###all (sku,object) <- TRUE;
+            ASSIGN requestedNumeric() <- currentBalanceSku###object(sku,object) WHERE currentBalanceSku###object(sku,object);
             EXEC changeQuantityValueSku###object(sku, object);
         } ELSE {
-            SET form###all (sku,object) <- NULL;
-            SET requestedNumeric() <- NULL;
+            ASSIGN form###all (sku,object) <- NULL;
+            ASSIGN requestedNumeric() <- NULL;
             EXEC changeQuantityValueSku###object(sku, object);
         }
     }
@@ -2218,7 +2218,7 @@ META defineDocumentBatchInner(object, detail, detailClass, batchProp, skuProp, s
     changeQuantityValueBatch###object = ACTION (batch, object) {
         IF detail###batch###object(batch, object) THEN {
             IF requestedNumeric() THEN {
-                SET quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object(batch, object);
+                ASSIGN quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object(batch, object);
                 EXEC overChangeQuantityValueBatch###object##Detail(detail###batch###object(batch, object));
             } ELSE {
                 DELETE d WHERE d==detail###batch###object(batch, object);
@@ -2227,11 +2227,11 @@ META defineDocumentBatchInner(object, detail, detailClass, batchProp, skuProp, s
             IF requestedNumeric() THEN {
                 ADDOBJ detailClass;
                 FOR d == addedObject() DO {
-                    SET object###detail(d) <- object;
-                    SET stockProp###detail (d) <- stockProp###object(object);
-                    SET skuProp###detail(d) <- skuBatch(batch);
-                    SET batchProp###detail(d) <- batch;
-                    SET quantity###detail (d) <- requestedNumeric();
+                    ASSIGN object###detail(d) <- object;
+                    ASSIGN stockProp###detail (d) <- stockProp###object(object);
+                    ASSIGN skuProp###detail(d) <- skuBatch(batch);
+                    ASSIGN batchProp###detail(d) <- batch;
+                    ASSIGN quantity###detail (d) <- requestedNumeric();
                     EXEC overChangeQuantityValueBatch###object##Detail(d);
                 }
             }
@@ -2285,13 +2285,13 @@ META extendFormDocumentBatchAll(object, form, concrete)
     change###form###batchAll= ACTION (batch, object) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
-            SET requestedNumeric() <- NULL;
-            SET form###batchAll (batch,object) <- TRUE;
-            SET requestedNumeric() <- currentBalanceBatch###object(batch,object) WHERE currentBalanceBatch###object(batch,object);
+            ASSIGN requestedNumeric() <- NULL;
+            ASSIGN form###batchAll (batch,object) <- TRUE;
+            ASSIGN requestedNumeric() <- currentBalanceBatch###object(batch,object) WHERE currentBalanceBatch###object(batch,object);
             EXEC changeQuantityValueBatch###object(batch, object);
         } ELSE {
-            SET form###batchAll (batch,object) <- NULL;
-            SET requestedNumeric() <- NULL;
+            ASSIGN form###batchAll (batch,object) <- NULL;
+            ASSIGN requestedNumeric() <- NULL;
             EXEC changeQuantityValueBatch###object(batch, object);
         }
     }
@@ -2335,7 +2335,7 @@ META defineDocumentBatchStockInner(object, detail, detailClass, batchProp, skuPr
     changeQuantityValueBatch###object###Stock = ACTION (batch, object, stock) {
         IF detail###batch###object###stockProp(batch, object, stock) THEN {
             IF requestedNumeric() THEN {
-                SET quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object###stockProp(batch, object, stock);
+                ASSIGN quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object###stockProp(batch, object, stock);
                 EXEC overChangeQuantityValueBatch###object##Detail(detail###batch###object###stockProp(batch, object, stock));
             } ELSE {
                 DELETE d WHERE d==detail###batch###object###stockProp(batch, object, stock);
@@ -2344,11 +2344,11 @@ META defineDocumentBatchStockInner(object, detail, detailClass, batchProp, skuPr
             IF requestedNumeric() THEN {
                 ADDOBJ detailClass;
                 FOR d == addedObject() DO {
-                    SET object###detail(d) <- object;
-                    SET data###stockProp###detail (d) <- stock;
-                    SET skuProp###detail(d) <- skuBatch(batch);
-                    SET batchProp###detail(d) <- batch;
-                    SET quantity###detail (d) <- requestedNumeric();
+                    ASSIGN object###detail(d) <- object;
+                    ASSIGN data###stockProp###detail (d) <- stock;
+                    ASSIGN skuProp###detail(d) <- skuBatch(batch);
+                    ASSIGN batchProp###detail(d) <- batch;
+                    ASSIGN quantity###detail (d) <- requestedNumeric();
                     EXEC overChangeQuantityValueBatch###object##Detail(d);
                 }
             }
@@ -2407,13 +2407,13 @@ META extendFormDocumentBatchStockAll(object, form, concrete)
     change###form###batchAll= ACTION (batch, object, stock) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
-            SET requestedNumeric() <- NULL;
-            SET form###batchAll (batch,object, stock) <- TRUE;
-            SET requestedNumeric() <- currentBalanceBatchStock(batch,stock) WHERE currentBalanceBatchStock(batch,stock);
+            ASSIGN requestedNumeric() <- NULL;
+            ASSIGN form###batchAll (batch,object, stock) <- TRUE;
+            ASSIGN requestedNumeric() <- currentBalanceBatchStock(batch,stock) WHERE currentBalanceBatchStock(batch,stock);
             EXEC changeQuantityValueBatch###object###Stock(batch, object, stock);
         } ELSE {
-            SET form###batchAll (batch,object, stock) <- NULL;
-            SET requestedNumeric() <- NULL;
+            ASSIGN form###batchAll (batch,object, stock) <- NULL;
+            ASSIGN requestedNumeric() <- NULL;
             EXEC changeQuantityValueBatch###object###Stock(batch, object, stock);
         }
     }
@@ -2444,7 +2444,7 @@ META defineDocumentSkuStockContractorCustom(object, detail, skuProp, stockProp, 
         REQUEST NUMERIC[14,3] INPUT;
         IF detail###Sku###object###stockProp###contactStock(sku, object, stockProp, contactStock) THEN {
             IF requestedNumeric() THEN {
-                SET quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###contactStock(sku, object, stockProp, contactStock);
+                ASSIGN quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###contactStock(sku, object, stockProp, contactStock);
             } ELSE {
                 //FOR object###detail(detail) == object AND stockProp###detail(detail) == stockProp AND skuProp###detail(detail) == sku AND contactStock###detail(detail) == contactStock DO { //AND NOT quantity###detail(detail)
                 DELETE detail WHERE object###detail(detail) == object AND stockProp###detail(detail) == stockProp AND skuProp###detail(detail) == sku AND contactStock###detail(detail) == contactStock;
@@ -2454,13 +2454,13 @@ META defineDocumentSkuStockContractorCustom(object, detail, skuProp, stockProp, 
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
 
-                   SET object###detail(d) <- object;
-                   SET data###stockProp###detail (d) <- stockProp;
-                   SET skuProp###detail(d) <- sku;
-                   SET contactStock###detail(d) <- contactStock ;
-                   SET quantity###detail (d) <- requestedNumeric();
-                   SET shipmentDataDate###detail (d) <- shipmentDate###object(object);
-                   SET shipmentDataTime###detail (d) <- shipmentTime###object(object);
+                   ASSIGN object###detail(d) <- object;
+                   ASSIGN data###stockProp###detail (d) <- stockProp;
+                   ASSIGN skuProp###detail(d) <- sku;
+                   ASSIGN contactStock###detail(d) <- contactStock ;
+                   ASSIGN quantity###detail (d) <- requestedNumeric();
+                   ASSIGN shipmentDataDate###detail (d) <- shipmentDate###object(object);
+                   ASSIGN shipmentDataTime###detail (d) <- shipmentTime###object(object);
                 }
             }
         }
@@ -2563,8 +2563,8 @@ META defineDocumentInSkuStockCustom(object, detail, skuProp, stockProp)
         } ELSE {
             IF requestedLogical() THEN {
                 FOR ADDOBJ d = ###detail DO {
-                   SET object###detail(d) <- object;
-                   SET skuProp###detail(d) <- sku;
+                   ASSIGN object###detail(d) <- object;
+                   ASSIGN skuProp###detail(d) <- sku;
                 }
             }
         }
@@ -3325,7 +3325,7 @@ META defineDialogStockSku (form)
     form###balance 'Остаток' (sku) = currentBalanceSkuStock(sku, form###stock());
     form###balanceFilter (sku) = (TRUE IF form###balance(sku)) OR (sku IS Sku AND NOT form###stock());
 
-    form###quantity(sku) <- form###balance(sku) WHEN ASSIGNED(form###all(sku));
+    form###quantity(sku) <- form###balance(sku) WHEN SET(form###all(sku));
 
     EXTEND FORM form
         PROPERTIES() form###nameStock
@@ -3356,8 +3356,8 @@ END
 META defineAddDetailDialogSkuStockCustomInner (object, class, detail, caption, skuProp, stockProp, form)
     @defineAddDetailDialogSkuCustom(object, detail, caption, skuProp, form);
     addDetailDialogSkuStock###detail###object 'Подбор товаров'###caption = ACTION (object) {
-        SET form###stock() <- stockProp###object(object);
-        SET form###all(sku) <- NULL;
+        ASSIGN form###stock() <- stockProp###object(object);
+        ASSIGN form###all(sku) <- NULL;
 
         EXEC addDetailDialogSku###detail###object(object);
     } TOOLBAR;
@@ -3376,12 +3376,12 @@ META defineAddDetailDialogSkuCustomInner (object, class, detail, detailClass, ca
         FORM form MODAL;
         IF formResult() == FormResult.ok THEN {
             FOR form###quantity(sku) INLINE ADDOBJ w = detailClass DO {
-                SET object###detail(w) <- object;
-                SET skuProp###detail(w) <- sku;
-                SET quantity###detail(w) <- form###quantity(sku);
+                ASSIGN object###detail(w) <- object;
+                ASSIGN skuProp###detail(w) <- sku;
+                ASSIGN quantity###detail(w) <- form###quantity(sku);
             }
         }
-        SET form###quantity(sku) <- NULL;
+        ASSIGN form###quantity(sku) <- NULL;
     } TOOLBAR;
 END
 
@@ -3540,12 +3540,12 @@ META implementDocument(object)
         FORM documents MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL chosenDocument = Document();
-            SET chosenDocument() <- chosenObject('d');
+            ASSIGN chosenDocument() <- chosenObject('d');
             FOR documentDocumentDetail(documentDetail) == chosenDocument() ADDOBJ i = User###object##Detail DO {
-                SET user###object##User###object##Detail(i) <- user###object;
-                SET skuUser###object##Detail(i) <- skuDocumentDetail(documentDetail);
-                SET quantityUser###object##Detail(i) <- quantityDocumentDetail(documentDetail);
-                SET priceUser###object##Detail(i) <- priceDocumentDetail(documentDetail);
+                ASSIGN user###object##User###object##Detail(i) <- user###object;
+                ASSIGN skuUser###object##Detail(i) <- skuDocumentDetail(documentDetail);
+                ASSIGN quantityUser###object##Detail(i) <- quantityDocumentDetail(documentDetail);
+                ASSIGN priceUser###object##Detail(i) <- priceDocumentDetail(documentDetail);
             }
         }
     } TOOLBAR;
@@ -3568,10 +3568,10 @@ END
 loadDefaultUOM 'Добавить ед.изм.' = ACTION (stringOne, stringTwo, numeric) {
     ADDOBJ UOM;
     FOR u == addedObject() DO {
-       SET nameUOM(u) <- stringOne;
-       SET shortNameUOM(u) <- stringTwo;
-       SET baseUOM(u) <- u;
-       SET factorUOM(u) <- numeric;
+       ASSIGN nameUOM(u) <- stringOne;
+       ASSIGN shortNameUOM(u) <- stringTwo;
+       ASSIGN baseUOM(u) <- u;
+       ASSIGN factorUOM(u) <- numeric;
     }
 }
 

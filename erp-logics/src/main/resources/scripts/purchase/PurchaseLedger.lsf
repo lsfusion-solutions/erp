@@ -119,18 +119,18 @@ calcQuantityPurchaseInterval = ACTION (dateFrom, dateTo) {
     LOCAL days = INTEGER (Sku, Stock);
     LOCAL dateCur = DATE();
 
-    SET dateCur() <- dateFrom;
-    SET balance(sku, stock) <- balanceBSkuStockDate(sku, stock, dateFrom);
+    ASSIGN dateCur() <- dateFrom;
+    ASSIGN balance(sku, stock) <- balanceBSkuStockDate(sku, stock, dateFrom);
 
     WHILE dateCur() <= dateTo DO {
-        SET days(sku, stock) <- days(sku, stock) (+)
+        ASSIGN days(sku, stock) <- days(sku, stock) (+)
                    (1 IF ((balance(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0)));
-        SET balance(sku, stock) <- balance(sku, stock) (+)
+        ASSIGN balance(sku, stock) <- balance(sku, stock) (+)
                    signedQuantitySkuStockDate(sku, stock, dateCur());
-        SET dateCur() <- sumDate(dateCur(), 1);
+        ASSIGN dateCur() <- sumDate(dateCur(), 1);
     }
 
-    SET averagePurchaseSkuStock(sku, stock) <- quantityPurchaseSkuStockDateFromTo (sku, stock, dateFrom, dateTo) / days(sku, stock);
+    ASSIGN averagePurchaseSkuStock(sku, stock) <- quantityPurchaseSkuStockDateFromTo (sku, stock, dateFrom, dateTo) / days(sku, stock);
 }
 calcCurrentQuantityPurchaseInterval 'Пересчитать однодневные закупки' = ACTION () NEWSESSION AUTOAPPLY {
     EXEC calcQuantityPurchaseInterval(subtractDate(currentDate(), skuStockAveragePurchaseInterval()), subtractDate(currentDate(), 1));

@@ -110,7 +110,7 @@ recBruttoQuantityOutputOrderSku 'Кол-во для произ-го' (order, sku
 
 createOutputComponentOrder 'Заполнить кол-во компонентов для произведенных изделий' = ACTION (order)  {
     FOR recBruttoQuantityOutputOrderSku(order, bruttoSkuComponentDetail(componentDetail)) == q DO {
-        SET consumedQuantityComponentDetail(componentDetail) <- q;
+        ASSIGN consumedQuantityComponentDetail(componentDetail) <- q;
     }
 } TOOLBAR;
 
@@ -189,13 +189,13 @@ fillOrderUserConsumption 'Заполнить на основе производ�
 
     IF formResult() == FormResult.ok THEN {
         LOCAL productionOrder = Order();
-        SET productionOrder() <- chosenObject('o');
+        ASSIGN productionOrder() <- chosenObject('o');
 
         FOR orderComponentDetail(componentDetail) == productionOrder() ADDOBJ d = UserConsumptionDetail DO {
-            SET userConsumptionUserConsumptionDetail(d) <- userConsumption;
-            SET componentDetailUserConsumptionDetail(d) <- componentDetail;
-            SET skuUserConsumptionDetail(d) <- skuComponentDetail(componentDetail);
-            SET quantityUserConsumptionDetail (d) <- toConsumeComponentDetail(componentDetail);              // возможно надо quantityComponentDetail   ?
+            ASSIGN userConsumptionUserConsumptionDetail(d) <- userConsumption;
+            ASSIGN componentDetailUserConsumptionDetail(d) <- componentDetail;
+            ASSIGN skuUserConsumptionDetail(d) <- skuComponentDetail(componentDetail);
+            ASSIGN quantityUserConsumptionDetail (d) <- toConsumeComponentDetail(componentDetail);              // возможно надо quantityComponentDetail   ?
         }
     }
 } IN orderGroup;
@@ -373,19 +373,19 @@ editConsumption(consumption) += editUserConsumption(consumption);
 
 copyConsumption 'Копировать' = ACTION (userConsumption) NEWSESSION {
     FOR ADDOBJ o = UserConsumption DO {
-        SET stockUserConsumption(o) <- stockUserConsumption(userConsumption);
-        SET currencyUserConsumption(o) <- currencyUserConsumption(userConsumption);
-        SET priceListTypeUserConsumption(o) <- priceListTypeUserConsumption(userConsumption);
-        SET noteUserConsumption(o) <- noteUserConsumption(userConsumption);
+        ASSIGN stockUserConsumption(o) <- stockUserConsumption(userConsumption);
+        ASSIGN currencyUserConsumption(o) <- currencyUserConsumption(userConsumption);
+        ASSIGN priceListTypeUserConsumption(o) <- priceListTypeUserConsumption(userConsumption);
+        ASSIGN noteUserConsumption(o) <- noteUserConsumption(userConsumption);
 
         FOR userConsumptionUserConsumptionDetail(userConsumptionDetail) == userConsumption DO {
             FOR ADDOBJ d=UserConsumptionDetail DO {
-                SET userConsumptionUserConsumptionDetail(d) <- o;
-                SET skuUserConsumptionDetail(d) <- skuUserConsumptionDetail(userConsumptionDetail);
-                SET quantityUserConsumptionDetail(d) <- quantityUserConsumptionDetail(userConsumptionDetail);
-                SET priceListTypeUserConsumptionDetail(d) <- priceListTypeUserConsumptionDetail(userConsumptionDetail);
-//                SET priceUserConsumptionDetail(d) <- priceUserConsumptionDetail(userConsumptionDetail);
-                SET componentDetailUserConsumptionDetail(d) <- componentDetailUserConsumptionDetail(userConsumptionDetail);
+                ASSIGN userConsumptionUserConsumptionDetail(d) <- o;
+                ASSIGN skuUserConsumptionDetail(d) <- skuUserConsumptionDetail(userConsumptionDetail);
+                ASSIGN quantityUserConsumptionDetail(d) <- quantityUserConsumptionDetail(userConsumptionDetail);
+                ASSIGN priceListTypeUserConsumptionDetail(d) <- priceListTypeUserConsumptionDetail(userConsumptionDetail);
+//                ASSIGN priceUserConsumptionDetail(d) <- priceUserConsumptionDetail(userConsumptionDetail);
+                ASSIGN componentDetailUserConsumptionDetail(d) <- componentDetailUserConsumptionDetail(userConsumptionDetail);
             }
         }
         FORM userConsumption OBJECTS o = o MANAGESESSION DOCKEDMODAL;
@@ -396,17 +396,17 @@ copyConsumption 'Копировать' = ACTION (userConsumption) NEWSESSION {
 createShipmentConsumption 'Создать поставку для Сырья' = ACTION (consumption)  {
 
     FOR ADDOBJ sh = Sale.UserShipment DO {
-        SET Sale.supplierUserShipment(sh) <- legalEntityStockConsumption(consumption);
-        SET Sale.customerUserShipment(sh) <- legalEntityStockConsumption(consumption);
-        SET Sale.customerStockUserShipment(sh) <- stockConsumption(consumption);
-        SET createPurchaseUserShipment(sh) <- TRUE;
-        SET Sale.noteUserShipment(sh) <- [FORMULA STRING[100] 'CAST($1 AS TEXT)'](descriptionConsumption(consumption));
+        ASSIGN Sale.supplierUserShipment(sh) <- legalEntityStockConsumption(consumption);
+        ASSIGN Sale.customerUserShipment(sh) <- legalEntityStockConsumption(consumption);
+        ASSIGN Sale.customerStockUserShipment(sh) <- stockConsumption(consumption);
+        ASSIGN createPurchaseUserShipment(sh) <- TRUE;
+        ASSIGN Sale.noteUserShipment(sh) <- [FORMULA STRING[100] 'CAST($1 AS TEXT)'](descriptionConsumption(consumption));
 
         FOR consumptionConsumptionDetail(consumptionDetail)== consumption ADDOBJ d = Sale.UserShipmentDetail DO {
-            SET Sale.userShipmentUserShipmentDetail(d) <- sh;
-            SET Sale.skuUserShipmentDetail(d) <- skuConsumptionDetail(consumptionDetail);
-            SET Sale.quantityUserShipmentDetail(d) <- quantityConsumptionDetail(consumptionDetail);
-            SET Sale.priceUserShipmentDetail(d) <- priceConsumptionDetail(consumptionDetail);
+            ASSIGN Sale.userShipmentUserShipmentDetail(d) <- sh;
+            ASSIGN Sale.skuUserShipmentDetail(d) <- skuConsumptionDetail(consumptionDetail);
+            ASSIGN Sale.quantityUserShipmentDetail(d) <- quantityConsumptionDetail(consumptionDetail);
+            ASSIGN Sale.priceUserShipmentDetail(d) <- priceConsumptionDetail(consumptionDetail);
         }
 
     FORM Sale.userShipment OBJECTS s=sh MODAL;

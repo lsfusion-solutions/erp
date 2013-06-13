@@ -250,15 +250,15 @@ changePriceUserRepricing 'Изменить цену' (userRepricing) = ACTION (u
         FORM addPercentUserRepricing OBJECTS u = userRepricing MODAL;
         IF formResult() == FormResult.ok AND changePriceTypeUserRepricing(userRepricing) AND percentUserRepricing(userRepricing) THEN {
             FOR userRepricingUserRepricingDetail(userRepricingDetail) == userRepricing DO {
-                SET priceUserRepricingDetail(userRepricingDetail) <- curPriceUserRepricingDetail(userRepricingDetail);
+                ASSIGN priceUserRepricingDetail(userRepricingDetail) <- curPriceUserRepricingDetail(userRepricingDetail);
                 EXEC overChangePriceUserRepricing(userRepricingDetail);
-                SET VATUserRepricingDetail(userRepricingDetail) <- curVATUserRepricingDetail(userRepricingDetail);
-                SET valueVATUserRepricingDetail(userRepricingDetail) <- valueCurVATUserRepricingDetail(userRepricingDetail);
+                ASSIGN VATUserRepricingDetail(userRepricingDetail) <- curVATUserRepricingDetail(userRepricingDetail);
+                ASSIGN valueVATUserRepricingDetail(userRepricingDetail) <- valueCurVATUserRepricingDetail(userRepricingDetail);
                 IF changePriceTypeUserRepricing(userRepricing) == ChangePriceType.markupChange THEN {
-                    SET retailPriceUserRepricingDetail(userRepricingDetail) <- newMarkupRetailPriceUserRepricingDetail(userRepricingDetail);
+                    ASSIGN retailPriceUserRepricingDetail(userRepricingDetail) <- newMarkupRetailPriceUserRepricingDetail(userRepricingDetail);
                 } ELSE {
                     IF changePriceTypeUserRepricing(userRepricing)== ChangePriceType.discountChange THEN {
-                        SET retailPriceUserRepricingDetail(userRepricingDetail) <- newDiscountRetailPriceUserRepricingDetail(userRepricingDetail);
+                        ASSIGN retailPriceUserRepricingDetail(userRepricingDetail) <- newDiscountRetailPriceUserRepricingDetail(userRepricingDetail);
                     }
                 }
             }
@@ -474,25 +474,25 @@ createManagementRepricing 'Создать управленческую пере�
         LOCAL time =  DATETIME();
         LOCAL oper = Repricing.Operation();
 
-        SET department() <- chosenObject('d');
-        SET priceList() <- priceListTypeOperation(chosenObject('o'));
-        SET calcList() <- calcPriceListTypeOperation(chosenObject('o'));
-        SET time() <- chosenDateTime('t');
-        SET oper() <- chosenObject('o');
+        ASSIGN department() <- chosenObject('d');
+        ASSIGN priceList() <- priceListTypeOperation(chosenObject('o'));
+        ASSIGN calcList() <- calcPriceListTypeOperation(chosenObject('o'));
+        ASSIGN time() <- chosenDateTime('t');
+        ASSIGN oper() <- chosenObject('o');
 
         FOR ADDOBJ r = UserRepricing DO {
-            SET departmentStoreUserRepricing(r) <-  department();
-            SET operationUserRepricing(r) <- oper();
+            ASSIGN departmentStoreUserRepricing(r) <-  department();
+            ASSIGN operationUserRepricing(r) <- oper();
 
             FOR currentBalanceSkuStock(sku, department()) AND
                 prevPricePriceListCalcListSkuStockDateTime(priceList(), calcList(), sku, department(), time()) != prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department(), time())
                 ADDOBJ rd = UserRepricingDetail DO {
-                SET userRepricingUserRepricingDetail(rd) <- r;
-                SET skuUserRepricingDetail(rd) <- sku;
-                SET quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, department());
-                SET retailPriceUserRepricingDetail(rd) <- prevPricePriceListCalcListSkuStockDateTime(priceList(), calcList(), sku, department(), time());
-                SET curRetailPriceUserRepricingDetail(rd) <- pricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department(), time());
-                SET priceUserRepricingDetail(rd) <- prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, department(), time());
+                ASSIGN userRepricingUserRepricingDetail(rd) <- r;
+                ASSIGN skuUserRepricingDetail(rd) <- sku;
+                ASSIGN quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, department());
+                ASSIGN retailPriceUserRepricingDetail(rd) <- prevPricePriceListCalcListSkuStockDateTime(priceList(), calcList(), sku, department(), time());
+                ASSIGN curRetailPriceUserRepricingDetail(rd) <- pricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department(), time());
+                ASSIGN priceUserRepricingDetail(rd) <- prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, department(), time());
                 EXEC overManagementRepricing(rd, sku, department(), time());
             }
             FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;
@@ -791,10 +791,10 @@ META defineRepricingAggregation(sign, stockProp)
     skuRepricingDetail(repricingDetail) +=  skuInvoiceRepricingDetail(repricingDetail);
 
     overCopyInvoice(s, d) += ACTION (s, d) {
-        SET createRepricingUserInvoice(d) <- createRepricingUserInvoice(s);
-        SET repricingCommitteeUserInvoice(d) <- repricingCommitteeUserInvoice(s);
-        SET numberDisposalUserInvoice(d) <- numberDisposalUserInvoice(s);
-        SET beforeDateUserInvoice(d) <- beforeDateUserInvoice(s);
+        ASSIGN createRepricingUserInvoice(d) <- createRepricingUserInvoice(s);
+        ASSIGN repricingCommitteeUserInvoice(d) <- repricingCommitteeUserInvoice(s);
+        ASSIGN numberDisposalUserInvoice(d) <- numberDisposalUserInvoice(s);
+        ASSIGN beforeDateUserInvoice(d) <- beforeDateUserInvoice(s);
     }
 
     backgroundCurInvoice 'Цвет' (invoice) = RGB(255, 255, 224) IF invoice IS Invoice;

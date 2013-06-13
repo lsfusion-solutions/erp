@@ -231,8 +231,8 @@ changeInSkuUserPriceList = ACTION (sku, price) {
     } ELSE {
         IF requestedLogical() THEN {
             FOR ADDOBJ d = UserPriceListDetail DO {
-               SET userPriceListUserPriceListDetail(d) <- price;
-               SET skuUserPriceListDetail(d) <- sku;
+               ASSIGN userPriceListUserPriceListDetail(d) <- price;
+               ASSIGN skuUserPriceListDetail(d) <- sku;
             }
         }
     }
@@ -254,10 +254,10 @@ fillDocumentPriceList 'Подбор документа' = ACTION (userPriceList)
     FORM documents MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL chosenDocument = Document();
-        SET chosenDocument() <- chosenObject('d');
+        ASSIGN chosenDocument() <- chosenObject('d');
         FOR documentDocumentDetail(documentDetail) == chosenDocument() ADDOBJ i = UserPriceListDetail DO {
-            SET userPriceListUserPriceListDetail(i) <- userPriceList;
-            SET skuUserPriceListDetail(i) <- skuDocumentDetail(documentDetail);
+            ASSIGN userPriceListUserPriceListDetail(i) <- userPriceList;
+            ASSIGN skuUserPriceListDetail(i) <- skuDocumentDetail(documentDetail);
         }
     }
 } TOOLBAR;
@@ -550,15 +550,15 @@ changeMarkUpChosenSkuUserPriceList 'Изменить цену для отмеч�
                                      WHERE userPriceListUserPriceListDetail(detail) == userPriceList;
             }
             IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent THEN
-                SET priceUserPriceListDetailDataPriceListType(detail, t) <-
+                ASSIGN priceUserPriceListDetailDataPriceListType(detail, t) <-
                     roundPriceRoundCondition(prevPrice(detail) * (chosenNumeric('n') + 100.0) / 100.0, roundConditionPriceListType(t))
                     WHERE isSelectedUserPriceListDetail(detail) AND userPriceListUserPriceListDetail(detail) == userPriceList AND t == chosenObject('nt');
             IF chosenObject('m') == TypeMarkUpSkuUserPriceList.multiplication THEN
-                SET priceUserPriceListDetailDataPriceListType(detail, t) <-
+                ASSIGN priceUserPriceListDetailDataPriceListType(detail, t) <-
                     roundPriceRoundCondition(prevPrice(detail) * chosenNumeric('n'), roundConditionPriceListType(t))
                     WHERE isSelectedUserPriceListDetail(detail) AND userPriceListUserPriceListDetail(detail) == userPriceList AND t == chosenObject('nt');
             IF chosenObject('m') == TypeMarkUpSkuUserPriceList.division THEN
-                SET priceUserPriceListDetailDataPriceListType(detail, t) <-
+                ASSIGN priceUserPriceListDetailDataPriceListType(detail, t) <-
                     roundPriceRoundCondition(prevPrice(detail) / chosenNumeric('n'), roundConditionPriceListType(t))
                     WHERE isSelectedUserPriceListDetail(detail) AND userPriceListUserPriceListDetail(detail) == userPriceList AND t == chosenObject('nt');
         }
@@ -592,15 +592,15 @@ changeMarkUpSkuUserPriceList 'Изменить цену для всех стро
 
         FOR [FILTER userPriceList.d](detail) DO {
             IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent THEN
-                SET priceUserPriceListDetailDataPriceListType(detail, t) <-
+                ASSIGN priceUserPriceListDetailDataPriceListType(detail, t) <-
                     roundPriceRoundCondition(prevPrice(detail) * (chosenNumeric('n') + 100.0) / 100.0, roundConditionPriceListType(t))
                     WHERE userPriceListUserPriceListDetail(detail) == userPriceList AND t == chosenObject('nt');
             IF chosenObject('m') == TypeMarkUpSkuUserPriceList.multiplication THEN
-                SET priceUserPriceListDetailDataPriceListType(detail, t) <-
+                ASSIGN priceUserPriceListDetailDataPriceListType(detail, t) <-
                     roundPriceRoundCondition(prevPrice(detail) * chosenNumeric('n'), roundConditionPriceListType(t))
                     WHERE userPriceListUserPriceListDetail(detail) == userPriceList AND t == chosenObject('nt');
             IF chosenObject('m') == TypeMarkUpSkuUserPriceList.division THEN
-                SET priceUserPriceListDetailDataPriceListType(detail, t) <-
+                ASSIGN priceUserPriceListDetailDataPriceListType(detail, t) <-
                     roundPriceRoundCondition(prevPrice(detail) / chosenNumeric('n'), roundConditionPriceListType(t))
                     WHERE userPriceListUserPriceListDetail(detail) == userPriceList AND t == chosenObject('nt');
         }
@@ -627,18 +627,18 @@ editPriceList (p) += editUserPriceList(p);
 copyAbstractDataPriceList = ABSTRACT ACTION LIST (PriceList, UserPriceList);
 
 copyDataPriceList = ACTION (priceList, userPriceList){
-        SET currencyUserPriceList(userPriceList) <- currencyUserPriceList(priceList);
-        SET companyUserPriceList(userPriceList) <- companyUserPriceList(priceList);
-        SET dataInUserPriceListStock(userPriceList, stock) <- dataInUserPriceListStock(priceList, stock);
-        SET dataInUserPriceListStockGroup(userPriceList, stockGroup) <- dataInUserPriceListStockGroup(priceList, stockGroup);
-        SET allStocksUserPriceList(userPriceList) <- allStocksUserPriceList(priceList);
-        SET inUserPriceListDataPriceListType(userPriceList, priceListType) <- inPriceListDataPriceListType(priceList, priceListType);
+        ASSIGN currencyUserPriceList(userPriceList) <- currencyUserPriceList(priceList);
+        ASSIGN companyUserPriceList(userPriceList) <- companyUserPriceList(priceList);
+        ASSIGN dataInUserPriceListStock(userPriceList, stock) <- dataInUserPriceListStock(priceList, stock);
+        ASSIGN dataInUserPriceListStockGroup(userPriceList, stockGroup) <- dataInUserPriceListStockGroup(priceList, stockGroup);
+        ASSIGN allStocksUserPriceList(userPriceList) <- allStocksUserPriceList(priceList);
+        ASSIGN inUserPriceListDataPriceListType(userPriceList, priceListType) <- inPriceListDataPriceListType(priceList, priceListType);
         EXEC copyAbstractDataPriceList(priceList, userPriceList);
         FOR userPriceListUserPriceListDetail(detail) == priceList DO {
             FOR ADDOBJ d = UserPriceListDetail DO {
-                SET userPriceListUserPriceListDetail(d) <- userPriceList;
-                SET skuUserPriceListDetail(d) <- skuUserPriceListDetail(detail);
-                SET priceUserPriceListDetailDataPriceListType(d, priceListType) <- pricePriceListDetailDataPriceListType(detail, priceListType);
+                ASSIGN userPriceListUserPriceListDetail(d) <- userPriceList;
+                ASSIGN skuUserPriceListDetail(d) <- skuUserPriceListDetail(detail);
+                ASSIGN priceUserPriceListDetailDataPriceListType(d, priceListType) <- pricePriceListDetailDataPriceListType(detail, priceListType);
             }
         }
 }
@@ -665,8 +665,8 @@ updateSessionPriceList 'Обновить' = ACTION (priceList) {
         EXEC copyDataPriceList(priceList, u);
         FORM userPriceList OBJECTS p = u DOCKEDMODAL;
         IF formResult() == FormResult.ok THEN {
-            SET toDateUserPriceList(priceList) <- fromDateUserPriceList(u);
-            SET toTimeUserPriceList(priceList) <- fromTimeUserPriceList(u);
+            ASSIGN toDateUserPriceList(priceList) <- fromDateUserPriceList(u);
+            ASSIGN toTimeUserPriceList(priceList) <- fromTimeUserPriceList(u);
         } ELSE {
             DELETE u;
         }
@@ -679,8 +679,8 @@ updatePriceList 'Обновить' = ACTION (priceList) NEWSESSION{
         EXEC copyDataPriceList(priceList, u);
         FORM userPriceList OBJECTS p = u DOCKEDMODAL;
         IF formResult() == FormResult.ok THEN {
-            SET toDateUserPriceList(priceList) <- fromDateUserPriceList(u);
-            SET toTimeUserPriceList(priceList) <- fromTimeUserPriceList(u);
+            ASSIGN toDateUserPriceList(priceList) <- fromDateUserPriceList(u);
+            ASSIGN toTimeUserPriceList(priceList) <- fromTimeUserPriceList(u);
         } ELSE {
             DELETE u;
         }
@@ -770,8 +770,8 @@ addUnderPriceListUserPriceList 'Заполнить на основании' = AC
         FOR priceListPriceListDetail(detail) == chosenObject('p') DO {
             ADDOBJ UserPriceListDetail;
             FOR d == addedObject() DO {
-                SET userPriceListUserPriceListDetail(d) <- userPriceList;
-                SET skuUserPriceListDetail(d) <- skuPriceListDetail(detail);
+                ASSIGN userPriceListUserPriceListDetail(d) <- userPriceList;
+                ASSIGN skuUserPriceListDetail(d) <- skuPriceListDetail(detail);
             }
         }
     }
@@ -813,7 +813,7 @@ printPriceList(priceList) += printPrintPriceList(priceList);
 addUserPriceListLegalEntity 'Добавить' = ACTION (legalEntity) {
 
     FOR ADDOBJ u = UserPriceList DO {
-        SET companyUserPriceList(u) <- legalEntity;
+        ASSIGN companyUserPriceList(u) <- legalEntity;
         FORM userPriceList OBJECTS p = u DOCKEDMODAL;
         IF TRUE IF NOT formResult() == FormResult.ok THEN {
             DELETE u;
@@ -893,7 +893,7 @@ equalsPriceListPriceList (priceList1, priceList2) = companyPriceList(priceList1)
 findEqualsPriceLists 'Найти дубликаты прайсов' = ACTION () {
     FOR p1 IS UserPriceList NOINLINE DO {
         FOR equalsPriceListPriceList(p1, p2) NOINLINE DO {
-            SET dataInUserPriceListStock(p2, s) <- dataInUserPriceListStock(p1, s) WHERE dataInUserPriceListStock(p1, s);
+            ASSIGN dataInUserPriceListStock(p2, s) <- dataInUserPriceListStock(p1, s) WHERE dataInUserPriceListStock(p1, s);
             DELETE p1;
             apply();
             BREAK;

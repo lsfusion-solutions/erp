@@ -227,32 +227,32 @@ addDetailDialogTerminalListInventory 'Заполнить из документа
     FORM terminalDocuments MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL document = TerminalDocument ();
-        SET document() <- chosenObject('td');
-        SET usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document();
+        ASSIGN document() <- chosenObject('td');
+        ASSIGN usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document();
 
         LOCAL page = PageInventory ();
         LOCAL detailCount = INTEGER();
-        SET detailCount() <- 0;
+        ASSIGN detailCount() <- 0;
 
         FOR terminalDocumentTerminalDocumentDetail(tdd) == document() DO {
             IF detailCount() == 0 THEN {
                 ADDOBJ PageInventory;
                 FOR pi == addedObject() DO {
-                    SET listInventoryPageInventory(pi) <- listInventory;
-                    SET page() <- pi;
+                    ASSIGN listInventoryPageInventory(pi) <- listInventory;
+                    ASSIGN page() <- pi;
                 }
             }
 
             ADDOBJ PageInventoryDetail;
             FOR pid == addedObject() DO {
-                SET pageInventoryPageInventoryDetail(pid) <- page();
-                SET skuPageInventoryDetail(pid) <- skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(listInventory));
-                SET quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
+                ASSIGN pageInventoryPageInventoryDetail(pid) <- page();
+                ASSIGN skuPageInventoryDetail(pid) <- skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(listInventory));
+                ASSIGN quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
 
-                SET detailCount() <- detailCount() + 1;
+                ASSIGN detailCount() <- detailCount() + 1;
 
                 IF detailCount() >= 20 THEN {
-                    SET detailCount() <- 0;
+                    ASSIGN detailCount() <- 0;
                 }
             }
         }
@@ -348,12 +348,12 @@ priceBalanceCollationSheetBatch 'Цена по остаткам' (collationSheet
 GROUP inventoryActionGroup 'Действия' : public;
 
 recalculateBalanceInventory 'Заполнить остатки' (inventory) = ACTION (inventory) {
-    SET quantityBalanceCollationSheetSku(collationSheet, sku)
+    ASSIGN quantityBalanceCollationSheetSku(collationSheet, sku)
         <- balanceBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
         WHERE inventoryCollationSheet(collationSheet) == inventory;
 
     IF isBatchInventory (inventory) THEN {
-        SET quantityBalanceCollationSheetBatch(collationSheet, batch)
+        ASSIGN quantityBalanceCollationSheetBatch(collationSheet, batch)
             <- balanceBBatchStockDateTime(batch, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
             WHERE inventoryCollationSheet(collationSheet) == inventory;
     }
@@ -361,19 +361,19 @@ recalculateBalanceInventory 'Заполнить остатки' (inventory) = AC
 
 recalculatePriceCollationSheet 'Пересчитать цены в сличительной ведомости' (collationSheet) = ACTION (collationSheet) {
     IF isBatchCollationSheet (collationSheet) THEN {
-        SET pricePageInventoryDetail(pageInventoryDetail)
+        ASSIGN pricePageInventoryDetail(pageInventoryDetail)
             <- priceLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batchPageInventoryDetail(pageInventoryDetail), stockPageInventoryDetail(pageInventoryDetail), dateTimePageInventoryDetail(pageInventoryDetail))
             WHERE collationSheetPageInventoryDetail(pageInventoryDetail) == collationSheet;
     } ELSE {
-        SET pricePageInventoryDetail(pageInventoryDetail)
+        ASSIGN pricePageInventoryDetail(pageInventoryDetail)
             <- priceLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuPageInventoryDetail(pageInventoryDetail), stockPageInventoryDetail(pageInventoryDetail), dateTimePageInventoryDetail(pageInventoryDetail))
             WHERE collationSheetPageInventoryDetail(pageInventoryDetail) == collationSheet;
     }
 
-    SET priceBalanceCollationSheetSku(collationSheet, sku)
+    ASSIGN priceBalanceCollationSheetSku(collationSheet, sku)
         <- priceLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)));
     IF isBatchCollationSheet (collationSheet) THEN {
-        SET priceBalanceCollationSheetBatch(collationSheet, batch)
+        ASSIGN priceBalanceCollationSheetBatch(collationSheet, batch)
             <- priceLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)));
     }
 } CONFIRM IN inventoryActionGroup;
@@ -466,7 +466,7 @@ includeCollationSheetSku(collationSheet, sku) = MULTI
 
 priceBalanceCollationSheetSku(collationSheet, sku) <- priceLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
                 sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
-                WHEN ASSIGNED(includeCollationSheetSku(collationSheet, sku));
+                WHEN SET(includeCollationSheetSku(collationSheet, sku));
 
 // ------------------------------ Определение состава сличительной ведомости (Batch) ------------------------------------ //
 
@@ -476,7 +476,7 @@ includeCollationSheetBatch(collationSheet, batch) <- includeCollationSheetSku(co
 
 priceBalanceCollationSheetBatch(collationSheet, batch) <- priceLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType,
                 batch, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
-                WHEN ASSIGNED(includeCollationSheetBatch(collationSheet, batch));
+                WHEN SET(includeCollationSheetBatch(collationSheet, batch));
 
 // ------------------------------------ Итоги по сличительной ведомости (Sku) ------------------------------------ //
 
@@ -907,8 +907,8 @@ DESIGN listInventory FROM DEFAULT {
 addListInventoryStockInventory 'Добавить' = ACTION (stock, inventory) NEWSESSION {
 
     FOR ADDOBJ g = ListInventory DO {
-        SET stockListInventory(g) <- stock;
-        SET inventoryListInventory(g) <- inventory;
+        ASSIGN stockListInventory(g) <- stock;
+        ASSIGN inventoryListInventory(g) <- inventory;
         FORM listInventory OBJECTS li = g MODAL;
         IF formResult() == FormResult.ok THEN
             EXEC apply();

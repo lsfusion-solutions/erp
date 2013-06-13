@@ -80,12 +80,12 @@ EXTEND DESIGN userInvoice {
 
 overChangeQuantityValueSkuUserInvoiceDetail(detail) += ACTION (detail) {
     IF  packBarcodeSku(skuUserInvoiceDetail(detail)) THEN {
-        SET packQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail)/amountPackUserInvoiceDetail(detail);
+        ASSIGN packQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail)/amountPackUserInvoiceDetail(detail);
     }
 }
 overChangeQuantityValueBatchUserInvoiceDetail(detail) += ACTION (detail) {
     IF packBarcodeSku(skuBatch(batchUserInvoiceDetail(detail))) THEN {
-        SET packQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail)/amountPackUserInvoiceDetail(detail);
+        ASSIGN packQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail)/amountPackUserInvoiceDetail(detail);
     }
 }
 
@@ -105,22 +105,22 @@ toInvoiceBatchOrderDetail (batch, orderDetail) = PARTITION UNGROUP toInvoicedOrd
 createExplicitBatchDetailUserInvoiceOrder (userInvoice, order) += ACTION (userInvoice, order) {
     FOR orderOrderDetail(orderDetail) == order AND toInvoiceBatchOrderDetail(batch, orderDetail)
         ADDOBJ d = UserInvoiceDetail DO {
-            SET userInvoiceUserInvoiceDetail(d) <- userInvoice;
-            SET orderUserInvoiceDetail(d) <- order;
-            SET skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-            SET batchUserInvoiceDetail(d) <- batch;
-            SET quantityUserInvoiceDetail (d) <- toInvoiceBatchOrderDetail(batch, orderDetail);
+            ASSIGN userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            ASSIGN orderUserInvoiceDetail(d) <- order;
+            ASSIGN skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+            ASSIGN batchUserInvoiceDetail(d) <- batch;
+            ASSIGN quantityUserInvoiceDetail (d) <- toInvoiceBatchOrderDetail(batch, orderDetail);
        // todo: решить какие цены задавать: из заказа или из партии
-            SET barcodePackUserInvoiceDetail(d) <- barcodePackOrderDetail(orderDetail);
-            SET amountPackUserInvoiceDetail(d) <- amountPackOrderDetail(orderDetail);
-            SET packQuantityUserInvoiceDetail (d) <- toInvoicedOrderDetail(orderDetail)/amountPackOrderDetail(orderDetail);
-            SET VATUserInvoiceDetail (d) <- VATOrderDetail(orderDetail);
-            SET valueVATUserInvoiceDetail (d) <- valueVATOrderDetail(orderDetail);
-            SET priceListTypeUserInvoiceDetail (d) <- priceListTypeOrderDetail(orderDetail);
-            SET priceUserInvoiceDetail (d) <- priceOrderDetail(orderDetail);
-            SET invoicePriceUserInvoiceDetail (d) <- invoicePriceOrderDetail(orderDetail);
-            SET sumUserInvoiceDetail (d) <- sumOrderDetail(orderDetail);
-            SET dataSupplierStockUserInvoiceDetail (d) <- dataSupplierStockOrderDetail(orderDetail);
+            ASSIGN barcodePackUserInvoiceDetail(d) <- barcodePackOrderDetail(orderDetail);
+            ASSIGN amountPackUserInvoiceDetail(d) <- amountPackOrderDetail(orderDetail);
+            ASSIGN packQuantityUserInvoiceDetail (d) <- toInvoicedOrderDetail(orderDetail)/amountPackOrderDetail(orderDetail);
+            ASSIGN VATUserInvoiceDetail (d) <- VATOrderDetail(orderDetail);
+            ASSIGN valueVATUserInvoiceDetail (d) <- valueVATOrderDetail(orderDetail);
+            ASSIGN priceListTypeUserInvoiceDetail (d) <- priceListTypeOrderDetail(orderDetail);
+            ASSIGN priceUserInvoiceDetail (d) <- priceOrderDetail(orderDetail);
+            ASSIGN invoicePriceUserInvoiceDetail (d) <- invoicePriceOrderDetail(orderDetail);
+            ASSIGN sumUserInvoiceDetail (d) <- sumOrderDetail(orderDetail);
+            ASSIGN dataSupplierStockUserInvoiceDetail (d) <- dataSupplierStockOrderDetail(orderDetail);
         }
 }
 

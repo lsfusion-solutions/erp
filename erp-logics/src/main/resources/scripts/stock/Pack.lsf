@@ -18,9 +18,9 @@ META definePackSku (caption, NS)
     changePackBarcodeSku = ACTION (barcode, sku) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
-            SET packBarcodeSku(sku) <- barcode;
+            ASSIGN packBarcodeSku(sku) <- barcode;
         } ELSE
-            SET packBarcodeSku(sku) <- NULL;
+            ASSIGN packBarcodeSku(sku) <- NULL;
     }
     
     EXTEND FORM barcodeDialog
@@ -35,13 +35,13 @@ META definePackSku (caption, NS)
         IF requestedNumeric() THEN {
             IF TRUE IF NOT packBarcodeSku(sku) THEN {
                 FOR ADDOBJ b = Barcode DO {
-                   SET skuBarcode(b) <- sku;
-                   SET dataAmountBarcode (b) <- requestedNumeric();
+                   ASSIGN skuBarcode(b) <- sku;
+                   ASSIGN dataAmountBarcode (b) <- requestedNumeric();
     
-                   SET packBarcodeSku(sku) <- b;
+                   ASSIGN packBarcodeSku(sku) <- b;
                 }
             } ELSE {
-                SET dataAmountBarcode (bb) <- requestedNumeric() WHERE bb == packBarcodeSku(sku);
+                ASSIGN dataAmountBarcode (bb) <- requestedNumeric() WHERE bb == packBarcodeSku(sku);
             }
     
         } ELSE {
@@ -78,14 +78,14 @@ META defineDocumentPack(object, detail, f)
     // Объявляем действия по изменению количества в упаковке и количества упаковок
     changeAmountPackUser###detail = ACTION (detail) {
         REQUEST NUMERIC[14,3] INPUT;
-        SET amountPackUser###detail(detail) <- requestedNumeric();
-        SET quantityUser###detail(detail) <- packQuantityUser###detail(detail)*amountPackUser###detail(detail);
+        ASSIGN amountPackUser###detail(detail) <- requestedNumeric();
+        ASSIGN quantityUser###detail(detail) <- packQuantityUser###detail(detail)*amountPackUser###detail(detail);
     }
 
     changePackQuantityUser###detail = ACTION (detail) {
         REQUEST NUMERIC[14,3] INPUT;
-        SET packQuantityUser###detail(detail) <- requestedNumeric();
-        SET quantityUser###detail(detail) <- packQuantityUser###detail(detail)*amountPackUser###detail(detail);
+        ASSIGN packQuantityUser###detail(detail) <- requestedNumeric();
+        ASSIGN quantityUser###detail(detail) <- packQuantityUser###detail(detail)*amountPackUser###detail(detail);
     }
 
     // Расширяем формы
@@ -105,7 +105,7 @@ META defineDocumentPack(object, detail, f)
 
     // Добавляем в копирование инвойсов
     overCopy###object(s, d) += ACTION(s, d) {
-        SET showPackUser###object(d) <- showPack###object(s);
+        ASSIGN showPackUser###object(d) <- showPack###object(s);
     }
 END
 
@@ -123,21 +123,21 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
         REQUEST NUMERIC[14,3] INPUT;
         IF detail###Sku###object###stockProp(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
-                SET packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
-                SET quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
+                ASSIGN packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
+                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
             } ELSE {
                 DELETE d WHERE d==detail###Sku###object###stockProp(sku, object, stock);
             }
         } ELSE {
             IF requestedNumeric() THEN  {
                 FOR ADDOBJ d = ###detail DO {
-                   SET object###detail(d) <- object;
-                   SET data###stockProp###detail (d) <- stock;
-                   SET skuProp###detail(d) <- sku;
-                   SET packQuantity###detail (d) <- requestedNumeric();
-                   SET quantity###detail(detail) <- packQuantity###detail(detail) * amountPack###detail(detail);
-                   SET shipmentDataDate###detail (d) <- shipmentDate###object(object);
-                   SET shipmentDataTime###detail (d) <- shipmentTime###object(object);
+                   ASSIGN object###detail(d) <- object;
+                   ASSIGN data###stockProp###detail (d) <- stock;
+                   ASSIGN skuProp###detail(d) <- sku;
+                   ASSIGN packQuantity###detail (d) <- requestedNumeric();
+                   ASSIGN quantity###detail(detail) <- packQuantity###detail(detail) * amountPack###detail(detail);
+                   ASSIGN shipmentDataDate###detail (d) <- shipmentDate###object(object);
+                   ASSIGN shipmentDataTime###detail (d) <- shipmentTime###object(object);
                 }
             }
         }
@@ -147,10 +147,10 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
         REQUEST NUMERIC[14,3] INPUT;
         IF detail###Sku###object###stockProp(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
-                SET amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
-                SET quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object###stockProp(sku, object, stock) AND packQuantity###detail(detail);
+                ASSIGN amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
+                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object###stockProp(sku, object, stock) AND packQuantity###detail(detail);
             } ELSE {
-                SET amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
+                ASSIGN amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
             }
 
         }
@@ -182,19 +182,19 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
         REQUEST NUMERIC[14,3] INPUT;
         IF detail###Sku###object(sku, object) THEN {
             IF requestedNumeric() THEN {
-                SET packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
-                SET quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object(sku, object);
+                ASSIGN packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
+                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object(sku, object);
             } ELSE {
                 DELETE d WHERE d==detail###Sku###object(sku, object);
             }
         } ELSE {
             IF requestedNumeric() THEN
                 FOR ADDOBJ d = ###detail DO {
-                SET object###detail(d) <- object;
-                SET data###stockProp###detail (d) <- stockProp###object(object);
-                SET skuProp###detail(d) <- sku;
-                SET packQuantity###detail (d) <- requestedNumeric();
-                SET quantity###detail(detail) <- packQuantity###detail(detail) * amountPack###detail(detail);
+                ASSIGN object###detail(d) <- object;
+                ASSIGN data###stockProp###detail (d) <- stockProp###object(object);
+                ASSIGN skuProp###detail(d) <- sku;
+                ASSIGN packQuantity###detail (d) <- requestedNumeric();
+                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail) * amountPack###detail(detail);
             }
         }
     }
@@ -202,10 +202,10 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
         REQUEST NUMERIC[14,3] INPUT;
         IF detail###Sku###object(sku, object) THEN {
             IF requestedNumeric() THEN {
-                SET amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
-                SET quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object(sku, object) AND packQuantity###detail(detail);
+                ASSIGN amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
+                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object(sku, object) AND packQuantity###detail(detail);
             } ELSE {
-                SET amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object(sku, object);
+                ASSIGN amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object(sku, object);
             }
 
         }

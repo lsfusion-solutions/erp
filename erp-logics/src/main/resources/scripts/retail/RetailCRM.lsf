@@ -30,7 +30,7 @@ nameLegalEntityDiscountCard 'Держатель дисконтной карты'
 
 GROUP discountCardDateGroup 'Срок действия' : base;
 dateDiscountCard 'Дата выдачи' (discountCard) = DATA DATE (DiscountCard) IN discountCardDateGroup;
-dateDiscountCard (discountCard) <- currentDate() WHEN ASSIGNED(discountCard IS DiscountCard);
+dateDiscountCard (discountCard) <- currentDate() WHEN SET(discountCard IS DiscountCard);
 
 dateToDiscountCard 'Дата окончания действия' (discountCard) = DATA DATE (DiscountCard) IN discountCardDateGroup;
 
@@ -60,16 +60,16 @@ generateDiscountCards 'Сгенерировать дисконтные карт�
     FORM generationDiscountCards OBJECTS n=defaultNumeratorDiscountCard() MODAL CHECK;
     IF formResult() == FormResult.ok THEN {
         LOCAL num = INTEGER();
-        SET num() <- 0;
+        ASSIGN num() <- 0;
         WHILE num() < chosenInteger('quantityCards') DO {
             ADDOBJ DiscountCard;
             FOR d == addedObject() DO {
                 // todo : делается влоб, поскольку numerator сейчас не умеет генерировать сразу несколько объектов
-                SET numeratorObject(d) <- chosenObject('n');
-                SET numberObject(d) <- curStringValueNumerator(numeratorObject(d));
-                SET seriesObject(d) <- seriesNumerator(numeratorObject(d));
-                SET curValueNumerator(numerator) <- curValueNumerator(numerator) + 1 WHERE numerator == numeratorObject(d);
-                SET num() <- num() + 1;
+                ASSIGN numeratorObject(d) <- chosenObject('n');
+                ASSIGN numberObject(d) <- curStringValueNumerator(numeratorObject(d));
+                ASSIGN seriesObject(d) <- seriesNumerator(numeratorObject(d));
+                ASSIGN curValueNumerator(numerator) <- curValueNumerator(numerator) + 1 WHERE numerator == numeratorObject(d);
+                ASSIGN num() <- num() + 1;
             }
         }
     }
@@ -173,7 +173,7 @@ TABLE promotionDOW (Promotion, DOW);
 skipPromotionDOW 'Исключить' = DATA BOOLEAN (Promotion, DOW);
 
 allStoresPromotion 'В акции' = DATA BOOLEAN (Promotion);
-allStoresPromotion(promotion) <- TRUE WHEN ASSIGNED(promotion IS Promotion);
+allStoresPromotion(promotion) <- TRUE WHEN SET(promotion IS Promotion);
 
 TABLE promotionChainStores(Promotion, ChainStores);
 dataInPromotionChainStores 'В акции' = DATA BOOLEAN (Promotion, ChainStores);
@@ -435,40 +435,40 @@ DESIGN promotion FROM DEFAULT {
 
 copyPromotion 'Копировать' = ACTION (promotion) NEWSESSION {
     FOR ADDOBJ p = Promotion DO {
-        SET promotionGroupPromotion(p) <- promotionGroupPromotion(promotion);
-        SET dateFromPromotion(p) <- dateFromPromotion(promotion);
-        SET dateToPromotion(p) <- dateToPromotion(promotion);
-        SET timeOfFromPromotion(p) <- timeOfFromPromotion(promotion);
-        SET timeOfToPromotion(p) <- timeOfToPromotion(promotion);
-        SET minSumBillPromotion(p) <- minSumBillPromotion(promotion);
-        SET maxSumBillPromotion(p) <-  maxSumBillPromotion(promotion);
-        SET hasDiscountCardPromotion(p) <- hasDiscountCardPromotion(promotion);
-        SET minCumulativeSumPromotion(p) <- minCumulativeSumPromotion(promotion);
-        SET maxCumulativeSumPromotion(p) <- maxCumulativeSumPromotion(promotion);
-        SET useCurrentReceiptPromotion(p) <- useCurrentReceiptPromotion(promotion);
-        SET allDiscountCardPromotion(p) <- allDiscountCardPromotion(promotion);
+        ASSIGN promotionGroupPromotion(p) <- promotionGroupPromotion(promotion);
+        ASSIGN dateFromPromotion(p) <- dateFromPromotion(promotion);
+        ASSIGN dateToPromotion(p) <- dateToPromotion(promotion);
+        ASSIGN timeOfFromPromotion(p) <- timeOfFromPromotion(promotion);
+        ASSIGN timeOfToPromotion(p) <- timeOfToPromotion(promotion);
+        ASSIGN minSumBillPromotion(p) <- minSumBillPromotion(promotion);
+        ASSIGN maxSumBillPromotion(p) <-  maxSumBillPromotion(promotion);
+        ASSIGN hasDiscountCardPromotion(p) <- hasDiscountCardPromotion(promotion);
+        ASSIGN minCumulativeSumPromotion(p) <- minCumulativeSumPromotion(promotion);
+        ASSIGN maxCumulativeSumPromotion(p) <- maxCumulativeSumPromotion(promotion);
+        ASSIGN useCurrentReceiptPromotion(p) <- useCurrentReceiptPromotion(promotion);
+        ASSIGN allDiscountCardPromotion(p) <- allDiscountCardPromotion(promotion);
 
         FOR promotionPromotionCondition(promotionCondition) == promotion DO {
             FOR ADDOBJ pc = PromotionCondition DO {
-                SET promotionPromotionCondition(pc) <- p;
-                SET minQuantityPromotionCondition(pc) <- minQuantityPromotionCondition(promotionCondition);
-                SET minSumPromotionCondition(pc) <- minSumPromotionCondition(promotionCondition);
-                SET quantityDiscountPromotionCondition(pc) <- quantityDiscountPromotionCondition(promotionCondition);
-                SET percentPromotionCondition(pc) <- percentPromotionCondition(promotionCondition);
-                SET resultPricePromotionCondition(pc) <- resultPricePromotionCondition(promotionCondition);
-                SET sumDiscountPromotionCondition(pc) <- sumDiscountPromotionCondition(promotionCondition);
-                SET sumReceiptPromotionCondition(pc) <- sumReceiptPromotionCondition(promotionCondition);
+                ASSIGN promotionPromotionCondition(pc) <- p;
+                ASSIGN minQuantityPromotionCondition(pc) <- minQuantityPromotionCondition(promotionCondition);
+                ASSIGN minSumPromotionCondition(pc) <- minSumPromotionCondition(promotionCondition);
+                ASSIGN quantityDiscountPromotionCondition(pc) <- quantityDiscountPromotionCondition(promotionCondition);
+                ASSIGN percentPromotionCondition(pc) <- percentPromotionCondition(promotionCondition);
+                ASSIGN resultPricePromotionCondition(pc) <- resultPricePromotionCondition(promotionCondition);
+                ASSIGN sumDiscountPromotionCondition(pc) <- sumDiscountPromotionCondition(promotionCondition);
+                ASSIGN sumReceiptPromotionCondition(pc) <- sumReceiptPromotionCondition(promotionCondition);
 
-                SET allDiscountSkuGroupPromotionCondition(pc) <- allDiscountSkuGroupPromotionCondition(promotionCondition);
+                ASSIGN allDiscountSkuGroupPromotionCondition(pc) <- allDiscountSkuGroupPromotionCondition(promotionCondition);
 
                 FOR inDataPromotionConditionDiscountSkuGroup(promotionCondition, discountSkuGroup) DO {
-                    SET inDataPromotionConditionDiscountSkuGroup(pc, discountSkuGroup) <- TRUE;
+                    ASSIGN inDataPromotionConditionDiscountSkuGroup(pc, discountSkuGroup) <- TRUE;
                 };
                 FOR inDataPromotionConditionSkuGroup(promotionCondition, skuGroup) DO {
-                    SET inDataPromotionConditionSkuGroup(pc, skuGroup) <- TRUE;
+                    ASSIGN inDataPromotionConditionSkuGroup(pc, skuGroup) <- TRUE;
                 };
                 FOR inDataPromotionConditionSku(promotionCondition, sku) DO {
-                    SET inDataPromotionConditionSku(pc, sku) <- TRUE;
+                    ASSIGN inDataPromotionConditionSku(pc, sku) <- TRUE;
                 };
             };
         };

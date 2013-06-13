@@ -22,8 +22,8 @@ moveItemGroup 'Перенести отмеченные группы в теку�
 
     FOR inItemGroup(i) DO{
         IF i != itemGroup THEN {
-            SET parentItemGroup(i) <- itemGroup;
-            SET inItemGroup(i) <- NULL;
+            ASSIGN parentItemGroup(i) <- itemGroup;
+            ASSIGN inItemGroup(i) <- NULL;
         } ELSE {
             MESSAGE 'Выделенный товарная группа не может совпадать с объединяемой';
         }
@@ -234,12 +234,12 @@ DESIGN item FROM DEFAULT {
 seekBarcode 'Штрих-код' = DATA SESSION STRING[15] ();
 seekSkuBarcode = ACTION (){
     REQUEST STRING[15] INPUT;
-    SET seekBarcode() <- NULL;
-    SET seekBarcode() <- requestedString();
+    ASSIGN seekBarcode() <- NULL;
+    ASSIGN seekBarcode() <- requestedString();
     EXEC seek(skuBarcodeIdDate(seekBarcode(), currentDate()));
     IF TRUE IF NOT skuBarcodeIdDate(seekBarcode(), currentDate()) THEN
         MESSAGE 'Шрих-код не найден';
-    SET seekBarcode() <- NULL;
+    ASSIGN seekBarcode() <- NULL;
 }
 
 editSku(sku) += [ACTION EDITFORM Item](sku);
@@ -327,7 +327,7 @@ META defineItemAttribute (attribute, caption, group)
 
     setNullShow###attribute##ItemGroup 'Снять признак для всех потомков' = ACTION (itemGroup) {
         FOR isParentItemGroupItemGroup (childGroup, itemGroup) DO {
-            SET userShow###attribute##ItemGroup(childGroup) <- NULL;
+            ASSIGN userShow###attribute##ItemGroup(childGroup) <- NULL;
         }
     } SHORTCUT userShow###attribute##ItemGroup CONFIRM;
 END
@@ -534,7 +534,7 @@ compositionSku (sku) += compositionItem(sku);
 skuTypeItem = DATA SkuType (Item);
 skuTypeSku (sku) += skuTypeItem(sku);
 
-skuTypeItem(item) <- SkuType.skuTypeItem WHEN ASSIGNED(item IS Item);
+skuTypeItem(item) <- SkuType.skuTypeItem WHEN SET(item IS Item);
 
 nameSkuTypeItem 'Тип' (item) = staticCaption(skuTypeItem(item)) IN itemBaseGroup;
 EXTEND FORM item PROPERTIES(i) nameSkuTypeItem;
@@ -589,7 +589,7 @@ loadDefaultItemAttributes 'Загрузить стандартные атриб�
 @defineItemAttributeName( , , recognize);
 nameSku(item) += nameAttributeItem(item);
 loadDefaultItemAttributes() += ACTION {
-    SET numberInNameItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
+    ASSIGN numberInNameItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
 //nameAttributeGroupGroupTypeItem 'Наименование' (group, groupType, item) = nameAttributeItem(item) IF
@@ -611,14 +611,14 @@ EXTEND FORM items
 dataTitleCashRegisterBarcode 'Наименование для касс' = DATA STRING[100] (Barcode);
 titleCashRegisterBarcode 'Наименование для касс' = OVERRIDE nameCashRegisterAttributeItem(skuBarcode(barcode)), dataTitleCashRegisterBarcode(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += ACTION {
-    SET numberInNameCashRegisterItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
+    ASSIGN numberInNameCashRegisterItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 // Весы
 @defineItemAttributeName(scales, ' (весы)', public);
 dataTitleScalesBarcode 'Наименование для весов' = DATA STRING[100] (Barcode);
 titleScalesBarcode 'Наименование для весов' = OVERRIDE nameScalesAttributeItem(skuBarcode(barcode)), dataTitleScalesBarcode(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += ACTION {
-    SET numberInNameScalesItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
+    ASSIGN numberInNameScalesItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 EXTEND FORM item PROPERTIES(b) BEFORE deleteb titleScalesBarcode, titleCashRegisterBarcode;
 
@@ -657,33 +657,33 @@ overCopyItem = ABSTRACT ACTION LIST (Item, Item);
 overCopyItemBarcode = ABSTRACT ACTION LIST (Barcode, Barcode, Sku);
 
 copyDataItem = ACTION (item, i) {
-    SET itemGroupItem(i) <- itemGroupItem(item);
-    SET captionItem(i) <- captionItem(item);
-    SET UOMItem(i) <- UOMItem(item);
-    SET brandItem(i) <- brandItem(item);
-    SET manufacturerItem(i) <- manufacturerItem(item);
-    SET compositionItem(i) <- compositionItem(item);
-    SET netWeightItem(i) <- netWeightItem(item);
-    SET grossWeightItem(i) <- grossWeightItem(item);
-    SET countryItem(i) <- countryItem(item);
-    SET imageItem(i) <- imageItem(item);
-    SET skuTypeItem(i) <- skuTypeItem(item);
-    SET isWeightItem(i) <- isWeightItem(item);
-    SET inactiveItem(i) <- inactiveItem(item);
+    ASSIGN itemGroupItem(i) <- itemGroupItem(item);
+    ASSIGN captionItem(i) <- captionItem(item);
+    ASSIGN UOMItem(i) <- UOMItem(item);
+    ASSIGN brandItem(i) <- brandItem(item);
+    ASSIGN manufacturerItem(i) <- manufacturerItem(item);
+    ASSIGN compositionItem(i) <- compositionItem(item);
+    ASSIGN netWeightItem(i) <- netWeightItem(item);
+    ASSIGN grossWeightItem(i) <- grossWeightItem(item);
+    ASSIGN countryItem(i) <- countryItem(item);
+    ASSIGN imageItem(i) <- imageItem(item);
+    ASSIGN skuTypeItem(i) <- skuTypeItem(item);
+    ASSIGN isWeightItem(i) <- isWeightItem(item);
+    ASSIGN inactiveItem(i) <- inactiveItem(item);
 
     FOR skuBarcode(barcode) == item DO {
         FOR ADDOBJ b = Barcode DO {
-            SET skuBarcode(b) <- i;
-            SET dataDateBarcode(b) <- dataDateBarcode(barcode);
-            SET dataUOMBarcode(b) <- dataUOMBarcode(barcode);
-            SET dataAmountBarcode(b) <- dataAmountBarcode(barcode);
-            SET dataTitleScalesBarcode(b) <- dataTitleScalesBarcode(barcode);
-            SET dataTitleCashRegisterBarcode(b) <- dataTitleCashRegisterBarcode(barcode);
+            ASSIGN skuBarcode(b) <- i;
+            ASSIGN dataDateBarcode(b) <- dataDateBarcode(barcode);
+            ASSIGN dataUOMBarcode(b) <- dataUOMBarcode(barcode);
+            ASSIGN dataAmountBarcode(b) <- dataAmountBarcode(barcode);
+            ASSIGN dataTitleScalesBarcode(b) <- dataTitleScalesBarcode(barcode);
+            ASSIGN dataTitleCashRegisterBarcode(b) <- dataTitleCashRegisterBarcode(barcode);
             EXEC overCopyItemBarcode(b, barcode, i);
         }
     }
 
-    SET customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeItem(type, item);
+    ASSIGN customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeItem(type, item);
 
     EXEC overCopyItem(item, i);
 }
@@ -704,22 +704,22 @@ createItemBarcodeDate = ACTION (barcode, date) NEWSESSION {
     LOCAL copy = BOOLEAN();
     IF skuAddedUser(currentUser()) IS Item THEN {
         CONFIRM 'Создать товар на основе последнего созданного ?';
-        SET copy() <- confirmed();
+        ASSIGN copy() <- confirmed();
     }
 
     IF copy() THEN {
         FOR ADDOBJ i = Item DO {
             EXEC copyDataItem(skuAddedUser(currentUser()), i);
-            SET idBarcode(b) <- barcode WHERE skuBarcode(b) == i AND primaryBarcode(b);
+            ASSIGN idBarcode(b) <- barcode WHERE skuBarcode(b) == i AND primaryBarcode(b);
             FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
         }
     } ELSE {
         FOR ADDOBJ bc = Barcode DO {
-            SET idBarcode(bc) <- barcode;
-            SET dataDateBarcode(bc) <- date;
+            ASSIGN idBarcode(bc) <- barcode;
+            ASSIGN dataDateBarcode(bc) <- date;
 
             FOR ADDOBJ s = Item DO {
-                SET skuBarcode(bc) <- s;
+                ASSIGN skuBarcode(bc) <- s;
                 FORM item OBJECTS i = s, b = bc MANAGESESSION DOCKEDMODAL;
             }
         }
@@ -748,7 +748,7 @@ changeGroupItem 'Изменить группу' = ACTION (){
 
     IF formResult() == FormResult.ok THEN {
         FOR inItem(i) DO{
-            SET itemGroupItem(i) <- chosenObject('g');
+            ASSIGN itemGroupItem(i) <- chosenObject('g');
         }
     }
 }
