@@ -11,10 +11,12 @@ PRIORITY Contract;
 
 META defineContractLedgerPrefix (caption, prefix)
 
-    CLASS ABSTRACT Contract###prefix##Ledger caption;
+    CLASS ABSTRACT Contract###prefix##Ledger 'Изменение долга по контракту'###caption;
     TABLE contract###prefix##Ledger(Contract###prefix##Ledger);
 
     isPostedContract###prefix##Ledger 'Закрыт' (contract###prefix##Ledger) = ABSTRACT BOOLEAN (Contract###prefix##Ledger) PERSISTENT;
+    skipContract###prefix##Ledger 'Не проводить по учету' = ABSTRACT BOOLEAN (Contract###prefix##Ledger) PERSISTENT;
+    activeContract###prefix##Ledger 'Активен' = isPostedContract###prefix##Ledger(ledger) AND NOT skipContract###prefix##Ledger(ledger) PERSISTENT;
 
     dateTimeContract###prefix##Ledger 'Дата/время' (contract###prefix##Ledger) = ABSTRACT DATETIME (Contract###prefix##Ledger) PERSISTENT;
     dateContract###prefix##Ledger 'Дата' (contract###prefix##Ledger) = toDate(dateTimeContract###prefix##Ledger(contract###prefix##Ledger));
@@ -26,26 +28,26 @@ META defineContractLedgerPrefix (caption, prefix)
 
     sumContract###prefix##Ledger 'Сумма' (contract###prefix##Ledger) = ABSTRACT NUMERIC[16,2] (Contract###prefix##Ledger) PERSISTENT;
 
-    currentBalance###prefix##Contract 'Текущая сумма задолженности по договору' (contract)=
-        GROUP SUM sumContract###prefix##Ledger(contract###prefix##Ledger) IF isPostedContract###prefix##Ledger(contract###prefix##Ledger)
+    currentBalance###prefix##Contract 'Текущая задолженность'###caption (contract)=
+        GROUP SUM sumContract###prefix##Ledger(contract###prefix##Ledger) IF activeContract###prefix##Ledger(contract###prefix##Ledger)
               BY contractContract###prefix##Ledger(contract###prefix##Ledger) PERSISTENT;
 
-    balanceB###prefix##ContractDate 'Сумма задолженности по договору на дату (до)' (contract, date) =
+    balanceB###prefix##ContractDate 'Задолженность на начало дня'###caption (contract, date) =
         currentBalance###prefix##Contract(contract) (-)
-        [GROUP SUM sumContract###prefix##Ledger(contract###prefix##Ledger) IF isPostedContract###prefix##Ledger(contract###prefix##Ledger)
+        [GROUP SUM sumContract###prefix##Ledger(contract###prefix##Ledger) IF activeContract###prefix##Ledger(contract###prefix##Ledger)
                   AND dateContract###prefix##Ledger(contract###prefix##Ledger) >= date
               BY contractContract###prefix##Ledger(contract###prefix##Ledger), date](contract, date);
 
-    balanceA###prefix##ContractDate 'Сумма задолженности по договору на дату (после)' (contract, date) =
+    balanceA###prefix##ContractDate 'Задолженность на конец дня'###caption (contract, date) =
         currentBalance###prefix##Contract(contract) (-)
-        [GROUP SUM sumContract###prefix##Ledger(contract###prefix##Ledger) IF isPostedContract###prefix##Ledger(contract###prefix##Ledger)
+        [GROUP SUM sumContract###prefix##Ledger(contract###prefix##Ledger) IF activeContract###prefix##Ledger(contract###prefix##Ledger)
                   AND dateContract###prefix##Ledger(contract###prefix##Ledger) > date
               BY contractContract###prefix##Ledger(contract###prefix##Ledger), date](contract, date);
 
 END
 
-@defineContractLedgerPrefix('Изменение управленческого долга по контракту', );
-@defineContractLedgerPrefix('Изменение бухгалтерского долга по контракту', a);
+@defineContractLedgerPrefix(' (управленческая)', );
+@defineContractLedgerPrefix(' (бухгалтерская)', a);
 
 META implementContractLedger(prefix, object, contractProp)
 
@@ -85,12 +87,14 @@ END
 
 //--------------------------------------------- Логика приходов и расходов ------------------------------------------------------//
 
-META defineOutContractLedgerInContractLedgerPrefix(caption, prefix, classPrefix)
+META defineInOutContractLedgerPrefix(caption, prefix, classPrefix)
 
     CLASS ABSTRACT classPrefix##ContractLedger caption;
     TABLE prefix##ContractLedger(classPrefix##ContractLedger);
 
     isPosted###prefix##ContractLedger 'Закрыт' (prefix##ContractLedger) = ABSTRACT BOOLEAN (classPrefix##ContractLedger) PERSISTENT;
+    skip###prefix##ContractLedger 'Не проводить по учету' = ABSTRACT BOOLEAN (classPrefix##ContractLedger) PERSISTENT;
+    active###prefix##ContractLedger 'Активен' = isPosted###prefix##ContractLedger(ledger) AND NOT skip###prefix##ContractLedger(ledger) PERSISTENT;
 
     dateTime###prefix##ContractLedger 'Дата/время' (prefix##ContractLedger) = ABSTRACT DATETIME (classPrefix##ContractLedger) PERSISTENT;
     date###prefix##ContractLedger 'Дата' (prefix##ContractLedger) = toDate(dateTime###prefix##ContractLedger(prefix##ContractLedger));
@@ -105,28 +109,28 @@ META defineOutContractLedgerInContractLedgerPrefix(caption, prefix, classPrefix)
 
 END
 
-@defineOutContractLedgerInContractLedgerPrefix('Приход', in, In);
+@defineInOutContractLedgerPrefix('Приход', in, In);
 paymentConditionInContractLedger 'Условия оплаты'  = ABSTRACT PaymentCondition (InContractLedger);
-@defineOutContractLedgerInContractLedgerPrefix('Расход', out, Out);
+@defineInOutContractLedgerPrefix('Расход', out, Out);
 
 TABLE outContractLedgerInContractLedger (OutContractLedger, InContractLedger);
 costOutContractLedgerInContractLedger 'Оплачено из документа' (outContractLedger, inContractLedger) = DATA NUMERIC[16,2] (OutContractLedger, InContractLedger) PERSISTENT;
 costedOutContractLedgerInContractLedger 'Оплачено по документу' (inContractLedger) =
     GROUP SUM costOutContractLedgerInContractLedger(outContractLedger, inContractLedger) IF
-    isPostedInContractLedger(inContractLedger) AND isPostedOutContractLedger(outContractLedger)
+    activeInContractLedger(inContractLedger) AND activeOutContractLedger(outContractLedger)
     BY inContractLedger PERSISTENT;
 costedOutContractLedgerInContractLedgerDate 'Оплачено по документу на дату' (inContractLedger, date) =
     GROUP SUM costOutContractLedgerInContractLedger(outContractLedger, inContractLedger) IF
-              isPostedInContractLedger(inContractLedger) AND isPostedOutContractLedger(outContractLedger) AND
+              activeInContractLedger(inContractLedger) AND activeOutContractLedger(outContractLedger) AND
               dateOutContractLedger(outContractLedger) <= date
     BY inContractLedger, date;
 costedInContractLedgerOutContractLedger 'Расписано из документа' (outContractLedger) =
     GROUP SUM costOutContractLedgerInContractLedger(outContractLedger, inContractLedger) IF
-    isPostedInContractLedger(inContractLedger) //AND isPostedOutContractLedger(outContractLedger)
+    activeInContractLedger(inContractLedger) //AND isPostedOutContractLedger(outContractLedger)
     BY outContractLedger PERSISTENT;
 costedInContractLedgerOutContractLedgerDate 'Расписано из документа на дату' (outContractLedger, date) =
     GROUP SUM costOutContractLedgerInContractLedger(outContractLedger, inContractLedger) IF
-              isPostedInContractLedger(inContractLedger) AND //isPostedOutContractLedger(outContractLedger) AND
+              activeInContractLedger(inContractLedger) AND //isPostedOutContractLedger(outContractLedger) AND
               dateInContractLedger(inContractLedger) <= date
     BY outContractLedger, date;
 
@@ -166,7 +170,7 @@ sumInFIFOOutContractLedgerInContractLedger (outContractLedger, inContractLedger)
     PARTITION UNGROUP sumOutContractLedger
               LIMIT debtInContractLedger(inContractLedger) IF
                     contractOutContractLedger(outContractLedger) == contractInContractLedger(inContractLedger) AND
-                    isPostedInContractLedger(inContractLedger)
+                    activeInContractLedger(inContractLedger)
               BY outContractLedger
               ORDER orderInContractLedger(inContractLedger);
 
@@ -174,7 +178,7 @@ sumInLIFOOutContractLedgerInContractLedger (outContractLedger, inContractLedger)
     PARTITION UNGROUP sumOutContractLedger
               LIMIT debtInContractLedger(inContractLedger) IF
                     contractOutContractLedger(outContractLedger) == contractInContractLedger(inContractLedger) AND
-                    isPostedInContractLedger(inContractLedger)
+                    activeInContractLedger(inContractLedger)
               BY outContractLedger
               ORDER DESC orderInContractLedger(inContractLedger);
 
@@ -190,7 +194,7 @@ writeOutContractLedgerLIFO 'Расписать по LIFO' = ACTION (outContractL
     SET costOutContractLedgerInContractLedger(outContractLedger, inContractLedger) <- sumInLIFOOutContractLedgerInContractLedger(outContractLedger, inContractLedger);
 }
 
-META implementOutContractLedgerInContractLedgerPrefix(prefix, object, contractProp)
+META implementInOutContractLedgerPrefix(prefix, object, contractProp)
 
     isPosted###prefix##ContractLedger(prefix##ContractLedger) += isPosted###object(prefix##ContractLedger);
     dateTime###prefix##ContractLedger(prefix##ContractLedger) += dateTime###object(prefix##ContractLedger);
@@ -201,11 +205,13 @@ END
 
 //------------------------------------------- Платеж по договору -----------------------------------------------------//
 
-debtSumContractDate 'Долг по договору на дату' (contract, date) = GROUP SUM debtInContractLedgerDate(inContractLedger, date) IF
+debtSumContractDate 'Долг по документам' (contract, date) = GROUP SUM debtInContractLedgerDate(inContractLedger, date) IF
+                                                                            activeInContractLedger(inContractLedger) AND
                                                                             dateInContractLedger(inContractLedger) <= date
                                                                   BY contractInContractLedger(inContractLedger), date;
 
-bonusSumContractDate 'Сумма бонуса на дату' (contract, date) = GROUP SUM bonusSumInContractLedger(inContractLedger, date) IF
+bonusSumContractDate 'Сумма бонусов' (contract, date) = GROUP SUM bonusSumInContractLedger(inContractLedger, date) IF
+                                                                         activeInContractLedger(inContractLedger) AND
                                                                          dateInContractLedger(inContractLedger) <= date
                                                                BY contractInContractLedger(inContractLedger), date;
 
@@ -316,14 +322,14 @@ FORM contractLedger 'Управление задолженностями'
                             sumContractLedger BACKGROUND backgroundSumContractLedgerDate(cl, d),
                             descriptionContractLedger BACKGROUND backgroundContractLedgerDate(cl, d)
     ORDER BY dateContractLedger
-    FILTERS isPostedContractLedger(cl)
+    FILTERS activeContractLedger(cl)
 
     OBJECTS cal = ContractALedger
     PROPERTIES(cal) READONLY dateContractALedger BACKGROUND backgroundContractALedgerDate(cal, d),
                              sumContractALedger BACKGROUND backgroundSumContractALedgerDate(cal, d),
                              descriptionContractALedger BACKGROUND backgroundContractALedgerDate(cal, d)
     ORDER BY dateContractALedger
-    FILTERS isPostedContractALedger(cal)
+    FILTERS activeContractALedger(cal)
 
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, sumInContractLedger

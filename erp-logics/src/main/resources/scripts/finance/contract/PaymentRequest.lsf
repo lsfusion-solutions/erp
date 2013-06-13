@@ -36,11 +36,11 @@ descriptionPaymentRequest 'Название документа' =
 costPaymentRequestInContractLedger 'Выставлено из документа' (paymentRequest, inContractLedger) = DATA NUMERIC[16,2] (PaymentRequest, InContractLedger) PERSISTENT;
 costedPaymentRequestInContractLedger 'Выставлено по документу' (inContractLedger) =
     GROUP SUM costPaymentRequestInContractLedger(paymentRequest, inContractLedger) IF
-    isPostedInContractLedger(inContractLedger) AND isPostedPaymentRequest(paymentRequest)
+    activeInContractLedger(inContractLedger) AND isPostedPaymentRequest(paymentRequest)
     BY inContractLedger PERSISTENT;
 costedPaymentRequestInContractLedgerDate 'Выставлено по документу на дату' (inContractLedger, date) =
     GROUP SUM costPaymentRequestInContractLedger(paymentRequest, inContractLedger) IF
-              isPostedInContractLedger(inContractLedger) AND isPostedPaymentRequest(paymentRequest) AND
+              activeInContractLedger(inContractLedger) AND isPostedPaymentRequest(paymentRequest) AND
               datePaymentRequest(paymentRequest) <= date
     BY inContractLedger, date;
 exposeSumContractDate 'Выставлено по договору на дату' (contract, date) =
@@ -58,7 +58,7 @@ sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
     PARTITION UNGROUP sumPaymentRequest
               LIMIT limitSumInContractLedger(inContractLedger) IF
                     contractPaymentRequest(paymentRequest) == contractInContractLedger(inContractLedger) AND
-                    isPostedInContractLedger(inContractLedger)
+                    activeInContractLedger(inContractLedger)
               BY paymentRequest
               ORDER orderInContractLedger(inContractLedger);
 
@@ -66,7 +66,7 @@ sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
     PARTITION UNGROUP sumPaymentRequest
               LIMIT limitSumInContractLedger(inContractLedger) IF
                     contractPaymentRequest(paymentRequest) == contractInContractLedger(inContractLedger) AND
-                    isPostedInContractLedger(inContractLedger)
+                    activeInContractLedger(inContractLedger)
               BY paymentRequest
               ORDER DESC orderInContractLedger(inContractLedger);
 
