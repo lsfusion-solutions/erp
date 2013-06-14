@@ -214,6 +214,37 @@ EXTEND DESIGN currentBalanceSkuStock {
         ADD ll.box {caption = 'Резерв (продажи)';}
     }
 }
+EXTEND FORM balanceSkuStock
+    PROPERTIES(s, st, t) reserveASkuStockDateTime READONLY AFTER balanceASkuStockDateTime(s,st,t)
+
+    OBJECTS l = OrderLedger
+    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+                  quantityOrderLedger, toShipQuantityOrderLedger
+
+    FILTERS stockOrderLedger(l)==st,
+            skuOrderLedger(l)==s,
+            dateTimeOrderLedger(l) <= t
+
+    FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
+
+    OBJECTS ll = OrderLedger
+    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+                   quantityOrderLedger, toShipQuantityOrderLedger
+
+    FILTERS stockOrderLedger(ll)==st,
+            skuOrderLedger(ll)==s,
+            dateTimeOrderLedger(l) <= t
+
+    FILTERS isPostedOrderLedger(ll) AND NOT isClosedOrderLedger(ll) AND NOT isPurchaseOrderLedger(ll)
+
+;
+EXTEND DESIGN balanceSkuStock {
+
+    ledger.box {
+        ADD l.box {caption = 'Резерв (закупки)';}
+        ADD ll.box {caption = 'Резерв (продажи)';}
+    }
+}
 
 //---------------------Расширение закладки подбара формы заказа резервами ---------------//
 

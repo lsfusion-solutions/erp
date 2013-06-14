@@ -664,7 +664,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     signedSumActiveSkuLedger(ledger) = signedSumSkuLedger(ledger) IF isPostedSkuLedger(ledger) AND NOT skip##postfix##SkuLedger(ledger) PERSISTENT;
     currentSum##postfix##SkuStock 'Сумма остатка'###caption (sku, stock) =
         GROUP SUM signedSumActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger) PERSISTENT;
-
+    //-- по дате
     sumInActiveSkuLedger(ledger) = sumInSkuLedger(ledger) IF isPostedSkuLedger(ledger) AND NOT skip##postfix##SkuLedger(ledger) PERSISTENT;
     sumIn##postfix##SkuStockDate (sku, stock, date) =
         GROUP SUM sumInActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger) PERSISTENT;
@@ -699,6 +699,35 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
         GROUP SUM sumA##postfix##SkuStockDate (sku, stock, date) IF isParentGroupSku(group, sku)
         BY group, stock, date;
 
+    //-- по дате/время
+    sumIn##postfix##SkuStockDateTime (sku, stock, dateTime) =
+        GROUP SUM sumInActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateTimeSkuLedger(ledger) PERSISTENT;
+
+    sumOut##postfix##SkuStockDateTime (sku, stock, dateTime) =
+        GROUP SUM sumOutActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateTimeSkuLedger(ledger) PERSISTENT;
+
+    sum##postfix##SkuStockDateTime (sku, stock, dateTime) = sumIn##postfix##SkuStockDateTime(sku, stock, dateTime)
+                                                         (+)
+                                                         sumOut##postfix##SkuStockDateTime(sku, stock, dateTime) PERSISTENT;
+
+    signedSum##postfix##SkuStockDateTime (sku, stock, dateTime) = sumIn##postfix##SkuStockDateTime(sku, stock, dateTime)
+                                                               (-)
+                                                               sumOut##postfix##SkuStockDateTime(sku, stock, dateTime) PERSISTENT;
+
+    // без учета текущей даты/времени
+    sumB##postfix##SkuStockDateTime 'Сумма (до)'###caption (sku, stock, dateTime) = currentSum##postfix##SkuStock(sku, stock)
+                                                                      (-) [GROUP SUM signedSum##postfix##SkuStockDateTime (sku, stock, dateIn) IF dateIn >= dateTime
+                                                                                 BY sku, stock, dateTime](sku, stock, dateTime);
+
+    sumB##postfix##SkuGroupStockDateTime 'Учетная сумма группы товаров (до)' (group, stock, dateTime) =
+        GROUP SUM sumB##postfix##SkuStockDateTime (sku, stock, dateTime) IF isParentGroupSku(group, sku)
+        BY group, stock, dateTime;
+
+    // с учетом текущей даты/времени
+    sumA##postfix##SkuStockDateTime 'Сумма (после)'###caption (sku, stock, dateTime) = currentSum##postfix##SkuStock(sku, stock)
+                                                                     (-) [GROUP SUM signedSum##postfix##SkuStockDateTime (sku, stock, dateIn) IF dateIn > dateTime
+                                                                                BY sku, stock, dateTime](sku, stock, dateTime);
+
     // суммы для периодов
     sumIn##postfix##SkuStockDateDate 'Сумма товара пришедшего за период' (sku, stock, dateFrom, dateTo) =
         [GROUP SUM sumIn##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn > dateFrom
@@ -719,6 +748,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
         BY group, stock, dateFrom, dateTo;
 
     averagePrice##postfix##SkuStock 'Цена (средневзв.)'###caption (sku, stock) = currentSum##postfix##SkuStock(sku, stock) / currentBalance##postfix##SkuStock(sku, stock); // IF NOT currentBalance##postfix##SkuStock(sku, stock) == 0; (возможно не нужно, так как 0 не может быть в GROUP SUM )
+    averagePriceA##postfix##SkuStockDateTime 'Цена (средневзв.)'###caption (sku, stock, dateTime) = sumA##postfix##SkuStockDateTime(sku, stock, dateTime) / balanceA##postfix##SkuStockDateTime(sku, stock, dateTime); // IF NOT currentBalance##postfix##SkuStock(sku, stock) == 0; (возможно не нужно, так как 0 не может быть в GROUP SUM )
 
 END
 
@@ -2960,7 +2990,7 @@ FORM balanceSkuStock 'Остатки на дату'
     FILTERS           isParentSkuGroupSku(sk, s),
                       st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
 
-    PROPERTIES(s, st, t) READONLY balanceASkuStockDateTime
+    PROPERTIES(s, st, t) READONLY balanceASkuStockDateTime, averagePriceASkuStockDateTime, sumASkuStockDateTime
     PROPERTIES(s, st) READONLY dateTimeLastMovedSkuStock
 
     FILTERGROUP filters
@@ -3122,6 +3152,12 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
                       st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
     ORDER BY          dateTimeBatch
 
+    OBJECTS bil=SkuLedger
+    PROPERTIES(bil) READONLY descriptionSkuLedger, dateTimeSkuLedger, signedQuantitySkuLedger, skipSkuLedger
+    FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==skuBatch(bt) AND stockSkuLedger(bil)==st,
+            dateTimeSkuLedger(bil) < t
+    ORDER BY dateTimeSkuLedger DESC
+
     FILTERGROUP filterBalance
         FILTER 'Партии с остатком' 'F11' balanceBBatchStockDateTime(bt, st, t) DEFAULT
         FILTER 'Партии пришедшие за последний 1 день' 'F10' dateTimeBatch(bt) >= subtractDateTimeSeconds(currentDateTime(), 1)
@@ -3158,10 +3194,16 @@ DESIGN balanceBatchStock FROM DEFAULT {
                 }
             }
 
-            ADD stb.box {
-                caption = 'Партии';
+            NEW secondCase {
                 fillHorizontal = 2;
-            };
+                childConstraints = TO THE BOTTOM;
+                ADD stb.box {
+                    caption = 'Партии';
+                }
+                ADD bil.box {
+                    caption = 'Движение';
+                }
+            }
         }
 
         ADD functions.box;
