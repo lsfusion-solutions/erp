@@ -374,7 +374,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
                     idWarehouse, idSupplier + "WH", (price==null || price.doubleValue() == 0) ? null : price, null, null,
                     manufacturingPrice, null, null, null, null, certificateText, null, numberDeclaration, dateDeclaration,
                     numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin, rateExchange, homePrice,
-                    priceDuty, isHomeCurrency, showDeclaration, true, shortNameCurrency, codeCustomsGroup,
+                    priceDuty, null, null, null, isHomeCurrency, showDeclaration, true, shortNameCurrency, codeCustomsGroup,
                     allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null));
             }
         return data;

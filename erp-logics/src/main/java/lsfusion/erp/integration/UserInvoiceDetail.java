@@ -34,10 +34,13 @@ public class UserInvoiceDetail {
     public Date fromDateCompliance;
     public Date toDateCompliance;
     public Date expiryDate;
-    public String bin;
+    public String idBin;
     public BigDecimal rateExchange;
     public BigDecimal homePrice;
     public BigDecimal priceDuty;
+    public BigDecimal priceCompliance;
+    public BigDecimal priceRegistration;
+    public BigDecimal chargeSum;
     public Boolean isHomeCurrency;
     public Boolean showDeclaration;
     public Boolean showManufacturingPrice;
@@ -53,7 +56,8 @@ public class UserInvoiceDetail {
                              BigDecimal wholesalePrice, BigDecimal wholesaleMarkup, BigDecimal retailPrice,
                              BigDecimal retailMarkup, String certificateText, String idContract, String numberDeclaration,
                              Date dateDeclaration, String numberCompliance, Date fromDateCompliance, Date toDateCompliance,
-                             Date expiryDate, String bin, BigDecimal rateExchange, BigDecimal homePrice, BigDecimal priceDuty,
+                             Date expiryDate, String idBin, BigDecimal rateExchange, BigDecimal homePrice, BigDecimal priceDuty,
+                             BigDecimal priceCompliance, BigDecimal priceRegistration, BigDecimal chargeSum,
                              Boolean isHomeCurrency, Boolean showDeclaration, Boolean showManufacturingPrice,
                              String shortNameCurrency, String codeCustomsGroup, BigDecimal retailVAT) {
         this.idUserInvoice = idUserInvoice;
@@ -85,10 +89,13 @@ public class UserInvoiceDetail {
         this.fromDateCompliance = fromDateCompliance;
         this.toDateCompliance = toDateCompliance;
         this.expiryDate = expiryDate;
-        this.bin = bin;
+        this.idBin = idBin;
         this.rateExchange = rateExchange;
         this.homePrice = homePrice;
         this.priceDuty = priceDuty;
+        this.priceCompliance = priceCompliance;
+        this.priceRegistration = priceRegistration;
+        this.chargeSum = chargeSum;
         this.isHomeCurrency = isHomeCurrency;
         this.showDeclaration = showDeclaration;
         this.showManufacturingPrice = showManufacturingPrice;
