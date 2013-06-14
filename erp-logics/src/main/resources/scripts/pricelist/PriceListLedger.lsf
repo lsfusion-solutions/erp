@@ -211,6 +211,23 @@ accountSumASkuGroupBatchStockDate 'Сумма на конец дня(по пар
     GROUP SUM accountSumABatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
     BY group, stock, date;
 
+//--
+currentAccountPriceBatchStock 'Цена учетная' (batch, stock) =
+    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, currentDateTime());
+currentAccountSumBatchStock 'Сумма учетная' (batch, stock) =
+    currentBalanceBatchStock(batch, stock) * currentAccountPriceBatchStock(batch, stock);
+
+accountPriceBatchStockDateTime 'Цена учетная' (batch, stock, dateTime) =
+    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);
+accountSumBBatchStockDateTime 'Сумма учетная' (batch, stock, dateTime) =
+    balanceBBatchStockDateTime(batch, stock, dateTime) * accountPriceBatchStockDateTime(batch, stock, dateTime);
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES(bt,st) READONLY BEFORE dateTimeBatch(bt) currentAccountPriceBatchStock, currentAccountSumBatchStock
+;
+EXTEND FORM balanceBatchStock
+    PROPERTIES(bt,st,t) READONLY BEFORE dateTimeBatch(bt) accountPriceBatchStockDateTime, accountSumBBatchStockDateTime
+;
 // --------------------------- Формы ---------------------------- //
 
 EXTEND FORM priceListTypes
