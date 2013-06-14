@@ -18,6 +18,7 @@ import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -41,10 +42,10 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
             Integer placeNumber = (Integer) LM.findLCPByCompoundName("nppMachineryCurrentCashRegister").read(context);
             ObjectValue userObject = LM.findLCPByCompoundName("userReceipt").readClasses(context, receiptObject);
             Object operatorNumber = userObject.isNull() ? 0 : LM.findLCPByCompoundName("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
-            Double sumTotal = (Double) LM.findLCPByCompoundName("sumReceiptDetailReceipt").read(context, receiptObject);
-            Double sumDisc = (Double) LM.findLCPByCompoundName("discountSumReceiptDetailReceipt").read(context, receiptObject);
-            Double sumCard = null;
-            Double sumCash = null;
+            BigDecimal sumTotal = (BigDecimal) LM.findLCPByCompoundName("sumReceiptDetailReceipt").read(context, receiptObject);
+            BigDecimal sumDisc = (BigDecimal) LM.findLCPByCompoundName("discountSumReceiptDetailReceipt").read(context, receiptObject);
+            BigDecimal sumCard = null;
+            BigDecimal sumCash = null;
 
             KeyExpr paymentExpr = new KeyExpr("payment");
             ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object)"payment", paymentExpr);
@@ -60,9 +61,9 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 DataObject paymentMeansCashObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCash");
                 DataObject paymentMeansCardObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCard");
                 if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
-                    sumCash = (Double) paymentValues.get("sumPayment");
+                    sumCash = (BigDecimal) paymentValues.get("sumPayment");
                 } else if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
-                    sumCard = (Double) paymentValues.get("sumPayment");
+                    sumCard = (BigDecimal) paymentValues.get("sumPayment");
                 }
             }
 
@@ -86,21 +87,21 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
             List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
             List<ReceiptItem> receiptReturnItemList = new ArrayList<ReceiptItem>();
             for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
-                Double price = (Double) receiptDetailValues.get("priceReceiptDetail");
-                Double quantitySale = (Double) receiptDetailValues.get("quantityReceiptSaleDetail");
-                Double quantityReturn = (Double) receiptDetailValues.get("quantityReceiptReturnDetail");
+                BigDecimal price = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
+                BigDecimal quantitySale = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
+                BigDecimal quantityReturn = (BigDecimal) receiptDetailValues.get("quantityReceiptReturnDetail");
                 String barcode = (String) receiptDetailValues.get("idBarcodeReceiptDetail");
                 String name = (String) receiptDetailValues.get("nameSkuReceiptDetail");
-                Double sumReceiptDetail = (Double) receiptDetailValues.get("sumReceiptDetail");
-                Double discountPercentReceiptSaleDetail = (Double) receiptDetailValues.get("discountPercentReceiptSaleDetail");
-                Double discountSumReceiptDetail = (Double) receiptDetailValues.get("discountSumReceiptDetail");
+                BigDecimal sumReceiptDetail = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
+                BigDecimal discountPercentReceiptSaleDetail = (BigDecimal) receiptDetailValues.get("discountPercentReceiptSaleDetail");
+                BigDecimal discountSumReceiptDetail = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                 Integer taxNumber = (Integer) receiptDetailValues.get("numberVATReceiptDetail");
                 if (quantitySale != null)
                     receiptSaleItemList.add(new ReceiptItem(price.longValue(), quantitySale, barcode, name.trim(), sumReceiptDetail.longValue(),
-                            discountPercentReceiptSaleDetail, discountSumReceiptDetail==null ? null : -discountSumReceiptDetail, taxNumber, 1));
+                            discountPercentReceiptSaleDetail, discountSumReceiptDetail==null ? null : discountSumReceiptDetail.negate(), taxNumber, 1));
                 if (quantityReturn != null)
                     receiptReturnItemList.add(new ReceiptItem(price.longValue(), quantityReturn, barcode, name.trim(), sumReceiptDetail.longValue(),
-                            discountPercentReceiptSaleDetail, discountSumReceiptDetail==null ? null : -discountSumReceiptDetail, taxNumber, 1));
+                            discountPercentReceiptSaleDetail, discountSumReceiptDetail==null ? null : discountSumReceiptDetail.negate(), taxNumber, 1));
             }
 
             if (context.checkApply()){

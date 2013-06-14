@@ -6,6 +6,7 @@ import com.sun.jna.ptr.ByReference;
 import com.sun.jna.ptr.IntByReference;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 public class FiscalVMK {
@@ -111,13 +112,13 @@ public class FiscalVMK {
         return vmkDLL.vmk.vmk_prnch(msg);
     }
 
-    public static boolean totalCash(Double sum) throws RuntimeException {
+    public static boolean totalCash(BigDecimal sum) throws RuntimeException {
         if (sum == null)
             return true;
         return vmkDLL.vmk.vmk_oplat(0, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
-    public static boolean totalCard(Double sum) throws RuntimeException {
+    public static boolean totalCard(BigDecimal sum) throws RuntimeException {
         if (sum == null)
             return true;
         return vmkDLL.vmk.vmk_oplat(1, Math.abs(sum.intValue()), 0/*"00000000"*/);
@@ -156,9 +157,9 @@ public class FiscalVMK {
 
     public static void displayText(ReceiptItem item) throws RuntimeException {
         try {
-            String firstLine = " " + toStr(item.quantity) + "x" + toStr((double) item.price);
+            String firstLine = " " + toStr(item.quantity) + "x" + toStr(BigDecimal.valueOf(item.price));
             firstLine = item.name.substring(0, 16 - Math.min(16, firstLine.length())) + firstLine;
-            String secondLine = toStr((double) item.sumPos);
+            String secondLine = toStr(BigDecimal.valueOf(item.sumPos));
             while (secondLine.length() < 11)
                 secondLine = " " + secondLine;
             secondLine = "ИТОГ:" + secondLine;
@@ -171,7 +172,7 @@ public class FiscalVMK {
 
     public static boolean registerItem(ReceiptItem item) throws RuntimeException {
         try {
-            return vmkDLL.vmk.vmk_sale(item.barCode, (item.name+"\0").getBytes("cp1251"), Math.abs(item.price.intValue()), 1 /*отдел*/, item.quantity, 0);
+            return vmkDLL.vmk.vmk_sale(item.barCode, (item.name+"\0").getBytes("cp1251"), Math.abs(item.price.intValue()), 1 /*отдел*/, item.quantity.doubleValue(), 0);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
@@ -180,7 +181,7 @@ public class FiscalVMK {
     public static boolean discountItem(ReceiptItem item) throws RuntimeException {
         if (item.articleDiscSum == null)
             return true;
-        boolean discount = item.articleDiscSum < 0;
+        boolean discount = item.articleDiscSum.doubleValue() < 0;
         try {
             return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") +"\0").getBytes("cp1251"), Math.abs(item.articleDiscSum.intValue()), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
@@ -204,11 +205,11 @@ public class FiscalVMK {
                 checkErrors(true);
     }
 
-    private static String toStr(Double value) {
+    private static String toStr(BigDecimal value) {
         if (value == null)
             return "0";
         else {
-            boolean isInt = (value - value.intValue()) == 0;
+            boolean isInt = (value.subtract(BigDecimal.valueOf(value.intValue()))).equals(BigDecimal.ZERO);
             return isInt ? String.valueOf(value.intValue()) : String.valueOf(value);
         }
     }

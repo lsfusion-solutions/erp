@@ -9,6 +9,7 @@ import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
@@ -29,7 +30,7 @@ public class FiscalVMKServiceInOutActionProperty extends ScriptingActionProperty
             Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
             Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
             Boolean isDone = LM.findLCPByCompoundName("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
-            Double sum = (Double)LM.findLCPByCompoundName("sumCashOperation").read(context.getSession(), cashOperationObject);
+            BigDecimal sum = (BigDecimal)LM.findLCPByCompoundName("sumCashOperation").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(baudRate, comPort, sum));

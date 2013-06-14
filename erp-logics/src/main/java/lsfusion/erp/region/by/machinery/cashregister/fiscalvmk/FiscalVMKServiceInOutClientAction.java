@@ -4,15 +4,16 @@ import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 
 
 public class FiscalVMKServiceInOutClientAction implements ClientAction {
 
     int baudRate;
     int comPort;
-    Double sum;
+    BigDecimal sum;
 
-    public FiscalVMKServiceInOutClientAction(Integer baudRate, Integer comPort, Double sum) {
+    public FiscalVMKServiceInOutClientAction(Integer baudRate, Integer comPort, BigDecimal sum) {
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.comPort = comPort == null ? 0 : comPort;
         this.sum = sum;

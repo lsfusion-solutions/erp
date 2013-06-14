@@ -29,6 +29,7 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
+            LM.findLAPByCompoundName("closeCurrentZReport").execute(session);
         } catch (SQLException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         } catch (ScriptingErrorLog.SemanticErrorException e) {

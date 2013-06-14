@@ -1,20 +1,21 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 public class ReceiptItem implements Serializable {
     public Long price;
-    public Double quantity;
+    public BigDecimal quantity;
     public String barCode;
     public String name;
     public Long sumPos;
-    public Double articleDisc;
-    public Double articleDiscSum;
+    public BigDecimal articleDisc;
+    public BigDecimal articleDiscSum;
     public Integer taxNumber;
     public Integer group;
 
-    public ReceiptItem(Long price, Double quantity, String barCode, String name, Long sumPos,
-                       Double articleDisc, Double articleDiscSum, Integer taxNumber, Integer group) {
+    public ReceiptItem(Long price, BigDecimal quantity, String barCode, String name, Long sumPos,
+                       BigDecimal articleDisc, BigDecimal articleDiscSum, Integer taxNumber, Integer group) {
         this.price = price;
         this.quantity = quantity;
         this.barCode = barCode;

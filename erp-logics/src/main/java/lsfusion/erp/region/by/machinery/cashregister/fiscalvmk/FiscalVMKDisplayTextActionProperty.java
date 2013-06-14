@@ -11,6 +11,7 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
@@ -36,14 +37,14 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
 
             String name = (String) LM.findLCPByCompoundName("nameSkuReceiptDetail").read(session, receiptDetailObject);
             String barcode = (String) LM.findLCPByCompoundName("idBarcodeReceiptDetail").read(session, receiptDetailObject);
-            Double quantity = (Double) LM.findLCPByCompoundName("quantityReceiptDetail").read(session, receiptDetailObject);
-            Double price = (Double) LM.findLCPByCompoundName("priceReceiptDetail").read(session, receiptDetailObject);
-            Double sum = (Double) LM.findLCPByCompoundName("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
-            Double articleDisc = (Double) LM.findLCPByCompoundName("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
-            Double articleDiscSum = (Double) LM.findLCPByCompoundName("discountSumReceiptDetail").read(session, receiptDetailObject);
+            BigDecimal quantity = (BigDecimal) LM.findLCPByCompoundName("quantityReceiptDetail").read(session, receiptDetailObject);
+            BigDecimal price = (BigDecimal) LM.findLCPByCompoundName("priceReceiptDetail").read(session, receiptDetailObject);
+            BigDecimal sum = (BigDecimal) LM.findLCPByCompoundName("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
+            BigDecimal articleDisc = (BigDecimal) LM.findLCPByCompoundName("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
+            BigDecimal articleDiscSum = (BigDecimal) LM.findLCPByCompoundName("discountSumReceiptDetail").read(session, receiptDetailObject);
 
 
-            String result = (String)context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(baudRate, comPort, new ReceiptItem(price.longValue(), quantity, barcode, name, sum.longValue(), articleDisc, articleDiscSum, 0, 0)));
+            String result = (String)context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(baudRate, comPort, new ReceiptItem(price.longValue(), quantity, barcode, name, sum==null ? 0 : sum.longValue(), articleDisc, articleDiscSum, 0, 0)));
             if(result!=null)
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
         } catch (SQLException e) {
