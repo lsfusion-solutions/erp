@@ -61,22 +61,22 @@ public class FiscalVMK {
 
         try {
             System.loadLibrary("msvcr100");
-        } catch (Exception e) {
+        } catch (UnsatisfiedLinkError e) {
             System.out.println(e.toString());
         }
         try {
             System.loadLibrary("msvcp100");
-        } catch (Exception e) {
+        } catch (UnsatisfiedLinkError e) {
             System.out.println(e.toString());
         }
         try {
             System.loadLibrary("QtCore4");
-        } catch (Exception e) {
+        } catch (UnsatisfiedLinkError e) {
             System.out.println(e.toString());
         }
         try {
             System.loadLibrary("QtNetwork4");
-        } catch (Exception e) {
+        } catch (UnsatisfiedLinkError e) {
             System.out.println(e.toString());
         }
         try {
