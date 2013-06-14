@@ -59,10 +59,31 @@ public class FiscalVMK {
 
     static void init() {
 
-        System.loadLibrary("msvcr100");
-        System.loadLibrary("msvcp100");
-        System.loadLibrary("QtCore4");
-        System.loadLibrary("vmk");
+        try {
+            System.loadLibrary("msvcr100");
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
+        try {
+            System.loadLibrary("msvcp100");
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
+        try {
+            System.loadLibrary("QtCore4");
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
+        try {
+            System.loadLibrary("QtNetwork4");
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
+        try {
+            System.loadLibrary("vmk");
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
 
         try {
             Thread.sleep(100);
@@ -172,7 +193,7 @@ public class FiscalVMK {
 
     public static boolean registerItem(ReceiptItem item) throws RuntimeException {
         try {
-            return vmkDLL.vmk.vmk_sale(item.barCode, (item.name+"\0").getBytes("cp1251"), Math.abs(item.price.intValue()), 1 /*отдел*/, item.quantity.doubleValue(), 0);
+            return vmkDLL.vmk.vmk_sale(item.barCode, (item.name + "\0").getBytes("cp1251"), Math.abs(item.price.intValue()), 1 /*отдел*/, item.quantity.doubleValue(), 0);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
@@ -183,7 +204,7 @@ public class FiscalVMK {
             return true;
         boolean discount = item.articleDiscSum.doubleValue() < 0;
         try {
-            return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") +"\0").getBytes("cp1251"), Math.abs(item.articleDiscSum.intValue()), discount ? 3 : 1);
+            return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), Math.abs(item.articleDiscSum.intValue()), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
