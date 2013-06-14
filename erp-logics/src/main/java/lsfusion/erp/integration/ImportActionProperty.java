@@ -642,13 +642,6 @@ public class ImportActionProperty {
                 }
 
 
-                /*boolean showBin = false;
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++) {
-                    if (dataUserInvoiceDetail.get(i).idBin != null) {
-                        showBin = true;
-                        break;
-                    }
-                }*/
                 if (showField(dataUserInvoiceDetail, "idBin")) {
                     ImportField binUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("idBin"));
                     ImportKey<?> binKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bin"),
@@ -1367,36 +1360,62 @@ public class ImportActionProperty {
 
         try {
             if (banksList != null) {
-                ImportField idBankField = new ImportField(LM.findLCPByCompoundName("idBank"));
-                ImportField nameBankField = new ImportField(LM.findLCPByCompoundName("nameBank"));
-                ImportField addressBankField = new ImportField(LM.findLCPByCompoundName("dataAddressBankDate"));
-                ImportField departmentBankField = new ImportField(LM.findLCPByCompoundName("departmentBank"));
-                ImportField mfoBankField = new ImportField(LM.findLCPByCompoundName("MFOBank"));
-                ImportField cbuBankField = new ImportField(LM.findLCPByCompoundName("CBUBank"));
-
-                ImportKey<?> bankKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank"),
-                        LM.findLCPByCompoundName("bankId").getMapping(idBankField));
 
                 DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
 
                 List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-
-                props.add(new ImportProperty(idBankField, LM.findLCPByCompoundName("idBank").getMapping(bankKey)));
-                props.add(new ImportProperty(nameBankField, LM.findLCPByCompoundName("nameBank").getMapping(bankKey)));
-                props.add(new ImportProperty(addressBankField, LM.findLCPByCompoundName("dataAddressBankDate").getMapping(bankKey, defaultDate)));
-                props.add(new ImportProperty(departmentBankField, LM.findLCPByCompoundName("departmentBank").getMapping(bankKey)));
-                props.add(new ImportProperty(mfoBankField, LM.findLCPByCompoundName("MFOBank").getMapping(bankKey)));
-                props.add(new ImportProperty(cbuBankField, LM.findLCPByCompoundName("CBUBank").getMapping(bankKey)));
+                List<ImportField> fields = new ArrayList<ImportField>();
+                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
                 List<List<Object>> data = new ArrayList<List<Object>>();
-                for (Bank b : banksList) {
-                    data.add(Arrays.asList((Object) b.idBank, b.name, b.address, b.department, b.mfo, b.cbu));
+                for (Bank bank : banksList) {
+                    data.add(new ArrayList<Object>());
                 }
-                ImportTable table = new ImportTable(Arrays.asList(idBankField, nameBankField, addressBankField, departmentBankField, mfoBankField, cbuBankField), data);
+
+                ImportField idBankField = new ImportField(LM.findLCPByCompoundName("idBank"));
+                ImportKey<?> bankKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank"),
+                        LM.findLCPByCompoundName("bankId").getMapping(idBankField));
+                keys.add(bankKey);
+                props.add(new ImportProperty(idBankField, LM.findLCPByCompoundName("idBank").getMapping(bankKey)));
+                fields.add(idBankField);
+                for (int i = 0; i < banksList.size(); i++)
+                    data.get(i).add(banksList.get(i).idBank);
+
+                ImportField nameBankField = new ImportField(LM.findLCPByCompoundName("nameBank"));
+                props.add(new ImportProperty(nameBankField, LM.findLCPByCompoundName("nameBank").getMapping(bankKey)));
+                fields.add(nameBankField);
+                for (int i = 0; i < banksList.size(); i++)
+                    data.get(i).add(banksList.get(i).nameBank);
+
+                ImportField addressBankField = new ImportField(LM.findLCPByCompoundName("dataAddressBankDate"));
+                props.add(new ImportProperty(addressBankField, LM.findLCPByCompoundName("dataAddressBankDate").getMapping(bankKey, defaultDate)));
+                fields.add(addressBankField);
+                for (int i = 0; i < banksList.size(); i++)
+                    data.get(i).add(banksList.get(i).addressBank);
+
+                ImportField departmentBankField = new ImportField(LM.findLCPByCompoundName("departmentBank"));
+                props.add(new ImportProperty(departmentBankField, LM.findLCPByCompoundName("departmentBank").getMapping(bankKey)));
+                fields.add(departmentBankField);
+                for (int i = 0; i < banksList.size(); i++)
+                    data.get(i).add(banksList.get(i).departmentBank);
+
+                ImportField mfoBankField = new ImportField(LM.findLCPByCompoundName("MFOBank"));
+                props.add(new ImportProperty(mfoBankField, LM.findLCPByCompoundName("MFOBank").getMapping(bankKey)));
+                fields.add(mfoBankField);
+                for (int i = 0; i < banksList.size(); i++)
+                    data.get(i).add(banksList.get(i).mfoBank);
+
+                ImportField cbuBankField = new ImportField(LM.findLCPByCompoundName("CBUBank"));
+                props.add(new ImportProperty(cbuBankField, LM.findLCPByCompoundName("CBUBank").getMapping(bankKey)));
+                fields.add(cbuBankField);
+                for (int i = 0; i < banksList.size(); i++)
+                    data.get(i).add(banksList.get(i).cbuBank);
+
+                ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
                 session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, Arrays.asList(bankKey), props);
+                IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
                 session.apply(context.getBL());
                 session.sql.popVolatileStats(null);

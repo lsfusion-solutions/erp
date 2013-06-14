@@ -3,18 +3,18 @@ package lsfusion.erp.integration;
 
 public class Bank {
     public String idBank;
-    public String name;
-    public String address;
-    public String department;
-    public String mfo;
-    public String cbu;
+    public String nameBank;
+    public String addressBank;
+    public String departmentBank;
+    public String mfoBank;
+    public String cbuBank;
 
-    public Bank(String idBank, String name, String address, String department, String mfo, String cbu) {
+    public Bank(String idBank, String nameBank, String addressBank, String departmentBank, String mfoBank, String cbuBank) {
         this.idBank = idBank;
-        this.name = name;
-        this.address = address;
-        this.department = department;
-        this.mfo = mfo;
-        this.cbu = cbu;
+        this.nameBank = nameBank;
+        this.addressBank = addressBank;
+        this.departmentBank = departmentBank;
+        this.mfoBank = mfoBank;
+        this.cbuBank = cbuBank;
     }
 }
