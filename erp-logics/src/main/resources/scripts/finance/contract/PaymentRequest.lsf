@@ -20,6 +20,7 @@ seriesNumberContractPaymentRequest 'Номер контракта' (paymentReque
 
 notePaymentRequest 'Примечание' (paymentRequest) = DATA STRING[200] (PaymentRequest);
 
+
 payerPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
 payerPaymentRequest(paymentRequest) <- partyBContract(contractPaymentRequest(paymentRequest)) WHEN SET (contractPaymentRequest(paymentRequest));
 namePayerPaymentRequest 'Организация (покупатель)' (paymentRequest) = nameLegalEntity(payerPaymentRequest(paymentRequest));
@@ -81,6 +82,11 @@ writePaymentRequestLIFO 'Расписать по LIFO' = ACTION (paymentRequest)
     ASSIGN costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- NULL;
     ASSIGN costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
 }
+
+partyA = DATA SESSION LegalEntity();
+namePartyA 'Организация (поставщик)' = nameLegalEntity(partyA());
+partyB = DATA SESSION LegalEntity();
+namePartyB 'Организация (покупатель)' = nameLegalEntity(partyB());
 
 FORM paymentRequest 'Платежное требование'
 
@@ -188,7 +194,8 @@ EXTEND DESIGN contractLedger {
 }
 
 toPaymentRequests 'Выставить платежные требования' = ACTION () {
-    FOR debtInContractLedger(inContractLedger) DO {
+    FOR debtInContractLedger(inContractLedger) AND (partyAContract(contractInContractLedger(inContractLedger)) == partyA() OR inContractLedger IS InContractLedger AND NOT partyA()) AND
+    (partyBContract(contractInContractLedger(inContractLedger)) == partyB() OR inContractLedger IS InContractLedger AND NOT partyB()) DO {
         ADDOBJ PaymentRequest;
         FOR pr == addedObject() DO {
             ASSIGN datePaymentRequest(pr) <- currentDate();
@@ -205,16 +212,22 @@ FORM paymentRequests 'Платежные поручения'
     OBJECTS d = DATE FIXED PANEL
     PROPERTIES(d) OBJVALUE
 
+    PROPERTIES() namePartyA, namePartyB
+
     OBJECTS pr = PaymentRequest
     PROPERTIES(pr) READONLY numberObject BACKGROUND backgroundPaymentRequestDate(pr, d),
                             seriesObject BACKGROUND backgroundPaymentRequestDate(pr, d),
                             datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            nameLenderPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            namePayerPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             objectClassName BACKGROUND backgroundPaymentRequestDate(pr, d)
     PROPERTIES(pr) ADDFORM, EDITFORM, DELETE
     ORDER BY datePaymentRequest, timePaymentRequest
+    FILTERS partyAContract(contractPaymentRequest(pr)) == partyA() OR pr IS PaymentRequest AND NOT partyA(),
+            partyBContract(contractPaymentRequest(pr)) == partyB() OR pr IS PaymentRequest AND NOT partyB()
 
     OBJECTS i = InContractLedger
     PROPERTIES(i) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, costedPaymentRequestInContractLedger
@@ -225,19 +238,27 @@ FORM paymentRequests 'Платежные поручения'
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, costedPaymentRequestInContractLedger
     PROPERTIES() toPaymentRequests TODRAW ic FORCE PANEL TOOLBAR
-    FILTERS debtInContractLedger(ic)
+    FILTERS debtInContractLedger(ic),
+            partyAContract(contractInContractLedger(ic)) == partyA() OR ic IS InContractLedger AND NOT partyA(),
+            partyBContract(contractInContractLedger(ic)) == partyB() OR ic IS InContractLedger AND NOT partyB()
     ORDER BY dateInContractLedger
 ;
 
 DESIGN paymentRequests FROM DEFAULT{
-    ADD d.box;
+    NEW topContainer{
+        caption = 'Шапка';
+        childConstraints = TO THE RIGHT;
+        ADD d.box;
+        ADD PROPERTY(namePartyA);
+        ADD PROPERTY(namePartyB);
+    }
     NEW splitContainer{
         type = SPLITV;
         ADD pr.box;
         NEW bodyContainer{
             type = TABBED;
             ADD i.box;
-            ADD ic.box{caption = 'Неоплаченные приходы';}
+            ADD ic.box{caption = 'Неоплаченные поставки';}
         }
     }
     ADD functions.box;
