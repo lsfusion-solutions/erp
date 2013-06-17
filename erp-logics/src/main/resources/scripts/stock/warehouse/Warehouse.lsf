@@ -18,6 +18,24 @@ TABLE warehouseGroupWarehouseGroup(WarehouseGroup, WarehouseGroup);
 @defineHierarchy(warehouseGroup);
 parentStockGroup (stockGroup) += parentWarehouseGroup (stockGroup);
 
+FORM warehouseGroup 'Группа складов'
+
+    OBJECTS w = WarehouseGroup FIXED PANEL
+    PROPERTIES(w) nameWarehouseGroup, nameParentWarehouseGroup
+
+    EDIT WarehouseGroup OBJECT w
+;
+
+FORM warehouseGroups 'Группы складов'
+
+    TREE warehouseGroupTree wg = WarehouseGroup PARENT parentWarehouseGroup
+    PROPERTIES READONLY wgTreeName = nameWarehouseGroup(wg)
+    PROPERTIES(wg) ADDFORM, EDITFORM, DELETE
+    ORDER BY nameWarehouseGroup(wg)
+
+    DIALOG WarehouseGroup OBJECT wg
+;
+
 // ----------------------------------------- Склады ------------------------------ //
 
 CLASS Warehouse 'Склад' : Stock;
@@ -56,15 +74,6 @@ quantityDaysCloseWarehouse 'Срок автоматического закрыт
 quantityDaysCloseOrdersStock(stock) += quantityDaysCloseWarehouse(stock);
 
 // -------------------------------------------------- Формы ----------------------------------------- //
-
-FORM warehouseGroup 'Группа складов'
-
-    OBJECTS           w=WarehouseGroup FIXED PANEL
-    PROPERTIES(w)     nameWarehouseGroup, nameParentWarehouseGroup
-    ORDER BY          nameWarehouseGroup
-
-    EDIT WarehouseGroup OBJECT w
-;
 
 FORM warehouse 'Склад'
 
@@ -138,5 +147,6 @@ EXTEND FORM legalEntity
 NAVIGATOR {
     stockMasterData {
         ADD warehouses;
+        ADD warehouseGroups;
     }
 }
