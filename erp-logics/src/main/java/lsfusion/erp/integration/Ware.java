@@ -5,12 +5,12 @@ import java.math.BigDecimal;
 
 public class Ware {
     public String idWare;
-    public String name;
-    public BigDecimal price;
+    public String nameWare;
+    public BigDecimal priceWare;
 
-    public Ware(String idWare, String name, BigDecimal price) {
+    public Ware(String idWare, String nameWare, BigDecimal priceWare) {
         this.idWare = idWare;
-        this.name = name;
-        this.price = price;
+        this.nameWare = nameWare;
+        this.priceWare = priceWare;
     }
 }

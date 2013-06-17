@@ -163,30 +163,41 @@ public class ImportActionProperty {
 
         try {
             if (waresList != null) {
+
                 DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
 
-                ImportField idWareField = new ImportField(LM.findLCPByCompoundName("idWare"));
-                ImportField wareNameField = new ImportField(LM.findLCPByCompoundName("nameWare"));
-                ImportField warePriceField = new ImportField(LM.findLCPByCompoundName("warePrice"));
+                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+                List<ImportField> fields = new ArrayList<ImportField>();
+                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
+                List<List<Object>> data = initData(waresList.size());
+
+                ImportField idWareField = new ImportField(LM.findLCPByCompoundName("idWare"));
                 ImportKey<?> wareKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Ware"),
                         LM.findLCPByCompoundName("wareId").getMapping(idWareField));
-
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-
+                keys.add(wareKey);
                 props.add(new ImportProperty(idWareField, LM.findLCPByCompoundName("idWare").getMapping(wareKey)));
-                props.add(new ImportProperty(wareNameField, LM.findLCPByCompoundName("nameWare").getMapping(wareKey)));
-                props.add(new ImportProperty(warePriceField, LM.findLCPByCompoundName("dataWarePriceDate").getMapping(wareKey, defaultDate)));
+                fields.add(idWareField);
+                for (int i = 0; i < waresList.size(); i++)
+                    data.get(i).add(waresList.get(i).idWare);
 
-                List<List<Object>> data = new ArrayList<List<Object>>();
-                for (Ware w : waresList) {
-                    data.add(Arrays.asList((Object) w.idWare, w.name, w.price));
-                }
-                ImportTable table = new ImportTable(Arrays.asList(idWareField, wareNameField, warePriceField), data);
+                ImportField nameWareField = new ImportField(LM.findLCPByCompoundName("nameWare"));
+                props.add(new ImportProperty(nameWareField, LM.findLCPByCompoundName("nameWare").getMapping(wareKey)));
+                fields.add(nameWareField);
+                for (int i = 0; i < waresList.size(); i++)
+                    data.get(i).add(waresList.get(i).nameWare);
+
+                ImportField priceWareField = new ImportField(LM.findLCPByCompoundName("warePrice"));
+                props.add(new ImportProperty(priceWareField, LM.findLCPByCompoundName("dataWarePriceDate").getMapping(wareKey, defaultDate)));
+                fields.add(priceWareField);
+                for (int i = 0; i < waresList.size(); i++)
+                    data.get(i).add(waresList.get(i).priceWare);
+
+                ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
                 session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, Arrays.asList(wareKey), props);
+                IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
                 session.apply(context.getBL());
                 session.sql.popVolatileStats(null);
