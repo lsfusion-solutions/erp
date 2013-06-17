@@ -3,14 +3,14 @@ package lsfusion.erp.integration;
 
 public class Employee {
     public String idEmployee;
-    public String firstName;
-    public String lastName;
-    public String position;
+    public String firstNameEmployee;
+    public String lastNameEmployee;
+    public String idPosition;
 
-    public Employee(String idEmployee, String firstName, String lastName, String position) {
+    public Employee(String idEmployee, String firstNameEmployee, String lastNameEmployee, String idPosition) {
         this.idEmployee = idEmployee;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.position = position;
+        this.firstNameEmployee = firstNameEmployee;
+        this.lastNameEmployee = lastNameEmployee;
+        this.idPosition = idPosition;
     }
 }

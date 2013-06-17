@@ -5,15 +5,15 @@ public class Warehouse {
     public String idLegalEntity;
     public String idWarehouseGroup;
     public String idWarehouse;
-    public String warehouseName;
-    public String warehouseAddress;
+    public String nameWarehouse;
+    public String addressWarehouse;
 
 
-    public Warehouse(String idLegalEntity, String idWarehouseGroup, String idWarehouse, String warehouseName, String warehouseAddress) {
+    public Warehouse(String idLegalEntity, String idWarehouseGroup, String idWarehouse, String nameWarehouse, String addressWarehouse) {
         this.idLegalEntity = idLegalEntity;
         this.idWarehouseGroup = idWarehouseGroup;
         this.idWarehouse = idWarehouse;
-        this.warehouseName = warehouseName;
-        this.warehouseAddress = warehouseAddress;
+        this.nameWarehouse = nameWarehouse;
+        this.addressWarehouse = addressWarehouse;
     }
 }

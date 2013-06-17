@@ -3,12 +3,12 @@ package lsfusion.erp.integration;
 
 public class DepartmentStore {
     public String idDepartmentStore;
-    public String name;
+    public String nameDepartmentStore;
     public String idStore;
 
-    public DepartmentStore(String idDepartmentStore, String name, String idStore) {
+    public DepartmentStore(String idDepartmentStore, String nameDepartmentStore, String idStore) {
         this.idDepartmentStore = idDepartmentStore;
-        this.name = name;
+        this.nameDepartmentStore = nameDepartmentStore;
         this.idStore = idStore;
     }
 }
