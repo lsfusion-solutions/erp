@@ -5,14 +5,14 @@ import java.math.BigDecimal;
 
 public class RateWaste {
     public String idRateWaste;
-    public String name;
-    public BigDecimal coef;
-    public String country;
+    public String nameRateWaste;
+    public BigDecimal percentWriteOffRate;
+    public String nameCountry;
 
-    public RateWaste(String idRateWaste, String name, BigDecimal coef, String country) {
+    public RateWaste(String idRateWaste, String nameRateWaste, BigDecimal percentWriteOffRate, String nameCountry) {
         this.idRateWaste = idRateWaste;
-        this.name = name;
-        this.coef = coef;
-        this.country = country;
+        this.nameRateWaste = nameRateWaste;
+        this.percentWriteOffRate = percentWriteOffRate;
+        this.nameCountry = nameCountry;
     }
 }

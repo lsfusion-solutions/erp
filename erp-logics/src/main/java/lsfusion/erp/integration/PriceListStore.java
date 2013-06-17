@@ -5,22 +5,23 @@ import java.math.BigDecimal;
 
 public class PriceListStore {
     public String idUserPriceList;
-    public String item;
-    public String supplier;
-    public String departmentStore;
-    public String currency;
-    public BigDecimal price;
+    public String idItem;
+    public String idSupplier;
+    public String idDepartmentStore;
+    public String shortNameCurrency;
+    public BigDecimal pricePriceListDetail;
     public Boolean inPriceList;
     public Boolean inPriceListStock;
 
-    public PriceListStore(String idUserPriceList, String item, String supplier, String departmentStore, String currency,
-                          BigDecimal price, Boolean inPriceList, Boolean inPriceListStock) {
+    public PriceListStore(String idUserPriceList, String idItem, String idSupplier, String idDepartmentStore,
+                          String shortNameCurrency, BigDecimal pricePriceListDetail, Boolean inPriceList,
+                          Boolean inPriceListStock) {
         this.idUserPriceList = idUserPriceList;
-        this.item = item;
-        this.supplier = supplier;
-        this.departmentStore = departmentStore;
-        this.currency = currency;
-        this.price = price;
+        this.idItem = idItem;
+        this.idSupplier = idSupplier;
+        this.idDepartmentStore = idDepartmentStore;
+        this.shortNameCurrency = shortNameCurrency;
+        this.pricePriceListDetail = pricePriceListDetail;
         this.inPriceList = inPriceList;
         this.inPriceListStock = inPriceListStock;
     }

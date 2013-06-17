@@ -4,19 +4,19 @@ import java.math.BigDecimal;
 
 public class PriceListSupplier {
     public String idUserPriceList;
-    public String item;
-    public String supplier;
-    public String currency;
-    public BigDecimal price;
+    public String idItem;
+    public String idSupplier;
+    public String shortNameCurrency;
+    public BigDecimal pricePriceListDetail;
     public Boolean inPriceList;
 
-    public PriceListSupplier(String idUserPriceList, String item, String supplier, String currency, BigDecimal price,
-                             Boolean inPriceList) {
+    public PriceListSupplier(String idUserPriceList, String idItem, String idSupplier, String shortNameCurrency,
+                             BigDecimal pricePriceListDetail, Boolean inPriceList) {
         this.idUserPriceList = idUserPriceList;
-        this.item = item;
-        this.supplier = supplier;
-        this.currency = currency;
-        this.price = price;
+        this.idItem = idItem;
+        this.idSupplier = idSupplier;
+        this.shortNameCurrency = shortNameCurrency;
+        this.pricePriceListDetail = pricePriceListDetail;
         this.inPriceList = inPriceList;
     }
 }

@@ -4,23 +4,23 @@ package lsfusion.erp.integration;
 import java.util.Date;
 
 public class Contract {
-    public String idContract;
+    public String idUserContractSku;
     public String idSupplier;
     public String idCustomer;
-    public String number;
-    public Date dateFrom;
-    public Date dateTo;
-    public String currency;
+    public String numberContract;
+    public Date dateFromContract;
+    public Date dateToContract;
+    public String shortNameCurrency;
 
 
-    public Contract(String idContract, String idSupplier, String idCustomer, String number, Date dateFrom, Date dateTo,
-                    String currency) {
-        this.idContract = idContract;
+    public Contract(String idUserContractSku, String idSupplier, String idCustomer, String numberContract,
+                    Date dateFromContract, Date dateToContract, String shortNameCurrency) {
+        this.idUserContractSku = idUserContractSku;
         this.idSupplier = idSupplier;
         this.idCustomer = idCustomer;
-        this.number = number;
-        this.dateFrom = dateFrom;
-        this.dateTo = dateTo;
-        this.currency = currency;
+        this.numberContract = numberContract;
+        this.dateFromContract = dateFromContract;
+        this.dateToContract = dateToContract;
+        this.shortNameCurrency = shortNameCurrency;
     }
 }
