@@ -6,16 +6,16 @@ import java.util.Date;
 
 public class Item {
     public String idItem;
-    public String itemGroupId;
-    public String nameItem;
+    public String idItemGroup;
+    public String captionItem;
     public String nameUOM;
     public String shortNameUOM;
     public String idUOM;
-    public String brandName;
+    public String nameBrand;
     public String idBrand;
-    public String country;
-    public String barcode;
+    public String nameCountry;
     public String idBarcode;
+    public String extIdBarcode;
     public Date date;
     public Boolean isWeightItem;
     public BigDecimal netWeightItem;
@@ -24,7 +24,7 @@ public class Item {
     public BigDecimal retailVAT;
     public String idWare;
     public BigDecimal priceWare;
-    public BigDecimal wareVAT;
+    public BigDecimal vatWare;
     public String idWriteOffRate;
     public BigDecimal baseMarkup;
     public BigDecimal retailMarkup;
@@ -33,25 +33,25 @@ public class Item {
     public String idManufacturer;
     public String nameManufacturer;
     public String codeCustomsGroup;
-    public String codeCustomsZone;
+    public String nameCustomsZone;
 
-    public Item(String idItem, String itemGroupId, String nameItem, String nameUOM, String shortNameUOM, String idUOM,
-                String brandName, String idBrand, String country, String barcode, String idBarcode, Date date,
+    public Item(String idItem, String idItemGroup, String captionItem, String nameUOM, String shortNameUOM, String idUOM,
+                String nameBrand, String idBrand, String nameCountry, String idBarcode, String extIdBarcode, Date date,
                 Boolean isWeightItem, BigDecimal netWeightItem, BigDecimal grossWeightItem, String compositionItem,
-                BigDecimal retailVAT, String idWare, BigDecimal priceWare, BigDecimal wareVAT, String idWriteOffRate,
+                BigDecimal retailVAT, String idWare, BigDecimal priceWare, BigDecimal vatWare, String idWriteOffRate,
                 BigDecimal baseMarkup, BigDecimal retailMarkup, String idBarcodePack, BigDecimal amountPack,
-                String idManufacturer, String nameManufacturer, String codeCustomsGroup, String codeCustomsZone) {
+                String idManufacturer, String nameManufacturer, String codeCustomsGroup, String nameCustomsZone) {
         this.idItem = idItem;
-        this.itemGroupId = itemGroupId;
-        this.nameItem = nameItem;
+        this.idItemGroup = idItemGroup;
+        this.captionItem = captionItem;
         this.nameUOM = nameUOM;
         this.shortNameUOM = shortNameUOM;
         this.idUOM = idUOM;
-        this.brandName = brandName;
+        this.nameBrand = nameBrand;
         this.idBrand = idBrand;
-        this.country = country;
-        this.barcode = barcode;
+        this.nameCountry = nameCountry;
         this.idBarcode = idBarcode;
+        this.extIdBarcode = extIdBarcode;
         this.date = date;
         this.isWeightItem = isWeightItem;
         this.netWeightItem = netWeightItem;
@@ -60,7 +60,7 @@ public class Item {
         this.retailVAT = retailVAT;
         this.idWare = idWare;
         this.priceWare = priceWare;
-        this.wareVAT = wareVAT;
+        this.vatWare = vatWare;
         this.idWriteOffRate = idWriteOffRate;
         this.baseMarkup = baseMarkup;
         this.retailMarkup = retailMarkup;
@@ -69,6 +69,6 @@ public class Item {
         this.idManufacturer = idManufacturer;
         this.nameManufacturer = nameManufacturer;
         this.codeCustomsGroup = codeCustomsGroup;
-        this.codeCustomsZone = codeCustomsZone;
+        this.nameCustomsZone = nameCustomsZone;
     }
 }
