@@ -80,11 +80,36 @@ DESIGN sizes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @defineObjectItemAttributeBatch (size, nameSize, 'Размер');
 //@implementObjectShortItemAttribute(size, 'Размер (сокр.)');
 
+// Рост
+CLASS SizeHeight 'Рост товара';
+TABLE sizeHeight (SizeHeight);
+
+nameSizeHeight 'Рост' = DATA ISTRING[50](SizeHeight);
+
+FORM sizeHeight 'Рост товара'
+    OBJECTS t=SizeHeight FIXED PANEL
+    PROPERTIES(t) nameSizeHeight
+    EDIT SizeHeight OBJECT t
+;
+
+FORM sizeHeights 'Роста товара'
+    OBJECTS t=SizeHeight
+    PROPERTIES(t) nameSizeHeight READONLY, DELETE
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameSizeHeight
+    DIALOG SizeHeight OBJECT t
+;
+DESIGN sizeHeights FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+@defineObjectItemAttribute(sizeHeight, SizeHeight, nameSizeHeight, 'Рост', itemArticleGroup);
+@defineObjectItemAttributeBatch (sizeHeight, nameSizeHeight, 'Рост');
+
 
 overCopyItem(s, d) += ACTION (s, d) {
     ASSIGN articleItem(d) <- articleItem(s);
     ASSIGN colorItem(d) <- colorItem(s);
     ASSIGN sizeItem(d) <- sizeItem(s);
+    ASSIGN sizeHeightItem(d) <- sizeHeightItem(s);
 }
 
 EXTEND DESIGN item { itemPrimaryColumn2 { ADD i.itemArticleGroup; } }
