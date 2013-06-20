@@ -19,7 +19,7 @@ numberContractPaymentDocument 'Номер договора' (paymentDocument) = 
 dateContractPaymentDocument 'Дата договора' (paymentDocument) = ABSTRACT DATE (PaymentDocument);
 
 
-isAcceptancePaymentDocument 'С акцептом' =  ABSTRACT BOOLEAN (PaymentDocument);
+notAcceptancePaymentDocument 'Без акцепта' =  ABSTRACT BOOLEAN (PaymentDocument);
 
 currencyPaymentDocument =  ABSTRACT Currency (PaymentDocument);
 nameCurrencyPaymentDocument 'Валюта' (document) = nameCurrency(currencyPaymentDocument(document));
@@ -121,7 +121,7 @@ META definePaymentDocumentForm(form, caption)
     FORM form caption PRINT
         OBJECTS c=PaymentDocument FIXED PANEL
 
-        PROPERTIES (c) datePaymentDocument, numberPaymentDocument, isAcceptancePaymentDocument, nameCurrencyPaymentDocument,
+        PROPERTIES (c) datePaymentDocument, numberPaymentDocument, notAcceptancePaymentDocument, nameCurrencyPaymentDocument,
                        sidCurrencyPaymentDocument, shortNameCurrencyPaymentDocument, sumPaymentDocument, numberContractPaymentDocument, dateContractPaymentDocument,
                        numberAccountPayerPaymentDocument, nameBankAccountPayerPaymentDocument, addressBankAccountPayerPaymentDocument,
                        MFOBankAccountPayerPaymentDocument, departmentBankAccountPayerPaymentDocument, CBUBankAccountPayerPaymentDocument,
@@ -144,14 +144,15 @@ END
 
 // ---------------------------- Формы для платежек (список на дату)--------------------------------- //
 
+reportFilePrintPaymentDocumentD () = 'Payment_paymentRequestDocument_c.jrxml';
+
 META definePaymentDocumentFormDate(form, caption)
-    reportFilePrintPaymentDocumentD () = 'Payment_paymentRequestDocument_c.jrxml';
     FORM form caption PRINT
         OBJECTS d=DATE REPORTFILE reportFilePrintPaymentDocumentD() FIXED PANEL
         PROPERTIES(d)  OBJVALUE
 
         OBJECTS c=PaymentDocument
-        PROPERTIES (c) datePaymentDocument, numberPaymentDocument, isAcceptancePaymentDocument, nameCurrencyPaymentDocument,
+        PROPERTIES (c) datePaymentDocument, numberPaymentDocument, notAcceptancePaymentDocument, nameCurrencyPaymentDocument,
                        sidCurrencyPaymentDocument, shortNameCurrencyPaymentDocument, sumPaymentDocument, numberContractPaymentDocument, dateContractPaymentDocument,
                        numberAccountPayerPaymentDocument, nameBankAccountPayerPaymentDocument, addressBankAccountPayerPaymentDocument,
                        MFOBankAccountPayerPaymentDocument, departmentBankAccountPayerPaymentDocument, CBUBankAccountPayerPaymentDocument,
@@ -183,7 +184,7 @@ META definePaymentDocumentInner (object, class)
 
     text###object 'Назначение платежа' = DATA TEXT(class);
 
-    isAcceptance###object 'С акцептом' =  DATA BOOLEAN (class);
+    notAcceptance###object 'Без акцепта' =  DATA BOOLEAN (class);
 
     filePayment###object =  DATA FilePayment (class);
     nameFilePayment###object 'Очередь' (object) = nameFilePayment(filePayment###object(object)) IN documentPrmGroup;
@@ -203,7 +204,7 @@ META implementPaymentDocumentInner (concrete, class)
     accountPayerPaymentDocument (document) += accountLegalEntity(payer###concrete(document));
     accountBeneficiariesPaymentDocument (document) += Bank.accountLegalEntity(lender###concrete(document));
 
-    isAcceptancePaymentDocument (document) += isAcceptance###concrete(document);
+    notAcceptancePaymentDocument (document) += notAcceptance###concrete(document);
     currencyPaymentDocument (document) += currencyContract(contract###concrete(document));
     sumPaymentDocument (document) += sum###concrete(document);
     textPaymentDocument (document) += text###concrete(document);
@@ -212,11 +213,11 @@ META implementPaymentDocumentInner (concrete, class)
 END
 META extendFormPaymentDocument (form, concrete, object, container)
     EXTEND FORM  form
-        PROPERTIES(concrete) isAcceptance###object, nameFilePayment###object, text###object;
+        PROPERTIES(concrete) notAcceptance###object, nameFilePayment###object, text###object;
 
     EXTEND DESIGN  form {
         container{
-            ADD PROPERTY(isAcceptance###object);
+            ADD PROPERTY(notAcceptance###object);
             ADD PROPERTY(nameFilePayment###object);
         }
         NEW text AFTER container {
