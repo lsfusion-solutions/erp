@@ -5,24 +5,10 @@ REQUIRE System,
         Stock,
         Utils,
         Bank,
-        Numerator; // вот эту зависимость нужно будет убрать
-
+        Numerator;
 NAMESPACE Payment;
 
-//CLASS Acceptance 'Акцепт' {
-//    preliminary 'Предварительный акцепт',
-//    subsequent 'Последующий акцепт',
-//    noAcceptance 'Без акцепта'
-//};
-//TABLE acceptance (Acceptance);
-//
-//FORM acceptances 'Акцепты'
-//    OBJECTS t=Acceptance
-//    PROPERTIES(t) iname = staticCaption READONLY
-//    ORDER BY iname
-//    DIALOG Acceptance OBJECT t
-//;
-//DESIGN acceptances FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
 
 CLASS ABSTRACT PaymentDocument 'Платежный документ';
 
@@ -32,9 +18,7 @@ numberPaymentDocument 'Номер' (paymentDocument) = ABSTRACT STRING[20] (Paym
 numberContractPaymentDocument 'Номер договора' (paymentDocument) = ABSTRACT STRING[20] (PaymentDocument);
 dateContractPaymentDocument 'Дата договора' (paymentDocument) = ABSTRACT DATE (PaymentDocument);
 
-//acceptancePaymentDocument =  ABSTRACT Acceptance (PaymentDocument);
-//nameAcceptancePaymentDocument 'Вид Акцепта' (document) = staticCaption(acceptancePaymentDocument(document));
-//captionAcceptancePaymentDocument 'sid' (document) = staticName(acceptancePaymentDocument(document));
+
 isAcceptancePaymentDocument 'С акцептом' =  ABSTRACT BOOLEAN (PaymentDocument);
 
 currencyPaymentDocument =  ABSTRACT Currency (PaymentDocument);
@@ -149,7 +133,7 @@ META definePaymentDocumentForm(form, caption)
                        MFOBankAccountCorrespondentPaymentDocument, departmentBankAccountCorrespondentPaymentDocument, CBUBankAccountCorrespondentPaymentDocument,
                        UNPCorrespondentPaymentDocument, addressCorrespondentPaymentDocument, nameCorrespondentPaymentDocument,
                        textPaymentDocument, nameFilePaymentPaymentDocument,
-                       fullNameBankAccountPayerPaymentDocument, fullNameBankAccountBeneficiariesPaymentDocument
+                       fullNameBankAccountPayerPaymentDocument, fullNameBankAccountBeneficiariesPaymentDocument, fullNameBankAccountCorrespondentPaymentDocument
 
     ;
     print###form caption (paymentDocument) = ACTION FORM form OBJECTS c = paymentDocument IMAGE 'print.png' IN printGroup;
@@ -158,17 +142,37 @@ END
 @definePaymentDocumentForm(paymentRequestDocument , 'Платежное требование');
 @definePaymentDocumentForm(paymentOrderDocument, 'Платежное поручение');
 
-//EXTEND CLASS PaymentRequest : PaymentDocument;
-//sumPaymentDocument (document) += sumPaymentRequest(document);
-//
-//EXTEND FORM  paymentRequests {
-//    PROPERTIES(pr) printPaymentRequestDocument, printPaymentOrderDocument;
-//}
+// ---------------------------- Формы для платежек (список на дату)--------------------------------- //
 
+META definePaymentDocumentFormDate(form, caption)
+    FORM form caption PRINT
+        OBJECTS d=DATE FIXED PANEL
+        PROPERTIES(d)  OBJVALUE
+
+        OBJECTS c=PaymentDocument
+        PROPERTIES (c) datePaymentDocument, numberPaymentDocument, isAcceptancePaymentDocument, nameCurrencyPaymentDocument,
+                       sidCurrencyPaymentDocument, shortNameCurrencyPaymentDocument, sumPaymentDocument, numberContractPaymentDocument, dateContractPaymentDocument,
+                       numberAccountPayerPaymentDocument, nameBankAccountPayerPaymentDocument, addressBankAccountPayerPaymentDocument,
+                       MFOBankAccountPayerPaymentDocument, departmentBankAccountPayerPaymentDocument, CBUBankAccountPayerPaymentDocument,
+                       UNPPayerPaymentDocument, addressPayerPaymentDocument, namePayerPaymentDocument,
+                       numberAccountBeneficiariesPaymentDocument, nameBankAccountBeneficiariesPaymentDocument, addressBankAccountBeneficiariesPaymentDocument,
+                       MFOBankAccountBeneficiariesPaymentDocument, departmentBankAccountBeneficiariesPaymentDocument, CBUBankAccountBeneficiariesPaymentDocument,
+                       UNPBeneficiariesPaymentDocument, addressBeneficiariesPaymentDocument, nameBeneficiariesPaymentDocument,
+                       numberAccountCorrespondentPaymentDocument, nameBankAccountCorrespondentPaymentDocument, addressBankAccountCorrespondentPaymentDocument,
+                       MFOBankAccountCorrespondentPaymentDocument, departmentBankAccountCorrespondentPaymentDocument, CBUBankAccountCorrespondentPaymentDocument,
+                       UNPCorrespondentPaymentDocument, addressCorrespondentPaymentDocument, nameCorrespondentPaymentDocument,
+                       textPaymentDocument, nameFilePaymentPaymentDocument,
+                       fullNameBankAccountPayerPaymentDocument, fullNameBankAccountBeneficiariesPaymentDocument, fullNameBankAccountCorrespondentPaymentDocument
+        FILTERS  datePaymentDocument(c)==d
+
+    ;
+    print###form caption (date) = ACTION FORM form OBJECTS d = date IMAGE 'print.png' IN printGroup;
+END
+
+@definePaymentDocumentFormDate(paymentRequestDocumentDate , 'Список платежных требований');
 
 // ----------------- Implement Платежки --------------- //
 
-GROUP printPaymentGroup 'Для печати' : base;
 
 META definePaymentDocument (object)
     @definePaymentDocumentInner (object, ###object);
@@ -176,12 +180,12 @@ END
 
 META definePaymentDocumentInner (object, class)
 
-    text###object 'Назначение платежа' = DATA TEXT(class) IN printPaymentGroup;
+    text###object 'Назначение платежа' = DATA TEXT(class);
 
-    isAcceptance###object =  DATA BOOLEAN (class) IN printPaymentGroup;
+    isAcceptance###object 'С акцептом' =  DATA BOOLEAN (class);
 
     filePayment###object =  DATA FilePayment (class);
-    nameFilePayment###object 'Очередь' (object) = nameFilePayment(filePayment###object(object)) IN printPaymentGroup;
+    nameFilePayment###object 'Очередь' (object) = nameFilePayment(filePayment###object(object)) IN documentPrmGroup;
 END
 
 META implementPaymentDocument (concrete)
@@ -211,7 +215,13 @@ META extendFormPaymentDocument (form, concrete, object, container)
 
     EXTEND DESIGN  form {
         container{
-            ADD concrete.printPaymentGroup;
+            ADD PROPERTY(isAcceptance###object);
+            ADD PROPERTY(nameFilePayment###object);
+        }
+        NEW text AFTER container {
+            ADD PROPERTY(text###object) {
+                fillHorizontal = 1;
+            }
         }
     }
 END
