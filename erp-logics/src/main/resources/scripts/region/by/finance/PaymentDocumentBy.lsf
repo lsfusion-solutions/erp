@@ -9,20 +9,20 @@ REQUIRE System,
 
 NAMESPACE Payment;
 
-CLASS Acceptance 'Акцепт' {
-    preliminary 'Предварительный акцепт',
-    subsequent 'Последующий акцепт',
-    noAcceptance 'Без акцепта'
-};
-TABLE acceptance (Acceptance);
-
-FORM acceptances 'Акцепты'
-    OBJECTS t=Acceptance
-    PROPERTIES(t) iname = staticCaption READONLY
-    ORDER BY iname
-    DIALOG Acceptance OBJECT t
-;
-DESIGN acceptances FROM DEFAULT { main{ preferredSize = (600, 400); } }
+//CLASS Acceptance 'Акцепт' {
+//    preliminary 'Предварительный акцепт',
+//    subsequent 'Последующий акцепт',
+//    noAcceptance 'Без акцепта'
+//};
+//TABLE acceptance (Acceptance);
+//
+//FORM acceptances 'Акцепты'
+//    OBJECTS t=Acceptance
+//    PROPERTIES(t) iname = staticCaption READONLY
+//    ORDER BY iname
+//    DIALOG Acceptance OBJECT t
+//;
+//DESIGN acceptances FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 CLASS ABSTRACT PaymentDocument 'Платежный документ';
 
@@ -32,17 +32,15 @@ numberPaymentDocument 'Номер' (paymentDocument) = ABSTRACT STRING[20] (Paym
 numberContractPaymentDocument 'Номер договора' (paymentDocument) = ABSTRACT STRING[20] (PaymentDocument);
 dateContractPaymentDocument 'Дата договора' (paymentDocument) = ABSTRACT DATE (PaymentDocument);
 
-acceptancePaymentDocument =  ABSTRACT Acceptance (PaymentDocument);
-nameAcceptancePaymentDocument 'Вид Акцепта' (document) = staticCaption(acceptancePaymentDocument(document));
-captionAcceptancePaymentDocument 'sid' (document) = staticName(acceptancePaymentDocument(document));
-
-//isPreliminaryPaymentDocument (document) = acceptancePaymentDocument(document) == Acceptance.preliminary;
-//isSubsequentPaymentDocument (document) = acceptancePaymentDocument(document) == Acceptance.subsequent;
-//noAcceptancePaymentDocument (document) = acceptancePaymentDocument(document) == Acceptance.noAcceptance;
+//acceptancePaymentDocument =  ABSTRACT Acceptance (PaymentDocument);
+//nameAcceptancePaymentDocument 'Вид Акцепта' (document) = staticCaption(acceptancePaymentDocument(document));
+//captionAcceptancePaymentDocument 'sid' (document) = staticName(acceptancePaymentDocument(document));
+isAcceptancePaymentDocument 'С акцептом' =  ABSTRACT BOOLEAN (PaymentDocument);
 
 currencyPaymentDocument =  ABSTRACT Currency (PaymentDocument);
 nameCurrencyPaymentDocument 'Валюта' (document) = nameCurrency(currencyPaymentDocument(document));
 sidCurrencyPaymentDocument 'Код валюты' (document) = sidCurrency(currencyPaymentDocument(document));
+shortNameCurrencyPaymentDocument 'Валюта сокр.' (document) = shortNameCurrency(currencyPaymentDocument(document));
 
 sumPaymentDocument 'Сумма' = ABSTRACT NUMERIC[16,2] (PaymentDocument);
 
@@ -95,6 +93,10 @@ addressBankAccountCorrespondentPaymentDocument 'Адрес банка корре
 MFOBankAccountCorrespondentPaymentDocument 'Код МФО банка корреспондента' (document) = MFOBankAccount(accountCorrespondentPaymentDocument(document)) IN accountGroup;
 departmentBankAccountCorrespondentPaymentDocument 'Отдел банка корреспондента' (document) = departmentBankAccount(accountCorrespondentPaymentDocument(document)) IN accountGroup;
 CBUBankAccountCorrespondentPaymentDocument 'ЦБУ банка корреспондента' (document) = CBUBankAccount(accountCorrespondentPaymentDocument(document)) IN accountGroup;
+fullNameBankAccountCorrespondentPaymentDocument= toString255(CONCAT ', ', nameBankAccountCorrespondentPaymentDocument(document),
+                                                                          addressBankAccountCorrespondentPaymentDocument(document),
+                                                                          departmentBankAccountCorrespondentPaymentDocument(document),
+                                                                          CBUBankAccountCorrespondentPaymentDocument(document));
 
 correspondentPaymentDocument (document)= Bank.legalEntityAccount (accountCorrespondentPaymentDocument(document));
 UNPCorrespondentPaymentDocument 'УНП корреспондента' (document) = UNPLegalEntity(correspondentPaymentDocument(document));
@@ -135,8 +137,8 @@ META definePaymentDocumentForm(form, caption)
     FORM form caption PRINT
         OBJECTS c=PaymentDocument FIXED PANEL
 
-        PROPERTIES (c) datePaymentDocument, numberPaymentDocument, acceptancePaymentDocument, nameAcceptancePaymentDocument, nameCurrencyPaymentDocument,
-                       sidCurrencyPaymentDocument, sumPaymentDocument, numberContractPaymentDocument, dateContractPaymentDocument,
+        PROPERTIES (c) datePaymentDocument, numberPaymentDocument, isAcceptancePaymentDocument, nameCurrencyPaymentDocument,
+                       sidCurrencyPaymentDocument, shortNameCurrencyPaymentDocument, sumPaymentDocument, numberContractPaymentDocument, dateContractPaymentDocument,
                        numberAccountPayerPaymentDocument, nameBankAccountPayerPaymentDocument, addressBankAccountPayerPaymentDocument,
                        MFOBankAccountPayerPaymentDocument, departmentBankAccountPayerPaymentDocument, CBUBankAccountPayerPaymentDocument,
                        UNPPayerPaymentDocument, addressPayerPaymentDocument, namePayerPaymentDocument,
@@ -176,8 +178,7 @@ META definePaymentDocumentInner (object, class)
 
     text###object 'Назначение платежа' = DATA TEXT(class) IN printPaymentGroup;
 
-    acceptance###object =  DATA Acceptance (class);
-    nameAcceptance###object 'Вид Акцепта' (object) = staticCaption(acceptance###object(object)) IN printPaymentGroup;
+    isAcceptance###object =  DATA BOOLEAN (class) IN printPaymentGroup;
 
     filePayment###object =  DATA FilePayment (class);
     nameFilePayment###object 'Очередь' (object) = nameFilePayment(filePayment###object(object)) IN printPaymentGroup;
@@ -197,7 +198,7 @@ META implementPaymentDocumentInner (concrete, class)
     accountPayerPaymentDocument (document) += accountLegalEntity(payer###concrete(document));
     accountBeneficiariesPaymentDocument (document) += Bank.accountLegalEntity(lender###concrete(document));
 
-    acceptancePaymentDocument (document) += acceptance###concrete(document);
+    isAcceptancePaymentDocument (document) += isAcceptance###concrete(document);
     currencyPaymentDocument (document) += currencyContract(contract###concrete(document));
     sumPaymentDocument (document) += sum###concrete(document);
     textPaymentDocument (document) += text###concrete(document);
@@ -206,7 +207,7 @@ META implementPaymentDocumentInner (concrete, class)
 END
 META extendFormPaymentDocument (form, concrete, object, container)
     EXTEND FORM  form
-        PROPERTIES(concrete) nameAcceptance###object, nameFilePayment###object, text###object;
+        PROPERTIES(concrete) isAcceptance###object, nameFilePayment###object, text###object;
 
     EXTEND DESIGN  form {
         container{
