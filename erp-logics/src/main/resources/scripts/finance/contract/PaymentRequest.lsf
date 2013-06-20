@@ -2,6 +2,8 @@ MODULE PaymentRequest;
 
 REQUIRE ContractLedger;
 
+NAMESPACE PaymentRequest;
+
 CLASS PaymentRequest 'Платежное требование' : NumeratedObject;
 CLASS PaymentRequestPosted 'Проведенное платежное требование' : PaymentRequest, PostedObject;
 TABLE paymentRequest(PaymentRequest);
@@ -17,6 +19,7 @@ dateTimePaymentRequest 'Дата время' (paymentRequest) = dateTimeToDateTi
 
 contractPaymentRequest 'Контракт' (paymentRequest) = DATA Contract (PaymentRequest) AUTOSET;
 seriesNumberContractPaymentRequest 'Номер контракта' (paymentRequest) = seriesNumberContract(contractPaymentRequest(paymentRequest));
+dateContractPaymentRequest 'Дата контракта' (paymentRequest)= dateFromContract(contractPaymentRequest(paymentRequest));
 
 notePaymentRequest 'Примечание' (paymentRequest) = DATA STRING[200] (PaymentRequest);
 
@@ -186,7 +189,7 @@ EXTEND DESIGN contractLedger {
 createPaymentRequests 'Выставить платежные требования' = ACTION (date) {
     LOCAL count = INTEGER();
     count() <- 0;
-    FOR toRequestContractDate(contract, date) > 0 AND (partyAContract(contract) == partyA() OR (isCompanyLegalEntity(partyAContract(contract)) AND NOT partyA()))
+    FOR toRequestContractDate(contract, date AS DATE) > 0 AND (partyAContract(contract) == partyA() OR (isCompanyLegalEntity(partyAContract(contract)) AND NOT partyA()))
                                                   AND (partyBContract(contract) == partyB() OR NOT partyB())
         ADDOBJ pr = PaymentRequestPosted DO {
         datePaymentRequest(pr) <- date;

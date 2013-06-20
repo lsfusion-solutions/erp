@@ -1,0 +1,218 @@
+MODULE PaymentDocumentBy;
+
+REQUIRE System,
+        LegalEntityBy,
+        Stock,
+        Utils,
+        Bank,
+        Numerator; // вот эту зависимость нужно будет убрать
+
+NAMESPACE Payment;
+
+CLASS Acceptance 'Акцепт' {
+    preliminary 'Предварительный акцепт',
+    subsequent 'Последующий акцепт',
+    noAcceptance 'Без акцепта'
+};
+TABLE acceptance (Acceptance);
+
+FORM acceptances 'Акцепты'
+    OBJECTS t=Acceptance
+    PROPERTIES(t) iname = staticCaption READONLY
+    ORDER BY iname
+    DIALOG Acceptance OBJECT t
+;
+DESIGN acceptances FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+CLASS ABSTRACT PaymentDocument 'Платежный документ';
+
+datePaymentDocument 'Дата' (paymentDocument) = ABSTRACT DATE (PaymentDocument);
+numberPaymentDocument 'Номер' (paymentDocument) = ABSTRACT STRING[20] (PaymentDocument);
+
+numberContractPaymentDocument 'Номер договора' (paymentDocument) = ABSTRACT STRING[20] (PaymentDocument);
+dateContractPaymentDocument 'Дата договора' (paymentDocument) = ABSTRACT DATE (PaymentDocument);
+
+acceptancePaymentDocument =  ABSTRACT Acceptance (PaymentDocument);
+nameAcceptancePaymentDocument 'Вид Акцепта' (document) = staticCaption(acceptancePaymentDocument(document));
+captionAcceptancePaymentDocument 'sid' (document) = staticName(acceptancePaymentDocument(document));
+
+//isPreliminaryPaymentDocument (document) = acceptancePaymentDocument(document) == Acceptance.preliminary;
+//isSubsequentPaymentDocument (document) = acceptancePaymentDocument(document) == Acceptance.subsequent;
+//noAcceptancePaymentDocument (document) = acceptancePaymentDocument(document) == Acceptance.noAcceptance;
+
+currencyPaymentDocument =  ABSTRACT Currency (PaymentDocument);
+nameCurrencyPaymentDocument 'Валюта' (document) = nameCurrency(currencyPaymentDocument(document));
+sidCurrencyPaymentDocument 'Код валюты' (document) = sidCurrency(currencyPaymentDocument(document));
+
+sumPaymentDocument 'Сумма' = ABSTRACT NUMERIC[16,2] (PaymentDocument);
+
+// ---------------------------------- Плательщик ---------------------------- //
+
+accountPayerPaymentDocument= ABSTRACT Bank.Account(PaymentDocument);
+numberAccountPayerPaymentDocument 'р/сч плательщика' (document)= Bank.numberAccount(accountPayerPaymentDocument(document));
+nameBankAccountPayerPaymentDocument 'Наименование банка плательщика' (document) = nameBankAccount(accountPayerPaymentDocument(document)) IN accountGroup;
+addressBankAccountPayerPaymentDocument 'Адрес банка плательщика' (document) = addressBankAccount(accountPayerPaymentDocument(document)) IN accountGroup;
+MFOBankAccountPayerPaymentDocument 'Код МФО банка плательщика' (document) = MFOBankAccount(accountPayerPaymentDocument(document)) IN accountGroup;
+departmentBankAccountPayerPaymentDocument 'Отдел банка плательщика' (document) = departmentBankAccount(accountPayerPaymentDocument(document)) IN accountGroup;
+CBUBankAccountPayerPaymentDocument 'ЦБУ банка плательщика' (document) = CBUBankAccount(accountPayerPaymentDocument(document)) IN accountGroup;
+fullNameBankAccountPayerPaymentDocument= toString255(CONCAT ', ', nameBankAccountPayerPaymentDocument(document),
+                                                                  addressBankAccountPayerPaymentDocument(document),
+                                                                  departmentBankAccountPayerPaymentDocument(document),
+                                                                  CBUBankAccountPayerPaymentDocument(document));
+
+payerPaymentDocument (document) = Bank.legalEntityAccount (accountPayerPaymentDocument(document));
+UNPPayerPaymentDocument 'УНП плательщика' (document) = UNPLegalEntity(payerPaymentDocument(document));
+addressPayerPaymentDocument 'Юридический адрес плательщика' (document) =
+    addressLegalEntityDate(payerPaymentDocument(document), datePaymentDocument(document)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+namePayerPaymentDocument 'Полное наименование плательщика' (document) = nameLegalEntity(payerPaymentDocument(document)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+
+// ---------------------------------- Бенифициар ---------------------------- //
+
+accountBeneficiariesPaymentDocument= ABSTRACT Bank.Account(PaymentDocument);
+numberAccountBeneficiariesPaymentDocument 'р/сч бенефициара' (document)= Bank.numberAccount(accountBeneficiariesPaymentDocument(document));
+nameBankAccountBeneficiariesPaymentDocument 'Наименование банка бенефициара' (document) = nameBankAccount(accountBeneficiariesPaymentDocument(document)) IN accountGroup;
+addressBankAccountBeneficiariesPaymentDocument 'Адрес банка бенефициара' (document) = addressBankAccount(accountBeneficiariesPaymentDocument(document)) IN accountGroup;
+MFOBankAccountBeneficiariesPaymentDocument 'Код МФО банка бенефициара' (document) = MFOBankAccount(accountBeneficiariesPaymentDocument(document)) IN accountGroup;
+departmentBankAccountBeneficiariesPaymentDocument 'Отдел банка бенефициара' (document) = departmentBankAccount(accountBeneficiariesPaymentDocument(document)) IN accountGroup;
+CBUBankAccountBeneficiariesPaymentDocument 'ЦБУ банка бенефициара' (document) = CBUBankAccount(accountBeneficiariesPaymentDocument(document)) IN accountGroup;
+
+fullNameBankAccountBeneficiariesPaymentDocument= toString255(CONCAT ', ', nameBankAccountBeneficiariesPaymentDocument(document),
+                                                                          addressBankAccountBeneficiariesPaymentDocument(document),
+                                                                          departmentBankAccountBeneficiariesPaymentDocument(document),
+                                                                          CBUBankAccountBeneficiariesPaymentDocument(document));
+
+beneficiariesPaymentDocument (document)= Bank.legalEntityAccount (accountBeneficiariesPaymentDocument(document));
+UNPBeneficiariesPaymentDocument 'УНП бенефициара' (document) = UNPLegalEntity(beneficiariesPaymentDocument(document));
+addressBeneficiariesPaymentDocument 'Юридический адрес бенефициара' (document) =
+    addressLegalEntityDate(beneficiariesPaymentDocument(document), datePaymentDocument(document)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+nameBeneficiariesPaymentDocument 'Наименование бенефициара' (document) = nameLegalEntity(beneficiariesPaymentDocument(document)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+
+// ---------------------------------- Корреспондент ---------------------------- //
+accountCorrespondentPaymentDocument= ABSTRACT Bank.Account(PaymentDocument);
+numberAccountCorrespondentPaymentDocument 'р/сч корреспондента' (document)= Bank.numberAccount(accountCorrespondentPaymentDocument(document));
+nameBankAccountCorrespondentPaymentDocument 'Наименование банка корреспондента' (document) = nameBankAccount(accountCorrespondentPaymentDocument(document)) IN accountGroup;
+addressBankAccountCorrespondentPaymentDocument 'Адрес банка корреспондента' (document) = addressBankAccount(accountCorrespondentPaymentDocument(document)) IN accountGroup;
+MFOBankAccountCorrespondentPaymentDocument 'Код МФО банка корреспондента' (document) = MFOBankAccount(accountCorrespondentPaymentDocument(document)) IN accountGroup;
+departmentBankAccountCorrespondentPaymentDocument 'Отдел банка корреспондента' (document) = departmentBankAccount(accountCorrespondentPaymentDocument(document)) IN accountGroup;
+CBUBankAccountCorrespondentPaymentDocument 'ЦБУ банка корреспондента' (document) = CBUBankAccount(accountCorrespondentPaymentDocument(document)) IN accountGroup;
+
+correspondentPaymentDocument (document)= Bank.legalEntityAccount (accountCorrespondentPaymentDocument(document));
+UNPCorrespondentPaymentDocument 'УНП корреспондента' (document) = UNPLegalEntity(correspondentPaymentDocument(document));
+addressCorrespondentPaymentDocument 'Юридический адрес корреспондента' (document) =
+    addressLegalEntityDate(correspondentPaymentDocument(document), datePaymentDocument(document)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+nameCorrespondentPaymentDocument 'Наименование корреспондента' (document) = nameLegalEntity(correspondentPaymentDocument(document)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+
+textPaymentDocument 'Назначение платежа' = ABSTRACT TEXT(PaymentDocument);
+
+// ------------------------------------- Очередь --------------------------------- //
+
+CLASS FilePayment 'Очередь';
+TABLE filePayment (FilePayment);
+
+nameFilePayment 'Наименование' = DATA STRING[20](FilePayment) IN base;
+
+FORM filePayment 'Очередь'
+    OBJECTS t=FilePayment FIXED PANEL
+    PROPERTIES(t) nameFilePayment
+    EDIT FilePayment OBJECT t
+;
+
+FORM filePayments 'Очередь'
+    OBJECTS t=FilePayment
+    PROPERTIES(t) nameFilePayment READONLY, DELETE
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameFilePayment
+    DIALOG FilePayment OBJECT t
+;
+DESIGN filePayments FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+filePaymentPaymentDocument =  ABSTRACT FilePayment (PaymentDocument);
+nameFilePaymentPaymentDocument 'Очередь' (document) = nameFilePayment(filePaymentPaymentDocument(document));
+
+// ---------------------------- Формы для платежек --------------------------------- //
+
+META definePaymentDocumentForm(form, caption)
+    FORM form caption PRINT
+        OBJECTS c=PaymentDocument FIXED PANEL
+
+        PROPERTIES (c) datePaymentDocument, numberPaymentDocument, acceptancePaymentDocument, nameAcceptancePaymentDocument, nameCurrencyPaymentDocument,
+                       sidCurrencyPaymentDocument, sumPaymentDocument, numberContractPaymentDocument, dateContractPaymentDocument,
+                       numberAccountPayerPaymentDocument, nameBankAccountPayerPaymentDocument, addressBankAccountPayerPaymentDocument,
+                       MFOBankAccountPayerPaymentDocument, departmentBankAccountPayerPaymentDocument, CBUBankAccountPayerPaymentDocument,
+                       UNPPayerPaymentDocument, addressPayerPaymentDocument, namePayerPaymentDocument,
+                       numberAccountBeneficiariesPaymentDocument, nameBankAccountBeneficiariesPaymentDocument, addressBankAccountBeneficiariesPaymentDocument,
+                       MFOBankAccountBeneficiariesPaymentDocument, departmentBankAccountBeneficiariesPaymentDocument, CBUBankAccountBeneficiariesPaymentDocument,
+                       UNPBeneficiariesPaymentDocument, addressBeneficiariesPaymentDocument, nameBeneficiariesPaymentDocument,
+                       numberAccountCorrespondentPaymentDocument, nameBankAccountCorrespondentPaymentDocument, addressBankAccountCorrespondentPaymentDocument,
+                       MFOBankAccountCorrespondentPaymentDocument, departmentBankAccountCorrespondentPaymentDocument, CBUBankAccountCorrespondentPaymentDocument,
+                       UNPCorrespondentPaymentDocument, addressCorrespondentPaymentDocument, nameCorrespondentPaymentDocument,
+                       textPaymentDocument, nameFilePaymentPaymentDocument,
+                       fullNameBankAccountPayerPaymentDocument, fullNameBankAccountBeneficiariesPaymentDocument
+
+    ;
+    print###form caption (paymentDocument) = ACTION FORM form OBJECTS c = paymentDocument IMAGE 'print.png' IN printGroup;
+END
+
+@definePaymentDocumentForm(paymentRequestDocument , 'Платежное требование');
+@definePaymentDocumentForm(paymentOrderDocument, 'Платежное поручение');
+
+//EXTEND CLASS PaymentRequest : PaymentDocument;
+//sumPaymentDocument (document) += sumPaymentRequest(document);
+//
+//EXTEND FORM  paymentRequests {
+//    PROPERTIES(pr) printPaymentRequestDocument, printPaymentOrderDocument;
+//}
+
+
+// ----------------- Implement Платежки --------------- //
+
+GROUP printPaymentGroup 'Для печати' : base;
+
+META definePaymentDocument (object)
+    @definePaymentDocumentInner (object, ###object);
+END
+
+META definePaymentDocumentInner (object, class)
+
+    text###object 'Назначение платежа' = DATA TEXT(class) IN printPaymentGroup;
+
+    acceptance###object =  DATA Acceptance (class);
+    nameAcceptance###object 'Вид Акцепта' (object) = staticCaption(acceptance###object(object)) IN printPaymentGroup;
+
+    filePayment###object =  DATA FilePayment (class);
+    nameFilePayment###object 'Очередь' (object) = nameFilePayment(filePayment###object(object)) IN printPaymentGroup;
+END
+
+META implementPaymentDocument (concrete)
+    @implementPaymentDocumentInner (concrete, ###concrete);
+END
+META implementPaymentDocumentInner (concrete, class)
+    EXTEND CLASS class : PaymentDocument;
+
+    datePaymentDocument (document) += date###concrete(document);
+    numberPaymentDocument (document) += numberObject(document) IF document IS class;
+    numberContractPaymentDocument (document) += seriesNumberContract###concrete(document);
+    dateContractPaymentDocument (document) += dateContract###concrete(document);
+
+    accountPayerPaymentDocument (document) += accountLegalEntity(payer###concrete(document));
+    accountBeneficiariesPaymentDocument (document) += Bank.accountLegalEntity(lender###concrete(document));
+
+    acceptancePaymentDocument (document) += acceptance###concrete(document);
+    currencyPaymentDocument (document) += currencyContract(contract###concrete(document));
+    sumPaymentDocument (document) += sum###concrete(document);
+    textPaymentDocument (document) += text###concrete(document);
+    filePaymentPaymentDocument (document) += filePayment###concrete(document);
+
+END
+META extendFormPaymentDocument (form, concrete, object, container)
+    EXTEND FORM  form
+        PROPERTIES(concrete) nameAcceptance###object, nameFilePayment###object, text###object;
+
+    EXTEND DESIGN  form {
+        container{
+            ADD concrete.printPaymentGroup;
+        }
+    }
+END
+
+
