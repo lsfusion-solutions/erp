@@ -216,7 +216,7 @@ public class ImportActionProperty {
                 int amountOfImportIterations = (int) Math.ceil((double) itemsList.size() / numAtATime);
                 Integer rest = itemsList.size();
                 for (int i = 0; i < amountOfImportIterations; i++) {
-                    importPackOfItems(itemsList, i * numAtATime, rest > numAtATime ? numAtATime : rest, skipKeys);
+                    importPackOfItems(itemsList.subList(i * numAtATime, i * numAtATime +  (rest > numAtATime ? numAtATime : rest)), skipKeys);
                     rest -= numAtATime;
                     System.gc();
                 }
@@ -230,9 +230,8 @@ public class ImportActionProperty {
         }
     }
 
-    private void importPackOfItems(List<Item> itemsList, Integer start, Integer numberOfItems, boolean skipKeys) throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException {
-        List<Item> dataItems = itemsList.subList(start, start + numberOfItems);
-        if (dataItems.size() == 0) return;
+    private void importPackOfItems(List<Item> itemsList, boolean skipKeys) throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException {
+        if (itemsList.size() == 0) return;
 
         List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
         List<ImportField> fields = new ArrayList<ImportField>();
