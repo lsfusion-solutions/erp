@@ -779,7 +779,6 @@ public class ImportActionProperty {
                     keys.add(binKey);
                     props.add(new ImportProperty(binUserInvoiceDetailField, LM.findLCPByCompoundName("idBin").getMapping(binKey)));
                     props.add(new ImportProperty(binUserInvoiceDetailField, LM.findLCPByCompoundName("nameBin").getMapping(binKey)));
-                    props.add(new ImportProperty(binUserInvoiceDetailField, LM.findLCPByCompoundName("nameBin").getMapping(binKey)));
                     props.add(new ImportProperty(binUserInvoiceDetailField, LM.findLCPByCompoundName("binUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                             LM.object(LM.findClassByCompoundName("Bin")).getMapping(binKey)));
                     fields.add(binUserInvoiceDetailField);
