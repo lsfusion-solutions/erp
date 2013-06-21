@@ -190,24 +190,32 @@ inPriceListLedgerLedgerPriceListType(ledger, type) += inPriceListLedgerSystemLed
 pricePriceListLedgerLedgerPriceListType(ledger, type) += pricePriceListLedgerSystemLedgerPriceListType(ledger, type);
 
 //Учетные цены и суммы для партий
-accountPriceBBatchStockDate 'Цена товара в партии на начало дня' (batch, stock, date) =
+accountPriceBBatchStockDate 'Учетная цена товара в партии на начало дня' (batch, stock, date) =
     prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(date));
-accountPriceABatchStockDate 'Цена товара в партии на конец дня' (batch, stock, date) =
+accountPriceABatchStockDate 'Учетная цена товара в партии на конец дня' (batch, stock, date) =
     prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(sumDate(date,1)));
-accountSumBBatchStockDate 'Сумма на начало дня' (batch, stock, date) =
+accountSumBBatchStockDate 'Учетная сумма на начало дня' (batch, stock, date) =
     balanceBBatchStockDate(batch, stock, date) * accountPriceBBatchStockDate(batch, stock, date);
-accountSumABatchStockDate 'Сумма на конец дня' (batch, stock, date) =
+accountSumABatchStockDate 'Учетная сумма на конец дня' (batch, stock, date) =
     balanceABatchStockDate(batch, stock, date) * accountPriceABatchStockDate(batch, stock, date);
-accountSumBBatchesStockDate 'Сумма склада(по партиям) на начало дня' (stock, date) =
+accountSumBBatchesStockDate 'Учетная сумма склада(по партиям) на начало дня' (stock, date) =
     GROUP SUM accountSumBBatchStockDate(batch, stock, date)
     BY stock, date;
-accountSumABatchesStockDate 'Сумма склада(по партиям) на конец дня' (stock, date) =
+accountSumABatchesStockDate 'Учетная сумма склада(по партиям) на конец дня' (stock, date) =
     GROUP SUM accountSumABatchStockDate(batch, stock, date)
     BY stock, date;
-accountSumBSkuGroupBatchStockDate 'Сумма на начало дня(по партиям)' (group, stock, date) =
+
+accountSumBSkuGroupBatchStockDate 'Учетная сумма на начало дня(по партиям)' (group, stock, date) =
+    GROUP SUM accountSumBBatchStockDate(batch, stock, date)
+    BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, date;
+accountSumRecBSkuGroupBatchStockDate 'Учетная сумма на начало дня(по партиям)' (group, stock, date) =
     GROUP SUM accountSumBBatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
     BY group, stock, date;
-accountSumASkuGroupBatchStockDate 'Сумма на конец дня(по партиям)' (group, stock, date) =
+
+accountSumASkuGroupBatchStockDate 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
+    GROUP SUM accountSumABatchStockDate(batch, stock, date)
+    BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, date;
+accountSumRecASkuGroupBatchStockDate 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
     GROUP SUM accountSumABatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
     BY group, stock, date;
 

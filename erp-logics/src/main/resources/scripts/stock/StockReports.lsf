@@ -17,8 +17,8 @@ sessionConcatGroups 'Склады' (groupType) =
     GROUP CONCAT nameGroup(group) IF inSessionGroup(group) AND NOT inSessionGroup(parentGroup(group)),','
     BY groupTypeGroup(group);
 
-sumAGroupTypeStockDate 'Итоговая сумма товаров отчета' (groupType, stock, date) =
-    GROUP SUM sumASkuStockDate(sku, stock, date) IF inSessionGroup(groupGroupTypeSku(groupType, sku))
+sumBGroupTypeStockDate 'Итоговая сумма товаров отчета' (groupType, stock, date) =
+    GROUP SUM sumBSkuStockDate(sku, stock, date) IF inSessionGroup(groupGroupTypeSku(groupType, sku))
     BY groupType, stock, date PREFCHARWIDTH 15;
 
 sumInGroupTypeStockDateDate 'Итоговая сумма пришедшего товара отчета' (groupType, stock, dateFrom, dateTo) =
@@ -40,15 +40,15 @@ FORM printListBalanceSkusStock 'Остатки по товарам' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
+    PROPERTIES sumBGroupTypeStockDate(gt, st ,d)
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     FILTERS inSessionGroup(groupGroupTypeSku(gt, s))
     ORDER BY nameSku
 
-    PROPERTIES(s, st, d) READONLY balanceASkuStockDate, sumASkuStockDate
-    FILTERS balanceASkuStockDate(s, st, d)
+    PROPERTIES(s, st, d) READONLY balanceBSkuStockDate, sumBSkuStockDate
+    FILTERS balanceBSkuStockDate(s, st, d)
 ;
 
 printListBalanceSkusStockDate 'Списком' (stock, date) =
@@ -64,22 +64,22 @@ FORM printBalanceSkusStock 'Остатки по товарам' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
+    PROPERTIES sumBGroupTypeStockDate(gt, st ,d)
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
     ORDER BY canonicalNameGroup
     FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
     FILTERS groupTypeGroup(sk) == gt
-    PROPERTIES(sk, st, d) READONLY sumASkuGroupStockDate
+    PROPERTIES(sk, st, d) READONLY sumBSkuGroupStockDate
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     ORDER BY nameSku
-    FILTERS isParentGroupSku(sk, s)
+    FILTERS isParentGroupSku(sk, s) AND groupGroupTypeSku(groupTypeGroup(sk), s)
 
-    PROPERTIES(s, st, d) READONLY balanceASkuStockDate, sumASkuStockDate
-    FILTERS balanceASkuStockDate(s, st, d)
+    PROPERTIES(s, st, d) READONLY balanceBSkuStockDate, sumBSkuStockDate
+    FILTERS balanceBSkuStockDate(s, st, d)
 ;
 
 printBalanceSkusStockDate 'По группам' (stock, date) =
@@ -96,15 +96,15 @@ FORM printListBalanceBatchesStock 'Остатки по партиям' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
+    PROPERTIES sumBGroupTypeStockDate(gt, st ,d)
 
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY dateBatch, nameBatch, idBarcodeSkuBatch, nameSkuBatch, shortNameUOMBatch//, quantityBatch
     FILTERS inSessionGroup(groupGroupTypeSku(gt, skuBatch(bt)))
     ORDER BY          dateBatch, nameBatch, nameSkuBatch
 
-    PROPERTIES(bt, st, d) READONLY balanceABatchStockDate, accountSumABatchStockDate
-    FILTERS balanceABatchStockDate(bt, st, d)
+    PROPERTIES(bt, st, d) READONLY balanceBBatchStockDate, accountSumBBatchStockDate
+    FILTERS balanceBBatchStockDate(bt, st, d)
 ;
 
 printListBalanceBatchesStockDate 'Списком' (stock, date) =
@@ -120,22 +120,22 @@ FORM printBalanceBatchesStock 'Остатки по партиям' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
+    PROPERTIES sumBGroupTypeStockDate(gt, st ,d)
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
     ORDER BY canonicalNameGroup
     FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
     FILTERS groupTypeGroup(sk) == gt
-    PROPERTIES(sk, st, d) READONLY accountSumASkuGroupBatchStockDate
+    PROPERTIES(sk, st, d) READONLY accountSumBSkuGroupBatchStockDate
 
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY dateBatch, nameBatch, idBarcodeSkuBatch, nameSkuBatch, shortNameUOMBatch//, quantityBatch
     FILTERS           isParentGroupBatch(sk, bt)
     ORDER BY          dateBatch, nameBatch, nameSkuBatch
 
-    PROPERTIES(bt, st, d) READONLY balanceABatchStockDate, accountSumABatchStockDate
-    FILTERS balanceABatchStockDate(bt, st, d)
+    PROPERTIES(bt, st, d) READONLY balanceBBatchStockDate, accountSumBBatchStockDate
+    FILTERS balanceBBatchStockDate(bt, st, d)
 ;
 
 printBalanceBatchesStockDate 'По группам' (stock, date) =
@@ -151,12 +151,12 @@ FORM reportBalanceStock 'Отчет по остаткам'
 
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
-    PROPERTIES sumAGroupTypeStockDate(gt, st ,d)
+//    PROPERTIES sumBGroupTypeStockDate(gt, st ,d)
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
     TREE skuTree sk = Group PARENT parentGroup
     PROPERTIES READONLY skuTreeName = nameGroup(sk)
-    PROPERTIES(sk, st, d) READONLY sumASkuGroupStockDate, accountSumASkuGroupBatchStockDate
+    PROPERTIES(sk, st, d) READONLY sumRecBSkuGroupStockDate, accountSumRecBSkuGroupBatchStockDate
     PROPERTIES inSessionGroup(sk)
     ORDER BY skuTreeName
     FILTERS groupTypeGroup(sk) == gt
@@ -166,18 +166,18 @@ FORM reportBalanceStock 'Отчет по остаткам'
     ORDER BY nameSku
     FILTERS isParentGroupSku(sk, s)
 
-    PROPERTIES(s, st, d) READONLY balanceASkuStockDate, sumASkuStockDate
+    PROPERTIES(s, st, d) READONLY balanceBSkuStockDate, sumBSkuStockDate
     PROPERTIES(st, d) printListBalanceSkusStockDate, printBalanceSkusStockDate
-    FILTERS balanceASkuStockDate(s, st, d)
+    FILTERS balanceBSkuStockDate(s, st, d)
 
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY dateBatch, nameBatch, idBarcodeSkuBatch, nameSkuBatch, shortNameUOMBatch//, quantityBatch
     FILTERS           isParentGroupBatch(sk, bt)
     ORDER BY          dateBatch, nameBatch, nameSkuBatch
 
-    PROPERTIES(bt, st, d) READONLY balanceABatchStockDate, accountSumABatchStockDate
+    PROPERTIES(bt, st, d) READONLY balanceBBatchStockDate, accountSumBBatchStockDate
     PROPERTIES(st, d) printListBalanceBatchesStockDate, printBalanceBatchesStockDate
-    FILTERS balanceABatchStockDate(bt, st, d)
+    FILTERS balanceBBatchStockDate(bt, st, d)
 ;
 
 DESIGN reportBalanceStock FROM DEFAULT{
@@ -186,11 +186,11 @@ DESIGN reportBalanceStock FROM DEFAULT{
         ADD d.box;
         ADD st.box;
         ADD gt.box{ADD PROPERTY(inSessionGroup);}
-        NEW sumContainer{
-            caption = 'Итоговые суммы';
-            childConstraints = TO THE BOTTOM;
-            ADD PROPERTY(sumAGroupTypeStockDate(gt, st ,d)){caption = 'Товаров отчета';}
-        }
+//        NEW sumContainer{
+//            caption = 'Итоговые суммы';
+//            childConstraints = TO THE BOTTOM;
+//            ADD PROPERTY(sumBGroupTypeStockDate(gt, st ,d)){caption = 'Товаров отчета';}
+//        }
     }
     NEW bottomContainer{
         childConstraints = TO THE RIGHT;
@@ -241,20 +241,20 @@ FORM printListBackSheet 'Оборотная ведомость' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumAGroupTypeStockDate(gt, st, df)
+    PROPERTIES sumBGroupTypeStockDate(gt, st, df)
     PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
-    PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
+    PROPERTIES sumBGroupTypeStockDate(gt, st, dt)
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     FILTERS inSessionGroup(groupGroupTypeSku(gt, s))
     ORDER BY nameSku
 
-    PROPERTIES(s, st, df) READONLY balanceASkuStockDate, sumASkuStockDate
+    PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
     PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
     PROPERTIES(st, df) printListBalanceSkusStockDate, printBalanceSkusStockDate
-    PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
-    FILTERS balanceASkuStockDate(s, st, df) OR balanceASkuStockDate(s, st, dt)
+    PROPERTIES(s, st, dt) READONLY balanceBSkuStockDate, sumBSkuStockDate
+    FILTERS balanceBSkuStockDate(s, st, df) OR balanceBSkuStockDate(s, st, dt)
 ;
 
 printListBackSheet 'Списком' (stock, dateFrom, dateTo) =
@@ -274,29 +274,29 @@ FORM printBackSheet 'Оборотная ведомость' PRINT
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES(gt) READONLY sessionConcatGroups
-    PROPERTIES sumAGroupTypeStockDate(gt, st, df)
+    PROPERTIES sumBGroupTypeStockDate(gt, st, df)
     PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
-    PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
+    PROPERTIES sumBGroupTypeStockDate(gt, st, dt)
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
     ORDER BY canonicalNameGroup
     FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
     FILTERS groupTypeGroup(sk) == gt
-    PROPERTIES(sk, st, df) READONLY sumASkuGroupStockDate
+    PROPERTIES(sk, st, df) READONLY sumBSkuGroupStockDate
     PROPERTIES(sk, st, df, dt) READONLY sumInGroupSkuStockDateDate, sumOutGroupSkuStockDateDate
-    PROPERTIES(sk, st, dt) READONLY sumASkuGroupStockDate
+    PROPERTIES(sk, st, dt) READONLY sumBSkuGroupStockDate
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     ORDER BY nameSku
     FILTERS isParentGroupSku(sk, s)
 
-    PROPERTIES(s, st, df) READONLY balanceASkuStockDate, sumASkuStockDate
+    PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
     PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
     PROPERTIES(st, df) printListBalanceSkusStockDate, printBalanceSkusStockDate
-    PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
-    FILTERS balanceASkuStockDate(s, st, df) OR balanceASkuStockDate(s, st, dt)
+    PROPERTIES(s, st, dt) READONLY balanceBSkuStockDate, sumBSkuStockDate
+    FILTERS balanceBSkuStockDate(s, st, df) OR balanceBSkuStockDate(s, st, dt)
 ;
 
 printBackSheet 'По группам' (stock, dateFrom, dateTo) =
@@ -315,16 +315,16 @@ FORM reportBackSheet 'Оборотная ведомость'
 
     OBJECTS gt = GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
-    PROPERTIES sumAGroupTypeStockDate(gt, st, df)
+    PROPERTIES sumBGroupTypeStockDate(gt, st, df)
     PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
-    PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
+    PROPERTIES sumBGroupTypeStockDate(gt, st, dt)
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
     TREE skuTree sk = Group PARENT parentGroup
     PROPERTIES READONLY skuTreeName = nameGroup(sk)
-    PROPERTIES(sk, st, df) READONLY sumASkuGroupStockDate
-    PROPERTIES(sk, st, df, dt) READONLY sumInGroupSkuStockDateDate, sumOutGroupSkuStockDateDate
-    PROPERTIES(sk, st, dt) READONLY sumASkuGroupStockDate
+    PROPERTIES(sk, st, df) READONLY sumRecBSkuGroupStockDate
+    PROPERTIES(sk, st, df, dt) READONLY sumRecInGroupSkuStockDateDate, sumRecOutGroupSkuStockDateDate
+    PROPERTIES(sk, st, dt) READONLY sumRecBSkuGroupStockDate
     PROPERTIES inSessionGroup(sk)
     ORDER BY skuTreeName
     FILTERS groupTypeGroup(sk) == gt
@@ -334,11 +334,11 @@ FORM reportBackSheet 'Оборотная ведомость'
     ORDER BY nameSku
     FILTERS isParentGroupSku(sk, s)
 
-    PROPERTIES(s, st, df) READONLY balanceASkuStockDate, sumASkuStockDate
+    PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
     PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
     PROPERTIES(st, df, dt) printListBackSheet, printBackSheet
-    PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
-    FILTERS balanceASkuStockDate(s, st, df) OR balanceASkuStockDate(s, st, dt)
+    PROPERTIES(s, st, dt) READONLY balanceBSkuStockDate, sumBSkuStockDate
+    FILTERS balanceBSkuStockDate(s, st, df) OR balanceBSkuStockDate(s, st, dt)
 ;
 
 DESIGN reportBackSheet FROM DEFAULT{
@@ -355,18 +355,18 @@ DESIGN reportBackSheet FROM DEFAULT{
         NEW sumContainer{
             caption = 'Итоговые суммы';
             childConstraints = TO THE BOTTOM;
-            ADD PROPERTY(sumAGroupTypeStockDate(gt, st, df)){caption = 'Начала периода';}
+            ADD PROPERTY(sumBGroupTypeStockDate(gt, st, df)){caption = 'Начала периода';}
             ADD PROPERTY(sumInGroupTypeStockDateDate){caption = 'Товара пришедшего за период';}
             ADD PROPERTY(sumOutGroupTypeStockDateDate){caption = 'Товара ушедшего за период';}
-            ADD PROPERTY(sumAGroupTypeStockDate(gt, st, dt)){caption = 'Конца периода';}
+            ADD PROPERTY(sumBGroupTypeStockDate(gt, st, dt)){caption = 'Конца периода';}
         }
     }
     NEW bottomContainer{
         childConstraints = TO THE RIGHT;
         type = SPLITH;
         ADD skuTree.tree.box;
-        PROPERTY(sumASkuGroupStockDate(sk, st, df)){caption = 'Остаток на начало периода';}
-        PROPERTY(sumASkuGroupStockDate(sk, st, dt)){caption = 'Остаток на конец периода';}
+        PROPERTY(sumRecBSkuGroupStockDate(sk, st, df)){caption = 'Остаток на начало периода';}
+        PROPERTY(sumRecBSkuGroupStockDate(sk, st, dt)){caption = 'Остаток на конец периода';}
         NEW tabContainer{
             type = TABBED;
             fillHorizontal = 2;
@@ -380,10 +380,10 @@ DESIGN reportBackSheet FROM DEFAULT{
                     ADD PROPERTY(printBackSheet);
                 }
                 ADD s.box;
-                PROPERTY(balanceASkuStockDate(s, st, df)){caption = 'Остаток на начало периода';}
-                PROPERTY(sumASkuStockDate(s, st, df)){caption = 'Сумма на начало периода';}
-                PROPERTY(balanceASkuStockDate(s, st, dt)){caption = 'Остаток на конец периода';}
-                PROPERTY(sumASkuStockDate(s, st, dt)){caption = 'Сумма на конец периода';}
+                PROPERTY(balanceBSkuStockDate(s, st, df)){caption = 'Остаток на начало периода';}
+                PROPERTY(sumBSkuStockDate(s, st, df)){caption = 'Сумма на начало периода';}
+                PROPERTY(balanceBSkuStockDate(s, st, dt)){caption = 'Остаток на конец периода';}
+                PROPERTY(sumBSkuStockDate(s, st, dt)){caption = 'Сумма на конец периода';}
             }
         }
     }
