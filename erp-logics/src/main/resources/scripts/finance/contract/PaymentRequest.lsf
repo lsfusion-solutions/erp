@@ -146,6 +146,7 @@ requestedDebtContract 'Неоплаченных требований' (contract)
 
 toRequestContractDate 'Необходимо выставить требований' (contract, date) = balanceAContractDate(contract, date) (-) requestedDebtContract(contract);
 
+overCreatePaymentRequests = ABSTRACT ACTION LIST (PaymentRequest);
 createPaymentRequestContractDate 'Выставить платежное требование' = ACTION (contract, date) NEWSESSION {
     FOR ADDOBJ pr = PaymentRequest DO {
         datePaymentRequest(pr) <- date;
@@ -153,6 +154,7 @@ createPaymentRequestContractDate 'Выставить платежное треб
         sumPaymentRequest(pr) <- toRequestContractDate(contract, date);
         costPaymentRequestInContractLedger(pr, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(pr, inContractLedger)
             WHERE contractPaymentRequest(pr) == contractInContractLedger(inContractLedger);
+        overCreatePaymentRequests(pr);
         FORM paymentRequest OBJECTS p = pr MANAGESESSION DOCKEDMODAL;
     }
 }
@@ -197,6 +199,7 @@ createPaymentRequests 'Выставить платежные требовани�
         sumPaymentRequest(pr) <- toRequestContractDate(contract, date);
         costPaymentRequestInContractLedger(pr, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(pr, inContractLedger)
             WHERE contractPaymentRequest(pr) == contractInContractLedger(inContractLedger);
+        overCreatePaymentRequests(pr);
         count() <- count() + 1;
     }
 
