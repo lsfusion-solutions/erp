@@ -377,6 +377,15 @@ nameBatch 'Название' (batch) = ABSTRACT ISTRING[200] (Batch) PERSISTENT 
 expiryDateBatch 'Годен до' (batch) = ABSTRACT DATE (Batch) PERSISTENT INDEXED;
 prevExpiryDateBatch 'Годен до' (batch) = PREV(expiryDateBatch(batch));
 
+numberBatch 'Номер документа' = ABSTRACT STRING[18] (Batch) MINCHARWIDTH 8 PERSISTENT;
+seriesBatch 'Серия документа' = ABSTRACT STRING[2] (Batch) FIXEDCHARWIDTH 3 PERSISTENT;
+
+supplierBatch = ABSTRACT LegalEntity (Batch) PERSISTENT;
+nameSupplierBatch 'Поставщик' (batch) = nameLegalEntity(supplierBatch(batch));
+
+supplierStockBatch = ABSTRACT Stock (Batch) PERSISTENT;
+nameSupplierStockBatch 'Склад поставщика' (batch) = nameStock(supplierStockBatch(batch));
+
 expiresBatchDateTime(batch, dateTime, period) = expiryDateBatch(batch) < sumDate(toDate(dateTime), period);
 expiresBatchDate(batch, date, period) = expiryDateBatch(batch) < sumDate(date, period);
 
@@ -404,6 +413,14 @@ descriptionDataSkuLedger 'Название документа' = ABSTRACT STRING
 
 changedDataSkuLedger = ABSTRACT BOOLEAN (DataSkuLedger);
 
+numberDataSkuLedger 'Номер документа' = ABSTRACT STRING[18] (DataSkuLedger) MINCHARWIDTH 8 PERSISTENT;
+seriesDataSkuLedger 'Серия документа' = ABSTRACT STRING[2] (DataSkuLedger) FIXEDCHARWIDTH 3 PERSISTENT;
+
+legalEntityDataSkuLedger = ABSTRACT LegalEntity (DataSkuLedger) PERSISTENT;
+nameLegalEntityDataSkuLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntityDataSkuLedger(ledger));
+
+legalEntityStockDataSkuLedger = ABSTRACT Stock (DataSkuLedger) PERSISTENT;
+nameLegalEntityStockDataSkuLedger 'Склад контрагента' (ledger) = nameStock(legalEntityStockDataSkuLedger(ledger));
 // -------------------------------- Для всего ledger'а -------------------- //
 
 dateTimeSkuLedger 'Дата/время' (ledger) = MULTI dateTimeDataSkuLedger (ledger), dateTimeBatch (ledger) PERSISTENT INDEXED;
@@ -419,6 +436,13 @@ nameStockSkuLedger 'Склад' (ledger) = nameStock(stockSkuLedger(ledger));
 
 descriptionSkuLedger 'Описание' (ledger) = MULTI descriptionDataSkuLedger (ledger), descriptionBatch (ledger) PERSISTENT;
 
+numberSkuLedger 'Номер документа' (ledger) = MULTI numberDataSkuLedger (ledger), numberBatch (ledger) MINCHARWIDTH 8 PERSISTENT;
+seriesSkuLedger 'Серия документа' (ledger) = MULTI seriesDataSkuLedger (ledger), seriesBatch (ledger) FIXEDCHARWIDTH 3 PERSISTENT;
+
+legalEntityStockSkuLedger (ledger) = MULTI legalEntityStockDataSkuLedger (ledger), supplierStockBatch (ledger) PERSISTENT;
+nameLegalEntityStockSkuLedger 'Склад контрагента' (ledger) = nameStock(legalEntityStockSkuLedger(ledger));
+legalEntitySkuLedger (ledger) = MULTI legalEntityDataSkuLedger (ledger), supplierBatch (ledger) PERSISTENT;
+nameLegalEntitySkuLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntitySkuLedger(ledger));
 // -------------------------------- Количества ---------------------------- //
 
 quantityBatch 'Кол-во в партии' = ABSTRACT NUMERIC[14,3] (Batch) PERSISTENT;
@@ -2807,7 +2831,7 @@ FORM dialogBatch 'Партии'
     OBJECTS sk = Sku FIXED PANEL
 
     OBJECTS bt = Batch
-    PROPERTIES (bt) READONLY nameSkuBatch, dateTimeBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, expiryDateBatch
+    PROPERTIES (bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameSkuBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, expiryDateBatch
     PROPERTIES  READONLY balanceBBatchStockDateTime(bt, st, t)
     FILTERS skuBatch(bt) == sk
 
@@ -2826,8 +2850,8 @@ DESIGN dialogBatch FROM DEFAULT {
 
 FORM costSkuLedger 'Себестоимость (операции)'
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger, nameSkuSkuLedger, nameStockSkuLedger,
-                             quantitySkuLedger, costedSkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameSkuSkuLedger, nameStockSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, quantitySkuLedger, costedSkuLedger
     PROPERTIES(bil)          resetCostDataSkuLedger FORCE GRID
     ORDER BY dateTimeSkuLedger
 
@@ -2835,7 +2859,7 @@ FORM costSkuLedger 'Себестоимость (операции)'
         FILTER 'Нерасписанные строки' 'F9' needToCostDataSkuLedger(bil)
 
     OBJECTS bt = Batch
-    PROPERTIES(bt) READONLY dateTimeBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, currentBalanceBatch
+    PROPERTIES(bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, currentBalanceBatch
     PROPERTIES(bil, bt)     costSkuLedgerBatch FORCE GRID
     FILTERS skuBatch(bt) == skuSkuLedger(bil)
     ORDER BY dateTimeBatch DESC
@@ -2872,11 +2896,11 @@ FORM costSkuBatchLedger 'Себестоимость (партии)'
     PROPERTIES(i) SELECTOR nameSku//, idBarcodeSku
 
     OBJECTS bt = Batch
-    PROPERTIES(bt) READONLY dateTimeBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, currentBalanceBatch
+    PROPERTIES(bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, currentBalanceBatch
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
-                             quantitySkuLedger, costedSkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, quantitySkuLedger, costedSkuLedger
 //    PROPERTIES(bil)          resetCostSkuLedger
     ORDER BY dateTimeSkuLedger
 
@@ -2936,12 +2960,13 @@ FORM currentBalanceSkuStock 'Текущие остатки'
         FILTER 'Товары с движением не позднее 30 дней' 'F7' balanceSkuStockDatePeriod(s, st, currentDate(), 30)
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY descriptionSkuLedger, dateTimeSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+                    signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==s AND stockSkuLedger(bil)==st
     ORDER BY dateTimeSkuLedger DESC
 
     OBJECTS bt=Batch
-    PROPERTIES(bt) READONLY      dateTimeBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, expiryDateBatch
+    PROPERTIES(bt) READONLY      numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, expiryDateBatch
     PROPERTIES(bt, st) READONLY  currentBalanceBatchStock
     FILTERS isPostedBatch(bt) AND skuBatch(bt)==s
     ORDER BY dateTimeBatch DESC
@@ -3016,12 +3041,13 @@ FORM balanceSkuStock 'Остатки на дату'
         FILTER 'Товары с движением не позднее 30 дней' 'F7' balanceSkuStockDateTimePeriod(s, st, t, 30)
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY descriptionSkuLedger, dateTimeSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+                    signedQuantitySkuLedger, signedSumSkuLedger
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==s AND stockSkuLedger(bil)==st
     ORDER BY dateTimeSkuLedger DESC
 
     OBJECTS bt=Batch
-    PROPERTIES(bt) READONLY      dateTimeBatch, descriptionBatch, nameBatch, quantityBatch, costBatch
+    PROPERTIES(bt) READONLY      numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, descriptionBatch, nameBatch, quantityBatch, costBatch
     PROPERTIES(bt, st, t) READONLY  balanceBBatchStockDateTime
     FILTERS isPostedBatch(bt) AND skuBatch(bt)==s
     ORDER BY dateTimeBatch DESC
@@ -3086,14 +3112,15 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     OBJECTS           stb=(st=Stock, bt=Batch)
     PROPERTIES        READONLY nameSkuBatch(bt), stockName = nameStock(st)
     PROPERTIES        currentBalanceBatchStock(bt, st)
-    PROPERTIES(bt)    READONLY dateTimeBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, expiryDateBatch
+    PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, expiryDateBatch
     FILTERS           isParentSkuGroupBatch(sk, bt),
                       st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
 
     ORDER BY          dateTimeBatch
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY descriptionSkuLedger, dateTimeSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+                    signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==skuBatch(bt) AND stockSkuLedger(bil)==st
     ORDER BY dateTimeSkuLedger DESC
 
@@ -3163,13 +3190,14 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     OBJECTS           stb=(st=Stock, bt=Batch)
     PROPERTIES        READONLY stockName = nameStock(st), nameSkuBatch(bt)
     PROPERTIES        balanceBBatchStockDateTime(bt, st, t)
-    PROPERTIES(bt)    READONLY dateTimeBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, expiryDateBatch
+    PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, descriptionBatch, nameBatch, quantityBatch, costBatch, expiryDateBatch
     FILTERS           isParentSkuGroupBatch(sk, bt),
                       st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
     ORDER BY          dateTimeBatch
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY descriptionSkuLedger, dateTimeSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+                    signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==skuBatch(bt) AND stockSkuLedger(bil)==st,
             dateTimeSkuLedger(bil) < t
     ORDER BY dateTimeSkuLedger DESC
@@ -3235,7 +3263,7 @@ FORM batches 'Партии'
     ORDER BY skuTreeName
 
     OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY nameSkuBatch, dateTimeBatch, descriptionBatch, nameBatch, nameStockBatch, quantityBatch, costBatch, expiryDateBatch
+    PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameSkuBatch, descriptionBatch, nameBatch, nameStockBatch, quantityBatch, costBatch, expiryDateBatch
 
     FILTERS           isParentSkuGroupBatch(sk, bt)
     ORDER BY          dateTimeBatch
