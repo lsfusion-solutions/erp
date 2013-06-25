@@ -22,10 +22,6 @@ public class ImportExcelActionProperty extends ScriptingActionProperty {
         return value.isEmpty() ? null : value;
     }
 
-    protected static Double parseDouble(String value) throws ParseException {
-        return value.isEmpty() ? null : NumberFormat.getInstance().parse(value).doubleValue();
-    }
-
     protected static BigDecimal parseBigDecimal(String value) throws ParseException {
         return value.isEmpty() ? null : BigDecimal.valueOf(NumberFormat.getInstance().parse(value).doubleValue());
     }
