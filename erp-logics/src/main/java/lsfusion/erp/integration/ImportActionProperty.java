@@ -1198,25 +1198,25 @@ public class ImportActionProperty {
 
                 List<List<Object>> data = initData(legalEntitiesList.size());
 
-                ImportField numberAccountField = new ImportField(LM.findLCPByCompoundName("Bank.numberAccount"));
-                ImportKey<?> accountKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank.Account"),
-                        LM.findLCPByCompoundName("Bank.accountNumber").getMapping(numberAccountField));
-                keys.add(accountKey);
-                props.add(new ImportProperty(numberAccountField, LM.findLCPByCompoundName("Bank.numberAccount").getMapping(accountKey)));
-                fields.add(numberAccountField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).numberAccount);
-
                 ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundName("idLegalEntity"));
                 ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
                         LM.findLCPByCompoundName("legalEntityId").getMapping(idLegalEntityField));
                 keys.add(legalEntityKey);
                 props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundName("idLegalEntity").getMapping(legalEntityKey)));
-                props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundName("Bank.legalEntityAccount").getMapping(accountKey),
-                        LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
                 fields.add(idLegalEntityField);
                 for (int i = 0; i < legalEntitiesList.size(); i++)
                     data.get(i).add(legalEntitiesList.get(i).idLegalEntity);
+
+                ImportField numberAccountField = new ImportField(LM.findLCPByCompoundName("Bank.numberAccount"));
+                ImportKey<?> accountKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank.Account"),
+                        LM.findLCPByCompoundName("accountNumberLegalEntityID").getMapping(numberAccountField, idLegalEntityField));
+                keys.add(accountKey);
+                props.add(new ImportProperty(numberAccountField, LM.findLCPByCompoundName("Bank.numberAccount").getMapping(accountKey)));
+                props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundName("Bank.legalEntityAccount").getMapping(accountKey),
+                        LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
+                fields.add(numberAccountField);
+                for (int i = 0; i < legalEntitiesList.size(); i++)
+                    data.get(i).add(legalEntitiesList.get(i).numberAccount);
 
                 ImportField nameLegalEntityField = new ImportField(LM.findLCPByCompoundName("nameLegalEntity"));
                 props.add(new ImportProperty(nameLegalEntityField, LM.findLCPByCompoundName("nameLegalEntity").getMapping(legalEntityKey)));
