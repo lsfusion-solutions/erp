@@ -6,6 +6,11 @@ REQUIRE Invoice, Employee, PriceRoundStore, Machinery, PricingOperation, PriceLi
 
 costLedgerDepartmentStore 'Учет по себестоимости' = DATA BOOLEAN (DepartmentStore) IN bookkeepingGroup;
 EXTEND FORM departmentStore PROPERTIES(d) costLedgerDepartmentStore;
+EXTEND DESIGN departmentStore {
+    headerExtraParams2{
+        ADD PROPERTY(costLedgerDepartmentStore);
+    }
+}
 
 // ----------------------------------- Комиссия ------------------------------------------ //
 
@@ -26,7 +31,7 @@ nameCommittee(committee) += namePricingCommittee(committee) IF committee IS Pric
 // ----------------------------------- Комиссия по умолчанию для отдела ------------------------------------------ //
 
 pricingCommitteeDepartmentStore 'Комиссия для акта расценки (ИД)' = DATA PricingCommittee (DepartmentStore);
-namePricingCommitteeDepartmentStore 'Комиссия для акта расценки' (departmentStore) = namePricingCommittee(pricingCommitteeDepartmentStore(departmentStore)) IN committeeGroup;
+namePricingCommitteeDepartmentStore 'Комиссия для акта расценки' (departmentStore) = namePricingCommittee(pricingCommitteeDepartmentStore(departmentStore)) IN committeeGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
 isDefaultPricingCommitteeDepartmentStore 'По умолчанию' (pricingCommittee, departmentStore) = pricingCommitteeDepartmentStore(departmentStore) == pricingCommittee;
 CONSTRAINT pricingCommitteeDepartmentStore(departmentStore) AND NOT inCommitteeEmployeeDivision(pricingCommitteeDepartmentStore(departmentStore), departmentStore)
     CHECKED BY pricingCommitteeDepartmentStore MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';

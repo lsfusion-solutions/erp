@@ -41,18 +41,18 @@ FORM warehouseGroups 'Группы складов'
 CLASS Warehouse 'Склад' : Stock;
 TABLE warehouse(Warehouse);
 
-nameWarehouse 'Наименование' = DATA ISTRING[150](Warehouse) INDEXED;
+nameWarehouse 'Наименование' = DATA ISTRING[150](Warehouse) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 nameStock(stock) += nameWarehouse(stock) IF stock IS Warehouse;
 
 warehouseGroupWarehouse (warehouse) = DATA WarehouseGroup (Warehouse) INDEXED AUTOSET;
-nameWarehouseGroupWarehouse 'Группа складов' (warehouse) = nameWarehouseGroup(warehouseGroupWarehouse(warehouse)) IN base;
+nameWarehouseGroupWarehouse 'Группа складов' (warehouse) = nameWarehouseGroup(warehouseGroupWarehouse(warehouse)) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
 isParentWarehouseGroupWarehouse (warehouseGroup, warehouse) =
     isParentWarehouseGroupWarehouseGroup(warehouseGroupWarehouse(warehouse), warehouseGroup) PERSISTENT;
 stockGroupStock (stock) += warehouseGroupWarehouse (stock);
 
 legalEntityWarehouse (warehouse) = DATA LegalEntity (Warehouse) INDEXED NOT NULL;
-nameLegalEntityWarehouse 'Организация' (warehouse) = nameLegalEntity(legalEntityWarehouse(warehouse)) IN base;
+nameLegalEntityWarehouse 'Организация' (warehouse) = nameLegalEntity(legalEntityWarehouse(warehouse)) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
 legalEntityStock (stock) += legalEntityWarehouse(stock);
 
 userLegalEntityWarehouse 'Отм.' = DATA BOOLEAN (LegalEntity, Warehouse);
@@ -94,7 +94,38 @@ FORM warehouse 'Склад'
 ;
 DESIGN warehouse FROM DEFAULT{
     main {
-        ADD w.box;
+        NEW headerParams {
+            childConstraints = TO THE RIGHT;
+            NEW headerParamsLeft {
+                childConstraints = TO THE BOTTOM;
+                NEW headerMainParams {
+                    caption = 'Основные параметры';
+                    childConstraints = TO THE RIGHTBOTTOM;
+                    ADD PROPERTY(nameWarehouse);
+                    ADD PROPERTY(nameWarehouseGroupWarehouse);
+                    ADD PROPERTY(nameLegalEntityWarehouse);
+                }
+                NEW headerLocationParams {
+                    caption = 'Координаты';
+                    childConstraints = TO THE RIGHTBOTTOM;
+                    ADD PROPERTY(addressWarehouse);
+                    ADD PROPERTY(latitudeWarehouse);
+                    ADD PROPERTY(longitudeWarehouse);
+                    ADD PROPERTY(showOnMapPOI);
+                }
+                NEW headerExtraParams {
+                    caption = 'Дополнительные параметры';
+                    childConstraints = TO THE RIGHTBOTTOM;
+                    ADD PROPERTY(explicitBatchLedgerWarehouse);
+                    ADD PROPERTY(nameRegionStock);
+                    ADD PROPERTY(quantityDaysCloseWarehouse);
+                }
+            }
+            NEW headerParamsRight {
+                childConstraints = TO THE BOTTOM;
+                ADD w.committeeGroup;
+            }
+        }
         ADD e.box;
         ADD functions.box;
     }
