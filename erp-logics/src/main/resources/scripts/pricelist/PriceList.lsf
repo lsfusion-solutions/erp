@@ -7,6 +7,10 @@ NAMESPACE PriceList;
 // --------------------------- Пользовательские виды цен ------------------------- //
 
 CLASS DataPriceListType 'Пользовательский вид цены' : LedgerPriceListType;
+
+@defineExternalizable(dataPriceListType, STRING[100]);
+idPriceListType (p) += idDataPriceListType(p);
+
 batchLedgerPriceListType (priceListType) += WHEN priceListType IS DataPriceListType THEN TRUE;
 
 nameDataPriceListType 'Наименование' = DATA ISTRING[50](DataPriceListType);
@@ -48,6 +52,7 @@ editPriceListType(priceListType) += editDataPriceListType(priceListType);
 
 EXTEND FORM priceListTypes
     PROPERTIES() TODRAW pt FORCE PANEL addDataPriceListType
+    PROPERTIES(pt) SHOWIF showIDs() READONLY idDataPriceListType
 ;
 
 // --------------------------- Прайс-листы ------------------------- //
@@ -60,6 +65,7 @@ CLASS UserPriceListDetail 'Строка прайса (польз.)' : PriceListD
 CLASS UserPriceListPosted 'Проведенный прайс (польз.)' : UserPriceList, PostedObject;
 
 @defineDocumentInterface(priceList);
+@defineExternalizable(userPriceList, STRING[100]);
 
 // Шапка
 
@@ -303,7 +309,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES(p) objectClassName, nameNumeratorObject, numberObject, seriesObject,
                   dateUserPriceList, timeUserPriceList,
                   fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
-                  nameCurrencyUserPriceList, nameCompanyUserPriceList, noteUserPriceList
+                  nameCurrencyUserPriceList, nameCompanyUserPriceList, noteUserPriceList, idUserPriceList READONLY SHOWIF showIDs()
 
     OBJECTS t = PriceListType
     PROPERTIES(t) namePriceListType READONLY, includeVATLedgerPriceListType

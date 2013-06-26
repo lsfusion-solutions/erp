@@ -36,6 +36,8 @@ CLASS LegalEntity 'Организация' : TaxUnitGroup, EmployeeDivision;
 TABLE legalEntity (LegalEntity);
 TABLE legalEntityDate (LegalEntity, DATE);
 
+@defineExternalizable(legalEntity, STRING[100]);
+
 nameLegalEntity 'Наименование' = DATA ISTRING[150](LegalEntity) INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
 nameEmployeeDivision(division) += nameLegalEntity(division) IF division IS LegalEntity;
@@ -181,7 +183,7 @@ FORM legalEntity 'Организация'
     PROPERTIES(l)  SHOWIF toShowLegalEntity(l) fullNameLegalEntity,
                    addressLegalEntity, postAddressLegalEntity, managerLegalEntity, accountantLegalEntity, phoneLegalEntity,
                    emailLegalEntity, siteLegalEntity,
-                   isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
+                   isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity, idLegalEntity SHOWIF showIDs()
     PROPERTIES(l)  differentStocksInDetailsLegalEntity SHOWIF isCompanyLegalEntity(l)
 
     OBJECTS li=License FIXED GRID
@@ -250,6 +252,7 @@ FORM legalEntities 'Организации'
                                           nameLegalEntityGroupLegalEntity
     PROPERTIES(l) READONLY                addressLegalEntity, phoneLegalEntity
     PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
+    PROPERTIES (l) READONLY idLegalEntity SHOWIF showIDs()
     PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE
     ORDER BY nameL
 

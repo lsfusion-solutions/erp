@@ -7,6 +7,8 @@ REQUIRE System, Utils, Historizable, Stock, Employee, Tax, WriteOff, LegalEntity
 CLASS ChainStores 'Торговая сеть' : StockGroup;
 TABLE chainStores (ChainStores);
 
+@defineExternalizable(chainStores, STRING[100]);
+
 nameChainStores 'Наименование' = DATA ISTRING[100](ChainStores);
 
 nameStockGroup(group) += nameChainStores(group) IF group IS ChainStores;
@@ -15,6 +17,8 @@ nameStockGroup(group) += nameChainStores(group) IF group IS ChainStores;
 
 CLASS StoreType 'Формат магазина' : StockGroup;
 TABLE storeType (StoreType);
+
+@defineExternalizable(storeType, STRING[100]);
 
 nameStoreType 'Наименование' = DATA ISTRING[100](StoreType);
 
@@ -46,7 +50,7 @@ DESIGN storeTypes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 FORM chainStores 'Торговая сеть'
     OBJECTS n=ChainStores FIXED PANEL
-    PROPERTIES(n) nameChainStores
+    PROPERTIES(n) nameChainStores, idChainStores READONLY SHOWIF showIDs()
 
     OBJECTS s=StoreType
     PROPERTIES(s) nameStoreType
@@ -60,6 +64,8 @@ FORM chainStores 'Торговая сеть'
 
 CLASS Store 'Магазин' : StockGroup, TaxUnit, POI;
 TABLE store (Store);
+
+@defineExternalizable(store, STRING[100]);
 
 nameStore 'Наименование' = DATA ISTRING[100](Store) INDEXED;
 
@@ -125,6 +131,9 @@ inChainStoresStoreTypeStore (chainStores, storeType, store) =
 CLASS DepartmentStore 'Отдел магазина' : Stock;
 TABLE departmentStore (DepartmentStore);
 TABLE departmentStoreDate (DepartmentStore, DATE);
+
+@defineExternalizable(departmentStore, STRING[100]);
+idStock (s) += idDepartmentStore(s);
 
 nameDepartmentStore 'Наименование' = DATA ISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
@@ -193,7 +202,8 @@ balanceASkuStoreDateTime(sku, stock, dateTime) =
 FORM departmentStore 'Отдел магазина'
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES(d) nameDep=nameDepartmentStore, nameStoreDepartmentStore, tradingSquareDepartmentStore, nameWriteOffCommitteeStock,
-                  explicitBatchLedgerDepartmentStore, numberCashAccountDepartmentStore, quantityDaysCloseDepartmentStore
+                  explicitBatchLedgerDepartmentStore, numberCashAccountDepartmentStore, quantityDaysCloseDepartmentStore,
+                  idDepartmentStore SHOWIF showIDs()
 
     OBJECTS e = Employee
     PROPERTIES(e) READONLY firstNameContact, lastNameContact
@@ -298,10 +308,10 @@ changeStore = ACTION (store) {
 FORM store 'Магазин'
     OBJECTS s=Store FIXED PANEL
     PROPERTIES(s) nameStore ON CHANGE changeStore(s), addressStore, nameStoreTypeStore, tradingSquareStore READONLY, nameLegalEntityStore, numberBankAccountStore,
-                  nameRegionStore, latitudeStore, longitudeStore, showOnMapPOI
+                  nameRegionStore, latitudeStore, longitudeStore, showOnMapPOI, idStore SHOWIF showIDs()
 
     OBJECTS d=DepartmentStore
-    PROPERTIES(d) READONLY nameDepartmentStore, tradingSquareDepartmentStore, objectClassName
+    PROPERTIES(d) READONLY nameDepartmentStore, tradingSquareDepartmentStore, idDepartmentStore SHOWIF showIDs(), objectClassName
     PROPERTIES(d)          ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
     FILTERS inStoreDepartment(s, d)
 
@@ -353,12 +363,13 @@ FORM stores 'Магазины'
     PROPERTIES(t)          addT=ADDFORM FORCE PANEL, editT=EDITFORM FORCE PANEL, deletet=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS s=Store
-    PROPERTIES(s) READONLYIF isReadonly() nameStore, addressStore, nameStoreTypeStore, nameLegalEntityStore, nameRegionStore
+    PROPERTIES(s) READONLYIF isReadonly() nameStore, addressStore, nameStoreTypeStore, nameLegalEntityStore, nameRegionStore,
+                             idStore SHOWIF showIDs()
     PROPERTIES(s)          ADDFORM, EDITFORM, DELETE TOOLBAR
     FILTERS inChainStoresStoreTypeStore(t, st, s)
 
     OBJECTS d=DepartmentStore
-    PROPERTIES(d) READONLY nameDepartmentStore, objectClassName
+    PROPERTIES(d) READONLY nameDepartmentStore, idDepartmentStore SHOWIF showIDs(), objectClassName
     FILTERS inStoreDepartment(s, d)
 ;
 

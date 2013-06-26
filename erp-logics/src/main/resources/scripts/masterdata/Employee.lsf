@@ -1,10 +1,12 @@
 MODULE Employee;
 
-REQUIRE System, Authentication, MasterData, Security, Email, Hierarchy, Utils;
+REQUIRE System, Authentication, MasterData, Security, Email, Hierarchy, Utils, Integration;
 
 // ------------------------------------- Должности -------------------------------------- //
 CLASS Position 'Должность';
 TABLE position(Position);
+
+@defineExternalizable(position, STRING[100]);
 
 namePosition 'Наименование' = DATA ISTRING[100](Position);
 
@@ -18,7 +20,7 @@ FORM position 'Должность'
 
 FORM positions 'Должность'
     OBJECTS of=Position
-    PROPERTIES(of) READONLY namePosition
+    PROPERTIES(of) READONLY namePosition, idPosition SHOWIF showIDs()
     PROPERTIES(of) ADDFORM, EDITFORM, DELETE
     DIALOG Position OBJECT of
 ;
@@ -47,6 +49,8 @@ isParentEmployeeDivisionGroupEmployeeDivision (employeeDivisionGroup, employeeDi
 
 CLASS Employee 'Сотрудник' : CustomUser;
 TABLE employee(Employee);
+
+@defineExternalizable(employee, STRING[100]);
 
 namePositionEmployee 'Должность сотрудника' (employee) = namePosition(positionEmployee(employee)) IN base MINCHARWIDTH 15 PREFCHARWIDTH 15;
 
@@ -88,7 +92,8 @@ countAccessEmployeeEmployeeDivisionGroup 'Кол-во доступных под�
 FORM employee 'Сотрудник'
     OBJECTS e=Employee FIXED PANEL
     PROPERTIES(e)      firstNameContact, lastNameContact, namePositionEmployee,
-                       loginCustomUser, passwordCustomUser, emailContact, nameMainRoleUser, limitAccessEmployee
+                       loginCustomUser, passwordCustomUser, emailContact, nameMainRoleUser, limitAccessEmployee,
+                       idEmployee READONLY SHOWIF showIDs()
 
     TREE treeEmployeeDivision a=STRING[3], dg = EmployeeDivisionGroup PARENT parentEmployeeDivisionGroup
     PROPERTIES READONLY  OBJVALUE(a), dgTreeName = nameEmployeeDivisionGroup(dg)
@@ -120,6 +125,7 @@ DESIGN employee FROM DEFAULT {
                 ADD PROPERTY(firstNameContact(e));
                 ADD PROPERTY(lastNameContact(e));
                 ADD PROPERTY(namePositionEmployee(e));
+                ADD PROPERTY(idEmployee(e));
             };
             NEW threeCase {
                 caption = 'Данные пользователя';
@@ -147,7 +153,7 @@ DESIGN employee FROM DEFAULT {
 
 FORM employees 'Сотрудники'
     OBJECTS e=Employee
-    PROPERTIES(e) READONLY firstNameContact, lastNameContact, namePositionEmployee
+    PROPERTIES(e) READONLY firstNameContact, lastNameContact, namePositionEmployee, idEmployee SHOWIF showIDs()
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE
 
     OBJECTS d=EmployeeDivision

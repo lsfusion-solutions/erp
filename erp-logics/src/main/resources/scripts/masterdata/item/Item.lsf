@@ -7,6 +7,8 @@ REQUIRE System, Stock, Hierarchy, Barcode, PriceListType, PriceListCalc;
 CLASS ItemGroup 'Товарная группа' : SkuGroup;
 TABLE itemGroup (ItemGroup);
 
+@defineExternalizable(itemGroup, STRING[100]);
+
 nameItemGroup 'Наименование' = DATA ISTRING[100](ItemGroup) IN base;
 
 nameSkuGroup(group) += nameItemGroup(group) IF group IS ItemGroup;
@@ -34,7 +36,7 @@ moveItemGroup 'Перенести отмеченные группы в теку�
 
 FORM itemGroup 'Товарная группа'
     OBJECTS g=ItemGroup FIXED PANEL
-    PROPERTIES(g) nameItemGroup, nameParentItemGroup
+    PROPERTIES(g) nameItemGroup, nameParentItemGroup, idItemGroup SHOWIF showIDs()
     EDIT ItemGroup OBJECT g
 ;
 
@@ -42,6 +44,7 @@ FORM itemGroups 'Товарные группы'
     TREE treeGroups g=ItemGroup PARENT parentItemGroup
     PROPERTIES inItemGroup(g), moveItemGroup(g) TODRAW g FORCE PANEL TOOLBAR
     PROPERTIES READONLY nameItemGroup(g), canonicalNameItemGroup (g)
+    PROPERTIES (g) READONLY idItemGroup SHOWIF showIDs()
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE
     ORDER BY canonicalNameItemGroup
 ;
@@ -93,6 +96,8 @@ TABLE itemDate (Item, DATE);
 TABLE itemCountry (Item, Country);
 TABLE itemCountryDate (Item, Country, DATE);
 
+@defineExternalizable(item, STRING[100]);
+
 // Связь с группой товаров
 itemGroupItem = DATA ItemGroup(Item) AUTOSET;
 skuGroupSku(item) += itemGroupItem(item);
@@ -133,7 +138,7 @@ FORM item 'Товар'
     OBJECTS i=Item FIXED PANEL
 
     PROPERTIES(i) canonicalNameItemGroupItem, idBarcodeSku READONLY,
-                  imageItem, loadImageItem
+                  imageItem, loadImageItem, idItem SHOWIF showIDs()
 
     OBJECTS b=Barcode
     PROPERTIES(b)       idBarcode, dateBarcode, shortNameUOMBarcode,
@@ -194,6 +199,7 @@ DESIGN item FROM DEFAULT {
                         childConstraints = TO THE BOTTOM;
                     }
                 }
+                ADD PROPERTY(idItem);
                 ADD b.box;
             }
             NEW itemGroup {
@@ -258,6 +264,7 @@ FORM items 'Товары'
 
     OBJECTS i=Item
     PROPERTIES(i) READONLY idBarcodeSku
+    PROPERTIES(i) READONLY idItem SHOWIF showIDs()
     PROPERTIES(i) ADDFORM, EDITFORM, deletei=DELETE
     PROPERTIES seekBarcode()
     ON CHANGE seekSkuBarcode()
@@ -475,6 +482,8 @@ UOMSku(item) += UOMItem(item);
 CLASS Brand 'Бренд';
 TABLE brand(Brand);
 
+@defineExternalizable(brand, STRING[100]);
+
 nameBrand 'Наименование' = DATA ISTRING[50](Brand);
 
 FORM brand 'Бренд'
@@ -485,7 +494,7 @@ FORM brand 'Бренд'
 
 FORM brands 'Бренды'
     OBJECTS t=Brand
-    PROPERTIES(t) nameBrand READONLY, DELETE
+    PROPERTIES(t) nameBrand READONLY, idBrand READONLY SHOWIF showIDs(), DELETE
     PROPERTIES(t) ADDFORM, EDITFORM
     ORDER BY nameBrand
     DIALOG Brand OBJECT t
@@ -504,6 +513,8 @@ countrySku(sku) += countryItem(sku);
 // Производитель
 CLASS Manufacturer 'Производитель товара';
 TABLE manufacturer(Manufacturer);
+
+@defineExternalizable(manufacturer, STRING[100]);
 
 nameManufacturer 'Наименование' = DATA ISTRING[50](Manufacturer);
 

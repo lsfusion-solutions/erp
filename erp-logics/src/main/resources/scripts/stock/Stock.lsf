@@ -15,6 +15,8 @@ TABLE stockGroupStockGroup(StockGroup, StockGroup);
 CLASS ABSTRACT Stock 'Склад';
 TABLE stock(Stock);
 
+@defineExternalizableAbstract(stock, STRING[100]);
+
 nameStock 'Наименование' = ABSTRACT ISTRING[150](Stock) PERSISTENT INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 20;
 stockGroupStock (stock) = ABSTRACT StockGroup (Stock) PERSISTENT INDEXED;
 nameStockGroupStock 'Группа' (stock) = nameStockGroup(stockGroupStock (stock));
@@ -91,6 +93,8 @@ DESIGN regions FROM DEFAULT { main{ preferredSize = (600, 400); } }
 CLASS UOM 'Единица измерения';
 TABLE UOM (UOM);
 
+@defineExternalizable(UOM, STRING[100]);
+
 nameUOM 'Наименование' = DATA ISTRING[50](UOM);
 shortNameUOM 'Краткое наименование' = DATA ISTRING[10](UOM);
 
@@ -101,7 +105,7 @@ factorUOM 'Коэффициент пересчета в баз.ед.' = DATA NUM
 
 FORM UOM 'Единица измерения'
     OBJECTS u=UOM FIXED PANEL
-    PROPERTIES(u) nameUOM, shortNameUOM, shortNameBaseUOM, genitiveNameUOM, factorUOM
+    PROPERTIES(u) nameUOM, shortNameUOM, shortNameBaseUOM, genitiveNameUOM, factorUOM, idUOM READONLY SHOWIF showIDs()
     EDIT UOM OBJECT u
 ;
 
@@ -2718,7 +2722,7 @@ FORM stocks 'Склады'
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
+    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
     PROPERTIES(s)          editStock
     ORDER BY stockName
     FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)

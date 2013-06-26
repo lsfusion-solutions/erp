@@ -1,11 +1,14 @@
 MODULE PriceListCalc;
 
-REQUIRE PriceListLedger;
+REQUIRE Integration, PriceListLedger;
 
 NAMESPACE PriceList;
 
 CLASS CalcPriceListType 'Расчетный вид цены' : PriceListType;
 TABLE calcPriceListType (CalcPriceListType);
+
+@defineExternalizable(calcPriceListType, STRING[100]);
+idPriceListType (p) += idCalcPriceListType(p);
 
 nameCalcPriceListType 'Наименование' = DATA ISTRING[50](CalcPriceListType);
 namePriceListType(type) += nameCalcPriceListType(type) IF type IS CalcPriceListType;
@@ -117,4 +120,5 @@ editPriceListType(priceListType) += editCalcPriceListType(priceListType);
 
 EXTEND FORM priceListTypes
     PROPERTIES() TODRAW pt FORCE PANEL addCalcPriceListType
+    PROPERTIES(pt) SHOWIF showIDs() READONLY idCalcPriceListType
 ;
