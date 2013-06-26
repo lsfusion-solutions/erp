@@ -421,6 +421,32 @@ sumRecSalesSkuGroupStockDateDate 'Сумма продаж (всего)' (group, 
                                            dateSaleLedger(saleLedger) <= dateTo
     BY group, stockSaleLedger(saleLedger), dateFrom, dateTo;
 
+//суммы продаж по покупателю
+costSumSalesGroupTypeCustomerStockDateDate 'Себестоимость продаж (по покупателю)' (groupType, customer, stock, dateFrom, dateTo) =
+    GROUP SUM costSumSaleLedger(saleLedger) IF isPostedSaleLedger(saleLedger) AND
+                                               inSessionGroup(groupGroupTypeSku(groupType, skuSaleLedger(saleLedger))) AND
+                                               dateSaleLedger(saleLedger) >= dateFrom AND
+                                               dateSaleLedger(saleLedger) <= dateTo
+    BY groupType, customerSaleLedger(saleLedger), stockSaleLedger(saleLedger), dateFrom, dateTo;
+markupSumSalesGroupTypeCustomerStockDateDate 'Надбавка (по покупателю)'(groupType, customer, stock, dateFrom, dateTo) =
+    GROUP SUM markupSumSaleLedger(saleLedger) IF isPostedSaleLedger(saleLedger) AND
+                                               inSessionGroup(groupGroupTypeSku(groupType, skuSaleLedger(saleLedger))) AND
+                                               dateSaleLedger(saleLedger) >= dateFrom AND
+                                               dateSaleLedger(saleLedger) <= dateTo
+    BY groupType, customerSaleLedger(saleLedger), stockSaleLedger(saleLedger), dateFrom, dateTo;
+sumVATSalesGroupTypeCustomerStockDateDate 'Сумма НДС (по покупателю)'(groupType, customer, stock, dateFrom, dateTo) =
+    GROUP SUM sumVATSaleLedger(saleLedger) IF isPostedSaleLedger(saleLedger) AND
+                                              inSessionGroup(groupGroupTypeSku(groupType, skuSaleLedger(saleLedger))) AND
+                                              dateSaleLedger(saleLedger) >= dateFrom AND
+                                              dateSaleLedger(saleLedger) <= dateTo
+    BY groupType, customerSaleLedger(saleLedger), stockSaleLedger(saleLedger), dateFrom, dateTo;
+sumSalesGroupTypeCustomerStockDateDate 'Сумма продаж (по покупателю)' (groupType, customer, stock, dateFrom, dateTo) =
+    GROUP SUM sumSaleLedger(saleLedger) IF isPostedSaleLedger(saleLedger) AND
+                                           inSessionGroup(groupGroupTypeSku(groupType, skuSaleLedger(saleLedger))) AND
+                                           dateSaleLedger(saleLedger) >= dateFrom AND
+                                           dateSaleLedger(saleLedger) <= dateTo
+    BY groupType, customerSaleLedger(saleLedger), stockSaleLedger(saleLedger), dateFrom, dateTo;
+
 //итоговые суммы продаж
 costSumSalesGroupTypeStockDateDate 'Итоговая себестоимость продаж' (groupType, stock, dateFrom, dateTo) =
     GROUP SUM costSumSaleLedger(saleLedger) IF inSessionGroup(groupGroupTypeSku(groupType, skuSaleLedger(saleLedger))) AND
@@ -464,6 +490,21 @@ sumRecPurchasesSkuGroupStockDateDate 'Сумма поступлений (все�
                                                    datePurchaseLedger(purchaseLedger) >= dateFrom AND
                                                    datePurchaseLedger(purchaseLedger) <= dateTo
     BY group, stockPurchaseLedger(purchaseLedger), dateFrom, dateTo;
+
+//суммы поступлений по поставщику
+
+sumVATPurchasesGroupTypeSupplierStockDateDate 'Сумма НДС (по поставщику)'(groupType, supplier, stock, dateFrom, dateTo) =
+    GROUP SUM sumVATPurchaseLedger(purchaseLedger) IF isPostedPurchaseLedger(purchaseLedger) AND
+                                                      inSessionGroup(groupGroupTypeSku(groupType, skuPurchaseLedger(purchaseLedger))) AND
+                                                      datePurchaseLedger(purchaseLedger) >= dateFrom AND
+                                                      datePurchaseLedger(purchaseLedger) <= dateTo
+    BY groupType, supplierPurchaseLedger(purchaseLedger), stockPurchaseLedger(purchaseLedger), dateFrom, dateTo;
+sumPurchasesGroupTypeSupplierStockDateDate 'Сумма поступлений (по поставщику)' (groupType, supplier, stock, dateFrom, dateTo) =
+    GROUP SUM sumPurchaseLedger(purchaseLedger) IF isPostedPurchaseLedger(purchaseLedger) AND
+                                                   inSessionGroup(groupGroupTypeSku(groupType, skuPurchaseLedger(purchaseLedger))) AND
+                                                   datePurchaseLedger(purchaseLedger) >= dateFrom AND
+                                                   datePurchaseLedger(purchaseLedger) <= dateTo
+    BY groupType, supplierPurchaseLedger(purchaseLedger), stockPurchaseLedger(purchaseLedger), dateFrom, dateTo;
 
 //итоговые суммы поступлений
 sumVATPurchasesGroupTypeStockDateDate 'Итоговая сумма НДС поступлений' (groupType, stock, dateFrom, dateTo) =
@@ -579,6 +620,75 @@ FORM printGroupSalesReport 'Отчет по продажам' PRINT
 printGroupSalesReport 'По группам' (stock, dateFrom, dateTo) =
     ACTION FORM printGroupSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
 
+FORM printGroupCustomerSalesReport 'Отчет по продажам' PRINT
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt, st, df, dt) READONLY costSumSalesGroupTypeStockDateDate, markupSumSalesGroupTypeStockDateDate,
+                                        sumVATSalesGroupTypeStockDateDate, sumSalesGroupTypeStockDateDate
+    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    OBJECTS l = LegalEntity
+    PROPERTIES READONLY nameLegalEntity(l)
+    ORDER BY nameLegalEntity
+    PROPERTIES(gt, l, st, df, dt) READONLY costSumSalesGroupTypeCustomerStockDateDate, markupSumSalesGroupTypeCustomerStockDateDate,
+                                           sumVATSalesGroupTypeCustomerStockDateDate, sumSalesGroupTypeCustomerStockDateDate
+    FILTERS isBuyerLegalEntity(l)
+
+    OBJECTS s = SaleLedger
+    PROPERTIES(s) READONLY dateTimeSaleLedger, nameCustomerSaleLedger, nameSkuSaleLedger, descriptionSaleLedger,
+                           quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger
+    ORDER BY nameSkuSaleLedger
+    FILTERS isPostedSaleLedger(s),
+            inSessionGroup(groupGroupTypeSku(gt, skuSaleLedger(s))),
+            stockSaleLedger(s) == st,
+            dateSaleLedger(s) >= df,
+            dateSaleLedger(s) <= dt,
+            customerSaleLedger(s) == l
+;
+
+printGroupCustomerSalesReport 'По покупателям' (stock, dateFrom, dateTo) =
+    ACTION FORM printGroupCustomerSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
+
+FORM printCustomerSalesReport 'Отчет по продажам' PRINT
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt, st, df, dt) READONLY costSumSalesGroupTypeStockDateDate, markupSumSalesGroupTypeStockDateDate,
+                                        sumVATSalesGroupTypeStockDateDate, sumSalesGroupTypeStockDateDate
+    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    OBJECTS l = LegalEntity
+    PROPERTIES READONLY nameLegalEntity(l)
+    ORDER BY nameLegalEntity
+    PROPERTIES(gt, l, st, df, dt) READONLY costSumSalesGroupTypeCustomerStockDateDate, markupSumSalesGroupTypeCustomerStockDateDate,
+                                           sumVATSalesGroupTypeCustomerStockDateDate, sumSalesGroupTypeCustomerStockDateDate
+    FILTERS isBuyerLegalEntity(l),
+            costSumSalesGroupTypeCustomerStockDateDate(gt, l, st, df, dt) OR markupSumSalesGroupTypeCustomerStockDateDate(gt, l, st, df, dt) OR
+            sumVATSalesGroupTypeCustomerStockDateDate(gt, l, st, df, dt) OR sumSalesGroupTypeCustomerStockDateDate(gt, l, st, df, dt)
+;
+
+printCustomerSalesReport 'По покупателям' (stock, dateFrom, dateTo) =
+    ACTION FORM printCustomerSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
+
 FORM printListPurchasesReport 'Отчет по поступлениям' PRINT
     OBJECTS df=DATE FIXED PANEL
     PROPERTIES dateFrom = OBJVALUE(df)
@@ -674,6 +784,71 @@ FORM printGroupPurchasesReport 'Отчет по поступлениям' PRINT
 printGroupPurchasesReport 'По группам' (stock, dateFrom, dateTo) =
     ACTION FORM printGroupPurchasesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
 
+FORM printGroupSupplierPurchasesReport 'Отчет по поступлениям' PRINT
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt, st, df, dt) READONLY sumVATPurchasesGroupTypeStockDateDate, sumPurchasesGroupTypeStockDateDate
+    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    OBJECTS l = LegalEntity
+    PROPERTIES READONLY nameLegalEntity(l)
+    ORDER BY nameLegalEntity
+    PROPERTIES(gt, l, st, df, dt) READONLY sumVATPurchasesGroupTypeSupplierStockDateDate, sumPurchasesGroupTypeSupplierStockDateDate
+    FILTERS isSellerLegalEntity(l)
+
+    OBJECTS p = PurchaseLedger
+    PROPERTIES(p) READONLY dateTimePurchaseLedger, nameSupplierPurchaseLedger, nameSkuPurchaseLedger, descriptionPurchaseLedger,
+                           quantityPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
+    ORDER BY nameSkuPurchaseLedger
+    FILTERS isPostedPurchaseLedger(p),
+            inSessionGroup(groupGroupTypeSku(gt, skuPurchaseLedger(p))),
+            stockPurchaseLedger(p) == st,
+            datePurchaseLedger(p) >= df,
+            datePurchaseLedger(p) <= dt,
+            supplierPurchaseLedger(p) == l
+;
+
+printGroupSupplierPurchasesReport 'По поставщикам' (stock, dateFrom, dateTo) =
+    ACTION FORM printGroupSupplierPurchasesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
+
+FORM printSupplierPurchasesReport 'Отчет по поступлениям' PRINT
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt, st, df, dt) READONLY sumVATPurchasesGroupTypeStockDateDate, sumPurchasesGroupTypeStockDateDate
+    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    OBJECTS l = LegalEntity
+    PROPERTIES READONLY nameLegalEntity(l)
+    ORDER BY nameLegalEntity
+    PROPERTIES(gt, l, st, df, dt) READONLY sumVATPurchasesGroupTypeSupplierStockDateDate, sumPurchasesGroupTypeSupplierStockDateDate
+    FILTERS isSellerLegalEntity(l),
+            sumVATPurchasesGroupTypeSupplierStockDateDate(gt, l, st, df, dt) OR sumPurchasesGroupTypeSupplierStockDateDate(gt, l, st, df, dt)
+
+;
+
+printSupplierPurchasesReport 'По поставщикам' (stock, dateFrom, dateTo) =
+    ACTION FORM printSupplierPurchasesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
+
 FORM salesPurchasesReport 'Продажи и поступления'
     OBJECTS df=DATE FIXED PANEL
     PROPERTIES dateFrom = OBJVALUE(df)
@@ -706,7 +881,8 @@ FORM salesPurchasesReport 'Продажи и поступления'
             stockSaleLedger(s) == st,
             dateSaleLedger(s) >= df,
             dateSaleLedger(s) <= dt
-    PROPERTIES(st, df, dt) printListSalesReport, printSalesReport, printGroupSalesReport
+    PROPERTIES(st, df, dt) printListSalesReport, printSalesReport, printGroupSalesReport,
+                           printGroupCustomerSalesReport, printCustomerSalesReport
 
     OBJECTS p = PurchaseLedger
     PROPERTIES(p) READONLY dateTimePurchaseLedger, nameSupplierPurchaseLedger, nameSkuPurchaseLedger, descriptionPurchaseLedger,
@@ -717,7 +893,8 @@ FORM salesPurchasesReport 'Продажи и поступления'
             stockPurchaseLedger(p) == st,
             datePurchaseLedger(p) >= df,
             datePurchaseLedger(p) <= dt
-    PROPERTIES(st, df, dt) printListPurchasesReport, printPurchasesReport, printGroupPurchasesReport
+    PROPERTIES(st, df, dt) printListPurchasesReport, printPurchasesReport, printGroupPurchasesReport,
+                           printGroupSupplierPurchasesReport, printSupplierPurchasesReport
 ;
 
 DESIGN salesPurchasesReport FROM DEFAULT{
@@ -757,11 +934,13 @@ DESIGN salesPurchasesReport FROM DEFAULT{
                             caption = 'С детализацией';
                             childConstraints = TO THE RIGHT;
                             ADD PROPERTY(printSalesReport);
+                            ADD PROPERTY(printGroupCustomerSalesReport);
                         }
                         NEW secondRowSalesContainer{
                             caption = 'Без детализации';
                             childConstraints = TO THE RIGHT;
                             ADD PROPERTY(printGroupSalesReport);
+                            ADD PROPERTY(printCustomerSalesReport);
                         }
                     }
                     ADD PROPERTY(printListSalesReport);
@@ -780,11 +959,13 @@ DESIGN salesPurchasesReport FROM DEFAULT{
                             caption = 'С детализацией';
                             childConstraints = TO THE RIGHT;
                             ADD PROPERTY(printPurchasesReport);
+                            ADD PROPERTY(printGroupSupplierPurchasesReport);
                         }
                         NEW secondRowPurchasesContainer{
                             caption = 'Без детализации';
                             childConstraints = TO THE RIGHT;
                             ADD PROPERTY(printGroupPurchasesReport);
+                            ADD PROPERTY(printSupplierPurchasesReport);
                         }
                     }
                     ADD PROPERTY(printListPurchasesReport);
