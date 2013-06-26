@@ -8,10 +8,7 @@ CLASS PharmacyPriceGroup 'Тип лекарственного средства';
 TABLE pharmacyPriceGroup(PharmacyPriceGroup);
 
 namePharmacyPriceGroup 'Наименование' = DATA ISTRING[50](PharmacyPriceGroup);
-idPharmacyPriceGroup 'Идентификатор' = DATA STRING[20] (PharmacyPriceGroup) MINCHARWIDTH 15 PREFCHARWIDTH 20;
-
-pharmacyGroupIdPharmacyGroup (string1) = GROUP AGGR group
-    BY idPharmacyPriceGroup(group) WHERE group IS PharmacyPriceGroup;
+@defineExternalizable(pharmacyPriceGroup, STRING[100]);
 
 pharmacyPriceGroupSku= ABSTRACT PharmacyPriceGroup (Sku);
 namePharmacyPriceGroupSku 'Тип лекарственного средства' (sku) = namePharmacyPriceGroup(pharmacyPriceGroupSku(sku));
@@ -62,7 +59,7 @@ retailMarkupPharmacySkuPriceDate 'Розничная надбавка' (sku, pri
 FORM pharmacyMarkups 'Типы лекарственных средств'
 
     OBJECTS g=PharmacyPriceGroup
-    PROPERTIES (g) namePharmacyPriceGroup, idPharmacyPriceGroup
+    PROPERTIES (g) namePharmacyPriceGroup, idPharmacyPriceGroup SHOWIF showIDs()
     PROPERTIES (g) ADDOBJ, DELETESESSION
     ORDER BY idPharmacyPriceGroup
 
@@ -117,7 +114,7 @@ DESIGN pharmacyMarkups FROM DEFAULT {
 }
 FORM pharmacyPriceGroups 'Типы лекарственных средств'
     OBJECTS g=PharmacyPriceGroup
-    PROPERTIES (g) READONLY namePharmacyPriceGroup, idPharmacyPriceGroup
+    PROPERTIES (g) READONLY namePharmacyPriceGroup, idPharmacyPriceGroup SHOWIF showIDs()
     ORDER BY idPharmacyPriceGroup
 
     OBJECTS i=PharmacyPriceInterval
