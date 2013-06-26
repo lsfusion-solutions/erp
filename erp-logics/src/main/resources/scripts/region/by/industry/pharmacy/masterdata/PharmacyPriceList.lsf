@@ -16,21 +16,6 @@ pharmacyGroupIdPharmacyGroup (string1) = GROUP AGGR group
 pharmacyPriceGroupSku= ABSTRACT PharmacyPriceGroup (Sku);
 namePharmacyPriceGroupSku 'Тип лекарственного средства' (sku) = namePharmacyPriceGroup(pharmacyPriceGroupSku(sku));
 
-FORM pharmacyPriceGroup 'Типы лекарственных средств'
-    OBJECTS t=PharmacyPriceGroup FIXED PANEL
-    PROPERTIES(t) namePharmacyPriceGroup, idPharmacyPriceGroup
-    EDIT PharmacyPriceGroup OBJECT t
-;
-
-FORM pharmacyPriceGroups 'Типы лекарственных средств'
-    OBJECTS t=PharmacyPriceGroup
-    PROPERTIES(t) namePharmacyPriceGroup READONLY, idPharmacyPriceGroup READONLY, DELETE
-    PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY idPharmacyPriceGroup
-    DIALOG PharmacyPriceGroup OBJECT t
-;
-DESIGN pharmacyPriceGroups FROM DEFAULT { main{ preferredSize = (600, 400); } }
-
 CLASS PharmacyPriceInterval 'Интервал цен лекарственного средства';
 TABLE pharmacyPriceInterval(PharmacyPriceInterval);
 
@@ -60,7 +45,7 @@ retailMarkupPharmacyGroupInterval 'Розничная надбавка' = DATA N
 pharmacyExchangePriceDate  (price, date)= price / rateTypeExchangeCurrencyDate(pharmacyTypeExchange(), currencyShortName('USD'), date);
 
 orderIntervalGroupPriceDate (group, price, date) = GROUP MAX STRUCT(pricePharmacyInterval(interval), fromDatePharmacyInterval(interval), interval)
-    IF pharmacyExchangePriceDate(price, date) > pricePharmacyInterval(interval)
+    IF pharmacyExchangePriceDate(price AS NUMERIC[14,3], date) > pricePharmacyInterval(interval)
     IF date >= fromDatePharmacyInterval(interval)
     IF NOT date > toDatePharmacyInterval(interval)
         BY pharmacyGroupPharmacyInterval(interval), price, date;
@@ -74,7 +59,7 @@ retailMarkupPharmacyGroupPriceDate 'Розничная надбавка' (priceG
 retailMarkupPharmacySkuPriceDate 'Розничная надбавка' (sku, price, date) =  retailMarkupPharmacyGroupPriceDate(pharmacyPriceGroupSku(sku), price, date);
 
 
-FORM pharmacyMarkups 'Надбавки для лекарственных средств'
+FORM pharmacyMarkups 'Типы и надбавки лекарственных средств'
 
     OBJECTS g=PharmacyPriceGroup
     PROPERTIES (g) READONLY namePharmacyPriceGroup, idPharmacyPriceGroup
@@ -130,7 +115,25 @@ DESIGN pharmacyMarkups FROM DEFAULT {
         ADD functions.box;
     }
 }
+FORM pharmacyPriceGroups 'Типы лекарственных средств'
+    OBJECTS g=PharmacyPriceGroup
+    PROPERTIES (g) READONLY namePharmacyPriceGroup, idPharmacyPriceGroup
+    ORDER BY idPharmacyPriceGroup
 
+    OBJECTS i=PharmacyPriceInterval
+    PROPERTIES READONLY fromDatePharmacyInterval(i), toDatePharmacyInterval(i), pricePharmacyInterval(i),
+               wholesaleMarkupPharmacyGroupInterval(g,i), retailMarkupPharmacyGroupInterval(g,i)
+    FILTERS    pharmacyGroupPharmacyInterval(i)==g
+    ORDER BY pricePharmacyInterval
+
+    DIALOG PharmacyPriceGroup OBJECT g
+;
+
+DESIGN pharmacyPriceGroups FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+    }
+}
 
 
 NAVIGATOR {
