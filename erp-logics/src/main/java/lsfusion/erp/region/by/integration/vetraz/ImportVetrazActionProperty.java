@@ -41,6 +41,8 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
                 ImportData importData = new ImportData();
 
+                importData.setWithoutRecalc((Boolean)getLCP("withoutRecalcVetraz").read(context));
+
                 importData.setLegalEntitiesList((getLCP("importLegalEntities").read(context) != null) ?
                         importLegalEntitiesFromDBF(path + "//sprana.dbf") : null);
 

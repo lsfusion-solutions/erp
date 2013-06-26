@@ -48,6 +48,7 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
                 Boolean importInactive = getLCP("importInactive").read(context) != null;
                 importData.setImportInactive(importInactive);
                 importData.setSkipKeys((Boolean) getLCP("skipKeysLSTrade").read(context));
+                importData.setWithoutRecalc((Boolean)getLCP("withoutRecalcLSTrade").read(context));
 
                 importData.setNumberOfItemsAtATime((Integer) getLCP("importNumberItemsAtATime").read(context));
                 importData.setNumberOfPriceListsAtATime((Integer) getLCP("importNumberPriceListsAtATime").read(context));

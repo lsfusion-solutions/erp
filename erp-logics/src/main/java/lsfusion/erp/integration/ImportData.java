@@ -25,6 +25,7 @@ public class ImportData {
     private Boolean importInactive;
     private Boolean importUserInvoicesPosted;
     private Boolean skipKeys;
+    private Boolean withoutRecalc;
 
     public ImportData() {
     }
@@ -199,6 +200,14 @@ public class ImportData {
 
     public void setSkipKeys(Boolean skipKeys) {
         this.skipKeys = skipKeys;
+    }
+
+    public Boolean getWithoutRecalc() {
+        return withoutRecalc==null ? false : withoutRecalc;
+    }
+
+    public void setWithoutRecalc(Boolean withoutRecalc) {
+        this.withoutRecalc = withoutRecalc;
     }
 
     public void setImportUserInvoicesPosted(Boolean importUserInvoicesPosted) {
