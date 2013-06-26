@@ -238,40 +238,43 @@ END
 //END
 
 META deriveDocumentDetailPriceOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form)
-    ON SESSION FORMS form { // цены берем на начало сессии, а не этого event'а
-        LOCAL changedPriceListType = BOOLEAN (###idetail);
-        ASSIGN changedPriceListType(detail) <- TRUE IF prefix###priceListType###idetail(detail) AND
-                                                    sku###idetail(detail) AND
-                                            (CHANGED(prefix###priceListType###idetail(detail)) OR
-                                             CHANGED(prefixP###price###idetail(detail)) OR
-                                             CHANGED(sku###idetail(detail)) OR
-                                             CHANGED(stockProp###idetail(detail)) OR
-                                             CHANGED(dateTime###idetail(detail)) OR
-                                             CHANGED(value###prefix###VAT###idetail(detail)));
-        FOR [GROUP MAX(changedPriceListType(detail)) BY prefix###priceListType###idetail(detail)](priceListType) DO {
-            IF 1 == 2 THEN BREAK; // чтобы не компилировала в один запрос, а выполняло императивно
-            IF priceListType IS CalcPriceListType THEN {
-                ASSIGN prefix###markup###idetail(detail) <- markupCalcPriceListTypeSku(priceListType, sku###idetail(detail))
-                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-                ASSIGN prefix###price###idetail(detail) <- roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
-                                                                        prefixP###price###idetail(detail),
-                                                                        prefix###markup###idetail(detail),
-                                                                        value###prefix###VAT###idetail(detail)), roundConditionPriceListType(priceListType))
-                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-            } ELSE {
-                ASSIGN prefix###price###idetail(detail) <- prevPricePriceListTypeSkuStockDateTime(priceListType,
-                                                                                                   sku###idetail(detail),
-                                                                                                   stockProp###idetail(detail),
-                                                                                                   dateTime###idetail(detail))
-                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-                ASSIGN prefix###markup###idetail(detail) <- [round2(((X/Z*100/(100+Y))-1)*100)](
-                                                                         prefix###price###idetail(detail),
-                                                                         prefixP###price###idetail(detail),
-                                                                         value###prefix###VAT###idetail(detail))
-                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-            }
+
+    WHEN SESSION FORMS form
+        (CHANGED(prefix###priceListType###idetail(detail)) OR
+         CHANGED(prefixP###price###idetail(detail)) OR
+         CHANGED(sku###idetail(detail)) OR
+         CHANGED(stockProp###idetail(detail)) OR
+         CHANGED(dateTime###idetail(detail)) OR
+         CHANGED(value###prefix###VAT###idetail(detail)))
+        AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND priceListType IS CalcPriceListType NOINLINE (priceListType) DO {
+            prefix###markup###idetail(detail) <- markupCalcPriceListTypeSku(priceListType, sku###idetail(detail))
+                                                         WHERE prefix###priceListType###idetail(detail) == priceListType;
+            prefix###price###idetail(detail) <- roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
+                                                                    prefixP###price###idetail(detail),
+                                                                    prefix###markup###idetail(detail),
+                                                                    value###prefix###VAT###idetail(detail)), roundConditionPriceListType(priceListType))
+                                                         WHERE prefix###priceListType###idetail(detail) == priceListType;
         }
-    }
+
+    WHEN SESSION FORMS form
+        (CHANGED(prefix###priceListType###idetail(detail)) OR
+         CHANGED(prefixP###price###idetail(detail)) OR
+         CHANGED(sku###idetail(detail)) OR
+         CHANGED(stockProp###idetail(detail)) OR
+         CHANGED(dateTime###idetail(detail)) OR
+         CHANGED(value###prefix###VAT###idetail(detail)))
+        AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND NOT priceListType IS CalcPriceListType NOINLINE (priceListType) DO {
+            prefix###price###idetail(detail) <- prevPricePriceListTypeSkuStockDateTime(priceListType,
+                                                                                       sku###idetail(detail),
+                                                                                       stockProp###idetail(detail),
+                                                                                       dateTime###idetail(detail))
+                                                         WHERE prefix###priceListType###idetail(detail) == priceListType;
+            prefix###markup###idetail(detail) <- [round2(((X/Z*100/(100+Y))-1)*100)](
+                                                               prefix###price###idetail(detail),
+                                                               prefixP###price###idetail(detail),
+                                                               value###prefix###VAT###idetail(detail))
+                                                         WHERE prefix###priceListType###idetail(detail) == priceListType;
+        }
 END
 
 META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD)
