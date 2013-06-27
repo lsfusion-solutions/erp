@@ -15,6 +15,7 @@ PRIORITY Stock;
 //--------------------------------------Дисконтные карточки------------------------------------------------------------------//
 CLASS DiscountCard 'Дисконтная карта' : NumeratedObject;
 TABLE discountCard (DiscountCard);
+@defineExternalizable(discountCard, STRING[100]);
 
 @defineNumeratedObjectDefault(DiscountCard, 'Нумератор для дисконтных карт', 'ДС');
 
@@ -77,7 +78,7 @@ generateDiscountCards 'Сгенерировать дисконтные карт�
 
 FORM discountCard 'Дисконтная карта'
     OBJECTS d=DiscountCard FIXED PANEL
-    PROPERTIES(d) nameLegalEntityDiscountCard, initialSumDiscountCard,
+    PROPERTIES(d) nameLegalEntityDiscountCard, idDiscountCard SHOWIF showIDs(), initialSumDiscountCard,
                   nameNumeratorObject, numberObject, seriesObject,
                   dateDiscountCard, dateToDiscountCard
 
@@ -101,6 +102,10 @@ DESIGN discountCard FROM DEFAULT {
                 }
                 NEW row2 {
                     childConstraints = TO THE RIGHT;
+                    NEW row21{
+                        caption = 'Код';
+                        ADD PROPERTY(idDiscountCard);
+                    }
                     ADD d.numberedGroup;
                     ADD d.discountCardDateGroup;
                 }
@@ -112,7 +117,7 @@ DESIGN discountCard FROM DEFAULT {
 FORM discountCardDialog 'Дисконтные карты'
 
     OBJECTS d = DiscountCard
-    PROPERTIES(d) READONLY nameLegalEntityDiscountCard, initialSumDiscountCard, numberObject, seriesObject,
+    PROPERTIES(d) READONLY numberObject, seriesObject, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, initialSumDiscountCard,
                          dateDiscountCard, dateToDiscountCard
 
     DIALOG DiscountCard OBJECT d
@@ -120,7 +125,7 @@ FORM discountCardDialog 'Дисконтные карты'
 
 FORM discountCards 'Дисконтные карты'
     OBJECTS d=DiscountCard
-    PROPERTIES(d) READONLY numberObject, seriesObject, nameLegalEntityDiscountCard, dateDiscountCard, dateToDiscountCard,
+    PROPERTIES(d) READONLY numberObject, seriesObject, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, dateDiscountCard, dateToDiscountCard,
                   initialSumDiscountCard
     PROPERTIES(d) ADDFORM, EDITFORM, DELETE
 
