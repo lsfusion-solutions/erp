@@ -1958,6 +1958,55 @@ editSku 'Редактировать' = ABSTRACT ACTION LIST (Sku) IMAGE 'edit.pn
 addSku 'Добавить' = ABSTRACT ACTION LIST () IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 copySku 'Копировать' = ABSTRACT ACTION LIST (Sku)  TOOLBAR;
 
+// -------------------------------- Движение товара -------------------------- //
+
+balanceASkuLedger 'Остаток (после)' (ledger) = balanceASkuStockDateTime(skuSkuLedger(ledger), stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
+
+FORM movementSku 'Движение товара'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY nameSku
+
+    OBJECTS bil = SkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger,
+                             balanceASkuLedger
+    ORDER BY dateTimeSkuLedger
+    FILTERS skuSkuLedger(bil) == s,
+            isPostedSkuLedger(bil)
+
+;
+FORM movementSkuStock 'Движение товара по складу'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY nameSku
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) READONLY nameStock
+
+    OBJECTS bil = SkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger,
+                             signedSumSkuLedger , balanceASkuLedger
+    ORDER BY dateTimeSkuLedger
+    FILTERS skuSkuLedger(bil) == s,
+            isPostedSkuLedger(bil),
+            stockSkuLedger(bil)==st
+;
+DESIGN movementSkuStock FROM DEFAULT {
+    NEW topContainer{
+        childConstraints = TO THE RIGHT;
+        ADD s.box;
+        ADD st.box;
+    }
+    ADD bil.box;
+    ADD functions.box;
+}
+
+
+META defineMovementSku(detail, stockProp)
+    showMovementSkuStock###detail 'Показать движение товара по складу' (detail) = ACTION FORM movementSkuStock OBJECTS s = sku###detail(detail), st = stockProp###detail(detail) MODAL SHORTCUT nameSku###detail;
+    showMovementSku###detail 'Показать движение товара' (detail) = ACTION FORM movementSku OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
+END
+
 // ---------------------------------------------- Остатки или партия или товар -------------------------------------------- //
 
 META defineDocumentDetailSkuBatchBalance (object, skuProp, stockProp)
