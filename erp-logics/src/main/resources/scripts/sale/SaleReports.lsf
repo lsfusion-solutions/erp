@@ -73,6 +73,10 @@ sumSalesGroupTypeCustomerStockDateDate 'Сумма продаж (по покуп
                                            dateSaleLedger(saleLedger) <= dateTo
     BY groupType, customerSaleLedger(saleLedger), stockSaleLedger(saleLedger), dateFrom, dateTo;
 
+//суммы продаж по SKU
+
+
+
 //итоговые суммы продаж
 costSumSalesGroupTypeStockDateDate 'Итоговая себестоимость продаж' (groupType, stock, dateFrom, dateTo) =
     GROUP SUM costSumSaleLedger(saleLedger) IF inSessionGroup(groupGroupTypeSku(groupType, skuSaleLedger(saleLedger))) AND
@@ -131,6 +135,37 @@ FORM printListSalesReport 'Отчет по продажам' PRINT
 printListSalesReport 'Списком' (stock, dateFrom, dateTo) =
     ACTION FORM printListSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
 
+FORM printListSkuSalesReport 'Отчет по продажам' PRINT
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt, st, df, dt) READONLY costSumSalesGroupTypeStockDateDate, markupSumSalesGroupTypeStockDateDate,
+                                        sumVATSalesGroupTypeStockDateDate, sumSalesGroupTypeStockDateDate
+    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY nameSku
+    PROPERTIES(s, st, df, dt) READONLY quantitySoldSkuStockDateFromTo, costSumSoldSkuStockDateFromTo, markupSumSoldSkuStockDateFromTo,
+                                       sumVATSoldSkuStockDateFromTo, sumSoldSkuStockDateFromTo
+    ORDER BY nameSku
+    FILTERS inSessionGroup(groupGroupTypeSku(gt, s)),
+            quantitySoldSkuStockDateFromTo(s, st, df, dt) OR costSumSoldSkuStockDateFromTo(s, st, df, dt) OR
+            markupSumSoldSkuStockDateFromTo(s, st, df, dt) OR sumVATSoldSkuStockDateFromTo(s, st, df, dt) OR
+            sumSoldSkuStockDateFromTo(s, st, df, dt)
+;
+
+printListSkuSalesReport 'Списком(по товарам)' (stock, dateFrom, dateTo) =
+    ACTION FORM printListSkuSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
+
 FORM printSalesReport 'Отчет по продажам' PRINT
     OBJECTS df=DATE FIXED PANEL
     PROPERTIES dateFrom = OBJVALUE(df)
@@ -168,6 +203,44 @@ FORM printSalesReport 'Отчет по продажам' PRINT
 
 printSalesReport 'По группам' (stock, dateFrom, dateTo) =
     ACTION FORM printSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
+
+FORM printSkuSalesReport 'Отчет по продажам' PRINT
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt, st, df, dt) READONLY costSumSalesGroupTypeStockDateDate, markupSumSalesGroupTypeStockDateDate,
+                                        sumVATSalesGroupTypeStockDateDate, sumSalesGroupTypeStockDateDate
+    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    OBJECTS sk = Group
+    PROPERTIES READONLY canonicalNameGroup(sk)
+    ORDER BY canonicalNameGroup
+    PROPERTIES(sk, st, df, dt) READONLY costSumSalesGroupStockDateDate, markupSumSalesGroupStockDateDate, sumVATSalesGroupStockDateDate, sumSalesSkuGroupStockDateDate
+    FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt),
+            groupTypeGroup(sk) == gt
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY nameSku
+    PROPERTIES(s, st, df, dt) READONLY quantitySoldSkuStockDateFromTo, costSumSoldSkuStockDateFromTo, markupSumSoldSkuStockDateFromTo,
+                                       sumVATSoldSkuStockDateFromTo, sumSoldSkuStockDateFromTo
+    ORDER BY nameSku
+    FILTERS groupGroupTypeSku(gt, s) == sk,
+            quantitySoldSkuStockDateFromTo(s, st, df, dt) OR costSumSoldSkuStockDateFromTo(s, st, df, dt) OR
+            markupSumSoldSkuStockDateFromTo(s, st, df, dt) OR sumVATSoldSkuStockDateFromTo(s, st, df, dt) OR
+            sumSoldSkuStockDateFromTo(s, st, df, dt)
+;
+
+printSkuSalesReport 'По товарам(группы)' (stock, dateFrom, dateTo) =
+    ACTION FORM printSkuSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
 
 FORM printGroupSalesReport 'Отчет по продажам' PRINT
     OBJECTS df=DATE FIXED PANEL
@@ -238,6 +311,44 @@ FORM printGroupCustomerSalesReport 'Отчет по продажам' PRINT
 printGroupCustomerSalesReport 'По покупателям' (stock, dateFrom, dateTo) =
     ACTION FORM printGroupCustomerSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
 
+FORM printGroupCustomerSkuSalesReport 'Отчет по продажам' PRINT
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt, st, df, dt) READONLY costSumSalesGroupTypeStockDateDate, markupSumSalesGroupTypeStockDateDate,
+                                        sumVATSalesGroupTypeStockDateDate, sumSalesGroupTypeStockDateDate
+    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    OBJECTS l = LegalEntity
+    PROPERTIES READONLY nameLegalEntity(l)
+    ORDER BY nameLegalEntity
+    PROPERTIES(gt, l, st, df, dt) READONLY costSumSalesGroupTypeCustomerStockDateDate, markupSumSalesGroupTypeCustomerStockDateDate,
+                                           sumVATSalesGroupTypeCustomerStockDateDate, sumSalesGroupTypeCustomerStockDateDate
+    FILTERS isBuyerLegalEntity(l)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY nameSku
+    PROPERTIES(s, st, l, df, dt) READONLY quantitySoldSkuStockCustomerDateFromTo, costSumSoldSkuStockCustomerDateFromTo, markupSumSoldSkuStockCustomerDateFromTo,
+                                          sumVATSoldSkuStockCustomerDateFromTo, sumSoldSkuStockCustomerDateFromTo
+    ORDER BY nameSku
+    FILTERS inSessionGroup(groupGroupTypeSku(gt, s)),
+            quantitySoldSkuStockCustomerDateFromTo(s, st, l, df, dt) OR costSumSoldSkuStockCustomerDateFromTo(s, st, l, df, dt) OR
+            markupSumSoldSkuStockCustomerDateFromTo(s, st, l, df, dt) OR sumVATSoldSkuStockCustomerDateFromTo(s, st, l, df, dt) OR
+            sumSoldSkuStockCustomerDateFromTo(s, st, l, df, dt)
+;
+
+printGroupCustomerSkuSalesReport 'По товарам(покупатели)' (stock, dateFrom, dateTo) =
+    ACTION FORM printGroupCustomerSkuSalesReport OBJECTS st = stock, df = dateFrom, dt = dateTo  IMAGE 'print.png' IN printGroup;
+
 FORM printCustomerSalesReport 'Отчет по продажам' PRINT
     OBJECTS df=DATE FIXED PANEL
     PROPERTIES dateFrom = OBJVALUE(df)
@@ -300,8 +411,8 @@ FORM salesReport 'Отчет по продажам'
             stockSaleLedger(s) == st,
             dateSaleLedger(s) >= df,
             dateSaleLedger(s) <= dt
-    PROPERTIES(st, df, dt) printListSalesReport, printSalesReport, printGroupSalesReport,
-                           printGroupCustomerSalesReport, printCustomerSalesReport
+    PROPERTIES(st, df, dt) printListSalesReport, printListSkuSalesReport, printSalesReport, printSkuSalesReport, printGroupSalesReport,
+                           printGroupCustomerSalesReport, printGroupCustomerSkuSalesReport, printCustomerSalesReport
 ;
 
 DESIGN salesReport FROM DEFAULT{
@@ -340,7 +451,9 @@ DESIGN salesReport FROM DEFAULT{
                             caption = 'С детализацией';
                             childConstraints = TO THE RIGHT;
                             ADD PROPERTY(printSalesReport);
+                            ADD PROPERTY(printSkuSalesReport);
                             ADD PROPERTY(printGroupCustomerSalesReport);
+                            ADD PROPERTY(printGroupCustomerSkuSalesReport);
                         }
                         NEW secondColumnSalesContainer{
                             caption = 'Без детализации';
@@ -351,6 +464,7 @@ DESIGN salesReport FROM DEFAULT{
                         NEW thirdColumnSalesContainer{
                             caption = 'Список';
                             ADD PROPERTY(printListSalesReport);
+                            ADD PROPERTY(printListSkuSalesReport);
                         }
                     }
                 }
