@@ -24,6 +24,7 @@ public class CreateExcelTemplateAllActionProperty extends ScriptingActionPropert
         try {
 
             Map<String, byte[]> files = new HashMap<String, byte[]>();
+            files.putAll(new CreateExcelTemplateUOMsActionProperty(LM).createFile());
             files.putAll(new CreateExcelTemplateItemsActionProperty(LM).createFile());
             files.putAll(new CreateExcelTemplateGroupItemsActionProperty(LM).createFile());
             files.putAll(new CreateExcelTemplateBanksActionProperty(LM).createFile());

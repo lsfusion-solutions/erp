@@ -55,6 +55,9 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
                 importData.setParentGroupsList((getLCP("importItems").read(context) != null) ?
                         importItemGroupsFromDBF(true) : null);
 
+                importData.setUOMsList((getLCP("importUOMs").read(context) != null) ?
+                        importUOMsFromDBF(path + "//sprmat.dbf") : null);
+
                 importData.setItemsList((getLCP("importItems").read(context) != null) ?
                         importItemsFromDBF(path + "//sprmat.dbf", numberOfItems) : null);
 
@@ -88,6 +91,25 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
     List<Double> allowedVAT = Arrays.asList(0.0, 9.09, 16.67, 10.0, 20.0, 24.0);
 
+    private List<UOM> importUOMsFromDBF(String itemsPath) throws IOException, xBaseJException, ParseException {
+
+        if (!(new File(itemsPath).exists()))
+            throw new RuntimeException("Запрашиваемый файл " + itemsPath + " не найден");
+
+        List<UOM> data = new ArrayList<UOM>();
+
+        DBF itemsImportFile = new DBF(itemsPath);
+        int recordCount = itemsImportFile.getRecordCount();
+
+        for (int i = 0; i < recordCount; i++) {
+            itemsImportFile.read();
+
+            String UOM = getFieldValue(itemsImportFile, "K_IZM", "Cp866", null);
+            data.add(new UOM(UOM, UOM, UOM));
+        }
+        return data;
+    }
+
     private List<Item> importItemsFromDBF(String itemsPath, Integer numberOfItems) throws IOException, xBaseJException, ParseException {
 
         if (!(new File(itemsPath).exists()))
@@ -116,7 +138,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             BigDecimal weight = getBigDecimalFieldValue(itemsImportFile, "N_PER3", "Cp866", null);
 
             if (!idItem.trim().isEmpty())
-                data.add(new Item(idItem, "ВСЕ", name, UOM, UOM, UOM, null, null, country, k_group,
+                data.add(new Item(idItem, "ВСЕ", name, UOM, null, null, country, k_group,
                         k_group, date, null, weight, weight, null, allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null,
                         null, null, null, null, null, null, idItem, amountInPack, manufacturer, manufacturer, codeCustomsGroup, country));
         }

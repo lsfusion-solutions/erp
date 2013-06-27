@@ -84,6 +84,9 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
                 importData.setWaresList((getLCP("importWares").read(context) != null) ?
                         importWaresFromDBF(path + "//_sprgrm.dbf") : null);
 
+                importData.setUOMsList((getLCP("importUOMs").read(context) != null) ?
+                        importUOMsFromDBF(path + "//_sprgrm.dbf") : null);
+
                 importData.setItemsList((getLCP("importItems").read(context) != null) ?
                         importItemsFromDBF(path + "//_sprgrm.dbf", path + "//_postvar.dbf", numberOfItems, importInactive) : null);
 
@@ -207,6 +210,31 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
         return data;
     }
 
+    private List<UOM> importUOMsFromDBF(String itemsPath) throws IOException, xBaseJException, ParseException {
+
+        if (!(new File(itemsPath).exists()))
+            throw new RuntimeException("Запрашиваемый файл " + itemsPath + " не найден");
+
+        DBF itemsImportFile = new DBF(itemsPath);
+        int recordCount = itemsImportFile.getRecordCount();
+        if (recordCount <= 0) {
+            return null;
+        }
+
+        List<UOM> data = new ArrayList<UOM>();
+
+        for (int i = 0; i < recordCount; i++) {
+            itemsImportFile.read();
+
+            String UOM = getFieldValue(itemsImportFile, "K_IZM", "Cp1251", null);
+            Boolean isWare = getBooleanFieldValue(itemsImportFile, "LGRMSEC", "Cp1251", false);
+
+            if (!isWare)
+                data.add(new UOM(UOM, UOM, UOM));
+        }
+        return data;
+    }
+
     private List<Item> importItemsFromDBF(String itemsPath, String quantityPath, Integer numberOfItems, Boolean importInactive) throws IOException, xBaseJException, ParseException {
 
         if (!(new File(itemsPath).exists()))
@@ -285,7 +313,7 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
             BigDecimal ndsWare = getBigDecimalFieldValue(itemsImportFile, "NDSSEC", "Cp1251", "20");
 
             if (!k_grtov.isEmpty() && (!inactiveItem || importInactive) && !isWare)
-                data.add(new Item(isItem, k_grtov, name, UOM, UOM, "U_" + UOM, brand, "B_" + brand, country, barcode, barcode,
+                data.add(new Item(isItem, k_grtov, name, UOM, brand, brand, country, barcode, barcode,
                         date, isWeightItem ? isWeightItem : null, null, null, composition.isEmpty() ? null : composition,
                         allowedVAT.contains(retailVAT) ? retailVAT : null, idWare, priceWare, ndsWare,
                         "RW_".equals(idRateWaste) ? null : idRateWaste, null, null, isItem, quantityPackItem, null, null,

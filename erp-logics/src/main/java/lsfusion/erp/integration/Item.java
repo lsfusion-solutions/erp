@@ -8,8 +8,6 @@ public class Item {
     public String idItem;
     public String idItemGroup;
     public String captionItem;
-    public String nameUOM;
-    public String shortNameUOM;
     public String idUOM;
     public String nameBrand;
     public String idBrand;
@@ -35,17 +33,15 @@ public class Item {
     public String codeCustomsGroup;
     public String nameCustomsZone;
 
-    public Item(String idItem, String idItemGroup, String captionItem, String nameUOM, String shortNameUOM, String idUOM,
-                String nameBrand, String idBrand, String nameCountry, String idBarcode, String extIdBarcode, Date date,
-                Boolean isWeightItem, BigDecimal netWeightItem, BigDecimal grossWeightItem, String compositionItem,
-                BigDecimal retailVAT, String idWare, BigDecimal priceWare, BigDecimal vatWare, String idWriteOffRate,
-                BigDecimal baseMarkup, BigDecimal retailMarkup, String idBarcodePack, BigDecimal amountPack,
-                String idManufacturer, String nameManufacturer, String codeCustomsGroup, String nameCustomsZone) {
+    public Item(String idItem, String idItemGroup, String captionItem, String idUOM, String nameBrand, String idBrand,
+                String nameCountry, String idBarcode, String extIdBarcode, Date date, Boolean isWeightItem,
+                BigDecimal netWeightItem, BigDecimal grossWeightItem, String compositionItem, BigDecimal retailVAT,
+                String idWare, BigDecimal priceWare, BigDecimal vatWare, String idWriteOffRate, BigDecimal baseMarkup,
+                BigDecimal retailMarkup, String idBarcodePack, BigDecimal amountPack, String idManufacturer,
+                String nameManufacturer, String codeCustomsGroup, String nameCustomsZone) {
         this.idItem = idItem;
         this.idItemGroup = idItemGroup;
         this.captionItem = captionItem;
-        this.nameUOM = nameUOM;
-        this.shortNameUOM = shortNameUOM;
         this.idUOM = idUOM;
         this.nameBrand = nameBrand;
         this.idBrand = idBrand;

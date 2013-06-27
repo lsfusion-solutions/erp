@@ -16,11 +16,11 @@ public class CreateExcelTemplateItemsActionProperty extends CreateExcelTemplateA
     @Override
     public Map<String, byte[]> createFile() throws IOException, WriteException {
         return createFile("importItemsTemplate",
-                Arrays.asList("Код товара", "Код группы", "Наименование", "Ед.изм.", "Краткая ед.изм.",
+                Arrays.asList("Код товара", "Код группы", "Наименование",
                         "Код ед.изм.", "Название бренда", "Код бренда", "Страна", "Штрих-код", "Дата", "Весовой",
                         "Вес нетто", "Вес брутто", "Состав", "НДС, %", "Код посуды", "Цена посуды", "НДС посуды, %",
                         "Код нормы отходов", "Оптовая наценка", "Розничная наценка", "Кол-во в упаковке"),
-                Arrays.asList(Arrays.asList("1111", "2222", "Товар 1", "Штука", "шт", "UOM1", "HugoBoss", "B1", "Беларусь",
+                Arrays.asList(Arrays.asList("1111", "2222", "Товар 1", "UOM1", "HugoBoss", "B1", "Беларусь",
                         "481011200174", "01.01.2012", "1", "0,1", "0,1", "100% cotton", "20", "", "", "", "RW1", "30", "20", "12")));
     }
 }

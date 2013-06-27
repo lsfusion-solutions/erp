@@ -4,6 +4,7 @@ import java.util.List;
 
 public class ImportData {
     private List<Item> itemsList;
+    private List<UOM> uomsList;
     private List<ItemGroup> itemGroupsList;
     private List<ItemGroup> parentGroupsList;
     private List<Bank> banksList;
@@ -36,6 +37,14 @@ public class ImportData {
 
     public void setItemsList(List<Item> itemsList) {
         this.itemsList = itemsList;
+    }
+
+    public List<UOM> getUOMsList() {
+        return uomsList;
+    }
+
+    public void setUOMsList(List<UOM> uomsList) {
+        this.uomsList = uomsList;
     }
 
     public List<ItemGroup> getItemGroupsList() {

@@ -63,6 +63,8 @@ public class ImportActionProperty {
 
             importWares(importData.getWaresList(), importData.getWithoutRecalc());
 
+            importUOMs(importData.getUOMsList(), importData.getWithoutRecalc());
+
             importItems(importData.getItemsList(), importData.getNumberOfItemsAtATime(), importData.getSkipKeys(), importData.getWithoutRecalc());
 
             importPriceListStores(importData.getPriceListStoresList(), importData.getNumberOfPriceListsAtATime(), importData.getWithoutRecalc());
@@ -237,6 +239,50 @@ public class ImportActionProperty {
         }
     }
 
+    private void importUOMs(List<UOM> uomsList, boolean withoutRecalc) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+        if (uomsList.size() == 0) return;
+
+        List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+        List<ImportField> fields = new ArrayList<ImportField>();
+        List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+        List<List<Object>> data = initData(uomsList.size());
+
+        ImportField idUOMField = new ImportField(LM.findLCPByCompoundName("idUOM"));
+        ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UOM"),
+                LM.findLCPByCompoundName("UOMId").getMapping(idUOMField));
+        keys.add(UOMKey);
+        props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundName("idUOM").getMapping(UOMKey)));
+        fields.add(idUOMField);
+        for (int i = 0; i < uomsList.size(); i++)
+            data.get(i).add(uomsList.get(i).idUOM);
+
+        ImportField nameUOMField = new ImportField(LM.findLCPByCompoundName("nameUOM"));
+        props.add(new ImportProperty(nameUOMField, LM.findLCPByCompoundName("nameUOM").getMapping(UOMKey)));
+        fields.add(nameUOMField);
+        for (int i = 0; i < uomsList.size(); i++)
+            data.get(i).add(uomsList.get(i).nameUOM);
+
+        ImportField shortNameUOMField = new ImportField(LM.findLCPByCompoundName("shortNameUOM"));
+        props.add(new ImportProperty(shortNameUOMField, LM.findLCPByCompoundName("shortNameUOM").getMapping(UOMKey)));
+        fields.add(shortNameUOMField);
+        for (int i = 0; i < uomsList.size(); i++)
+            data.get(i).add(uomsList.get(i).shortNameUOM);
+
+        ImportTable table = new ImportTable(fields, data);
+
+        DataSession session = context.createSession();
+        if(withoutRecalc)
+            session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
+        session.sql.pushVolatileStats(null);
+        IntegrationService service = new IntegrationService(session, table, keys, props);
+        service.synchronize(true, false);
+        session.apply(context.getBL());
+        session.sql.popVolatileStats(null);
+        session.close();
+    }
+
+
     private void importPackOfItems(List<Item> itemsList, boolean skipKeys, boolean withoutRecalc) throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException {
         if (itemsList.size() == 0) return;
 
@@ -275,24 +321,11 @@ public class ImportActionProperty {
         ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UOM"),
                 LM.findLCPByCompoundName("UOMId").getMapping(idUOMField));
         keys.add(UOMKey);
-        props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundName("idUOM").getMapping(UOMKey)));
         props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundName("UOMItem").getMapping(itemKey),
                 LM.object(LM.findClassByCompoundName("UOM")).getMapping(UOMKey)));
         fields.add(idUOMField);
         for (int i = 0; i < itemsList.size(); i++)
             data.get(i).add(itemsList.get(i).idUOM);
-
-        ImportField nameUOMField = new ImportField(LM.findLCPByCompoundName("nameUOM"));
-        props.add(new ImportProperty(nameUOMField, LM.findLCPByCompoundName("nameUOM").getMapping(UOMKey)));
-        fields.add(nameUOMField);
-        for (int i = 0; i < itemsList.size(); i++)
-            data.get(i).add(itemsList.get(i).nameUOM);
-
-        ImportField shortNameUOMField = new ImportField(LM.findLCPByCompoundName("shortNameUOM"));
-        props.add(new ImportProperty(shortNameUOMField, LM.findLCPByCompoundName("shortNameUOM").getMapping(UOMKey)));
-        fields.add(shortNameUOMField);
-        for (int i = 0; i < itemsList.size(); i++)
-            data.get(i).add(itemsList.get(i).shortNameUOM);
 
         ImportField idBrandField = new ImportField(LM.findLCPByCompoundName("idBrand"));
         ImportKey<?> brandKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Brand"),
