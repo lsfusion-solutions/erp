@@ -351,7 +351,6 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             BigDecimal rateExchange = isForeign ? getBigDecimalFieldValue(sprmatImportFile, "DPRM12", "Cp866", null) : null;
             BigDecimal priceDuty = isForeign ? dprm11.subtract(rateExchange==null ? price : price.multiply(rateExchange)) : null;
             Boolean isHomeCurrency = isForeign ? true : null;
-            Boolean showDeclaration = isForeign ? true : null;
 
             Object[] ostt = osttMap.get(k_mat);
             BigDecimal quantity = ostt == null ? null : (BigDecimal) ostt[0];
@@ -395,10 +394,10 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
             data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice + String.valueOf(date) + shortNameCurrency + idSupplier,
                     seriesUserInvoice, numberUserInvoice, null, true, k_mat, date, idItem, null, quantity, idSupplier,
-                    idWarehouse, idSupplier + "WH", (price==null || price.doubleValue() == 0) ? null : price, null, null,
+                    idWarehouse, idSupplier + "WH", (price==null || price.doubleValue() == 0) ? null : price, null, null, null,
                     manufacturingPrice, null, null, null, null, certificateText, null, numberDeclaration, dateDeclaration,
                     numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin, rateExchange, homePrice,
-                    priceDuty, null, null, null, isHomeCurrency, showDeclaration, true, shortNameCurrency, codeCustomsGroup,
+                    priceDuty, null, null, null, isHomeCurrency, shortNameCurrency, codeCustomsGroup,
                     allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null));
             }
         return data;

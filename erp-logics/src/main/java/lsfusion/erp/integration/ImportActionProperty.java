@@ -109,7 +109,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -152,7 +152,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -203,7 +203,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -225,7 +225,7 @@ public class ImportActionProperty {
                 int amountOfImportIterations = (int) Math.ceil((double) itemsList.size() / numAtATime);
                 Integer rest = itemsList.size();
                 for (int i = 0; i < amountOfImportIterations; i++) {
-                    importPackOfItems(itemsList.subList(i * numAtATime, i * numAtATime +  (rest > numAtATime ? numAtATime : rest)), skipKeys, withoutRecalc);
+                    importPackOfItems(itemsList.subList(i * numAtATime, i * numAtATime + (rest > numAtATime ? numAtATime : rest)), skipKeys, withoutRecalc);
                     rest -= numAtATime;
                     System.gc();
                 }
@@ -240,7 +240,8 @@ public class ImportActionProperty {
     }
 
     private void importUOMs(List<UOM> uomsList, boolean withoutRecalc) throws ScriptingErrorLog.SemanticErrorException, SQLException {
-        if (uomsList.size() == 0) return;
+        if (uomsList == null)
+            return;
 
         List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
         List<ImportField> fields = new ArrayList<ImportField>();
@@ -272,7 +273,7 @@ public class ImportActionProperty {
         ImportTable table = new ImportTable(fields, data);
 
         DataSession session = context.createSession();
-        if(withoutRecalc)
+        if (withoutRecalc)
             session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
         session.sql.pushVolatileStats(null);
         IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -563,7 +564,7 @@ public class ImportActionProperty {
         ImportTable table = new ImportTable(fields, data);
 
         DataSession session = context.createSession();
-        if(withoutRecalc)
+        if (withoutRecalc)
             session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
         session.sql.pushVolatileStats(null);
         IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -572,8 +573,6 @@ public class ImportActionProperty {
         session.sql.popVolatileStats(null);
         session.close();
     }
-
-    public Boolean showWholesalePrice;
 
     private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Boolean posted, Integer numberAtATime, boolean skipKeys, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
@@ -680,20 +679,21 @@ public class ImportActionProperty {
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).createShipment);
 
+                if (showField(dataUserInvoiceDetail, "manufacturingPrice")) {
+                    ImportField showManufacturingPriceUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.showManufacturingPriceUserInvoice"));
+                    props.add(new ImportProperty(showManufacturingPriceUserInvoiceField, LM.findLCPByCompoundName("Purchase.showManufacturingPriceUserInvoice").getMapping(userInvoiceKey)));
+                    fields.add(showManufacturingPriceUserInvoiceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(true);
+                }
 
-                ImportField showManufacturingPriceUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.showManufacturingPriceUserInvoice"));
-                props.add(new ImportProperty(showManufacturingPriceUserInvoiceField, LM.findLCPByCompoundName("Purchase.showManufacturingPriceUserInvoice").getMapping(userInvoiceKey)));
-                fields.add(showManufacturingPriceUserInvoiceField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).showManufacturingPrice);
-
-
-                ImportField showWholesalePriceUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.showWholesalePriceUserInvoice"));
-                props.add(new ImportProperty(showWholesalePriceUserInvoiceField, LM.findLCPByCompoundName("Purchase.showWholesalePriceUserInvoice").getMapping(userInvoiceKey)));
-                fields.add(showWholesalePriceUserInvoiceField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(showWholesalePrice);
-
+                if (showField(dataUserInvoiceDetail, "wholesalePrice")) {
+                    ImportField showWholesalePriceUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.showWholesalePriceUserInvoice"));
+                    props.add(new ImportProperty(showWholesalePriceUserInvoiceField, LM.findLCPByCompoundName("Purchase.showWholesalePriceUserInvoice").getMapping(userInvoiceKey)));
+                    fields.add(showWholesalePriceUserInvoiceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(true);
+                }
 
                 ImportField dateUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.dateUserInvoice"));
                 props.add(new ImportProperty(dateUserInvoiceField, LM.findLCPByCompoundName("Purchase.dateUserInvoice").getMapping(userInvoiceKey)));
@@ -733,13 +733,15 @@ public class ImportActionProperty {
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).price);
 
-                boolean flag = false;
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    if (dataUserInvoiceDetail.get(i).shipmentSum != null) {
-                        flag = true;
-                        break;
-                    }
-                if (flag) {
+                if (showField(dataUserInvoiceDetail, "shipmentPrice")) {
+                    ImportField shipmentPriceInvoiceDetail = new ImportField(LM.findLCPByCompoundName("Purchase.shipmentPriceInvoiceDetail"));
+                    props.add(new ImportProperty(shipmentPriceInvoiceDetail, LM.findLCPByCompoundName("Purchase.shipmentPriceInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    fields.add(shipmentPriceInvoiceDetail);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).shipmentPrice);
+                }
+
+                if (showField(dataUserInvoiceDetail, "shipmentSum")) {
                     ImportField shipmentSumInvoiceDetail = new ImportField(LM.findLCPByCompoundName("Purchase.shipmentSumInvoiceDetail"));
                     props.add(new ImportProperty(shipmentSumInvoiceDetail, LM.findLCPByCompoundName("Purchase.shipmentSumInvoiceDetail").getMapping(userInvoiceDetailKey)));
                     fields.add(shipmentSumInvoiceDetail);
@@ -798,7 +800,14 @@ public class ImportActionProperty {
                         data.get(i).add(dataUserInvoiceDetail.get(i).priceRegistration);
                 }
 
-                if (showField(dataUserInvoiceDetail, "chargeSum")) {
+                if (showField(dataUserInvoiceDetail, "chargePrice") || showField(dataUserInvoiceDetail, "chargeSum")) {
+
+                    ImportField chargePriceUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.chargePriceUserInvoiceDetail"));
+                    props.add(new ImportProperty(chargePriceUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.chargePriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    fields.add(chargePriceUserInvoiceDetailField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).chargePrice);
+
                     ImportField chargeSumUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("chargeSumUserInvoiceDetail"));
                     props.add(new ImportProperty(chargeSumUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.chargeSumUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
                     fields.add(chargeSumUserInvoiceDetailField);
@@ -832,14 +841,6 @@ public class ImportActionProperty {
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                         data.get(i).add(true);
                 }
-
-
-                ImportField chargePriceUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.chargePriceUserInvoiceDetail"));
-                props.add(new ImportProperty(chargePriceUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.chargePriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                fields.add(chargePriceUserInvoiceDetailField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).chargePrice);
-
 
                 ImportField manufacturingPriceUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.manufacturingPriceUserInvoiceDetail"));
                 props.add(new ImportProperty(manufacturingPriceUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.manufacturingPriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
@@ -955,13 +956,13 @@ public class ImportActionProperty {
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).isHomeCurrency);
 
-
-                ImportField showDeclarationUserInvoiceField = new ImportField(LM.findLCPByCompoundName("showDeclarationUserInvoice"));
-                props.add(new ImportProperty(showDeclarationUserInvoiceField, LM.findLCPByCompoundName("showDeclarationUserInvoice").getMapping(userInvoiceKey)));
-                fields.add(showDeclarationUserInvoiceField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).showDeclaration);
-
+                if (showField(dataUserInvoiceDetail, "codeCustomsGroup") || showField(dataUserInvoiceDetail, "priceDuty") || showField(dataUserInvoiceDetail, "priceRegistration")) {
+                    ImportField showDeclarationUserInvoiceField = new ImportField(LM.findLCPByCompoundName("showDeclarationUserInvoice"));
+                    props.add(new ImportProperty(showDeclarationUserInvoiceField, LM.findLCPByCompoundName("showDeclarationUserInvoice").getMapping(userInvoiceKey)));
+                    fields.add(showDeclarationUserInvoiceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(true);
+                }
 
                 ImportField shortNameCurrencyField = new ImportField(LM.findLCPByCompoundName("shortNameCurrency"));
                 ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Currency"),
@@ -1000,7 +1001,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -1027,7 +1028,7 @@ public class ImportActionProperty {
                     return;
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
 
@@ -1142,7 +1143,7 @@ public class ImportActionProperty {
                     return;
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
 
@@ -1387,7 +1388,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -1453,7 +1454,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -1496,7 +1497,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -1566,7 +1567,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -1646,7 +1647,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -1699,7 +1700,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -1768,7 +1769,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -1827,7 +1828,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -1912,7 +1913,7 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if(withoutRecalc)
+                if (withoutRecalc)
                     session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);

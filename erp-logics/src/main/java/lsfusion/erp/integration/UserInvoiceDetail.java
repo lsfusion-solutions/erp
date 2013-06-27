@@ -19,6 +19,7 @@ public class UserInvoiceDetail {
     public String idCustomerStock;
     public String idSupplierStock;
     public BigDecimal price;
+    public BigDecimal shipmentPrice;
     public BigDecimal shipmentSum;
     public BigDecimal chargePrice;
     public BigDecimal manufacturingPrice;
@@ -42,8 +43,6 @@ public class UserInvoiceDetail {
     public BigDecimal priceRegistration;
     public BigDecimal chargeSum;
     public Boolean isHomeCurrency;
-    public Boolean showDeclaration;
-    public Boolean showManufacturingPrice;
     public String shortNameCurrency;
     public String codeCustomsGroup;
     public BigDecimal retailVAT;
@@ -52,14 +51,13 @@ public class UserInvoiceDetail {
     public UserInvoiceDetail(String idUserInvoice, String series, String number, Boolean createPricing,
                              Boolean createShipment, String idUserInvoiceDetail, Date date, String idItem, Boolean isWare,
                              BigDecimal quantity, String idSupplier, String idCustomerStock, String idSupplierStock,
-                             BigDecimal price, BigDecimal shipmentSum, BigDecimal chargePrice, BigDecimal manufacturingPrice,
-                             BigDecimal wholesalePrice, BigDecimal wholesaleMarkup, BigDecimal retailPrice,
+                             BigDecimal price, BigDecimal shipmentPrice, BigDecimal shipmentSum, BigDecimal chargePrice,
+                             BigDecimal manufacturingPrice, BigDecimal wholesalePrice, BigDecimal wholesaleMarkup, BigDecimal retailPrice,
                              BigDecimal retailMarkup, String certificateText, String idContract, String numberDeclaration,
                              Date dateDeclaration, String numberCompliance, Date fromDateCompliance, Date toDateCompliance,
                              Date expiryDate, String idBin, BigDecimal rateExchange, BigDecimal homePrice, BigDecimal priceDuty,
                              BigDecimal priceCompliance, BigDecimal priceRegistration, BigDecimal chargeSum,
-                             Boolean isHomeCurrency, Boolean showDeclaration, Boolean showManufacturingPrice,
-                             String shortNameCurrency, String codeCustomsGroup, BigDecimal retailVAT) {
+                             Boolean isHomeCurrency, String shortNameCurrency, String codeCustomsGroup, BigDecimal retailVAT) {
         this.idUserInvoice = idUserInvoice;
         this.series = series;
         this.number = number;
@@ -74,6 +72,7 @@ public class UserInvoiceDetail {
         this.idCustomerStock = idCustomerStock;
         this.idSupplierStock = idSupplierStock;
         this.price = price;
+        this.shipmentPrice = shipmentPrice;
         this.shipmentSum = shipmentSum;
         this.chargePrice = chargePrice;
         this.manufacturingPrice = manufacturingPrice;
@@ -97,8 +96,6 @@ public class UserInvoiceDetail {
         this.priceRegistration = priceRegistration;
         this.chargeSum = chargeSum;
         this.isHomeCurrency = isHomeCurrency;
-        this.showDeclaration = showDeclaration;
-        this.showManufacturingPrice = showManufacturingPrice;
         this.shortNameCurrency = shortNameCurrency;
         this.codeCustomsGroup = codeCustomsGroup;
         this.retailVAT = retailVAT;

@@ -381,10 +381,11 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
                 idContract = null;
             }
             if ((seriesNumber.length != 1) && (idSupplier.startsWith("ПС")) && (!quantityShipmentDetail.equals(new BigDecimal(0))))
-                data.add(new UserInvoiceDetail(series + number, series, number, true, true, idUserInvoiceDetail, dateShipment, idItem, false,
-                        quantityShipmentDetail, idSupplier, idWarehouse, supplierWarehouse, priceShipmentDetail, null, null, null, null, null,
-                        retailPriceShipmentDetail, retailMarkupShipmentDetail, null, idContract, null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, null, null, null, null, null));
+                data.add(new UserInvoiceDetail(series + number, series, number, true, true, idUserInvoiceDetail,
+                        dateShipment, idItem, false, quantityShipmentDetail, idSupplier, idWarehouse, supplierWarehouse,
+                        priceShipmentDetail, null, null, null, null, null, null, retailPriceShipmentDetail,
+                        retailMarkupShipmentDetail, null, idContract, null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, null, null, null));
         }
         return data;
     }
