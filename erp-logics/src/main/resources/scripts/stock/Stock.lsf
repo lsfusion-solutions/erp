@@ -152,6 +152,9 @@ TABLE groupStock(Group, Stock);
 TABLE groupSku(Group, Sku);
 isParentGroupSku(group, sku) = isParentGroupGroup(groupGroupTypeSku(groupTypeGroup(group), sku), group) PERSISTENT INDEXED;
 
+inactiveGroup 'Неактивная' = ABSTRACT BOOLEAN (Group) PERSISTENT;
+activeGroup 'Активный' (group) = group IS Group AND NOT inactiveGroup(group);
+
 // ----------------------------------- Custom Group ------------------------------------------ //
 
 CLASS CustomGroup 'Дополнительный классификатор SKU' : Group;
@@ -329,6 +332,9 @@ isNotContainerSku 'Не тара' (sku) = NOT isContainerSku(sku) AND sku IS Sku
 isWeightSku 'Весовой товар' =  ABSTRACT BOOLEAN (Sku) PERSISTENT;
 fixedPriceSku 'Товар с фиксированной ценой' =  ABSTRACT BOOLEAN (Sku) PERSISTENT;
 inactiveSku 'Неактивный' = ABSTRACT BOOLEAN (Sku) PERSISTENT;
+inactiveSkuGroup 'Неактивная' = ABSTRACT BOOLEAN (SkuGroup) PERSISTENT;
+activeSkuGroup 'Активный' (group) = group IS SkuGroup AND NOT inactiveSkuGroup(group);
+inactiveGroup(group) += inactiveSkuGroup(group);
 
 replaceSkuSku = ABSTRACT ACTION LIST (Sku, Sku);
 
@@ -2091,6 +2097,7 @@ META extendFormDocumentSkuStockCustom(object, form, concrete, legalEntityProp, s
         TREE skuTree sk = SkuGroup PARENT parentSkuGroup
         PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
         ORDER BY skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
         OBJECTS           sts=(st=Stock, ks=Sku)
         PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks), stockName = nameStock(st) SHOWIF not###stockProp###object(concrete)
@@ -2227,6 +2234,7 @@ META extendFormDocumentSkuCustom(object, form, concrete, skuProp, detail)
         TREE skuTree sk = SkuGroup PARENT parentSkuGroup
         PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
         ORDER BY skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
         OBJECTS ks=Sku
         PROPERTIES             READONLY    inputName = nameSku(ks)
@@ -2595,6 +2603,7 @@ META extendFormDocumentSkuStockContractorCustom(object, form, concrete, fromLega
         TREE skuTree sk = SkuGroup PARENT parentSkuGroup
         PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
         ORDER BY skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
         OBJECTS cc = Stock FIXED GRID
 
@@ -2691,6 +2700,7 @@ META extendFormDocumentInSkuStock(object, form, concrete, contBox)
         TREE treeGroup gg=Group PARENT parentGroup
         PROPERTIES READONLY nameGroup(gg)
         FILTERS groupTypeGroup(gg) == groupType###object(concrete)
+        FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(gg) DEFAULT
 
         OBJECTS ks=Sku
         PROPERTIES             inSku###object(ks,concrete) ON CHANGE changeInSku###object(ks, concrete), inputName = nameSku(ks) READONLY
@@ -2807,6 +2817,7 @@ DESIGN stocks FROM DEFAULT {
 FORM skus 'Sku'
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuGroupName = nameSkuGroup(sg)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY nameSku, shortNameUOMSku
@@ -2845,6 +2856,7 @@ DESIGN skus FROM DEFAULT {
 FORM filterSkus 'Sku'
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuGroupName = nameSkuGroup(sg)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY nameSku, shortNameUOMSku
@@ -2995,6 +3007,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
     ORDER BY skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        READONLY nameSku(s), stockName = nameStock(st)  //  idBarcodeSku
@@ -3077,6 +3090,7 @@ FORM balanceSkuStock 'Остатки на дату'
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
     ORDER BY skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        READONLY nameSku(s), stockName = nameStock(st)  //  idBarcodeSku
@@ -3161,6 +3175,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
     ORDER BY skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           stb=(st=Stock, bt=Batch)
     PROPERTIES        READONLY nameSkuBatch(bt), stockName = nameStock(st)
@@ -3239,6 +3254,7 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
     ORDER BY skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           stb=(st=Stock, bt=Batch)
     PROPERTIES        READONLY stockName = nameStock(st), nameSkuBatch(bt)
@@ -3314,6 +3330,7 @@ FORM batches 'Партии'
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
     ORDER BY skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameSkuBatch, descriptionBatch, nameBatch, nameStockBatch, quantityBatch, costBatch, expiryDateBatch
@@ -3389,6 +3406,7 @@ META defineDialogSku (form)
         TREE skuTree sk = SkuGroup PARENT parentSkuGroup
         PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
         ORDER BY skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
         OBJECTS s=Sku                                 //form###nameSku 'Наименование' (sku) = IF form###stock() THEN nameSkuStock(sku, form###stock()) ELSE nameSku(sku);
         PROPERTIES READONLY    inputName = nameSku(s) //form###nameSku(s)

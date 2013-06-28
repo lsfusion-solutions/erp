@@ -43,10 +43,11 @@ FORM itemGroup 'Товарная группа'
 FORM itemGroups 'Товарные группы'
     TREE treeGroups g=ItemGroup PARENT parentItemGroup
     PROPERTIES inItemGroup(g), moveItemGroup(g) TODRAW g FORCE PANEL TOOLBAR
-    PROPERTIES READONLY nameItemGroup(g), idItemGroup(g) SHOWIF showIDs(),canonicalNameItemGroup (g)
+    PROPERTIES READONLYIF isReadonly() nameItemGroup(g), idItemGroup(g) SHOWIF showIDs(),canonicalNameItemGroup (g)
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE
     ORDER BY canonicalNameItemGroup
 ;
+@extendFormEditable(itemGroups);
 
 FORM dialogItemGroups 'Товарные группы'
     TREE treeGroups tg=ItemGroup PARENT parentItemGroup
@@ -258,8 +259,8 @@ FORM items 'Товары'
     TREE groupTree g=Group PARENT parentGroup
     PROPERTIES READONLY nameGroup(g)
     FILTERS groupTypeGroup(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
-
     ORDER BY nameGroup(g)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(g) DEFAULT
 
     OBJECTS i=Item
     PROPERTIES(i) READONLY idBarcodeSku, idItem SHOWIF showIDs()
@@ -349,7 +350,7 @@ META defineItemAttribute(attribute, formProperty, caption, group, itemType, attr
     @defineItemAttribute(attribute, caption, group);
 
     EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute##ItemGroup;
-    EXTEND FORM itemGroups PROPERTIES(g) READONLY show###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g);
+    EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() show###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
     EXTEND FORM item PROPERTIES(i) formProperty SHOWIF show###attribute##Item(i);
     EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty SHOWIF show###attribute##ItemGroup(g);
 
@@ -456,6 +457,21 @@ END
 // ---------------------------- Конкретные свойства -------------------------------- //
 
 GROUP itemBaseGroup 'Базовые свойства' : base;
+
+// Неактивный
+inactiveItemGroup 'Неактивная' = DATA BOOLEAN (ItemGroup) IN itemBaseGroup;
+activeItemGroup 'Активный' (group) = group IS ItemGroup AND NOT inactiveItemGroup(group);
+inactiveSkuGroup(group) += inactiveItemGroup(group);
+
+EXTEND FORM itemGroup PROPERTIES(g) inactiveItemGroup;
+EXTEND FORM itemGroups
+    PROPERTIES(g) READONLYIF isReadonly() inactiveItemGroup BEFORE canonicalNameItemGroup(g)
+    FILTERGROUP inactive FILTER 'Активные' 'F10' activeItemGroup(g) DEFAULT
+;
+EXTEND FORM dialogItemGroups
+    FILTERGROUP inactive FILTER 'Активные' 'F10' activeItemGroup(tg) DEFAULT
+    FILTERGROUP inactive1 FILTER 'Активные' 'F10' activeItemGroup(g) DEFAULT;
+
 
 // Группа
 @implementItemAttribute(nameItemGroupItem, 'Группа товаров', String, itemItemGroup);
@@ -651,7 +667,7 @@ META defineNumeratorItemGroup (prefix, caption)
                                                                       RGB(230,230,230) IF prefix##NumeratorItemGroup (itemGroup);
 
     EXTEND FORM itemGroup PROPERTIES(g)  AFTER nameParentItemGroup name###prefix##NumeratorItemGroup;
-    EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalNameItemGroup READONLY name###prefix##NumeratorItemGroup  BACKGROUND background###prefix##NumeratotItemGroup(g);
+    EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalNameItemGroup READONLYIF isReadonly() name###prefix##NumeratorItemGroup  BACKGROUND background###prefix##NumeratotItemGroup(g);
 END
 
 @defineNumeratorItemGroup (piece, 'Нумератор штрих-кодов (для штучного товара)');
