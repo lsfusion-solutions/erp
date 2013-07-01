@@ -17,7 +17,7 @@ sessionConcatGroups 'Группы' (groupType) =
     GROUP CONCAT nameGroup(group) IF inSessionGroup(group) AND NOT inSessionGroup(parentGroup(group)),','
     BY groupTypeGroup(group);
 
-sumBGroupTypeStockDate 'Итоговая сумма товаров отчета' (groupType, stock, date) =
+sumBGroupTypeStockDate 'Итоговая сумма отчета' (groupType, stock, date) =
     GROUP SUM sumBSkuStockDate(sku, stock, date) IF inSessionGroup(groupGroupTypeSku(groupType, sku))
     BY groupType, stock, date PREFCHARWIDTH 15;
 
@@ -158,9 +158,9 @@ FORM reportBalanceStock 'Отчет по остаткам'
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
     TREE skuTree sk = Group PARENT parentGroup
+    PROPERTIES inSessionGroup(sk)
     PROPERTIES READONLY skuTreeName = nameGroup(sk)
     PROPERTIES(sk, st, d) READONLY sumRecBSkuGroupStockDate, accountSumRecBSkuGroupBatchStockDate
-    PROPERTIES inSessionGroup(sk)
     ORDER BY skuTreeName
     FILTERS groupTypeGroup(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(sk) DEFAULT
@@ -189,7 +189,7 @@ DESIGN reportBalanceStock FROM DEFAULT{
         childConstraints = TO THE RIGHT;
         ADD d.box;
         ADD st.box;
-        ADD gt.box{ADD PROPERTY(inSessionGroup);}
+        ADD gt.box;
 //        NEW sumContainer{
 //            caption = 'Итоговые суммы';
 //            childConstraints = TO THE BOTTOM;
@@ -326,11 +326,11 @@ FORM reportBackSheet 'Оборотная ведомость'
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
     TREE skuTree sk = Group PARENT parentGroup
+    PROPERTIES inSessionGroup(sk)
     PROPERTIES READONLY skuTreeName = nameGroup(sk)
     PROPERTIES(sk, st, df) READONLY sumRecBSkuGroupStockDate
     PROPERTIES(sk, st, df, dt) READONLY sumRecInGroupSkuStockDateDate, sumRecOutGroupSkuStockDateDate
     PROPERTIES(sk, st, dt) READONLY sumRecBSkuGroupStockDate
-    PROPERTIES inSessionGroup(sk)
     ORDER BY skuTreeName
     FILTERS groupTypeGroup(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(sk) DEFAULT
@@ -357,7 +357,7 @@ DESIGN reportBackSheet FROM DEFAULT{
             ADD PROPERTY(dateTo){caption = 'Дата (по)';}
         }
         ADD st.box;
-        ADD gt.box{ADD PROPERTY(inSessionGroup);}
+        ADD gt.box;
         NEW sumContainer{
             caption = 'Итоговые суммы';
             childConstraints = TO THE BOTTOM;
