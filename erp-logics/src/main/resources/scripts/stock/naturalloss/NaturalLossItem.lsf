@@ -3,7 +3,8 @@ MODULE NaturalLossItem;
 REQUIRE NaturalLoss, Item;
 
 subNaturalLossGroupCountryItem = DATA SubNaturalLossGroup (Country, Item);
-nameSubNaturalLossGroupCountryItem 'Группа естественной убыли' = nameSubNaturalLossGroup(subNaturalLossGroupCountryItem(country, item));
+nameSubNaturalLossGroupCountryItem 'Группа естественной убыли'(country, item)  = nameSubNaturalLossGroup(subNaturalLossGroupCountryItem(country, item));
+nameSubNaturalLossGroupDefaultCountryItem 'Группа естественной убыли' (item) = nameSubNaturalLossGroup(subNaturalLossGroupCountryItem(defaultCountry(), item));
 
 CONSTRAINT countrySubNaturalLossGroup(subNaturalLossGroupCountryItem(country, item)) != country
     CHECKED BY subNaturalLossGroupCountryItem MESSAGE 'Страна группы естественной убыли не совпадает со страной';
@@ -16,4 +17,6 @@ overCopyItem(s, d) += ACTION (s, d) {
 
 EXTEND FORM item
     PROPERTIES(c,i) nameSubNaturalLossGroupCountryItem
+    PROPERTIES(i) READONLY nameSubNaturalLossGroupDefaultCountryItem
 ;
+EXTEND DESIGN item { regionPrm  { ADD PROPERTY(nameSubNaturalLossGroupDefaultCountryItem);} }

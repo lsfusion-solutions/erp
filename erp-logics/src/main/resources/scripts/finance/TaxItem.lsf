@@ -24,11 +24,14 @@ overCopyItem(s, d) += ACTION (s, d) {
     }
 }
 
+overNumberVATItemDefaultCountryDate 'НДС' (item, date)= numberRange(overVATItemCountryDate(item, defaultCountry(), date));
+valueVATItemDefaultCountryDate 'НДС, %' (item, date) = valueRateRangeDate(VATItemCountryDate(item, defaultCountry(), date),date);
 
 EXTEND FORM item
     PROPERTIES (i, c, dtr) overNumberVATItemCountryDate, valueVATItemCountryDate
+    PROPERTIES (i, dtr) READONLY overNumberVATItemDefaultCountryDate, valueVATItemDefaultCountryDate
     FILTERGROUP filters1
             FILTER 'Страну, у которых есть НДС' 'F11' countRangeTaxCountry (Tax.taxVAT, c) DEFAULT
-
 ;
+EXTEND DESIGN item { regionPrm  { ADD PROPERTY(overNumberVATItemDefaultCountryDate);  ADD PROPERTY(valueVATItemDefaultCountryDate);} }
 

@@ -4,6 +4,7 @@ REQUIRE CustomsGroup, Item;
 
 customsGroupCountryItem = DATA CustomsGroup(Country, Item);
 codeCustomsGroupCountryItem 'ТН ВЭД' (country, item) = codeCustomsGroup(customsGroupCountryItem(country, item));
+codeCustomsGroupDefaultCountryItem 'ТН ВЭД' (item) = codeCustomsGroup(customsGroupCountryItem(defaultCountry(), item));
 
 customsGroupCountrySku(country, sku) += customsGroupCountryItem(country, sku);
 
@@ -12,7 +13,9 @@ CONSTRAINT customsZoneCustomsGroup(customsGroupCountryItem(country, item)) != cu
 
 EXTEND FORM item
     PROPERTIES(c, i) codeCustomsGroupCountryItem
+    PROPERTIES(i) READONLY codeCustomsGroupDefaultCountryItem
 ;
+EXTEND DESIGN item { regionPrm  { ADD PROPERTY(codeCustomsGroupDefaultCountryItem); } }
 
 overCopyItem(s, d) += ACTION (s, d) {
     ASSIGN customsGroupCountryItem(c,d) <- customsGroupCountryItem(c,s) WHERE customsGroupCountryItem(c,s);

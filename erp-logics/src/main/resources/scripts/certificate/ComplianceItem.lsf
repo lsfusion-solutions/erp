@@ -9,9 +9,13 @@ isCompliancedCountrySku(country, sku) += isCompliancedCountryItem(country, sku);
 
 isCompliancedCountryItem(country, item) <- isCompliancedCustomsGroupCountryItem(country, item) WHEN CHANGED(customsGroupCountryItem(country, item));
 
+isCompliancedDefaultCountryItem 'Необходимость сертификации' (item) = isCompliancedCountryItem (defaultCountry(), item);
+
 EXTEND FORM item
     PROPERTIES(c, i) isCompliancedCountryItem
+    PROPERTIES(i) READONLY isCompliancedDefaultCountryItem
 ;
+EXTEND DESIGN item { regionPrm  { ADD PROPERTY(isCompliancedDefaultCountryItem); } }
 
 overCopyItem(s, d) += ACTION (s, d) {
     ASSIGN isCompliancedCountryItem(c,d) <- isCompliancedCountryItem(c,s) WHERE isCompliancedCountryItem(c,s);
