@@ -27,9 +27,20 @@ overCopyItem(s, d) += ACTION (s, d) {
 overNumberVATItemDefaultCountryDate 'НДС' (item, date)= numberRange(overVATItemCountryDate(item, defaultCountry(), date));
 valueVATItemDefaultCountryDate 'НДС, %' (item, date) = valueRateRangeDate(VATItemCountryDate(item, defaultCountry(), date),date);
 
+changeVATItemDefaultCountryDate = ACTION (item, date) {
+    REQUEST OBJECT r
+    FORM rangeDialog OBJECTS c = defaultCountry() MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        dataVATItemCountryDate(item, country, date) <- requestedObject() WHERE country == defaultCountry();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        dataVATItemCountryDate(item, country, date) <- NULL WHERE country == defaultCountry();
+    }
+}
+
 EXTEND FORM item
-    PROPERTIES (i, c, dtr) overNumberVATItemCountryDate, valueVATItemCountryDate
-    PROPERTIES (i, dtr) READONLY overNumberVATItemDefaultCountryDate, valueVATItemDefaultCountryDate
+    PROPERTIES (i, c, dtr) overNumberVATItemCountryDate, valueVATItemCountryDate READONLY
+    PROPERTIES (i, dtr) overNumberVATItemDefaultCountryDate ON CHANGE changeVATItemDefaultCountryDate(i, dtr), valueVATItemDefaultCountryDate READONLY
     FILTERGROUP filters1
             FILTER 'Страну, у которых есть НДС' 'F11' countRangeTaxCountry (Tax.taxVAT, c) DEFAULT
 ;

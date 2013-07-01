@@ -6,6 +6,17 @@ subNaturalLossGroupCountryItem = DATA SubNaturalLossGroup (Country, Item);
 nameSubNaturalLossGroupCountryItem 'Группа естественной убыли'(country, item)  = nameSubNaturalLossGroup(subNaturalLossGroupCountryItem(country, item));
 nameSubNaturalLossGroupDefaultCountryItem 'Группа естественной убыли' (item) = nameSubNaturalLossGroup(subNaturalLossGroupCountryItem(defaultCountry(), item));
 
+changeSubNaturalLossGroupDefaultCountryItem = ACTION (item) {
+    REQUEST OBJECT sg
+    FORM naturalLossGroups OBJECTS c = defaultCountry() MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        subNaturalLossGroupCountryItem(country, item) <- requestedObject() WHERE country == defaultCountry();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        subNaturalLossGroupCountryItem(country, item) <- NULL WHERE country == defaultCountry();
+    }
+}
+
 CONSTRAINT countrySubNaturalLossGroup(subNaturalLossGroupCountryItem(country, item)) != country
     CHECKED BY subNaturalLossGroupCountryItem MESSAGE 'Страна группы естественной убыли не совпадает со страной';
 
@@ -17,6 +28,6 @@ overCopyItem(s, d) += ACTION (s, d) {
 
 EXTEND FORM item
     PROPERTIES(c,i) nameSubNaturalLossGroupCountryItem
-    PROPERTIES(i) READONLY nameSubNaturalLossGroupDefaultCountryItem
+    PROPERTIES(i) nameSubNaturalLossGroupDefaultCountryItem ON CHANGE changeSubNaturalLossGroupDefaultCountryItem(i)
 ;
 EXTEND DESIGN item { regionPrm  { ADD PROPERTY(nameSubNaturalLossGroupDefaultCountryItem);} }

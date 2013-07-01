@@ -11,9 +11,18 @@ isCompliancedCountryItem(country, item) <- isCompliancedCustomsGroupCountryItem(
 
 isCompliancedDefaultCountryItem 'Необходимость сертификации' (item) = isCompliancedCountryItem (defaultCountry(), item);
 
+changeCompliancedCountryItem = ACTION (item) {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        isCompliancedCountryItem(country, item) <- TRUE WHERE country == defaultCountry();
+    } ELSE {
+        isCompliancedCountryItem(country, item) <- NULL WHERE country == defaultCountry();
+    }
+}
+
 EXTEND FORM item
     PROPERTIES(c, i) isCompliancedCountryItem
-    PROPERTIES(i) READONLY isCompliancedDefaultCountryItem
+    PROPERTIES(i) isCompliancedDefaultCountryItem ON CHANGE changeCompliancedCountryItem(i)
 ;
 EXTEND DESIGN item { regionPrm  { ADD PROPERTY(isCompliancedDefaultCountryItem); } }
 

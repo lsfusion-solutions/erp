@@ -6,6 +6,19 @@ customsGroupCountryItem = DATA CustomsGroup(Country, Item);
 codeCustomsGroupCountryItem 'ТН ВЭД' (country, item) = codeCustomsGroup(customsGroupCountryItem(country, item));
 codeCustomsGroupDefaultCountryItem 'ТН ВЭД' (item) = codeCustomsGroup(customsGroupCountryItem(defaultCountry(), item));
 
+customsZoneDefaultCountry = customsZoneCountry(defaultCountry());
+
+changeCustomsGroupDefaultCountryItem = ACTION (item) {
+    REQUEST OBJECT cg
+    FORM customsGroups OBJECTS cz = customsZoneDefaultCountry() MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        customsGroupCountryItem(country, item) <- requestedObject() WHERE country == defaultCountry();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        customsGroupCountryItem(country, item) <- NULL WHERE country == defaultCountry();
+    }
+}
+
 customsGroupCountrySku(country, sku) += customsGroupCountryItem(country, sku);
 
 CONSTRAINT customsZoneCustomsGroup(customsGroupCountryItem(country, item)) != customsZoneCountry(country) CHECKED BY customsGroupCountryItem
@@ -13,7 +26,7 @@ CONSTRAINT customsZoneCustomsGroup(customsGroupCountryItem(country, item)) != cu
 
 EXTEND FORM item
     PROPERTIES(c, i) codeCustomsGroupCountryItem
-    PROPERTIES(i) READONLY codeCustomsGroupDefaultCountryItem
+    PROPERTIES(i) codeCustomsGroupDefaultCountryItem ON CHANGE changeCustomsGroupDefaultCountryItem(i)
 ;
 EXTEND DESIGN item { regionPrm  { ADD PROPERTY(codeCustomsGroupDefaultCountryItem); } }
 
