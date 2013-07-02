@@ -80,7 +80,7 @@ descriptionIndexProductDetailUserOutputDetail 'Строка изделия' (det
 
 quantityOutputDetailOrderOutput (order, output) = GROUP SUM quantityOutputDetail(outputDetail) BY orderProductDetail(productDetailOutputDetail(outputDetail)), outputOutputDetail(outputDetail);
 
-ordersOutput 'Заказы' (output) = GROUP CONCAT toString255(descriptionOrder(order)) IF quantityOutputDetailOrderOutput(order, output) , ', '
+ordersOutput 'Заказы' (output) = GROUP CONCAT STRING[255](descriptionOrder(order)) IF quantityOutputDetailOrderOutput(order, output) , ', '
                                                 BY output
                                                 ORDER order IN orderGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
@@ -196,7 +196,7 @@ numberBatch (ledger) += numberOutput(outputOutputDetail(ledger));
 supplierBatch (ledger) += legalEntityStock(stockOutputDetail(ledger));
 supplierStockBatch (ledger) += stockOutputDetail(ledger);
 
-nameBatch(batch) += CONCAT '', toString10(dateOutputDetail(batch)), '/ ' + seriesNumberOutputDetail(batch), '/ ' + nameLegalEntityStockOutputDetail(batch);
+nameBatch(batch) += CONCAT '', STRING[10](dateOutputDetail(batch)), '/ ' + seriesNumberOutputDetail(batch), '/ ' + nameLegalEntityStockOutputDetail(batch);
 
 // Товарный отчет
 @implementStockDocumentLedgerInc(Output, stock);
@@ -214,7 +214,7 @@ outputQuantityProductDetail(detail) <- quantityProductDetail(detail) WHEN CHANGE
 
 outputProductsSumProductDetail 'Сумма произведенного изделия' = DATA NUMERIC[16,2] (ProductDetail);
 outputProductsSumProductDetail(productDetail) <-
-    toNumeric16p2(roundPriceCurrency((outputQuantityProductDetail(productDetail) * productsPriceProductDetail(productDetail)), currencyProductDetail(productDetail)))
+    NUMERIC[16,2](roundPriceCurrency((outputQuantityProductDetail(productDetail) * productsPriceProductDetail(productDetail)), currencyProductDetail(productDetail)))
     WHEN CHANGED (outputQuantityProductDetail(productDetail)) OR
          CHANGED (productsPriceProductDetail(productDetail)) OR
          CHANGED(currencyProductDetail(productDetail));

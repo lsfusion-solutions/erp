@@ -75,7 +75,7 @@ descriptionIndexComponentDetailUserConsumptionDetail 'Строка компон�
 
 quantityConsumptionDetailOrderConsumption (order, consumption) = GROUP SUM quantityConsumptionDetail(consumptionDetail) BY orderComponentDetail(componentDetailConsumptionDetail(consumptionDetail)), consumptionConsumptionDetail(consumptionDetail);
 
-ordersConsumption 'Заказы' (consumption) = GROUP CONCAT toString255(descriptionOrder(order)) IF quantityConsumptionDetailOrderConsumption(order, consumption) , ', '
+ordersConsumption 'Заказы' (consumption) = GROUP CONCAT STRING[255](descriptionOrder(order)) IF quantityConsumptionDetailOrderConsumption(order, consumption) , ', '
                                                 BY consumption
                                                 ORDER order IN orderGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
@@ -93,7 +93,7 @@ toConsumeComponentDetailOrder 'Не списано по заказу' (order) =
 
 consumedQuantityComponentDetail(detail) <- quantityComponentDetail(detail) WHEN CHANGED(quantityComponentDetail(detail));
 
-consumedSumComponentDetail (detail) <- toNumeric16p2(roundPriceCurrency((priceComponentDetail(detail)* consumedQuantityComponentDetail(detail)), currencyComponentDetail(detail)))
+consumedSumComponentDetail (detail) <- NUMERIC[16,2](roundPriceCurrency((priceComponentDetail(detail)* consumedQuantityComponentDetail(detail)), currencyComponentDetail(detail)))
         WHEN CHANGED(priceComponentDetail(detail)) OR
              CHANGED(consumedQuantityComponentDetail(detail)) OR
              CHANGED(currencyComponentDetail(detail));

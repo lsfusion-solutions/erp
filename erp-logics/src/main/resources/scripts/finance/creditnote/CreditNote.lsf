@@ -218,7 +218,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
     descriptionIndexInvoiceInvoiceCreditNoteDetail 'Накладная' (creditNoteDetail) =  descriptionIndexInvoiceDetail(invoiceDetailCreditNoteDetail(creditNoteDetail));
 
     quantityInvoiceCreditNote (invoice, creditNote) = GROUP SUM quantityCreditNoteDetail(creditNoteDetail) BY invoiceInvoiceDetail(invoiceDetailCreditNoteDetail(creditNoteDetail)), creditNoteCreditNoteDetail(creditNoteDetail);
-    invoicesCreditNote 'Накладные' (creditNote) = GROUP CONCAT toString255(descriptionInvoice(invoice)) IF quantityInvoiceCreditNote(invoice, creditNote) , ', '
+    invoicesCreditNote 'Накладные' (creditNote) = GROUP CONCAT STRING[255](descriptionInvoice(invoice)) IF quantityInvoiceCreditNote(invoice, creditNote) , ', '
                                                     BY creditNote
                                                     ORDER invoice IN invoiceGroup MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
@@ -335,7 +335,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
 
     priceCreditNoteDetail(creditNoteDetail) += priceInvoiceCreditNoteDetail(creditNoteDetail);
 
-    sumInvoiceCreditNoteDetail 'Сумма' (invoiceCreditNoteDetail) = toNumeric16p2(roundPriceCurrency((toShipInvoiceCreditNoteDetail(invoiceCreditNoteDetail) *
+    sumInvoiceCreditNoteDetail 'Сумма' (invoiceCreditNoteDetail) = NUMERIC[16,2](roundPriceCurrency((toShipInvoiceCreditNoteDetail(invoiceCreditNoteDetail) *
         priceInvoiceCreditNoteDetail(invoiceCreditNoteDetail)), currencyInvoiceCreditNoteDetail(invoiceCreditNoteDetail)));
 
     sumCreditNoteDetail(creditNoteDetail) += sumInvoiceCreditNoteDetail(creditNoteDetail);
@@ -349,7 +349,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
     @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, valueVAT, 'НДС, %');
     valueVATCreditNoteDetail (creditNoteDetail) += valueVATInvoiceCreditNoteDetail(creditNoteDetail);
 
-    VATSumInvoiceCreditNoteDetail 'Сумма НДС' (invoiceCreditNoteDetail) = toNumeric16p2(roundPriceCurrency((sumInvoiceCreditNoteDetail(invoiceCreditNoteDetail) *
+    VATSumInvoiceCreditNoteDetail 'Сумма НДС' (invoiceCreditNoteDetail) = NUMERIC[16,2](roundPriceCurrency((sumInvoiceCreditNoteDetail(invoiceCreditNoteDetail) *
     valueVATInvoiceCreditNoteDetail (invoiceCreditNoteDetail) / 100), currencyInvoiceCreditNoteDetail(invoiceCreditNoteDetail)));
 
     invoiceSumInvoiceCreditNoteDetail 'Сумма НДС' (invoiceCreditNoteDetail) = VATSumInvoiceCreditNoteDetail(invoiceCreditNoteDetail) (+)
