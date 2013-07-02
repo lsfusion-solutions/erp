@@ -619,6 +619,7 @@ public class ImportActionProperty {
                 ImportKey<?> customerStockKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Stock"),
                         LM.findLCPByCompoundName("stockId").getMapping(idCustomerStockField));
                 keys.add(customerStockKey);
+                props.add(new ImportProperty(idCustomerStockField, LM.findLCPByCompoundName("idStock").getMapping(customerStockKey)));
                 props.add(new ImportProperty(idCustomerStockField, LM.findLCPByCompoundName("Purchase.customerUserInvoice").getMapping(userInvoiceKey),
                         LM.findLCPByCompoundName("legalEntityStock").getMapping(customerStockKey)));
                 props.add(new ImportProperty(idCustomerStockField, LM.findLCPByCompoundName("Purchase.customerStockUserInvoice").getMapping(userInvoiceKey),
@@ -640,13 +641,14 @@ public class ImportActionProperty {
                     data.get(i).add(dataUserInvoiceDetail.get(i).idSupplier);
 
 
-                ImportField idSupplierStockField = new ImportField(LM.findLCPByCompoundName("idWarehouse"));
-                ImportKey<?> supplierWarehouseKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Warehouse"),
-                        LM.findLCPByCompoundName("warehouseId").getMapping(idSupplierStockField));
-                supplierWarehouseKey.skipKey = skipKeys;
-                keys.add(supplierWarehouseKey);
+                ImportField idSupplierStockField = new ImportField(LM.findLCPByCompoundName("idStock"));
+                ImportKey<?> supplierStockKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Stock"),
+                        LM.findLCPByCompoundName("stockId").getMapping(idSupplierStockField));
+                supplierStockKey.skipKey = skipKeys;
+                keys.add(supplierStockKey);
+                props.add(new ImportProperty(idSupplierStockField, LM.findLCPByCompoundName("idStock").getMapping(supplierStockKey)));
                 props.add(new ImportProperty(idSupplierStockField, LM.findLCPByCompoundName("Purchase.supplierStockUserInvoice").getMapping(userInvoiceKey),
-                        LM.object(LM.findClassByCompoundName("Stock")).getMapping(supplierWarehouseKey)));
+                        LM.object(LM.findClassByCompoundName("Stock")).getMapping(supplierStockKey)));
                 fields.add(idSupplierStockField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).idSupplierStock);
