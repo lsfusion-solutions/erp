@@ -423,11 +423,13 @@ META defineOrder(sign, legalEntityProp, stockProp)
 
     FORM orders 'Заказы' TITLE 'Заказы'###sign
         OBJECTS o = Order
-        PROPERTIES (o) READONLY isPostedOrder FORCE GRID, isClosedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
+        PROPERTIES (o) READONLY isPostedOrder FORCE GRID, isClosedOrder
+        PROPERTIES (o) READONLYIF isReadonly() numberOrder, seriesOrder, dateOrder, timeOrder,
                                 nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder, nameCurrencyOrder,
-                                nameAgreementOrder, countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
-                                VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, shipmentDateOrder, shipmentTimeOrder, closeDateOrder,
-                                noteOrder, objectClassName
+                                nameAgreementOrder
+        PROPERTIES (o) READONLY countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
+                                VATSumOrderDetailOrder, invoiceSumOrderDetailOrder
+        PROPERTIES (o) READONLYIF isReadonly() shipmentDateOrder, shipmentTimeOrder, closeDateOrder, noteOrder, objectClassName
 
         PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, nameUserClosed, timeClosed, hostnameComputerClosed
 
@@ -446,7 +448,7 @@ META defineOrder(sign, legalEntityProp, stockProp)
         DIALOG Order OBJECT o
     ;
     @extendFormFilterAccess(Order, o, orders, stockProp);
-
+    @extendFormEditable(orders);
     DESIGN orders FROM DEFAULT {
         PROPERTY (deleteo) {
             askConfirm = TRUE;

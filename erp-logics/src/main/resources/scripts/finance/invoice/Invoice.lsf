@@ -378,13 +378,14 @@ META defineInvoice(sign, stockProp)
 
     FORM invoices 'Накладные' TITLE 'Накладные'###sign
         OBJECTS i = Invoice
-        PROPERTIES (i) READONLY isPostedInvoice FORCE GRID, numberInvoice, seriesInvoice, dateInvoice, timeInvoice,
+        PROPERTIES (i) READONLY isPostedInvoice FORCE GRID
+        PROPERTIES (i) READONLYIF isReadonly() numberInvoice, seriesInvoice, dateInvoice, timeInvoice,
                                 nameSupplierInvoice, nameSupplierStockInvoice, nameCustomerInvoice, nameCustomerStockInvoice,
                                 nameCurrencyInvoice, nameAgreementInvoice,
-                                seriesNumberContractSkuInvoice, isCommissionInvoice,
-                                countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
-                                VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice,
-                                noteInvoice, objectClassName
+                                seriesNumberContractSkuInvoice, isCommissionInvoice
+        PROPERTIES (i) READONLY countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
+                                VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice
+        PROPERTIES (i) READONLYIF isReadonly() noteInvoice, objectClassName
         PROPERTIES (i) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, nameUserClosed, timeClosed, hostnameComputerClosed
 
         PROPERTIES ()  addUserInvoice TODRAW i
@@ -401,7 +402,7 @@ META defineInvoice(sign, stockProp)
         DIALOG Invoice OBJECT i
     ;
     @extendFormFilterAccess(Invoice, i, invoices, stockProp);
-
+    @extendFormEditable(invoices);
     DESIGN invoices FROM DEFAULT {
         main {
             preferredSize = (1024, 768);
@@ -667,7 +668,7 @@ META defineInvoiceHomeCurrency(dumb)
     }
 
     EXTEND FORM invoices
-        PROPERTIES(i) READONLY BACKGROUND backgroundHomeCurrencyInvoice(i) isHomeCurrencyInvoice
+        PROPERTIES (i) READONLYIF isReadonly() BACKGROUND backgroundHomeCurrencyInvoice(i) isHomeCurrencyInvoice
         //PROPERTIES(i) READONLY BACKGROUND backgroundHomeCurrencyInvoice(i) SHOWIF isHomeCurrencyInvoice(i) nameHomeCurrencyInvoice, nameTypeExchangeInvoice, dateRateExchangeInvoice, rateExchangeInvoice
         //PROPERTIES(d) READONLY BACKGROUND backgroundHomeCurrencyInvoice(i) sumHomeInvoiceDetail AFTER sumInvoiceDetail SHOWIF isHomeCurrencyInvoice(i)
         //PROPERTIES(d) READONLY BACKGROUND backgroundHomeCurrencyInvoice(i) homePriceInvoiceDetail AFTER sumHomeInvoiceDetail SHOWIF isHomeCurrencyInvoice(i)
