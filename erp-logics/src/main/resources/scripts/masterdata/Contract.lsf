@@ -45,6 +45,12 @@ nameCurrencyContract 'Валюта взаиморасчетов' (contract) = na
 shortNameCurrencyContract 'Валюта взаиморасчетов' (contract) = shortNameCurrency(currencyContract(contract)) IN attributeGroup;
 symbolCurrencyContract 'Символ' (contract) = symbolCurrency(currencyContract(contract)) IN attributeGroup;
 
+typeExchangeContract (contract) = DATA TypeExchange (Contract);
+nameTypeExchangeContract 'Тип обмена' (contract) = nameTypeExchange(typeExchangeContract(contract)) IN attributeGroup;
+
+CONSTRAINT currencyContract(contract) != currencyTypeExchange(typeExchangeContract(contract))
+    CHECKED BY typeExchangeContract MESSAGE 'Валюта типа обмена должна соответствовать валюте договора';
+
 noteContract 'Примечание' = DATA TEXT (Contract) MINCHARWIDTH 50 PREFCHARWIDTH 50 IN attributeGroup;
 
 editContract 'Редактировать' (contract) = ABSTRACT ACTION LIST (Contract) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -52,7 +58,7 @@ editContract 'Редактировать' (contract) = ABSTRACT ACTION LIST (Con
 FORM contracts 'Договоры'
     OBJECTS c = Contract
     PROPERTIES(c) READONLY namePartyAContract, namePartyBContract, seriesNumberContract, dateFromContract,
-                           dateToContract, nameCurrencyContract, noteContract
+                           dateToContract, nameCurrencyContract, nameTypeExchangeContract, noteContract
     PROPERTIES(c) editContract, DELETE
 
     DIALOG Contract OBJECT c

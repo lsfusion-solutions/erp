@@ -16,29 +16,31 @@ timePayment(payment) <- currentTime() WHEN SET(payment IS Payment);
 dateTimePayment 'Дата время' (payment) = dateTimeToDateTime(datePayment(payment), timePayment(payment));
 
 payerPayment(payment) = DATA LegalEntity (Payment);
-namePayerPayment 'Организация (покупатель)' (payment) = nameLegalEntity(payerPayment(payment));
+namePayerPayment 'Плательщик' (payment) = nameLegalEntity(payerPayment(payment));
 accountFromPayment(payment) = DATA PaymentLedger.Account (Payment);
 accountFromPayment(payment) <- accountLegalEntity(payerPayment(payment))
     WHEN CHANGED(payerPayment(payment));
 nameAccountFromPayment 'Счет' (payment) = PaymentLedger.nameAccount(accountFromPayment(payment));
 currencyAccountFromPayment (payment) = PaymentLedger.currencyAccount(accountFromPayment(payment));
 nameCurrencyAccountFromPayment 'Валюта счета' (payment) = PaymentLedger.nameCurrencyAccount(accountFromPayment(payment));
-sumFromPayment 'Сумма' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16;
+sumPayment 'Сумма' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16;
+
+CONSTRAINT payerPayment(payment) != PaymentLedger.legalEntityAccount(accountFromPayment(payment))
+    CHECKED BY accountFromPayment MESSAGE 'Организация счета должна совпадать с плательщиком';
 
 beneficiaryPayment(payment) = DATA LegalEntity (Payment);
-nameBeneficiaryPayment 'Организация (поставщик)' (payment) = nameLegalEntity(beneficiaryPayment(payment));
+nameBeneficiaryPayment 'Бенефициар' (payment) = nameLegalEntity(beneficiaryPayment(payment));
 accountToPayment(payment) = DATA PaymentLedger.Account (Payment);
 accountToPayment(payment) <- accountLegalEntity(beneficiaryPayment(payment))
     WHEN CHANGED(beneficiaryPayment(payment));
 nameAccountToPayment 'Счет' (payment) = PaymentLedger.nameAccount(accountToPayment(payment));
 currencyAccountToPayment(payment) = PaymentLedger.currencyAccount(accountToPayment(payment));
 nameCurrencyAccountToPayment 'Валюта счета' (payment) = PaymentLedger.nameCurrencyAccount(accountToPayment(payment));
-sumToPayment 'Сумма' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16;
-sumToPayment(payment) <- sumFromPayment(payment)
-    WHEN SET(sumFromPayment(payment));
 
-rateFromPayment 'Курс' (payment) = [FORMULA NUMERIC[15,8] '$1/$2'](sumToPayment(payment),sumFromPayment(payment)) PREFCHARWIDTH 15;
-rateToPayment 'Курс' (payment) = [FORMULA NUMERIC[15,8] '$1/$2'](sumFromPayment(payment),sumToPayment(payment)) PREFCHARWIDTH 15;
+CONSTRAINT beneficiaryPayment(payment) != PaymentLedger.legalEntityAccount(accountToPayment(payment))
+    CHECKED BY accountToPayment MESSAGE 'Организация счета должна совпадать с бенефициаром';
+
+textPayment 'Назначение платежа' = DATA TEXT (Payment);
 
 notePayment 'Примечание' (payment) = DATA STRING[200] (Payment);
 
@@ -50,9 +52,8 @@ dateTimePaymentLedger(paymentLedger) += dateTimePayment(paymentLedger);
 legalEntityFromPaymentLedger(paymentLedger) += payerPayment(paymentLedger);
 legalEntityToPaymentLedger(paymentLedger) += beneficiaryPayment(paymentLedger);
 accountFromPaymentLedger(payment) += accountFromPayment(payment);
-sumFromPaymentLedger(paymentLedger) += sumFromPayment(paymentLedger);
+sumPaymentLedger(paymentLedger) += sumPayment(paymentLedger);
 accountToPaymentLedger(payment) += accountToPayment(payment);
-sumToPaymentLedger(paymentLedger) += sumToPayment(paymentLedger);
 descriptionPaymentLedger(paymentLedger) += descriptionPayment(paymentLedger);
 PaymentLedger.isPostedPaymentLedger(paymentLedger) += isPostedPayment(paymentLedger);
 
@@ -62,16 +63,8 @@ CONSTRAINT PaymentLedger.legalEntityAccount(accountFromPayment(payment)) != paye
 CONSTRAINT PaymentLedger.legalEntityAccount(accountToPayment(payment)) != beneficiaryPayment(payment)
     CHECKED BY accountToPayment MESSAGE 'Организация счета(на) должна совпадать с организацией(поставщик)';
 
-//------------------------------------------- Actions --------------------------------------------------------------//
-
-setSumFromPayment = ACTION (payment){
-    REQUEST NUMERIC[15,8] INPUT;
-    ASSIGN sumToPayment(payment) <- sumFromPayment(payment)*requestedNumeric();
-}
-setSumToPayment = ACTION (payment){
-    REQUEST NUMERIC[15,8] INPUT;
-    ASSIGN sumFromPayment(payment) <- sumToPayment(payment)*requestedNumeric();
-}
+CONSTRAINT currencyAccountFromPayment(payment) != currencyAccountToPayment(payment)
+    CHECKED BY accountFromPayment, accountToPayment MESSAGE 'Валюта счета(с) должна совпадать с валютой счета(на)';
 
 //-------------------------------------------- Форма платежей -------------------------------------------------------//
 
@@ -85,11 +78,9 @@ namePartyB 'Организация (покупатель)' = nameLegalEntity(par
 FORM payment 'Платеж'
 
     OBJECTS p = Payment FIXED PANEL
-    PROPERTIES(p) objectClassName, nameNumeratorObject, numberObject, seriesObject, datePayment, timePayment,
-                  notePayment, namePayerPayment, nameBeneficiaryPayment, nameAccountToPayment, nameAccountFromPayment,
-                  nameCurrencyAccountFromPayment, nameCurrencyAccountToPayment, sumFromPayment, sumToPayment,
-                  rateFromPayment ON CHANGE setSumFromPayment(p),
-                  rateToPayment ON CHANGE setSumToPayment(p)
+    PROPERTIES(p) objectClassName, nameNumeratorObject, numberObject, seriesObject, datePayment, timePayment, textPayment,
+                  notePayment, namePayerPayment, nameBeneficiaryPayment, nameAccountToPayment, nameAccountFromPayment, sumPayment,
+                  nameCurrencyAccountToPayment, nameCurrencyAccountFromPayment
     EVENTS
         ON OK prePostPayment(p)
 
@@ -118,8 +109,6 @@ DESIGN payment FROM DEFAULT{
                 ADD PROPERTY(namePayerPayment);
                 ADD PROPERTY(nameAccountFromPayment);
                 ADD PROPERTY(nameCurrencyAccountFromPayment);
-                ADD PROPERTY(sumFromPayment);
-                ADD PROPERTY(rateFromPayment);
             }
             NEW secondColumn{
                 childConstraints = TO THE BOTTOM;
@@ -127,14 +116,14 @@ DESIGN payment FROM DEFAULT{
                 ADD PROPERTY(nameBeneficiaryPayment);
                 ADD PROPERTY(nameAccountToPayment);
                 ADD PROPERTY(nameCurrencyAccountToPayment);
-                ADD PROPERTY(sumToPayment);
-                ADD PROPERTY(rateToPayment);
             }
         }
         NEW paramContainer {
             caption = 'Параметры документа';
+            ADD PROPERTY(sumPayment);
             ADD PROPERTY(notePayment);
         }
+        ADD PROPERTY(textPayment) {fillHorizontal = 1;}
     }
 
     PROPERTY(formOk) {
@@ -153,7 +142,8 @@ FORM payments 'Платежи'
 
     OBJECTS p = Payment
     PROPERTIES(p) BACKGROUND backgroundPaymentDate(p, d) READONLY numberObject, seriesObject, datePayment, timePayment,
-                  namePayerPayment, nameBeneficiaryPayment, notePayment, objectClassName
+                  namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
+                  nameCurrencyAccountToPayment, sumPayment, notePayment, objectClassName
 
     PROPERTIES(p) ADDFORM, EDITFORM, deletep=DELETE
 

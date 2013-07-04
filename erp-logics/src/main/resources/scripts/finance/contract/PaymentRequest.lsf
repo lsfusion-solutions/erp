@@ -1,6 +1,6 @@
 MODULE PaymentRequest;
 
-REQUIRE ContractLedger;
+REQUIRE Bank, ContractLedger;
 
 NAMESPACE PaymentRequest;
 
@@ -23,19 +23,37 @@ dateContractPaymentRequest 'Дата контракта' (paymentRequest)= dateF
 
 notePaymentRequest 'Примечание' (paymentRequest) = DATA STRING[200] (PaymentRequest);
 
-
 payerPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
-payerPaymentRequest(paymentRequest) <- partyBContract(contractPaymentRequest(paymentRequest)) WHEN SET (contractPaymentRequest(paymentRequest));
-namePayerPaymentRequest 'Организация (покупатель)' (paymentRequest) = nameLegalEntity(payerPaymentRequest(paymentRequest));
-lenderPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
-lenderPaymentRequest(paymentRequest) <- partyAContract(contractPaymentRequest(paymentRequest)) WHEN SET (contractPaymentRequest(paymentRequest));
-nameLenderPaymentRequest 'Организация (поставщик)' (paymentRequest) = nameLegalEntity(lenderPaymentRequest(paymentRequest));
+namePayerPaymentRequest 'Плательщик' (paymentRequest) = nameLegalEntity(payerPaymentRequest(paymentRequest));
+
+accountFromPaymentRequest(paymentRequest) = DATA Bank.Account (PaymentRequest);
+accountFromPaymentRequest(paymentRequest) <- accountLegalEntity(payerPaymentRequest(paymentRequest))
+    WHEN CHANGED(payerPaymentRequest(paymentRequest));
+nameAccountFromPaymentRequest 'Счет' (paymentRequest) = Bank.numberAccount(accountFromPaymentRequest(paymentRequest));
+currencyAccountFromPaymentRequest (paymentRequest) = Bank.currencyAccount(accountFromPaymentRequest(paymentRequest));
+nameCurrencyAccountFromPaymentRequest 'Валюта счета' (paymentRequest) = Bank.nameCurrencyAccount(accountFromPaymentRequest(paymentRequest));
+
+CONSTRAINT payerPaymentRequest(paymentRequest) != Bank.legalEntityAccount(accountFromPaymentRequest(paymentRequest))
+    CHECKED BY accountFromPaymentRequest MESSAGE 'Организация счета должна совпадать с плательщиком';
+
+beneficiaryPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
+nameBeneficiaryPaymentRequest 'Бенефициар' (paymentRequest) = nameLegalEntity(beneficiaryPaymentRequest(paymentRequest));
+
+accountToPaymentRequest(paymentRequest) = DATA Bank.Account (PaymentRequest);
+accountToPaymentRequest(paymentRequest) <- accountLegalEntity(beneficiaryPaymentRequest(paymentRequest))
+    WHEN CHANGED(beneficiaryPaymentRequest(paymentRequest));
+nameAccountToPaymentRequest 'Счет' (paymentRequest) = Bank.numberAccount(accountToPaymentRequest(paymentRequest));
+currencyAccountToPaymentRequest(paymentRequest) = Bank.currencyAccount(accountToPaymentRequest(paymentRequest));
+nameCurrencyAccountToPaymentRequest 'Валюта счета' (paymentRequest) = Bank.nameCurrencyAccount(accountToPaymentRequest(paymentRequest));
+
+CONSTRAINT beneficiaryPaymentRequest(paymentRequest) != Bank.legalEntityAccount(accountToPaymentRequest(paymentRequest))
+    CHECKED BY accountToPaymentRequest MESSAGE 'Организация счета должна совпадать с бенефициаром';
 
 sumPaymentRequest 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentRequest);
 
 descriptionPaymentRequest 'Название документа' =
     [FORMULA STRING[200] '\'Платежное требование \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT) || \' \' || CAST($3 AS TEXT)'](
-    seriesNumberObject(paymentRequest), datePaymentRequest(paymentRequest), nameLenderPaymentRequest(paymentRequest)) PERSISTENT;
+    seriesNumberObject(paymentRequest), datePaymentRequest(paymentRequest), nameBeneficiaryPaymentRequest(paymentRequest)) PERSISTENT;
 
 costPaymentRequestInContractLedger 'Сумма требования' (paymentRequest, inContractLedger) = DATA NUMERIC[16,2] (PaymentRequest, InContractLedger) PERSISTENT;
 requestedInContractLedger 'Выставлено требований' (inContractLedger) =
@@ -49,6 +67,11 @@ requestedDebtInContractLedger 'Неоплаченных требований' (i
 toRequestInContractLedger 'Не выставлено требований' (inContractLedger) =
     debtInContractLedger(inContractLedger) (-) requestedInContractLedger(inContractLedger);
 
+CONSTRAINT partyAContract(contractPaymentRequest(paymentRequest)) != beneficiaryPaymentRequest(paymentRequest)
+    CHECKED BY contractPaymentRequest MESSAGE 'Договор должен соответствовать организациям покупателю и поставщику';
+
+CONSTRAINT partyBContract(contractPaymentRequest(paymentRequest)) != payerPaymentRequest(paymentRequest)
+    CHECKED BY contractPaymentRequest MESSAGE 'Договор должен соответствовать организациям покупателю и поставщику';
 
 sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
     PARTITION UNGROUP sumPaymentRequest
@@ -84,7 +107,8 @@ FORM paymentRequest 'Платежное требование'
     OBJECTS p = PaymentRequest FIXED PANEL
     PROPERTIES(p) objectClassName, nameNumeratorObject, numberObject, seriesObject, datePaymentRequest, timePaymentRequest,
                   seriesNumberContractPaymentRequest, notePaymentRequest
-    PROPERTIES(p) READONLY namePayerPaymentRequest, nameLenderPaymentRequest
+    PROPERTIES(p) namePayerPaymentRequest, nameAccountFromPaymentRequest, nameCurrencyAccountFromPaymentRequest,
+                  nameBeneficiaryPaymentRequest, nameAccountToPaymentRequest, nameCurrencyAccountToPaymentRequest
     PROPERTIES(p) sumPaymentRequest
 
     OBJECTS i = InContractLedger
@@ -104,38 +128,52 @@ FORM paymentRequest 'Платежное требование'
 ;
 
 DESIGN paymentRequest FROM DEFAULT{
-    NEW headerContainer{
-        caption = 'Шапка документа';
-        childConstraints = TO THE RIGHT;
-        NEW firstColumn{
-            childConstraints = TO THE BOTTOM;
-            NEW firstRow{
-                childConstraints = TO THE RIGHT;
-                    ADD PROPERTY(objectClassName);
-                    ADD PROPERTY(namePayerPaymentRequest);
+    main{
+        childConstraints = TO THE BOTTOM;
+        NEW headerContainer{
+            caption = 'Шапка документа';
+            childConstraints = TO THE RIGHTBOTTOM;
+            ADD PROPERTY(objectClassName);
+            ADD PROPERTY(nameNumeratorObject);
+            ADD PROPERTY(numberObject);
+            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(datePaymentRequest);
+            ADD PROPERTY(timePaymentRequest);
+        }
+        NEW columnContainer{
+            childConstraints = TO THE RIGHT;
+            NEW firstColumn{
+                childConstraints = TO THE BOTTOM;
+                caption = 'Сторона (с)';
+                ADD PROPERTY(namePayerPaymentRequest);
+                ADD PROPERTY(nameAccountFromPaymentRequest);
+                ADD PROPERTY(nameCurrencyAccountFromPaymentRequest);
             }
-            NEW secondRow{
-                childConstraints = TO THE RIGHT;
-                    ADD PROPERTY(nameNumeratorObject);
-                    ADD PROPERTY(numberObject);
-                    ADD PROPERTY(seriesObject);
-                    ADD PROPERTY(datePaymentRequest);
-                    ADD PROPERTY(timePaymentRequest);
+            NEW secondColumn{
+                childConstraints = TO THE BOTTOM;
+                caption = 'Сторона (на)';
+                ADD PROPERTY(nameBeneficiaryPaymentRequest);
+                ADD PROPERTY(nameAccountToPaymentRequest);
+                ADD PROPERTY(nameCurrencyAccountToPaymentRequest);
+            }
+            NEW thirdColumn{
+                childConstraints = TO THE BOTTOM;
+                caption = 'Контракт';
+                ADD PROPERTY(seriesNumberContractPaymentRequest);
             }
         }
-        ADD PROPERTY(sumPaymentRequest);
-    }
-    NEW paramContainer {
-        caption = 'Параметры документа';
-        childConstraints = TO THE RIGHT;
-        ADD PROPERTY(seriesNumberContractPaymentRequest);
-        ADD PROPERTY(nameLenderPaymentRequest);
-        ADD PROPERTY(notePaymentRequest);
+        NEW paramContainer {
+            caption = 'Параметры документа';
+            ADD PROPERTY(sumPaymentRequest);
+            ADD PROPERTY(notePaymentRequest);
+        }
     }
     ADD i.box;
+
     PROPERTY(formOk) {
         caption = 'Провести';
     }
+
     ADD functions.box;
 }
 
@@ -218,8 +256,11 @@ FORM paymentRequests 'Платежные требования'
                             seriesObject BACKGROUND backgroundPaymentRequestDate(pr, d),
                             datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            nameLenderPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            nameBeneficiaryPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            nameAccountFromPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             namePayerPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            nameAccountToPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            nameCurrencyAccountToPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             objectClassName BACKGROUND backgroundPaymentRequestDate(pr, d)
