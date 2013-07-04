@@ -66,7 +66,7 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
                 for (int i = 1; i <= recordCount; i++) {
                     dbfFile.read();
 
-                    String nameCustomsZone = "ТАМОЖЕННЫЙ СОЮЗ";
+                    String nameCustomsZone = "БЕЛАРУСЬ";
 
                     String code = new String(dbfFile.getField("KOD").getBytes(), "Cp866").trim();
                     String name = new String(dbfFile.getField("NAIM").getBytes(), "Cp866").trim();
