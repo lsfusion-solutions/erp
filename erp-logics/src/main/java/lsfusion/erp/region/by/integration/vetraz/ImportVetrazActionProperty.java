@@ -41,7 +41,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
                 ImportData importData = new ImportData();
 
-                importData.setWithoutRecalc((Boolean)getLCP("withoutRecalcVetraz").read(context));
+                importData.setWithoutRecalc((Boolean) getLCP("withoutRecalcVetraz").read(context));
 
                 importData.setLegalEntitiesList((getLCP("importLegalEntities").read(context) != null) ?
                         importLegalEntitiesFromDBF(path + "//sprana.dbf") : null);
@@ -262,7 +262,6 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             }
         };
 
-
         DBF cenImportFile = new DBF(cenPath);
         int totalRecordCount = cenImportFile.getRecordCount();
 
@@ -282,34 +281,12 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             }
         }
 
-        DBF osttImportFile = new DBF(osttPath);
-        totalRecordCount = osttImportFile.getRecordCount();
-
-        Map<String, Object[]> osttMap = new HashMap<String, Object[]>();
-
-        for (int i = 0; i < totalRecordCount; i++) {
-            osttImportFile.read();
-
-            String k_mat = getFieldValue(osttImportFile, "K_MAT", "Cp866", "");
-            BigDecimal quantity = getBigDecimalFieldValue(osttImportFile, "N_MAT", "Cp866", null);
-            String idWarehouse = getFieldValue(osttImportFile, "K_SKL", "Cp866", "");
-            idWarehouse = idWarehouse.isEmpty() ? null : ("СК" + idWarehouse);
-
-            if (!k_mat.isEmpty())
-                osttMap.put(k_mat, new Object[]{quantity.doubleValue() == 0 ? null : quantity, idWarehouse});
-
-        }
-
-        List<UserInvoiceDetail> data = new ArrayList<UserInvoiceDetail>();
-
         DBF sprmatImportFile = new DBF(sprmatPath);
         totalRecordCount = sprmatImportFile.getRecordCount();
-        int recordCount = (numberOfUserInvoices != null && numberOfUserInvoices != 0 && numberOfUserInvoices < totalRecordCount) ? numberOfUserInvoices : totalRecordCount;
+
+        Map<String, Object[]> sprmatMap = new HashMap<String, Object[]>();
 
         for (int i = 0; i < totalRecordCount; i++) {
-
-            if (data.size() >= recordCount)
-                break;
 
             sprmatImportFile.read();
 
@@ -349,12 +326,9 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             BigDecimal homePrice = isForeign ? n_cenu : null;
             BigDecimal dprm11 = getBigDecimalFieldValue(sprmatImportFile, "DPRM11", "Cp866", "0");
             BigDecimal rateExchange = isForeign ? getBigDecimalFieldValue(sprmatImportFile, "DPRM12", "Cp866", null) : null;
-            BigDecimal priceDuty = isForeign ? dprm11.subtract(rateExchange==null ? price : price.multiply(rateExchange)) : null;
+            BigDecimal priceDuty = isForeign ? dprm11.subtract(rateExchange == null ? price : price.multiply(rateExchange)) : null;
+            //manufacturingPrice = safeAdd(manufacturingPrice, priceDuty);
             Boolean isHomeCurrency = isForeign ? true : null;
-
-            Object[] ostt = osttMap.get(k_mat);
-            BigDecimal quantity = ostt == null ? null : (BigDecimal) ostt[0];
-            String idWarehouse = ostt == null ? null : (String) ostt[1];
 
             String numberDeclaration = null;
             Date dateDeclaration = null;
@@ -392,14 +366,68 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
                 }
             }
 
-            data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice + String.valueOf(date) + shortNameCurrency + idSupplier,
-                    seriesUserInvoice, numberUserInvoice, null, true, k_mat, date, idItem, null, quantity, idSupplier,
-                    idWarehouse, idSupplier + "WH", (price==null || price.doubleValue() == 0) ? null : price, null, null, null,
-                    manufacturingPrice, null, null, null, null, certificateText, null, numberDeclaration, dateDeclaration,
-                    numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin, rateExchange, homePrice,
-                    priceDuty, null, null, null, isHomeCurrency, shortNameCurrency, codeCustomsGroup,
-                    allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null));
-            }
+            if (!k_mat.isEmpty())
+                sprmatMap.put(k_mat, new Object[]{seriesUserInvoice, numberUserInvoice, date, shortNameCurrency,
+                        idSupplier, idItem, price, manufacturingPrice, certificateText, numberDeclaration,
+                        dateDeclaration, numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin,
+                        rateExchange, homePrice, priceDuty, isHomeCurrency, codeCustomsGroup, retailVAT});
+        }
+
+
+        List<UserInvoiceDetail> data = new ArrayList<UserInvoiceDetail>();
+
+        DBF osttImportFile = new DBF(osttPath);
+        totalRecordCount = osttImportFile.getRecordCount();
+
+        int recordCount = (numberOfUserInvoices != null && numberOfUserInvoices != 0 && numberOfUserInvoices < totalRecordCount) ? numberOfUserInvoices : totalRecordCount;
+
+        for (int i = 0; i < recordCount; i++) {
+
+            if (data.size() >= recordCount)
+                break;
+
+            osttImportFile.read();
+
+            String k_mat = getFieldValue(osttImportFile, "K_MAT", "Cp866", "");
+            BigDecimal quantity = getBigDecimalFieldValue(osttImportFile, "N_MAT", "Cp866", null);
+            String idWarehouse = getFieldValue(osttImportFile, "K_SKL", "Cp866", "");
+            idWarehouse = idWarehouse.isEmpty() ? null : ("СК" + idWarehouse);
+
+            Object[] sprmatEntry = sprmatMap.get(k_mat);
+
+            String seriesUserInvoice = sprmatEntry == null ? null : (String) sprmatEntry[0];
+            String numberUserInvoice = sprmatEntry == null ? null : (String) sprmatEntry[1];
+            Date date = sprmatEntry == null ? null : (Date) sprmatEntry[2];
+            String shortNameCurrency = sprmatEntry == null ? null : (String) sprmatEntry[3];
+            String idSupplier = sprmatEntry == null ? null : (String) sprmatEntry[4];
+            String idItem = sprmatEntry == null ? null : (String) sprmatEntry[5];
+            BigDecimal price = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[6];
+            BigDecimal manufacturingPrice = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[7];
+            String certificateText = sprmatEntry == null ? null : (String) sprmatEntry[8];
+            String numberDeclaration = sprmatEntry == null ? null : (String) sprmatEntry[9];
+            Date dateDeclaration = sprmatEntry == null ? null : (Date) sprmatEntry[10];
+            String numberCompliance = sprmatEntry == null ? null : (String) sprmatEntry[11];
+            Date fromDateCompliance = sprmatEntry == null ? null : (Date) sprmatEntry[12];
+            Date toDateCompliance = sprmatEntry == null ? null : (Date) sprmatEntry[13];
+            Date expiryDate = sprmatEntry == null ? null : (Date) sprmatEntry[14];
+            String bin = sprmatEntry == null ? null : (String) sprmatEntry[15];
+            BigDecimal rateExchange = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[16];
+            BigDecimal homePrice = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[17];
+            BigDecimal priceDuty = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[18];
+            Boolean isHomeCurrency = sprmatEntry == null ? null : (Boolean) sprmatEntry[19];
+            String codeCustomsGroup = sprmatEntry == null ? null : (String) sprmatEntry[20];
+            BigDecimal retailVAT = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[21];
+
+            if (sprmatEntry != null && quantity!=null && quantity.doubleValue()!=0)
+                data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice + String.valueOf(date) + shortNameCurrency + idSupplier,
+                        seriesUserInvoice, numberUserInvoice, null, true, k_mat, date, idItem, null, quantity, idSupplier,
+                        idWarehouse, idSupplier + "WH", (price == null || price.doubleValue() == 0) ? null : price, null, null, null,
+                        manufacturingPrice, null, null, null, null, certificateText, null, numberDeclaration, dateDeclaration,
+                        numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin, rateExchange, homePrice,
+                        priceDuty, null, null, null, isHomeCurrency, shortNameCurrency, codeCustomsGroup,
+                        allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null));
+        }
+
         return data;
     }
 
@@ -521,6 +549,12 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
         } catch (xBaseJException e) {
             return defaultValue;
         }
+    }
+
+    private BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 
 }
