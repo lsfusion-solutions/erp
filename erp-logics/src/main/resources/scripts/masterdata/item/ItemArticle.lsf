@@ -11,28 +11,19 @@ CLASS Article 'Артикул';
 TABLE article(Article);
 
 @defineExternalizable(article, STRING[100]);
-nameArticle 'Наименование' = DATA ISTRING[100](Article);
+captionArticle 'Название' = DATA ISTRING[100](Article);
 
 itemGroupArticle  = DATA ItemGroup(Article);
 nameItemGroupArticle 'Товарная группа' (Article) = nameItemGroup(itemGroupArticle(Article));
 
-isParentGroupArticle(group, article) = isParentGroupGroup(itemGroupArticle(article), group) PERSISTENT INDEXED;
+isParentGroupArticle(group, article) = isParentItemGroupItemGroup(itemGroupArticle(article), group) PERSISTENT INDEXED;
 canonicalNameItemGroupArticle 'Каноническое имя' (article) = canonicalNameGroup(itemGroupArticle(article));
 
 FORM article 'Артикул'
     OBJECTS a=Article FIXED PANEL
-    PROPERTIES(a) nameArticle, idArticle SHOWIF showIDs()
+    PROPERTIES(a) captionArticle, idArticle SHOWIF showIDs(), nameItemGroupArticle
     EDIT Article OBJECT a
 ;
-
-//FORM articles 'Артикулы'
-//    OBJECTS a=Article
-//    PROPERTIES(a) nameArticle READONLY, idArticle SHOWIF showIDs() READONLY, DELETE
-//    PROPERTIES(a) ADDFORM, EDITFORM
-//    ORDER BY nameArticle
-//    DIALOG Article OBJECT a
-//;
-//DESIGN articles FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 FORM articles 'Артикулы'
 
@@ -42,13 +33,13 @@ FORM articles 'Артикулы'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeItemGroup(g) DEFAULT
 
     OBJECTS a=Article
-    PROPERTIES(a) READONLY nameArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle
+    PROPERTIES(a) READONLY captionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, nameItemGroupArticle
     PROPERTIES(a) ADDFORM, EDITFORM, deletea=DELETE
-    ORDER BY nameArticle
+    ORDER BY captionArticle
 
     FILTERGROUP groupFilters
         FILTER 'С группами' 'F9' isParentGroupArticle(g, a) DEFAULT
-        FILTER 'Без групп' 'F8' nameArticle(a) IF NOT itemGroupArticle(a)
+        FILTER 'Без групп' 'F8' captionArticle(a) IF NOT itemGroupArticle(a)
 
     DIALOG Article OBJECT a
 ;
@@ -68,8 +59,8 @@ DESIGN articles FROM DEFAULT {
     ADD functions.box;
 }
 
-@defineObjectItemAttribute(article, Article, nameArticle, 'Артикул', itemArticleGroup);
-@defineObjectItemAttributeBatch (article, nameArticle, 'Артикул');
+@defineObjectItemAttribute(article, Article, captionArticle, 'Артикул', itemArticleGroup);
+@defineObjectItemAttributeBatch (article, captionArticle, 'Артикул');
 
 // Цвет
 CLASS Color 'Цвет товара';
