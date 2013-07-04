@@ -1,6 +1,6 @@
 MODULE PurchaseManufacturingPrice;
 
-REQUIRE PurchaseInvoice, PricingPurchase, PricingManufacturingPrice, RepricingManufacturingPrice, PriceListLedger;
+REQUIRE PurchaseInvoice, PricingPurchase, PurchaseDeclaration, PricingManufacturingPrice, RepricingManufacturingPrice, PriceListLedger;
 
 NAMESPACE Purchase;
 
@@ -50,8 +50,8 @@ addCostPriceToManufacturingPriceUserInvoice(invoice) <- addCostPriceToManufactur
 baseManufacturingPriceUserInvoiceDetail = IF addCostPriceToManufacturingPriceUserInvoice(invoiceInvoiceDetail(detail)) THEN costPriceUserInvoiceDetail(detail)
                                         ELSE incomePriceUserInvoiceDetail(detail);
 
-WHEN SESSION FORMS userInvoice
-    CHANGED(costPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingRoundConditionUserInvoice(invoiceInvoiceDetail(d))) DO {
+WHEN SESSION FORMS userInvoice, declaration
+    CHANGED(baseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingRoundConditionUserInvoice(invoiceInvoiceDetail(d))) DO {
     IF manufacturingRoundConditionUserInvoice(invoiceInvoiceDetail(d)) THEN
         manufacturingPriceUserInvoiceDetail(d) <- roundPriceRoundCondition(baseManufacturingPriceUserInvoiceDetail(d), manufacturingRoundConditionUserInvoice(invoiceInvoiceDetail(d)))
     ELSE
