@@ -13,20 +13,60 @@ TABLE article(Article);
 @defineExternalizable(article, STRING[100]);
 nameArticle 'Наименование' = DATA ISTRING[100](Article);
 
+itemGroupArticle  = DATA ItemGroup(Article);
+nameItemGroupArticle 'Товарная группа' (Article) = nameItemGroup(itemGroupArticle(Article));
+
+isParentGroupArticle(group, article) = isParentGroupGroup(itemGroupArticle(article), group) PERSISTENT INDEXED;
+canonicalNameItemGroupArticle 'Каноническое имя' (article) = canonicalNameGroup(itemGroupArticle(article));
+
 FORM article 'Артикул'
-    OBJECTS t=Article FIXED PANEL
-    PROPERTIES(t) nameArticle, idArticle SHOWIF showIDs()
-    EDIT Article OBJECT t
+    OBJECTS a=Article FIXED PANEL
+    PROPERTIES(a) nameArticle, idArticle SHOWIF showIDs()
+    EDIT Article OBJECT a
 ;
 
+//FORM articles 'Артикулы'
+//    OBJECTS a=Article
+//    PROPERTIES(a) nameArticle READONLY, idArticle SHOWIF showIDs() READONLY, DELETE
+//    PROPERTIES(a) ADDFORM, EDITFORM
+//    ORDER BY nameArticle
+//    DIALOG Article OBJECT a
+//;
+//DESIGN articles FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
 FORM articles 'Артикулы'
-    OBJECTS t=Article
-    PROPERTIES(t) nameArticle READONLY, idArticle SHOWIF showIDs() READONLY, DELETE
-    PROPERTIES(t) ADDFORM, EDITFORM
+
+    TREE groupTree g=ItemGroup PARENT parentItemGroup
+    PROPERTIES READONLY nameItemGroup(g)
+    ORDER BY nameItemGroup(g)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeItemGroup(g) DEFAULT
+
+    OBJECTS a=Article
+    PROPERTIES(a) READONLY nameArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle
+    PROPERTIES(a) ADDFORM, EDITFORM, deletea=DELETE
     ORDER BY nameArticle
-    DIALOG Article OBJECT t
+
+    FILTERGROUP groupFilters
+        FILTER 'С группами' 'F9' isParentGroupArticle(g, a) DEFAULT
+        FILTER 'Без групп' 'F8' nameArticle(a) IF NOT itemGroupArticle(a)
+
+    DIALOG Article OBJECT a
 ;
-DESIGN articles FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+DESIGN articles FROM DEFAULT {
+
+    NEW rootContainer {
+        type = SPLITH;
+        childConstraints = TO THE RIGHT;
+
+        ADD groupTree.tree.box;
+        ADD a.box {
+            defaultComponent = TRUE;
+            fillHorizontal = 4;
+        }
+    }
+    ADD functions.box;
+}
 
 @defineObjectItemAttribute(article, Article, nameArticle, 'Артикул', itemArticleGroup);
 @defineObjectItemAttributeBatch (article, nameArticle, 'Артикул');
@@ -118,3 +158,9 @@ overCopyItem(s, d) += ACTION (s, d) {
 }
 
 EXTEND DESIGN item { itemPrimaryColumn2 { ADD i.itemArticleGroup; } }
+
+NAVIGATOR {
+    skuNavigator {
+        ADD articles AFTER itemGroups;
+    }
+}
