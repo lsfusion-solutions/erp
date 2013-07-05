@@ -1,0 +1,37 @@
+MODULE PurchaseInvoicePriceList;
+
+REQUIRE PurchaseInvoice, PriceList;
+
+NAMESPACE Purchase;
+
+createPriceListPurchaseInvoice 'Прайс-лист' = ACTION (purchaseInvoice) {
+    FOR ADDOBJ p = UserPriceList DO {
+        fromDateUserPriceList(p) <- dateInvoice(purchaseInvoice);
+        fromTimeUserPriceList(p) <- timeInvoice(purchaseInvoice);
+        dataInUserPriceListStock(p, stock) <- TRUE WHERE stock == customerStockInvoice(purchaseInvoice);
+        currencyUserPriceList(p) <- currencyInvoice(purchaseInvoice);
+
+        FOR invoiceInvoiceDetail(id)==purchaseInvoice ADDOBJ pd=UserPriceListDetail DO {
+            userPriceListUserPriceListDetail(pd) <- p;
+            skuPriceListDetail(pd) <- skuInvoiceDetail(id);
+        }
+
+        FORM userPriceList OBJECTS p = p MANAGESESSION DOCKEDMODAL;
+        IF TRUE IF NOT formResult() == FormResult.ok THEN {
+            DELETE p;
+        }
+    }
+
+} TOOLBAR;
+
+EXTEND FORM invoices
+    PROPERTIES(i) createPriceListPurchaseInvoice BEFORE copyInvoice
+;
+
+EXTEND DESIGN invoices {
+    main {
+        createdContainer {
+            ADD PROPERTY(createPriceListPurchaseInvoice);
+        }
+    }
+}
