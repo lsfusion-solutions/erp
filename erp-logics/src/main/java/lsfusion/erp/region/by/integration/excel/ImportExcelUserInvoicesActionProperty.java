@@ -64,10 +64,10 @@ public class ImportExcelUserInvoicesActionProperty extends ImportExcelActionProp
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String userInvoiceSeries = parseString(sheet.getCell(0, i).getContents());
-            String userInvoiceNumber = parseString(sheet.getCell(1, i).getContents());
-            Date date = parseDate(sheet.getCell(2, i).getContents());
-            String itemID = parseString(sheet.getCell(3, i).getContents());
+            String seriesUserInvoice = parseString(sheet.getCell(0, i).getContents());
+            String numberUserInvoice = parseString(sheet.getCell(1, i).getContents());
+            Date dateUserInvoice = parseDate(sheet.getCell(2, i).getContents());
+            String idItem = parseString(sheet.getCell(3, i).getContents());
             BigDecimal quantity = parseBigDecimal(sheet.getCell(4, i).getContents());
             String supplier = parseString(sheet.getCell(5, i).getContents());
             String customerWarehouse = parseString(sheet.getCell(6, i).getContents());
@@ -78,10 +78,10 @@ public class ImportExcelUserInvoicesActionProperty extends ImportExcelActionProp
             BigDecimal retailMarkup = parseBigDecimal(sheet.getCell(11, i).getContents());
             String textCompliance = parseString(sheet.getCell(12, i).getContents());
 
-            String userInvoiceDetailSID = (userInvoiceSeries==null ? "" : userInvoiceSeries) + userInvoiceNumber + itemID;
+            String userInvoiceDetailSID = (seriesUserInvoice==null ? "" : seriesUserInvoice) + numberUserInvoice + idItem;
 
-            data.add(new UserInvoiceDetail(userInvoiceSeries + userInvoiceNumber, userInvoiceSeries, userInvoiceNumber, null, true,
-                    userInvoiceDetailSID, date, itemID, false, quantity, supplier, customerWarehouse, supplierWarehouse,
+            data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice, seriesUserInvoice, numberUserInvoice, null, true,
+                    userInvoiceDetailSID, dateUserInvoice, idItem, false, quantity, supplier, customerWarehouse, supplierWarehouse,
                     price, null, null, chargePrice, null, null, null, retailPrice, retailMarkup, textCompliance, null, null, null,
                     null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
         }

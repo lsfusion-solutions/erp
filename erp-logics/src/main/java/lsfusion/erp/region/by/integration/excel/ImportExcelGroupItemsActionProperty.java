@@ -63,13 +63,13 @@ public class ImportExcelGroupItemsActionProperty extends ImportExcelActionProper
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String groupID = parseString(sheet.getCell(0, i).getContents());
-            String name = parseString(sheet.getCell(1, i).getContents());
-            String parentID = parseString(sheet.getCell(2, i).getContents());
+            String idGroup = parseString(sheet.getCell(0, i).getContents());
+            String nameGroup = parseString(sheet.getCell(1, i).getContents());
+            String idParentGroup = parseString(sheet.getCell(2, i).getContents());
             if (parents)
-                data.add(new ItemGroup(groupID, null, parentID));
+                data.add(new ItemGroup(idGroup, null, idParentGroup));
             else
-                data.add(new ItemGroup(groupID, name, null));
+                data.add(new ItemGroup(idGroup, nameGroup, null));
         }
 
         return data;

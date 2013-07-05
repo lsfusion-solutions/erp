@@ -60,11 +60,11 @@ public class ImportExcelDepartmentStoresActionProperty extends ImportExcelAction
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String departmentStoreID = parseString(sheet.getCell(0, i).getContents());
+            String idDepartmentStore = parseString(sheet.getCell(0, i).getContents());
             String nameDepartmentStore = parseString(sheet.getCell(1, i).getContents());
-            String storeID = parseString(sheet.getCell(2, i).getContents());
+            String idStore = parseString(sheet.getCell(2, i).getContents());
 
-            data.add(new DepartmentStore(departmentStoreID, nameDepartmentStore, storeID));
+            data.add(new DepartmentStore(idDepartmentStore, nameDepartmentStore, idStore));
         }
 
         return data;

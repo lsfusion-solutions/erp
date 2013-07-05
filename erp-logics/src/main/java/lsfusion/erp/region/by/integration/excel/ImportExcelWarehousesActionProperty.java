@@ -64,13 +64,13 @@ public class ImportExcelWarehousesActionProperty extends ImportExcelActionProper
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String warehouseID = parseString(sheet.getCell(0, i).getContents());
-            String warehouseName = parseString(sheet.getCell(1, i).getContents());
-            String warehouseGroupID = parseString(sheet.getCell(2, i).getContents());
-            String legalEntityID = parseString(sheet.getCell(4, i).getContents());
-            String warehouseAddress = parseString(sheet.getCell(5, i).getContents());
+            String idWarehouse = parseString(sheet.getCell(0, i).getContents());
+            String nameWarehouse = parseString(sheet.getCell(1, i).getContents());
+            String idWarehouseGroup = parseString(sheet.getCell(2, i).getContents());
+            String idLegalEntity = parseString(sheet.getCell(4, i).getContents());
+            String addressWarehouse = parseString(sheet.getCell(5, i).getContents());
 
-            data.add(new Warehouse(legalEntityID, warehouseGroupID, warehouseID, warehouseName, warehouseAddress));
+            data.add(new Warehouse(idLegalEntity, idWarehouseGroup, idWarehouse, nameWarehouse, addressWarehouse));
         }
 
         return data;
@@ -85,10 +85,10 @@ public class ImportExcelWarehousesActionProperty extends ImportExcelActionProper
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String warehouseGroupID = parseString(sheet.getCell(2, i).getContents());
-            String warehouseGroupName = parseString(sheet.getCell(3, i).getContents());
+            String idWarehouseGroup = parseString(sheet.getCell(2, i).getContents());
+            String nameWarehouseGroup = parseString(sheet.getCell(3, i).getContents());
 
-            data.add(new WarehouseGroup(warehouseGroupID, warehouseGroupName));
+            data.add(new WarehouseGroup(idWarehouseGroup, nameWarehouseGroup));
         }
 
         return data;

@@ -63,14 +63,15 @@ public class ImportExcelContractsActionProperty extends ImportExcelActionPropert
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String number = parseString(sheet.getCell(0, i).getContents());
-            String supplierID = parseString(sheet.getCell(1, i).getContents());
-            String customerID = parseString(sheet.getCell(2, i).getContents());
-            String contractID = supplierID + "/" + customerID;
-            Date dateFrom = parseDate(sheet.getCell(3, i).getContents());
-            Date dateTo = parseDate(sheet.getCell(4, i).getContents());
+            String numberContract = parseString(sheet.getCell(0, i).getContents());
+            String idSupplier = parseString(sheet.getCell(1, i).getContents());
+            String idCustomer = parseString(sheet.getCell(2, i).getContents());
+            String idContract = idSupplier + "/" + idCustomer;
+            Date dateFromContract = parseDate(sheet.getCell(3, i).getContents());
+            Date dateToContract = parseDate(sheet.getCell(4, i).getContents());
             String shortNameCurrency = parseString(sheet.getCell(5, i).getContents());
-            data.add(new Contract(contractID, supplierID, customerID, number, dateFrom, dateTo, shortNameCurrency));
+            data.add(new Contract(idContract, idSupplier, idCustomer, numberContract, dateFromContract,
+                    dateToContract, shortNameCurrency));
         }
 
         return data;

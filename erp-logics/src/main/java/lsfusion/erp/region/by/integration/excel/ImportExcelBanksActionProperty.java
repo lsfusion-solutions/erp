@@ -62,14 +62,14 @@ public class ImportExcelBanksActionProperty extends ImportExcelActionProperty {
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String bankID = parseString(sheet.getCell(0, i).getContents());
-            String name = parseString(sheet.getCell(1, i).getContents());
-            String address = parseString(sheet.getCell(2, i).getContents());
-            String department = parseString(sheet.getCell(3, i).getContents());
-            String mfo = parseString(sheet.getCell(4, i).getContents());
-            String cbu = parseString(sheet.getCell(5, i).getContents());
+            String idBank = parseString(sheet.getCell(0, i).getContents());
+            String nameBank = parseString(sheet.getCell(1, i).getContents());
+            String addressBank = parseString(sheet.getCell(2, i).getContents());
+            String departmentBank = parseString(sheet.getCell(3, i).getContents());
+            String mfoBank = parseString(sheet.getCell(4, i).getContents());
+            String cbuBank = parseString(sheet.getCell(5, i).getContents());
 
-            data.add(new Bank(bankID, name, address, department, mfo, cbu));
+            data.add(new Bank(idBank, nameBank, addressBank, departmentBank, mfoBank, cbuBank));
         }
 
         return data;
