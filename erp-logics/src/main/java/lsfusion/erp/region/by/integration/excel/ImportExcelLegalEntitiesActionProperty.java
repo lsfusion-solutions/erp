@@ -86,8 +86,8 @@ public class ImportExcelLegalEntitiesActionProperty extends ImportExcelActionPro
     }
 
     private static String[] getAndTrimOwnershipFromName(String name) {
-        String nameOwnership = null;
-        String shortNameOwnership = null;
+        String nameOwnership = "";
+        String shortNameOwnership = "";
         for (String[] ownership : ownershipsList) {
             if (name.contains(ownership[0] + " ") || name.contains(" " + ownership[0])) {
                 nameOwnership = ownership[1];
