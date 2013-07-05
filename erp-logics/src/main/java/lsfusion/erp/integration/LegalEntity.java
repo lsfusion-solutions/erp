@@ -22,8 +22,8 @@ public class LegalEntity {
     public LegalEntity(String idLegalEntity, String nameLegalEntity, String addressLegalEntity, String unpLegalEntity,
                        String okpoLegalEntity, String phoneLegalEntity, String emailLegalEntity, String nameOwnership,
                        String shortNameOwnership, String numberAccount, String idChainStores, String nameChainStores,
-                       String idBank, String nameCountry, Boolean supplierLegalEntity, Boolean companyLegalEntity,
-                       Boolean customerLegalEntity) {
+                       String idBank, String nameCountry, Boolean isSupplierLegalEntity, Boolean isCompanyLegalEntity,
+                       Boolean isCustomerLegalEntity) {
         this.idLegalEntity = idLegalEntity;
         this.nameLegalEntity = nameLegalEntity;
         this.addressLegalEntity = addressLegalEntity;
@@ -38,9 +38,9 @@ public class LegalEntity {
         this.nameChainStores = nameChainStores;
         this.idBank = idBank;
         this.nameCountry = nameCountry;
-        this.isSupplierLegalEntity = supplierLegalEntity;
-        this.isCompanyLegalEntity = companyLegalEntity;
-        this.isCustomerLegalEntity = customerLegalEntity;
+        this.isSupplierLegalEntity = isSupplierLegalEntity;
+        this.isCompanyLegalEntity = isCompanyLegalEntity;
+        this.isCustomerLegalEntity = isCustomerLegalEntity;
     }
 
     public LegalEntity() {

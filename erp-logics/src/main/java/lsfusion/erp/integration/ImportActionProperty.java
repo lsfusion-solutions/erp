@@ -1373,6 +1373,8 @@ public class ImportActionProperty {
                 props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundName("nameCountry").getMapping(countryKey)));
                 props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundName("countryLegalEntity").getMapping(legalEntityKey),
                         LM.object(LM.findClassByCompoundName("Country")).getMapping(countryKey)));
+                props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundName("countryOwnership").getMapping(ownershipKey),
+                        LM.object(LM.findClassByCompoundName("Country")).getMapping(countryKey)));
                 fields.add(nameCountryField);
                 for (int i = 0; i < legalEntitiesList.size(); i++)
                     data.get(i).add(legalEntitiesList.get(i).nameCountry);
