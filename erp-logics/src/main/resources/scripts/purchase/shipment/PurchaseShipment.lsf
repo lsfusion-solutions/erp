@@ -102,6 +102,14 @@ shipmentPriceUserInvoiceDetail(detail) <- calcShipmentPriceUserInvoiceDetail(det
      CHANGED(createShipmentUserInvoiceDetail(detail)))
         AND createShipmentUserInvoiceDetail(detail);
 
+// ------------------------------- Коды партии ----------------------------------- //
+
+idBatchShipmentDetail 'Код партии' = ABSTRACT STRING[100] (ShipmentDetail) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatchUserShipmentDetail 'Код партии' = DATA STRING[100] (UserShipmentDetail) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatchShipmentDetail(detail) += idBatchUserShipmentDetail(detail);
+
+idBatchShipmentDetail(detail) += idBatchInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
+
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 
 overCreateBatchShipmentDetail = ABSTRACT BOOLEAN (ShipmentDetail);
@@ -115,6 +123,7 @@ CLASS ShipmentBatch 'Партия на основе закупки';
 priceShipmentBatch (batch) = priceShipmentDetail(shipmentDetailShipmentBatch(batch));
 
 @implementBatch(ShipmentBatch, sku, stock, price);
+idBatch(ledger) += idBatchShipmentDetail(shipmentDetailShipmentBatch(ledger));
 quantityBatch (ledger) += quantityShipmentDetail(shipmentDetailShipmentBatch(ledger));
 expiryDateBatch (ledger) += expiryDateShipmentDetail(shipmentDetailShipmentBatch(ledger));
 sumInSkuLedger (ledger) += sumShipmentDetail(shipmentDetailShipmentBatch(ledger));

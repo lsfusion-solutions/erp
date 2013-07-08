@@ -134,6 +134,23 @@ EXTEND FORM userInvoice
 @extendFormDocumentOrderLedger(userInvoice, userInvoice, customerStock, i);
 @extendFormDocumentOrderLedgerAll(userInvoice, userInvoice, i);
 
+// --------------- Заполнение кода партии ----------------- //
+
+idBatchInvoiceDetail 'Код партии' = ABSTRACT STRING[100] (InvoiceDetail) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatchUserInvoiceDetail 'Код партии' = DATA STRING[100] (UserInvoiceDetail) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatchInvoiceDetail(detail) += idBatchUserInvoiceDetail(detail);
+
+backgroundBatchInvoiceDetail 'Цвет' (detail) = RGB(204, 204, 204) IF batchInvoiceDetail(detail);
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) BACKGROUND backgroundBatchInvoiceDetail(d) READONLYIF batchInvoiceDetail(d) SHOWIF showIDs()
+                  idBatchUserInvoiceDetail AFTER nameBatchUserInvoiceDetail(d)
+;
+EXTEND FORM invoices
+    PROPERTIES(d) READONLY BACKGROUND backgroundBatchInvoiceDetail(d) SHOWIF showIDs()
+                  idBatchInvoiceDetail AFTER nameBatchInvoiceDetail(d)
+;
+
 // --------------- Проведение по регистру закупок ------------- //
 
 @implementPurchaseLedger(Invoice, sku, customerStock);
