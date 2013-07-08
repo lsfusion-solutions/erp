@@ -124,23 +124,23 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
         for (int i = 0; i < recordCount; i++) {
             itemsImportFile.read();
 
-            String k_group = getFieldValue(itemsImportFile, "K_GRUP", "Cp866", null);
-            String name = getFieldValue(itemsImportFile, "POL_NAIM", "Cp866", null);
-            String idItem = k_group + name;
+            String idBarcode = getFieldValue(itemsImportFile, "K_GRUP", "Cp866", null);
+            String captionItem = getFieldValue(itemsImportFile, "POL_NAIM", "Cp866", null);
+            String idItem = idBarcode + captionItem;
 
-            String UOM = getFieldValue(itemsImportFile, "K_IZM", "Cp866", null);
+            String idUOM = getFieldValue(itemsImportFile, "K_IZM", "Cp866", null);
             BigDecimal retailVAT = getBigDecimalFieldValue(itemsImportFile, "NDSR", "Cp866", null);
-            String manufacturer = getFieldValue(itemsImportFile, "DOPPRIM", "Cp866", null);
-            String country = "БЕЛАРУСЬ";
+            String idManufacturer = getFieldValue(itemsImportFile, "DOPPRIM", "Cp866", null);
+            String nameCountry = "БЕЛАРУСЬ";
             String codeCustomsGroup = getFieldValue(itemsImportFile, "DPRM1", "Cp866", null);
             Date date = getDateFieldValue(itemsImportFile, "DATPR1", "Cp866", null);
-            BigDecimal amountInPack = getBigDecimalFieldValue(itemsImportFile, "N_PER2", "Cp866", null);
-            BigDecimal weight = getBigDecimalFieldValue(itemsImportFile, "N_PER3", "Cp866", null);
+            BigDecimal amountPack = getBigDecimalFieldValue(itemsImportFile, "N_PER2", "Cp866", null);
+            BigDecimal weightItem = getBigDecimalFieldValue(itemsImportFile, "N_PER3", "Cp866", null);
 
             if (!idItem.trim().isEmpty())
-                data.add(new Item(idItem, "ВСЕ", name, UOM, null, null, country, k_group,
-                        k_group, date, null, weight, weight, null, allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null,
-                        null, null, null, null, null, null, idItem, amountInPack, manufacturer, manufacturer, codeCustomsGroup, country));
+                data.add(new Item(idItem, "ВСЕ", captionItem, idUOM, null, null, nameCountry, idBarcode, idBarcode,
+                        date, null, weightItem, weightItem, null, allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null,
+                        null, null, null, null, null, null, idItem, amountPack, idManufacturer, idManufacturer, codeCustomsGroup, nameCountry));
         }
         return data;
     }
@@ -165,17 +165,18 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
             importFile.read();
             String idLegalEntity = getFieldValue(importFile, "K_ANA", "Cp866", null);
-            String name = getFieldValue(importFile, "POL_NAIM", "Cp866", "");
-            String address = getFieldValue(importFile, "DPRA1", "Cp866", null);
-            String unp = getFieldValue(importFile, "PRIM", "Cp866", null);
-            String okpo = getFieldValue(importFile, "DPRIM", "Cp866", null);
-            String account = getFieldValue(importFile, "DPRA4", "Cp866", null);
-            String[] ownership = getAndTrimOwnershipFromName(name);
+            String nameLegalEntity = getFieldValue(importFile, "POL_NAIM", "Cp866", "");
+            String addressLegalEntity = getFieldValue(importFile, "DPRA1", "Cp866", null);
+            String unpLegalEntity = getFieldValue(importFile, "PRIM", "Cp866", null);
+            String okpoLegalEntity = getFieldValue(importFile, "DPRIM", "Cp866", null);
+            String numberAccount = getFieldValue(importFile, "DPRA4", "Cp866", null);
+            String[] ownership = getAndTrimOwnershipFromName(nameLegalEntity);
             String type = getFieldValue(importFile, "K_VAN", "Cp866", null);
             Boolean isSupplier = "ПС".equals(type);
             if (isSupplier && !idLegalEntity.isEmpty())
-                data.add(new LegalEntity(idLegalEntity, ownership[2], address, unp, okpo, null, null, ownership[1],
-                        ownership[0], account, null, null, null, nameCountry, isSupplier ? true : null, null, null));
+                data.add(new LegalEntity(idLegalEntity, ownership[2], addressLegalEntity, unpLegalEntity,
+                        okpoLegalEntity, null, null, ownership[1], ownership[0], numberAccount, null, null, null,
+                        nameCountry, true, null, null));
         }
         return data;
     }
@@ -194,18 +195,18 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
         for (int i = 0; i < recordCount; i++) {
 
             importFile.read();
-            String id = getFieldValue(importFile, "K_ANA", "Cp866", null);
-            String name = getFieldValue(importFile, "POL_NAIM", "Cp866", "");
-            String address = getFieldValue(importFile, "DPRA1", "Cp866", null);
+            String k_ana = getFieldValue(importFile, "K_ANA", "Cp866", null);
+            String nameWarehouse = getFieldValue(importFile, "POL_NAIM", "Cp866", "");
+            String addressWarehouse = getFieldValue(importFile, "DPRA1", "Cp866", null);
             String type = getFieldValue(importFile, "K_VAN", "Cp866", null);
             Boolean isWarehouse = "СК".equals(type);
             Boolean isSupplier = "ПС".equals(type);
 
-            if (!name.isEmpty()) {
+            if (!nameWarehouse.isEmpty()) {
                 if (isWarehouse)
-                    data.add(new Warehouse("sle", null, id, name, address));
+                    data.add(new Warehouse("sle", null, k_ana, nameWarehouse, addressWarehouse));
                 if (isSupplier)
-                    data.add(new Warehouse(id, null, id + "WH", name, address));
+                    data.add(new Warehouse(k_ana, null, k_ana + "WH", nameWarehouse, addressWarehouse));
             }
         }
         return data;
