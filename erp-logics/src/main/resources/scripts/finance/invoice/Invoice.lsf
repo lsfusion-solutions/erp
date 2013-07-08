@@ -467,7 +467,7 @@ META defineInvoice(sign, stockProp)
 
 END
 
-// Партии
+// Партии на расходе
 META defineInvoiceBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(invoice, batch);
     //@deriveDocumentDetailPriceBatchPriceListType(userInvoice, stockProp);
@@ -489,6 +489,27 @@ META defineInvoiceBatch(stockProp)
     EXTEND FORM userInvoice
         PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail
 //        HINTTABLE LIST batchUserInvoiceDetail
+    ;
+    EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail;
+END
+// Партии на приходе
+META defineInvoicePurchaseBatch(stockProp)
+    @defineDocumentInterfaceDetailBatch(invoice, batch);
+    @deriveDocumentDetailPricePriceListTypeVATBatch(userInvoice, stockProp);
+
+    changePurchaseBatchUserInvoiceDetail = ACTION (userInvoiceDetail) {
+        FORM purchaseDialogBatch OBJECTS sk = skuUserInvoiceDetail(userInvoiceDetail) MODAL SHOWDROP;
+
+        IF formResult() == FormResult.ok THEN {
+            ASSIGN batchUserInvoiceDetail(userInvoiceDetail) <- chosenObject('bt');
+        } ELSE IF formResult() == FormResult.drop THEN {
+            ASSIGN batchUserInvoiceDetail(userInvoiceDetail) <- NULL;
+        }
+
+    };
+
+    EXTEND FORM userInvoice
+        PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changePurchaseBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail
     ;
     EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail;
 END

@@ -337,7 +337,7 @@ META defineShipment(captions, sign, stockProp)
     @extendFormEditable(shipments);
 
 END
-
+//-- Партии на расходе
 META defineShipmentBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(shipment, batch);
 
@@ -354,6 +354,24 @@ META defineShipmentBatch(stockProp)
     }
 
     EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changeBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail;
+    EXTEND FORM shipments PROPERTIES (d) READONLY nameBatchShipmentDetail AFTER shortNameUOMSkuShipmentDetail;
+
+END
+//-- Партии на приходе
+META defineShipmentPurchaseBatch(stockProp)
+    @defineDocumentInterfaceDetailBatch(shipment, batch);
+
+    changePurchaseBatchUserShipmentDetail = ACTION (userShipmentDetail) {
+        FORM purchaseDialogBatch OBJECTS sk = skuUserShipmentDetail(userShipmentDetail) MODAL SHOWDROP;
+
+        IF formResult() == FormResult.ok THEN {
+            ASSIGN batchUserShipmentDetail(userShipmentDetail) <- chosenObject('bt');
+        } ELSE IF formResult() == FormResult.drop THEN {
+            ASSIGN batchUserShipmentDetail(userShipmentDetail) <- NULL;
+        }
+    }
+
+    EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changePurchaseBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail;
     EXTEND FORM shipments PROPERTIES (d) READONLY nameBatchShipmentDetail AFTER shortNameUOMSkuShipmentDetail;
 
 END
