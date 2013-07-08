@@ -136,11 +136,11 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
 
             importFile.read();
 
-            String k_grtov = new String(importFile.getField("K_GRTOV").getBytes(), "Cp1251").trim();
-            String pol_naim = new String(importFile.getField("POL_NAIM").getBytes(), "Cp1251").trim();
-            String group1 = new String(importFile.getField("GROUP1").getBytes(), "Cp1251").trim();
-            String group2 = new String(importFile.getField("GROUP2").getBytes(), "Cp1251").trim();
-            String group3 = new String(importFile.getField("GROUP3").getBytes(), "Cp1251").trim();
+            String k_grtov = getFieldValue(importFile, "K_GRTOV", "Cp1251", "");
+            String pol_naim = getFieldValue(importFile, "POL_NAIM", "Cp1251", "");
+            String group1 = getFieldValue(importFile, "GROUP1", "Cp1251", "");
+            String group2 = getFieldValue(importFile, "GROUP2", "Cp1251", "");
+            String group3 = getFieldValue(importFile, "GROUP3", "Cp1251", "");
 
             if (!pol_naim.isEmpty()) {
 
@@ -201,11 +201,11 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
 
             Boolean isWare = getBooleanFieldValue(importFile, "LGRMSEC", "Cp1251", false);
             String idWare = getFieldValue(importFile, "K_GRMAT", "Cp1251", null);
-            String name = getFieldValue(importFile, "POL_NAIM", "Cp1251", null);
-            BigDecimal price = getBigDecimalFieldValue(importFile, "CENUOSEC", "Cp1251", null);
+            String nameWare = getFieldValue(importFile, "POL_NAIM", "Cp1251", null);
+            BigDecimal priceWare = getBigDecimalFieldValue(importFile, "CENUOSEC", "Cp1251", null);
 
             if (!idWare.isEmpty() && isWare)
-                data.add(new Ware(idWare, name, price));
+                data.add(new Ware(idWare, nameWare, priceWare));
         }
         return data;
     }
@@ -286,20 +286,20 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
             barcodes.add(barcode);
             Boolean inactiveItem = getBooleanFieldValue(itemsImportFile, "LINACTIVE", "Cp1251", false);
             String isItem = getFieldValue(itemsImportFile, "K_GRMAT", "Cp1251", null);
-            String name = getFieldValue(itemsImportFile, "POL_NAIM", "Cp1251", null);
-            String k_grtov = getFieldValue(itemsImportFile, "K_GRTOV", "Cp1251", null);
-            if (k_grtov.endsWith("."))
-                k_grtov = k_grtov.substring(0, k_grtov.length() - 1);
+            String captionItem = getFieldValue(itemsImportFile, "POL_NAIM", "Cp1251", null);
+            String idItemGroup = getFieldValue(itemsImportFile, "K_GRTOV", "Cp1251", null);
+            if (idItemGroup.endsWith("."))
+                idItemGroup = idItemGroup.substring(0, idItemGroup.length() - 1);
             String UOM = getFieldValue(itemsImportFile, "K_IZM", "Cp1251", null);
             String brand = getFieldValue(itemsImportFile, "BRAND", "Cp1251", null);
-            String country = getFieldValue(itemsImportFile, "MANFR", "Cp1251", null);
-            if ("РБ".equals(country) || "Беларусь".equals(country))
-                country = "БЕЛАРУСЬ";
+            String nameCountry = getFieldValue(itemsImportFile, "MANFR", "Cp1251", null);
+            if ("РБ".equals(nameCountry) || "Беларусь".equals(nameCountry))
+                nameCountry = "БЕЛАРУСЬ";
             Date date = getDateFieldValue(itemsImportFile, "P_TIME", "Cp1251", null);
             Boolean isWeightItem = getBooleanFieldValue(itemsImportFile, "LWEIGHT", "Cp1251", false);
-            String composition = "";
+            String compositionItem = "";
             if (itemsImportFile.getField("ENERGVALUE").getBytes() != null) {
-                composition = getFieldValue(itemsImportFile, "ENERGVALUE", "Cp1251", "").replace("\n", "").replace("\r", "");
+                compositionItem = getFieldValue(itemsImportFile, "ENERGVALUE", "Cp1251", "").replace("\n", "").replace("\r", "");
             }
             BigDecimal retailVAT = getBigDecimalFieldValue(itemsImportFile, "NDSR", "Cp1251", null);
             BigDecimal quantityPackItem = quantities.containsKey(isItem) ? quantities.get(isItem) : null;
@@ -312,9 +312,9 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
             BigDecimal priceWare = getBigDecimalFieldValue(itemsImportFile, "CENUOSEC", "Cp1251", null);
             BigDecimal ndsWare = getBigDecimalFieldValue(itemsImportFile, "NDSSEC", "Cp1251", "20");
 
-            if (!k_grtov.isEmpty() && (!inactiveItem || importInactive) && !isWare)
-                data.add(new Item(isItem, k_grtov, name, UOM, brand, brand, country, barcode, barcode,
-                        date, isWeightItem ? isWeightItem : null, null, null, composition.isEmpty() ? null : composition,
+            if (!idItemGroup.isEmpty() && (!inactiveItem || importInactive) && !isWare)
+                data.add(new Item(isItem, idItemGroup, captionItem, UOM, brand, brand, nameCountry, barcode, barcode,
+                        date, isWeightItem ? isWeightItem : null, null, null, compositionItem.isEmpty() ? null : compositionItem,
                         allowedVAT.contains(retailVAT) ? retailVAT : null, idWare, priceWare, ndsWare,
                         "RW_".equals(idRateWaste) ? null : idRateWaste, null, null, isItem, quantityPackItem, null, null,
                         null, null));
@@ -356,10 +356,10 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
 
             String post_dok = getFieldValue(importFile, "POST_DOK", "Cp1251", null);
             String[] seriesNumber = post_dok.split("-");
-            String number = seriesNumber[0];
-            String series = seriesNumber.length == 1 ? null : seriesNumber[1];
+            String numberUserInvoice = seriesNumber[0];
+            String seriesUserInvoice = seriesNumber.length == 1 ? null : seriesNumber[1];
             String idItem = getFieldValue(importFile, "K_GRMAT", "Cp1251", null);
-            String idUserInvoiceDetail = number + series + idItem;
+            String idUserInvoiceDetail = numberUserInvoice + seriesUserInvoice + idItem;
             Date dateShipment = getDateFieldValue(importFile, "D_PRIH", "Cp1251", null);
             BigDecimal quantityShipmentDetail = getBigDecimalFieldValue(importFile, "N_MAT", "Cp1251", null);
             String idSupplier = getFieldValue(importFile, "K_POST", "Cp1251", null);
@@ -368,24 +368,20 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
             else
                 userInvoiceSupplierMap.put(post_dok, idSupplier);
 
-            String idWarehouse = getFieldValue(importFile, "K_SKL", "Cp1251", null);
-            String supplierWarehouse = idSupplier + "WH";
+            String idCustomerStock = getFieldValue(importFile, "K_SKL", "Cp1251", null);
+            String idSupplierStock = idSupplier + "WH";
             BigDecimal priceShipmentDetail = getBigDecimalFieldValue(importFile, "N_IZG", "Cp1251", null);
             BigDecimal retailPriceShipmentDetail = getBigDecimalFieldValue(importFile, "N_CENU", "Cp1251", null);
             BigDecimal retailMarkupShipmentDetail = getBigDecimalFieldValue(importFile, "N_TN", "Cp1251", null);
-            String idContract;
-            try {
-                idContract = new String(importFile.getField("K_CONT").getBytes(), "Cp1251").trim();
-                idContract = idSupplier.equals(contractSupplierMap.get(idContract)) ? idContract : null;
-            } catch (xBaseJException e) {
-                idContract = null;
-            }
+            String idContract = getFieldValue(importFile, "K_CONT", "Cp1251", null);
+            idContract = (idContract!=null && idSupplier.equals(contractSupplierMap.get(idContract))) ? idContract : null;
+
             if ((seriesNumber.length != 1) && (idSupplier.startsWith("ПС")) && (!quantityShipmentDetail.equals(new BigDecimal(0))))
-                data.add(new UserInvoiceDetail(series + number, series, number, true, true, idUserInvoiceDetail,
-                        dateShipment, idItem, false, quantityShipmentDetail, idSupplier, idWarehouse, supplierWarehouse,
-                        priceShipmentDetail, null, null, null, null, null, null, retailPriceShipmentDetail,
-                        retailMarkupShipmentDetail, null, idContract, null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, null, null, null));
+                data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice, seriesUserInvoice, numberUserInvoice,
+                        true, true, idUserInvoiceDetail, dateShipment, idItem, false, quantityShipmentDetail, idSupplier,
+                        idCustomerStock, idSupplierStock, priceShipmentDetail, null, null, null, null, null, null,
+                        retailPriceShipmentDetail, retailMarkupShipmentDetail, null, idContract, null, null, null, null,
+                        null, null, null, null, null, null, null, null, null, null, null, null, null));
         }
         return data;
     }
@@ -409,12 +405,12 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
         for (int i = 0; i < totalRecordCount; i++) {
             importPostvarFile.read();
 
-            String supplier = getFieldValue(importPostvarFile, "K_ANA", "Cp1251", null);
-            String item = getFieldValue(importPostvarFile, "K_GRMAT", "Cp1251", null);
+            String idSupplier = getFieldValue(importPostvarFile, "K_ANA", "Cp1251", null);
+            String idItem = getFieldValue(importPostvarFile, "K_GRMAT", "Cp1251", null);
             BigDecimal price = getBigDecimalFieldValue(importPostvarFile, "N_CENU", "Cp1251", null);
             Date date = getDateFieldValue(importPostvarFile, "DBANNED", "Cp1251", null);
 
-            postvarMap.put(supplier + item, new Object[]{price, date});
+            postvarMap.put(idSupplier + idItem, new Object[]{price, date});
         }
 
         List<PriceListStore> data = new ArrayList<PriceListStore>();
@@ -429,19 +425,20 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
 
             importStrvarFile.read();
 
-            String supplier = getFieldValue(importStrvarFile, "K_ANA", "Cp1251", null);
-            String departmentStore = getFieldValue(importStrvarFile, "K_SKL", "Cp1251", null);
-            departmentStore = departmentStore.replace("МГ", prefixStore);
-            String item = getFieldValue(importStrvarFile, "K_GRMAT", "Cp1251", null);
-            String currency = "BLR";
-            BigDecimal price = getBigDecimalFieldValue(importStrvarFile, "N_CENU", "Cp1251", null);
+            String idSupplier = getFieldValue(importStrvarFile, "K_ANA", "Cp1251", null);
+            String idDepartmentStore = getFieldValue(importStrvarFile, "K_SKL", "Cp1251", null);
+            idDepartmentStore = idDepartmentStore.replace("МГ", prefixStore);
+            String idItem = getFieldValue(importStrvarFile, "K_GRMAT", "Cp1251", null);
+            String shortNameCurrency = "BLR";
+            BigDecimal pricePriceListDetail = getBigDecimalFieldValue(importStrvarFile, "N_CENU", "Cp1251", null);
 
-            Object[] priceDate = postvarMap.get(supplier + item);
-            if (departmentStore.length() >= 2 && supplier.startsWith("ПС")) {
+            Object[] priceDate = postvarMap.get(idSupplier + idItem);
+            if (idDepartmentStore.length() >= 2 && idSupplier.startsWith("ПС")) {
                 Date date = priceDate == null ? null : (Date) priceDate[1];
-                price = price.equals(new BigDecimal(0)) ? (priceDate == null ? null : (BigDecimal) priceDate[0]) : price;
-                if (price != null && (date == null || date.before(new Date(System.currentTimeMillis()))))
-                    data.add(new PriceListStore(supplier + departmentStore, item, supplier, departmentStore, currency, price, true, true));
+                pricePriceListDetail = pricePriceListDetail.equals(new BigDecimal(0)) ? (priceDate == null ? null : (BigDecimal) priceDate[0]) : pricePriceListDetail;
+                if (pricePriceListDetail != null && (date == null || date.before(new Date(System.currentTimeMillis()))))
+                    data.add(new PriceListStore(idSupplier + idDepartmentStore, idItem, idSupplier, idDepartmentStore,
+                            shortNameCurrency, pricePriceListDetail, true, true));
             }
         }
         return data;
@@ -465,12 +462,12 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
 
             importPostvarFile.read();
 
-            String supplier = getFieldValue(importPostvarFile, "K_ANA", "Cp1251", null);
-            String item = getFieldValue(importPostvarFile, "K_GRMAT", "Cp1251", null);
-            String currency = "BLR";
-            BigDecimal price = getBigDecimalFieldValue(importPostvarFile, "N_CENU", "Cp1251", null);
+            String idSupplier = getFieldValue(importPostvarFile, "K_ANA", "Cp1251", null);
+            String idItem = getFieldValue(importPostvarFile, "K_GRMAT", "Cp1251", null);
+            String shortNameCurrency = "BLR";
+            BigDecimal pricePriceListDetail = getBigDecimalFieldValue(importPostvarFile, "N_CENU", "Cp1251", null);
 
-            data.add(new PriceListSupplier(supplier, item, supplier, currency, price, true));
+            data.add(new PriceListSupplier(idSupplier, idItem, idSupplier, shortNameCurrency, pricePriceListDetail, true));
         }
         return data;
     }
@@ -508,31 +505,32 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
         for (int i = 0; i < recordCount; i++) {
 
             importFile.read();
-            String k_ana = getFieldValue(importFile, "K_ANA", "Cp1251", null);
+            String idLegalEntity = getFieldValue(importFile, "K_ANA", "Cp1251", null);
             Boolean inactiveItem = getBooleanFieldValue(importFile, "LINACTIVE", "Cp1251", false);
             if (!inactiveItem || importInactive) {
-                String name = getFieldValue(importFile, "POL_NAIM", "Cp1251", null);
-                String address = getFieldValue(importFile, "ADDRESS", "Cp1251", null);
-                String unp = getFieldValue(importFile, "UNN", "Cp1251", null);
-                String okpo = getFieldValue(importFile, "OKPO", "Cp1251", null);
-                String phone = getFieldValue(importFile, "TEL", "Cp1251", null);
-                String email = getFieldValue(importFile, "EMAIL", "Cp1251", null);
-                String account = getFieldValue(importFile, "ACCOUNT", "Cp1251", null);
+                String nameLegalEntity = getFieldValue(importFile, "POL_NAIM", "Cp1251", null);
+                String addressLegalEntity = getFieldValue(importFile, "ADDRESS", "Cp1251", null);
+                String unpLegalEntity = getFieldValue(importFile, "UNN", "Cp1251", null);
+                String okpoLegalEntity = getFieldValue(importFile, "OKPO", "Cp1251", null);
+                String phoneLegalEntity = getFieldValue(importFile, "TEL", "Cp1251", null);
+                String emailLegalEntity = getFieldValue(importFile, "EMAIL", "Cp1251", null);
+                String numberAccount = getFieldValue(importFile, "ACCOUNT", "Cp1251", null);
                 String companyStore = getFieldValue(importFile, "K_JUR", "Cp1251", null);
-                String k_bank = getFieldValue(importFile, "K_BANK", "Cp1251", null);
-                String[] ownership = getAndTrimOwnershipFromName(name);
+                String idBank = getFieldValue(importFile, "K_BANK", "Cp1251", null);
+                String[] ownership = getAndTrimOwnershipFromName(nameLegalEntity);
                 String nameCountry = "БЕЛАРУСЬ";
-                String type = k_ana.substring(0, 2);
+                String type = idLegalEntity.substring(0, 2);
                 Boolean isCompany = "ЮР".equals(type);
                 Boolean isSupplier = "ПС".equals(type);
                 Boolean isCustomer = "ПК".equals(type);
                 if (isStore) {
                     if (prefixStore.equals(type))
-                        data.add(new Store(k_ana, ownership[2], address, companyStore, "Магазин", companyStore + "ТС"));
+                        data.add(new Store(idLegalEntity, ownership[2], addressLegalEntity, companyStore, "Магазин", companyStore + "ТС"));
                 } else if (isCompany || isSupplier || isCustomer)
-                    data.add(new LegalEntity(k_ana, ownership[2], address, unp, okpo, phone, email, ownership[1],
-                            ownership[0], account, isCompany ? (k_ana + "ТС") : null, isCompany ? ownership[2] : null,
-                            k_bank, nameCountry, isSupplier ? true : null, isCompany ? true : null,
+                    data.add(new LegalEntity(idLegalEntity, ownership[2], addressLegalEntity, unpLegalEntity,
+                            okpoLegalEntity, phoneLegalEntity, emailLegalEntity, ownership[1],ownership[0],
+                            numberAccount, isCompany ? (idLegalEntity + "ТС") : null, isCompany ? ownership[2] : null,
+                            idBank, nameCountry, isSupplier ? true : null, isCompany ? true : null,
                             isCustomer ? true : null));
             }
         }
@@ -553,16 +551,16 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
         for (int i = 0; i < recordCount; i++) {
 
             importFile.read();
-            String k_ana = new String(importFile.getField("K_ANA").getBytes(), "Cp1251").trim();
+            String k_ana = getFieldValue(importFile, "K_ANA", "Cp1251", "");
             Boolean inactiveItem = getBooleanFieldValue(importFile, "LINACTIVE", "Cp1251", false);
             if (!inactiveItem || importInactive) {
-                String name = new String(importFile.getField("POL_NAIM").getBytes(), "Cp1251").trim();
-                String address = new String(importFile.getField("ADDRESS").getBytes(), "Cp1251").trim();
+                String nameWarehouse = getFieldValue(importFile, "POL_NAIM", "Cp1251", "");
+                String addressWarehouse = getFieldValue(importFile, "ADDRESS", "Cp1251", "");
                 String type = k_ana.substring(0, 2);
                 Boolean isSupplier = "ПС".equals(type);
                 Boolean isCustomer = "ПК".equals(type);
                 if (isSupplier || isCustomer)
-                    data.add(new Warehouse(k_ana, null, k_ana + "WH", "Склад " + name, address));
+                    data.add(new Warehouse(k_ana, null, k_ana + "WH", "Склад " + nameWarehouse, addressWarehouse));
             }
         }
         return data;
@@ -592,15 +590,15 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
         for (int i = 0; i < recordCount; i++) {
 
             importFile.read();
-            String k_ana = new String(importFile.getField("K_ANA").getBytes(), "Cp1251").trim();
+            String idDepartmentStore = getFieldValue(importFile, "K_ANA", "Cp1251", "");
             Boolean inactiveItem = getBooleanFieldValue(importFile, "LINACTIVE", "Cp1251", false);
-            if ("СК".equals(k_ana.substring(0, 2)) && (!inactiveItem || importInactive)) {
-                String name = new String(importFile.getField("POL_NAIM").getBytes(), "Cp1251").trim();
-                String store = storeDepartmentStoreMap.get(k_ana);
-                store = store == null ? null : store.replace("МГ", prefixStore);
+            if ("СК".equals(idDepartmentStore.substring(0, 2)) && (!inactiveItem || importInactive)) {
+                String name = getFieldValue(importFile, "POL_NAIM", "Cp1251", "");
+                String idStore = storeDepartmentStoreMap.get(idDepartmentStore);
+                idStore = idStore == null ? null : idStore.replace("МГ", prefixStore);
                 String[] ownership = getAndTrimOwnershipFromName(name);
-                if (store != null)
-                    data.add(new DepartmentStore(k_ana, ownership[2], store));
+                if (idStore != null)
+                    data.add(new DepartmentStore(idDepartmentStore, ownership[2], idStore));
             }
         }
         return data;
@@ -619,13 +617,13 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
         for (int i = 0; i < recordCount; i++) {
 
             importFile.read();
-            String k_bank = new String(importFile.getField("K_BANK").getBytes(), "Cp1251").trim();
-            String name = new String(importFile.getField("POL_NAIM").getBytes(), "Cp1251").trim();
-            String address = new String(importFile.getField("ADDRESS").getBytes(), "Cp1251").trim();
-            String department = new String(importFile.getField("DEPART").getBytes(), "Cp1251").trim();
-            String mfo = new String(importFile.getField("K_MFO").getBytes(), "Cp1251").trim();
-            String cbu = new String(importFile.getField("CBU").getBytes(), "Cp1251").trim();
-            data.add(new Bank(k_bank, name, address, department, mfo, cbu));
+            String idBank = getFieldValue(importFile, "K_BANK", "Cp1251", "");
+            String nameBank = getFieldValue(importFile, "POL_NAIM", "Cp1251", "");
+            String addressBank = getFieldValue(importFile, "ADDRESS", "Cp1251", "");
+            String departmentBank = getFieldValue(importFile, "DEPART", "Cp1251", "");
+            String mfoBank = getFieldValue(importFile, "K_MFO", "Cp1251", "");
+            String cbuBank = getFieldValue(importFile, "CBU", "Cp1251", "");
+            data.add(new Bank(idBank, nameBank, addressBank, departmentBank, mfoBank, cbuBank));
         }
         return data;
     }
@@ -644,10 +642,10 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
 
             importFile.read();
             String idRateWaste = getFieldValue(importFile, "K_GRTOV", "Cp1251", "");
-            String name = getFieldValue(importFile, "POL_NAIM", "Cp1251", null);
-            BigDecimal coef = getBigDecimalFieldValue(importFile, "KOEFF", "Cp1251", null);
-            String country = "БЕЛАРУСЬ";
-            data.add(new RateWaste(("RW_" + idRateWaste), name, coef, country));
+            String nameRateWaste = getFieldValue(importFile, "POL_NAIM", "Cp1251", null);
+            BigDecimal percentWriteOffRate = getBigDecimalFieldValue(importFile, "KOEFF", "Cp1251", null);
+            String nameCountry = "БЕЛАРУСЬ";
+            data.add(new RateWaste(("RW_" + idRateWaste), nameRateWaste, percentWriteOffRate, nameCountry));
         }
         return data;
     }
@@ -668,19 +666,21 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
 
             importFile.read();
 
-            String idLegalEntity1 = new String(importFile.getField("K_ANA").getBytes(), "Cp1251").trim();
-            String idLegalEntity2 = new String(importFile.getField("DPRK").getBytes(), "Cp1251").trim();
-            String idContract = new String(importFile.getField("K_CONT").getBytes(), "Cp1251").trim();
-            String number = new String(importFile.getField("CFULLNAME").getBytes(), "Cp1251").trim();
+            String idLegalEntity1 = getFieldValue(importFile, "K_ANA", "Cp1251", "");
+            String idLegalEntity2 = getFieldValue(importFile, "DPRK", "Cp1251", "");
+            String idContract = getFieldValue(importFile, "K_CONT", "Cp1251", "");
+            String numberContract = getFieldValue(importFile, "CFULLNAME", "Cp1251", "");
 
-            java.sql.Date dateFrom = new java.sql.Date(DateUtils.parseDate(new String(importFile.getField("D_VV").getBytes(), "Cp1251").trim(), new String[]{"yyyymmdd"}).getTime());
-            java.sql.Date dateTo = new java.sql.Date(DateUtils.parseDate(new String(importFile.getField("D_END").getBytes(), "Cp1251").trim(), new String[]{"yyyymmdd"}).getTime());
+            java.sql.Date dateFromContract = getDateFieldValue(importFile, "D_VV", "Cp1251", null);
+            java.sql.Date dateToContract = getDateFieldValue(importFile, "D_END", "Cp1251", null);
 
             if (!idContracts.contains(idContract)) {
                 if (idLegalEntity1.startsWith("ПС"))
-                    contractsList.add(new Contract(idContract, idLegalEntity1, idLegalEntity2, number, dateFrom, dateTo, shortNameCurrency));
+                    contractsList.add(new Contract(idContract, idLegalEntity1, idLegalEntity2, numberContract,
+                            dateFromContract, dateToContract, shortNameCurrency));
                 else
-                    contractsList.add(new Contract(idContract, idLegalEntity2, idLegalEntity1, number, dateFrom, dateTo, shortNameCurrency));
+                    contractsList.add(new Contract(idContract, idLegalEntity2, idLegalEntity1, numberContract,
+                            dateFromContract, dateToContract, shortNameCurrency));
                 idContracts.add(idContract);
             }
         }
