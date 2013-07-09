@@ -18,12 +18,12 @@ overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
 declarationBatch (batch) += declarationShipmentDetail(shipmentDetailShipmentBatch(batch));
 
 //---------------------------------- накладные для декларации --------------------------------------------------------//
-inDeclarationInvoice 'Вкл.' (declaration, invoice) = declarationUserInvoice(invoice)==declaration;
+inDeclarationUserInvoice 'Вкл.' (declaration, invoice) = declarationUserInvoice(invoice)==declaration;
 
-inDeclarationInvoiceDetail 'Вкл.' (declaration, invoiceDetail) = dataDeclarationUserInvoiceDetail(invoiceDetail)==declaration;
+inDeclarationUserInvoiceDetail 'Вкл.' (declaration, detail) = dataDeclarationUserInvoiceDetail(detail)==declaration;
 
 invoicesDeclaration 'Накладные' (declaration) =
-    GROUP CONCAT shortDescriptionInvoice(invoice) IF inDeclarationInvoice (declaration, invoice), ','
+    GROUP CONCAT shortDescriptionInvoice(invoice) IF inDeclarationUserInvoice (declaration, invoice), ','
               BY declaration ORDER invoice PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
 
 backgroundCustomedInvoice 'Цвет' (invoice) = RGB(255, 224, 224) IF invoice IS Invoice;
@@ -56,15 +56,16 @@ FORM declarationInvoices 'Накладные декларации'
     PROPERTIES(d) seriesNumberObject, nameLegalEntityDeclaration, nameCurrencyDeclaration, dateTimeDeclaration
 
     OBJECTS i=UserInvoice
-    PROPERTIES (d, i) inDeclarationInvoice
+    PROPERTIES (d, i) inDeclarationUserInvoice
     PROPERTIES (i) READONLY numberObject, seriesObject, dateUserInvoice, timeUserInvoice, nameSupplierUserInvoice, nameCustomerUserInvoice
-    FILTERS inDeclarationInvoice(d, i) OR d IS Declaration AND NOT declarationUserInvoice(i)
+    FILTERS inDeclarationUserInvoice(d, i) OR d IS Declaration AND NOT declarationUserInvoice(i)
 
     OBJECTS id=UserInvoiceDetail
-    PROPERTIES(d, id) inDeclarationInvoiceDetail
+    PROPERTIES(d, id) inDeclarationUserInvoiceDetail
     PROPERTIES(id) READONLY indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail,
                    quantityUserInvoiceDetail, priceUserInvoiceDetail
-    FILTERS invoiceInvoiceDetail(id)==i
+    FILTERS invoiceInvoiceDetail(id)==i,
+            declarationUserInvoiceDetail(id)==d OR d IS Declaration AND NOT declarationUserInvoiceDetail(id)
 
     FILTERGROUP filtersCurrency
         FILTER 'Только с валютой декларации' 'F10' currencyDeclaration(d)==currencyUserInvoice(i) DEFAULT
