@@ -44,6 +44,7 @@ EXTEND DESIGN Purchase.operation{
     }
 }
 
+addCostPriceToManufacturingPriceUserInvoice 'Учитывать в цене изготовителя доп.расходы' (invoice) = DATA BOOLEAN (UserInvoice) IN documentPrmGroup;
 addCostPriceToManufacturingPriceUserInvoice(invoice) <- addCostPriceToManufacturingPriceOperation(operationUserInvoice(invoice))
     WHEN CHANGED(operationUserInvoice(invoice));
 
@@ -88,7 +89,7 @@ discountSumInvoiceDetail 'Скидка от цены изг. (сумма)' (deta
 
 EXTEND FORM userInvoice
     PROPERTIES(i) showManufacturingPriceUserInvoice
-    PROPERTIES(i) nameManufacturingRoundConditionUserInvoice SHOWIF showManufacturingPriceUserInvoice(i)
+    PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) nameManufacturingRoundConditionUserInvoice, addCostPriceToManufacturingPriceUserInvoice
     PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) AFTER invoiceSumUserInvoiceDetail manufacturingSumUserInvoiceDetail,
                   includeVATUserInvoiceDetail, manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d)
     PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
@@ -100,6 +101,7 @@ EXTEND DESIGN userInvoice {
             caption = 'Цена изготовителя';
             ADD PROPERTY(showManufacturingPriceUserInvoice);
             ADD PROPERTY(nameManufacturingRoundConditionUserInvoice);
+            ADD PROPERTY(addCostPriceToManufacturingPriceUserInvoice);
         }
     }
 }

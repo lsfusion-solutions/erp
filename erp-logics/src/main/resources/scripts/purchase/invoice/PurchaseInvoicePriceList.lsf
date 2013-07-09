@@ -4,22 +4,20 @@ REQUIRE PurchaseInvoice, PriceList;
 
 NAMESPACE Purchase;
 
-createPriceListPurchaseInvoice 'Прайс-лист' = ACTION (purchaseInvoice) {
+createPriceListPurchaseInvoice 'Прайс-лист' = ACTION (purchaseInvoice) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
         fromDateUserPriceList(p) <- dateInvoice(purchaseInvoice);
-        fromTimeUserPriceList(p) <- timeInvoice(purchaseInvoice);
-        dataInUserPriceListStock(p, stock) <- TRUE WHERE stock == customerStockInvoice(purchaseInvoice);
-        currencyUserPriceList(p) <- currencyInvoice(purchaseInvoice);
+        fromTimeUserPriceList(p) <- sumTimeSeconds(timeInvoice(purchaseInvoice), 2); // костыль, можно переделать когда все разведется на priceA и priceB
+        companyUserPriceList(p) <- customerInvoice(purchaseInvoice);
+        allStocksUserPriceList(p) <- TRUE;
+        currencyUserPriceList(p) <- OVERRIDE currencyInvoice(purchaseInvoice), homeCurrencyInvoice(purchaseInvoice);
 
         FOR invoiceInvoiceDetail(id)==purchaseInvoice ADDOBJ pd=UserPriceListDetail DO {
             userPriceListUserPriceListDetail(pd) <- p;
             skuPriceListDetail(pd) <- skuInvoiceDetail(id);
         }
 
-        FORM userPriceList OBJECTS p = p MANAGESESSION DOCKEDMODAL;
-        IF TRUE IF NOT formResult() == FormResult.ok THEN {
-            DELETE p;
-        }
+        FORM userPriceList OBJECTS p = p, tt = customerStockInvoice(purchaseInvoice) MANAGESESSION DOCKEDMODAL;
     }
 
 } TOOLBAR;
