@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.vetraz;
 
 import lsfusion.erp.integration.*;
+import lsfusion.server.session.ApplyFilter;
 import org.apache.commons.lang.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -34,6 +35,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
             Integer numberOfItems = (Integer) getLCP("importNumberItems").read(context);
             Integer numberOfUserInvoices = (Integer) getLCP("importNumberUserInvoices").read(context);
+            Boolean withoutRecalc = (Boolean) getLCP("withoutRecalcVetraz").read(context);
 
             Object pathObject = getLCP("importVetrazDirectory").read(context);
             String path = pathObject == null ? "" : ((String) pathObject).trim();
@@ -41,7 +43,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
                 ImportData importData = new ImportData();
 
-                importData.setWithoutRecalc((Boolean) getLCP("withoutRecalcVetraz").read(context));
+                importData.setWithoutRecalc(withoutRecalc);
 
                 importData.setLegalEntitiesList((getLCP("importLegalEntities").read(context) != null) ?
                         importLegalEntitiesFromDBF(path + "//sprana.dbf") : null);
@@ -64,6 +66,10 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
                 importData.setUserInvoicesList((getLCP("importUserInvoices").read(context) != null) ?
                         importUserInvoicesFromDBF(path + "//sprmat.dbf", path + "//cen.dbf", path + "//ostt.dbf",
                                 numberOfUserInvoices) : null);
+
+                if (getLCP("importUserInvoices").read(context) != null)
+                    importUserInvoicePharmacy(context, path + "//sprmat.dbf", path + "//ostt.dbf",
+                            numberOfUserInvoices, withoutRecalc);
 
                 new ImportActionProperty(LM, importData, context).makeImport();
 
@@ -296,7 +302,6 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             String name = getFieldValue(sprmatImportFile, "POL_NAIM", "Cp866", null);
             String idItem = k_group + name;
             String numberUserInvoice = getFieldValue(sprmatImportFile, "POST_DOK", "Cp866", "Б\\Н");
-            String seriesUserInvoice = getFieldValue(sprmatImportFile, "PRIM", "Cp866", null);
             String idSupplier = getFieldValue(sprmatImportFile, "K_POST", "Cp866", null);
             Date date = getDateFieldValue(sprmatImportFile, "D_PRIH", "Cp866", null);
             String descriptionDeclaration = getFieldValue(sprmatImportFile, "DPRM4", "Cp866", "");
@@ -323,12 +328,11 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
             BigDecimal n_cenu = priceMap.containsKey(k_mat) ? (BigDecimal) priceMap.get(k_mat)[0] : null;
             BigDecimal price = isForeign ? n_zps : n_cenu;
-            BigDecimal manufacturingPrice = getBigDecimalFieldValue(sprmatImportFile, "NUMPR1", "Cp866", null);
-            BigDecimal homePrice = isForeign ? n_cenu : null;
-            BigDecimal dprm11 = getBigDecimalFieldValue(sprmatImportFile, "DPRM11", "Cp866", "0");
             BigDecimal rateExchange = isForeign ? getBigDecimalFieldValue(sprmatImportFile, "DPRM12", "Cp866", null) : null;
+            BigDecimal homePrice = isForeign ? ((price == null || rateExchange == null) ? null/*n_cenu*/ : price.multiply(rateExchange)) : null;
+            BigDecimal dprm11 = getBigDecimalFieldValue(sprmatImportFile, "DPRM11", "Cp866", "0");
             BigDecimal priceDuty = isForeign ? dprm11.subtract(rateExchange == null ? price : price.multiply(rateExchange)) : null;
-            //manufacturingPrice = safeAdd(manufacturingPrice, priceDuty);
+            BigDecimal manufacturingPrice = isForeign ? safeAdd(homePrice, priceDuty) : getBigDecimalFieldValue(sprmatImportFile, "NUMPR1", "Cp866", null);
             Boolean isHomeCurrency = isForeign ? true : null;
 
             String numberDeclaration = null;
@@ -368,7 +372,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             }
 
             if (!k_mat.isEmpty())
-                sprmatMap.put(k_mat, new Object[]{seriesUserInvoice, numberUserInvoice, date, shortNameCurrency,
+                sprmatMap.put(k_mat, new Object[]{numberUserInvoice, date, shortNameCurrency,
                         idSupplier, idItem, price, manufacturingPrice, certificateText, numberDeclaration,
                         dateDeclaration, numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin,
                         rateExchange, homePrice, priceDuty, isHomeCurrency, codeCustomsGroup, retailVAT});
@@ -396,40 +400,127 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
             Object[] sprmatEntry = sprmatMap.get(k_mat);
 
-            String seriesUserInvoice = sprmatEntry == null ? null : (String) sprmatEntry[0];
-            String numberUserInvoice = sprmatEntry == null ? null : (String) sprmatEntry[1];
-            Date date = sprmatEntry == null ? null : (Date) sprmatEntry[2];
-            String shortNameCurrency = sprmatEntry == null ? null : (String) sprmatEntry[3];
-            String idSupplier = sprmatEntry == null ? null : (String) sprmatEntry[4];
-            String idItem = sprmatEntry == null ? null : (String) sprmatEntry[5];
-            BigDecimal price = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[6];
-            BigDecimal manufacturingPrice = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[7];
-            String certificateText = sprmatEntry == null ? null : (String) sprmatEntry[8];
-            String numberDeclaration = sprmatEntry == null ? null : (String) sprmatEntry[9];
-            Date dateDeclaration = sprmatEntry == null ? null : (Date) sprmatEntry[10];
-            String numberCompliance = sprmatEntry == null ? null : (String) sprmatEntry[11];
-            Date fromDateCompliance = sprmatEntry == null ? null : (Date) sprmatEntry[12];
-            Date toDateCompliance = sprmatEntry == null ? null : (Date) sprmatEntry[13];
-            Date expiryDate = sprmatEntry == null ? null : (Date) sprmatEntry[14];
-            String bin = sprmatEntry == null ? null : (String) sprmatEntry[15];
-            BigDecimal rateExchange = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[16];
-            BigDecimal homePrice = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[17];
-            BigDecimal priceDuty = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[18];
-            Boolean isHomeCurrency = sprmatEntry == null ? null : (Boolean) sprmatEntry[19];
-            String codeCustomsGroup = sprmatEntry == null ? null : (String) sprmatEntry[20];
-            BigDecimal retailVAT = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[21];
+            String numberUserInvoice = sprmatEntry == null ? null : (String) sprmatEntry[0];
+            Date date = sprmatEntry == null ? null : (Date) sprmatEntry[1];
+            String shortNameCurrency = sprmatEntry == null ? null : (String) sprmatEntry[2];
+            String idSupplier = sprmatEntry == null ? null : (String) sprmatEntry[3];
+            String idItem = sprmatEntry == null ? null : (String) sprmatEntry[4];
+            BigDecimal price = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[5];
+            BigDecimal manufacturingPrice = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[6];
+            String certificateText = sprmatEntry == null ? null : (String) sprmatEntry[7];
+            String numberDeclaration = sprmatEntry == null ? null : (String) sprmatEntry[8];
+            Date dateDeclaration = sprmatEntry == null ? null : (Date) sprmatEntry[9];
+            String numberCompliance = sprmatEntry == null ? null : (String) sprmatEntry[10];
+            Date fromDateCompliance = sprmatEntry == null ? null : (Date) sprmatEntry[11];
+            Date toDateCompliance = sprmatEntry == null ? null : (Date) sprmatEntry[12];
+            Date expiryDate = sprmatEntry == null ? null : (Date) sprmatEntry[13];
+            String bin = sprmatEntry == null ? null : (String) sprmatEntry[14];
+            BigDecimal rateExchange = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[15];
+            BigDecimal homePrice = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[16];
+            BigDecimal priceDuty = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[17];
+            Boolean isHomeCurrency = sprmatEntry == null ? null : (Boolean) sprmatEntry[18];
+            String codeCustomsGroup = sprmatEntry == null ? null : (String) sprmatEntry[19];
+            BigDecimal retailVAT = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[20];
 
-            if (sprmatEntry != null && quantity!=null && quantity.doubleValue()!=0)
-                data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice + String.valueOf(date) + shortNameCurrency + idSupplier,
-                        seriesUserInvoice, numberUserInvoice, null, true, k_mat, date, idItem, null, quantity, idSupplier,
-                        idWarehouse, idSupplier + "WH", (price == null || price.doubleValue() == 0) ? null : price, null, null, null,
-                        manufacturingPrice, null, null, null, null, certificateText, null, numberDeclaration, dateDeclaration,
-                        numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin, rateExchange, homePrice,
-                        priceDuty, null, null, null, isHomeCurrency, shortNameCurrency, codeCustomsGroup,
-                        allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null));
+            if (sprmatEntry != null && quantity != null && quantity.doubleValue() != 0)
+                data.add(new UserInvoiceDetail(numberUserInvoice + String.valueOf(date) + shortNameCurrency + idSupplier,
+                        null, numberUserInvoice, null, true, k_mat, date, idItem, null, quantity,
+                        idSupplier, idWarehouse, idSupplier + "WH",
+                        (price == null || price.doubleValue() == 0) ? null : price, manufacturingPrice, null, null,
+                        manufacturingPrice, null, null, null, null, certificateText, null, numberDeclaration,
+                        dateDeclaration, numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin,
+                        rateExchange, homePrice, priceDuty, null, null, null, isHomeCurrency, shortNameCurrency,
+                        codeCustomsGroup, allowedVAT.contains(retailVAT.doubleValue()) ? retailVAT : null));
         }
 
         return data;
+    }
+
+    private void importUserInvoicePharmacy(ExecutionContext context, String sprmatPath, String osttPath,
+                                           Integer numberOfUserInvoices, Boolean withoutRecalc) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, ParseException {
+
+        List<List<Object>> dataUserInvoicePharmacy = importUserInvoicePharmacyFromDBF(sprmatPath, osttPath, numberOfUserInvoices);
+
+        if (dataUserInvoicePharmacy != null) {
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            ImportField idUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.idUserInvoiceDetail"));
+            ImportKey<?> userInvoiceDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Purchase.UserInvoiceDetail"),
+                    LM.findLCPByCompoundName("Purchase.userInvoiceDetailId").getMapping(idUserInvoiceDetailField));
+            keys.add(userInvoiceDetailKey);
+            fields.add(idUserInvoiceDetailField);
+
+            ImportField seriesPharmacyUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.seriesPharmacyUserInvoiceDetail"));
+            props.add(new ImportProperty(seriesPharmacyUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.seriesPharmacyUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+            fields.add(seriesPharmacyUserInvoiceDetailField);
+
+            ImportTable table = new ImportTable(fields, dataUserInvoicePharmacy);
+
+            DataSession session = context.createSession();
+            if (withoutRecalc!=null)
+                session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context.getBL());
+            session.sql.popVolatileStats(null);
+            session.close();
+
+        }
+    }
+
+    private List<List<Object>> importUserInvoicePharmacyFromDBF(String sprmatPath, String osttPath, Integer numberOfUserInvoices) throws IOException, xBaseJException, ParseException {
+
+        if (!(new File(sprmatPath).exists()))
+            throw new RuntimeException("Запрашиваемый файл " + sprmatPath + " не найден");
+
+        if (!(new File(osttPath).exists()))
+            throw new RuntimeException("Запрашиваемый файл " + osttPath + " не найден");
+
+        DBF sprmatImportFile = new DBF(sprmatPath);
+        int totalRecordCount = sprmatImportFile.getRecordCount();
+
+        Map<String, Object[]> sprmatMap = new HashMap<String, Object[]>();
+
+        for (int i = 0; i < totalRecordCount; i++) {
+
+            sprmatImportFile.read();
+            String k_mat = getFieldValue(sprmatImportFile, "K_MAT", "Cp866", null);
+            String seriesPharmacyUserInvoice = getFieldValue(sprmatImportFile, "PRIM", "Cp866", null);
+
+            if (!k_mat.isEmpty())
+                sprmatMap.put(k_mat, new Object[]{seriesPharmacyUserInvoice});
+        }
+
+        List<List<Object>> dataUserInvoicePharmacy = new ArrayList<List<Object>>();
+
+        DBF osttImportFile = new DBF(osttPath);
+        totalRecordCount = osttImportFile.getRecordCount();
+
+        int recordCount = (numberOfUserInvoices != null && numberOfUserInvoices != 0 && numberOfUserInvoices < totalRecordCount) ? numberOfUserInvoices : totalRecordCount;
+
+        for (int i = 0; i < recordCount; i++) {
+
+            if (dataUserInvoicePharmacy.size() >= recordCount)
+                break;
+
+            osttImportFile.read();
+
+            String k_mat = getFieldValue(osttImportFile, "K_MAT", "Cp866", "");
+            BigDecimal quantity = getBigDecimalFieldValue(osttImportFile, "N_MAT", "Cp866", null);
+
+            Object[] sprmatEntry = sprmatMap.get(k_mat);
+
+            String seriesPharmacyUserInvoice = sprmatEntry == null ? null : (String) sprmatEntry[0];
+
+            if (sprmatEntry != null && quantity != null && quantity.doubleValue() != 0)
+                dataUserInvoicePharmacy.add(Arrays.asList((Object) k_mat, seriesPharmacyUserInvoice));
+        }
+
+        return dataUserInvoicePharmacy;
     }
 
     private void importItemPharmacy(ExecutionContext context, String sprmatPath, Integer numberOfItems) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException {
