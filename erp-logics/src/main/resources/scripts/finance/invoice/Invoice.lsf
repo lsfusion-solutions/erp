@@ -3,7 +3,6 @@ MODULE Invoice;
 REQUIRE System,
         Utils,
         Historizable,
-        Stock,
         Numerator,
         Document,
         Currency,
@@ -14,7 +13,7 @@ REQUIRE System,
         PurchaseLedger,
         SaleLedger,
         StockReserve,
-        Employee,
+        EmployeeStock,
         ContractPayment,
         StockTax;
 
@@ -67,7 +66,7 @@ countryInvoiceDetail(invoiceDetail) = countryStock(customerStockInvoice(invoiceI
 
 //----------------------------------------------- Накладная ---------------------------------------------------//
 
-META defineInvoice(sign, stockProp)
+META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 
     CLASS ABSTRACT Invoice 'Накладная'###sign : Invoice.Invoice;
     CLASS ABSTRACT InvoiceDetail 'Строка накладной'###sign : Invoice.InvoiceDetail;
@@ -213,6 +212,9 @@ META defineInvoice(sign, stockProp)
 //            }
 //        }
 //    } TOOLBAR;
+    @defineDocumentDialogSupplierCustomerStock(userInvoice, supplierFilter, customerFilter);
+    @defineDocumentDialogSupplierCustomerStockDetail(userInvoiceDetail, supplierFilter, customerFilter);
+    @defineDocumentDialogSupplierCustomerLegalEntity(userInvoice, supplierFilter, customerFilter);
 
 // --------------------------- Формы ---------------------------------- //
 
@@ -222,7 +224,10 @@ META defineInvoice(sign, stockProp)
     editSkuUserInvoiceDetail 'Редактировать SKU' (d) = editSku(skuUserInvoiceDetail(d));
     FORM userInvoice 'Накладная'###sign
         OBJECTS i = UserInvoice FIXED PANEL
-        PROPERTIES (i) objectClassName, nameSupplierUserInvoice, nameSupplierStockUserInvoice, nameCustomerUserInvoice, nameCustomerStockUserInvoice,
+        PROPERTIES (i) objectClassName, nameSupplierUserInvoice ON CHANGE changeSupplier###supplierFilter###userInvoice(i),
+                       nameSupplierStockUserInvoice ON CHANGE changeSupplierStock###supplierFilter###userInvoice(i),
+                       nameCustomerUserInvoice ON CHANGE changeCustomer###customerFilter###userInvoice(i),
+                       nameCustomerStockUserInvoice ON CHANGE changeCustomerStock###customerFilter###userInvoice(i),
                        nameNumeratorObject, numberObject, seriesObject, dateUserInvoice, timeUserInvoice,
                        nameCurrencyUserInvoice, nameAgreementUserInvoice, namePriceListTypeUserInvoice SHOWIF noAgreementUserInvoice(i), noteUserInvoice,
                        seriesNumberContractSkuUserInvoice, isCommissionUserInvoice
@@ -401,7 +406,6 @@ META defineInvoice(sign, stockProp)
 
         DIALOG Invoice OBJECT i
     ;
-    @extendFormFilterAccess(Invoice, i, invoices, stockProp);
 
     DESIGN invoices FROM DEFAULT {
         main {

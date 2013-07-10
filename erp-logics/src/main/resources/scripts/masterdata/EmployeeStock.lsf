@@ -1,0 +1,264 @@
+MODULE EmployeeStock;
+
+REQUIRE Stock, EmployeeLegalEntity;
+
+TABLE stockEmployee (Stock, Employee);
+inStockEmployee 'Сотрудник подразделения' = DATA BOOLEAN (Stock, Employee);
+
+TABLE stockGroupEmployee(StockGroup, Employee);
+
+//--  Компания
+dataAccessCompanyEmployee 'Доступ разрешен (компания)' = DATA BOOLEAN (Employee);
+dataAccessCompanyStockEmployee 'Доступ разрешен (компания)' = DATA BOOLEAN (Stock, Employee);
+dataAccessCompanyStockGroupEmployee 'Доступ разрешен (компания)' = DATA BOOLEAN (StockGroup, Employee);
+
+levelParentCompanyEmployeeStockGroup (employee, stockGroup) = GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataAccessCompanyStockGroupEmployee(parent, employee)
+                                                               BY employee, stockGroup PERSISTENT;
+nearestParentCompanyEmployeeStockGroup (employee, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentCompanyEmployeeStockGroup(employee, stockGroup));
+nearestInCompanyEmployeeStockGroup (employee, stockGroup) =
+    dataAccessCompanyStockGroupEmployee(nearestParentCompanyEmployeeStockGroup (employee, stockGroup), employee);
+
+accessCompanyEmployeeStockGroup 'Доступ разрешен (компания)' (employee, stockGroup) = OVERRIDE
+    employee IS Employee  AND stockGroup IS StockGroup AND NOT limitAccessEmployee(employee),
+    dataAccessCompanyEmployee(employee) AND stockGroup IS StockGroup,
+    nearestInCompanyEmployeeStockGroup(employee, stockGroup),
+    dataAccessCompanyStockGroupEmployee(stockGroup, employee); // PERSISTENT;
+
+accessCompanyEmployeeStock 'Доступ разрешен (компания)' (employee, stock) = OVERRIDE
+    employee IS Employee AND stock IS Stock AND NOT limitAccessEmployee(employee),
+    dataAccessCompanyEmployee(employee) AND stock IS Stock,
+    nearestInCompanyEmployeeStockGroup(employee, stockGroupStock(stock)),
+    dataAccessCompanyStockEmployee(stock, employee); // PERSISTENT;
+
+countAccessCompanyEmployeeStockGroup 'Кол-во доступных подразделений (компания)' (employee, stockGroup) =
+    GROUP SUM 1 IF accessCompanyEmployeeStock(employee, stock)
+                AND isParentStockGroupStockGroup(stockGroupStock(stock), stockGroup)
+          BY employee, stockGroup PERSISTENT;
+//-- Поставщик
+dataAccessSupplierEmployee 'Доступ разрешен (поставщик)' = DATA BOOLEAN (Employee);
+dataAccessSupplierStockEmployee 'Доступ разрешен (поставщик)' = DATA BOOLEAN (Stock, Employee);
+dataAccessSupplierStockGroupEmployee 'Доступ разрешен (поставщик)' = DATA BOOLEAN (StockGroup, Employee);
+levelParentSupplierEmployeeStockGroup (employee, stockGroup) = GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataAccessSupplierStockGroupEmployee(parent, employee)
+                                                               BY employee, stockGroup PERSISTENT;
+nearestParentSupplierEmployeeStockGroup (employee, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentSupplierEmployeeStockGroup(employee, stockGroup));
+nearestInSupplierEmployeeStockGroup (employee, stockGroup) =
+    dataAccessSupplierStockGroupEmployee(nearestParentSupplierEmployeeStockGroup (employee, stockGroup), employee);
+
+accessSupplierEmployeeStockGroup 'Доступ разрешен (поставщик)' (employee, stockGroup) = OVERRIDE
+    employee IS Employee AND stockGroup IS StockGroup AND NOT limitAccessEmployee(employee),
+    dataAccessSupplierEmployee(employee) AND stockGroup IS StockGroup,
+    nearestInSupplierEmployeeStockGroup(employee, stockGroup),
+    dataAccessSupplierStockGroupEmployee(stockGroup, employee); // PERSISTENT;
+
+accessSupplierEmployeeStock 'Доступ разрешен (поставщик)' (employee, stock) = OVERRIDE
+    employee IS Employee AND stock IS Stock AND NOT limitAccessEmployee(employee),
+    dataAccessSupplierEmployee(employee) AND stock IS Stock,
+    nearestInSupplierEmployeeStockGroup(employee, stockGroupStock(stock)),
+    dataAccessSupplierStockEmployee(stock, employee); // PERSISTENT;
+
+countAccessSupplierEmployeeStockGroup 'Кол-во доступных подразделений (поставщик)' (employee, stockGroup) =
+    GROUP SUM 1 IF accessSupplierEmployeeStock(employee, stock)
+                AND isParentStockGroupStockGroup(stockGroupStock(stock), stockGroup)
+          BY employee, stockGroup PERSISTENT;
+//--  Покупатель
+dataAccessCustomerEmployee 'Доступ разрешен (покупатель)' = DATA BOOLEAN (Employee);
+dataAccessCustomerStockEmployee 'Доступ разрешен (покупатель)' = DATA BOOLEAN (Stock, Employee);
+dataAccessCustomerStockGroupEmployee 'Доступ разрешен (покупатель)' = DATA BOOLEAN (StockGroup, Employee);
+
+levelParentCustomerEmployeeStockGroup (employee, stockGroup) = GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataAccessCustomerStockGroupEmployee(parent, employee)
+                                                               BY employee, stockGroup PERSISTENT;
+nearestParentCustomerEmployeeStockGroup (employee, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentCustomerEmployeeStockGroup(employee, stockGroup));
+nearestInCustomerEmployeeStockGroup (employee, stockGroup) =
+    dataAccessCustomerStockGroupEmployee(nearestParentCustomerEmployeeStockGroup (employee, stockGroup), employee);
+
+accessCustomerEmployeeStockGroup 'Доступ разрешен (покупатель)' (employee, stockGroup) = OVERRIDE
+    employee IS Employee AND stockGroup IS StockGroup AND NOT limitAccessEmployee(employee),
+    dataAccessCustomerEmployee(employee) AND stockGroup IS StockGroup,
+    nearestInCustomerEmployeeStockGroup(employee, stockGroup),
+    dataAccessCustomerStockGroupEmployee(stockGroup, employee); // PERSISTENT;
+
+accessCustomerEmployeeStock 'Доступ разрешен (покупатель)' (employee, stock) = OVERRIDE
+    employee IS Employee AND stock IS Stock AND NOT limitAccessEmployee(employee),
+    dataAccessCustomerEmployee(employee) AND stock IS Stock,
+    nearestInCustomerEmployeeStockGroup(employee, stockGroupStock(stock)),
+    dataAccessCustomerStockEmployee(stock, employee); // PERSISTENT;
+
+countAccessCustomerEmployeeStockGroup 'Кол-во доступных подразделений (покупатель)' (employee, stockGroup) =
+    GROUP SUM 1 IF accessCustomerEmployeeStock(employee, stock)
+                AND isParentStockGroupStockGroup(stockGroupStock(stock), stockGroup)
+          BY employee, stockGroup PERSISTENT;
+
+EXTEND FORM employee
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+    PROPERTIES(e) TODRAW a dataAccessSupplierEmployee, dataAccessCompanyEmployee, dataAccessCustomerEmployee
+    PROPERTIES(e,sg) accessSupplierEmployeeStockGroup, accessCompanyEmployeeStockGroup, accessCustomerEmployeeStockGroup
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock SHOWIF showIDs(), stockName = nameStock, nameLegalEntityStock
+    PROPERTIES(s,e) inStockEmployee
+    ORDER BY stockName
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+    PROPERTIES(e,s) accessSupplierEmployeeStock, accessCompanyEmployeeStock, accessCustomerEmployeeStock
+;
+EXTEND DESIGN employee {
+
+    topContainer{
+        NEW stockContainer {
+            caption = 'Склады';
+            type = SPLITH;
+            childConstraints = TO THE RIGHT;
+            ADD stockTree.tree.box {
+            }
+            ADD s.box {
+                s.grid {
+                    defaultComponent = TRUE;
+                    fillHorizontal = 2;
+                }
+            }
+        }
+    }
+
+}
+
+// ----------------------------------- Комиссии ---------------------------------------------------------- //
+
+META defineCommitteeEmployee (committee, prefix, caption)
+    prefix##Committee = DATA Employee (###committee);
+    name###prefix##Committee caption (committee) = nameContact(prefix##Committee(committee)) IN recognize;
+    namePosition###prefix##Committee caption (committee) = namePositionEmployee(prefix##Committee(committee));
+    CONSTRAINT prefix##Committee(committee) AND NOT countStockEmployeeCommittee(prefix##Committee(committee), committee)
+        CHECKED BY prefix##Committee MESSAGE '\''##caption##'\' не входит в выбранные подразделения';
+END
+
+META defineCommitteeEmployeePrefix (committee, prefix, caption)
+    prefix###committee = DATA Employee (###committee);
+    name###prefix###committee caption (committee) = nameContact(prefix###committee(committee)) IN recognize;
+    namePosition###prefix###committee caption (committee) = namePositionEmployee(prefix###committee(committee));
+    CONSTRAINT prefix###committee(committee) AND NOT countStockEmployeeCommittee(prefix###committee(committee), committee)
+        CHECKED BY prefix###committee MESSAGE '\''##caption##'\' не входит в выбранные подразделения';
+END
+
+CLASS ABSTRACT Committee 'Комиссия';
+TABLE committee (Committee);
+
+nameCommittee 'Наименование' = ABSTRACT ISTRING[150](Committee);
+
+TABLE committeeEmployee (Committee, Employee);
+inCommitteeEmployee 'Является членом комиссии' (committee, employee) = DATA BOOLEAN (Committee, Employee);
+
+TABLE committeeStock (Committee, Stock);
+inCommitteeStock 'Вкл.' = DATA BOOLEAN (Committee, Stock);
+
+countStockEmployeeCommittee  (employee, committee) = GROUP SUM 1 IF inCommitteeStock(committee, stock) AND inStockEmployee(stock, employee) BY employee, committee;
+CONSTRAINT inCommitteeEmployee(committee, employee) AND NOT countStockEmployeeCommittee(employee, committee)
+    CHECKED MESSAGE 'Член комиссии не входит в выбранные подразделения';
+
+@defineCommitteeEmployee(committee, chairman, 'Председатель');
+
+namePositionEmployeeCommittee 'Члены комиссии' (committee) =
+     GROUP CONCAT positionNameEmployee(employee) IF inCommitteeEmployee(committee, employee), ', '
+     BY committee
+     ORDER employee
+     MINCHARWIDTH 50 PREFCHARWIDTH 50;
+
+nameEmployeeCommittee 'Члены комиссии' (committee) =
+     GROUP CONCAT nameContact(employee) IF inCommitteeEmployee(committee, employee), ', '
+     BY committee
+     ORDER employee
+     MINCHARWIDTH 50 PREFCHARWIDTH 50;
+
+nameStocksCommittee 'Подразделения' (committee) =
+     GROUP CONCAT nameStock(stock) IF inCommitteeStock(committee, stock), ', '
+     BY committee
+     ORDER stock
+     MINCHARWIDTH 50 PREFCHARWIDTH 50;
+
+// ---------------------------------- Доступ к складам --------------------------------------------------- //
+
+countAccessSupplierStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 IF inLegalEntityStock(legalEntity, stock) AND accessSupplierEmployeeStock(employee, stock)
+                                                               BY employee, legalEntity;
+
+defaultSupplierStockEmployeeLegalEntity 'Склад по умолчанию (поставщик)' (employee, legalEntity)= GROUP MIN stock IF inLegalEntityStock(legalEntity, stock) AND accessSupplierEmployeeStock(employee, stock)
+                                                                                    BY employee, legalEntity;
+
+countAccessCompanyStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 IF inLegalEntityStock(legalEntity, stock) AND accessCompanyEmployeeStock(employee, stock)
+                                                               BY employee, legalEntity;
+
+defaultCompanyStockEmployeeLegalEntity 'Склад по умолчанию (компания)' (employee, legalEntity)= GROUP MIN stock IF inLegalEntityStock(legalEntity, stock) AND accessCompanyEmployeeStock(employee, stock)
+                                                                                    BY employee, legalEntity;
+
+countAccessCustomerStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 IF inLegalEntityStock(legalEntity, stock) AND accessCustomerEmployeeStock(employee, stock)
+                                                               BY employee, legalEntity;
+
+defaultCustomerStockEmployeeLegalEntity 'Склад по умолчанию (покупатель)' (employee, legalEntity)= GROUP MIN stock IF inLegalEntityStock(legalEntity, stock) AND accessCustomerEmployeeStock(employee, stock)
+                                                                                    BY employee, legalEntity;
+
+// Для документа, у которого задан склад
+META extendFormFilterAccessStock(object, concrete, form, stockProp, filter)
+    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR access###filter##EmployeeStock(currentUser(),stockProp###object(concrete));
+END
+// Когда склад идет объектом
+META extendFormFilterStockAccess(object, concrete, form, filter)
+    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR access###filter##EmployeeStock(currentUser(), concrete);
+END
+META extendFormFilterStockAccess(object, concrete, form) // по умолчанию для компании
+    @extendFormFilterStockAccess(object, concrete, form, company);
+END
+// Для группы складов
+META extendFormFilterStockGroupAccess(object, concrete, form, filter)
+    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR countAccess###filter##EmployeeStockGroup(currentUser(), concrete);
+END
+META extendFormFilterStockGroupAccess(object, concrete, form) // по умолчанию для компании
+    @extendFormFilterStockGroupAccess(object, concrete, form, company);
+END
+
+// ----------------------------- Автоматическое проставление организаций и складов --------------------------------------- //
+
+META defineDocumentLegalEntityStockAccess(objectClass, prefix, filter, form)
+    @defineDocumentLegalEntityAccess(objectClass, prefix, filter);
+
+    WHEN SESSION FORMS form CHANGED(prefix###objectClass(o)) DO
+        prefix###stock###objectClass(o) <- default###filter##StockEmployeeLegalEntity(currentUser(), prefix###objectClass(o))
+            IF countAccess###filter##StockEmployeeLegalEntity (currentUser(), prefix###objectClass(o)) == 1;
+
+END
+
+META defineDocumentSupplierCustomerStockAccess (objectClass, supplierFilter, customerFilter, form)
+    @defineDocumentLegalEntityStockAccess(objectClass, supplier, supplierFilter, form);
+    @defineDocumentLegalEntityStockAccess(objectClass, customer, customerFilter, form);
+END
+
+// ----------------------------- Проставляем фильтры на формы --------------------------------------- //
+@extendFormFilterAccessStock(SkuLedger, bil, costSkuLedger, stock, company);
+@extendFormFilterAccessStock(Batch, bt, batches, stock, company);
+
+@extendFormFilterStockAccess(Stock, st, currentBalanceSkuStock);
+@extendFormFilterStockAccess(Stock, ts, currentBalanceSkuStock);
+@extendFormFilterStockGroupAccess(StockGroup, sg, currentBalanceSkuStock);
+
+@extendFormFilterStockAccess(Stock, st, balanceSkuStock);
+@extendFormFilterStockAccess(Stock, ts, balanceSkuStock);
+@extendFormFilterStockGroupAccess(StockGroup, sg, balanceSkuStock);
+
+@extendFormFilterStockAccess(Stock, st, currentBalanceBatchStock);
+@extendFormFilterStockAccess(Stock, ts, currentBalanceBatchStock);
+@extendFormFilterStockGroupAccess(StockGroup, sg, currentBalanceBatchStock);
+
+@extendFormFilterStockAccess(Stock, st, balanceBatchStock);
+@extendFormFilterStockAccess(Stock, ts, balanceBatchStock);
+@extendFormFilterStockGroupAccess(StockGroup, sg, balanceBatchStock);
+
+@extendFormFilterStockAccess(Stock, s, supplierStocks, supplier);
+@extendFormFilterStockGroupAccess(Stock, sg, supplierStocks, supplier);
+
+@extendFormFilterStockAccess(Stock, s, customerStocks, customer);
+@extendFormFilterStockGroupAccess(Stock, sg, customerStocks, customer);
+
+@extendFormFilterStockAccess(Stock, s, companyStocks, company);
+@extendFormFilterStockGroupAccess(Stock, sg, companyStocks, company);
+
+// ----------------------------- Диалоги  --------------------------------------- //

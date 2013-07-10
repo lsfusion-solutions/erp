@@ -3,7 +3,6 @@ MODULE Order;
 REQUIRE System,
         Utils,
         Historizable,
-        Stock,
         Numerator,
         Document,
         Currency,
@@ -14,7 +13,7 @@ REQUIRE System,
         SaleLedger,
         StockReserve,
         OrderLedger,
-        Employee,
+        EmployeeStock,
         Operation,
         StockTax;
 
@@ -76,7 +75,7 @@ editOrder 'Редактировать' = ABSTRACT ACTION LIST (Order) IMAGE 'edi
 
 //----------------------------------------------- Заказ ---------------------------------------------------//
 
-META defineOrder(sign, legalEntityProp, stockProp)
+META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, filter)
 
     CLASS ABSTRACT Order 'Заказ'###sign : Order.Order;
     CLASS ABSTRACT OrderDetail 'Строка заказа'###sign : Order.OrderDetail;
@@ -237,6 +236,10 @@ META defineOrder(sign, legalEntityProp, stockProp)
      @defineMovementSku(userOrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение товара
      @defineBalancesSku(orderDetail); //-- показываем по нажатию правой клавиши остатки товара
      @defineBalancesSku(userOrderDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+     @defineDocumentDialogSupplierCustomerStock(userOrder, supplierFilter, customerFilter);
+     @defineDocumentDialogSupplierCustomerStockDetail(userOrderDetail, supplierFilter, customerFilter);
+     @defineDocumentDialogSupplierCustomerLegalEntity(userOrder, supplierFilter, customerFilter);
 // --------------------------- Формы Заказа ---------------------------------
 
     editOrder 'Редактировать' = ABSTRACT ACTION LIST (Order) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -245,7 +248,10 @@ META defineOrder(sign, legalEntityProp, stockProp)
     editSkuUserOrderDetail 'Редактировать SKU' (d) = editSku(skuUserOrderDetail(d));
     FORM userOrder 'Заказ'###sign
         OBJECTS o = UserOrder FIXED PANEL
-        PROPERTIES (o) objectClassName, nameSupplierUserOrder, nameCustomerUserOrder, nameSupplierStockUserOrder, nameCustomerStockUserOrder,
+        PROPERTIES (o) objectClassName, nameSupplierUserOrder ON CHANGE changeSupplier###supplierFilter###userOrder(o),
+                       nameCustomerUserOrder ON CHANGE changeCustomer###customerFilter###userOrder(o),
+                       nameSupplierStockUserOrder ON CHANGE changeSupplierStock###supplierFilter###userOrder(o),
+                       nameCustomerStockUserOrder ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
                        nameNumeratorObject, numberObject, seriesObject, dateUserOrder, timeUserOrder,
                        nameCurrencyUserOrder, nameAgreementUserOrder, namePriceListTypeUserOrder SHOWIF noAgreementUserOrder(o), noteUserOrder,
                        countUserOrderDetailUserOrder, quantityUserOrderDetailUserOrder, sumUserOrderDetailUserOrder,
@@ -262,7 +268,7 @@ META defineOrder(sign, legalEntityProp, stockProp)
                        valueVATUserOrderDetail ON CHANGE changeValueVATUserOrderDetail(d),
                        invoicePriceUserOrderDetail ON CHANGE changeInvoicePriceUserOrderDetail(d),
                        VATSumUserOrderDetail, invoiceSumUserOrderDetail,
-                       name###stockProp###userOrderDetail, shipmentDateUserOrderDetail,
+                       name###stockProp###userOrderDetail ON CHANGE changeData###stockProp###filter###userOrderDetail(d), shipmentDateUserOrderDetail,
                        shipmentTimeUserOrderDetail, closeDateUserOrderDetail, isDataClosedUserOrderDetail, ADDOBJ, DELETESESSION
 
         PROPERTIES(o) TODRAW d fillDocumentOrder, addDetailDialogSkuStockUserOrderDetailUserOrder,
@@ -447,7 +453,6 @@ META defineOrder(sign, legalEntityProp, stockProp)
         FILTERS orderOrderDetail(d) == o
         DIALOG Order OBJECT o
     ;
-    @extendFormFilterAccess(Order, o, orders, stockProp);
 
     DESIGN orders FROM DEFAULT {
         PROPERTY (deleteo) {

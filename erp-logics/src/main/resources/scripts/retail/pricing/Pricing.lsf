@@ -1,6 +1,6 @@
 MODULE Pricing;
 
-REQUIRE Invoice, Employee, PriceRoundStore, Machinery, PricingOperation, PriceListCalc, PriceListLedger;
+REQUIRE Invoice, EmployeeStock, PriceRoundStore, Machinery, PricingOperation, PriceListCalc, PriceListLedger;
 
 // ----------------------------------- Создавать акт расценки по умолчанию для отдела ------------------------------------------ //
 
@@ -33,7 +33,7 @@ nameCommittee(committee) += namePricingCommittee(committee) IF committee IS Pric
 pricingCommitteeDepartmentStore 'Комиссия для акта расценки (ИД)' = DATA PricingCommittee (DepartmentStore);
 namePricingCommitteeDepartmentStore 'Комиссия для акта расценки' (departmentStore) = namePricingCommittee(pricingCommitteeDepartmentStore(departmentStore)) IN committeeGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
 isDefaultPricingCommitteeDepartmentStore 'По умолчанию' (pricingCommittee, departmentStore) = pricingCommitteeDepartmentStore(departmentStore) == pricingCommittee;
-CONSTRAINT pricingCommitteeDepartmentStore(departmentStore) AND NOT inCommitteeEmployeeDivision(pricingCommitteeDepartmentStore(departmentStore), departmentStore)
+CONSTRAINT pricingCommitteeDepartmentStore(departmentStore) AND NOT inCommitteeStock(pricingCommitteeDepartmentStore(departmentStore), departmentStore)
     CHECKED BY pricingCommitteeDepartmentStore MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
 
 EXTEND FORM departmentStore PROPERTIES namePricingCommitteeDepartmentStore(d);
@@ -51,19 +51,19 @@ FORM pricingCommittee 'Комиссия для акта расценки'
 
     OBJECTS dep=DepartmentStore
     PROPERTIES(dep)    READONLY depName = nameDepartmentStore
-    PROPERTIES(c, dep) inCommitteeEmployeeDivision, isDefaultPricingCommitteeDepartmentStore
+    PROPERTIES(c, dep) inCommitteeStock, isDefaultPricingCommitteeDepartmentStore
     FILTERS            inChainStoresStoreTypeStoreDepartmentStore(t, st, s, dep)
     ORDER BY depName
 
     FILTERGROUP filters5
-        FILTER 'Показывать отделы только для данной комиссии' 'F9' inCommitteeEmployeeDivision(c, dep)
+        FILTER 'Показывать отделы только для данной комиссии' 'F9' inCommitteeStock(c, dep)
 
     EDIT PricingCommittee OBJECT c
 ;
 @extendFormFilterStockAccess(DepartmentStore, dep, pricingCommittee);
-@extendFormFilterStockGroupAccess(ChainStores, t, pricingCommittee, countAccessEmployeeEmployeeDivisionGroup);
-@extendFormFilterStockGroupAccess(StoreType, st, pricingCommittee, countAccessEmployeeEmployeeDivisionGroup);
-@extendFormFilterStockGroupAccess(Store, s, pricingCommittee, countAccessEmployeeEmployeeDivisionGroup);
+@extendFormFilterStockGroupAccess(ChainStores, t, pricingCommittee);
+@extendFormFilterStockGroupAccess(StoreType, st, pricingCommittee);
+@extendFormFilterStockGroupAccess(Store, s, pricingCommittee);
 
 DESIGN pricingCommittee FROM DEFAULT {
     main {
@@ -99,7 +99,7 @@ DESIGN pricingCommittee FROM DEFAULT {
 
 FORM pricingCommitteeDialog 'Комиссии для акта расценки'
     OBJECTS r=PricingCommittee
-    PROPERTIES(r)      READONLY namePricingCommittee, nameEmployeeDivisionCommittee, nameFormedManPricingCommittee, nameCheckedManPricingCommittee, nameLabeledManPricingCommittee,
+    PROPERTIES(r)      READONLY namePricingCommittee, nameStocksCommittee, nameFormedManPricingCommittee, nameCheckedManPricingCommittee, nameLabeledManPricingCommittee,
                        nameAccountantManPricingCommittee, nameHeadManPricingCommittee
     PROPERTIES(r)      ADDFORM, EDITFORM
 
@@ -117,7 +117,7 @@ META defineDocumentHeaderPricingCommittee(object, stockClass, prefix)
     prefix###pricingCommittee###object (object) <- pricingCommitteeDepartmentStore(stockClass###object(object))
         WHEN CHANGED(stockClass###object(object));
 
-    CONSTRAINT prefix###pricingCommittee###object (object) AND NOT inCommitteeEmployeeDivision(prefix###pricingCommittee###object(object), stockClass###object(object))
+    CONSTRAINT prefix###pricingCommittee###object (object) AND NOT inCommitteeStock(prefix###pricingCommittee###object(object), stockClass###object(object))
         CHECKED BY prefix###pricingCommittee###object MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
 
     name###prefix###FormedMan###object 'Цены сформировал' (object) = nameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
@@ -647,7 +647,8 @@ FORM pricings 'Акты расценки' TITLE 'Акты расценки'
 
     DIALOG Pricing OBJECT p
 ;
-@extendFormFilterAccess(Pricing, p, pricings, departmentStore);
+@extendFormFilterAccessStock(Pricing, p, pricings, departmentStore, company);
+@extendFormFilterAccessLegalEntity(Pricing, p, pricings, supplier, supplier);
 
 DESIGN pricings FROM DEFAULT {
     PROPERTY (deletep) {
@@ -953,7 +954,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     dataDepartmentStorePricingDetail(pricingDetail) += data###stockProp###invoiceDetail(invoiceDetail###concrete###pricingDetail(pricingDetail))
                                                        IF data###stockProp###invoiceDetail(invoiceDetail###concrete###pricingDetail(pricingDetail)) IS DepartmentStore;
 
-    @defineDocumentAggregationStockPrefix(invoice, concrete###pricing, supplier, 'Поставщик', , );
+    @defineDocumentAggregationLegalEntityPrefix(invoice, concrete###pricing, supplier, 'Поставщик', , );
     supplierPricing(pricing) += supplier###concrete###pricing(pricing);
 
     @defineDocumentAggregationPosted(invoice, concrete###pricing);

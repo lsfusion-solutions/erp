@@ -871,50 +871,6 @@ costOutBalanceBatchStockDateFromTo 'Расход' (batch, stock, dateFrom, dateT
 costSumOutBalanceBatchStockDateFromTo 'Сумма расхода' (batch, stock, dateFrom, dateTo) =
     costBatch(batch) * costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo);
 
-// ---------------------------------- Доступ к складам --------------------------------------------------- //
-
-EXTEND CLASS StockGroup : EmployeeDivisionGroup;
-parentEmployeeDivisionGroup(stockGroup) += parentStockGroup(stockGroup);
-
-nameEmployeeDivisionGroup(group) += nameStockGroup(group) IF group IS StockGroup;
-
-EXTEND CLASS Stock : EmployeeDivision;
-employeeDivisionGroupEmployeeDivision (stock) += stockGroupStock(stock);
-
-nameEmployeeDivision(stock) += nameStock(stock) IF stock IS Stock;
-
-countAccessStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 IF inLegalEntityStock(legalEntity, stock) AND accessEmployeeEmployeeDivision(employee, stock)
-                                                               BY employee, legalEntity;
-
-defaultStockEmployeeLegalEntity 'Склад по умолчанию' (employee, legalEntity)= GROUP MIN stock IF inLegalEntityStock(legalEntity, stock) AND accessEmployeeEmployeeDivision(employee, stock)
-                                                                                    BY employee, legalEntity;
-
-META extendFormFilterAccess(object, concrete, form, stockProp)
-    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR accessEmployeeEmployeeDivision(currentUser(),stockProp###object(concrete));
-END
-META extendFormFilterStockAccess(object, concrete, form)
-    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR accessEmployeeEmployeeDivision(currentUser(), concrete);
-END
-META extendFormFilterStockGroupAccess(object, concrete, form, prop)
-    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR prop(currentUser(), concrete);
-END
-
-// ----------------------------- Автоматическое проставление организаций и складов --------------------------------------- //
-
-META defineDocumentLegalEntityStockAccess(objectClass, prefix, filter, form)
-    @defineDocumentLegalEntityAccess(objectClass, prefix, filter);
-
-    WHEN SESSION FORMS form CHANGED(prefix###objectClass(o)) DO
-        prefix###stock###objectClass(o) <- defaultStockEmployeeLegalEntity(currentUser(), prefix###objectClass(o))
-            IF countAccessStockEmployeeLegalEntity (currentUser(), prefix###objectClass(o)) == 1;
-
-END
-
-META defineDocumentSupplierCustomerStockAccess (objectClass, supplierFilter, customerFilter, form)
-    @defineDocumentLegalEntityStockAccess(objectClass, supplier, supplierFilter, form);
-    @defineDocumentLegalEntityStockAccess(objectClass, customer, customerFilter, form);
-END
-
 // ---------------------------------------------- Макросы ------------------------------------------------ //
 
 META implementSkuLedger(object, skuProp, stockProp)
@@ -1220,7 +1176,7 @@ END
 // Склады
 META defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockProp, stockCaption, prefixP, prefixA)
     prefixA###stockProp###aggrObject (object) = prefixP###stockProp###primObject(primObject###aggrObject(object)) PERSISTENT;
-    name###prefixA###stockProp###aggrObject stockCaption (object) = nameEmployeeDivision(prefixA###stockProp###aggrObject(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    name###prefixA###stockProp###aggrObject stockCaption (object) = nameStock(prefixA###stockProp###aggrObject(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 END
 META defineDocumentAggregationHeaderStock (primObject, aggrObject, stockProp, stockCaption)
     @defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockProp, stockCaption, , );
@@ -1239,6 +1195,30 @@ META defineDocumentAggregationStockPrefix (primObject, aggrObject, stockProp, st
 END
 META defineDocumentAggregationStock (primObject, aggrObject, stockProp, stockCaption)
     @defineDocumentAggregationStockPrefix(primObject, aggrObject, stockProp, stockCaption, , );
+END
+
+// Склады
+META defineDocumentAggregationHeaderLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
+    prefixA###legalEntityProp###aggrObject (object) = prefixP###legalEntityProp###primObject(primObject###aggrObject(object)) PERSISTENT;
+    name###prefixA###legalEntityProp###aggrObject legalEntityCaption (object) = nameLegalEntity(prefixA###legalEntityProp###aggrObject(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+END
+META defineDocumentAggregationHeaderLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
+    @defineDocumentAggregationHeaderLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, , );
+END
+
+META defineDocumentAggregationDetailLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
+    prefixA###legalEntityProp###aggrObject##Detail (detail) = prefixP###legalEntityProp###primObject##Detail(primObject##Detail###aggrObject##Detail(detail)) PERSISTENT;
+END
+META defineDocumentAggregationDetailLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
+    @defineDocumentAggregationDetailLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, , );
+END
+
+META defineDocumentAggregationLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
+    @defineDocumentAggregationHeaderLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA);
+    @defineDocumentAggregationDetailLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA);
+END
+META defineDocumentAggregationLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
+    @defineDocumentAggregationLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, , );
 END
 
 // Sku
@@ -2835,6 +2815,139 @@ DESIGN stocks FROM DEFAULT {
     }
 }
 
+FORM companyStocks 'Склады компания'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
+    PROPERTIES(s)          editStock
+    ORDER BY stockName
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+;
+
+DESIGN companyStocks FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            childConstraints = TO THE RIGHT;
+
+            ADD stockTree.tree.box {
+                caption = 'Склады';
+            }
+
+            ADD s.box {
+                s.grid {
+                    defaultComponent = TRUE;
+                    fillHorizontal = 2;
+                }
+            }
+        }
+
+        ADD functions.box;
+    }
+}
+FORM supplierStocks 'Склады поставщик'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
+    PROPERTIES(s)          editStock
+    ORDER BY stockName
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+;
+
+DESIGN supplierStocks FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            childConstraints = TO THE RIGHT;
+
+            ADD stockTree.tree.box {
+                caption = 'Склады';
+            }
+
+            ADD s.box {
+                s.grid {
+                    defaultComponent = TRUE;
+                    fillHorizontal = 2;
+                }
+            }
+        }
+
+        ADD functions.box;
+    }
+}
+FORM customerStocks 'Склады покупатель'
+
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
+    PROPERTIES(s)          editStock
+    ORDER BY stockName
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+;
+
+DESIGN customerStocks FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            childConstraints = TO THE RIGHT;
+
+            ADD stockTree.tree.box {
+                caption = 'Склады';
+            }
+
+            ADD s.box {
+                s.grid {
+                    defaultComponent = TRUE;
+                    fillHorizontal = 2;
+                }
+            }
+        }
+
+        ADD functions.box;
+    }
+}
+
+META defineDocumentDialogStock(objectClass, filter, prefix)
+    change###prefix###stock###filter###objectClass = ACTION (objectClass) {
+        REQUEST OBJECT s
+        FORM filter###stocks MODAL SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            prefix###stock###objectClass(objectClass) <- requestedObject();
+
+        } ELSE IF formResult() == FormResult.drop THEN {
+            prefix###stock###objectClass(objectClass) <- NULL;
+        }
+    }
+END
+META defineDocumentDialogSupplierCustomerStock(objectClass, supplierFilter, customerFilter)
+    @defineDocumentDialogStock(objectClass, supplierFilter, supplier);
+    @defineDocumentDialogStock(objectClass, customerFilter, customer);
+END
+META defineDocumentDialogSupplierCustomerStockDetail(objectClass, supplierFilter, customerFilter)
+    @defineDocumentDialogStock(objectClass, supplierFilter, dataSupplier);
+    @defineDocumentDialogStock(objectClass, customerFilter, dataCustomer);
+END
+
 
 FORM skus 'Sku'
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
@@ -2968,7 +3081,6 @@ FORM costSkuLedger 'Себестоимость (операции)'
 
     PROPERTIES() setDataSkuLedgerBatchCost, resetDataSkuLedgerBatchCost, clearDataSkuLedgerBatchCost
 ;
-@extendFormFilterAccess(SkuLedger, bil, costSkuLedger, stock);
 
 
 DESIGN costSkuLedger FROM DEFAULT {
@@ -3071,9 +3183,6 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     FILTERS isPostedBatch(bt) AND skuBatch(bt)==s
     ORDER BY dateTimeBatch DESC
 ;
-@extendFormFilterStockAccess(Stock, st, currentBalanceSkuStock);
-@extendFormFilterStockGroupAccess(Stock, ts, currentBalanceSkuStock, accessEmployeeEmployeeDivision);
-@extendFormFilterStockGroupAccess(StockGroup, sg, currentBalanceSkuStock, countAccessEmployeeEmployeeDivisionGroup);
 
 DESIGN currentBalanceSkuStock FROM DEFAULT {
     main{
@@ -3153,9 +3262,6 @@ FORM balanceSkuStock 'Остатки на дату'
     FILTERS isPostedBatch(bt) AND skuBatch(bt)==s
     ORDER BY dateTimeBatch DESC
 ;
-@extendFormFilterStockAccess(Stock, st, balanceSkuStock);
-@extendFormFilterStockGroupAccess(Stock, ts, balanceSkuStock, accessEmployeeEmployeeDivision);
-@extendFormFilterStockGroupAccess(StockGroup, sg, balanceSkuStock, countAccessEmployeeEmployeeDivisionGroup);
 
 DESIGN balanceSkuStock FROM DEFAULT {
     main{
@@ -3238,9 +3344,6 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
         FILTER 'Партии со сроком годности, истекающим через 7 дней' 'F5' expiresBatchDate(bt, currentDate(), 7)
         FILTER 'Партии со сроком годности, истекающим через 30 дней' 'F4' expiresBatchDate(bt, currentDate(), 30)
 ;
-@extendFormFilterStockAccess(Stock, st, currentBalanceBatchStock);
-@extendFormFilterStockGroupAccess(Stock, ts, currentBalanceBatchStock, accessEmployeeEmployeeDivision);
-@extendFormFilterStockGroupAccess(StockGroup, sg, currentBalanceBatchStock, countAccessEmployeeEmployeeDivisionGroup);
 
 DESIGN currentBalanceBatchStock FROM DEFAULT {
     main{
@@ -3317,9 +3420,6 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
         FILTER 'Партии со сроком годности, истекающим через 7 дней' 'F5' expiresBatchDateTime(bt, t, 7)
         FILTER 'Партии со сроком годности, истекающим через 30 дней' 'F4' expiresBatchDateTime(bt, t, 30)
 ;
-@extendFormFilterStockAccess(Stock, st, balanceBatchStock);
-@extendFormFilterStockGroupAccess(Stock, ts, balanceBatchStock, accessEmployeeEmployeeDivision);
-@extendFormFilterStockGroupAccess(StockGroup, sg, balanceBatchStock, countAccessEmployeeEmployeeDivisionGroup);
 
 DESIGN balanceBatchStock FROM DEFAULT {
     main{
@@ -3386,7 +3486,6 @@ FORM batches 'Партии'
     DIALOG Batch OBJECT bt
 ;
 
-@extendFormFilterAccess(Batch, bt, batches, stock);
 
 DESIGN batches FROM DEFAULT {
     main{

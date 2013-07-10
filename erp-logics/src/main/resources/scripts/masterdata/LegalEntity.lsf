@@ -32,15 +32,13 @@ FORM ownerships 'Формы собственности'
 
 // ----------------------------------- Юридическое лицо --------------------------------- //
 
-CLASS LegalEntity 'Организация' : TaxUnitGroup, EmployeeDivision;
+CLASS LegalEntity 'Организация' : TaxUnitGroup;
 TABLE legalEntity (LegalEntity);
 TABLE legalEntityDate (LegalEntity, DATE);
 
 @defineExternalizable(legalEntity, STRING[100]);
 
 nameLegalEntity 'Наименование' = DATA ISTRING[150](LegalEntity) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
-
-nameEmployeeDivision(division) += nameLegalEntity(division) IF division IS LegalEntity;
 
 nameTaxUnitGroup(group) += nameLegalEntity(group) IF group IS LegalEntity;
 
@@ -87,21 +85,15 @@ GROUP orderGroup 'Для заказов' : public;
 
 // ----------------------------------- Группы юридический лиц ---------------------------- //
 
-CLASS LegalEntityGroup 'Группа организаций' : EmployeeDivisionGroup;
+CLASS LegalEntityGroup 'Группа организаций' ;
 TABLE legalEntityGroup(LegalEntityGroup);
 
 nameLegalEntityGroup 'Наименование' = DATA ISTRING[100](LegalEntityGroup);
-
-nameEmployeeDivisionGroup(group) += nameLegalEntityGroup(group) IF group IS LegalEntityGroup;
-
 legalEntityGroupLegalEntity (legalEntity) = DATA LegalEntityGroup (LegalEntity) PERSISTENT INDEXED AUTOSET;
 nameLegalEntityGroupLegalEntity 'Группа организаций' (legalEntity) = nameLegalEntityGroup(legalEntityGroupLegalEntity(legalEntity));
 
 TABLE legalEntityGroupLegalEntityGroup(LegalEntityGroup, LegalEntityGroup);
 @defineHierarchy(legalEntityGroup);
-
-parentEmployeeDivisionGroup (group) += parentLegalEntityGroup(group);
-employeeDivisionGroupEmployeeDivision (legalEntity) += legalEntityGroupLegalEntity(legalEntity);
 
 FORM legalEntityGroup 'Группа организаций'
 
@@ -155,24 +147,12 @@ differentStocksInDetailsLegalEntity 'Разные склады в строках
 
 // ------------------------------------ Доступные организации для пользователей -------------------------- //
 
-countAccessSupplierEmployee (employee) = GROUP SUM 1 IF isSupplierLegalEntity(legalEntity) AND accessEmployeeEmployeeDivision(employee, legalEntity)
-                                               BY employee;
-countAccessCompanyEmployee (employee) = GROUP SUM 1 IF isCompanyLegalEntity(legalEntity) AND accessEmployeeEmployeeDivision(employee, legalEntity)
-                                              BY employee;
-countAccessCustomerEmployee (employee)= GROUP SUM 1 IF isCustomerLegalEntity(legalEntity) AND accessEmployeeEmployeeDivision(employee, legalEntity)
-                                              BY employee;
-
-defaultSupplierEmployee 'Поставщик по умолчанию' (employee)= GROUP MIN legalEntity IF isSupplierLegalEntity(legalEntity) AND accessEmployeeEmployeeDivision(employee, legalEntity)
-                                                                   BY employee;
-defaultCompanyEmployee 'Компания по умолчанию' (employee)= GROUP MIN legalEntity IF isCompanyLegalEntity(legalEntity) AND accessEmployeeEmployeeDivision(employee, legalEntity)
-                                                                 BY employee;
-defaultCustomerEmployee 'Покупатель по умолчанию' (employee)= GROUP MIN legalEntity IF isCustomerLegalEntity(legalEntity) AND accessEmployeeEmployeeDivision(employee, legalEntity)
-                                                                    BY employee;
-
 toShowLegalEntity = ABSTRACT BOOLEAN (LegalEntity);
 toShowIndividualLegalEntity = ABSTRACT BOOLEAN (LegalEntity);
 
 toShowLegalEntity(legalEntity) += legalEntity IS LegalEntity AND NOT toShowIndividualLegalEntity(legalEntity);
+
+isParentLegalEntityGroupLegalEntity (lg,l) = isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg);
 
 // ---------------------------------------- Формы для ввода компаний ------------------------------------- //
 
@@ -285,6 +265,142 @@ DESIGN legalEntities FROM DEFAULT{
 
 @extendFormEditable(legalEntities);
 
+FORM companyLegalEntities 'Организации'
+
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
+    PROPERTIES READONLY lgTreeName = nameLegalEntityGroup(lg)
+    PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
+
+    OBJECTS l=LegalEntity
+    PROPERTIES(l) READONLYIF isReadonly() nameL = nameLegalEntity, idLegalEntity SHOWIF showIDs(), fullNameLegalEntity, shortNameOwnershipLegalEntity,
+                                          nameLegalEntityGroupLegalEntity
+    PROPERTIES(l) READONLY                addressLegalEntity, phoneLegalEntity
+    PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
+    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE
+    ORDER BY nameL
+
+    FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
+            l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
+
+;
+
+DESIGN companyLegalEntities FROM DEFAULT{
+    main {
+        preferredSize = (1024, 768);
+        NEW topContainer{
+            childConstraints = TO THE RIGHT;
+            type = SPLITH;
+            ADD legalEntityGroupTree.tree.box{
+                PROPERTY(deletelg){
+                    askConfirm = TRUE;
+                }
+            }
+            ADD l.box {
+                fillHorizontal = 2.0;
+                l.grid { defaultComponent = TRUE; }
+            }
+        }
+        ADD functions.box;
+    }
+}
+
+FORM supplierLegalEntities 'Организации'
+
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
+    PROPERTIES READONLY lgTreeName = nameLegalEntityGroup(lg)
+    PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
+
+    OBJECTS l=LegalEntity
+    PROPERTIES(l) READONLYIF isReadonly() nameL = nameLegalEntity, idLegalEntity SHOWIF showIDs(), fullNameLegalEntity, shortNameOwnershipLegalEntity,
+                                          nameLegalEntityGroupLegalEntity
+    PROPERTIES(l) READONLY                addressLegalEntity, phoneLegalEntity
+    PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
+    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE
+    ORDER BY nameL
+
+    FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
+            l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
+
+;
+
+DESIGN supplierLegalEntities FROM DEFAULT{
+    main {
+        preferredSize = (1024, 768);
+        NEW topContainer{
+            childConstraints = TO THE RIGHT;
+            type = SPLITH;
+            ADD legalEntityGroupTree.tree.box{
+                PROPERTY(deletelg){
+                    askConfirm = TRUE;
+                }
+            }
+            ADD l.box {
+                fillHorizontal = 2.0;
+                l.grid { defaultComponent = TRUE; }
+            }
+        }
+        ADD functions.box;
+    }
+}
+
+FORM customerLegalEntities 'Организации'
+
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
+    PROPERTIES READONLY lgTreeName = nameLegalEntityGroup(lg)
+    PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
+
+    OBJECTS l=LegalEntity
+    PROPERTIES(l) READONLYIF isReadonly() nameL = nameLegalEntity, idLegalEntity SHOWIF showIDs(), fullNameLegalEntity, shortNameOwnershipLegalEntity,
+                                          nameLegalEntityGroupLegalEntity
+    PROPERTIES(l) READONLY                addressLegalEntity, phoneLegalEntity
+    PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
+    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE
+    ORDER BY nameL
+
+    FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
+            l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
+
+;
+
+DESIGN customerLegalEntities FROM DEFAULT{
+    main {
+        preferredSize = (1024, 768);
+        NEW topContainer{
+            childConstraints = TO THE RIGHT;
+            type = SPLITH;
+            ADD legalEntityGroupTree.tree.box{
+                PROPERTY(deletelg){
+                    askConfirm = TRUE;
+                }
+            }
+            ADD l.box {
+                fillHorizontal = 2.0;
+                l.grid { defaultComponent = TRUE; }
+            }
+        }
+        ADD functions.box;
+    }
+}
+META defineDocumentDialogLegalEntity(objectClass, filter, prefix)
+    change###prefix###filter###objectClass = ACTION (objectClass) {
+        REQUEST OBJECT l
+        FORM filter###legalEntities MODAL SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            prefix###objectClass(objectClass) <- requestedObject();
+
+        } ELSE IF formResult() == FormResult.drop THEN {
+            prefix###objectClass(objectClass) <- NULL;
+        }
+    }
+END
+META defineDocumentDialogSupplierCustomerLegalEntity(objectClass, supplierFilter, customerFilter)
+    @defineDocumentDialogLegalEntity(objectClass, supplierFilter, supplier);
+    @defineDocumentDialogLegalEntity(objectClass, customerFilter, customer);
+END
+
 NAVIGATOR {
     masterData {
         ADD legalEntities BEFORE regionalData;
@@ -372,13 +488,6 @@ END
 
 META defineDocumentPhone(object, contact, caption)
     phone###contact###object 'Телефон'###caption (object) = phoneLegalEntity(contact###object(object)) IN documentPrmGroup;
-END
-
-// ----------------------------- Автоматическое проставление организаций и складов --------------------------------------- //
-
-META defineDocumentLegalEntityAccess(objectClass, prefix, filter)
-    prefix###objectClass(o) <- default###filter##Employee(currentUser()) IF countAccess###filter##Employee (currentUser()) == 1
-                                           WHEN SET(o IS objectClass);
 END
 
 // ----------------------------------- Стандартные данные ----------------------------------- //

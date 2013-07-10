@@ -1,6 +1,6 @@
 MODULE RepricingCommittee;
 
-REQUIRE Employee, Stock;
+REQUIRE EmployeeStock;
 
 //--------------------------------Комиссия для переоценки----------------------------------//
 CLASS RepricingCommittee 'Комиссия для переоценки' : Committee;
@@ -12,7 +12,7 @@ nameCommittee(committee) += nameRepricingCommittee(committee) IF committee IS Re
 repricingCommitteeStock 'Комиссия для переоценки' = DATA RepricingCommittee (Stock);
 nameRepricingCommitteeStock 'Комиссия для переоценки' (stock) = nameRepricingCommittee(repricingCommitteeStock(stock)) IN committeeGroup;
 isRepricingCommitteeStock 'По умолчанию' (repricingCommittee, stock) = repricingCommitteeStock(stock) == repricingCommittee;
-CONSTRAINT repricingCommitteeStock(stock) AND NOT inCommitteeEmployeeDivision(repricingCommitteeStock(stock), stock)
+CONSTRAINT repricingCommitteeStock(stock) AND NOT inCommitteeStock(repricingCommitteeStock(stock), stock)
     CHECKED BY repricingCommitteeStock MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
 
 FORM repricingCommittee 'Комиссия для переоценки'
@@ -24,7 +24,7 @@ FORM repricingCommittee 'Комиссия для переоценки'
 
     OBJECTS ts=Stock
     PROPERTIES    READONLY tsTreeName = nameStock(ts)
-    PROPERTIES(c, ts) inCommitteeEmployeeDivision FORCE GRID, isRepricingCommitteeStock
+    PROPERTIES(c, ts) inCommitteeStock FORCE GRID, isRepricingCommitteeStock
 
     FILTERS isParentStockGroupStock(sg, ts)
     ORDER BY tsTreeName
@@ -35,17 +35,17 @@ FORM repricingCommittee 'Комиссия для переоценки'
     PROPERTIES(e)      ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
     PROPERTIES(c, e)   inCommitteeEmployee
-    FILTERS            countDivisionEmployeeCommittee (e, c)
+    FILTERS            countStockEmployeeCommittee (e, c)
     FILTERGROUP filters6
         FILTER 'Показывать только членов комиссии' 'F10' inCommitteeEmployee(c, e)
 
     FILTERGROUP filters5
-        FILTER 'Показывать отделы только для данной комиссии' 'F9' inCommitteeEmployeeDivision(c, ts)
+        FILTER 'Показывать отделы только для данной комиссии' 'F9' inCommitteeStock(c, ts)
 
     EDIT RepricingCommittee OBJECT c
 ;
 @extendFormFilterStockAccess(Stock, ts, repricingCommittee);
-@extendFormFilterStockGroupAccess(StockGroup, sg, repricingCommittee, countAccessEmployeeEmployeeDivisionGroup);
+@extendFormFilterStockGroupAccess(StockGroup, sg, repricingCommittee);
 
 DESIGN repricingCommittee FROM DEFAULT {
     main {
@@ -71,7 +71,7 @@ DESIGN repricingCommittee FROM DEFAULT {
 
 FORM repricingCommitteeDialog 'Комиссии для переоценки'
     OBJECTS w=RepricingCommittee
-    PROPERTIES(w)      READONLY nameRepricingCommittee, nameEmployeeDivisionCommittee, nameEmployeeCommittee, nameChairmanCommittee
+    PROPERTIES(w)      READONLY nameRepricingCommittee, nameStocksCommittee, nameEmployeeCommittee, nameChairmanCommittee
     PROPERTIES(w)      ADDFORM, EDITFORM
 
     DIALOG RepricingCommittee OBJECT w
@@ -86,7 +86,7 @@ META defineDocumentHeaderRepricingCommittee(object, stockProp)
     repricingCommittee###object (object) <- repricingCommitteeStock(stockProp###object(object))
         WHEN CHANGED(stockProp###object(object));
 
-    CONSTRAINT repricingCommittee###object (object) AND NOT inCommitteeEmployeeDivision(repricingCommittee###object (object), stockProp###object(object))
+    CONSTRAINT repricingCommittee###object (object) AND NOT inCommitteeStock(repricingCommittee###object (object), stockProp###object(object))
         CHECKED BY repricingCommittee###object MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
 
     inCommittee###object##Employee (object, employee) = inCommitteeEmployee(repricingCommittee###object (object), employee);

@@ -9,7 +9,7 @@ REQUIRE System,
         Terminal,
         Barcode,
         Document,
-        Employee,
+        EmployeeStock,
         StockDocument,
         Utils;
 
@@ -25,7 +25,7 @@ nameCommittee(committee) += nameWriteOffCommittee(committee) IF committee IS Wri
 writeOffCommitteeStock 'Комиссия для списания товаров (ИД)' = DATA WriteOffCommittee (Stock);
 nameWriteOffCommitteeStock 'Комиссия для списания товаров' (stock) = nameWriteOffCommittee(writeOffCommitteeStock(stock)) IN committeeGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
 isWriteOffCommitteeStock 'По умолчанию' (writeOffCommittee, stock) = writeOffCommitteeStock(stock) == writeOffCommittee;
-CONSTRAINT writeOffCommitteeStock(stock) AND NOT inCommitteeEmployeeDivision(writeOffCommitteeStock(stock), stock)
+CONSTRAINT writeOffCommitteeStock(stock) AND NOT inCommitteeStock(writeOffCommitteeStock(stock), stock)
     CHECKED BY writeOffCommitteeStock MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
 
 FORM writeOffCommittee 'Комиссия для списания товаров'
@@ -37,7 +37,7 @@ FORM writeOffCommittee 'Комиссия для списания товаров'
 
     OBJECTS ts=Stock
     PROPERTIES    READONLY tsTreeName = nameStock(ts)
-    PROPERTIES(c, ts) inCommitteeEmployeeDivision FORCE GRID, isWriteOffCommitteeStock
+    PROPERTIES(c, ts) inCommitteeStock FORCE GRID, isWriteOffCommitteeStock
 
     FILTERS isParentStockGroupStock(sg, ts)
     ORDER BY tsTreeName
@@ -48,17 +48,17 @@ FORM writeOffCommittee 'Комиссия для списания товаров'
     PROPERTIES(e)      ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
     PROPERTIES(c, e)   inCommitteeEmployee
-    FILTERS            countDivisionEmployeeCommittee (e, c)
+    FILTERS            countStockEmployeeCommittee (e, c)
     FILTERGROUP filters6
         FILTER 'Показывать только членов комиссии' 'F10' inCommitteeEmployee(c, e)
 
     FILTERGROUP filters5
-        FILTER 'Показывать отделы только для данной комиссии' 'F9' inCommitteeEmployeeDivision(c, ts)
+        FILTER 'Показывать отделы только для данной комиссии' 'F9' inCommitteeStock(c, ts)
 
     EDIT WriteOffCommittee OBJECT c
 ;
 @extendFormFilterStockAccess(Stock, ts, writeOffCommittee);
-@extendFormFilterStockGroupAccess(StockGroup, sg, writeOffCommittee, countAccessEmployeeEmployeeDivisionGroup);
+@extendFormFilterStockGroupAccess(StockGroup, sg, writeOffCommittee);
 
 DESIGN writeOffCommittee FROM DEFAULT {
     main {
@@ -81,7 +81,7 @@ DESIGN writeOffCommittee FROM DEFAULT {
 
 FORM writeOffCommittees 'Комиссии для списания товаров'
     OBJECTS w=WriteOffCommittee
-    PROPERTIES(w)      READONLY nameWriteOffCommittee, nameEmployeeDivisionCommittee, nameEmployeeCommittee
+    PROPERTIES(w)      READONLY nameWriteOffCommittee, nameStocksCommittee, nameEmployeeCommittee
     PROPERTIES(w)      ADDFORM, EDITFORM
 
     DIALOG WriteOffCommittee OBJECT w
@@ -95,7 +95,7 @@ META defineDocumentHeaderWriteOffCommittee(object, stockProp)
     writeOffCommittee###object (object) <- writeOffCommitteeStock(stockProp###object(object))
         WHEN CHANGED(stockProp###object(object));
 
-    CONSTRAINT writeOffCommittee###object (object) AND NOT inCommitteeEmployeeDivision(writeOffCommittee###object (object), stockProp###object(object))
+    CONSTRAINT writeOffCommittee###object (object) AND NOT inCommitteeStock(writeOffCommittee###object (object), stockProp###object(object))
         CHECKED BY writeOffCommittee###object MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
 
     inWriteOffCommittee###object##Employee (object, employee) = inCommitteeEmployee(writeOffCommittee###object (object), employee);
@@ -319,7 +319,7 @@ FORM writeOffs 'Списания'
 
     FILTERS writeOffWriteOffDetail(d) == w
 ;
-@extendFormFilterAccess(WriteOff, w, writeOffs, stock);
+@extendFormFilterAccessStock(WriteOff, w, writeOffs, stock, company);
 
 DESIGN writeOffs FROM DEFAULT {
     PROPERTY (deletew) {

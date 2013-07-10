@@ -7,7 +7,7 @@ REQUIRE System,
         Terminal,
         Barcode,
         Document,
-        Employee,
+        EmployeeStock,
         StockDocument,
         Utils;
 
@@ -34,7 +34,7 @@ FORM inventoryCommittee 'Комиссия для инвентаризации'
 
     OBJECTS ts=Stock
     PROPERTIES    READONLY tsTreeName = nameStock(ts)
-    PROPERTIES(c, ts) inCommitteeEmployeeDivision FORCE GRID
+    PROPERTIES(c, ts) inCommitteeStock FORCE GRID
 
     FILTERS isParentStockGroupStock(sg, ts)
     ORDER BY tsTreeName
@@ -45,17 +45,17 @@ FORM inventoryCommittee 'Комиссия для инвентаризации'
     PROPERTIES(e)      ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
     PROPERTIES(c, e)   inCommitteeEmployee
-    FILTERS            countDivisionEmployeeCommittee (e, c)
+    FILTERS            countStockEmployeeCommittee (e, c)
     FILTERGROUP filters6
         FILTER 'Показывать только членов комиссии' 'F10' inCommitteeEmployee(c, e)
 
     FILTERGROUP filters5
-        FILTER 'Показывать отделы только для данной комиссии' 'F9' inCommitteeEmployeeDivision(c, ts)
+        FILTER 'Показывать отделы только для данной комиссии' 'F9' inCommitteeStock(c, ts)
 
     EDIT InventoryCommittee OBJECT c
 ;
 @extendFormFilterStockAccess(Stock, ts, inventoryCommittee);
-@extendFormFilterStockGroupAccess(StockGroup, sg, inventoryCommittee, countAccessEmployeeEmployeeDivisionGroup);
+@extendFormFilterStockGroupAccess(StockGroup, sg, inventoryCommittee);
 
 DESIGN inventoryCommittee FROM DEFAULT {
     main {
@@ -76,7 +76,7 @@ DESIGN inventoryCommittee FROM DEFAULT {
 
 FORM inventoryCommittees 'Комиссии для инвентаризации'
     OBJECTS w=InventoryCommittee
-    PROPERTIES(w)      READONLY nameInventoryCommittee, nameEmployeeDivisionCommittee, nameEmployeeCommittee, nameChairmanCommittee
+    PROPERTIES(w)      READONLY nameInventoryCommittee, nameStocksCommittee, nameEmployeeCommittee, nameChairmanCommittee
     PROPERTIES(w)      ADDFORM, EDITFORM
 
     DIALOG InventoryCommittee OBJECT w
@@ -771,7 +771,7 @@ FORM dialogStockInventory 'Выбор складов для инвентариз
     ORDER BY tsTreeName
 ;
 @extendFormFilterStockAccess(Stock, ts, dialogStockInventory);
-@extendFormFilterStockGroupAccess(StockGroup, sg, dialogStockInventory, countAccessEmployeeEmployeeDivisionGroup);
+@extendFormFilterStockGroupAccess(StockGroup, sg, dialogStockInventory);
 
 DESIGN dialogStockInventory FROM DEFAULT {
     main{

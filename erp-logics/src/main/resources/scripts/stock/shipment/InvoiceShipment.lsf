@@ -4,7 +4,7 @@ REQUIRE Invoice, Shipment;
 
 NAMESPACE Shipment;
 
-META defineInvoiceShipment(sign, stockProp)
+META defineInvoiceShipment(sign, stockProp, filter)
 
     invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT;
     invoiceDetailUserShipmentDetail = DATA InvoiceDetail (UserShipmentDetail);
@@ -182,7 +182,7 @@ META defineInvoiceShipment(sign, stockProp)
         PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) SHOWIF createShipmentUserInvoice(i) shipmentSumUserInvoiceDetailUserInvoice,
                       shipmentDateUserInvoice, shipmentTimeUserInvoice
         PROPERTIES(d) BEFORE deleteid SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      expiryDateUserInvoiceDetail, name###stockProp###userInvoiceDetail, shipmentPriceUserInvoiceDetail, shipmentSumUserInvoiceDetail
+                      expiryDateUserInvoiceDetail, name###stockProp###userInvoiceDetail ON CHANGE changeData###stockProp###filter###userInvoiceDetail(d), shipmentPriceUserInvoiceDetail, shipmentSumUserInvoiceDetail
         PROPERTIES(d) READONLY shippedInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF showShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
         PROPERTIES(d) shipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
     ;
@@ -231,9 +231,9 @@ META defineInvoiceShipment(sign, stockProp)
     customerStockShipment(shipment) += customerStockInvoiceShipment(shipment);
     dataCustomerStockShipmentDetail(shipmentDetail) += dataCustomerStockInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
 
-    @defineDocumentAggregationStockPrefix(invoice, invoiceShipment, supplier, 'Поставщик', , );
+    @defineDocumentAggregationLegalEntityPrefix(invoice, invoiceShipment, supplier, 'Поставщик', , );
     supplierShipment(shipment) += supplierInvoiceShipment(shipment);
-    @defineDocumentAggregationStockPrefix(invoice, invoiceShipment, customer, 'Покупатель', , );
+    @defineDocumentAggregationLegalEntityPrefix(invoice, invoiceShipment, customer, 'Покупатель', , );
     customerShipment(shipment) += customerInvoiceShipment(shipment);
 
     @defineDocumentAggregationPosted(invoice, invoiceShipment);

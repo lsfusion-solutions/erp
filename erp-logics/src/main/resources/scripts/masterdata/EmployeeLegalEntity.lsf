@@ -1,0 +1,162 @@
+MODULE EmployeeLegalEntity;
+
+REQUIRE Employee, LegalEntity;
+
+TABLE legalEntityEmployee (LegalEntity, Employee);
+TABLE legalEntityGroupEmployee(LegalEntityGroup, Employee);
+
+//--  Компания
+dataAccessCompanyLegalEntityEmployee 'Доступ разрешен (компания)' = DATA BOOLEAN (LegalEntity, Employee);
+dataAccessCompanyLegalEntityGroupEmployee 'Доступ разрешен (компания)' = DATA BOOLEAN (LegalEntityGroup, Employee);
+
+levelParentCompanyEmployeeLegalEntityGroup (employee, legalEntityGroup) = GROUP MIN levelLegalEntityGroupLegalEntityGroup(legalEntityGroup, parent) IF dataAccessCompanyLegalEntityGroupEmployee(parent, employee)
+                                                               BY employee, legalEntityGroup PERSISTENT;
+nearestParentCompanyEmployeeLegalEntityGroup (employee, legalEntityGroup) = legalEntityGroupLegalEntityGroupLevel(legalEntityGroup, levelParentCompanyEmployeeLegalEntityGroup(employee, legalEntityGroup));
+nearestInCompanyEmployeeLegalEntityGroup (employee, legalEntityGroup) =
+    dataAccessCompanyLegalEntityGroupEmployee(nearestParentCompanyEmployeeLegalEntityGroup (employee, legalEntityGroup), employee);
+
+accessCompanyEmployeeLegalEntityGroup 'Доступ разрешен (компания)' (employee, legalEntityGroup) = OVERRIDE
+    employee IS Employee AND legalEntityGroup IS LegalEntityGroup AND NOT limitAccessEmployee(employee),
+    nearestInCompanyEmployeeLegalEntityGroup(employee, legalEntityGroup),
+    dataAccessCompanyLegalEntityGroupEmployee(legalEntityGroup, employee); // PERSISTENT;
+
+accessCompanyEmployeeLegalEntity 'Доступ разрешен (компания)' (employee, legalEntity) = OVERRIDE
+    employee IS Employee AND legalEntity IS LegalEntity AND NOT limitAccessEmployee(employee),
+    nearestInCompanyEmployeeLegalEntityGroup(employee, legalEntityGroupLegalEntity(legalEntity)),
+    dataAccessCompanyLegalEntityEmployee(legalEntity, employee); // PERSISTENT;
+
+countAccessCompanyEmployeeLegalEntityGroup 'Кол-во доступных подразделений (компания)' (employee, legalEntityGroup) =
+    GROUP SUM 1 IF accessCompanyEmployeeLegalEntity(employee, legalEntity)
+                AND isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(legalEntity), legalEntityGroup)
+          BY employee, legalEntityGroup PERSISTENT;
+//-- Поставщик
+dataAccessSupplierLegalEntityEmployee 'Доступ разрешен (поставщик)' = DATA BOOLEAN (LegalEntity, Employee);
+dataAccessSupplierLegalEntityGroupEmployee 'Доступ разрешен (поставщик)' = DATA BOOLEAN (LegalEntityGroup, Employee);
+levelParentSupplierEmployeeLegalEntityGroup (employee, legalEntityGroup) = GROUP MIN levelLegalEntityGroupLegalEntityGroup(legalEntityGroup, parent) IF dataAccessSupplierLegalEntityGroupEmployee(parent, employee)
+                                                               BY employee, legalEntityGroup PERSISTENT;
+nearestParentSupplierEmployeeLegalEntityGroup (employee, legalEntityGroup) = legalEntityGroupLegalEntityGroupLevel(legalEntityGroup, levelParentSupplierEmployeeLegalEntityGroup(employee, legalEntityGroup));
+nearestInSupplierEmployeeLegalEntityGroup (employee, legalEntityGroup) =
+    dataAccessSupplierLegalEntityGroupEmployee(nearestParentSupplierEmployeeLegalEntityGroup (employee, legalEntityGroup), employee);
+
+accessSupplierEmployeeLegalEntityGroup 'Доступ разрешен (поставщик)' (employee, legalEntityGroup) = OVERRIDE
+    employee IS Employee AND legalEntityGroup IS LegalEntityGroup AND NOT limitAccessEmployee(employee),
+    nearestInSupplierEmployeeLegalEntityGroup(employee, legalEntityGroup),
+    dataAccessSupplierLegalEntityGroupEmployee(legalEntityGroup, employee); // PERSISTENT;
+
+accessSupplierEmployeeLegalEntity 'Доступ разрешен (поставщик)' (employee, legalEntity) = OVERRIDE
+    employee IS Employee AND legalEntity IS LegalEntity AND NOT limitAccessEmployee(employee),
+    nearestInSupplierEmployeeLegalEntityGroup(employee, legalEntityGroupLegalEntity(legalEntity)),
+    dataAccessSupplierLegalEntityEmployee(legalEntity, employee); // PERSISTENT;
+
+countAccessSupplierEmployeeLegalEntityGroup 'Кол-во доступных подразделений (поставщик)' (employee, legalEntityGroup) =
+    GROUP SUM 1 IF accessSupplierEmployeeLegalEntity(employee, legalEntity)
+                AND isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(legalEntity), legalEntityGroup)
+          BY employee, legalEntityGroup PERSISTENT;
+//--  Покупатель
+dataAccessCustomerLegalEntityEmployee 'Доступ разрешен (покупатель)' = DATA BOOLEAN (LegalEntity, Employee);
+dataAccessCustomerLegalEntityGroupEmployee 'Доступ разрешен (покупатель)' = DATA BOOLEAN (LegalEntityGroup, Employee);
+
+levelParentCustomerEmployeeLegalEntityGroup (employee, legalEntityGroup) = GROUP MIN levelLegalEntityGroupLegalEntityGroup(legalEntityGroup, parent) IF dataAccessCustomerLegalEntityGroupEmployee(parent, employee)
+                                                               BY employee, legalEntityGroup PERSISTENT;
+nearestParentCustomerEmployeeLegalEntityGroup (employee, legalEntityGroup) = legalEntityGroupLegalEntityGroupLevel(legalEntityGroup, levelParentCustomerEmployeeLegalEntityGroup(employee, legalEntityGroup));
+nearestInCustomerEmployeeLegalEntityGroup (employee, legalEntityGroup) =
+    dataAccessCustomerLegalEntityGroupEmployee(nearestParentCustomerEmployeeLegalEntityGroup (employee, legalEntityGroup), employee);
+
+accessCustomerEmployeeLegalEntityGroup 'Доступ разрешен (покупатель)' (employee, legalEntityGroup) = OVERRIDE
+    employee IS Employee AND legalEntityGroup IS LegalEntityGroup AND NOT limitAccessEmployee(employee),
+    nearestInCustomerEmployeeLegalEntityGroup(employee, legalEntityGroup),
+    dataAccessCustomerLegalEntityGroupEmployee(legalEntityGroup, employee); // PERSISTENT;
+
+accessCustomerEmployeeLegalEntity 'Доступ разрешен (покупатель)' (employee, legalEntity) = OVERRIDE
+    employee IS Employee AND legalEntity IS LegalEntity AND NOT limitAccessEmployee(employee),
+    nearestInCustomerEmployeeLegalEntityGroup(employee, legalEntityGroupLegalEntity(legalEntity)),
+    dataAccessCustomerLegalEntityEmployee(legalEntity, employee); // PERSISTENT;
+
+countAccessCustomerEmployeeLegalEntityGroup 'Кол-во доступных подразделений (покупатель)' (employee, legalEntityGroup) =
+    GROUP SUM 1 IF accessCustomerEmployeeLegalEntity(employee, legalEntity)
+                AND isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(legalEntity), legalEntityGroup)
+          BY employee, legalEntityGroup PERSISTENT;
+
+EXTEND FORM employee
+
+    TREE legalEntityTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
+    PROPERTIES READONLY  lgTreeName = nameLegalEntityGroup(lg)
+    ORDER BY lgTreeName
+    PROPERTIES(e,lg) accessSupplierEmployeeLegalEntityGroup, accessCompanyEmployeeLegalEntityGroup, accessCustomerEmployeeLegalEntityGroup
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) READONLY idLegalEntity SHOWIF showIDs(), legalEntityName = nameLegalEntity
+    ORDER BY legalEntityName
+    FILTERS isParentLegalEntityGroupLegalEntity(lg, l) OR (l IS LegalEntity AND NOT lg)
+
+    PROPERTIES(e,l) accessSupplierEmployeeLegalEntity, accessCompanyEmployeeLegalEntity, accessCustomerEmployeeLegalEntity
+;
+EXTEND DESIGN employee {
+    topContainer {
+        NEW legalEntityContainer {
+            caption = 'Организации';
+            type = SPLITH;
+            childConstraints = TO THE RIGHT;
+            ADD legalEntityTree.tree.box {
+            }
+            ADD l.box {
+                l.grid {
+                    defaultComponent = TRUE;
+                    fillHorizontal = 2;
+                }
+            }
+        }
+    }
+}
+
+// ------------------------------------ Доступные организации для пользователей -------------------------- //
+
+countAccessSupplierEmployee (employee) = GROUP SUM 1 IF isSupplierLegalEntity(legalEntity) AND accessSupplierEmployeeLegalEntity(employee, legalEntity)
+                                               BY employee;
+countAccessCompanyEmployee (employee) = GROUP SUM 1 IF isCompanyLegalEntity(legalEntity) AND accessCompanyEmployeeLegalEntity(employee, legalEntity)
+                                              BY employee;
+countAccessCustomerEmployee (employee)= GROUP SUM 1 IF isCustomerLegalEntity(legalEntity) AND accessCustomerEmployeeLegalEntity(employee, legalEntity)
+                                              BY employee;
+
+defaultSupplierEmployee 'Поставщик по умолчанию' (employee)= GROUP MIN legalEntity IF isSupplierLegalEntity(legalEntity) AND accessSupplierEmployeeLegalEntity(employee, legalEntity)
+                                                                   BY employee;
+defaultCompanyEmployee 'Компания по умолчанию' (employee)= GROUP MIN legalEntity IF isCompanyLegalEntity(legalEntity) AND accessCompanyEmployeeLegalEntity(employee, legalEntity)
+                                                                 BY employee;
+defaultCustomerEmployee 'Покупатель по умолчанию' (employee)= GROUP MIN legalEntity IF isCustomerLegalEntity(legalEntity) AND accessCustomerEmployeeLegalEntity(employee, legalEntity)
+                                                                    BY employee;
+
+// Для документа, у которого задана организация
+META extendFormFilterAccessLegalEntity(object, concrete, form, organizationProp, filter)
+    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR access###filter##EmployeeLegalEntity(currentUser(),organizationProp###object(concrete));
+END
+// Когда организация идет объектом
+META extendFormFilterLegalEntityAccess(object, concrete, form, filter)
+    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR access###filter##EmployeeLegalEntity(currentUser(), concrete);
+END
+META extendFormFilterLegalEntityAccess(object, concrete, form) // по умолчанию для компании
+    @extendFormFilterLegalEntityAccess(object, concrete, form, company);
+END
+// Для группы организаций
+META extendFormFilterLegalEntityGroupAccess(object, concrete, form, filter)
+    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR countAccess###filter##EmployeeLegalEntityGroup(currentUser(), concrete);
+END
+META extendFormFilterLegalEntityGroupAccess(object, concrete, form) // по умолчанию для компании
+    @extendFormFilterLegalEntityGroupAccess(object, concrete, form, company);
+END
+
+// ----------------------------- Автоматическое проставление организаций и складов --------------------------------------- //
+
+META defineDocumentLegalEntityAccess(objectClass, prefix, filter)
+    prefix###objectClass(o) <- default###filter##Employee(currentUser()) IF countAccess###filter##Employee (currentUser()) == 1
+                                           WHEN SET(o IS objectClass);
+END
+
+// ----------------------------- Проставляем фильтры на формы --------------------------------------- //
+@extendFormFilterLegalEntityAccess(LegalEntity, l, supplierLegalEntities, supplier);
+@extendFormFilterLegalEntityGroupAccess(LegalEntity, lg, supplierLegalEntities, supplier);
+
+@extendFormFilterLegalEntityAccess(LegalEntity, l, customerLegalEntities, customer);
+@extendFormFilterLegalEntityGroupAccess(LegalEntity, lg, customerLegalEntities, customer);
+
+@extendFormFilterLegalEntityAccess(LegalEntity, l, companyLegalEntities, company);
+@extendFormFilterLegalEntityGroupAccess(LegalEntity, lg, companyLegalEntities, company);

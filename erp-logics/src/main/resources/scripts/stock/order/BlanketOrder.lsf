@@ -4,7 +4,7 @@ REQUIRE Order;
 
 //----------------------------------------------- Множественнвй Заказ ---------------------------------------------------//
 
-META defineBlanketOrder(sign)
+META defineBlanketOrder(sign, supplierFilter, customerFilter)
 
     CLASS BlanketOrder 'Множественный заказ'###sign : Historizable, NumeratedDocument;
     CLASS BlanketOrderDetail 'Строка множественного заказа'###sign;
@@ -119,12 +119,20 @@ META defineBlanketOrder(sign)
 
     @defineMovementSku(blanketOrderDetail, supplierStock); //-- показываем по нажатию правой клавиши движение товара
     @defineBalancesSku(blanketOrderDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+    @defineDocumentDialogStock(blanketOrder, supplierFilter, supplier);
+    @defineDocumentDialogStock(blanketOrderDetail, supplierFilter, dataSupplier);
+    @defineDocumentDialogStock(blanketOrderDetail, customerFilter, customer);
+    @defineDocumentDialogSupplierCustomerLegalEntity(blanketOrder, supplierFilter, customerFilter);
 // --------------------------- Формы Заказа ---------------------------------
 
     FORM blanketOrder 'Множественный заказ'###sign
         OBJECTS o = BlanketOrder FIXED PANEL
-        PROPERTIES (o) objectClassName, nameSupplierBlanketOrder, nameSupplierStockBlanketOrder, nameNumeratorObject, numberObject, seriesObject, dateBlanketOrder, timeBlanketOrder,
-                       nameCurrencyBlanketOrder, noteBlanketOrder, nameCustomerBlanketOrder, nameAgreementBlanketOrder,
+        PROPERTIES (o) objectClassName, nameSupplierBlanketOrder ON CHANGE changeSupplier###supplierFilter###blanketOrder(o),
+                       nameSupplierStockBlanketOrder ON CHANGE changeSupplierStock###supplierFilter###blanketOrder(o),
+                       nameNumeratorObject, numberObject, seriesObject, dateBlanketOrder, timeBlanketOrder,
+                       nameCurrencyBlanketOrder, noteBlanketOrder,
+                       nameCustomerBlanketOrder ON CHANGE changeCustomer###customerFilter###blanketOrder(o), nameAgreementBlanketOrder,
                        countBlanketOrderDetailBlanketOrder, quantityBlanketOrderDetailBlanketOrder, sumBlanketOrderDetailBlanketOrder,
                        VATSumBlanketOrderDetailBlanketOrder, invoiceSumBlanketOrderDetailBlanketOrder, shipmentDateBlanketOrder, shipmentTimeBlanketOrder
 
@@ -136,7 +144,9 @@ META defineBlanketOrder(sign)
                        numberVATBlanketOrderDetail ON CHANGE changeNumberVATBlanketOrderDetail(d),
                        valueVATBlanketOrderDetail ON CHANGE changeValueVATBlanketOrderDetail(d),
                        invoicePriceBlanketOrderDetail ON CHANGE changeInvoicePriceBlanketOrderDetail(d),
-                       VATSumBlanketOrderDetail, invoiceSumBlanketOrderDetail, nameSupplierStockBlanketOrderDetail, nameCustomerStockBlanketOrderDetail,
+                       VATSumBlanketOrderDetail, invoiceSumBlanketOrderDetail,
+                       nameSupplierStockBlanketOrderDetail ON CHANGE changeDataSupplierStock###supplierFilter###blanketOrderDetail(d),
+                       nameCustomerStockBlanketOrderDetail ON CHANGE changeCustomerStock###customerFilter###blanketOrderDetail(d),
                        shipmentDateBlanketOrderDetail, shipmentTimeBlanketOrderDetail, ADDOBJ, DELETESESSION
 
         OBJECTS c = Stock
@@ -256,7 +266,6 @@ META defineBlanketOrder(sign)
         FILTERS blanketOrderBlanketOrderDetail(d) == o
         DIALOG BlanketOrder OBJECT o
     ;
-    @extendFormFilterAccess(BlanketOrder, o, blanketOrders, supplierStock);
 
     DESIGN blanketOrders FROM DEFAULT {
         PROPERTY(objectClassName) {

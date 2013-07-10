@@ -1,6 +1,6 @@
 MODULE StockDocument;
 
-REQUIRE System, Stock, Employee, Utils;
+REQUIRE System, EmployeeStock, Utils;
 
 CLASS ABSTRACT StockDocumentLedger 'Учетный документ';
 TABLE stockDocumentLedger (StockDocumentLedger);
@@ -147,21 +147,21 @@ nameMRPStock 'Материально ответственное лицо' (stock
     nameContact (MRPStock(stock)) IN responsibilityGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
 namePositionMRPStock 'Материально ответственное лицо (должность)' =
     namePositionEmployee(MRPStock(stock)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
-CONSTRAINT MRPStock(stock) AND NOT inEmployeeDivisionEmployee(stock, MRPStock(stock))
+CONSTRAINT MRPStock(stock) AND NOT inStockEmployee(stock, MRPStock(stock))
     CHECKED BY MRPStock MESSAGE 'МОЛ не сотрудник отдела';
 
 accountantStock 'Бухгалтер, принимающий товарный отчет (ИД)' = DATA Employee (Stock);
 nameAccountantStock 'Бухгалтер, принимающий товарный отчет' (stock) = nameContact(accountantStock(stock)) IN responsibilityGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
 namePositionAccountantStock 'Бухгалтер, принимающий товарный отчет (должность)' =
     namePositionEmployee(accountantStock(stock));
-CONSTRAINT accountantStock(stock) AND NOT inEmployeeDivisionEmployee(stock, accountantStock(stock))
+CONSTRAINT accountantStock(stock) AND NOT inStockEmployee(stock, accountantStock(stock))
     CHECKED BY accountantStock MESSAGE 'Бухгалтер не сотрудник отдела';
 
 auditorStock 'Кто проверяет товарный отчет (ИД)' = DATA Employee (Stock);
 nameAuditorStock 'Кто проверяет товарный отчет' (stock) = nameContact(auditorStock(stock)) IN responsibilityGroup;
 namePositionAuditorStock 'Кто проверяет товарный отчет (должность)' =
     namePositionEmployee(auditorStock(stock));
-CONSTRAINT auditorStock(stock) AND NOT inEmployeeDivisionEmployee(stock, auditorStock(stock))
+CONSTRAINT auditorStock(stock) AND NOT inStockEmployee(stock, auditorStock(stock))
     CHECKED BY auditorStock MESSAGE 'Проверяющий не сотрудник отдела';
 
 // -------------------------------------- Формы --------------------------------------------- //

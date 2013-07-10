@@ -49,7 +49,7 @@ END
 
 //----------------------------------------------- Поставка ---------------------------------------------------//
 
-META defineShipment(captions, sign, stockProp)
+META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, filter)
 
     CLASS ABSTRACT Shipment 'Поставка'###sign : Shipment.Shipment;
     CLASS ABSTRACT ShipmentDetail 'Строка поставки'###sign : Shipment.ShipmentDetail;
@@ -124,6 +124,11 @@ META defineShipment(captions, sign, stockProp)
     @defineMovementSku(userShipmentDetail, stockProp); //-- показываем по нажатию правой клавиши движение товара
     @defineBalancesSku(shipmentDetail); //-- показываем по нажатию правой клавиши остатки товара
     @defineBalancesSku(userShipmentDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+    @defineDocumentDialogSupplierCustomerStock(userShipment, supplierFilter, customerFilter);
+    @defineDocumentDialogSupplierCustomerStockDetail(userShipmentDetail, supplierFilter, customerFilter);
+    @defineDocumentDialogSupplierCustomerLegalEntity(userShipment, supplierFilter, customerFilter);
+
 // --------------------------- Формы --------------------------------- //
 
     editShipment 'Редактировать' = ABSTRACT ACTION LIST (Shipment) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -132,7 +137,10 @@ META defineShipment(captions, sign, stockProp)
     editSkuUserShipmentDetail 'Редактировать SKU' (d) = editSku(skuUserShipmentDetail(d));
     FORM userShipment 'Поставка'###sign
         OBJECTS s = UserShipment FIXED PANEL
-        PROPERTIES (s) objectClassName, nameSupplierUserShipment, nameCustomerUserShipment, nameSupplierStockUserShipment, nameCustomerStockUserShipment,
+        PROPERTIES (s) objectClassName, nameSupplierUserShipment ON CHANGE changeSupplier###supplierFilter###userShipment(s),
+                       nameCustomerUserShipment ON CHANGE changeCustomer###customerFilter###userShipment(s),
+                       nameSupplierStockUserShipment ON CHANGE changeSupplierStock###supplierFilter###userShipment(s),
+                       nameCustomerStockUserShipment ON CHANGE changeCustomerStock###customerFilter###userShipment(s),
                        nameNumeratorObject, numberObject, seriesObject, dateUserShipment, timeUserShipment,
                        nameCurrencyUserShipment, noteUserShipment, countUserShipmentDetailUserShipment, quantityUserShipmentDetailUserShipment,
                        sumUserShipmentDetailUserShipment
@@ -141,7 +149,7 @@ META defineShipment(captions, sign, stockProp)
         PROPERTIES (d) indexUserShipmentDetail
         PROPERTIES (d) ON EDIT editSkuUserShipmentDetail(d) idBarcodeSkuUserShipmentDetail, nameSkuUserShipmentDetail, shortNameUOMSkuUserShipmentDetail
         PROPERTIES (d) quantityUserShipmentDetail, priceUserShipmentDetail, sumUserShipmentDetail, expiryDateUserShipmentDetail,
-                       name###stockProp###shipmentDetail, ADDOBJ, deletesd=DELETESESSION
+                       name###stockProp###shipmentDetail ON CHANGE changeData###stockProp###filter###userShipmentDetail(d), ADDOBJ, deletesd=DELETESESSION
 
         PROPERTIES(s) TODRAW d fillDocumentShipment, addDetailDialogSkuStockUserShipmentDetailUserShipment,
                                addDetailInputBarcodeUserShipmentDetailUserShipment, deleteUserShipmentDetailUserShipment
@@ -290,7 +298,6 @@ META defineShipment(captions, sign, stockProp)
 
         DIALOG Shipment OBJECT s
     ;
-    @extendFormFilterAccess(Shipment, s, shipments, stockProp);
 
     DESIGN shipments FROM DEFAULT {
         PROPERTY (deletes) {

@@ -7,14 +7,19 @@ PRIORITY Purchase, Operation;
 NAMESPACE PurchaseReturn;
 
 //----------------------------------------------- Поставка ---------------------------------------------------//
-@defineShipment('Возвраты', ' (закупка-возврат)', customerStock);
+@defineShipment('Возвраты', ' (закупка-возврат)', customerStock, supplier, company, company);
+
+@extendFormFilterAccessStock(Shipment, s, shipments, customerStock, company);
+@extendFormFilterAccessStock(Shipment, s, shipments, supplierStock, supplier);
+@extendFormFilterAccessLegalEntity(Shipment, s, shipments, customer, company);
+@extendFormFilterAccessLegalEntity(Shipment, s, shipments, supplier, supplier);
 @defineShipmentBatch(customerStock);
 expiryDateUserShipmentDetail(detail) <- expiryDateBatch(batchUserShipmentDetail(detail)) WHEN CHANGED (batchUserShipmentDetail(detail));
 
 @defineShipmentStockDestination(customerStock, supplierStock);
 
 @defineOrderShipment(' (закупка-возврат)', customerStock);
-@defineInvoiceShipment(' (закупка-возврат)', customerStock);
+@defineInvoiceShipment(' (закупка-возврат)', customerStock, company);
 @defineInvoiceShipmentAction(' (закупка-возврат)');
 
 @defineInvoiceShipmentBatch();
