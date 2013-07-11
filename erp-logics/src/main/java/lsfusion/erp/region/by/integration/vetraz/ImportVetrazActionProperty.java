@@ -16,6 +16,7 @@ import lsfusion.server.session.DataSession;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -375,7 +376,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
                 sprmatMap.put(k_mat, new Object[]{numberUserInvoice, date, shortNameCurrency,
                         idSupplier, idItem, price, manufacturingPrice, certificateText, numberDeclaration,
                         dateDeclaration, numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin,
-                        rateExchange, homePrice, priceDuty, isHomeCurrency, codeCustomsGroup, retailVAT});
+                        rateExchange, isForeign, homePrice, priceDuty, isHomeCurrency, codeCustomsGroup, retailVAT});
         }
 
 
@@ -394,9 +395,10 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             osttImportFile.read();
 
             String k_mat = getFieldValue(osttImportFile, "K_MAT", "Cp866", "");
-            BigDecimal quantity = getBigDecimalFieldValue(osttImportFile, "N_MAT", "Cp866", null);
-            String idWarehouse = getFieldValue(osttImportFile, "K_SKL", "Cp866", "");
-            idWarehouse = idWarehouse.isEmpty() ? null : ("СК" + idWarehouse);
+            BigDecimal quantity = getBigDecimalFieldValue(osttImportFile, "N_MAT", "Cp866", "0");
+            BigDecimal shipmentSum = getBigDecimalFieldValue(osttImportFile, "N_SUM", "Cp866", null);
+            String idCustomerStock = getFieldValue(osttImportFile, "K_SKL", "Cp866", "");
+            idCustomerStock = idCustomerStock.isEmpty() ? null : ("СК" + idCustomerStock);
 
             Object[] sprmatEntry = sprmatMap.get(k_mat);
 
@@ -416,17 +418,19 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             Date expiryDate = sprmatEntry == null ? null : (Date) sprmatEntry[13];
             String bin = sprmatEntry == null ? null : (String) sprmatEntry[14];
             BigDecimal rateExchange = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[15];
-            BigDecimal homePrice = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[16];
-            BigDecimal priceDuty = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[17];
-            Boolean isHomeCurrency = sprmatEntry == null ? null : (Boolean) sprmatEntry[18];
-            String codeCustomsGroup = sprmatEntry == null ? null : (String) sprmatEntry[19];
-            BigDecimal retailVAT = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[20];
+            Boolean isForeign = sprmatEntry == null ? null : (Boolean) sprmatEntry[16];
+            BigDecimal homePrice = sprmatEntry == null ? null : (isForeign ? (BigDecimal) sprmatEntry[17] : safeDivide(shipmentSum, quantity, 2));
+            BigDecimal priceDuty = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[18];
+            Boolean isHomeCurrency = sprmatEntry == null ? null : (Boolean) sprmatEntry[19];
+            String codeCustomsGroup = sprmatEntry == null ? null : (String) sprmatEntry[20];
+            BigDecimal retailVAT = sprmatEntry == null ? null : (BigDecimal) sprmatEntry[21];
 
             if (sprmatEntry != null && quantity != null && quantity.doubleValue() != 0)
                 data.add(new UserInvoiceDetail(numberUserInvoice + String.valueOf(date) + shortNameCurrency + idSupplier,
                         null, numberUserInvoice, null, true, k_mat, date, idItem, null, quantity,
-                        idSupplier, idWarehouse, idSupplier + "WH",
-                        (price == null || price.doubleValue() == 0) ? null : price, manufacturingPrice, null, null,
+                        idSupplier, idCustomerStock, idSupplier + "WH",
+                        (price == null || price.doubleValue() == 0) ? null : price,
+                        isForeign ? manufacturingPrice : homePrice, isForeign ? null : shipmentSum, null,
                         manufacturingPrice, null, null, null, null, certificateText, null, numberDeclaration,
                         dateDeclaration, numberCompliance, fromDateCompliance, toDateCompliance, expiryDate, bin,
                         rateExchange, homePrice, priceDuty, null, null, null, isHomeCurrency, shortNameCurrency,
@@ -647,6 +651,12 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
         if (operand1 == null && operand2 == null)
             return null;
         else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+    }
+
+    private BigDecimal safeDivide(BigDecimal dividend, BigDecimal quotient, int scale) {
+        if (dividend == null || dividend.doubleValue() == 0 || quotient == null || quotient.doubleValue() == 0)
+            return null;
+        else return dividend.divide(quotient, scale, RoundingMode.HALF_UP);
     }
 
 }
