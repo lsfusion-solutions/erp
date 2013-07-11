@@ -2008,8 +2008,8 @@ FORM balancesSkuStock 'Остатки'
     PROPERTIES READONLY currentBalanceSkuStock(s,st)
 
     ORDER BY idStock
-    FILTERS currentBalanceSkuStock(s,st)
-//            isCompanyStock(st)
+    FILTERS currentBalanceSkuStock(s,st),
+            isCompanyStock(st)
 ;
 META defineBalancesSku(detail)
     showBalancesSkuStock###detail 'Показать остатки товара' (detail) = ACTION FORM balancesSkuStock OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
@@ -2815,7 +2815,8 @@ DESIGN stocks FROM DEFAULT {
     }
 }
 
-FORM companyStocks 'Склады компания'
+FORM companyStocks 'Склады'
+    OBJECTS l = LegalEntity FIXED PANEL
 
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
     PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
@@ -2826,7 +2827,8 @@ FORM companyStocks 'Склады компания'
     PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
     PROPERTIES(s)          editStock
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
+            inLegalEntityStock(l,s)
 ;
 
 DESIGN companyStocks FROM DEFAULT {
@@ -2852,7 +2854,8 @@ DESIGN companyStocks FROM DEFAULT {
         ADD functions.box;
     }
 }
-FORM supplierStocks 'Склады поставщик'
+FORM supplierStocks 'Склады'
+    OBJECTS l = LegalEntity FIXED PANEL
 
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
     PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
@@ -2863,7 +2866,8 @@ FORM supplierStocks 'Склады поставщик'
     PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
     PROPERTIES(s)          editStock
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
+            inLegalEntityStock(l,s)
 ;
 
 DESIGN supplierStocks FROM DEFAULT {
@@ -2889,7 +2893,8 @@ DESIGN supplierStocks FROM DEFAULT {
         ADD functions.box;
     }
 }
-FORM customerStocks 'Склады покупатель'
+FORM customerStocks 'Склады'
+    OBJECTS l = LegalEntity FIXED PANEL
 
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
     PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
@@ -2900,7 +2905,8 @@ FORM customerStocks 'Склады покупатель'
     PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
     PROPERTIES(s)          editStock
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
+            inLegalEntityStock(l,s)
 ;
 
 DESIGN customerStocks FROM DEFAULT {
@@ -2927,25 +2933,25 @@ DESIGN customerStocks FROM DEFAULT {
     }
 }
 
-META defineDocumentDialogStock(objectClass, filter, prefix)
-    change###prefix###stock###filter###objectClass = ACTION (objectClass) {
+META defineDocumentDialogStock(objectClass, filter, prefix, dataProp)
+    change###dataProp###prefix###stock###filter###objectClass = ACTION (objectClass) {
         REQUEST OBJECT s
-        FORM filter###stocks MODAL SHOWDROP;
+        FORM filter###stocks OBJECTS l = prefix###objectClass(objectClass) MODAL SHOWDROP;
         IF formResult() == FormResult.ok THEN {
-            prefix###stock###objectClass(objectClass) <- requestedObject();
+            dataProp###prefix###stock###objectClass(objectClass) <- requestedObject();
 
         } ELSE IF formResult() == FormResult.drop THEN {
-            prefix###stock###objectClass(objectClass) <- NULL;
+            dataProp###prefix###stock###objectClass(objectClass) <- NULL;
         }
     }
 END
 META defineDocumentDialogSupplierCustomerStock(objectClass, supplierFilter, customerFilter)
-    @defineDocumentDialogStock(objectClass, supplierFilter, supplier);
-    @defineDocumentDialogStock(objectClass, customerFilter, customer);
+    @defineDocumentDialogStock(objectClass, supplierFilter, supplier, );
+    @defineDocumentDialogStock(objectClass, customerFilter, customer, );
 END
 META defineDocumentDialogSupplierCustomerStockDetail(objectClass, supplierFilter, customerFilter)
-    @defineDocumentDialogStock(objectClass, supplierFilter, dataSupplier);
-    @defineDocumentDialogStock(objectClass, customerFilter, dataCustomer);
+    @defineDocumentDialogStock(objectClass, supplierFilter, supplier, data);
+    @defineDocumentDialogStock(objectClass, customerFilter, customer, data);
 END
 
 
@@ -3148,7 +3154,8 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a),
-            stockGroupStock(ts) == sg
+            stockGroupStock(ts) == sg,
+            isCompanyStock(ts)
 
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
@@ -3158,8 +3165,8 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        READONLY nameSku(s), stockName = nameStock(st)  //  idBarcodeSku
     FILTERS           isParentSkuGroupSku(sk, s),
-                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
-
+                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
+                      isCompanyStock(st)
     ORDER BY          nameSku
 
 
@@ -3228,7 +3235,8 @@ FORM balanceSkuStock 'Остатки на дату'
     PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a),
-            stockGroupStock(ts) == sg
+            stockGroupStock(ts) == sg,
+            isCompanyStock(ts)
 
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
@@ -3239,7 +3247,8 @@ FORM balanceSkuStock 'Остатки на дату'
     PROPERTIES        READONLY nameSku(s), stockName = nameStock(st)  //  idBarcodeSku
 
     FILTERS           isParentSkuGroupSku(sk, s),
-                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
+                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
+                      isCompanyStock(st)
 
     PROPERTIES(s, st, t) READONLY balanceASkuStockDateTime, averagePriceASkuStockDateTime, sumASkuStockDateTime
     PROPERTIES(s, st) READONLY dateTimeLastMovedSkuStock
@@ -3310,7 +3319,8 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a),
-            stockGroupStock(ts) == sg
+            stockGroupStock(ts) == sg,
+            isCompanyStock(ts)
 
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
@@ -3322,7 +3332,8 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     PROPERTIES        currentBalanceBatchStock(bt, st)
     PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, descriptionBatch, nameBatch, idBatch, quantityBatch, costBatch, expiryDateBatch
     FILTERS           isParentSkuGroupBatch(sk, bt),
-                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
+                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
+                      isCompanyStock(st)
 
     ORDER BY          dateTimeBatch
 
@@ -3386,7 +3397,8 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a),
-            stockGroupStock(ts) == sg
+            stockGroupStock(ts) == sg,
+            isCompanyStock(ts)
 
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
@@ -3398,7 +3410,9 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     PROPERTIES        balanceBBatchStockDateTime(bt, st, t)
     PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, descriptionBatch, nameBatch, idBatch, quantityBatch, costBatch, expiryDateBatch
     FILTERS           isParentSkuGroupBatch(sk, bt),
-                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
+                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
+                      isCompanyStock(st)
+
     ORDER BY          dateTimeBatch
 
     OBJECTS bil=SkuLedger
