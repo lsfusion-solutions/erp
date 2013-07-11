@@ -39,6 +39,10 @@ nameCountrySkuUserInvoiceDetail 'Страна' (userInvoiceDetail) = nameCountry
 
 UOMUserInvoiceDetail(userInvoiceDetail) = UOMSku(skuUserInvoiceDetail(userInvoiceDetail));
 
+sumNetWeightInvoiceDetail 'Вес нетто' (invoiceDetail) = netWeightSku(skuUserInvoiceDetail(invoiceDetail)) * quantityUserInvoiceDetail(invoiceDetail);
+sumGrossWeightInvoiceDetail 'Вес брутто' (invoiceDetail) = grossWeightSku(skuUserInvoiceDetail(invoiceDetail)) * quantityUserInvoiceDetail(invoiceDetail);
+
+// ТН ВЭД и льготы
 customsGroupInvoiceDetail = ABSTRACT CustomsGroup(InvoiceDetail);
 customsGroupUserInvoiceDetail = DATA CustomsGroup(UserInvoiceDetail);
 customsGroupInvoiceDetail(detail) += customsGroupUserInvoiceDetail(detail);
@@ -48,8 +52,26 @@ codeCustomsGroupInvoiceDetail 'ТН ВЭД' (invoiceDetail) = codeCustomsGroup(c
 customsGroupUserInvoiceDetail(invoiceDetail) <- customsGroupCountrySku(countryInvoiceDetail(invoiceDetail), skuInvoiceDetail(invoiceDetail))
     WHEN CHANGED(countryInvoiceDetail(invoiceDetail)) OR CHANGED(skuInvoiceDetail(invoiceDetail));
 
-sumNetWeightInvoiceDetail 'Вес нетто' (invoiceDetail) = netWeightSku(skuUserInvoiceDetail(invoiceDetail)) * quantityUserInvoiceDetail(invoiceDetail);
-sumGrossWeightInvoiceDetail 'Вес брутто' (invoiceDetail) = grossWeightSku(skuUserInvoiceDetail(invoiceDetail)) * quantityUserInvoiceDetail(invoiceDetail);
+VATCustomsExceptionInvoiceDetail = ABSTRACT VATCustomsException(InvoiceDetail);
+VATCustomsExceptionUserInvoiceDetail = DATA VATCustomsException(UserInvoiceDetail);
+VATCustomsExceptionInvoiceDetail(detail) += VATCustomsExceptionUserInvoiceDetail(detail);
+
+VATCustomsExceptionUserInvoiceDetail(invoiceDetail) <- VATCustomsExceptionCountrySku(countryInvoiceDetail(invoiceDetail), skuInvoiceDetail(invoiceDetail))
+    WHEN CHANGED(countryInvoiceDetail(invoiceDetail)) OR CHANGED(skuInvoiceDetail(invoiceDetail));
+
+nameVATCustomsExceptionInvoiceDetail 'Льгота НДС' (invoiceDetail) = nameVATCustomsException(VATCustomsExceptionInvoiceDetail(invoiceDetail)) MINCHARWIDTH 15;
+
+CONSTRAINT customsGroupUserInvoiceDetail(d) AND VATCustomsExceptionUserInvoiceDetail(d) AND NOT customsGroupVATCustomsException(VATCustomsExceptionUserInvoiceDetail(d)) == customsGroupUserInvoiceDetail(d)
+    CHECKED BY VATCustomsExceptionUserInvoiceDetail MESSAGE 'Льгота НДС должна соответствовать ТН ВЭД';
+
+backgroundVATCustomsExceptionInvoiceDetail 'Цвет' (invoiceDetail) = RGB(212, 255, 212) IF countVATCustomsExceptionCustomsGroup(customsGroupInvoiceDetail(invoiceDetail)) > 0;
+
+setCustomsGroupInvoiceDetailDeclaration 'Задать ТН ВЭД и льготы' = ACTION (declaration) {
+   FOR declarationUserInvoiceDetail(invoiceDetail) == declaration DO {
+      ASSIGN customsGroupUserInvoiceDetail(invoiceDetail) <- customsGroupCountrySku(countryInvoiceDetail(invoiceDetail), skuInvoiceDetail(invoiceDetail));
+      ASSIGN VATCustomsExceptionUserInvoiceDetail(invoiceDetail) <- VATCustomsExceptionCountrySku(countryInvoiceDetail(invoiceDetail), skuInvoiceDetail(invoiceDetail));
+   };
+};
 
 FORM declarationInvoices 'Накладные декларации'
     OBJECTS d=Declaration FIXED PANEL
@@ -86,10 +108,11 @@ EXTEND FORM declaration
     OBJECTS id=UserInvoiceDetail
     PROPERTIES(id) READONLY seriesNumberInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail,
                    nameCustomsUserInvoiceDetail, nameCountrySkuUserInvoiceDetail, sumNetWeightInvoiceDetail, quantityUserInvoiceDetail, priceUserInvoiceDetail
-    PROPERTIES(id) codeCustomsGroupInvoiceDetail
+    PROPERTIES(id) codeCustomsGroupInvoiceDetail, nameVATCustomsExceptionInvoiceDetail BACKGROUND backgroundVATCustomsExceptionInvoiceDetail(id)
     PROPERTIES(id) READONLY homePriceInvoiceDetail, sumHomeInvoiceDetail
 
-    PROPERTIES (d) showFormDeclarationInvoices TODRAW id FORCE PANEL TOOLBAR
+    PROPERTIES (d) showFormDeclarationInvoices TODRAW id FORCE PANEL TOOLBAR,
+                   setCustomsGroupInvoiceDetailDeclaration TODRAW id FORCE PANEL TOOLBAR
     FILTERS declarationUserInvoiceDetail(id) == d
 ;
 
@@ -111,15 +134,18 @@ showDeclarationUserInvoice 'Таможенные платежи' = DATA BOOLEAN(
 showDeclarationInvoice(invoice) += showDeclarationUserInvoice(invoice);
 
 //------------------------------------------ позиции декларации -------------------------------------------------------//
-TABLE declarationNameUOMCustomsGroupCountryPrice(Declaration, STRING[200], UOM, CustomsGroup, Country, NUMERIC[14,2]);
+//TABLE declarationNameUOMGroupVATExceptionCountryPrice(Declaration, STRING[200], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[14,2]);
+overVATCustomsExceptionUserInvoiceDetail(userInvoiceDetail) = OVERRIDE VATCustomsException.none, VATCustomsExceptionUserInvoiceDetail(userInvoiceDetail);
+
 
 quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityUserInvoiceDetail(userInvoiceDetail)
                                            BY declarationUserInvoiceDetail(userInvoiceDetail),
                                               nameCustomsUserInvoiceDetail(userInvoiceDetail),
                                               UOMUserInvoiceDetail(userInvoiceDetail),
                                               customsGroupInvoiceDetail(userInvoiceDetail),
+                                              overVATCustomsExceptionUserInvoiceDetail(userInvoiceDetail),
                                               countrySkuUserInvoiceDetail(userInvoiceDetail),
-                                              priceUserInvoiceDetail(userInvoiceDetail) PERSISTENT;
+                                              priceUserInvoiceDetail(userInvoiceDetail);
 
 CLASS DeclarationDetail 'Позиция декларации';
 TABLE declarationDetail(DeclarationDetail);
@@ -226,11 +252,23 @@ VATRangeDataDeclarationDetail 'Шкала НДС (ИД)' = DATA Range(Declaratio
 numberVATRangeDataDeclarationDetail 'Шкала НДС' (declarationDetail) = numberRange(VATRangeDataDeclarationDetail(declarationDetail));
 percentVATRangeDeclarationDetail 'НДС, %' (declarationDetail) = valueRateRangeDate(VATRangeDataDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
 
+VATCustomsExceptionDeclarationDetail 'Льгота НДС (ИД)' = DATA VATCustomsException(DeclarationDetail);
+nameVATCustomsExceptionDeclarationDetail 'Льгота НДС' (declarationDetail) = nameVATCustomsException(VATCustomsExceptionDeclarationDetail(declarationDetail));
+
+backgroundVATCustomsExceptionDeclarationDetail 'Цвет' (declarationDetail) = RGB(212, 255, 212) IF countVATCustomsExceptionCustomsGroup(customsGroupDeclarationDetail(declarationDetail)) > 0;
+
 CONSTRAINT countryLegalEntity(legalEntityDeclaration(declarationDeclarationDetail(declarationDetail))) != countryRange(VATRangeDataDeclarationDetail(declarationDetail))
     CHECKED BY VATRangeDataDeclarationDetail MESSAGE 'Страна шкалы налога должна соответствовать стране импортёра';
 
-numberVATRangeCustomGroupDeclarationDetail 'Шкала НДС (расч.)' (declarationDetail) = numberRange(supplierVATCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail)));
-percentVATCustomsGroupDeclarationDetail 'НДС, %' (declarationDetail) = dataValueSupplierVATCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
+CONSTRAINT customsGroupDeclarationDetail(d) AND VATCustomsExceptionDeclarationDetail(d) AND NOT customsGroupVATCustomsException(VATCustomsExceptionDeclarationDetail(d)) == customsGroupDeclarationDetail(d)
+    CHECKED BY VATCustomsExceptionDeclarationDetail MESSAGE 'Льгота НДС должна соответствовать ТН ВЭД';
+
+VATDeclarationDetail(declarationDetail) = IF VATCustomsExceptionDeclarationDetail(declarationDetail) != VATCustomsException.none THEN
+                                             rangeVATCustomsException(VATCustomsExceptionDeclarationDetail(declarationDetail))
+                                        ELSE VATCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
+
+numberVATRangeCustomGroupDeclarationDetail 'Шкала НДС (расч.)' (declarationDetail) = numberRange(VATDeclarationDetail(declarationDetail));
+percentVATCustomsGroupDeclarationDetail 'НДС, %' (declarationDetail) = valueRateRangeDate(VATDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
 
 percentVATDeclarationDetail 'НДС, %' (declarationDetail) = OVERRIDE percentVATCustomsGroupDeclarationDetail(declarationDetail), percentVATRangeDeclarationDetail(declarationDetail);
 
@@ -254,32 +292,29 @@ sumRateRegistrationDeclaration 'Таможенный сбор' (declaration) = r
 
 sumRegistrationDeclaration 'Таможенный сбор' = DATA NUMERIC[14,3](Declaration);
 
-//sumRegistrationDeclaration 'Таможенный сбор' (declaration) = OVERRIDE sumRateRegistrationDeclaration(declaration), sumRegistrationDataDeclaration(declaration);
-
 setSumDeclarationDetail 'Рассчитать суммы' = ACTION (declaration) {
    ASSIGN sumRegistrationDeclaration(declaration) <- sumRateRegistrationDeclaration(declaration);
    FOR declarationDeclarationDetail(declarationDetail) == declaration DO {
       ASSIGN sumDataDeclarationDetail(declarationDetail) <- sumRateDeclarationDetail(declarationDetail);
       ASSIGN percentDutyDataDeclarationDetail(declarationDetail) <- percentDutyCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
-      ASSIGN VATRangeDataDeclarationDetail (declarationDetail) <- supplierVATCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
-      //ASSIGN sumDutyDataDeclarationDetail(declarationDetail) <- sumRateDutyDeclarationDetail(declarationDetail);
-      //ASSIGN sumVATDataDeclarationDetail(declarationDetail) <- sumRateVATDeclarationDetail(declarationDetail);
+      ASSIGN VATRangeDataDeclarationDetail (declarationDetail) <- VATDeclarationDetail(declarationDetail);
    };
 };
 
 toCreateDeclarationDetails 'Создать позиции' = ACTION (declaration) {
-    FOR quantityGroupDeclaration(declaration, customsName, UOM, customsGroup, country, price)>0 ADDOBJ dd=DeclarationDetail DO {
+    FOR quantityGroupDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price)>0 ADDOBJ dd=DeclarationDetail DO {
         ASSIGN declarationDeclarationDetail(dd) <- declaration;
         ASSIGN nameCustomsDeclarationDetail(dd) <- customsName;
         ASSIGN UOMDeclarationDetail(dd) <- UOM;
         ASSIGN customsGroupDeclarationDetail(dd) <- customsGroup;
+        ASSIGN VATCustomsExceptionDeclarationDetail(dd) <- customsException;
         ASSIGN countryDeclarationDetail(dd) <- country;
         ASSIGN priceDeclarationDetail(dd) <- price;
 
         ASSIGN declarationDetailInvoiceDetail(invoiceDetail) <- dd WHERE declarationUserInvoiceDetail(invoiceDetail) == declaration AND
             nameCustomsUserInvoiceDetail(invoiceDetail) == customsName AND UOMUserInvoiceDetail(invoiceDetail) == UOM AND
-            customsGroupInvoiceDetail(invoiceDetail) == customsGroup AND countrySkuUserInvoiceDetail(invoiceDetail) == country AND
-            priceUserInvoiceDetail(invoiceDetail) == price;
+            customsGroupInvoiceDetail(invoiceDetail) == customsGroup AND overVATCustomsExceptionUserInvoiceDetail(invoiceDetail) == customsException AND
+            countrySkuUserInvoiceDetail(invoiceDetail) == country AND priceUserInvoiceDetail(invoiceDetail) == price;
     };
 
     EXEC setSumDeclarationDetail(declaration);
@@ -294,7 +329,8 @@ EXTEND FORM declaration
     PROPERTIES(id, dd) inInvoiceDetailDeclarationDetail
     PROPERTIES(dd) numberDeclarationDetail, invoicesDeclarationDetail READONLY, nameCustomsDeclarationDetail, shortNameUOMDeclarationDetail,
                    nameCountryDeclarationDetail, overSumNetWeightDeclarationDetail, overSumGrossWeightDeclarationDetail,
-                   codeCustomsGroupDeclarationDetail, overQuantityDeclarationDetail, priceDeclarationDetail
+                   codeCustomsGroupDeclarationDetail, nameVATCustomsExceptionDeclarationDetail BACKGROUND backgroundVATCustomsExceptionDeclarationDetail(dd),
+                   overQuantityDeclarationDetail, priceDeclarationDetail
     PROPERTIES(dd) READONLY sumDeclarationDetail, sumRateDeclarationDetail, percentDutyCustomsGroupDeclarationDetail, sumRateDutyDeclarationDetail,
                    numberVATRangeCustomGroupDeclarationDetail, percentVATCustomsGroupDeclarationDetail, sumRateVATDeclarationDetail
     PROPERTIES(dd) sumDataDeclarationDetail, percentDutyDataDeclarationDetail, sumDutyDataDeclarationDetail, numberVATRangeDataDeclarationDetail,
@@ -344,7 +380,7 @@ EXTEND DESIGN declaration {
     PROPERTY(percentVATRangeDeclarationDetail) { background = RGB (224, 255, 255); }
     PROPERTY(sumVATDataDeclarationDetail) { background = RGB (224, 255, 255); }
 
-    PROPERTY(sumRegistrationDeclaration) { background = RGB(212,255,212); }
+    PROPERTY(sumRegistrationDeclaration) { background = RGB(255, 255, 192); }
 
     ADD functions.box;
 }
@@ -428,6 +464,7 @@ setPriceInvoiceDetailes 'Рассчитать расходы (за ед.)' = ACT
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCustomedInvoice(i) showDeclarationUserInvoice
     PROPERTIES(d) BACKGROUND backgroundCustomedInvoice(i) codeCustomsGroupInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
+                                                          nameVATCustomsExceptionInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
                                                           priceDutyUserInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
                                                           priceRegistrationUserInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i)
 ;
@@ -444,6 +481,7 @@ EXTEND DESIGN userInvoice {
 EXTEND FORM invoices
     PROPERTIES(i) READONLYIF isReadonly() BACKGROUND backgroundCustomedInvoice(i) showDeclarationInvoice FORCE GRID
     PROPERTIES(d) READONLY BACKGROUND backgroundCustomedInvoice(i) codeCustomsGroupInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showDeclarationInvoice(i),
+                                                                   nameVATCustomsExceptionInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showDeclarationInvoice(i),
                                                                    priceDutyInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showDeclarationInvoice(i),
                                                                    priceRegistrationInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showDeclarationInvoice(i)
 ;
@@ -462,7 +500,7 @@ EXTEND DESIGN declaration {
         }
     }
 
-    PROPERTY(priceRegistrationInvoiceDetail) { background = RGB (212,255,212); }
+    PROPERTY(priceRegistrationInvoiceDetail) { background = RGB (255, 255, 192); }
     PROPERTY(priceDutyInvoiceDetail) { background = RGB (255, 224, 224); }
 
     ADD functions.box;

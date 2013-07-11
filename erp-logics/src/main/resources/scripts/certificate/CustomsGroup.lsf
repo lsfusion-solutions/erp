@@ -45,18 +45,87 @@ isCompliancedCustomsGroup 'Необходимость сертификации' 
 
 TABLE customsGroupData(CustomsGroup, DATE);
 
-@defineHistorizableCustom(supplierVATCustomsGroup, 'НДС', Range, numberRange, customsGroup, codeCustomsGroup, base);
+//@defineHistorizableCustom(supplierVATCustomsGroup, 'НДС', Range, numberRange, customsGroup, codeCustomsGroup, base);
 
-dataValueSupplierVATCustomsGroupDate 'НДС, %' (customsGroup, date) = valueRateRangeDate(supplierVATCustomsGroupDate(customsGroup, date), date);
-valueCurrentRateSupplierVATCustomsGroup 'НДС, %' (customsGroup) = valueCurrentRateRange(supplierVATCustomsGroup(customsGroup));
+//dataValueSupplierVATCustomsGroupDate 'НДС, %' (customsGroup, date) = valueRateRangeDate(supplierVATCustomsGroupDate(customsGroup, date), date);
+//valueCurrentRateSupplierVATCustomsGroup 'НДС, %' (customsGroup) = valueCurrentRateRange(supplierVATCustomsGroup(customsGroup));
 
-@defineHistorizable(percentDutyCustomsGroup, 'Пошлина (%)', NUMERIC[14,3], customsGroup, codeCustomsGroup, base);
-@defineHistorizable(weightDutyCustomsGroup, 'Пошлина (валют.)', NUMERIC[14,3], customsGroup, codeCustomsGroup, base);
+//@defineHistorizable(percentDutyCustomsGroup, 'Пошлина (%)', NUMERIC[14,3], customsGroup, codeCustomsGroup, base);
+//@defineHistorizable(weightDutyCustomsGroup, 'Пошлина (валют.)', NUMERIC[14,3], customsGroup, codeCustomsGroup, base);
 
-@defineHistorizable(registrationCustomsGroup, 'Таможенный сбор', NUMERIC[14,3], customsGroup, codeCustomsGroup, base);
+//@defineHistorizable(registrationCustomsGroup, 'Таможенный сбор', NUMERIC[14,3], customsGroup, codeCustomsGroup, base);
 
+META defineCustomsRate(class, object, caption)
+    CLASS class caption;
+    dateFrom###object 'Дата с' = DATA DATE(class) IN base;
+    dateTo###object 'Дата по' = DATA DATE(class) IN base;
+    customsGroup###object = DATA CustomsGroup(class) AUTOSET;
+    nameCustomsGroup###object 'ТН ВЭД' (customsRate) = nameCustomsGroup(customsGroup###object(customsRate)) IN base MAXCHARWIDTH 50;
+
+    order###object = STRUCT(dateFrom###object(object), object) PERSISTENT;
+
+    concat###object##CustomsGroupDate (customsGroup, date) = GROUP MAX order###object(object) IF
+                                                                       (dateFrom###object(object) < date AND
+                                                                       dateTo###object(object) > date)
+                                                                    BY customsGroup###object(object), date;
+
+    object##CustomsGroupDate (customsGroup, date) = concat###object##CustomsGroupDate(customsGroup, date)[2];
+END
+
+@defineCustomsRate(VATCustomsRate, VATCustomsRate, 'Ставка НДС');
+@defineCustomsRate(DutyCustomsRate, dutyCustomsRate, 'Ставка пошлины');
+@defineCustomsRate(RegistrationCustomsRate, registrationCustomsRate, 'Ставка таможенного сбора');
+
+@defineCustomsRate(VATCustomsException, VATCustomsException, 'Льгота НДС');
+EXTEND CLASS VATCustomsException {
+    none 'Отсутствует'
+}
+
+// НДС
+rangeVATCustomsRate = DATA Range(VATCustomsRate);
+numberRangeVATCustomsRate 'НДС' (VATCustomsRate) = numberRange(rangeVATCustomsRate(VATCustomsRate)) IN base;
+
+VATCustomsGroupDate 'НДС' (customsGroup, date) = rangeVATCustomsRate(VATCustomsRateCustomsGroupDate(customsGroup, date));
+
+dataValueSupplierVATCustomsGroupDate 'НДС, %' (customsGroup, date) = valueRateRangeDate(VATCustomsGroupDate(customsGroup, date), date);
+valueCurrentRateSupplierVATCustomsGroup 'НДС, %' (customsGroup) = valueRateRangeDate(VATCustomsGroupDate(customsGroup, currentDate()), currentDate());
+
+// пошлина
+percentDutyDutyCustomsRate 'Пошлина (%)' = DATA NUMERIC[14,3](DutyCustomsRate) IN base;
+weightDutyDutyCustomsRate 'Пошлина (валют.)' = DATA NUMERIC[14,3](DutyCustomsRate) IN base;
+
+percentDutyCustomsGroupDate 'Пошлина (%)' (customsGroup, date) = percentDutyDutyCustomsRate(dutyCustomsRateCustomsGroupDate(customsGroup, date));
+weightDutyCustomsGroupDate 'Пошлина (валют.)' (customsGroup, date) = weightDutyDutyCustomsRate(dutyCustomsRateCustomsGroupDate(customsGroup, date));
+
+percentDutyCustomsGroup 'Пошлина (%)' (customsGroup) = percentDutyCustomsGroupDate(customsGroup, currentDate());
+weightDutyCustomsGroup 'Пошлина (валют.)' (customsGroup) = weightDutyCustomsGroupDate(customsGroup, currentDate());
+
+//сбор
+sumRegistrationCustomsRate 'Таможенный сбор' = DATA NUMERIC[14,3](RegistrationCustomsRate) IN base;
+
+registrationCustomsGroupDate 'Таможенный сбор' (customsGroup, date) = sumRegistrationCustomsRate(registrationCustomsRateCustomsGroupDate(customsGroup, date));
+registrationCustomsGroup 'Таможенный сбор' (customsGroup) = registrationCustomsGroupDate(customsGroup, currentDate());
+
+// Льгота НДС
+nameVATCustomsException 'Наименование' = DATA ISTRING[50](VATCustomsException) IN base;
+
+rangeVATCustomsException = DATA Range(VATCustomsException);
+numberRangeVATCustomsException 'Льгота НДС' (VATCustomsException) = numberRange(rangeVATCustomsException(VATCustomsException)) IN base;
+dataValueVATCustomsExceptionDate 'Льгота НДС, %' (VATCustomsException, date) = valueRateRangeDate(rangeVATCustomsException(VATCustomsException), date);
+
+valueCurrentVATCustomsException 'Льгота НДС, %' (VATCustomsException) = valueRateRangeDate(rangeVATCustomsException(VATCustomsException), currentDate()) IN base;
+
+rangeVATCustomsExceptionCustomsGroupDate 'Льгота НДС' (customsGroup, date) = rangeVATCustomsException(VATCustomsExceptionCustomsGroupDate(customsGroup, date));
+dataValueVATCustomsExceptionGroupDate 'Льгота НДС, %' (customsGroup, date) = valueRateRangeDate(rangeVATCustomsExceptionCustomsGroupDate(customsGroup, date), date);
+
+countVATCustomsExceptionCustomsGroup 'Кол-во' (customsGroup) = GROUP SUM 1 IF VATCustomsException IS VATCustomsException BY customsGroupVATCustomsException(VATCustomsException);
+
+//
 customsGroupCountrySku = ABSTRACT CustomsGroup(Country, Sku);
 codeCustomsGroupCountrySku 'ТН ВЭД' (country, sku) = codeCustomsGroup(customsGroupCountrySku(country, sku));
+
+VATCustomsExceptionCountrySku = ABSTRACT VATCustomsException(Country, Sku);
+nameVATCustomsExceptionCountrySku 'ТН ВЭД' (country, sku) = nameVATCustomsException(VATCustomsExceptionCountrySku(country, sku));
 
 EXTEND FORM country
     PROPERTIES(c) nameCustomsZoneCountry
@@ -78,15 +147,61 @@ FORM customsZones 'Таможенная зона'
     PROPERTIES(cz) ADDFORM, EDITFORM, DELETE
 ;
 
+FORM VATCustomsExceptions 'Льготы НДС'
+    OBJECTS cg = CustomsGroup FIXED PANEL
+
+    OBJECTS vce = VATCustomsException
+    PROPERTIES(vce) READONLY nameVATCustomsException, dateFromVATCustomsException, dateToVATCustomsException, numberRangeVATCustomsException, valueCurrentVATCustomsException
+    PROPERTIES(vce) ADDFORM, EDITFORM, DELETE
+    FILTERS customsGroupVATCustomsException(vce) == cg
+
+    //DIALOG VATCustomsException OBJECT vce
+;
+
 FORM customsGroup 'Позиция ТН ВЭД'
     OBJECTS cg = CustomsGroup FIXED PANEL
     PROPERTIES(cg) codeCustomsGroup, nameCustomsGroup, nameParentCustomsGroup, nameCustomsZoneCustomsGroup,
                    dateFromCustomsGroup, dateToCustomsGroup, isCompliancedCustomsGroup, registrationCustomsGroup,
-                   valueCurrentRateSupplierVATCustomsGroup ON CHANGE dialogSupplierVATCustomsGroup(cg),
+                   valueCurrentRateSupplierVATCustomsGroup,
                    percentDutyCustomsGroup, weightDutyCustomsGroup, numberCustomsGroup
+
+    OBJECTS vcr = VATCustomsRate
+    PROPERTIES(vcr) READONLY dateFromVATCustomsRate, dateToVATCustomsRate, numberRangeVATCustomsRate
+    PROPERTIES(vcr) ADDFORM, EDITFORM, DELETE
+    FILTERS customsGroupVATCustomsRate(vcr) == cg
+
+    OBJECTS vce = VATCustomsException
+    PROPERTIES(vce) READONLY nameVATCustomsException, dateFromVATCustomsException, dateToVATCustomsException, numberRangeVATCustomsException
+    PROPERTIES(vce) ADDFORM, EDITFORM, DELETE
+    FILTERS customsGroupVATCustomsException(vce) == cg
+
+    OBJECTS dcr = DutyCustomsRate
+    PROPERTIES(dcr) READONLY dateFromDutyCustomsRate, dateToDutyCustomsRate, percentDutyDutyCustomsRate, weightDutyDutyCustomsRate
+    PROPERTIES(dcr) ADDFORM, EDITFORM, DELETE
+    FILTERS customsGroupDutyCustomsRate(dcr) == cg
+
+    OBJECTS rcr = RegistrationCustomsRate
+    PROPERTIES(rcr) READONLY dateFromRegistrationCustomsRate, dateToRegistrationCustomsRate, sumRegistrationCustomsRate
+    PROPERTIES(rcr) ADDFORM, EDITFORM, DELETE
+    FILTERS customsGroupRegistrationCustomsRate(rcr) == cg
 
     EDIT CustomsGroup OBJECT cg
 ;
+
+DESIGN customsGroup FROM DEFAULT{
+    main {
+        NEW topContainer {
+            childConstraints = TO THE RIGHT;
+            ADD vcr.box;
+            ADD vce.box;
+        }
+
+        ADD dcr.box;
+        ADD rcr.box;
+
+        ADD functions.box;
+    }
+}
 
 addCustomsGroup 'Добавить' = ACTION (customsGroup) NEWSESSION {
     FOR ADDOBJ cg = CustomsGroup DO {
@@ -101,6 +216,9 @@ FORM customsGroups 'Позиции ТН ВЭД'
     OBJECTS cz = CustomsZone FIXED PANEL
     PROPERTIES(cz) SELECTOR nameCustomsZone, nameCurrencyCustomsZone
 
+    OBJECTS dt = DATE FIXED PANEL
+    PROPERTIES(dt) OBJVALUE
+
     TREE treeGroups a=STRING[3], gcg=CustomsGroup PARENT parentCustomsGroup
     PROPERTIES READONLY OBJVALUE(a), nameCustomsGroup(gcg), codeCustomsGroup(gcg), isCompliancedDataCustomsGroup(gcg)
     PROPERTIES(gcg) addCustomsGroup, EDITFORM
@@ -108,8 +226,9 @@ FORM customsGroups 'Позиции ТН ВЭД'
 
     OBJECTS cg = CustomsGroup
     PROPERTIES(cg) READONLYIF isReadonly() codeCustomsGroup, nameCustomsGroup, canonicalNameCustomsGroup,
-                   dateFromCustomsGroup, dateToCustomsGroup, isCompliancedCustomsGroup, registrationCustomsGroup,
-                   valueCurrentRateSupplierVATCustomsGroup, percentDutyCustomsGroup, weightDutyCustomsGroup, numberCustomsGroup
+                   dateFromCustomsGroup, dateToCustomsGroup, isCompliancedCustomsGroup, numberCustomsGroup
+                   //, registrationCustomsGroup, valueCurrentRateSupplierVATCustomsGroup, percentDutyCustomsGroup, weightDutyCustomsGroup
+    PROPERTIES(cg, dt) READONLY registrationCustomsGroupDate, percentDutyCustomsGroupDate, weightDutyCustomsGroupDate, dataValueSupplierVATCustomsGroupDate, dataValueVATCustomsExceptionGroupDate
     PROPERTIES(cg) ADDFORM, EDITFORM, DELETE
     ORDER BY numberCustomsGroup
 
@@ -149,6 +268,7 @@ DESIGN customsGroups FROM DEFAULT{
         ADD functions.box;
     }
 }
+
 @extendFormEditable(customsGroups);
 
 NAVIGATOR {

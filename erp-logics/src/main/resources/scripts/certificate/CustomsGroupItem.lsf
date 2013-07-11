@@ -1,11 +1,13 @@
 MODULE CustomsGroupItem;
 
-REQUIRE CustomsGroup, Item;
+REQUIRE CustomsGroup, Item, TaxItem; ///
 
 customsGroupCountryItem = DATA CustomsGroup(Country, Item);
 codeCustomsGroupCountryItem 'ТН ВЭД' (country, item) = codeCustomsGroup(customsGroupCountryItem(country, item));
 nameCustomsGroupCountryItem 'Позиция ТН ВЭД' (country, item) = nameCustomsGroup(customsGroupCountryItem(country, item)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 codeCustomsGroupDefaultCountryItem 'ТН ВЭД' (item) = codeCustomsGroup(customsGroupCountryItem(defaultCountry(), item));
+
+VATCountryItemDate(country, item, date) = VATCustomsGroupDate(customsGroupCountryItem(country, item), date);
 
 customsZoneDefaultCountry = customsZoneCountry(defaultCountry());
 
@@ -25,13 +27,80 @@ customsGroupCountrySku(country, sku) += customsGroupCountryItem(country, sku);
 CONSTRAINT customsZoneCustomsGroup(customsGroupCountryItem(country, item)) != customsZoneCountry(country) CHECKED BY customsGroupCountryItem
     MESSAGE 'Таможенная зона должна соответствовать стране';
 
+VATCustomsExceptionCountryItem = DATA VATCustomsException(Country, Item);
+nameVATCustomsExceptionCountryItem 'Льгота НДС' (country, item) = nameVATCustomsException(VATCustomsExceptionCountryItem(country, item)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+nameVATCustomsExceptionDefaultCountryItem 'Льгота НДС' (item) = nameVATCustomsException(VATCustomsExceptionCountryItem(defaultCountry(), item));
+dataValueVATCustomsExceptionCountryItemDate 'Льгота, %' (country, item, date) = dataValueVATCustomsExceptionDate(VATCustomsExceptionCountryItem(country, item), date);
+
+rangeVATCustomsExceptionCountryItem(country, item) = rangeVATCustomsException(VATCustomsExceptionCountryItem(country, item));
+
+changeCustomsExceptionDefaultCountryItem = ACTION (item) {
+    REQUEST OBJECT vce
+    FORM VATCustomsExceptions MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        VATCustomsExceptionCountryItem(country, item) <- requestedObject() WHERE country == defaultCountry();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        VATCustomsExceptionCountryItem(country, item) <- NULL WHERE country == defaultCountry();
+    }
+}
+
+VATCustomsExceptionCountrySku(country, sku) += VATCustomsExceptionCountryItem(country, sku);
+
+CONSTRAINT customsGroupCountryItem(country, item) AND VATCustomsExceptionCountryItem(country, item) AND NOT customsGroupVATCustomsException(VATCustomsExceptionCountryItem(country, item)) == customsGroupCountryItem(country, item)
+    CHECKED BY VATCustomsExceptionCountryItem MESSAGE 'Льгота должна соответствовать ТН ВЭД';
+
+backgroundCountrySku 'Цвет' (country, sku) = RGB(212, 255, 212) IF countVATCustomsExceptionCustomsGroup(customsGroupCountrySku(country, sku)) > 0;
+
+changeCustomsGroupCountryItemDate = ACTION (country, item, date) {
+    REQUEST OBJECT cg
+    FORM customsGroups MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        customsGroupCountryItem(country, item) <- requestedObject();
+        dataVATItemCountryDate(item, country, date) <- IF VATCustomsExceptionCountryItem(country, item) THEN
+                                                           rangeVATCustomsExceptionCountryItem(country, item)
+                                                       ELSE
+                                                           VATCountryItemDate(country, item, date);
+    } ELSE IF formResult() == FormResult.drop THEN {
+        customsGroupCountryItem(country, item) <- NULL;
+        dataVATItemCountryDate(item, country, date) <- rangeVATCustomsExceptionCountryItem(country, item);
+    }
+}
+
+changeVATCustomsExceptionCountryItemDate = ACTION (country, item, date) {
+    REQUEST OBJECT vce
+    FORM VATCustomsExceptions MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        VATCustomsExceptionCountryItem(country, item) <- requestedObject();
+        dataVATItemCountryDate(item, country, date) <- IF VATCustomsExceptionCountryItem(country, item) THEN
+                                                           rangeVATCustomsExceptionCountryItem(country, item)
+                                                       ELSE
+                                                           VATCountryItemDate(country, item, date);
+    } ELSE IF formResult() == FormResult.drop THEN {
+        VATCustomsExceptionCountryItem(country, item) <- NULL;
+        dataVATItemCountryDate(item, country, date) <- VATCountryItemDate(country, item, date);
+    }
+}
+
+
 EXTEND FORM item
-    PROPERTIES(c, i) codeCustomsGroupCountryItem
-    PROPERTIES(i) codeCustomsGroupDefaultCountryItem ON CHANGE changeCustomsGroupDefaultCountryItem(i)
+    PROPERTIES(c, i) codeCustomsGroupCountryItem BEFORE overNumberVATItemCountryDate ON CHANGE changeCustomsGroupCountryItemDate(c, i, dtr),
+                     nameVATCustomsExceptionCountryItem BEFORE overNumberVATItemCountryDate ON CHANGE changeVATCustomsExceptionCountryItemDate(c, i, dtr) BACKGROUND backgroundCountrySku(c, i)
+    PROPERTIES(i) codeCustomsGroupDefaultCountryItem ON CHANGE changeCustomsGroupDefaultCountryItem(i),
+                  nameVATCustomsExceptionDefaultCountryItem ON CHANGE changeCustomsExceptionDefaultCountryItem(i)
 ;
-EXTEND DESIGN item { regionPrm  { ADD PROPERTY(codeCustomsGroupDefaultCountryItem); } }
+
+EXTEND DESIGN item {
+    regionPrm {
+        ADD PROPERTY(codeCustomsGroupDefaultCountryItem);
+        ADD PROPERTY(nameVATCustomsExceptionDefaultCountryItem);
+    }
+}
 
 overCopyItem(s, d) += ACTION (s, d) {
     ASSIGN customsGroupCountryItem(c,d) <- customsGroupCountryItem(c,s) WHERE customsGroupCountryItem(c,s);
 }
+
+
+
 
