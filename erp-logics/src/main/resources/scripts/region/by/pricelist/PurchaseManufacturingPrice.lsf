@@ -32,14 +32,33 @@ nameManufacturingRoundConditionUserInvoice 'Округление' (userInvoice) 
 
 addCostPriceToManufacturingPriceOperation 'Учитывать в цене изготовителя доп. расходы' = DATA BOOLEAN (Purchase.Operation);
 
+// -- Операция
+manufacturingCalcPriceListTypeOperation = DATA CalcPriceListType (Purchase.Operation);
+nameManufacturingCalcPriceListTypeOperation 'Вид цен (надбавка к цене изготовителя)' (operation) = nameCalcPriceListType(manufacturingCalcPriceListTypeOperation(operation));
+
+// Вид цены (надбавка) для всего инвойса
+@defineDocumentInterfaceHeaderPriceListType (invoice, calcPriceListType, manufacturing, ' (надбавка)');
+@defineDocumentDetailPriceListTypePrefix (invoice, invoiceDetail, calcPriceListType, manufacturing, ' (надбавка)');
+@defineDocumentDetailPriceListTypePrefix (userInvoice, userInvoiceDetail, calcPriceListType, manufacturing, ' (надбавка)');
+
+@defineDocumentInterfaceDetailMarkupCustomPrefix (invoiceDetail, manufacturing, ' (к цене изготовителя)');
+
+manufacturingCalcPriceListTypeUserInvoice (invoice) <- manufacturingCalcPriceListTypeOperation(operationUserInvoice(invoice))
+    WHEN CHANGED(operationUserInvoice(invoice));
+
+manufacturingMarkupUserInvoiceDetail(detail) <- markupCalcPriceListTypeSku(manufacturingCalcPriceListTypeUserInvoiceDetail(detail), skuUserInvoiceDetail(detail))
+    WHEN CHANGED(manufacturingCalcPriceListTypeUserInvoiceDetail(detail)) OR
+         CHANGED(skuUserInvoiceDetail(detail));
+
 EXTEND FORM Purchase.operation
-    PROPERTIES(o) addCostPriceToManufacturingPriceOperation
+    PROPERTIES(o) addCostPriceToManufacturingPriceOperation, nameManufacturingCalcPriceListTypeOperation
 ;
 
 EXTEND DESIGN Purchase.operation{
     tabContainer{
         showContainer{
             ADD PROPERTY(addCostPriceToManufacturingPriceOperation);
+            ADD PROPERTY(nameManufacturingCalcPriceListTypeOperation);
         }
     }
 }
@@ -48,8 +67,10 @@ addCostPriceToManufacturingPriceUserInvoice 'Учитывать в цене из
 addCostPriceToManufacturingPriceUserInvoice(invoice) <- addCostPriceToManufacturingPriceOperation(operationUserInvoice(invoice))
     WHEN CHANGED(operationUserInvoice(invoice));
 
-baseManufacturingPriceUserInvoiceDetail = IF addCostPriceToManufacturingPriceUserInvoice(invoiceInvoiceDetail(detail)) THEN costPriceUserInvoiceDetail(detail)
+calcBaseManufacturingPriceUserInvoiceDetail (detail) = IF addCostPriceToManufacturingPriceUserInvoice(invoiceInvoiceDetail(detail)) THEN costPriceUserInvoiceDetail(detail)
                                         ELSE incomePriceUserInvoiceDetail(detail);
+
+baseManufacturingPriceUserInvoiceDetail (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(detail))/100;
 
 WHEN SESSION FORMS userInvoice, declaration
     CHANGED(baseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingRoundConditionUserInvoice(invoiceInvoiceDetail(d))) DO {
@@ -89,9 +110,11 @@ discountSumInvoiceDetail 'Скидка от цены изг. (сумма)' (deta
 
 EXTEND FORM userInvoice
     PROPERTIES(i) showManufacturingPriceUserInvoice
-    PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) nameManufacturingRoundConditionUserInvoice, addCostPriceToManufacturingPriceUserInvoice
+    PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) nameManufacturingRoundConditionUserInvoice, addCostPriceToManufacturingPriceUserInvoice,
+                  nameManufacturingCalcPriceListTypeUserInvoice
     PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) AFTER invoiceSumUserInvoiceDetail manufacturingSumUserInvoiceDetail,
-                  includeVATUserInvoiceDetail, manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d)
+                  includeVATUserInvoiceDetail, manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d),
+                  manufacturingMarkupUserInvoiceDetail
     PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
                   curManufacturingPriceUserInvoiceDetail ON CHANGE changeCurManufacturingPriceUserInvoiceDetail(d)
 ;
@@ -102,6 +125,7 @@ EXTEND DESIGN userInvoice {
             ADD PROPERTY(showManufacturingPriceUserInvoice);
             ADD PROPERTY(nameManufacturingRoundConditionUserInvoice);
             ADD PROPERTY(addCostPriceToManufacturingPriceUserInvoice);
+            ADD PROPERTY(nameManufacturingCalcPriceListTypeUserInvoice);
         }
     }
 }
@@ -109,7 +133,8 @@ EXTEND DESIGN userInvoice {
 EXTEND FORM invoices
     PROPERTIES(i) READONLYIF isReadonly() showManufacturingPriceInvoice
     PROPERTIES(d) READONLY SHOWIF showManufacturingPriceInvoice(i) AFTER invoiceSumInvoiceDetail
-                  manufacturingSumInvoiceDetail, includeVATInvoiceDetail, manufacturingPriceInvoiceDetail
+                  manufacturingSumInvoiceDetail, includeVATInvoiceDetail, manufacturingPriceInvoiceDetail,
+                  manufacturingMarkupInvoiceDetail
 ;
 //--
 overPricingPricePricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
