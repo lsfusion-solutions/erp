@@ -353,8 +353,6 @@ META defineItemAttribute(attribute, formProperty, caption, group, itemType, attr
     EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() show###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
     EXTEND FORM item PROPERTIES(i) formProperty SHOWIF show###attribute##Item(i);
     EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty SHOWIF show###attribute##ItemGroup(g);
-
-    @implementItemAttribute(formProperty, caption, itemType, attributeClass);
 END
 
 // Примитивный тип
@@ -482,6 +480,7 @@ EXTEND FORM dialogItemGroups
 // Название
 @defineStringItemAttribute(caption, STRING[100], 'Название', itemBaseGroup);
 @defineItemAttributeBatch (caption, 'Название');
+@implementItemAttribute(captionItem, 'Название', String, itemCaption);
 
 // Единица измерения
 @defineObjectItemAttribute(UOM, UOM, nameUOM, 'Единица измерения', itemBaseGroup);
@@ -518,12 +517,15 @@ DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(brand, Brand, nameBrand, 'Бренд', itemBaseGroup);
 @defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
+@implementItemAttribute(nameBrandItem, 'Бренд', String, itemBrand);
 
 // Страна
 @defineObjectItemAttribute(country, Country, nameCountry, 'Страна', itemBaseGroup);
+@defineObjectItemAttributeBatch (country, nameCountry, 'Страна');
+@implementItemAttribute(nameCountryItem, 'Страна', String, itemCountry);
+
 residentItem 'Отечественное производство' (item) = residentCountry(countryItem(item)) IN itemBaseGroup;
 countrySku(sku) += countryItem(sku);
-@defineObjectItemAttributeBatch (country, nameCountry, 'Страна');
 
 // Производитель
 CLASS Manufacturer 'Производитель товара';
@@ -550,6 +552,7 @@ DESIGN manufacturers FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(manufacturer, Manufacturer, nameManufacturer, 'Производитель', itemBaseGroup);
 @defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
+@implementItemAttribute(nameManufacturerItem, 'Производитель', String, itemManufacturer);
 
 //  Состав
 @defineStringItemAttribute(composition, STRING[255], 'Состав', itemBaseGroup);
@@ -592,6 +595,7 @@ GROUP itemSizeGroup 'Габариты товара' : public;
 // Вес нетто
 @defineDoubleItemAttribute(netWeight, NUMERIC[9,3], 'Вес нетто, кг', itemSizeGroup);
 @defineItemAttributeBatch (netWeight, 'Вес нетто, кг');
+@implementItemAttribute(netWeightItem, 'Вес нетто, кг', Double, itemNetWeight);
 netWeightSku(sku) += netWeightItem(sku);
 
 // Вес брутто
