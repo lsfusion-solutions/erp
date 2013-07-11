@@ -104,8 +104,6 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         properties.add(new ImportProperty(nameCustomsZoneField, LM.findLCPByCompoundName("customsZoneCustomsGroup").getMapping(customsGroupKey),
                 LM.object(LM.findClassByCompoundName("CustomsZone")).getMapping(customsZoneKey)));
         properties.add(new ImportProperty(hasCodeCustomsGroupField, LM.findLCPByCompoundName("hasCodeCustomsGroup").getMapping(customsGroupKey)));
-        properties.add(new ImportProperty(vatField, LM.findLCPByCompoundName("dataSupplierVATCustomsGroupDate").getMapping(customsGroupKey, dateField),
-                LM.object(LM.findClassByCompoundName("Range")).getMapping(VATKey)));
 
         ImportTable table = new ImportTable(Arrays.asList(codeCustomsGroupField, nameCustomsGroupField,
                 numberCustomsGroupField, nameCustomsZoneField, hasCodeCustomsGroupField, vatField, dateField), data);
