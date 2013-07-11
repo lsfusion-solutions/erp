@@ -26,10 +26,6 @@ batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.manufac
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(manufacturingPriceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) AND type == SystemLedgerPriceListType.manufacturingPricePriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(manufacturingPriceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) AND type == SystemLedgerPriceListType.manufacturingPricePriceListType THEN manufacturingPriceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
 
-// Записываем по умолчанию цену себестоимости в цену изготовителя (а не последнюю)
-manufacturingRoundConditionUserInvoice = DATA RoundCondition(UserInvoice);
-nameManufacturingRoundConditionUserInvoice 'Округление' (userInvoice) = nameRoundCondition(manufacturingRoundConditionUserInvoice(userInvoice));
-
 addCostPriceToManufacturingPriceOperation 'Учитывать в цене изготовителя доп. расходы' = DATA BOOLEAN (Purchase.Operation);
 
 // -- Операция
@@ -73,9 +69,9 @@ calcBaseManufacturingPriceUserInvoiceDetail (detail) = IF addCostPriceToManufact
 baseManufacturingPriceUserInvoiceDetail (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(detail))/100;
 
 WHEN SESSION FORMS userInvoice, declaration
-    CHANGED(baseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingRoundConditionUserInvoice(invoiceInvoiceDetail(d))) DO {
-    IF manufacturingRoundConditionUserInvoice(invoiceInvoiceDetail(d)) THEN
-        manufacturingPriceUserInvoiceDetail(d) <- roundPriceRoundCondition(baseManufacturingPriceUserInvoiceDetail(d), manufacturingRoundConditionUserInvoice(invoiceInvoiceDetail(d)))
+    CHANGED(baseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d))) DO {
+    IF roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)) THEN
+        manufacturingPriceUserInvoiceDetail(d) <- roundPriceRoundCondition(baseManufacturingPriceUserInvoiceDetail(d), roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))
     ELSE
         manufacturingPriceUserInvoiceDetail(d) <- baseManufacturingPriceUserInvoiceDetail(d);
 }
@@ -110,7 +106,7 @@ discountSumInvoiceDetail 'Скидка от цены изг. (сумма)' (deta
 
 EXTEND FORM userInvoice
     PROPERTIES(i) showManufacturingPriceUserInvoice
-    PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) nameManufacturingRoundConditionUserInvoice, addCostPriceToManufacturingPriceUserInvoice,
+    PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) addCostPriceToManufacturingPriceUserInvoice,
                   nameManufacturingCalcPriceListTypeUserInvoice
     PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) AFTER invoiceSumUserInvoiceDetail manufacturingSumUserInvoiceDetail,
                   includeVATUserInvoiceDetail, manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d),
@@ -123,7 +119,6 @@ EXTEND DESIGN userInvoice {
         NEW headerManufacturing {
             caption = 'Цена изготовителя';
             ADD PROPERTY(showManufacturingPriceUserInvoice);
-            ADD PROPERTY(nameManufacturingRoundConditionUserInvoice);
             ADD PROPERTY(addCostPriceToManufacturingPriceUserInvoice);
             ADD PROPERTY(nameManufacturingCalcPriceListTypeUserInvoice);
         }
