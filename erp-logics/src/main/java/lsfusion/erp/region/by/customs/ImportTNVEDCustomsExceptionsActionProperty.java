@@ -138,9 +138,9 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
 
             if (type.equals(4)) {
                 if(codeCustomsGroup.length()==10)
-                    data.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), name, stav1, dateFrom, dateTo));
+                    data.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
                 else
-                    dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), name, stav1, dateFrom, dateTo));
+                    dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
             }
         }
 
