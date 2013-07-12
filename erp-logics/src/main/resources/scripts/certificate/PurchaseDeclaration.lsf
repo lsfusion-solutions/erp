@@ -263,6 +263,8 @@ CONSTRAINT countryLegalEntity(legalEntityDeclaration(declarationDeclarationDetai
 CONSTRAINT customsGroupDeclarationDetail(d) AND VATCustomsExceptionDeclarationDetail(d) AND NOT customsGroupVATCustomsException(VATCustomsExceptionDeclarationDetail(d)) == customsGroupDeclarationDetail(d)
     CHECKED BY VATCustomsExceptionDeclarationDetail MESSAGE 'Льгота НДС должна соответствовать ТН ВЭД';
 
+overVATCustomsExceptionDeclarationDetail(declarationDetail) = OVERRIDE VATCustomsException.none, VATCustomsExceptionDeclarationDetail(declarationDetail);
+
 VATDeclarationDetail(declarationDetail) = IF VATCustomsExceptionDeclarationDetail(declarationDetail) != VATCustomsException.none THEN
                                              rangeVATCustomsException(VATCustomsExceptionDeclarationDetail(declarationDetail))
                                         ELSE VATCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
@@ -307,7 +309,7 @@ toCreateDeclarationDetails 'Создать позиции' = ACTION (declaration
         ASSIGN nameCustomsDeclarationDetail(dd) <- customsName;
         ASSIGN UOMDeclarationDetail(dd) <- UOM;
         ASSIGN customsGroupDeclarationDetail(dd) <- customsGroup;
-        ASSIGN VATCustomsExceptionDeclarationDetail(dd) <- customsException;
+        ASSIGN VATCustomsExceptionDeclarationDetail(dd) <- IF customsException != VATCustomsException.none THEN customsException ELSE NULL;
         ASSIGN countryDeclarationDetail(dd) <- country;
         ASSIGN priceDeclarationDetail(dd) <- price;
 
