@@ -4,6 +4,8 @@ REQUIRE Invoice, Shipment;
 
 NAMESPACE Shipment;
 
+GROUP invoicesGroup 'Приемка по накладным' : base;
+
 META defineInvoiceShipment(sign, stockProp, filter)
 
     invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT;
@@ -45,7 +47,14 @@ META defineInvoiceShipment(sign, stockProp, filter)
         GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
               BY stockProp###InvoiceDetail(invoiceDetail), invoiceInvoiceDetail(invoiceDetail);
 
+    toShipInvoiceDetailInvoice 'Не поставлено по накладной' (invoice) =
+        GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
+              BY invoiceInvoiceDetail(invoiceDetail);
+
     // Создание поставки на основе инвойса //
+
+    backgroundShippedInvoice 'Цвет' (invoice) = RGB(255, 224, 255) IF invoice IS Invoice;
+    backgroundShippedInvoiceDetail (detail) = backgroundShippedInvoice(invoiceInvoiceDetail(detail));
 
     FORM shipmentInvoices 'Накладные'###sign
         OBJECTS s = LegalEntity FIXED PANEL
@@ -131,11 +140,59 @@ META defineInvoiceShipment(sign, stockProp, filter)
         }
     } IN invoiceGroup;
 
+// Создание поставки на основе нескольких инвойсов //
+
+    includeInvoiceUserShipment 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    includeInvoicesUserShipment 'Накладные в приемке' (userShipment) = GROUP CONCAT STRING[255](descriptionInvoice(invoice)) IF includeInvoiceUserShipment(invoice, userShipment) , ', '
+                                                        BY userShipment
+                                                        ORDER invoice IN invoicesGroup MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;
+    FORM includeInvoicesUserShipment 'Накладные'
+        OBJECTS s = UserShipment FIXED PANEL
+
+        OBJECTS i = Invoice
+        PROPERTIES (i) READONLY isPostedInvoice FORCE GRID, numberInvoice, seriesInvoice, dateInvoice, timeInvoice,
+                                nameSupplierInvoice, nameSupplierStockInvoice, nameCustomerInvoice, nameCustomerStockInvoice,
+                                nameCurrencyInvoice, seriesNumberContractSkuInvoice, isCommissionInvoice,
+                                countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
+                                VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice, ordersInvoice,
+                                noteInvoice, objectClassName
+
+        FILTERS supplierInvoice(i) == supplierUserShipment(s),
+                customerInvoice(i) == customerUserShipment(s),
+                supplierStockInvoice(i) == supplierStockUserShipment(s),
+                customerStockInvoice(i) == customerStockUserShipment(s),
+                isPostedInvoice(i),
+                toShipInvoiceDetailInvoice(i)
+        PROPERTIES(i,s) BACKGROUND backgroundShippedInvoice(i) includeInvoiceUserShipment BEFORE isPostedInvoice(i)
+    ;
+
+    dialogIncludeInvoicesUserShipment 'Включить накладные в поставку' (userShipment) = ACTION FORM includeInvoicesUserShipment OBJECTS s = userShipment MODAL IN invoicesGroup;
+    defaultInvoiceDetailSkuUserShipment (sku, userShipment) = GROUP MAX detail IF includeInvoiceUserShipment(invoiceInvoiceDetail(detail), userShipment)
+        BY skuInvoiceDetail(detail), userShipment;
+
+    fillInvoiceDetailUserShipment 'Привязать поставку к накладным' = ACTION (userShipment) {
+        FOR userShipmentUserShipmentDetail(detail) == userShipment DO {
+            invoiceDetailUserShipmentDetail(detail) <- defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipment) WHERE defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipment);
+
+        }
+    } IN invoicesGroup;
+
     EXTEND FORM userShipment
         PROPERTIES(s) fillInvoiceUserShipment, invoicesShipment READONLY
+        PROPERTIES(s) dialogIncludeInvoicesUserShipment, includeInvoicesUserShipment READONLY, fillInvoiceDetailUserShipment
         PROPERTIES(d) descriptionIndexInvoiceDetailUserShipmentDetail BEFORE deletesd
     ;
-    EXTEND DESIGN userShipment { headerCreateDetail{ ADD s.invoiceGroup {childConstraints = TO THE RIGHTBOTTOM;}}}
+    EXTEND DESIGN userShipment {
+        headerCreateDetail{
+            ADD s.invoiceGroup {
+                childConstraints = TO THE RIGHTBOTTOM;
+            }
+            ADD s.invoicesGroup {
+                childConstraints = TO THE RIGHTBOTTOM;
+            }
+        }
+    }
+
 
     EXTEND FORM shipments
         PROPERTIES(s) READONLY invoicesShipment
@@ -176,8 +233,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
 
     showShipmentInvoice (invoice) =  invoice IS Invoice AND NOT createShipmentInvoice(invoice);
 
-    backgroundShippedInvoice 'Цвет' (invoice) = RGB(255, 224, 255) IF invoice IS Invoice;
-    EXTEND FORM userInvoice
+        EXTEND FORM userInvoice
         PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) createShipmentUserInvoice
         PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) SHOWIF createShipmentUserInvoice(i) shipmentSumUserInvoiceDetailUserInvoice,
                       shipmentDateUserInvoice, shipmentTimeUserInvoice

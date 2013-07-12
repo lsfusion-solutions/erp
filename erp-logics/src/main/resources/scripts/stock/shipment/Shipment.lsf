@@ -117,7 +117,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineDocumentInterfaceHeaderItemSum (shipment, , );
 
     @defineAddDetailDialogSkuStock(userShipment, sku, stockProp, dialogSku);
-    @defineAddDetailDialogBarcode(userShipment, sku);
+//    @defineAddDetailDialogBarcode(userShipment, sku);
 
     @implementDocumentSupplierCustomer(shipment);
     @defineMovementSku(shipmentDetail, stockProp); //-- показываем по нажатию правой клавиши движение товара
@@ -128,6 +128,81 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineDocumentDialogSupplierCustomerStock(userShipment, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerStockDetail(userShipmentDetail, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerLegalEntity(userShipment, supplierFilter, customerFilter);
+
+// ------------------------------------ Добавление сканированием строк в документ ----------------------//
+
+    CLASS ABSTRACT ShipmentDimension 'Регистр хранения' ;
+    TABLE shipmentDimension (ShipmentDimension);
+
+    nameShipmentDimension 'Наименование' = ABSTRACT ISTRING[100](ShipmentDimension);
+
+    shipmentDimensionShipmentDetail = ABSTRACT ShipmentDimension (ShipmentDetail);
+    nameShipmentDimensionShipmentDetail 'Регистр хранения' (detail) = nameShipmentDimension(shipmentDimensionShipmentDetail(detail));
+    shipmentDimensionUserShipmentDetail = ABSTRACT ShipmentDimension (UserShipmentDetail);
+    nameShipmentDimensionUserShipmentDetail 'Регистр хранения' (detail) = nameShipmentDimension(shipmentDimensionUserShipmentDetail(detail));
+    shipmentDimensionShipmentDetail(detail) += shipmentDimensionUserShipmentDetail(detail);
+
+    shipmentDimensionUserShipment= ABSTRACT ShipmentDimension (UserShipment);
+
+    userShipmentDetailUserShipmentSkuDimension(shipment, sku, dimension) = GROUP MAX detail BY userShipmentUserShipmentDetail(detail), skuUserShipmentDetail(detail), shipmentDimensionUserShipmentDetail(detail);
+    userShipmentDetailUserShipmentSku(shipment, sku) = GROUP MAX detail BY userShipmentUserShipmentDetail(detail), skuUserShipmentDetail(detail);
+
+    addDetailBarcodeUserShipmentDetailUserShipmentDimension = ACTION (shipment, barcode, dimension) {
+        LOCAL dialogBarcodeSku = Sku ();
+        ASSIGN dialogBarcodeSku() <- skuBarcodeIdDate(barcode, dateUserShipment(shipment));
+
+        IF dialogBarcodeSku() IS Sku THEN {
+            LOCAL dialogBarcodeDetail = UserShipmentDetail();
+            ASSIGN dialogBarcodeDetail() <- IF dimension IS ShipmentDimension
+                                                THEN userShipmentDetailUserShipmentSkuDimension(shipment, dialogBarcodeSku(), dimension)
+                                                ELSE userShipmentDetailUserShipmentSku(shipment, dialogBarcodeSku());
+
+
+            IF dialogBarcodeDetail() IS UserShipmentDetail THEN {
+                ASSIGN quantityUserShipmentDetail(detail) <-
+                    quantityUserShipmentDetail(detail) (+) (amountBarcode(barcodeIdDate(barcode, dateUserShipment(shipment))) IF detail IS UserShipmentDetail)
+                    WHERE detail == dialogBarcodeDetail();
+                EXEC seek(dialogBarcodeDetail());
+            } ELSE {
+                FOR ADDOBJ w = UserShipmentDetail DO {
+                    ASSIGN userShipmentUserShipmentDetail(w) <- shipment;
+                    ASSIGN skuUserShipmentDetail(w) <- dialogBarcodeSku();
+                    ASSIGN quantityUserShipmentDetail(w) <- amountBarcode(barcodeIdDate(barcode, dateUserShipment(shipment)));
+                    EXEC seek(w);
+                }
+            }
+            EXEC setSkuAddedUser(dialogBarcodeSku());
+        } ELSE {
+            FORM filterSkus MODAL;
+            IF formResult() == FormResult.ok THEN {
+                FOR s == chosenObject('s') DO {
+                    ASSIGN dialogBarcodeSku() <- s;
+                    FOR ADDOBJ br = Barcode DO {
+                        ASSIGN idBarcode(br) <- barcode;
+                        ASSIGN dataDateBarcode(br) <- currentDate();
+                        ASSIGN skuBarcode(br) <- s;
+                        FOR ADDOBJ w = UserShipmentDetail DO {
+                            ASSIGN userShipmentUserShipmentDetail(w) <- shipment;
+                            ASSIGN skuUserShipmentDetail(w) <- s;
+                            ASSIGN quantityUserShipmentDetail(w) <- amountBarcode(br);
+                            EXEC seek(w);
+                        }
+                    }
+                }
+            } ELSE {
+                EXEC createSkuBarcodeDate(barcode, dateUserShipment(shipment));
+                ASSIGN dialogBarcodeSku() <- skuBarcodeIdDate(barcode, dateUserShipment(shipment));
+            }
+            EXEC setSkuAddedUser(dialogBarcodeSku());
+        }
+    }
+
+    changeAddDetailInputBarcodeDimensionUserShipmentDetailUserShipment = ACTION (userShipment) {
+        REQUEST STRING[15] INPUT;
+        EXEC addDetailBarcodeUserShipmentDetailUserShipmentDimension(userShipment, requestedString(), shipmentDimensionUserShipment(userShipment));
+    };
+    addDetailInputBarcodeDimensionUserShipmentDetailUserShipment 'Ввод штрих-кода :' (userShipment) = DATA SESSION STRING[15] (UserShipment) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+                                                                            ON CHANGE changeAddDetailInputBarcodeDimensionUserShipmentDetailUserShipment(userShipment);
 
 // --------------------------- Формы --------------------------------- //
 
@@ -152,7 +227,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                        name###stockProp###shipmentDetail ON CHANGE changeData###stockProp###filter###userShipmentDetail(d), ADDOBJ, deletesd=DELETESESSION
 
         PROPERTIES(s) TODRAW d fillDocumentShipment, addDetailDialogSkuStockUserShipmentDetailUserShipment,
-                               addDetailInputBarcodeUserShipmentDetailUserShipment, deleteUserShipmentDetailUserShipment
+                               addDetailInputBarcodeDimensionUserShipmentDetailUserShipment, deleteUserShipmentDetailUserShipment
         FILTERS userShipmentUserShipmentDetail(d) == s
 
         EVENTS

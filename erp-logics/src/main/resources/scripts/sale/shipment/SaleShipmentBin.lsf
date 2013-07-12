@@ -26,3 +26,38 @@ binUserInvoiceDetail(detail) <- binStockSku(supplierStockUserInvoiceDetail(detai
 
 //-- Проводим по регистру (ячейка)
 binDataSkuLedger(ledger) += binShipmentDetail(ledger);
+
+EXTEND CLASS Bin : ShipmentDimension;
+nameShipmentDimension(d) += nameBin(d);
+
+shipmentDimensionUserShipmentDetail(d) += binUserShipmentDetail(d);
+
+//---------------------------------Новый функционал ----------------------------------//
+
+@defineDocumentDetailBinCustomPrefix(userShipment, current, ' текущая');
+currentBinUserShipmentDetail (detail) = currentBinUserShipment(userShipmentUserShipmentDetail(detail));
+
+shipmentDimensionUserShipment(s) += currentBinUserShipment(s);
+
+EXTEND FORM userShipment
+    PROPERTIES(s) SHOWIF showBinUserShipment(s) nameCurrentBinUserShipment
+;
+
+EXTEND DESIGN userShipment {
+    headerBin {
+        ADD PROPERTY(nameCurrentBinUserShipment) AFTER PROPERTY(showBinUserShipment);
+    }
+}
+
+inBinUserShipment (bin, userShipment) = GROUP SUM 1 IF includeInvoiceUserShipment(invoiceInvoiceDetail(detail), userShipment)
+    BY binInvoiceDetail(detail), userShipment;
+CONSTRAINT  currentBinUserShipment(userShipment) AND NOT inBinUserShipment(currentBinUserShipment(userShipment), userShipment)
+    CHECKED BY currentBinUserShipment MESSAGE 'В качестве текущей ячейки выбрана ячейка, которой нету в накладных';
+
+WHEN SESSION FORMS userShipment
+    SET(detail IS UserShipmentDetail) AND currentBinUserShipmentDetail(detail)
+        DO ASSIGN binUserShipmentDetail(detail) <- currentBinUserShipmentDetail(detail) WHERE currentBinUserShipmentDetail(detail);
+
+WHEN SESSION FORMS userShipment
+    CHANGED(invoiceDetailUserShipmentDetail(detail))
+        DO ASSIGN binUserShipmentDetail(detail) <- binInvoiceDetail(invoiceDetailUserShipmentDetail(detail));

@@ -346,11 +346,11 @@ DESIGN binStocks FROM DEFAULT {
 
 META defineDocumentDetailBinCustomPrefix(detail, prefix, caption)
     prefix###bin###detail = DATA Bin (###detail);
-    prefix###nameBin###detail 'Ячейка'###caption (detail) = nameBin(prefix###bin###detail(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    name###prefix###bin###detail 'Ячейка'###caption (detail) = nameBin(prefix###bin###detail(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 END
 META defineDocumentAbstractDetailBinCustomPrefix(detail, prefix, caption)
     prefix###bin###detail = ABSTRACT Bin (###detail) PERSISTENT;
-    prefix###nameBin###detail 'Ячейка'###caption (detail) = nameBin(prefix###bin###detail(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    name###prefix###bin###detail 'Ячейка'###caption (detail) = nameBin(prefix###bin###detail(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 END
 META defineDocumentInterfaceDetailBinCustomPrefix(detail, prefix, caption)
     @defineDocumentAbstractDetailBinCustomPrefix(detail, prefix, caption);
@@ -372,19 +372,20 @@ META extendFormInterfaceDetailBin(object, prefix, befProp)
 
     EXTEND FORM user###object
         PROPERTIES(s) showBin###user###object
-        PROPERTIES (d) SHOWIF showBin###user###object(s) prefix###nameBin###user###object###detail BEFORE befProp###user###object###detail
+        PROPERTIES (d) SHOWIF showBin###user###object(s) name###prefix###bin###user###object###detail BEFORE befProp###user###object###detail
     ;
     EXTEND DESIGN user###object {
         headerExtraParams {
             NEW headerBin {
                 caption = 'Ячейка';
+                childConstraints = TO THE RIGHTBOTTOM;
                 ADD PROPERTY(showBin###user###object);
             }
         }
     }
     EXTEND FORM object##s
     PROPERTIES(s) READONLYIF isReadonly() showBin###object
-    PROPERTIES (d) READONLY SHOWIF showBin###object(s) prefix###nameBin###object###detail BEFORE befProp###object###detail
+    PROPERTIES (d) READONLY SHOWIF showBin###object(s) name###prefix###bin###object###detail BEFORE befProp###object###detail
     ;
 END
 
@@ -396,6 +397,7 @@ META defineInvoiceShipmentBin(stockProp)
     binShipmentDetail (detail) += binInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
 
     @defineDocumentInterfaceHeaderCreate (invoice, showBin, 'Ячейка');
+    @defineDocumentInterfaceDetailCreate (invoice, showBin, 'Ячейка');
 
     EXTEND FORM userInvoice
         PROPERTIES(i) showBinUserInvoice
@@ -414,6 +416,10 @@ META defineInvoiceShipmentBin(stockProp)
     EXTEND FORM invoices
         PROPERTIES(i) READONLYIF isReadonly() showBinInvoice
         PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail SHOWIF showBinInvoice(i) BACKGROUND backgroundShippedInvoice(i)
+                      nameBinInvoiceDetail
+    ;
+    EXTEND FORM invoiceDetails
+        PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail SHOWIF showBinInvoiceDetail(d) BACKGROUND backgroundShippedInvoiceDetail(d)
                       nameBinInvoiceDetail
     ;
 
