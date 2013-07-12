@@ -142,6 +142,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
 
 // Создание поставки на основе нескольких инвойсов //
 
+    TABLE invoiceUserShipment (Invoice, UserShipment);
     includeInvoiceUserShipment 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) MINCHARWIDTH 10 PREFCHARWIDTH 15;
     includeInvoicesUserShipment 'Накладные в приемке' (userShipment) = GROUP CONCAT STRING[255](descriptionInvoice(invoice)) IF includeInvoiceUserShipment(invoice, userShipment) , ', '
                                                         BY userShipment
@@ -238,7 +239,8 @@ META defineInvoiceShipment(sign, stockProp, filter)
         PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) SHOWIF createShipmentUserInvoice(i) shipmentSumUserInvoiceDetailUserInvoice,
                       shipmentDateUserInvoice, shipmentTimeUserInvoice
         PROPERTIES(d) BEFORE deleteid SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      expiryDateUserInvoiceDetail, name###stockProp###userInvoiceDetail ON CHANGE changeData###stockProp###filter###userInvoiceDetail(d), shipmentPriceUserInvoiceDetail, shipmentSumUserInvoiceDetail
+                      expiryDateUserInvoiceDetail, name###stockProp###userInvoiceDetail ON CHANGE changeData###stockProp###filter###userInvoiceDetail(d), shipmentSumUserInvoiceDetail
+        PROPERTIES(d) BEFORE deleteid BACKGROUND backgroundShippedInvoice(i) shipmentPriceUserInvoiceDetail
         PROPERTIES(d) READONLY shippedInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF showShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
         PROPERTIES(d) shipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
     ;
