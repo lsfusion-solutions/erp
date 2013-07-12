@@ -1,14 +1,239 @@
 MODULE ItemPharmacyBy;
 
-REQUIRE ItemPharmacy, PharmacyPriceList;
+REQUIRE ItemPharmacy, PriceListType;
 
 NAMESPACE Item;
 
+CLASS PharmacyPriceGroup 'Тип лекарственного средства';
+TABLE pharmacyPriceGroup(PharmacyPriceGroup);
+
+namePharmacyPriceGroup 'Наименование' = DATA ISTRING[50](PharmacyPriceGroup);
+@defineExternalizable(pharmacyPriceGroup, STRING[100]);
+
+pharmacyPriceGroupSku= ABSTRACT PharmacyPriceGroup (Sku);
+namePharmacyPriceGroupSku 'Тип лекарственного средства' (sku) = namePharmacyPriceGroup(pharmacyPriceGroupSku(sku));
+
 @defineObjectItemAttribute(pharmacyPriceGroup, PharmacyPriceGroup, namePharmacyPriceGroup, 'Тип лекарственного средства', itemPharmacyGroup);
 @defineObjectItemAttributeBatch (pharmacyPriceGroup, namePharmacyPriceGroup, 'Тип лекарственного средства');
-
 pharmacyPriceGroupSku(sku) += pharmacyPriceGroupItem(sku);
 
+CLASS PharmacyPriceInterval 'Интервал цен лекарственного средства';
+TABLE pharmacyPriceInterval(PharmacyPriceInterval);
+
+pharmacyGroupPharmacyInterval= DATA PharmacyPriceGroup (PharmacyPriceInterval);
+namePharmacyGroupPharmacyInterval 'Тип лекарственного средства' (interval) = namePharmacyPriceGroup(pharmacyGroupPharmacyInterval(interval));
+
+pharmacyTypeExchange = DATA TypeExchange ();
+namePharmacyTypeExchange 'Тип обмена для Лекарственных средств' ()= nameTypeExchange(pharmacyTypeExchange());
+
+EXTEND FORM options
+    PROPERTIES() namePharmacyTypeExchange
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(namePharmacyTypeExchange);
+    }
+}
+
+pricePharmacyInterval 'Цена от' = DATA NUMERIC[14,2] (PharmacyPriceInterval);
+
+fromDatePharmacyInterval 'Дата действия с' = DATA DATE (PharmacyPriceInterval);
+toDatePharmacyInterval 'Дата действия по' = DATA DATE (PharmacyPriceInterval);
+
+TABLE pharmacyPriceGroupPharmacyPriceInterval(PharmacyPriceGroup, PharmacyPriceInterval);
+wholesaleMarkupPharmacyGroupInterval 'Оптовая надбавка' = DATA NUMERIC[8,3] (PharmacyPriceGroup, PharmacyPriceInterval);
+retailMarkupPharmacyGroupInterval 'Розничная надбавка' = DATA NUMERIC[8,3] (PharmacyPriceGroup, PharmacyPriceInterval);
+
+pharmacyExchangePriceDate  (price, date)= price / rateTypeExchangeCurrencyDate(pharmacyTypeExchange(), currencyShortName('USD'), date);
+
+orderIntervalGroupPriceDate (group, price, date) = GROUP MAX STRUCT(pricePharmacyInterval(interval), fromDatePharmacyInterval(interval), interval)
+    IF pharmacyExchangePriceDate(price AS NUMERIC[14,2], date) > pricePharmacyInterval(interval)
+    IF date >= fromDatePharmacyInterval(interval)
+    IF NOT date > toDatePharmacyInterval(interval)
+        BY pharmacyGroupPharmacyInterval(interval), price, date;
+
+pharmacyIntervalPharmacyGroupPriceDate (group, price, date) = orderIntervalGroupPriceDate(group, price, date)[3];
+
+wholesaleMarkupPharmacyGroupPriceDate 'Оптовая надбавка' (priceGroup, price, date) = wholesaleMarkupPharmacyGroupInterval(priceGroup, pharmacyIntervalPharmacyGroupPriceDate(priceGroup, price, date));
+wholesaleMarkupPharmacySkuPriceDate 'Оптовая надбавка' (sku, price, date) =  wholesaleMarkupPharmacyGroupPriceDate(pharmacyPriceGroupSku(sku), price, date);
+wholesaleMarkupPharmacyBatchPriceDate 'Оптовая надбавка' (batch, price, date) =  wholesaleMarkupPharmacySkuPriceDate(skuBatch(batch), price, date);
+
+retailMarkupPharmacyGroupPriceDate 'Розничная надбавка' (priceGroup, price, date) = retailMarkupPharmacyGroupInterval(priceGroup, pharmacyIntervalPharmacyGroupPriceDate(priceGroup, price, date));
+retailMarkupPharmacySkuPriceDate 'Розничная надбавка' (sku, price, date) =  retailMarkupPharmacyGroupPriceDate(pharmacyPriceGroupSku(sku), price, date);
+retailMarkupPharmacyBatchPriceDate 'Розничная надбавка' (batch, price, date) =  retailMarkupPharmacySkuPriceDate(skuBatch(batch), price, date);
+
+FORM pharmacyMarkups 'Типы лекарственных средств'
+
+    OBJECTS g=PharmacyPriceGroup
+    PROPERTIES (g) namePharmacyPriceGroup, idPharmacyPriceGroup SHOWIF showIDs()
+    PROPERTIES (g) ADDOBJ, DELETESESSION
+    ORDER BY idPharmacyPriceGroup
+
+    OBJECTS i=PharmacyPriceInterval
+    PROPERTIES fromDatePharmacyInterval(i), toDatePharmacyInterval(i), pricePharmacyInterval(i),
+               wholesaleMarkupPharmacyGroupInterval(g,i), retailMarkupPharmacyGroupInterval(g,i)
+    PROPERTIES(i) ADDOBJ, DELETESESSION
+    FILTERS    pharmacyGroupPharmacyInterval(i)==g
+    ORDER BY pricePharmacyInterval
+
+    OBJECTS nu=NUMERIC[14,3] FIXED PANEL
+    PROPERTIES val = OBJVALUE(nu)
+
+    OBJECTS t=DATE FIXED PANEL
+    PROPERTIES value = OBJVALUE(t)
+    PROPERTIES(g, nu, t) READONLY wholesaleMarkupPharmacyGroupPriceDate,retailMarkupPharmacyGroupPriceDate
+
+;
+
+DESIGN pharmacyMarkups FROM DEFAULT {
+    main {
+        childConstraints = TO THE BOTTOM;
+        ADD g.box;
+        ADD i.box;
+        NEW test {
+            caption = 'Тестовая форма';
+            childConstraints = TO THE RIGHT;
+            ADD PROPERTY (value) {
+                caption = 'Выберите дату';
+                panelLabelAbove = TRUE;
+                font = 'Tahoma bold 24';
+            }
+            ADD PROPERTY (val) {
+                caption = 'Введите цену в рублях';
+                panelLabelAbove = TRUE;
+                font = 'Tahoma bold 24';
+            }
+
+            ADD PROPERTY (wholesaleMarkupPharmacyGroupPriceDate(g, nu, t)) {
+                caption = 'Результат (оптовая надбавка)';
+                panelLabelAbove = TRUE;
+                font = 'Tahoma bold 24';
+            }
+            ADD PROPERTY (retailMarkupPharmacyGroupPriceDate(g, nu, t)) {
+                caption = 'Результат (розничная надбавка)';
+                panelLabelAbove = TRUE;
+                font = 'Tahoma bold 24';
+            }
+        }
+        ADD functions.box;
+    }
+}
+FORM pharmacyPriceGroups 'Типы лекарственных средств'
+    OBJECTS g=PharmacyPriceGroup
+    PROPERTIES (g) READONLY namePharmacyPriceGroup, idPharmacyPriceGroup SHOWIF showIDs()
+    ORDER BY idPharmacyPriceGroup
+
+    OBJECTS i=PharmacyPriceInterval
+    PROPERTIES READONLY fromDatePharmacyInterval(i), toDatePharmacyInterval(i), pricePharmacyInterval(i),
+               wholesaleMarkupPharmacyGroupInterval(g,i), retailMarkupPharmacyGroupInterval(g,i)
+    FILTERS    pharmacyGroupPharmacyInterval(i)==g
+    ORDER BY pricePharmacyInterval
+
+    DIALOG PharmacyPriceGroup OBJECT g
+;
+
+DESIGN pharmacyPriceGroups FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+    }
+}
+
+NAVIGATOR {
+    skuNavigator {
+        ADD pharmacyMarkups;
+    }
+}
+
+//---------------- специальный тип цены -----------------//
+
+CLASS PharmacyPriceListType 'Цена на медтовары' : PriceListType;
+
+namePharmacyPriceListType 'Наименование' = DATA ISTRING[50](PharmacyPriceListType);
+namePriceListType(type) += namePharmacyPriceListType(type) IF type IS PharmacyPriceListType;
+
+basePriceListTypePharmacyPriceListType(type) = DATA BasePriceListType (PharmacyPriceListType);
+nameBasePriceListTypePharmacyPriceListType 'Базовый вид цены' (type) = nameBasePriceListType(basePriceListTypePharmacyPriceListType(type));
+
+ledgerPriceListTypePriceListType(type) += basePriceListTypePharmacyPriceListType(type) AS LedgerPriceListType;
+
+CLASS TypePharmacyPrice 'Тип цены' {
+    wholesale 'Оптовая',
+    retail 'Розничная'
+}
+
+typePharmacyPricePharmacyPriceListType = DATA TypePharmacyPrice (PharmacyPriceListType);
+nameTypePharmacyPricePharmacyPriceListType 'Тип цены' (type) = staticCaption(typePharmacyPricePharmacyPriceListType(type));
+
+FORM typePharmacyPrice 'Тип цены'
+    OBJECTS t = TypePharmacyPrice
+    PROPERTIES(t) READONLY staticCaption
+    DIALOG TypePharmacyPrice OBJECT t
+;
+
+calcPriceListTypePharmacyPriceListType = DATA CalcPriceListType (PharmacyPriceListType);
+nameCalcPriceListTypePharmacyPriceListType 'Вид цены с основной наценкой' (type) = namePriceListType(calcPriceListTypePharmacyPriceListType(type));
+
+@defineDocumentHeaderCurrency(pharmacyPriceListType);
+currencyPriceListType(pharmacyPriceListType) += currencyPharmacyPriceListType(pharmacyPriceListType);
+
+//---цена товара
+markupPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) = IF typePharmacyPricePharmacyPriceListType (type) == TypePharmacyPrice.wholesale
+    THEN wholesaleMarkupPharmacySkuPriceDate(sku AS Sku, priceBasePriceListTypeSkuStockDateTime(basePriceListTypePharmacyPriceListType(type), sku, stock, dateTime), toDate(dateTime) AS DATE)
+    ELSE IF typePharmacyPricePharmacyPriceListType (type) == TypePharmacyPrice.retail
+        THEN retailMarkupPharmacySkuPriceDate(sku AS Sku, priceBasePriceListTypeSkuStockDateTime(basePriceListTypePharmacyPriceListType(type), sku, stock, dateTime), toDate(dateTime) AS DATE);
+
+maxPricePharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) = round((100 + markupPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime))*
+              priceBasePriceListTypeSkuStockDateTime(basePriceListTypePharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
+
+pricePharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
+    NUMERIC[14,2] (MIN priceCalcPriceListTypeSkuStockDateTime(calcPriceListTypePharmacyPriceListType(type), sku, stock, dateTime),
+                       maxPricePharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)
+    IF type IS PharmacyPriceListType AND stock IS Stock);
+
+pricePriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += pricePharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
+
+//---цена партии
+markupPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) = IF typePharmacyPricePharmacyPriceListType (type) == TypePharmacyPrice.wholesale
+    THEN wholesaleMarkupPharmacyBatchPriceDate(batch AS Batch, priceBasePriceListTypeBatchStockDateTime(basePriceListTypePharmacyPriceListType(type), batch, stock, dateTime), toDate(dateTime) AS DATE)
+    ELSE IF typePharmacyPricePharmacyPriceListType (type) == TypePharmacyPrice.retail
+        THEN retailMarkupPharmacyBatchPriceDate(batch AS Batch, priceBasePriceListTypeBatchStockDateTime(basePriceListTypePharmacyPriceListType(type), batch, stock, dateTime), toDate(dateTime) AS DATE);
+
+maxPricePharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) = round((100 + markupPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
+              priceBasePriceListTypeBatchStockDateTime(basePriceListTypePharmacyPriceListType(type), batch, stock, dateTime)/100, 0);
+
+pricePharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+    NUMERIC[14,2] (MIN priceCalcPriceListTypeBatchStockDateTime(calcPriceListTypePharmacyPriceListType(type), batch, stock, dateTime),
+                       maxPricePharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)
+    IF type IS PharmacyPriceListType AND stock IS Stock);
+
+pricePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += pricePharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
+
+FORM pharmacyPriceListType 'Цена на медтовары'
+    OBJECTS p = PharmacyPriceListType FIXED PANEL
+    PROPERTIES(p) namePharmacyPriceListType, nameTypePharmacyPricePharmacyPriceListType, nameCurrencyPharmacyPriceListType,
+                  nameBasePriceListTypePharmacyPriceListType, nameCalcPriceListTypePharmacyPriceListType
+
+    EDIT PharmacyPriceListType OBJECT p
+;
+
+DESIGN pharmacyPriceListType FROM DEFAULT {
+    p.box{
+        ADD PROPERTY(namePharmacyPriceListType);
+        ADD PROPERTY(nameCurrencyPharmacyPriceListType);
+        ADD PROPERTY(nameTypePharmacyPricePharmacyPriceListType);
+        ADD PROPERTY(nameBasePriceListTypePharmacyPriceListType);
+        ADD PROPERTY(nameCalcPriceListTypePharmacyPriceListType);
+    }
+}
+
+addPharmacyPriceListType 'Добавить цену на медтовары' = ACTION ADDFORM PharmacyPriceListType;
+editPharmacyPriceListType 'Редактировать' = ACTION EDITFORM PharmacyPriceListType;
+editPriceListType(priceListType) += editPharmacyPriceListType(priceListType);
+
+EXTEND FORM priceListTypes
+    PROPERTIES() addPharmacyPriceListType TODRAW pt FORCE PANEL
+//    PROPERTIES(sk, pt, s, dt) ccc
+;
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultPharmacyPriceGroup 'Добавить Типы лекарственных средств' = ACTION (iname, isid) {
