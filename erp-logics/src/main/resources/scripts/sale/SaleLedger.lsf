@@ -13,6 +13,8 @@ isPostedSaleLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (SaleLedger) P
 skuSaleLedger (ledger) = ABSTRACT Sku (SaleLedger) PERSISTENT INDEXED;
 nameSkuSaleLedger 'SKU' (ledger) = nameSku(skuSaleLedger(ledger));
 
+canonicalNameSkuGroupSaleLedger 'Каноническое имя' (ledger) = canonicalNameGroup(skuGroupSku(skuSaleLedger(ledger)));
+
 stockSaleLedger (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT INDEXED;
 nameStockSaleLedger 'Склад' (ledger) = nameStock(stockSaleLedger(ledger));
 
@@ -202,7 +204,7 @@ EXTEND DESIGN options {
 }
 
 //---------------------------------------------- Формы продаж -------------------------------------//
-FORM saleLedger 'Продажи по позициям'
+FORM saleLedger 'Регистр продаж'
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
@@ -211,8 +213,10 @@ FORM saleLedger 'Продажи по позициям'
     PROPERTIES nameType = nameTypeExchange(te) SELECTOR, nameCurrencyTypeExchange(te) READONLY
 
     OBJECTS s = SaleLedger
-    PROPERTIES(s) READONLY dateSaleLedger, dateTimeSaleLedger, nameStockSaleLedger, nameCustomerSaleLedger, nameSkuSaleLedger, descriptionSaleLedger,
-                           quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger
+    PROPERTIES(s) READONLY dateSaleLedger, dateTimeSaleLedger, nameStockSaleLedger, nameCustomerSaleLedger,
+                           canonicalNameSkuGroupSaleLedger, nameSkuSaleLedger, descriptionSaleLedger,
+                           quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
+                           sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger
     PROPERTIES    READONLY sumSoldTypeExchangeSaleLedger (te, s)
     FILTERS isPostedSaleLedger(s)
     FILTERS dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo
@@ -242,7 +246,7 @@ DESIGN saleLedger FROM DEFAULT {
 
 toString4 = FORMULA STRING[4] 'CAST($1 AS character(4))' FIXEDCHARWIDTH 4;
 
-FORM saleSkuStock 'Продажи по SKU'
+FORM saleSkuStock 'Продажи по неделям'
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
@@ -321,8 +325,9 @@ DESIGN saleSkuStock FROM DEFAULT {
 }
 
 NAVIGATOR {
+
     saleNavigator {
-        NEW saleLedgerNavigator 'Продажи' BEFORE saleMasterData {
+        NEW salesReports 'Отчеты' {
             ADD saleLedger;
             ADD saleSkuStock;
         }

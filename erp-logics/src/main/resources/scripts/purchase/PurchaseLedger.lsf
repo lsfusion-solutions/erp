@@ -13,6 +13,8 @@ isPostedPurchaseLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseL
 skuPurchaseLedger (ledger) = ABSTRACT Sku (PurchaseLedger) PERSISTENT INDEXED;
 nameSkuPurchaseLedger 'SKU' (ledger) = nameSku(skuPurchaseLedger(ledger));
 
+canonicalNameSkuGroupPurchaseLedger 'Каноническое имя' (ledger) = canonicalNameGroup(skuGroupSku(skuPurchaseLedger(ledger)));
+
 stockPurchaseLedger (ledger) = ABSTRACT Stock (PurchaseLedger) PERSISTENT INDEXED;
 nameStockPurchaseLedger 'Склад' (ledger) = nameStock(stockPurchaseLedger(ledger));
 
@@ -169,7 +171,7 @@ EXTEND DESIGN options {
 
 //---------------------------------------------- Формы закупки -------------------------------------//
 
-FORM purchaseLedger 'Поступления по позициям'
+FORM purchaseLedger 'Регистр поступлений'
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
@@ -178,8 +180,9 @@ FORM purchaseLedger 'Поступления по позициям'
     PROPERTIES nameType = nameTypeExchange(te) SELECTOR, nameCurrencyTypeExchange(te) READONLY
 
     OBJECTS s = PurchaseLedger
-    PROPERTIES(s) READONLY datePurchaseLedger, dateTimePurchaseLedger, nameStockPurchaseLedger, nameSupplierPurchaseLedger, nameSkuPurchaseLedger, descriptionPurchaseLedger,
-                           quantityPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
+    PROPERTIES(s) READONLY datePurchaseLedger, dateTimePurchaseLedger, nameStockPurchaseLedger, nameSupplierPurchaseLedger,
+                           canonicalNameSkuGroupPurchaseLedger, nameSkuPurchaseLedger, descriptionPurchaseLedger,
+                           quantityPurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
     PROPERTIES    READONLY sumPurchaseTypeExchangePurchaseLedger (te, s)
     FILTERS isPostedPurchaseLedger(s)
 
@@ -211,7 +214,7 @@ DESIGN purchaseLedger FROM DEFAULT {
 
 toString4 = FORMULA STRING[4] 'CAST($1 AS character(4))' FIXEDCHARWIDTH 4;
 
-FORM purchaseSkuStock 'Поступления по SKU'
+FORM purchaseSkuStock 'Поступления по неделям'
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
@@ -289,9 +292,10 @@ DESIGN purchaseSkuStock FROM DEFAULT {
     }
 }
 
+
 NAVIGATOR {
     purchaseNavigator {
-        NEW purchaseLedgerNavigator 'Поступления' BEFORE purchaseMasterData {
+        NEW purchasesReports 'Отчеты' {
             ADD purchaseLedger;
             ADD purchaseSkuStock;
         }

@@ -458,6 +458,7 @@ legalEntityStockSkuLedger (ledger) = MULTI legalEntityStockDataSkuLedger (ledger
 nameLegalEntityStockSkuLedger 'Склад контрагента' (ledger) = nameStock(legalEntityStockSkuLedger(ledger));
 legalEntitySkuLedger (ledger) = MULTI legalEntityDataSkuLedger (ledger), supplierBatch (ledger) PERSISTENT;
 nameLegalEntitySkuLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntitySkuLedger(ledger));
+canonicalNameSkuGroupSkuLedger 'Каноническое имя' (ledger) = canonicalNameGroup(skuGroupSku(skuSkuLedger(ledger)));
 // -------------------------------- Количества ---------------------------- //
 
 quantityBatch 'Кол-во в партии' = ABSTRACT NUMERIC[14,3] (Batch) PERSISTENT;
@@ -3825,6 +3826,40 @@ FORM documents 'Документы с товарами'
 DESIGN documents FROM DEFAULT{
     main {
         preferredSize = (1024, 768);
+    }
+}
+
+// ----------------------------------------- Регистр движений товаров ------------------------------------------------ //
+
+FORM skuLedger 'Регистр движений'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+
+    OBJECTS s = SkuLedger
+    PROPERTIES(s) READONLY numberSkuLedger, seriesSkuLedger, dateSkuLedger, dateTimeSkuLedger, canonicalNameSkuGroupSkuLedger, nameSkuSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
+                           nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger, costSumSkuLedger
+    FILTERS isPostedSkuLedger(s)
+
+    FILTERS dateSkuLedger(s) >= dFrom, dateSkuLedger(s) <= dTo
+;
+
+DESIGN skuLedger FROM DEFAULT {
+    main {
+        childConstraints = TO THE BOTTOM;
+        ADD dates.box {
+            childConstraints = TO THE RIGHT;
+        }
+        ADD s.box{
+            childConstraints = TO THE BOTTOM;
+        }
+    }
+    ADD functions.box;
+}
+
+NAVIGATOR {
+    stockReports{
+        ADD skuLedger;
     }
 }
 
