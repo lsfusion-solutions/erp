@@ -170,10 +170,10 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
             switch (type) {
                 case 1:
                     if (codeCustomsGroup.length() == 2)
-                        registrationMap.put(codeCustomsGroup, stav_s);
+                        registrationMap.put(codeCustomsGroup, stav_a);
                     break;
                 case 2:
-                    data.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_s, stav_a, null, dateFrom, dateTo));
+                    data.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, null, dateFrom, dateTo));
                     break;
                 case 4:
                     dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), null, null, null, stav_a, dateFrom, dateTo));
