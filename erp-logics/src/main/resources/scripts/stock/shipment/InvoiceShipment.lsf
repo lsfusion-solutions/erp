@@ -168,15 +168,34 @@ META defineInvoiceShipment(sign, stockProp, filter)
     ;
 
     dialogIncludeInvoicesUserShipment 'Включить накладные в поставку' (userShipment) = ACTION FORM includeInvoicesUserShipment OBJECTS s = userShipment MODAL IN invoicesGroup;
+
+    shipmentDimensionInvoiceDetail = ABSTRACT ShipmentDimension (InvoiceDetail);
+    nameShipmentDimensionInvoiceDetail 'Регистр хранения' (detail) = nameShipmentDimension(shipmentDimensionInvoiceDetail(detail));
+    shipmentDimensionUserInvoiceDetail = ABSTRACT ShipmentDimension (UserInvoiceDetail);
+    nameShipmentDimensionUserInvoiceDetail 'Регистр хранения' (detail) = nameShipmentDimension(shipmentDimensionUserInvoiceDetail(detail));
+    shipmentDimensionInvoiceDetail(detail) += shipmentDimensionUserInvoiceDetail(detail);
     defaultInvoiceDetailSkuUserShipment (sku, userShipment) = GROUP MAX detail IF includeInvoiceUserShipment(invoiceInvoiceDetail(detail), userShipment)
         BY skuInvoiceDetail(detail), userShipment;
+    defaultInvoiceDetailSkuDimensionUserShipment (sku, dimension, userShipment) = GROUP MAX detail IF includeInvoiceUserShipment(invoiceInvoiceDetail(detail), userShipment)
+        BY skuInvoiceDetail(detail), shipmentDimensionInvoiceDetail(detail), userShipment;
 
-    fillInvoiceDetailUserShipment 'Привязать поставку к накладным' = ACTION (userShipment) {
+    fillInvoiceDetailUserShipmentDetailDimension 'Привязать поставку к накладным' = ACTION (detail, dimension) {
+
+        invoiceDetailUserShipmentDetail(detail) <- IF dimension IS ShipmentDimension
+                                    THEN defaultInvoiceDetailSkuDimensionUserShipment(skuUserShipmentDetail(detail), dimension, userShipmentUserShipmentDetail(detail))
+                                    ELSE defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail));
+    };
+
+    fillInvoiceDetailUserShipmentDimension 'Привязать поставку к накладным' = ACTION (userShipment, dimension) {
         FOR userShipmentUserShipmentDetail(detail) == userShipment DO {
-            invoiceDetailUserShipmentDetail(detail) <- defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipment) WHERE defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipment);
-
+            EXEC fillInvoiceDetailUserShipmentDetailDimension(detail, dimension);
         }
     } IN invoicesGroup;
+    fillInvoiceDetailUserShipment 'Привязать поставку к накладным' (userShipment) = fillInvoiceDetailUserShipmentDimension(userShipment, shipmentDimensionUserShipment(userShipment)) IN invoicesGroup;
+
+    WHEN SESSION FORMS userShipment
+        CHANGED(shipmentDimensionUserShipmentDetail(detail)) OR CHANGED(skuUserShipmentDetail(detail))
+            DO EXEC fillInvoiceDetailUserShipmentDetailDimension(detail, shipmentDimensionUserShipmentDetail(detail));
 
     EXTEND FORM userShipment
         PROPERTIES(s) fillInvoiceUserShipment, invoicesShipment READONLY
