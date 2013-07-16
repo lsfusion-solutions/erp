@@ -387,29 +387,17 @@ DESIGN customerLegalEntities FROM DEFAULT{
     }
 }
 META defineDocumentDialogLegalEntity(objectClass, filter, prefix)
-    change###prefix###filter###objectClass = ACTION (objectClass) {
+    change###prefix###filter###objectClass = ACTION (o) {
         REQUEST OBJECT l
-        FORM filter###legalEntities MODAL SHOWDROP;
+        FORM filter###legalEntities CONTEXTFILTER l = prefix###objectClass(o) MODAL SHOWDROP;
         IF formResult() == FormResult.ok THEN {
-            prefix###objectClass(objectClass) <- requestedObject();
+            prefix###objectClass(o) <- requestedObject();
 
         } ELSE IF formResult() == FormResult.drop THEN {
-            prefix###objectClass(objectClass) <- NULL;
+            prefix###objectClass(o) <- NULL;
         }
     }
 END
-//META defineDocumentDialogLegalEntity(objectClass, filter, prefix)
-//    change###prefix###filter###objectClass = ACTION (o) {
-//        REQUEST OBJECT l
-//        FORM filter###legalEntities CONTEXTFILTER l = prefix###objectClass(o) MODAL SHOWDROP;
-//        IF formResult() == FormResult.ok THEN {
-//            prefix###objectClass(o) <- requestedObject();
-//
-//        } ELSE IF formResult() == FormResult.drop THEN {
-//            prefix###objectClass(o) <- NULL;
-//        }
-//    }
-//END
 META defineDocumentDialogSupplierCustomerLegalEntity(objectClass, supplierFilter, customerFilter)
     @defineDocumentDialogLegalEntity(objectClass, supplierFilter, supplier);
     @defineDocumentDialogLegalEntity(objectClass, customerFilter, customer);

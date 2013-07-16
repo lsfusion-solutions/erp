@@ -186,6 +186,30 @@ sumIncStockDocumentLedger (ledger) += sumShipmentDetailShipment(ledger);
 sumItemIncStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
 sumContainerIncStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
 
+//
+defaultUserShipmentDetailSkuUserShipmentPrice (sku, shipment, price) = GROUP MIN detail IF NOT batchUserShipmentDetail(detail)
+    BY skuUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail), priceUserShipmentDetail(detail);
+
+defaultUserShipmentDetailUserShipmentDetail(detail) = defaultUserShipmentDetailSkuUserShipmentPrice(skuUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail), priceUserShipmentDetail(detail));
+
+mergeBatchUserShipment 'Соединить партии' = ACTION (shipment) {
+    CONFIRM 'Документ будет автоматически сохранен, вы действительно хотите выполнить действие "Соединить партии?"';
+    IF (confirmed()) THEN {
+        EXEC apply();
+        FOR userShipmentUserShipmentDetail(detail) == shipment
+            AND NOT defaultUserShipmentDetailUserShipmentDetail(detail) == detail
+            AND NOT batchUserShipmentDetail(detail) DO {
+                ASSIGN batchUserShipmentDetail(detail) <- shipmentBatchShipmentDetail(defaultUserShipmentDetailUserShipmentDetail(detail));
+
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM userShipment
+
+    PROPERTIES(s) TODRAW d mergeBatchUserShipment
+;
+
 
 NAVIGATOR {
     purchaseStockNavigator {
