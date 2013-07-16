@@ -1,0 +1,220 @@
+MODULE DocumentArticle;
+
+REQUIRE ItemArticle;
+
+//----------- Изменение кол-ва для строки при изменении кол-ва для товара (несколько складов)---------------//
+
+//META defineDocumentArticleStockPriceListType(object, stockProp)
+//    @defineDocumentArticleStock(object, article, stockProp);
+//    priceListType###object###article(object, article) = OVERRIDE priceListType###object(object) IF article IS Article, priceListTypeAgreementArticle(agreement###object(object), article);
+//
+//    priceArticleStock###object 'Цена' (article, stock, object) = prevPricePriceListTypeArticleStockDateTime(priceListType###object###article(object, article), article, stock, dateTime###object(object));
+//    ledgerPriceArticleStock###object 'Цена (базовая)' (article, stock, object) = prevPricePriceListTypeArticleStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###article(object, article)), article, stock, dateTime###object(object));
+//END
+//META defineDocumentArticleStockSystemLedgerPriceListType(object, priceListTypeProp, stockProp)
+//    @defineDocumentArticleStock(object, article, stockProp);
+//    priceArticleStock###object 'Цена' (article, stock, object) = prevPricePriceListTypeArticleStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, article, stock, dateTime###object(object));
+//END
+
+currentBalanceArticleColorSizeStock 'Текущий остаток' (article, color, size, stock)= GROUP SUM currentBalanceSkuStock(sku, stock)
+    BY articleItem(sku), colorItem(sku), sizeItem(sku), stock;
+
+prevCurrentBalanceArticleColorSizeStock 'Текущий остаток' (article, color, size, stock)= PREV(currentBalanceArticleColorSizeStock(article, color, size, stock));
+
+defaultSkuColorSizeStock (article, color, size)= GROUP MAX sku
+    BY articleItem(sku), colorItem(sku), sizeItem(sku);
+
+nameBalanceSize (size) = CONCAT ' ', nameSize(size), ' (остаток/цена)';
+
+//----------- Изменение кол-ва для строки при изменении кол-ва для Артикула (несколько складов)---------------//
+
+META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
+    detail###ArticleColorSize###object###stockProp (article, color, size, object, stock) =  GROUP MAX detail###Sku###object###stockProp (sku, object, stock)
+        BY articleItem(sku), colorItem(sku), sizeItem(sku), object, stock;
+
+    quantityArticleColorSize###object###stockProp 'Кол-во товара в документе' (article, color, size, object, stock) = GROUP SUM quantitySku###object###stockProp(sku, object, stock)
+        BY articleItem(sku), colorItem(sku), sizeItem(sku), object, stock;
+
+    priceBalanceArticleColorSizeStock###object  (article, color, size, stock, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stock), priceSkuStock###object(defaultSkuColorSizeStock (article,color,size), stock, object);
+
+
+    backgroundQuantityArticleColorSize###object###Stock 'Цвет' (article, color, size, object, stock) = RGB(255,128,128) IF quantityArticleColorSize###object###stockProp(article, color, size, object, stock) AND NOT
+        (quantityArticleColorSize###object###stockProp(article, color, size, object, stock) <= prevCurrentBalanceArticleColorSizeStock(article, color, size, stock));
+
+    changeQuantityValueArticleColorSize###object###Stock = ACTION (article, color, size, object, stock) {
+
+        IF detail###ArticleColorSize###object###stockProp(article, color, size, object, stock) THEN {
+            IF requestedNumeric() THEN {
+                ASSIGN quantity###detail(d) <- requestedNumeric() WHERE d == detail###ArticleColorSize###object###stockProp(article, color, size, object, stock);
+            } ELSE {
+                DELETE d WHERE d==detail###ArticleColorSize###object###stockProp(article, color, size, object, stock);
+            }
+
+        } ELSE {
+            IF requestedNumeric() THEN {
+                FOR ADDOBJ d = ###detail DO {
+                   ASSIGN object###detail(d) <- object;
+                   ASSIGN data###stockProp###detail (d) <- stock;
+                   ASSIGN skuProp###detail(d) <- defaultSkuColorSizeStock(article, color, size);
+                   ASSIGN quantity###detail (d) <- requestedNumeric();
+                }
+            }
+        }
+    }
+    changeQuantityArticleColorSize###object###Stock = ACTION (article, color, size, object, stock) {
+        REQUEST NUMERIC[14,3] INPUT;
+        EXEC changeQuantityValueArticleColorSize###object###Stock(article, color, size, object, stock);
+    }
+
+END
+META defineDocumentArticleStock(object, skuProp, stockProp)
+    @defineDocumentArticleStockCustom(object, object##Detail, skuProp, stockProp);
+END
+
+META extendFormDocumentArticleStockCustom(object, form, concrete, legalEntityProp, stockProp)
+
+    EXTEND FORM form
+
+        OBJECTS sta=(sto=Stock, ar=Article)
+        PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar), stockName = nameStock(sto) SHOWIF not###stockProp###object(concrete)
+        FILTERS           isParentGroupArticle(sk, ar),
+                          (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
+                          sto == stockProp###object(concrete) AND NOT sg AND NOT ts
+        FILTERGROUP stockFilters
+            FILTER 'Собственные склады' 'F6' legalEntityStock(sto) == legalEntityProp###object(concrete) DEFAULT
+        FILTERS           captionArticle(ar), nameStock(sto)
+        ORDER BY          idArticle, stockName
+
+        OBJECTS si=Size
+        PROPERTIES(si) nameSize
+        FILTERS countSizeArticle(si,ar)
+
+        OBJECTS co=Color
+        PROPERTIES(co) READONLY idColor SHOWIF showIDs(), nameColor
+        FILTERS countColorArticle(co,ar)
+
+        PROPERTIES(ar,co,si,concrete,sto) quantityArticleColorSize###object###stockProp ON CHANGE changeQuantityArticleColorSize###object###Stock(ar,co,si,concrete,sto)
+                                          COLUMNS (si) HEADER nameSize(si) BACKGROUND backgroundQuantityArticleColorSize###object###Stock(ar,co,si,concrete,sto)
+        PROPERTIES(ar,co,si,sto,concrete) READONLY priceBalanceArticleColorSizeStock###object COLUMNS (si) HEADER nameBalanceSize(si)
+
+//        PROPERTIES(ar,co,si,sto,concrete) priceBalanceArticleColorSizeStock###object ON CHANGE changeQuantityArticleColorSize###object###Stock(ar,co,si,concrete,sto) COLUMNS (si) HEADER nameBalanceSize(si)
+// Саше для выявления бага
+        FILTERS nameColor(co), nameSize(si)
+        ORDER BY nameColor, nameSize
+    ;
+
+    EXTEND DESIGN form {
+        selection {
+            type = TABBED;
+            NEW articleContainer {
+                caption = 'По артикулам';
+                childConstraints = TO THE BOTTOM;
+                ADD sta.box {caption = 'Артикул';};
+                REMOVE si.box;
+                ADD co.box {
+                    co.grid { fillHorizontal = 2; }
+                }
+            }
+        }
+        PROPERTY(priceBalanceArticleColorSizeStock###object) { background = #FFEEEE; }
+    }
+    ;
+
+END
+
+//----------- Изменение кол-ва для строки при изменении кол-ва для Артикула (один склад)---------------//
+
+META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
+    detail###ArticleColorSize###object (article, color, size, object) =  GROUP MAX detail###Sku###object (sku, object)
+        BY articleItem(sku), colorItem(sku), sizeItem(sku), object;
+
+    quantityArticleColorSize###object 'Кол-во товара в документе' (article, color, size, object) = GROUP SUM quantity###detail###skuProp###object(sku, object)
+        BY articleItem(sku), colorItem(sku), sizeItem(sku), object;
+
+
+
+    priceBalanceArticleColorSize###object  (article, color, size, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stockProp###object(object)),priceSku###object(defaultSkuColorSizeStock (article,color,size), object);
+
+
+    backgroundQuantityArticleColorSize###object 'Цвет' (article, color, size, object) = RGB(255,128,128) IF quantityArticleColorSize###object(article, color, size, object) AND NOT
+        (quantityArticleColorSize###object(article, color, size, object) <= prevCurrentBalanceArticleColorSizeStock(article, color, size, stockProp###object(object)));
+
+    changeQuantityValueArticleColorSize###object = ACTION (article, color, size, object) {
+
+        IF detail###ArticleColorSize###object(article, color, size, object) THEN {
+            IF requestedNumeric() THEN {
+                ASSIGN quantity###detail(d) <- requestedNumeric() WHERE d == detail###ArticleColorSize###object(article, color, size, object);
+            } ELSE {
+                DELETE d WHERE d==detail###ArticleColorSize###object(article, color, size, object);
+            }
+
+        } ELSE {
+            IF requestedNumeric() THEN {
+                FOR ADDOBJ d = ###detail DO {
+                   ASSIGN object###detail(d) <- object;
+                   ASSIGN data###stockProp###detail (d) <- stockProp###object(object);
+                   ASSIGN skuProp###detail(d) <- defaultSkuColorSizeStock(article, color, size);
+                   ASSIGN quantity###detail (d) <- requestedNumeric();
+                }
+            }
+        }
+    }
+    changeQuantityArticleColorSize###object = ACTION (article, color, size, object) {
+        REQUEST NUMERIC[14,3] INPUT;
+        EXEC changeQuantityValueArticleColorSize###object(article, color, size, object);
+    }
+
+END
+META defineDocumentArticle(object, skuProp, stockProp)
+    @defineDocumentArticleCustom(object, object##Detail, skuProp, stockProp);
+END
+
+META extendFormDocumentArticleCustom(object, form, concrete, legalEntityProp, stockProp)
+
+    EXTEND FORM form
+
+        OBJECTS ar=Article
+        PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar)
+        FILTERS           isParentGroupArticle(sk, ar)
+
+        FILTERS           captionArticle(ar)
+        ORDER BY          idArticle
+
+        OBJECTS si=Size
+        PROPERTIES(si) nameSize
+        FILTERS countSizeArticle(si,ar)
+
+        OBJECTS co=Color
+        PROPERTIES(co) READONLY idColor SHOWIF showIDs(), nameColor
+        FILTERS countColorArticle(co,ar)
+
+        PROPERTIES(ar,co,si,concrete) quantityArticleColorSize###object ON CHANGE changeQuantityArticleColorSize###object(ar,co,si,concrete)
+                                          COLUMNS (si) HEADER nameSize(si) BACKGROUND backgroundQuantityArticleColorSize###object(ar,co,si,concrete)
+        PROPERTIES(ar,co,si,concrete) READONLY priceBalanceArticleColorSize###object COLUMNS (si) HEADER nameBalanceSize(si)
+
+//        PROPERTIES(ar,co,si,concrete) priceBalanceArticleColorSize###object ON CHANGE changeQuantityArticleColorSize###object(ar,co,si,concrete) COLUMNS (si) HEADER nameBalanceSize(si)
+// Саше для выявления бага
+        FILTERS nameColor(co), nameSize(si)
+        ORDER BY nameColor, nameSize
+    ;
+
+    EXTEND DESIGN form {
+        row1 {
+            NEW articleContainer {
+                caption = 'По артикулам';
+                childConstraints = TO THE BOTTOM;
+                ADD ar.box;
+                REMOVE si.box;
+                ADD co.box {
+                    co.grid { fillHorizontal = 2; }
+                }
+            }
+        }
+        PROPERTY(priceBalanceArticleColorSize###object) { background = #FFEEEE; }
+    }
+    ;
+
+END
+
+
+
