@@ -63,13 +63,15 @@ rateExchangeCustomsZoneDeclaration(declaration) <- calcRateExchangeCustomsZoneDe
                                                                                                             CHANGED (typeExchangeDeclaration(declaration)) OR
                                                                                                             CHANGED (customsZoneDeclaration(declaration));
 
-roundCurrencyDeclaration(number, declaration) = roundPriceCurrency(number, currencyTypeExchange(typeExchangeDeclaration(declaration)));
+roundDeclaration 'Точность округления' = DATA INTEGER(Declaration);
+
+roundCurrencyDeclaration(number, declaration) = round(number AS NUMERIC[16,4], roundDeclaration(declaration));
 
 FORM declaration 'Таможенная декларация'
     OBJECTS d = Declaration FIXED PANEL
     PROPERTIES(d) objectClassName, nameNumeratorObject, numberObject, seriesObject, dateDeclaration, timeDeclaration,
                   nameLegalEntityDeclaration, nameCurrencyDeclaration, nameCustomsZoneDeclaration, nameHomeCurrencyDeclaration,
-                  nameTypeExchangeDeclaration, rateExchangeDeclaration, nameCurrencyCustomsZoneDeclaration, rateExchangeCustomsZoneDeclaration
+                  nameTypeExchangeDeclaration, roundDeclaration, rateExchangeDeclaration, nameCurrencyCustomsZoneDeclaration READONLY, rateExchangeCustomsZoneDeclaration
     EDIT Declaration OBJECT d
 ;
 
@@ -101,6 +103,7 @@ DESIGN declaration FROM DEFAULT{
                     caption = 'Валюты и курсы';
                     childConstraints = TO THE BOTTOM;
                     ADD PROPERTY(nameHomeCurrencyDeclaration);
+                    ADD PROPERTY(roundDeclaration);
                     ADD PROPERTY(nameTypeExchangeDeclaration);
                     ADD PROPERTY(nameCurrencyDeclaration);
                     ADD PROPERTY(rateExchangeDeclaration);
