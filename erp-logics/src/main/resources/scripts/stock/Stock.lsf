@@ -2022,6 +2022,79 @@ META defineBalancesSku(detail)
     showBalancesSkuStock###detail 'Показать остатки товара' (detail) = ACTION FORM balancesSkuStock OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
 END
 
+// -------------------------------- Движение по партии -------------------------- //
+balanceABatchLedger 'Остаток (после)' (batch, ledger) = balanceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
+
+FORM movementBatch 'Движение по партии'
+    OBJECTS bt = Batch FIXED PANEL
+    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
+
+    OBJECTS bil = SkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger
+
+    PROPERTIES      READONLY balanceABatchLedger(bt,bil) //costSkuLedgerBatch(bil, bt),
+    ORDER BY dateTimeSkuLedger
+    FILTERS costSkuLedgerBatch(bil, bt),
+            isPostedSkuLedger(bil)
+
+;
+FORM movementBatchStock 'Движение по партии'
+    OBJECTS bt = Batch FIXED PANEL
+    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) READONLY nameStock
+
+    OBJECTS bil = SkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger,
+                             signedSumSkuLedger
+    PROPERTIES      READONLY balanceABatchLedger(bt,bil) //costSkuLedgerBatch(bil, bt),
+
+    ORDER BY dateTimeSkuLedger
+    FILTERS costSkuLedgerBatch(bil, bt),
+            isPostedSkuLedger(bil),
+            stockSkuLedger(bil)==st
+;
+DESIGN movementBatchStock FROM DEFAULT {
+    NEW topContainer{
+        childConstraints = TO THE RIGHT;
+        ADD bt.box;
+        ADD st.box;
+    }
+    ADD bil.box;
+    ADD functions.box;
+}
+
+
+META defineMovementBatch(detail, batchProp, stockProp)
+    showMovementBatchStock###detail 'Показать движение по партии и складу' (detail) = ACTION FORM movementBatchStock OBJECTS bt = batchProp###detail(detail), st = stockProp###detail(detail) MODAL SHORTCUT nameBatch###detail;
+    showMovementBatch###detail 'Показать движение по партии' (detail) = ACTION FORM movementBatch OBJECTS bt = batchProp###detail(detail) MODAL SHORTCUT nameBatch###detail;
+END
+META defineMovementBatch(detail, stockProp)
+    @defineMovementBatch(detail, batch, stockProp);
+END
+
+
+FORM balancesBatchStock 'Остатки'
+    OBJECTS bt = Batch FIXED PANEL
+    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
+
+    OBJECTS st = Stock
+    PROPERTIES(st) READONLY idStock, nameStock
+    PROPERTIES READONLY currentBalanceBatchStock(bt,st)
+
+    ORDER BY idStock
+    FILTERS currentBalanceBatchStock(bt,st),
+            isCompanyStock(st)
+;
+META defineBalancesBatch(detail, batchProp)
+    showBalancesBatchStock###detail 'Показать остатки по партии' (detail) = ACTION FORM balancesBatchStock OBJECTS bt = batchProp###detail(detail) MODAL SHORTCUT nameBatch###detail;
+END
+META defineBalancesBatch(detail)
+    @defineBalancesBatch(detail, batch);
+END
 // ---------------------------------------------- Остатки или партия или товар -------------------------------------------- //
 
 META defineDocumentDetailSkuBatchBalance (object, skuProp, stockProp)
@@ -3350,7 +3423,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
                     signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
-    FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==skuBatch(bt) AND stockSkuLedger(bil)==st
+    FILTERS isPostedSkuLedger(bil) AND costSkuLedgerBatch(bil, bt) AND stockSkuLedger(bil)==st   //skuSkuLedger(bil)==skuBatch(bt)
     ORDER BY dateTimeSkuLedger DESC
 
     FILTERGROUP filterBalance
