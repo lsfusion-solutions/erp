@@ -7,9 +7,9 @@ REQUIRE System, Stock, Barcode, PriceListType, DefaultData;
 CLASS EquipmentServer 'Сервер оборудования';
 TABLE equipmentServer (EquipmentServer);
 
-nameEquipmentServer 'Наименование' = DATA ISTRING[50](EquipmentServer) IN recognize;
+nameEquipmentServer 'Наименование' = DATA VARISTRING[50](EquipmentServer) IN recognize;
 
-sidEquipmentServer 'Идентификатор' = DATA STRING[20] (EquipmentServer) IN recognize;
+sidEquipmentServer 'Идентификатор' = DATA VARSTRING[20] (EquipmentServer) IN recognize;
 sidToEquipmentServer(equipmentServer) = GROUP AGGR equipmentServer BY sidEquipmentServer (equipmentServer) WHERE equipmentServer IS EquipmentServer;
 delayEquipmentServer 'Период обновления (в миллисекундах)' = DATA INTEGER (EquipmentServer) IN base;
 
@@ -18,7 +18,7 @@ delayEquipmentServer 'Период обновления (в миллисекун
 CLASS EquipmentServerError 'Ошибки';
 TABLE equipmentServerError (EquipmentServerError);
 
-dataEquipmentServerError 'Сообщение об ошибке' = DATA STRING[200] (EquipmentServerError) IN base;
+dataEquipmentServerError 'Сообщение об ошибке' = DATA VARSTRING[200] (EquipmentServerError) IN base;
 erTraceEquipmentServerError 'След ошибки' = DATA TEXT (EquipmentServerError) IN base;
 dateEquipmentServerError 'Время возникновения' = DATA DATETIME (EquipmentServerError) IN base;
 equipmentServerEquipmentServerError 'Сервер оборудования (ID)' = DATA EquipmentServer(EquipmentServerError) IN base;
@@ -83,7 +83,7 @@ DESIGN equipmentServers FROM DEFAULT {
 CLASS ABSTRACT GroupMachinery 'Группы оборудования';
 TABLE groupMachinery (GroupMachinery);
 
-nameGroupMachinery 'Наименование' = DATA STRING[200] (GroupMachinery) IN base MINCHARWIDTH 10 PREFCHARWIDTH 20;
+nameGroupMachinery 'Наименование' = DATA VARSTRING[200] (GroupMachinery) IN base MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
 equipmentServerGroupMachinery = DATA EquipmentServer (GroupMachinery);
 nameEquipmentServerGroupMachinery 'Сервер оборудования' (groupMachinery) = nameEquipmentServer(equipmentServerGroupMachinery(groupMachinery));
@@ -135,11 +135,11 @@ showFilterSkuGroupMachinery 'Выбрать группы' (groupMachinery) = ACT
 CLASS ABSTRACT Model 'Модель';
 TABLE model (Model);
 
-nameModel 'Наименование' = ABSTRACT ISTRING[110](Model);
+nameModel 'Наименование' = ABSTRACT VARISTRING[110](Model);
 
-sidModel 'Код' = DATA STRING[20] (Model) IN base;
-noteModel 'Примечание' = DATA STRING[200] (Model) IN base;
-handlerModel 'Обработчик' = DATA STRING[200] (Model) IN base;
+sidModel 'Код' = DATA VARSTRING[20] (Model) IN base;
+noteModel 'Примечание' = DATA VARSTRING[200] (Model) IN base;
+handlerModel 'Обработчик' = DATA VARSTRING[200] (Model) IN base;
 maxProductModel 'MAX допустимое колич. товаров' = DATA INTEGER (Model) IN base;
 
 //---------------------------- типы оборудования  ----------------------------------------//
@@ -155,15 +155,15 @@ nameModelMachinery 'Модель' (machinery) = nameModel(modelMachinery(machine
 handlerModelMachinery 'Обработчик' (machinery) = handlerModel(modelMachinery(machinery)) IN base;
 
 nppMachinery 'Порядковый номер' = DATA INTEGER (Machinery) IN base;
-descriptionMachinery 'Описание' = DATA STRING[200] (Machinery) IN base;
-portMachinery 'Адрес/порт' = DATA STRING[100] (Machinery) IN base;
+descriptionMachinery 'Описание' = DATA VARSTRING[200] (Machinery) IN base;
+portMachinery 'Адрес/порт' = DATA VARSTRING[100] (Machinery) IN base;
 
 //---------------------------- Загрузка в ВУ  ----------------------------------------//
 CLASS ABSTRACT PriceTransactionDocument 'Документ, требующий загрузки в оборудование';
 TABLE priceTransactionDocument (PriceTransactionDocument);
 
 isDraftPriceTransactionDocument 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
-descriptionPriceTransactionDocument 'Название документа загрузки' = ABSTRACT STRING[200] (PriceTransactionDocument) PERSISTENT;
+descriptionPriceTransactionDocument 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) PERSISTENT;
 skipPriceTransactionDocument 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
 
 sentPriceTransactionDocument 'Принят к загрузке в оборудование' = DATA BOOLEAN (PriceTransactionDocument);
@@ -209,7 +209,7 @@ processMachineryPriceTransaction 'Требуется загрузка' (machiner
     canceledMachineryPriceTransaction(machineryPriceTransaction);
 
 // Основание
-commentMachineryPriceTransaction 'Примечание' = DATA STRING[30] (MachineryPriceTransaction);
+commentMachineryPriceTransaction 'Примечание' = DATA VARSTRING[30] (MachineryPriceTransaction);
 
 priceTransactionDocumentMachineryPriceTransaction = DATA PriceTransactionDocument (MachineryPriceTransaction);
 descriptionPriceTransactionDocumentMachineryPriceTransaction 'Основание загрузки' (transaction) =
@@ -236,7 +236,7 @@ statusMachineryPriceTransactionDocument 'Статус загрузки в обо
 TABLE machineryPriceTransactionBarcode (MachineryPriceTransaction, Barcode);
 
 inMachineryPriceTransactionBarcode 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode);
-nameMachineryPriceTransactionBarcode 'Наименование' = DATA STRING[255] (MachineryPriceTransaction, Barcode);
+nameMachineryPriceTransactionBarcode 'Наименование' = DATA VARSTRING[255] (MachineryPriceTransaction, Barcode);
 priceMachineryPriceTransactionBarcode 'Цена' = DATA NUMERIC[14,2] (MachineryPriceTransaction, Barcode);
 
 orderMachineryPriceTransactionBarcode(transaction, barcode) = orderMachineryPriceTransaction(transaction)
@@ -263,7 +263,7 @@ prevTransactionPriceBarcodeGroupMachinery (barcode, groupMachinery) = PREV(trans
 CLASS MachineryPriceTransactionError 'Ошибка';
 TABLE machineryPriceTransactionError (MachineryPriceTransactionError);
 
-dataMachineryPriceTransactionError 'Сообщение об ошибке' = DATA STRING[200] (MachineryPriceTransactionError) IN base;
+dataMachineryPriceTransactionError 'Сообщение об ошибке' = DATA VARSTRING[200] (MachineryPriceTransactionError) IN base;
 dateMachineryPriceTransactionError 'Время возникновения' = DATA DATETIME (MachineryPriceTransactionError) IN base;
 errorTraceMachineryPriceTransactionError 'След исключения' = DATA TEXT (MachineryPriceTransactionError) IN base;
 machineryPriceTransactionMachineryPriceTransactionError 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) IN base;
@@ -432,7 +432,7 @@ createMachineryPriceTransactionSnapshot = DATA SESSION BOOLEAN ();
 createMachineryPriceTransactionSku = DATA SESSION BOOLEAN (Sku);
 
 createMachineryPriceTransactionDocument = DATA SESSION PriceTransactionDocument();
-createMachineryPriceTransactionComment = DATA SESSION STRING[20] ();
+createMachineryPriceTransactionComment = DATA SESSION VARSTRING[20] ();
 
 createAttributeMachineryPriceTransaction = ABSTRACT ACTION LIST (MachineryPriceTransaction);
 createAttributeMachineryPriceTransactionStock = ABSTRACT ACTION LIST (MachineryPriceTransaction, Stock);

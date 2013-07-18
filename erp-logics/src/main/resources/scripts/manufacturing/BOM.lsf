@@ -13,7 +13,7 @@ REQUIRE EmployeeStock,
 CLASS ABSTRACT Material 'Материал';
 TABLE material(Material);
 
-nameMaterial 'Наименование' (material) = ABSTRACT ISTRING[255] (Material) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80;
+nameMaterial 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
 UOMMaterial (material) = ABSTRACT UOM (Material) PERSISTENT;
 shortNameUOMMaterial 'Ед. изм.' (material) = shortNameUOM(UOMMaterial(material)) IN base;
@@ -82,7 +82,7 @@ skuMaterial(material) += material AS Sku;
 CLASS Technology 'Технология';
 TABLE technology (Technology);
 
-nameTechnology 'Наименование' = DATA ISTRING[50](Technology);
+nameTechnology 'Наименование' = DATA VARISTRING[50](Technology);
 
 TABLE technologyMaterialDate (Technology, Material, DATE);
 @defineHistorizable(wastageTechnologyMaterial, '% потерь', NUMERIC[8,3], technology, nameTechnology, material, nameMaterial, base);
@@ -211,13 +211,13 @@ DESIGN technologies FROM DEFAULT{
 CLASS BOM 'Спецификация' : NumeratedObject, Historizable;
 TABLE BOM (BOM);
 
-nameBOM 'Наименование' = DATA ISTRING[100](BOM);
+nameBOM 'Наименование' = DATA VARISTRING[100](BOM);
 
 @defineDocumentHeaderNote(BOM);
 @defineNumeratedObjectDefault(BOM, 'Нумератор для спецификаций', 'СП');
 
 descriptionBOM 'Название спецификации' (BOM) =
-    [FORMULA STRING[200]  ' CAST($1 AS TEXT) || \' / \' || CAST($2 AS TEXT) || \' № \' || CAST($3 AS TEXT)'](
+    [FORMULA VARSTRING[200]  ' CAST($1 AS TEXT) || \' / \' || CAST($2 AS TEXT) || \' № \' || CAST($3 AS TEXT)'](
     'Спецификация', nameBOM(BOM), seriesNumberObject(BOM)) IF BOM IS BOM MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 // ------------- Изделия ----------- //
@@ -263,7 +263,7 @@ priceCoeffProduct (product) = pricePercentProduct(product) / 100 PERSISTENT;
 
 pricePercentBOM 'Удельный вес цен, %' = GROUP SUM pricePercentProduct(product) BY BOMProduct(product) PERSISTENT IN documentSumGroup;
 
-nameMaterial(material) += [FORMULA STRING[255]  ' CAST($1 AS TEXT) || \' / \' ||  CAST($2 AS TEXT)'](
+nameMaterial(material) += [FORMULA VARSTRING[255]  ' CAST($1 AS TEXT) || \' / \' ||  CAST($2 AS TEXT)'](
                                       nameBOM(BOMProduct(material)),
                                       nameSkuProduct(material));
 
@@ -283,7 +283,7 @@ FORM products 'Изделия'
 CLASS Component 'Компонент';
 TABLE component (Component);
 
-//nameComponent 'Наименование' = DATA ISTRING[100](Component);
+//nameComponent 'Наименование' = DATA VARISTRING[100](Component);
 
 @defineDocumentRelation (BOM, Component, ' (компонент)');
 descriptionComponent 'Название документа' (component)= descriptionBOM(BOMComponent(component));
@@ -295,11 +295,11 @@ materialComponent = DATA Material (Component);
 nameMaterialComponent 'Материал' (component) = nameMaterial(materialComponent(component));
 idBarcodeSkuComponent 'Штрих-код' (component)= idBarcodeSku(materialComponent(component));
 
-componentsBOM 'Компоненты' (BOM) = GROUP CONCAT STRING[255](nameMaterialComponent(component)), ', '
+componentsBOM 'Компоненты' (BOM) = GROUP CONCAT VARSTRING[255](nameMaterialComponent(component)), ', '
                                        BY BOMComponent(component)
                                        ORDER indexComponent(component) MINCHARWIDTH 100 PERSISTENT;
 
-nameComponent 'Компонент' (component) = [FORMULA STRING[255]  ' CAST($1 AS TEXT) || \' / \' ||  CAST($2 AS TEXT)'](
+nameComponent 'Компонент' (component) = [FORMULA VARSTRING[255]  ' CAST($1 AS TEXT) || \' / \' ||  CAST($2 AS TEXT)'](
                                       nameBOM(BOMComponent(component)),
                                       nameMaterialComponent(component)) PERSISTENT;
 
@@ -528,7 +528,7 @@ DESIGN BOMs FROM DEFAULT {
 //-------------------------------- Комиссия для акта контрольной проработки ----------------------------------//
 CLASS ActStudyOfCulinaryCommittee 'Комиссия для акта контрольной проработки продукции' : Committee;
 
-nameActStudyOfCulinaryCommittee 'Наименование' = DATA ISTRING[150](ActStudyOfCulinaryCommittee);
+nameActStudyOfCulinaryCommittee 'Наименование' = DATA VARISTRING[150](ActStudyOfCulinaryCommittee);
 
 nameCommittee(committee) += nameActStudyOfCulinaryCommittee(committee) IF committee IS ActStudyOfCulinaryCommittee;
 

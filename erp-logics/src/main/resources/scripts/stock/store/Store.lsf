@@ -7,9 +7,9 @@ REQUIRE System, Utils, Historizable, Stock, Employee, Tax, WriteOff, LegalEntity
 CLASS ChainStores 'Торговая сеть' : StockGroup;
 TABLE chainStores (ChainStores);
 
-@defineExternalizable(chainStores, STRING[100]);
+@defineExternalizable(chainStores, VARSTRING[100]);
 
-nameChainStores 'Наименование' = DATA ISTRING[100](ChainStores);
+nameChainStores 'Наименование' = DATA VARISTRING[100](ChainStores);
 
 nameStockGroup(group) += nameChainStores(group) IF group IS ChainStores;
 
@@ -18,9 +18,9 @@ nameStockGroup(group) += nameChainStores(group) IF group IS ChainStores;
 CLASS StoreType 'Формат магазина' : StockGroup;
 TABLE storeType (StoreType);
 
-@defineExternalizable(storeType, STRING[100]);
+@defineExternalizable(storeType, VARSTRING[100]);
 
-nameStoreType 'Наименование' = DATA ISTRING[100](StoreType);
+nameStoreType 'Наименование' = DATA VARISTRING[100](StoreType);
 
 nameStockGroup(group) += nameStoreType(group) IF group IS StoreType;
 
@@ -65,9 +65,9 @@ FORM chainStores 'Торговая сеть'
 CLASS Store 'Магазин' : StockGroup, TaxUnit, POI;
 TABLE store (Store);
 
-@defineExternalizable(store, STRING[100]);
+@defineExternalizable(store, VARSTRING[100]);
 
-nameStore 'Наименование' = DATA ISTRING[100](Store) INDEXED;
+nameStore 'Наименование' = DATA VARISTRING[100](Store) INDEXED;
 
 nameStockGroup(group) += nameStore(group) IF group IS Store;
 
@@ -89,7 +89,7 @@ languageStore (store) = languageLegalEntity(legalEntityStore(store));
 regionStore = DATA Region (Store);
 nameRegionStore 'Регион' (store) = nameRegion(regionStore(store));
 
-addressStore 'Адрес' = DATA STRING[100] (Store);
+addressStore 'Адрес' = DATA VARSTRING[100] (Store);
 addressPOI (store) += addressStore(store);
 
 latitudeStore 'Координата X' = DATA NUMERIC[10,5](Store);
@@ -132,10 +132,10 @@ CLASS DepartmentStore 'Отдел магазина' : Stock;
 TABLE departmentStore (DepartmentStore);
 TABLE departmentStoreDate (DepartmentStore, DATE);
 
-@defineExternalizable(departmentStore, STRING[100]);
+@defineExternalizable(departmentStore, VARSTRING[100]);
 idStock (s) += idDepartmentStore(s);
 
-nameDepartmentStore 'Наименование' = DATA ISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameDepartmentStore 'Наименование' = DATA VARISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 nameStock(stock) += nameDepartmentStore(stock) IF stock IS DepartmentStore;
 
@@ -298,7 +298,7 @@ DESIGN departmentStores FROM DEFAULT {
 }
 
 changeStore = ACTION (store) {
-    REQUEST STRING[110] INPUT;
+    REQUEST VARSTRING[110] INPUT;
     IF requestedString() THEN {
         FOR storeDepartmentStore(dep) == store DO {
             ASSIGN nameDepartmentStore(dep) <- replace(nameDepartmentStore(dep), nameStore(store), requestedString());

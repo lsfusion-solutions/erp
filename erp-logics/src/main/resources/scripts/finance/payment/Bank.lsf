@@ -8,19 +8,19 @@ TABLE bankDate (Bank, DATE);
 
 GROUP bank 'Информация о банке' : base;
 
-@defineExternalizable(bank, STRING[100]);
+@defineExternalizable(bank, VARSTRING[100]);
 
-nameBank 'Наименование' = DATA ISTRING[100](Bank);
+nameBank 'Наименование' = DATA VARISTRING[100](Bank);
 
 MFOBank 'Код МФО' = DATA STRING[9] (Bank) IN bank;
-departmentBank 'Отдел банка' = DATA STRING[100] (Bank) IN bank;
+departmentBank 'Отдел банка' = DATA VARSTRING[100] (Bank) IN bank;
 CBUBank 'ЦБУ' = DATA STRING[3] (Bank) IN bank;
-infoBank 'Дополнительные сведения' = DATA STRING[100] (Bank) IN bank;
+infoBank 'Дополнительные сведения' = DATA VARSTRING[100] (Bank) IN bank;
 
 countryBank = DATA Country (Bank);
 nameCountryBank 'Страна' (bank) = nameCountry(countryBank(bank)) IN bank MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 20;
 
-@defineHistorizable(addressBank, 'Адрес банка', STRING[150], bank, nameBank, bank);
+@defineHistorizable(addressBank, 'Адрес банка', VARSTRING[150], bank, nameBank, bank);
 
 FORM bank 'Банк'
     OBJECTS b=Bank FIXED PANEL
@@ -56,14 +56,14 @@ currencyAccount(account) <- currencyLegalEntity(legalEntityAccount(account))
     WHEN SET(legalEntityAccount(account));
 nameCurrencyAccount 'Валюта счета' = nameCurrency(currencyAccount(account)) IN accountGroup;
 
-numberAccount 'Номер расчетного счета'  = DATA STRING[13] (Account) IN accountGroup FIXEDCHARWIDTH 13;
+numberAccount 'Номер расчетного счета'  = DATA VARSTRING[20] (Account) IN accountGroup FIXEDCHARWIDTH 13;
 
 nameBankAccount 'Наименование банка' (account) = nameBank(bankAccount(account)) IN accountGroup;
 addressBankAccount 'Адрес банка' (account) = addressBank(bankAccount(account)) IN accountGroup;
 MFOBankAccount 'Код МФО банка' (account) = MFOBank(bankAccount(account)) IN accountGroup;
 departmentBankAccount 'Отдел банка' (account) = departmentBank(bankAccount(account)) IN accountGroup;
 CBUBankAccount 'ЦБУ банка' (account) = CBUBank(bankAccount(account)) IN accountGroup;
-noteAccount 'Примечание'  = DATA STRING[50] (Account) IN accountGroup;
+noteAccount 'Примечание'  = DATA VARSTRING[50] (Account) IN accountGroup;
 
 EXTEND CLASS Account : PaymentLedger.Account;
 nameAccount(account) += numberAccount(account);

@@ -7,7 +7,7 @@ REQUIRE System, MasterData, Utils, Hierarchy, LegalEntity, I18n, Geo, Employee, 
 CLASS ABSTRACT StockGroup 'Группа складов';
 TABLE stockGroup (StockGroup);
 
-nameStockGroup 'Наименование' = ABSTRACT ISTRING[100](StockGroup);
+nameStockGroup 'Наименование' = ABSTRACT VARISTRING[100](StockGroup);
 
 TABLE stockGroupStockGroup(StockGroup, StockGroup);
 @defineHierarchyAbstract(stockGroup, StockGroup);
@@ -15,9 +15,9 @@ TABLE stockGroupStockGroup(StockGroup, StockGroup);
 CLASS ABSTRACT Stock 'Склад';
 TABLE stock(Stock);
 
-@defineExternalizableAbstract(stock, STRING[100]);
+@defineExternalizableAbstract(stock, VARSTRING[100]);
 
-nameStock 'Наименование' = ABSTRACT ISTRING[150](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameStock 'Наименование' = ABSTRACT VARISTRING[150](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 stockGroupStock (stock) = ABSTRACT StockGroup (Stock) PERSISTENT INDEXED;
 nameStockGroupStock 'Группа' (stock) = nameStockGroup(stockGroupStock (stock));
 
@@ -48,7 +48,7 @@ countryStock (stock) = countryLegalEntity(legalEntityStock(stock)) PERSISTENT;
 nameCountryStock 'Страна' (stock) = nameCountry(countryStock(stock));
 countryPOI (poi) += countryStock(poi);
 
-addressStock 'Адрес' (stock) = ABSTRACT ISTRING[100] (Stock) PERSISTENT;
+addressStock 'Адрес' (stock) = ABSTRACT VARISTRING[100] (Stock) PERSISTENT;
 addressPOI (poi) += addressStock(poi);
 
 //latitudeStock 'Координата X' = DATA NUMERIC[10,5](Stock);
@@ -69,7 +69,7 @@ GROUP bookkeepingGroup 'Учет и цены' : public;
 CLASS Region 'Регион';
 TABLE region (Region);
 
-nameRegion 'Наименование' = DATA ISTRING[100](Region);
+nameRegion 'Наименование' = DATA VARISTRING[100](Region);
 
 regionStock 'Регион' (stock) = ABSTRACT Region (Stock) PERSISTENT;
 nameRegionStock 'Регион' (stock)= nameRegion(regionStock(stock)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
@@ -93,14 +93,14 @@ DESIGN regions FROM DEFAULT { main{ preferredSize = (600, 400); } }
 CLASS UOM 'Единица измерения';
 TABLE UOM (UOM);
 
-@defineExternalizable(UOM, STRING[100]);
+@defineExternalizable(UOM, VARSTRING[100]);
 
-nameUOM 'Наименование' = DATA ISTRING[50](UOM) MINCHARWIDTH 7 PREFCHARWIDTH 14;
-shortNameUOM 'Краткое наименование' = DATA ISTRING[10](UOM) MINCHARWIDTH 3 PREFCHARWIDTH 6;
+nameUOM 'Наименование' = DATA VARISTRING[50](UOM) MINCHARWIDTH 7 PREFCHARWIDTH 14;
+shortNameUOM 'Краткое наименование' = DATA VARISTRING[10](UOM) MINCHARWIDTH 3 PREFCHARWIDTH 6;  ////
 
 baseUOM = DATA UOM(UOM);
 shortNameBaseUOM 'Базовая ед.изм.' (UOM) = shortNameUOM(baseUOM(UOM)) IN base;
-genitiveNameUOM 'Ед. изм. (родительный)' = DATA STRING[20](UOM) IN base;
+genitiveNameUOM 'Ед. изм. (родительный)' = DATA VARSTRING[20](UOM) IN base;
 factorUOM 'Коэффициент пересчета в баз.ед.' = DATA NUMERIC[14,3] (UOM) IN base;
 
 FORM UOM 'Единица измерения'
@@ -121,13 +121,13 @@ FORM UOMs 'Единицы измерений'
 CLASS ABSTRACT Group 'Классификатор SKU';
 TABLE group(Group);
 
-nameGroup 'Наименование' = ABSTRACT ISTRING[150](Group) PERSISTENT INDEXED;
+nameGroup 'Наименование' = ABSTRACT VARISTRING[150](Group) PERSISTENT INDEXED;
 
 TABLE groupGroup(Group, Group);
 @defineHierarchyAbstract(group, Group);
 
 CLASS ABSTRACT GroupType 'Тип классификатора SKU';
-nameGroupType 'Наименование' = ABSTRACT ISTRING[100](GroupType);
+nameGroupType 'Наименование' = ABSTRACT VARISTRING[100](GroupType);
 
 FORM groupTypes 'Типы классификатора SKU'
     OBJECTS g = GroupType
@@ -138,7 +138,7 @@ FORM groupTypes 'Типы классификатора SKU'
 CLASS SystemGroupType 'Системный тип классификатор SKU' : GroupType;
 TABLE systemGroupType(SystemGroupType);
 
-nameGroupType(type) += staticCaption(type) IF type IS SystemGroupType;
+nameGroupType(type) += VARISTRING[100](staticCaption(type)) IF type IS SystemGroupType;
 
 groupTypeGroup = ABSTRACT GroupType (Group) PERSISTENT INDEXED;
 nameGroupTypeGroup 'Тип классификатора SKU' (group) = nameGroupType(groupTypeGroup(group));
@@ -160,7 +160,7 @@ activeGroup 'Активный' (group) = group IS Group AND NOT inactiveGroup(gr
 CLASS CustomGroup 'Дополнительный классификатор SKU' : Group;
 TABLE customGroup (CustomGroup);
 
-nameCustomGroup 'Наименование' = DATA ISTRING[150](CustomGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameCustomGroup 'Наименование' = DATA VARISTRING[150](CustomGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 nameGroup(group) += nameCustomGroup(group) IF group IS CustomGroup;
 
@@ -172,7 +172,7 @@ parentGroup (group) += parentCustomGroup(group);
 CLASS CustomGroupType 'Тип дополнительного классификатора SKU' : GroupType;
 TABLE customGroupType (CustomGroupType);
 
-nameCustomGroupType 'Наименование' = DATA ISTRING[50](CustomGroupType);
+nameCustomGroupType 'Наименование' = DATA VARISTRING[50](CustomGroupType);
 
 nameGroupType(type) += nameCustomGroupType(type) IF type IS CustomGroupType;
 
@@ -253,7 +253,7 @@ FORM customGroups 'Дополнительные группы'
 CLASS ABSTRACT SkuGroup 'Группа SKU' : Group;
 TABLE skuGroup (SkuGroup);
 
-nameSkuGroup 'Наименование' = ABSTRACT ISTRING[150](SkuGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameSkuGroup 'Наименование' = ABSTRACT VARISTRING[150](SkuGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 nameGroup(group) += nameSkuGroup(group) IF group IS SkuGroup;
 
@@ -265,7 +265,7 @@ EXTEND CLASS SystemGroupType { skuGroupType 'Основной' }
 parentGroup(skuGroup) += parentSkuGroup(skuGroup);
 
 TABLE skuGroupLanguage(SkuGroup, Language);
-nameSkuGroupLanguage 'Наименование (иностр.)' = ABSTRACT STRING[110] (SkuGroup, Language) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+nameSkuGroupLanguage 'Наименование (иностр.)' = ABSTRACT VARSTRING[110] (SkuGroup, Language) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
 
 nameSkuGroupStock 'Наименование (иностр.)' (skuGroup, stock) = IF languageStock(stock) THEN nameSkuGroupLanguage(skuGroup, languageStock(stock)) ELSE nameSkuGroup(skuGroup);
 
@@ -297,10 +297,10 @@ skuGroupSku (sku) = ABSTRACT SkuGroup (Sku) PERSISTENT INDEXED;
 groupTypeGroup(group) += SystemGroupType.skuGroupType IF group IS SkuGroup;
 groupGroupTypeSku(type, sku) += WHEN CLASS(skuGroupSku(sku)) AND type == SystemGroupType.skuGroupType THEN skuGroupSku(sku);
 
-nameSku 'Наименование' (sku) = ABSTRACT ISTRING[255] (Sku) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP IN base;
+nameSku 'Наименование' (sku) = ABSTRACT VARISTRING[255] (Sku) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP IN base;
 
 TABLE skuLanguage(Sku, Language);
-nameSkuLanguage 'Наименование (иностр.)' = ABSTRACT ISTRING[200] (Sku, Language) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+nameSkuLanguage 'Наименование (иностр.)' = ABSTRACT VARISTRING[200] (Sku, Language) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
 
 nameSkuStock 'Наименование (иностр.)' (sku, stock) = IF languageStock(stock) THEN nameSkuLanguage(sku, languageStock(stock)) ELSE nameSku(sku);
 
@@ -316,7 +316,7 @@ isParentSkuGroupSku (skuGroup, sku) = isParentSkuGroupSkuGroup(skuGroupSku(sku),
 netWeightSku 'Вес нетто' = ABSTRACT NUMERIC[9,3] (Sku) PERSISTENT;
 grossWeightSku 'Вес брутто' = ABSTRACT NUMERIC[9,3] (Sku) PERSISTENT;
 volumeSku 'Объем' = ABSTRACT NUMERIC[9,3] (Sku) PERSISTENT;
-compositionSku 'Состав' = ABSTRACT STRING[255] (Sku) PERSISTENT;
+compositionSku 'Состав' = ABSTRACT VARSTRING[255] (Sku) PERSISTENT;
 
 skuTypeSku = ABSTRACT SkuType (Sku) PERSISTENT INDEXED;
 
@@ -382,8 +382,8 @@ nameStockBatch 'Склад' (batch) = nameStock(stockBatch(batch));
 costBatch 'Себестоимость' (batch) = ABSTRACT NUMERIC[14,2] (Batch) PERSISTENT;
 prevCostBatch 'Себестоимость' (batch) = PREV(costBatch(batch));
 
-descriptionBatch 'Описание' (batch) = ABSTRACT STRING[200] (Batch) PERSISTENT IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
-nameBatch 'Название' (batch) = ABSTRACT ISTRING[200] (Batch) PERSISTENT IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
+descriptionBatch 'Описание' (batch) = ABSTRACT VARSTRING[200] (Batch) PERSISTENT IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
+nameBatch 'Название' (batch) = ABSTRACT VARISTRING[200] (Batch) PERSISTENT IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
 
 expiryDateBatch 'Годен до' (batch) = ABSTRACT DATE (Batch) PERSISTENT INDEXED;
 prevExpiryDateBatch 'Годен до' (batch) = PREV(expiryDateBatch(batch));
@@ -398,7 +398,7 @@ idSupplierBatch 'Код поставщика' (batch) = idLegalEntity(supplierBa
 supplierStockBatch = ABSTRACT Stock (Batch) PERSISTENT;
 nameSupplierStockBatch 'Склад поставщика' (batch) = nameStock(supplierStockBatch(batch));
 
-idBatch 'Код партии' (batch) = ABSTRACT STRING[100] (Batch) PERSISTENT MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatch 'Код партии' (batch) = ABSTRACT VARSTRING[100] (Batch) PERSISTENT MINCHARWIDTH 10 PREFCHARWIDTH 15;
 batchId (id) = GROUP MAX batch BY idBatch (batch);
 
 expiresBatchDateTime(batch, dateTime, period) = expiryDateBatch(batch) < sumDate(toDate(dateTime), period);
@@ -424,7 +424,7 @@ skuDataSkuLedger = ABSTRACT Sku (DataSkuLedger) PERSISTENT INDEXED;
 
 stockDataSkuLedger = ABSTRACT Stock(DataSkuLedger) PERSISTENT INDEXED;
 
-descriptionDataSkuLedger 'Название документа' = ABSTRACT STRING[200] (DataSkuLedger) PERSISTENT;
+descriptionDataSkuLedger 'Название документа' = ABSTRACT VARSTRING[200] (DataSkuLedger) PERSISTENT;
 
 changedDataSkuLedger = ABSTRACT BOOLEAN (DataSkuLedger);
 
@@ -2674,8 +2674,8 @@ END
 
 META extendFormDocumentSkuStockContractorCustom(object, form, concrete, fromLegalEntity, fromStock, toStock)
 
-    nameQuantity###toStock (stock)= [FORMULA STRING[50] 'CAST($1 AS TEXT) || \' \' || \'(кол-во)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
-    namePrice###toStock (stock)= [FORMULA STRING[50] 'CAST($1 AS TEXT) || \' \' || \'(цена)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+    nameQuantity###toStock (stock)= [FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(кол-во)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+    namePrice###toStock (stock)= [FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(цена)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
     EXTEND FORM form
 

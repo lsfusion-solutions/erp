@@ -187,7 +187,7 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
                 "loadDefaultCustomsZone 'Добавить таможенную зону' = ACTION (name) {\n" +
                 "    ADDOBJ CustomsZone;\n" +
                 "    FOR c == addedObject() DO {\n" +
-                "        SET nameCustomsZone(c) <- name AS STRING[100];\n" +
+                "        SET nameCustomsZone(c) <- name AS VARSTRING[100];\n" +
                 "        }\n" +
                 "}\n" +
                 "\n" +
@@ -198,7 +198,7 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
                 "       SET parentCustomsGroup(c) <- customsGroupCode(parent AS STRING[10]);\n" +
                 "       SET nameCustomsGroup(c) <- nameCustomsGroup AS VARISTRING[1000];\n" +
                 "       SET numberCustomsGroup(c) <- number AS INTEGER;\n" +
-                "       SET customsZoneCustomsGroup(c) <- customsZoneName(nameCustomsZone AS STRING[100]);\n" +
+                "       SET customsZoneCustomsGroup(c) <- customsZoneName(nameCustomsZone AS VARSTRING[100]);\n" +
                 "       SET hasCodeCustomsGroup(c) <- hasCode AS BOOLEAN;\n" +
                 "       SET dataRegistrationCustomsGroupDate(c, dateFrom) <- registration AS NUMERIC[10,5];\n" +
                 "       SET dataWeightDutyCustomsGroupDate(c, dateFrom) <- weight AS NUMERIC[10,5];\n" +

@@ -5,7 +5,7 @@ REQUIRE Certificate, Hierarchy, Utils, Historizable, Tax, Stock;
 CLASS CustomsZone 'Таможенная зона';
 TABLE customsZone(CustomsZone);
 
-nameCustomsZone 'Наименование' = DATA ISTRING[50](CustomsZone) IN recognize;
+nameCustomsZone 'Наименование' = DATA VARISTRING[50](CustomsZone) IN recognize;
 
 customsZoneName (name) = GROUP AGGR customsZone BY nameCustomsZone(customsZone) WHERE customsZone IS CustomsZone;
 
@@ -45,16 +45,6 @@ isCompliancedCustomsGroup 'Необходимость сертификации' 
 
 TABLE customsGroupData(CustomsGroup, DATE);
 
-//@defineHistorizableCustom(supplierVATCustomsGroup, 'НДС', Range, numberRange, customsGroup, codeCustomsGroup, base);
-
-//dataValueSupplierVATCustomsGroupDate 'НДС, %' (customsGroup, date) = valueRateRangeDate(supplierVATCustomsGroupDate(customsGroup, date), date);
-//valueCurrentRateSupplierVATCustomsGroup 'НДС, %' (customsGroup) = valueCurrentRateRange(supplierVATCustomsGroup(customsGroup));
-
-//@defineHistorizable(percentDutyCustomsGroup, 'Пошлина (%)', NUMERIC[14,3], customsGroup, codeCustomsGroup, base);
-//@defineHistorizable(weightDutyCustomsGroup, 'Пошлина (валют.)', NUMERIC[14,3], customsGroup, codeCustomsGroup, base);
-
-//@defineHistorizable(registrationCustomsGroup, 'Таможенный сбор', NUMERIC[14,3], customsGroup, codeCustomsGroup, base);
-
 META defineCustomsRate(class, object, caption)
     CLASS class caption;
     TABLE object(class);
@@ -84,10 +74,10 @@ EXTEND CLASS VATCustomsException {
     none 'Отсутствует'
 }
 
-@defineExternalizable(VATCustomsRate, STRING[100]);
-@defineExternalizable(dutyCustomsRate, STRING[100]);
-@defineExternalizable(registrationCustomsRate, STRING[100]);
-@defineExternalizable(VATCustomsException, STRING[100]);
+@defineExternalizable(VATCustomsRate, VARSTRING[100]);
+@defineExternalizable(dutyCustomsRate, VARSTRING[100]);
+@defineExternalizable(registrationCustomsRate, VARSTRING[100]);
+@defineExternalizable(VATCustomsException, VARSTRING[100]);
 
 // НДС
 rangeVATCustomsRate = DATA Range(VATCustomsRate);
@@ -115,7 +105,7 @@ registrationCustomsGroupDate 'Таможенный сбор' (customsGroup, date
 registrationCustomsGroup 'Таможенный сбор' (customsGroup) = registrationCustomsGroupDate(customsGroup, currentDate());
 
 // Льгота НДС
-nameVATCustomsException 'Наименование' = DATA ISTRING[150](VATCustomsException) IN base;
+nameVATCustomsException 'Наименование' = DATA VARISTRING[150](VATCustomsException) IN base;
 
 rangeVATCustomsException = DATA Range(VATCustomsException);
 numberRangeVATCustomsException 'Льгота НДС' (VATCustomsException) = numberRange(rangeVATCustomsException(VATCustomsException)) IN base;
@@ -128,7 +118,7 @@ dataValueVATCustomsExceptionGroupDate 'Льгота НДС, %' (customsGroup, da
 
 countVATCustomsExceptionCustomsGroup 'Кол-во' (customsGroup) = GROUP SUM 1 IF VATCustomsException IS VATCustomsException BY customsGroupVATCustomsException(VATCustomsException) PERSISTENT;
 
-nameVATCustomsExceptionCustomsGroup 'Наименование' (customsGroup) = GROUP CONCAT STRING[255](nameVATCustomsException(VATCustomsException))  , ', ' BY customsGroupVATCustomsException(VATCustomsException);
+nameVATCustomsExceptionCustomsGroup 'Наименование' (customsGroup) = GROUP CONCAT VARSTRING[255](nameVATCustomsException(VATCustomsException))  , ', ' BY customsGroupVATCustomsException(VATCustomsException);
 
 //
 customsGroupCountrySku = ABSTRACT CustomsGroup(Country, Sku);

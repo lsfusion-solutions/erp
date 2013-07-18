@@ -25,7 +25,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
     quantityShipmentDetailInvoiceShipment (invoice, shipment) = GROUP SUM quantityShipmentDetail(shipmentDetail) BY invoiceInvoiceDetail(invoiceDetailShipmentDetail(shipmentDetail)), shipmentShipmentDetail(shipmentDetail);
     relationInvoiceShipment 'Связь' (shipment) = GROUP SUM 1 IF quantityShipmentDetailInvoiceShipment (invoice, shipment) BY shipment;
 
-    invoicesShipment 'Накладные' (shipment) = GROUP CONCAT STRING[255](descriptionInvoice(invoice)) IF quantityShipmentDetailInvoiceShipment(invoice, shipment) , ', '
+    invoicesShipment 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF quantityShipmentDetailInvoiceShipment(invoice, shipment) , ', '
                                                     BY shipment
                                                     ORDER invoice IN invoiceGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
@@ -144,7 +144,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
 
     TABLE invoiceUserShipment (Invoice, UserShipment);
     includeInvoiceUserShipment 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) MINCHARWIDTH 10 PREFCHARWIDTH 15;
-    includeInvoicesUserShipment 'Накладные в приемке' (userShipment) = GROUP CONCAT STRING[255](descriptionInvoice(invoice)) IF includeInvoiceUserShipment(invoice, userShipment) , ', '
+    includeInvoicesUserShipment 'Накладные в приемке' (userShipment) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF includeInvoiceUserShipment(invoice, userShipment) , ', '
                                                         BY userShipment
                                                         ORDER invoice IN invoicesGroup MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;
     FORM includeInvoicesUserShipment 'Накладные'

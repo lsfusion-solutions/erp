@@ -16,11 +16,11 @@ PRIORITY Utils;
 CLASS GLAccountType 'План счетов';
 TABLE GLAccountType(GLAccountType);
 
-nameGLAccountType 'Наименование' = DATA ISTRING[150](GLAccountType);
+nameGLAccountType 'Наименование' = DATA VARISTRING[150](GLAccountType);
 
 currencyGLAccountType = DATA Currency (GLAccountType);
 nameCurrencyGLAccountType 'Валюта' (GLAccountType)= nameCurrency(currencyGLAccountType(GLAccountType));
-idGLAccountType 'Идентификатор' = DATA STRING[20] (GLAccountType) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+idGLAccountType 'Идентификатор' = DATA VARSTRING[20] (GLAccountType) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 GLAccountTypeIdGLAccountType (string1) = GROUP AGGR GLAccountType
     BY idGLAccountType(GLAccountType) WHERE GLAccountType IS GLAccountType;
@@ -43,20 +43,20 @@ FORM GLAccountTypes 'Планы счетов'
 CLASS GLAccount 'Счет';
 TABLE GLAccount(GLAccount);
 
-nameGLAccount 'Наименование' = DATA STRING[255] (GLAccount) MINCHARWIDTH 40 MAXCHARWIDTH 80 PREFCHARWIDTH 80;
+nameGLAccount 'Наименование' = DATA VARSTRING[255] (GLAccount) MINCHARWIDTH 40 MAXCHARWIDTH 80 PREFCHARWIDTH 80;
 GLAccountTypeGLAccount = DATA GLAccountType (GLAccount) AUTOSET;
 nameGLAccountTypeGLAccount 'План счетов' (GLAccount)= nameGLAccountType(GLAccountTypeGLAccount(GLAccount));
 nameCurrencyGLAccount 'Валюта' (GLAccount) = nameCurrencyGLAccountType(GLAccountTypeGLAccount(GLAccount));
 
-idGLAccount 'Идентификатор' = DATA STRING[20] (GLAccount) MINCHARWIDTH 5 MAXCHARWIDTH 10 PREFCHARWIDTH 10;
+idGLAccount 'Идентификатор' = DATA VARSTRING[20] (GLAccount) MINCHARWIDTH 5 MAXCHARWIDTH 10 PREFCHARWIDTH 10;
 
 TABLE GLAccountGLAccount(GLAccount, GLAccount);
 @defineHierarchy(GLAccount);
 
-canonicalIdGLAccount 'Канонический код' (GLAccount) = STRING[255](
+canonicalIdGLAccount 'Канонический код' (GLAccount) = VARSTRING[255](
                            [GROUP CONCAT idGLAccount(parent), ' / ' BY child ORDER DESC levelGLAccountGLAccount(child, parent)](GLAccount))
                            MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
-canonicalNamesGLAccount 'Каноническое имя' (GLAccount) = STRING[255](
+canonicalNamesGLAccount 'Каноническое имя' (GLAccount) = VARSTRING[255](
                            [GROUP CONCAT nameGLAccount(parent), ' / ' BY child ORDER DESC levelGLAccountGLAccount(child, parent)](GLAccount))
                            MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
 

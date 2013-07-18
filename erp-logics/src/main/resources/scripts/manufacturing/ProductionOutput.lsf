@@ -80,7 +80,7 @@ descriptionIndexProductDetailUserOutputDetail 'Строка изделия' (det
 
 quantityOutputDetailOrderOutput (order, output) = GROUP SUM quantityOutputDetail(outputDetail) BY orderProductDetail(productDetailOutputDetail(outputDetail)), outputOutputDetail(outputDetail);
 
-ordersOutput 'Заказы' (output) = GROUP CONCAT STRING[255](descriptionOrder(order)) IF quantityOutputDetailOrderOutput(order, output) , ', '
+ordersOutput 'Заказы' (output) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF quantityOutputDetailOrderOutput(order, output) , ', '
                                                 BY output
                                                 ORDER order IN orderGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
@@ -422,7 +422,7 @@ createShipmentOutput 'Создать поставку для ГП' = ACTION (out
         ASSIGN Sale.customerUserShipment(sh) <- legalEntityStockOutput(output);
         ASSIGN Sale.supplierStockUserShipment(sh) <- stockOutput(output);
         ASSIGN createPurchaseUserShipment(sh) <- TRUE;
-        ASSIGN Sale.noteUserShipment(sh) <- [FORMULA STRING[100] 'CAST($1 AS TEXT)'](descriptionOutput(output));
+        ASSIGN Sale.noteUserShipment(sh) <- [FORMULA VARSTRING[100] 'CAST($1 AS TEXT)'](descriptionOutput(output));
 
         FOR outputOutputDetail(outputDetail)== output ADDOBJ d = Sale.UserShipmentDetail DO {
             ASSIGN Sale.userShipmentUserShipmentDetail(d) <- sh;

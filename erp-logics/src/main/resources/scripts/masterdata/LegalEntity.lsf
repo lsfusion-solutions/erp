@@ -7,7 +7,7 @@ REQUIRE System, MasterData, Historizable, Tax, Country, I18n, Employee;
 CLASS Ownership 'Форма собственности';
 TABLE ownership (Ownership);
 
-nameOwnership 'Наименование' = DATA ISTRING[100](Ownership);
+nameOwnership 'Наименование' = DATA VARISTRING[100](Ownership);
 
 shortNameOwnership 'Cокращенное название' = DATA STRING[10] (Ownership) IN base FIXEDCHARWIDTH 6;
 shortNameToOwnership (string) = GROUP AGGR ownership BY shortNameOwnership (ownership) WHERE ownership IS Ownership;
@@ -36,9 +36,9 @@ CLASS LegalEntity 'Организация' : TaxUnitGroup;
 TABLE legalEntity (LegalEntity);
 TABLE legalEntityDate (LegalEntity, DATE);
 
-@defineExternalizable(legalEntity, STRING[100]);
+@defineExternalizable(legalEntity, VARSTRING[100]);
 
-nameLegalEntity 'Наименование' = DATA ISTRING[150](LegalEntity) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameLegalEntity 'Наименование' = DATA VARISTRING[150](LegalEntity) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 nameTaxUnitGroup(group) += nameLegalEntity(group) IF group IS LegalEntity;
 
@@ -62,22 +62,22 @@ shortNameOwnershipLegalEntity 'Форма собственности (сокр.)
 CONSTRAINT countryOwnership(ownershipLegalEntity(legalEntity)) != countryLegalEntity(legalEntity)
     CHECKED BY ownershipLegalEntity MESSAGE 'Страна формы собственности должна совпадать со страной организации';
 
-fullNameLegalEntity 'Полное наименование' = DATA STRING[200] (LegalEntity) IN lawGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
+fullNameLegalEntity 'Полное наименование' = DATA VARSTRING[200] (LegalEntity) IN lawGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
-@defineHistorizable(addressLegalEntity, 'Юридический адрес', STRING[150], legalEntity, nameLegalEntity, lawGroup);
-@defineHistorizable(postAddressLegalEntity, 'Почтовый адрес', STRING[150], legalEntity, nameLegalEntity, lawGroup);
+@defineHistorizable(addressLegalEntity, 'Юридический адрес', VARSTRING[150], legalEntity, nameLegalEntity, lawGroup);
+@defineHistorizable(postAddressLegalEntity, 'Почтовый адрес', VARSTRING[150], legalEntity, nameLegalEntity, lawGroup);
 
 GROUP contactGroup 'Контактная информация' : public;
 
-@defineHistorizable(phoneLegalEntity, 'Телефон/факс', STRING[100], legalEntity, nameLegalEntity, contactGroup);
-emailLegalEntity 'E-mail' = DATA STRING[100] (LegalEntity) IN contactGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
-siteLegalEntity 'Сайт' = DATA STRING[100] (LegalEntity) IN contactGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
-contactsLegalEntity 'Дополнительная информация' = DATA STRING[300] (LegalEntity) IN contactGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
+@defineHistorizable(phoneLegalEntity, 'Телефон/факс', VARSTRING[100], legalEntity, nameLegalEntity, contactGroup);
+emailLegalEntity 'E-mail' = DATA VARSTRING[100] (LegalEntity) IN contactGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
+siteLegalEntity 'Сайт' = DATA VARSTRING[100] (LegalEntity) IN contactGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
+contactsLegalEntity 'Дополнительная информация' = DATA VARSTRING[300] (LegalEntity) IN contactGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
 GROUP managementGroup 'Управление' : public;
 
-@defineHistorizable(managerLegalEntity, 'Руководитель', STRING[100], legalEntity, nameLegalEntity, managementGroup);
-@defineHistorizable(accountantLegalEntity, 'Главный бухгалтер', STRING[100], legalEntity, nameLegalEntity, managementGroup);
+@defineHistorizable(managerLegalEntity, 'Руководитель', VARSTRING[100], legalEntity, nameLegalEntity, managementGroup);
+@defineHistorizable(accountantLegalEntity, 'Главный бухгалтер', VARSTRING[100], legalEntity, nameLegalEntity, managementGroup);
 
 GROUP docGroup 'Для договора' : public;
 
@@ -88,7 +88,7 @@ GROUP orderGroup 'Для заказов' : public;
 CLASS LegalEntityGroup 'Группа организаций' ;
 TABLE legalEntityGroup(LegalEntityGroup);
 
-nameLegalEntityGroup 'Наименование' = DATA ISTRING[100](LegalEntityGroup);
+nameLegalEntityGroup 'Наименование' = DATA VARISTRING[100](LegalEntityGroup);
 legalEntityGroupLegalEntity (legalEntity) = DATA LegalEntityGroup (LegalEntity) PERSISTENT INDEXED AUTOSET;
 nameLegalEntityGroupLegalEntity 'Группа организаций' (legalEntity) = nameLegalEntityGroup(legalEntityGroupLegalEntity(legalEntity));
 
@@ -117,7 +117,7 @@ GROUP licenseGroup 'Лицензионная информация' : base;
 CLASS License 'Лицензия';
 TABLE license (License);
 
-numberLicense 'Номер лицензии' = DATA STRING[100] (License) IN licenseGroup;
+numberLicense 'Номер лицензии' = DATA VARSTRING[100] (License) IN licenseGroup;
 dateFromLicense 'Действует с ' = DATA DATE (License) IN licenseGroup;
 dateToLicense 'Действует по ' = DATA DATE (License) IN licenseGroup;
 

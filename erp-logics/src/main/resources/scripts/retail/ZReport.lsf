@@ -29,9 +29,9 @@ TABLE zReport (ZReport);
 @defineDocumentHeaderDepartmentStore(zReport);
 
 castBasisZReport =
-    FORMULA STRING[100] '\'Z-отчет №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
+    FORMULA VARSTRING[100] '\'Z-отчет №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
 
-numberZReport 'Номер Z-отчета' (zReport) = DATA STRING[21](ZReport) IN documentPrmGroup;
+numberZReport 'Номер Z-отчета' (zReport) = DATA VARSTRING[21](ZReport) IN documentPrmGroup;
 cashRegisterZReport (zReport) = DATA CashRegister(ZReport);
 numberCashRegisterZReport 'Касса Z-отчета' (zReport) = numberCashRegister(cashRegisterZReport(zReport)) IN documentPrmGroup;
 numberNumberCashRegisterToZReport (numberZReport, numberCashRegister) = GROUP AGGR zReport BY numberZReport (zReport), numberCashRegisterZReport (zReport) WHERE zReport IS ZReport;
@@ -51,7 +51,7 @@ departmentStoreZReport(zReport) <- departmentStoreCashRegister(cashRegisterZRepo
     WHEN CHANGED(cashRegisterZReport(zReport));
 
 descriptionZReport (zReport) =
-    [FORMULA STRING[200] '\'Продажа по кассе \' || CAST($1 AS TEXT) || \' отдела \' || CAST($2 AS TEXT) ||  \' от \' || CAST($3 AS TEXT)'](
+    [FORMULA VARSTRING[200] '\'Продажа по кассе \' || CAST($1 AS TEXT) || \' отдела \' || CAST($2 AS TEXT) ||  \' от \' || CAST($3 AS TEXT)'](
     numberCashRegisterZReport(zReport), nameDepartmentStoreZReport(zReport), dateZReport(zReport));
 
 exportReceiptsZReport 'Экспортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsActionProperty';
@@ -155,7 +155,7 @@ receiptSaleDetailReceiptReturnDetail = DATA ReceiptSaleDetail (ReceiptReturnDeta
 receiptSaleReceiptReturnDetail (returnDetail) = receiptReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(returnDetail));
 
 descriptionSaleReceiptReturnDetail 'Чек продажи' (returnDetail) =
-    [FORMULA STRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) ||  \' позиция \' || CAST($3 AS TEXT)'](
+    [FORMULA VARSTRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) ||  \' позиция \' || CAST($3 AS TEXT)'](
     numberReceipt(receiptSaleReceiptReturnDetail(returnDetail)), dateTimeReceipt(receiptSaleReceiptReturnDetail(returnDetail)), indexReceiptDetail(receiptSaleDetailReceiptReturnDetail(returnDetail)));
 
 // Количества и суммы
@@ -268,13 +268,13 @@ numberReceiptDetail 'Номер позиции чека' = DATA INTEGER (Receipt
 zReportReceiptReceiptDetailToReceiptDetail (zReport, receipt, receiptDetail, cashRegister) = GROUP AGGR receiptDetail BY numberZReport(zReportReceiptDetail(receiptDetail)), numberReceipt(receiptReceiptDetail(receiptDetail)), numberReceiptDetail(receiptDetail), numberCashRegister(cashRegisterZReport(zReportReceiptDetail(receiptDetail))) WHERE receiptDetail IS ReceiptDetail;
 //
 
-descriptionReceipt 'Название документа' (receipt) = [FORMULA STRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '](
+descriptionReceipt 'Название документа' (receipt) = [FORMULA VARSTRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '](
                                                numberReceipt(receipt), dateTimeReceipt(receipt));
 
-descriptionReceiptSaleDetail (receiptDetail) = [FORMULA STRING[200] '\'Продажа № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '] (
+descriptionReceiptSaleDetail (receiptDetail) = [FORMULA VARSTRING[200] '\'Продажа № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '] (
                                           numberReceipt(receiptReceiptSaleDetail(receiptDetail)), dateTimeReceipt(receiptReceiptSaleDetail(receiptDetail)));
 
-descriptionReceiptReturnDetail (receiptDetail) = [FORMULA STRING[200] '\'Возврат № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '] (
+descriptionReceiptReturnDetail (receiptDetail) = [FORMULA VARSTRING[200] '\'Возврат № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '] (
                                             numberReceipt(receiptReceiptReturnDetail(receiptDetail)), dateTimeReceipt(receiptReceiptReturnDetail(receiptDetail)));
 
 descriptionReceiptDetail (receiptDetail) = OVERRIDE descriptionReceiptReturnDetail(receiptDetail), descriptionReceiptSaleDetail(receiptDetail);
@@ -322,7 +322,7 @@ FORM paymentMeans
 CLASS PaymentType 'Тип платежа';
 TABLE paymentType (PaymentType);
 
-namePaymentType 'Наименование' = DATA ISTRING[110](PaymentType);
+namePaymentType 'Наименование' = DATA VARISTRING[110](PaymentType);
 
 paymentMeansPaymentType (paymentType) = DATA PaymentMeans (PaymentType);
 namePaymentMeansPaymentType 'Форма оплаты' (paymentType) = staticCaption(paymentMeansPaymentType(paymentType)) IN base;

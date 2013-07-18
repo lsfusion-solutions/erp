@@ -11,14 +11,14 @@ dateCashDocument 'Дата документа' = ABSTRACT DATE (CashDocument) IN
 timeCashDocument 'Время документа' = ABSTRACT TIME (CashDocument) IN documentHeaderGroup;
 dateTimeCashDocument 'Дата/время документа' (cashDocument) = dateTimeToDateTime(dateCashDocument(cashDocument), timeCashDocument(cashDocument)) IN documentHeaderGroup;
 
-numberCashDocument 'Номер' (cashDocument) = ABSTRACT STRING[200] (CashDocument) IN documentPrmGroup;
+numberCashDocument 'Номер' (cashDocument) = ABSTRACT STRING[200] (CashDocument) IN documentPrmGroup; ///
 
 departmentStoreCashDocument (cashDocument) = ABSTRACT DepartmentStore (CashDocument);
 nameDepartmentStoreCashDocument 'Подразделение' (cashDocument) =
     nameDepartmentStore(departmentStoreCashDocument(cashDocument)) IN documentHeaderGroup;
 nameLegalEntityCashDocument 'Компания' (cashDocument) = nameLegalEntityDepartmentStore(departmentStoreCashDocument(cashDocument)) IN documentHeaderGroup;
 
-basisCashDocument 'Основание' = ABSTRACT STRING[100] (CashDocument) IN documentPrmGroup;
+basisCashDocument 'Основание' = ABSTRACT VARSTRING[100] (CashDocument) IN documentPrmGroup;
 
 cashRegisterCashDocument = ABSTRACT CashRegister(CashDocument);
 numberCashRegisterCashDocument 'Касса' (cashDocument) = numberCashRegister(cashRegisterCashDocument(cashDocument)) IN documentPrmGroup;
@@ -109,7 +109,7 @@ bankAccountCollection(collection) <- bankAccountStore(storeDepartmentStore(depar
 
 sumCashCollection 'Сумма инкассации' = DATA NUMERIC[16,2] (Collection) IN documentSumGroup;
 castBasisCollection =
-    FORMULA STRING[100] '\'Инкассация №\' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT)';
+    FORMULA VARSTRING[100] '\'Инкассация №\' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT)';
 basisCollection 'Основание' (collection) =
     castBasisCollection(seriesNumberObject(collection), dateCollection(collection)) IN documentPrmGroup;
 
@@ -218,9 +218,9 @@ dateCashOperation 'Дата документа' = ABSTRACT DATE (CashOperation) 
 timeCashOperation 'Время документа' = ABSTRACT TIME (CashOperation) IN documentHeaderGroup;
 dateTimeCashOperation 'Дата/время документа'(cashOperation) = dateTimeToDateTime(dateCashOperation(cashOperation), timeCashOperation(cashOperation)) IN documentHeaderGroup;
 
-numberCashOperation 'Номер' (cashOperation) = ABSTRACT STRING[200] (CashOperation) IN documentPrmGroup;
+numberCashOperation 'Номер' (cashOperation) = ABSTRACT STRING[20] (CashOperation) IN documentPrmGroup;
 
-basisCashOperation 'Основание' = ABSTRACT STRING[100] (CashOperation) IN documentPrmGroup;
+basisCashOperation 'Основание' = ABSTRACT VARSTRING[100] (CashOperation) IN documentPrmGroup;
 
 cashRegisterCashOperation = ABSTRACT CashRegister(CashOperation);
 cashRegisterModelCashOperation (cashOperation) = cashRegisterModelCashRegister(cashRegisterCashOperation(cashOperation));
@@ -250,7 +250,7 @@ cashRegisterIncomeCashOperation (incomeCashOperation) = DATA CashRegister (Incom
 numberCashRegisterIncomeCashOperation 'Касса внесения денег' (incomeCashOperation) = numberCashRegister(cashRegisterIncomeCashOperation(incomeCashOperation)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
 sumCashIncomeCashOperation 'Сумма внесения' = DATA NUMERIC[16,2] (IncomeCashOperation) IN documentSumGroup;
 castBasisIncomeCashOperation =
-    FORMULA STRING[100] '\'Внесение денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
+    FORMULA VARSTRING[100] '\'Внесение денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
 basisIncomeCashOperation 'Основание' (incomeCashOperation) =
     castBasisIncomeCashOperation(seriesNumberObject(incomeCashOperation), numberCashRegisterIncomeCashOperation(incomeCashOperation), dateIncomeCashOperation(incomeCashOperation)) IN documentPrmGroup;
 
@@ -298,7 +298,7 @@ cashRegisterOutcomeCashOperation (outcomeCashOperation) = DATA CashRegister (Out
 numberCashRegisterOutcomeCashOperation 'Касса изъятия денег' (outcomeCashOperation) = numberCashRegister(cashRegisterOutcomeCashOperation(outcomeCashOperation)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
 sumCashOutcomeCashOperation 'Сумма изъятия' = DATA NUMERIC[16,2] (OutcomeCashOperation) IN documentSumGroup;
 castBasisOutcomeCashOperation =
-    FORMULA STRING[100] '\'Изъятие денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
+    FORMULA VARSTRING[100] '\'Изъятие денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
 basisOutcomeCashOperation 'Основание' (outcomeCashOperation) =
     castBasisOutcomeCashOperation(seriesNumberObject(outcomeCashOperation), numberCashRegisterOutcomeCashOperation(outcomeCashOperation), dateOutcomeCashOperation(outcomeCashOperation)) IN documentPrmGroup;
 

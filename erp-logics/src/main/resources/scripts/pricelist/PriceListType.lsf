@@ -9,9 +9,9 @@ NAMESPACE PriceList;
 CLASS ABSTRACT PriceListType 'Вид цены';
 TABLE priceListType(PriceListType);
 
-@defineExternalizableAbstract(priceListType, STRING[100]);
+@defineExternalizableAbstract(priceListType, VARSTRING[100]);
 
-namePriceListType 'Наименование' = ABSTRACT ISTRING[100](PriceListType);
+namePriceListType 'Наименование' = ABSTRACT VARISTRING[100](PriceListType);
 
 includeVATPriceListType 'Цена с НДС' = ABSTRACT BOOLEAN (PriceListType) PERSISTENT;
 
@@ -60,7 +60,7 @@ CONSTRAINT currencyRoundCondition(roundConditionPriceListType(priceListType)) !=
 
 CLASS ABSTRACT BasePriceListType 'Базовый вид цены' : PriceListType;
 
-nameBasePriceListType 'Наименование' = ABSTRACT ISTRING[100](BasePriceListType);
+nameBasePriceListType 'Наименование' = ABSTRACT VARISTRING[100](BasePriceListType);
 namePriceListType(type) += nameBasePriceListType(type) IF type IS BasePriceListType;
 
 priceBasePriceListTypeSkuStockDateTime (type, sku, stock, dateTime) = ABSTRACT NUMERIC[14,2] (BasePriceListType, Sku, Stock, DATETIME);
@@ -80,7 +80,7 @@ FORM basePriceListTypes 'Базовые виды цен'
 // --------------------------- Системные виды цен ------------------------- //
 CLASS SystemPriceListType 'Системный вид цены' : BasePriceListType;
 
-nameBasePriceListType(type) += staticCaption(type) IF type IS SystemPriceListType;
+nameBasePriceListType(type) += VARISTRING[100](staticCaption(type)) IF type IS SystemPriceListType;
 
 priceSystemPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) = ABSTRACT CASE NUMERIC[14,2] (SystemPriceListType, Sku, Stock, DATETIME);
 priceSystemPriceListTypeBatchStockDateTime (type, sku, stock, dateTime) = ABSTRACT CASE NUMERIC[14,2] (SystemPriceListType, Batch, Stock, DATETIME);

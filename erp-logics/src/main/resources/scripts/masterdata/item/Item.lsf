@@ -7,9 +7,9 @@ REQUIRE System, Stock, Hierarchy, Barcode, PriceListType, PriceListCalc;
 CLASS ItemGroup 'Товарная группа' : SkuGroup;
 TABLE itemGroup (ItemGroup);
 
-@defineExternalizable(itemGroup, STRING[100]);
+@defineExternalizable(itemGroup, VARSTRING[100]);
 
-nameItemGroup 'Наименование' = DATA ISTRING[100](ItemGroup) IN base;
+nameItemGroup 'Наименование' = DATA VARISTRING[100](ItemGroup) IN base;
 
 nameSkuGroup(group) += nameItemGroup(group) IF group IS ItemGroup;
 
@@ -96,7 +96,7 @@ TABLE itemDate (Item, DATE);
 TABLE itemCountry (Item, Country);
 TABLE itemCountryDate (Item, Country, DATE);
 
-@defineExternalizable(item, STRING[100]);
+@defineExternalizable(item, VARSTRING[100]);
 
 // Связь с группой товаров
 itemGroupItem = DATA ItemGroup(Item) AUTOSET;
@@ -339,7 +339,7 @@ META defineItemAttribute (attribute, caption, group)
 END
 
 // Объявление
-valueItemAttribute = ABSTRACT ISTRING[255] (Item, ItemAttribute) PERSISTENT;
+valueItemAttribute = ABSTRACT VARISTRING[255] (Item, ItemAttribute) PERSISTENT;
 
 META implementItemAttribute(property, caption, itemType, attributeClass)
     EXTEND CLASS itemType##ItemAttribute { attributeClass caption }
@@ -393,8 +393,8 @@ END
 
 // -------------------------------------------- Формирование наименования ----------------------------------- //
 
-prefixInNameItemAttribute 'Префикс' = DATA STRING[20] (ItemAttribute);
-postfixInNameItemAttribute 'Постфикс' = DATA STRING[20] (ItemAttribute);
+prefixInNameItemAttribute 'Префикс' = DATA VARSTRING[20] (ItemAttribute);
+postfixInNameItemAttribute 'Постфикс' = DATA VARSTRING[20] (ItemAttribute);
 
 EXTEND FORM options PROPERTIES(ia) prefixInNameItemAttribute, postfixInNameItemAttribute;
 
@@ -404,7 +404,7 @@ META defineItemAttributeName (prefix, caption, group)
     numberInName###prefix##ItemAttribute 'Порядковый номер в наименовании'##caption = DATA INTEGER (ItemAttribute) IN base;
     EXTEND FORM options PROPERTIES(ia) numberInName###prefix##ItemAttribute;
 
-    name###prefix##AttributeItem 'Наименование'###caption (item) = STRING[255](
+    name###prefix##AttributeItem 'Наименование'###caption (item) = VARSTRING[255](
                     [GROUP CONCAT completeNameItemAttribute(item, attribute)
                                   IF numberInName###prefix##ItemAttribute(attribute) AND valueItemAttribute(item, attribute), ' ' BY item ORDER numberInName###prefix##ItemAttribute(attribute)](item))
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
@@ -417,7 +417,7 @@ END
 // Строка
 CLASS StringItemAttribute 'Строковый атрибут' : ItemAttribute;
 
-valueStringItemAttribute = ABSTRACT CASE ISTRING[255] (Item, StringItemAttribute) PERSISTENT;
+valueStringItemAttribute = ABSTRACT CASE VARISTRING[255] (Item, StringItemAttribute) PERSISTENT;
 valueItemAttribute(item, attribute) += valueStringItemAttribute(item, attribute);
 
 META defineStringItemAttribute(attribute, type, caption, group)
@@ -428,7 +428,7 @@ END
 CLASS IntegerItemAttribute 'Целочисленный атрибут' : ItemAttribute;
 
 valueIntegerItemAttribute = ABSTRACT CASE INTEGER (Item, IntegerItemAttribute) PERSISTENT;
-stringIntegerItemAttribute(item, attribute) = STRING[255](valueIntegerItemAttribute(item, attribute));
+stringIntegerItemAttribute(item, attribute) = VARSTRING[255](valueIntegerItemAttribute(item, attribute));
 valueItemAttribute(item, attribute) += stringIntegerItemAttribute(item, attribute);
 
 META defineIntegerItemAttribute(attribute, caption, group)
@@ -439,7 +439,7 @@ END
 CLASS DoubleItemAttribute 'Дробный атрибут' : ItemAttribute;
 
 valueDoubleItemAttribute = ABSTRACT CASE DOUBLE (Item, DoubleItemAttribute) PERSISTENT;
-stringDoubleItemAttribute(item, attribute) = STRING[255](valueDoubleItemAttribute(item, attribute));
+stringDoubleItemAttribute(item, attribute) = VARSTRING[255](valueDoubleItemAttribute(item, attribute));
 valueItemAttribute(item, attribute) += stringDoubleItemAttribute(item, attribute);
 
 META defineDoubleItemAttribute(attribute, type, caption, group)
@@ -477,7 +477,7 @@ EXTEND FORM dialogItemGroups
 // ------ Базовые свойства товара ------ //
 
 // Название
-@defineStringItemAttribute(caption, STRING[100], 'Название', itemBaseGroup);
+@defineStringItemAttribute(caption, VARSTRING[100], 'Название', itemBaseGroup);
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(captionItem, 'Название', String, itemCaption);
 
@@ -495,9 +495,9 @@ UOMSku(item) += UOMItem(item);
 CLASS Brand 'Бренд';
 TABLE brand(Brand);
 
-@defineExternalizable(brand, STRING[100]);
+@defineExternalizable(brand, VARSTRING[100]);
 
-nameBrand 'Наименование' = DATA ISTRING[50](Brand);
+nameBrand 'Наименование' = DATA VARISTRING[50](Brand);
 
 FORM brand 'Бренд'
     OBJECTS t=Brand FIXED PANEL
@@ -530,9 +530,9 @@ countrySku(sku) += countryItem(sku);
 CLASS Manufacturer 'Производитель товара';
 TABLE manufacturer(Manufacturer);
 
-@defineExternalizable(manufacturer, STRING[100]);
+@defineExternalizable(manufacturer, VARSTRING[100]);
 
-nameManufacturer 'Наименование' = DATA ISTRING[50](Manufacturer);
+nameManufacturer 'Наименование' = DATA VARISTRING[50](Manufacturer);
 
 FORM manufacturer 'Производитель товара'
     OBJECTS m=Manufacturer FIXED PANEL
@@ -554,7 +554,7 @@ DESIGN manufacturers FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @implementItemAttribute(nameManufacturerItem, 'Производитель', String, itemManufacturer);
 
 //  Состав
-@defineStringItemAttribute(composition, STRING[255], 'Состав', itemBaseGroup);
+@defineStringItemAttribute(composition, VARSTRING[255], 'Состав', itemBaseGroup);
 @defineItemAttributeBatch (composition, 'Состав');
 compositionSku (sku) += compositionItem(sku);
 
@@ -640,14 +640,14 @@ EXTEND FORM items
 
 // Кассы
 @defineItemAttributeName(cashRegister, ' (кассы)', public);
-dataTitleCashRegisterBarcode 'Наименование для касс' = DATA STRING[100] (Barcode);
+dataTitleCashRegisterBarcode 'Наименование для касс' = DATA VARSTRING[100] (Barcode);
 titleCashRegisterBarcode 'Наименование для касс' = OVERRIDE nameCashRegisterAttributeItem(skuBarcode(barcode)), dataTitleCashRegisterBarcode(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += ACTION {
     ASSIGN numberInNameCashRegisterItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 // Весы
 @defineItemAttributeName(scales, ' (весы)', public);
-dataTitleScalesBarcode 'Наименование для весов' = DATA STRING[100] (Barcode);
+dataTitleScalesBarcode 'Наименование для весов' = DATA VARSTRING[100] (Barcode);
 titleScalesBarcode 'Наименование для весов' = OVERRIDE nameScalesAttributeItem(skuBarcode(barcode)), dataTitleScalesBarcode(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += ACTION {
     ASSIGN numberInNameScalesItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;

@@ -16,7 +16,7 @@ EXTEND DESIGN departmentStore {
 
 CLASS PricingCommittee 'Комиссия для акта расценки' : Committee;
 
-namePricingCommittee 'Наименование' = DATA ISTRING[150](PricingCommittee);
+namePricingCommittee 'Наименование' = DATA VARISTRING[150](PricingCommittee);
 
 nameCommittee(committee) += namePricingCommittee(committee) IF committee IS PricingCommittee;
 
@@ -513,8 +513,8 @@ overLimitPriceUserPricingDetail = ABSTRACT NUMERIC[14,2] (UserPricingDetail);
 @defineDocumentInterfaceDetailSkip(pricing, changeLedger, 'Не изменять текущие цены');
 
 // Основание
-descriptionDocumentPricing 'Документы-основания' = ABSTRACT STRING[255] (Pricing) PERSISTENT;
-extraDescriptionPricingDetail 'Доп. наименование'  = ABSTRACT STRING[255] (PricingDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+descriptionDocumentPricing 'Документы-основания' = ABSTRACT VARSTRING[255] (Pricing) PERSISTENT;
+extraDescriptionPricingDetail 'Доп. наименование'  = ABSTRACT VARSTRING[255] (PricingDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
 
 // Возвраты
 isReturnPricing 'Обратный' = ABSTRACT BOOLEAN (Pricing);
@@ -1032,7 +1032,7 @@ META defineInvoicePricingRelation(sign, stockProp)
 
     quantityPricingDetailInvoicePricing (invoice, pricing) = GROUP SUM quantityPricingDetail(pricingDetail) BY invoiceInvoiceDetail(invoiceDetailPricingDetail(pricingDetail)), pricingPricingDetail(pricingDetail);
 
-    invoicesPricing 'Накладные' (pricing) = GROUP CONCAT STRING[255](descriptionInvoice(invoice)) IF quantityPricingDetailInvoicePricing(invoice, pricing) , ', '
+    invoicesPricing 'Накладные' (pricing) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF quantityPricingDetailInvoicePricing(invoice, pricing) , ', '
                                                     BY pricing
                                                     ORDER invoice IN invoiceGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
@@ -1160,5 +1160,5 @@ META defineInvoicePricingRelation(sign, stockProp)
     ;
 
     invoiceDetailPricingDetail(pricingDetail) += invoiceDetailInvoicePricingDetail(pricingDetail);
-    descriptionDocumentPricing(pricing) += STRING[255](invoicesPricing(pricing));
+    descriptionDocumentPricing(pricing) += VARSTRING[255](invoicesPricing(pricing));
 END

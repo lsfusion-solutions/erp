@@ -14,7 +14,7 @@ REQUIRE System,
 // -------------------------------- Комиссия для инвентаризации ----------------------------------//
 CLASS InventoryCommittee 'Комиссия для инвентаризации' : Committee;
 
-nameInventoryCommittee 'Наименование' = DATA ISTRING[150](InventoryCommittee);
+nameInventoryCommittee 'Наименование' = DATA VARISTRING[150](InventoryCommittee);
 
 nameCommittee(committee) += nameInventoryCommittee(committee) IF committee IS InventoryCommittee;
 
@@ -108,8 +108,8 @@ TABLE inventory (Inventory);
 isBatchInventory 'По партиям' (inventory) = DATA BOOLEAN (Inventory);
 isSkuInventory (inventory) = inventory IS Inventory AND NOT isBatchInventory(inventory);
 
-nameInventory 'Название инвентаризации' = DATA STRING[100] (Inventory) IN documentPrmGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
-infoInventory 'Дополнительная информация по инвентаризации' = DATA STRING[500] (Inventory) IN documentPrmGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
+nameInventory 'Название инвентаризации' = DATA VARSTRING[100] (Inventory) IN documentPrmGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
+infoInventory 'Дополнительная информация по инвентаризации' = DATA VARSTRING[500] (Inventory) IN documentPrmGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
 timeFromInventory 'Начато' (inventory) = DATA DATETIME (Inventory) IN documentPrmGroup;
 timeToInventory 'Закончено' (inventory) = DATA DATETIME (Inventory) IN documentPrmGroup;
@@ -157,7 +157,7 @@ nameInventoryListInventory 'Название инвентаризации' (list
 @defineDocumentDetailTime(inventory, ListInventory);
 
 @defineDocumentDetailIndex(inventory, ListInventory);
-nameListInventory 'Номер описи' (listInventory) = [FORMULA STRING[30] '$1 || CAST ($2 AS character(20))']
+nameListInventory 'Номер описи' (listInventory) = [FORMULA VARSTRING[30] '$1 || CAST ($2 AS character(20))']
                                                   ('Опись ', indexListInventory(listInventory));
 
 isBatchListInventory (listInventory) = isBatchInventory(inventoryListInventory(listInventory));
@@ -184,7 +184,7 @@ TABLE pageInventory (PageInventory);
 @defineDocumentRelation(listInventory, PageInventory);
 @defineDocumentDetailIndex(listInventory, PageInventory);
 
-namePageInventory 'Номер страницы' (pageInventory) = [FORMULA STRING[30] '$1 || CAST ($2 AS character(20))']
+namePageInventory 'Номер страницы' (pageInventory) = [FORMULA VARSTRING[30] '$1 || CAST ($2 AS character(20))']
                                                               ('Страница ', indexPageInventory(pageInventory)) IN base;
 
 // --------------------------------------------- Строки описи -------------------------------------------- //
@@ -286,7 +286,7 @@ timeFromCollationSheet 'Снятие остатков начато' (collationSh
 timeToCollationSheet 'Снятие остатков закончено' (collationSheet) = timeToInventory(inventoryCollationSheet(collationSheet));
 nameHeadManCollationSheet  'Зав. складом' (collationSheet) = nameHeadManInventory(inventoryCollationSheet(collationSheet));
 
-nameCollationSheet 'Внутренний номер' (collationSheet) = [FORMULA STRING[30] '$1 || \'-\' || CAST ($2 AS character(20))'](
+nameCollationSheet 'Внутренний номер' (collationSheet) = [FORMULA VARSTRING[30] '$1 || \'-\' || CAST ($2 AS character(20))'](
         seriesNumberObject(inventoryCollationSheet(collationSheet)),
         indexCollationSheet(collationSheet));
 
@@ -306,7 +306,7 @@ inInventoryStockListInventoryPageInventoryPageInventoryDetail (inventory, stock,
     stockPageInventoryDetail(pageInventoryDetail) == stock AND inventory == inventoryPageInventoryDetail(pageInventoryDetail) AND NOT pageInventory AND NOT listInventory;
 
 descriptionCollationSheet 'Название документа' (collationSheet) =
-    [FORMULA STRING[200] '\'Сличительная ведомость \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
+    [FORMULA VARSTRING[200] '\'Сличительная ведомость \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
     nameCollationSheet(collationSheet), dateCollationSheet(collationSheet));
 
 userPrevDateCollationSheet 'Дата предыдущей инвентаризации' (collationSheet) = DATA DATE (CollationSheet) IN base;
@@ -660,11 +660,11 @@ quantityInventorySkuDetail 'Кол-во недостачи' (inventorySkuDetail)
 sumInventorySkuDetail 'Сумма недостачи' (inventorySkuDetail) = sumShortageCollationSheetSku(collationSheetInventorySkuDetail(inventorySkuDetail), skuInventorySkuDetail(inventorySkuDetail)) PERSISTENT;
 
 descriptionOutInventorySkuDetail 'Название документа' (inventorySkuDetail) =
-    [FORMULA STRING[200] '\'Недостача по инвентаризации \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
+    [FORMULA VARSTRING[200] '\'Недостача по инвентаризации \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
     nameCollationSheet(collationSheetOutInventorySkuDetail(inventorySkuDetail)), dateCollationSheet(collationSheetOutInventorySkuDetail(inventorySkuDetail)));
 
 descriptionInInventorySkuDetail 'Название документа' (inventorySkuDetail) =
-    [FORMULA STRING[200] '\'Излишек по инвентаризации \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
+    [FORMULA VARSTRING[200] '\'Излишек по инвентаризации \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
     nameCollationSheet(collationSheetInInventorySkuDetail(inventorySkuDetail)), dateCollationSheet(collationSheetInInventorySkuDetail(inventorySkuDetail)));
 
 descriptionInventorySkuDetail 'Название документа' (inventorySkuDetail) = OVERRIDE descriptionOutInventorySkuDetail(inventorySkuDetail), descriptionInInventorySkuDetail(inventorySkuDetail);
@@ -730,11 +730,11 @@ sumInventoryBatchDetail 'Сумма недостачи' (inventoryBatchDetail) =
 includeBatchInventoryBatchDetail(inventoryBatchDetail) = includeCollationSheetBatch(collationSheetInventoryBatchDetail(inventoryBatchDetail), batchInventoryBatchDetail(inventoryBatchDetail)) PERSISTENT;
 
 descriptionOutInventoryBatchDetail 'Название документа' (inventoryBatchDetail) =
-    [FORMULA STRING[200] '\'Недостача по инвентаризации \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
+    [FORMULA VARSTRING[200] '\'Недостача по инвентаризации \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
     nameCollationSheet(collationSheetOutInventoryBatchDetail(inventoryBatchDetail)), dateCollationSheet(collationSheetOutInventoryBatchDetail(inventoryBatchDetail)));
 
 descriptionInInventoryBatchDetail 'Название документа' (inventoryBatchDetail) =
-    [FORMULA STRING[200] '\'Излишек по инвентаризации \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
+    [FORMULA VARSTRING[200] '\'Излишек по инвентаризации \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
     nameCollationSheet(collationSheetInInventoryBatchDetail(inventoryBatchDetail)), dateCollationSheet(collationSheetInInventoryBatchDetail(inventoryBatchDetail)));
 
 descriptionInventoryBatchDetail 'Название документа' (inventoryBatchDetail) = OVERRIDE descriptionOutInventoryBatchDetail(inventoryBatchDetail), descriptionInInventoryBatchDetail(inventoryBatchDetail);

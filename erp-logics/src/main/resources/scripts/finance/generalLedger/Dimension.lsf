@@ -6,7 +6,7 @@ REQUIRE GeneralLedger;
 
 CLASS ABSTRACT Dimension 'Субконто';
 TABLE dimension(Dimension);
-nameDimension 'Название' = ABSTRACT ISTRING[255] (Dimension) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+nameDimension 'Название' = ABSTRACT VARISTRING[255] (Dimension) MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
 FORM dimensions 'Субконто'
     OBJECTS d = Dimension
@@ -19,13 +19,13 @@ TABLE dimensionType(DimensionType);
 
 nameDimensionType 'Наименование' (type) = staticCaption(type) IF type IS DimensionType;
 
-idDimensionType 'Идентификатор' = DATA STRING[20] (DimensionType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
+idDimensionType 'Идентификатор' = DATA VARSTRING[20] (DimensionType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
 dimensionTypeDimension = ABSTRACT CASE DimensionType (Dimension) PERSISTENT;
 nameDimensionTypeDimension 'Тип субконто' (dimension) = nameDimensionType(dimensionTypeDimension(dimension));
 
 TABLE GLAccountDimensionType(GLAccount, DimensionType);
 orderGLAccountDimensionType 'Порядковый номер' = DATA INTEGER (GLAccount,DimensionType);
-dimensionsTypeGLAccount 'Субконто' (GLAccount) = GROUP CONCAT STRING[255](nameDimensionType(dimensionType)) IF orderGLAccountDimensionType (GLAccount,dimensionType) , ', '
+dimensionsTypeGLAccount 'Субконто' (GLAccount) = GROUP CONCAT VARSTRING[255](nameDimensionType(dimensionType)) IF orderGLAccountDimensionType (GLAccount,dimensionType) , ', '
                                                 BY GLAccount
                                                 ORDER orderGLAccountDimensionType (GLAccount,dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80 PERSISTENT;
 
@@ -131,10 +131,10 @@ balanceGLAccountCompanyDimensionDimensionDimensionDateFromTo 'Сальдо' (GLA
 orderDebitGeneralLedgerDimensionType 'Порядковый номер' (ledger, dimensionType)=  orderGLAccountDimensionType(debitGeneralLedger(ledger), dimensionType);
 orderCreditGeneralLedgerDimensionType 'Порядковый номер' (ledger, dimensionType)=  orderGLAccountDimensionType(creditGeneralLedger(ledger), dimensionType);
 
-dimensionsDebitGeneralLedger 'Субконто (дебет)' (ledger) = GROUP CONCAT STRING[255](nameDebitGeneralLedgerDimensionType(ledger, dimensionType)) IF orderDebitGeneralLedgerDimensionType(ledger, dimensionType) , ', '
+dimensionsDebitGeneralLedger 'Субконто (дебет)' (ledger) = GROUP CONCAT VARSTRING[255](nameDebitGeneralLedgerDimensionType(ledger, dimensionType)) IF orderDebitGeneralLedgerDimensionType(ledger, dimensionType) , ', '
                                                 BY ledger
                                                 ORDER orderDebitGeneralLedgerDimensionType (ledger, dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80;
-dimensionsCreditGeneralLedger 'Субконто (кредит)' (ledger) = GROUP CONCAT STRING[255](nameCreditGeneralLedgerDimensionType(ledger, dimensionType)) IF orderCreditGeneralLedgerDimensionType(ledger, dimensionType) , ', '
+dimensionsCreditGeneralLedger 'Субконто (кредит)' (ledger) = GROUP CONCAT VARSTRING[255](nameCreditGeneralLedgerDimensionType(ledger, dimensionType)) IF orderCreditGeneralLedgerDimensionType(ledger, dimensionType) , ', '
                                                 BY ledger
                                                 ORDER orderCreditGeneralLedgerDimensionType (ledger, dimensionType) MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
@@ -257,7 +257,7 @@ EXTEND FORM generalLedgers
 CLASS UserDimension 'Субконто (польз.)' : Dimension;
 
 TABLE userDimension(UserDimension);
-nameUserDimension 'Название' = DATA ISTRING[255] (UserDimension) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+nameUserDimension 'Название' = DATA VARISTRING[255] (UserDimension) MINCHARWIDTH 40 PREFCHARWIDTH 80;
 nameDimension(dimension)+= nameUserDimension(dimension);
 
 dimensionTypeUserDimension = DATA DimensionType (UserDimension);

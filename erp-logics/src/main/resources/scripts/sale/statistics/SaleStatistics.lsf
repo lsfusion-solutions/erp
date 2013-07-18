@@ -11,9 +11,9 @@ TABLE statisticGroupType (StatisticGroupType);
 countryStatisticGroupType = DATA Country (StatisticGroupType);
 nameCountryStatisticGroupType 'Страна' (type)= nameCountry(countryStatisticGroupType(type)) IN base;
 
-nameStatisticGroupType 'Наименование' = DATA ISTRING[100](StatisticGroupType);
+nameStatisticGroupType 'Наименование' = DATA VARISTRING[100](StatisticGroupType);
 
-idStatisticGroupType 'Идентификатор' = DATA STRING[20] (StatisticGroupType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
+idStatisticGroupType 'Идентификатор' = DATA VARSTRING[20] (StatisticGroupType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
 
 typeIdStatisticGroupType (string1) = GROUP AGGR type
     BY idStatisticGroupType(type) WHERE type IS StatisticGroupType;
@@ -39,7 +39,7 @@ FORM statisticGroupTypes 'Типы классификаторов статист
 CLASS StatisticGroup 'Статистическая группа': Group;
 TABLE statisticGroup(StatisticGroup);
 
-nameStatisticGroup 'Наименование' = DATA ISTRING[150](StatisticGroup);
+nameStatisticGroup 'Наименование' = DATA VARISTRING[150](StatisticGroup);
 
 CLASS GroupStatic 'Ед. изм.' {
     statisticLiter 'Литр',
@@ -85,11 +85,11 @@ unitMeasureStatisticGroup 'Ед. изм. ИД' (statisticGroup) = DATA GroupStat
 nameUOMStatisticGroup 'Ед. изм.' (statisticGroup) = staticCaption(unitMeasureStatisticGroup(statisticGroup)) MINCHARWIDTH 15 MAXCHARWIDTH 15 PREFCHARWIDTH 15;
 
 sidStatisticGroup 'Код группы' (statisticGroup) = DATA STRING[12] (StatisticGroup)  MINCHARWIDTH 12 MAXCHARWIDTH 12 PREFCHARWIDTH 12;
-canonicalNumberStatisticGroup 'Канонический код' (statisticGroup) = STRING[255](
+canonicalNumberStatisticGroup 'Канонический код' (statisticGroup) = VARSTRING[255](
                            [GROUP CONCAT sidStatisticGroup(parent), ' / ' BY child ORDER DESC levelStatisticGroupStatisticGroup(child, parent)](statisticGroup))
                            MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
 
-canonicalNumberNameStatisticGroup 'Канонический код-название' (statisticGroup) = [FORMULA STRING[100] '$1 || \' / \' || $2'](
+canonicalNumberNameStatisticGroup 'Канонический код-название' (statisticGroup) = [FORMULA VARSTRING[100] '$1 || \' / \' || $2'](
     canonicalNumberStatisticGroup(statisticGroup), nameStatisticGroup(statisticGroup));
 
 groupIdTypeIdGroup (string1, string2) = GROUP AGGR group
