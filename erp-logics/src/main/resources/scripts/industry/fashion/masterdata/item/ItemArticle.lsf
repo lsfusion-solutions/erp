@@ -5,13 +5,16 @@ REQUIRE System, Item;
 NAMESPACE Item;
 
 GROUP itemArticleGroup 'Артикул' : public;
+GROUP articleBaseGroup 'Базовые свойства' : base;
+GROUP articleSupplierGroup 'Информащия от поставщика' : base;
+GROUP articleDescriptionGroup 'Описание' : base;
 
 // Артикул
 CLASS Article 'Артикул';
 TABLE article(Article);
 
 @defineExternalizable(article, STRING[100]);
-captionArticle 'Название' = DATA ISTRING[100](Article) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+captionArticle 'Название' = DATA ISTRING[100](Article) IN articleBaseGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 itemGroupArticle  = DATA ItemGroup(Article);
 nameItemGroupArticle 'Товарная группа' (Article) = nameItemGroup(itemGroupArticle(Article));
@@ -25,6 +28,21 @@ FORM article 'Артикул'
     PROPERTIES(a) captionArticle, idArticle SHOWIF showIDs(), nameItemGroupArticle
     EDIT Article OBJECT a
 ;
+DESIGN article FROM DEFAULT {
+    main {
+        NEW rootContainer {
+            childConstraints = TO THE BOTTOM;
+            NEW header {
+                childConstraints = TO THE RIGHT;
+                ADD PROPERTY(idArticle);
+                ADD PROPERTY(nameItemGroupArticle);
+            }
+            ADD a.articleBaseGroup {childConstraints = TO THE RIGHT;}
+        }
+        ADD functions.box;
+    }
+}
+
 
 FORM articles 'Артикулы'
 
