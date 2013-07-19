@@ -59,6 +59,8 @@ roundConditionUserInvoiceDetail(userInvoiceDetail) =
         ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(userInvoiceDetail));
 
 @defineInvoicePricingAggregation(invoice, Invoice, ' (закупка)', 'Акт расценки на основе инвойса', 'Проведенный акт расценки на основе инвойса', customerStock, );
+batchPricingDetail(detail) += OVERRIDE shipmentBatchShipmentDetail(invoiceShipmentDetailInvoiceDetail(invoiceDetailInvoicePricingDetail(detail))), batchInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
+
 @defineInvoicePricingRelation(' (закупка)', customerStock);
 retailPriceListTypePricingDetail(pricingDetail) += retailPriceListTypeInvoiceDetail(invoiceDetailInvoicePricingDetail(pricingDetail));
 
@@ -109,8 +111,7 @@ EXTEND FORM invoices PROPERTIES(d) SHOWIF createPricingUserInvoice(i) BACKGROUND
 
 // расчет надбавок и цены при изменении priceListType
 overLimitPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
-@deriveDocumentDetailPriceOnSessionPriceListType (UserInvoiceDetail, retail, pricing, customerStock, userInvoice);
-
+@deriveDocumentDetailBatchOnSessionPriceListType(UserInvoiceDetail, retail, pricing, customerStock, userInvoice);
 // Изменяем учетную цену
 overShipmentPriceUserInvoiceDetail(detail) += WHEN customerStockUserInvoiceDetail(detail) IS DepartmentStore AND NOT costLedgerDepartmentStore(customerStockUserInvoiceDetail(detail))
                                                 THEN retailPriceUserInvoiceDetail(detail);

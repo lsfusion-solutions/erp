@@ -12,6 +12,16 @@ EXTEND DESIGN departmentStore {
     }
 }
 
+batchPriceLedgerPriceListType 'Использовать для партий свои цены' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() batchPriceLedgerPriceListType
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(batchPriceLedgerPriceListType);
+    }
+}
+
 // ----------------------------------- Комиссия ------------------------------------------ //
 
 CLASS PricingCommittee 'Комиссия для акта расценки' : Committee;
@@ -151,93 +161,7 @@ END
 
 //------------------------  derive or change ------------------------------------//
 
-//META deriveDocumentDetailPriceOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form)
-////    overLimitPrice###idetail = ABSTRACT NUMERIC[14,2] (###idetail);  // сюда д.б. имплементиться цена посчитанная от предельной надбавки
-//
-////    minRetailPrice###idetail 'Минимальная розничная цена' (detail)= MIN prevPricePriceListTypeSkuStockDateTime(retailPriceListType###idetail(detail),
-////                                                                                                               sku###idetail(detail),
-////                                                                                                               stockProp###idetail(detail),
-////                                                                                                               dateTime###idetail(detail)),
-////                                                                        overLimitPrice###idetail(detail);
-//
-////    minRetailPrice###idetail 'Минимальная розничная цена' (detail)= MIN roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
-////                                                                            prefixP###price###idetail(detail),
-////                                                                            prefix###markup###idetail(detail),
-////                                                                            value###prefix###VAT###idetail(detail)), roundConditionPriceListType(calcRetailCalcPriceListType###idetail(detail))),
-////                                                                        overLimitPrice###idetail(detail);
-//
-//    ON SESSION FORMS form PREVSTART pricePriceListTypeSkuStockDateTime { // цены берем на начало сессии, а не этого event'а
-//        LOCAL changedPriceListType = BOOLEAN (###idetail);
-//        LOCAL recursive = BOOLEAN ();
-//        IF recursive() THEN
-//            RETURN;
-//        SET changedPriceListType(detail) <- TRUE IF prefix###priceListType###idetail(detail) AND
-//                                                    sku###idetail(detail) AND
-//                                            (CHANGED(prefix###priceListType###idetail(detail)) OR
-//                                             CHANGED(prefixP###price###idetail(detail)) OR
-//                                             CHANGED(sku###idetail(detail)) OR
-//                                             CHANGED(stockProp###idetail(detail)) OR
-//                                             CHANGED(dateTime###idetail(detail)) OR
-//                                             CHANGED(value###prefix###VAT###idetail(detail)));
-//        FOR [GROUP MAX(changedPriceListType(detail)) BY prefix###priceListType###idetail(detail)](priceListType) DO {
-//            IF 1 == 2 THEN BREAK; // чтобы не компилировала в один запрос, а выполняло императивно
-//            IF priceListType IS CalcPriceListType THEN {
-//                SET prefix###markup###idetail(detail) <- markupCalcPriceListTypeSku(priceListType, sku###idetail(detail))
-//                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-//                    MESSAGE 'Before';
-//                FOR changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType DO {
-////                    MESSAGE 'Минимальная';
-////                    MESSAGE minRetailPrice###idetail(detail);
-////                    MESSAGE 'Предельная цена';
-////                    MESSAGE overLimitPrice###idetail(detail);
-////                    MESSAGE 'PricingPrice';
-////                    MESSAGE prefixP###price###idetail(detail);
-////                    MESSAGE 'RetailMarkup';
-////                    MESSAGE prefix###markup###idetail(detail);
-//                    recursive() <- TRUE;
-////                    FORM userPricingDetail OBJECTS d = detail MODAL;
-//                    recursive() <- NULL;
-//                }
-//                SET prefix###price###idetail(detail) <- MIN roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
-//                                                                        prefixP###price###idetail(detail),
-//                                                                        prefix###markup###idetail(detail),
-//                                                                        value###prefix###VAT###idetail(detail)), roundConditionPriceListType(priceListType)),
-//                                                            overLimitPrice###idetail(detail)
-//                                                            WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-//                     MESSAGE 'After';
-//                FOR changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType DO
-//                    MESSAGE prefix###price###idetail(detail);
-//            } ELSE {
-//                SET prefix###price###idetail(detail) <- MIN prevPricePriceListTypeSkuStockDateTime(priceListType,
-//                                                                                                   sku###idetail(detail),
-//                                                                                                   stockProp###idetail(detail),
-//                                                                                                   dateTime###idetail(detail)),
-//                                                            overLimitPrice###idetail(detail)
-//                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-//                SET prefix###markup###idetail(detail) <- [round2(((X/Z*100/(100+Y))-1)*100)](
-//                                                                         prefix###price###idetail(detail),
-//                                                                         prefixP###price###idetail(detail),
-//                                                                         value###prefix###VAT###idetail(detail))
-//                                                             WHERE changedPriceListType(detail) AND prefix###priceListType###idetail(detail) == priceListType;
-//            }
-//        }
-//
-//        // Изменяем розничную цену, если не задан вид цены
-//        SET changedPriceListType(detail) <- (CHANGED(prefixP###price###idetail(detail)) OR
-//                                             CHANGED(value###prefix###VAT###idetail(detail)) OR
-//                                             CHANGED(stockProp###idetail(detail))) AND NOT prefix###priceListType###idetail(detail);
-//        FOR changedPriceListType(detail) DO {
-//            SET prefix###price###idetail(detail) <-  MIN roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
-//                                                             prefixP###price###idetail(detail),
-//                                                             prefix###markup###idetail(detail),
-//                                                             value###prefix###VAT###idetail(detail)), roundConditionDepartmentStore(stockProp###idetail(detail))),
-//                                                         overLimitPrice###idetail(detail)
-//                                                         WHERE changedPriceListType(detail);
-//        }
-//    }
-//END
-
-META deriveDocumentDetailPriceOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form)
+META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form)
 
     WHEN SESSION FORMS form
         (CHANGED(prefix###priceListType###idetail(detail)) OR
@@ -262,9 +186,17 @@ META deriveDocumentDetailPriceOnSessionPriceListType (idetail, prefix, prefixP, 
          CHANGED(sku###idetail(detail)) OR
          CHANGED(stockProp###idetail(detail)) OR
          CHANGED(dateTime###idetail(detail)) OR
+         CHANGED(batch###idetail(detail)) OR
          CHANGED(value###prefix###VAT###idetail(detail)))
         AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND NOT priceListType IS CalcPriceListType NOINLINE (priceListType) INLINE DO {
-            prefix###price###idetail(detail) <- prevPricePriceListTypeSkuStockDateTime(priceListType,
+
+            prefix###price###idetail(detail) <- IF batch###idetail(detail) THEN
+                                                            prevPricePriceListTypeBatchStockDateTime(priceListType,
+                                                                                       batch###idetail(detail),
+                                                                                       stockProp###idetail(detail),
+                                                                                       dateTime###idetail(detail))
+                                                   ELSE
+                                                            prevPricePriceListTypeSkuStockDateTime(priceListType,
                                                                                        sku###idetail(detail),
                                                                                        stockProp###idetail(detail),
                                                                                        dateTime###idetail(detail))
@@ -519,6 +451,35 @@ extraDescriptionPricingDetail 'Доп. наименование'  = ABSTRACT VAR
 // Возвраты
 isReturnPricing 'Обратный' = ABSTRACT BOOLEAN (Pricing);
 
+//-- Партии
+@defineDocumentInterfaceDetailBatch(pricing, batch);
+
+changeBatchUserPricingDetail = ACTION (detail) {
+    FORM dialogBatch OBJECTS st = departmentStoreUserPricingDetail(detail),
+                             t = dateTimeUserPricingDetail(detail),
+                             sk = skuUserPricingDetail(detail) MODAL SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        ASSIGN batchUserPricingDetail(detail) <- chosenObject('bt');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        ASSIGN batchUserPricingDetail(detail) <- NULL;
+    }
+
+};
+
+@defineBalancesBatch(pricingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineBalancesBatch(userPricingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(pricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
+@defineMovementBatch(userPricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
+
+@defineMovementSku(pricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение товара
+@defineMovementSku(userPricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(pricingDetail); //-- показываем по нажатию правой клавиши остатки товара
+@defineBalancesSku(userPricingDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+@defineMovementPriceSku(pricingDetail, departmentStore); //-- показываем по нажатию правой клавиши изменение цены товара
+@defineMovementPriceSku(userPricingDetail, departmentStore); //-- показываем по нажатию правой клавиши  изменение цены товара
+
 //------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
 
 FORM pricing 'Акт расценки (печать)' PRINT
@@ -558,7 +519,7 @@ FORM userPricing 'Акт расценки'
                    nameAccountantManUserPricing, nameHeadManUserPricing
 
     OBJECTS d = UserPricingDetail
-    PROPERTIES (d) indexUserPricingDetail, idBarcodeSkuUserPricingDetail, nameSkuUserPricingDetail, shortNameUOMSkuUserPricingDetail,
+    PROPERTIES (d) indexUserPricingDetail, idBarcodeSkuUserPricingDetail, nameSkuUserPricingDetail, shortNameUOMSkuUserPricingDetail, nameBatchUserPricingDetail,
                    quantityUserPricingDetail, nameRetailPriceListTypeUserPricingDetail, priceUserPricingDetail, sumUserPricingDetail
     PROPERTIES (d) BACKGROUND backgroundRetailPricing(p)
                    retailMarkupUserPricingDetail ON CHANGE changeRetailMarkupUserPricingDetail(d), retailMarkupSumUserPricingDetail, numberRetailVATUserPricingDetail, valueRetailVATUserPricingDetail,
@@ -580,7 +541,16 @@ DESIGN userPricing FROM DEFAULT{
     main {
         preferredSize = (1024, 768);
 
-        NEW header.box BEFORE d.box {
+        NEW specification.box BEFORE functions.box{
+
+            ADD d.box {
+                caption = 'Спецификация';
+                d.panel {
+                    childConstraints = TO THE RIGHTBOTTOM;
+                }
+            }
+        }
+        NEW header.box BEFORE specification.box {
             childConstraints = TO THE RIGHT;
 
             NEW headerRow1 {
@@ -609,14 +579,18 @@ DESIGN userPricing FROM DEFAULT{
             }
         }
 
-        d.panel{
-            childConstraints = TO THE BOTTOM;
-        }
         PROPERTY(formOk) {
             caption = 'Провести';
         }
     }
 }
+
+@defineDocumentSkuSystemLedgerPriceListType(userPricing, accountPriceListType, departmentStore);
+@extendFormDocumentSku(userPricing, userPricing, p);
+@extendFormDocumentSkuAll(userPricing, userPricing, p);
+@defineDocumentBatchSystemLedgerPriceListType(userPricing, accountPriceListType, departmentStore);
+@extendFormDocumentBatch(userPricing, userPricing, p);
+@extendFormDocumentBatchAll(userPricing, userPricing, p);
 
 addUserPricing 'Добавить' = ACTION ADDFORM UserPricing;
 editUserPricing 'Редактировать' (userPricing) = ACTION EDITFORM UserPricing;
@@ -637,7 +611,7 @@ FORM pricings 'Акты расценки' TITLE 'Акты расценки'
     PROPERTIES (p) printPricing FORCE PANEL
 
     OBJECTS d = PricingDetail
-    PROPERTIES (d) READONLY indexPricingDetail, idBarcodeSkuPricingDetail, nameSkuPricingDetail, shortNameUOMSkuPricingDetail,
+    PROPERTIES (d) READONLY indexPricingDetail, idBarcodeSkuPricingDetail, nameSkuPricingDetail, shortNameUOMSkuPricingDetail, nameBatchPricingDetail,
                    quantityPricingDetail, nameRetailPriceListTypePricingDetail, pricePricingDetail, sumPricingDetail
     PROPERTIES (d) READONLY BACKGROUND backgroundRetailPricing(p) retailMarkupPricingDetail, retailMarkupSumPricingDetail, numberRetailVATPricingDetail, valueRetailVATPricingDetail, retailVATSumPricingDetail,
                    retailPricePricingDetail, retailSumPricingDetail
@@ -741,7 +715,7 @@ WHEN SESSION FORMS userPricing // цены берем на начало сесс
 //    OBJECTS d = UserPricingDetail FIXED PANEL
 //    PROPERTIES (d) minRetailPriceUserPricingDetail
 //;
-@deriveDocumentDetailPriceOnSessionPriceListType (userPricingDetail, retail, pricing, departmentStore, userPricing);
+@deriveDocumentDetailBatchOnSessionPriceListType (userPricingDetail, retail, pricing, departmentStore, userPricing);
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
@@ -794,6 +768,9 @@ EXTEND CLASS SystemLedgerPriceListType {
 }
 includeVATSystemLedgerPriceListType (priceListType) += WHEN priceListType == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
 
+batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.supplierPricingPriceListType THEN batchPriceLedgerPriceListType();
+batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.retailPricingPriceListType THEN batchPriceLedgerPriceListType();
+
 EXTEND CLASS PricingDetail : PriceListLedger;
 
 fromDateTimePriceListLedger (ledger) += dateTimePricingDetail(ledger);
@@ -809,6 +786,7 @@ companyPriceListLedger (ledger) += supplierPricingDetail(ledger);
 
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(pricePricingDetail(ledger)) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(pricePricingDetail(ledger)) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN pricePricingDetail(ledger);
+batchPriceListLedger(ledger)+= batchPricingDetail(ledger);
 
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPricePricingDetail(ledger)) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPricePricingDetail(ledger)) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN retailPricePricingDetail(ledger);
@@ -817,6 +795,8 @@ pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retai
 //pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += retailPricePricingDetail(ledger) WHEN CLASS(retailPricePricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType;
 
 inPriceListLedgerStock (ledger, stock) += departmentStorePricingDetail(ledger) == stock;
+
+@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userPricing, supplierPricingPriceListType, , sku, departmentStore);
 
 // ------------------------------------- Загрузка в оборудование ------------------------------ //
 
@@ -1130,6 +1110,7 @@ META defineInvoicePricingRelation(sign, stockProp)
 
                 ASSIGN retailVATUserPricingDetail(d) <- VATInvoiceDetail(invoiceDetail);
                 ASSIGN valueRetailVATUserPricingDetail(d) <- valueVATInvoiceDetail(invoiceDetail);
+                ASSIGN batchUserPricingDetail(d) <- batchInvoiceDetail(invoiceDetail);
             }
         }
     } IN invoiceGroup;

@@ -63,9 +63,37 @@ curRepricingPriceRepricingDetail (detail) = OVERRIDE curPriceRepricingDetail(det
 // Розничная цена
 @defineDocumentInterfaceDetailPricePrefix(repricing, curRetail, ' розничная до');
 
+//-- Партии
+@defineDocumentInterfaceDetailBatch(repricing, batch);
+
+changeBatchUserRepricingDetail = ACTION (detail) {
+    FORM dialogBatch OBJECTS st = departmentStoreUserRepricingDetail(detail),
+                             t = dateTimeUserRepricingDetail(detail),
+                             sk = skuUserRepricingDetail(detail) MODAL SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        ASSIGN batchUserRepricingDetail(detail) <- chosenObject('bt');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        ASSIGN batchUserRepricingDetail(detail) <- NULL;
+    }
+};
+
+@defineBalancesBatch(repricingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineBalancesBatch(userRepricingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(repricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
+@defineMovementBatch(userRepricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение по партии
+
+@defineMovementSku(repricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение товара
+@defineMovementSku(userRepricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(repricingDetail); //-- показываем по нажатию правой клавиши остатки товара
+@defineBalancesSku(userRepricingDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+@defineMovementPriceSku(repricingDetail, departmentStore); //-- показываем по нажатию правой клавиши изменение цены товара
+@defineMovementPriceSku(userRepricingDetail, departmentStore); //-- показываем по нажатию правой клавиши  изменение цены товара
+
 // Автоматическое заполнение цен до
-@deriveDocumentDetailPriceSystemLedgerPriceListType(userRepricing, supplierPricingPriceListType, cur, sku, departmentStore);
-@deriveDocumentDetailPriceSystemLedgerPriceListType(userRepricing, retailPricingPriceListType, curRetail, sku, departmentStore);
+@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRepricing, supplierPricingPriceListType, cur, sku, departmentStore);
+@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRepricing, retailPricingPriceListType, curRetail, sku, departmentStore);
 
 // Автоматическое проставление надбавок
 curMarkupUserRepricingDetail(userRepricingDetail)  <- [round2((((X - X*Y/(100+Y))/Z)-1)*100)](
@@ -322,7 +350,8 @@ FORM userRepricing 'Акт переоценки'
                    noteUserRepricing, numberDisposalUserRepricing, nameRepricingCommitteeUserRepricing, skipChangeLedgerUserRepricing
 
     OBJECTS d=UserRepricingDetail
-    PROPERTIES (d) indexUserRepricingDetail, idBarcodeSkuUserRepricingDetail, nameSkuUserRepricingDetail, shortNameUOMSkuUserRepricingDetail, quantityUserRepricingDetail,
+    PROPERTIES (d) indexUserRepricingDetail, idBarcodeSkuUserRepricingDetail, nameSkuUserRepricingDetail, shortNameUOMSkuUserRepricingDetail,
+                   nameBatchUserRepricingDetail, quantityUserRepricingDetail,
 
                    curPriceUserRepricingDetail, curSumUserRepricingDetail,                    
                    curMarkupUserRepricingDetail ON CHANGE changeCurMarkupUserRepricingDetail(d), curMarkupSumUserRepricingDetail,
@@ -406,6 +435,9 @@ DESIGN userRepricing FROM DEFAULT {
 @defineDocumentSkuSystemLedgerPriceListType(userRepricing, accountPriceListType, departmentStore);
 @extendFormDocumentSku(userRepricing, userRepricing, p);
 @extendFormDocumentSkuAll(userRepricing, userRepricing, p);
+@defineDocumentBatchSystemLedgerPriceListType(userRepricing, accountPriceListType, departmentStore);
+@extendFormDocumentBatch(userRepricing, userRepricing, p);
+@extendFormDocumentBatchAll(userRepricing, userRepricing, p);
 
 EXTEND FORM userRepricing
 
@@ -525,7 +557,8 @@ FORM repricings 'Акты переоценки' TITLE 'Акты переоцен
 
 
     OBJECTS d = RepricingDetail
-    PROPERTIES (d) READONLY indexRepricingDetail, idBarcodeSkuRepricingDetail, nameSkuRepricingDetail, shortNameUOMSkuRepricingDetail, quantityRepricingDetail,
+    PROPERTIES (d) READONLY indexRepricingDetail, idBarcodeSkuRepricingDetail, nameSkuRepricingDetail, shortNameUOMSkuRepricingDetail,
+               nameBatchRepricingDetail, quantityRepricingDetail,
 
                curPriceRepricingDetail, curSumRepricingDetail,
                curMarkupRepricingDetail, curMarkupSumRepricingDetail,
@@ -611,14 +644,17 @@ isPostedPriceListLedger(ledger) += isPostedRepricingDetail(ledger);
 skipPriceListLedger(ledger) += skipChangeLedgerRepricingDetail(ledger);
 
 skuPriceListLedger (ledger) += skuRepricingDetail(ledger);
+batchPriceListLedger (ledger) += batchRepricingDetail(ledger);
 
 descriptionPriceListLedger (ledger) += descriptionRepricingDetail(ledger);
 
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN priceRepricingDetail(ledger);
+batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.supplierPricingPriceListType THEN batchPriceLedgerPriceListType();
 
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN retailPriceRepricingDetail(ledger);
+batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.retailPricingPriceListType THEN batchPriceLedgerPriceListType();
 
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retailPriceRepricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType THEN retailPriceRepricingDetail(ledger);
