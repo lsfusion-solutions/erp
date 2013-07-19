@@ -308,3 +308,61 @@ END
 META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceListTypeProp, skuProp, stockProp)
     @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceListTypeProp, , , skuProp, stockProp);
 END
+
+dialogPriceListTypeSkuStock = DATA SESSION PriceListType (Sku, Stock);
+nameDialogPriceListTypeSkuStock 'Вид цены' = namePriceListType(dialogPriceListTypeSkuStock(sku, stock));
+
+relationSkuStockPriceListType(s,st,t) = GROUP SUM 1 IF skuPriceListLedger(pl) == s AND isPostedPriceListLedger(pl) AND inPriceListLedgerLedgerPriceListType(pl, t)
+    AND inPriceListLedgerStock(pl,st) AND pricePriceListLedgerLedgerPriceListType(pl,t) BY s,st,t;
+CONSTRAINT dialogPriceListTypeSkuStock(s,st) AND NOT relationSkuStockPriceListType(s,st,dialogPriceListTypeSkuStock(s,st))
+    CHECKED BY dialogPriceListTypeSkuStock MESSAGE 'Выбран вид цены, по которому нет истории изменения по данному товару';
+
+FORM movementPriceSkuStock 'Изменение цены товара по складу'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY nameSku
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) READONLY nameStock
+    PROPERTIES(s,st) nameDialogPriceListTypeSkuStock
+
+    OBJECTS pp = (t = PriceListType, pl = PriceListLedger)
+    PROPERTIES READONLY namePriceListType(t),  descriptionPriceListLedger(pl), fromDateTimePriceListLedger(pl), toDateTimePriceListLedger(pl),
+                        pricePriceListLedgerLedgerPriceListType(pl,t) FORCE GRID
+    ORDER BY namePriceListType, fromDateTimePriceListLedger
+
+    FILTERS skuPriceListLedger(pl) == s,
+            isPostedPriceListLedger(pl),
+            inPriceListLedgerLedgerPriceListType(pl, t),
+            inPriceListLedgerStock(pl,st),
+            pricePriceListLedgerLedgerPriceListType(pl,t),
+            isCompanyStock(st),
+            (t IS PriceListType AND NOT dialogPriceListTypeSkuStock(s,st)) OR dialogPriceListTypeSkuStock(s,st)== t
+
+;
+DESIGN movementPriceSkuStock FROM DEFAULT {
+    main {
+        NEW topContainer{
+            childConstraints = TO THE RIGHT;
+            ADD s.box;
+            ADD st.box;
+        }
+        NEW dialog {
+            caption = 'Вид цен';
+            ADD PROPERTY(nameDialogPriceListTypeSkuStock);
+        }
+        ADD pp.box;
+
+        PROPERTY(nameSku) { focusable = FALSE;}
+        PROPERTY(nameStock) { focusable = FALSE;}
+        PROPERTY(namePriceListType) { caption = 'Вид цен';}
+    }
+    ADD functions.box;
+}
+
+META defineMovementPriceSku(detail, stockProp)
+    showMovementPriceSkuStock###detail 'Показать изменение цены товара по складу' (detail) = ACTION FORM movementPriceSkuStock OBJECTS s = sku###detail(detail), st = stockProp###detail(detail) MODAL SHORTCUT nameSku###detail;
+END
+
+@defineMovementPriceSku(batch, stock); //-- показываем по нажатию правой клавиши  изменение цены товара
+
+@extendFormFilterStockAccess(Stock, st, movementPriceSkuStock);

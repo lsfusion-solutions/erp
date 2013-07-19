@@ -1959,6 +1959,7 @@ copySku 'Копировать' = ABSTRACT ACTION LIST (Sku)  TOOLBAR;
 // -------------------------------- Движение товара -------------------------- //
 
 balanceASkuLedger 'Остаток (после)' (ledger) = balanceASkuStockDateTime(skuSkuLedger(ledger), stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
+isCompanyStockSkuLedger (ledger) = isCompanyStock(stockSkuLedger(ledger));
 
 FORM movementSku 'Движение товара'
     OBJECTS s = Sku FIXED PANEL
@@ -1970,8 +1971,8 @@ FORM movementSku 'Движение товара'
                              balanceASkuLedger
     ORDER BY dateTimeSkuLedger
     FILTERS skuSkuLedger(bil) == s,
-            isPostedSkuLedger(bil)
-
+            isPostedSkuLedger(bil),
+            isCompanyStockSkuLedger(bil)
 ;
 FORM movementSkuStock 'Движение товара по складу'
     OBJECTS s = Sku FIXED PANEL
@@ -1987,7 +1988,8 @@ FORM movementSkuStock 'Движение товара по складу'
     ORDER BY dateTimeSkuLedger
     FILTERS skuSkuLedger(bil) == s,
             isPostedSkuLedger(bil),
-            stockSkuLedger(bil)==st
+            stockSkuLedger(bil)==st,
+            isCompanyStock(st)
 ;
 DESIGN movementSkuStock FROM DEFAULT {
     NEW topContainer{
@@ -2036,7 +2038,8 @@ FORM movementBatch 'Движение по партии'
     PROPERTIES      READONLY balanceABatchLedger(bt,bil) //costSkuLedgerBatch(bil, bt),
     ORDER BY dateTimeSkuLedger
     FILTERS costSkuLedgerBatch(bil, bt),
-            isPostedSkuLedger(bil)
+            isPostedSkuLedger(bil),
+            isCompanyStockSkuLedger(bil)
 
 ;
 FORM movementBatchStock 'Движение по партии'
@@ -2055,7 +2058,8 @@ FORM movementBatchStock 'Движение по партии'
     ORDER BY dateTimeSkuLedger
     FILTERS costSkuLedgerBatch(bil, bt),
             isPostedSkuLedger(bil),
-            stockSkuLedger(bil)==st
+            stockSkuLedger(bil)==st,
+            isCompanyStock(st)
 ;
 DESIGN movementBatchStock FROM DEFAULT {
     NEW topContainer{
@@ -3560,9 +3564,8 @@ showMovementBatchStockBatch 'Показать движение по партии
 showMovementBatchBatch 'Показать движение по партии' (batch) = ACTION FORM movementBatch OBJECTS bt = batch MODAL SHORTCUT nameBatch;
 showBalancesBatchStockBatch 'Показать остатки по партии' (batch) = ACTION FORM balancesBatchStock OBJECTS bt = batch MODAL SHORTCUT nameBatch;
 
-@defineMovementSku(batch, stock);
-@defineBalancesSku(batch);
-
+@defineMovementSku(batch, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(batch); //-- показываем по нажатию правой клавиши остатки товара
 
 FORM batches 'Партии'
 
