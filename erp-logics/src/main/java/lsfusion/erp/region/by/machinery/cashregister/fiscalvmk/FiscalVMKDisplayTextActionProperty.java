@@ -43,7 +43,8 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
             BigDecimal articleDisc = (BigDecimal) LM.findLCPByCompoundName("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
             BigDecimal articleDiscSum = (BigDecimal) LM.findLCPByCompoundName("discountSumReceiptDetail").read(session, receiptDetailObject);
 
-
+            if (price == null) price = BigDecimal.ZERO;
+            if (sum == null) sum = BigDecimal.ZERO;
             String result = (String)context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(baudRate, comPort, new ReceiptItem(price.longValue(), quantity, barcode, name, sum==null ? 0 : sum.longValue(), articleDisc, articleDiscSum, 0, 0)));
             if(result!=null)
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
