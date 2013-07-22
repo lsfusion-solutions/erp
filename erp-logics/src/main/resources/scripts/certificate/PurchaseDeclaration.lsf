@@ -5,7 +5,14 @@ REQUIRE Declaration, PurchaseCertificate, PurchaseInvoice;
 NAMESPACE Purchase;
 
 @defineDocumentCertificateObject(declaration, invoice, i, 'Таможенная декларация');
-@deriveDocumentCertificate(declaration, invoice, customerStock, data);
+//@deriveDocumentCertificate(declaration, invoice, customerStock, data);
+dataDeclarationUserInvoiceDetail(detail)  <- IF isHomeCurrencyUserInvoice(userInvoiceUserInvoiceDetail(detail))
+                                                THEN IF batchUserInvoiceDetail(detail)
+                                                        THEN prevDeclarationBatch(batchUserInvoiceDetail(detail))
+                                                        ELSE prevDeclarationBatch(lastOrderBatchSkuStock(skuUserInvoiceDetail(detail), customerStockUserInvoiceDetail(detail)))
+    WHEN CHANGED (batchUserInvoiceDetail(detail)) OR
+         CHANGED (skuUserInvoiceDetail(detail)) OR
+         CHANGED (customerStockUserInvoiceDetail(detail));
 @defineDocumentCertificateObject(declaration, shipment, s, 'Таможенная декларация');
 @deriveDocumentCertificate(declaration, shipment, customerStock, data);
 
@@ -389,7 +396,7 @@ EXTEND DESIGN declaration {
 }
 
 EXTEND FORM declarations
-    PROPERTIES(d) FORCE GRID isPostedDeclaration BEFORE numberObject(d), sumRateDeclaration, sumRateRegistrationDeclaration, sumRateDutyDeclaration, sumRateVATDeclaration
+    PROPERTIES(d) READONLY FORCE GRID isPostedDeclaration BEFORE numberObject(d), sumRateDeclaration, sumRateRegistrationDeclaration, sumRateDutyDeclaration, sumRateVATDeclaration
 
     OBJECTS dd=DeclarationDetail
     PROPERTIES(dd) READONLY numberDeclarationDetail, nameCustomsDeclarationDetail, nameCountryDeclarationDetail, sumNetWeightDeclarationDetail,
