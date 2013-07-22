@@ -208,6 +208,74 @@ META defineDocumentOperationLegalEntity(object, prop, caption)
         MESSAGE caption##' должен совпадать с отмеченными в операции';
 END
 
+//Склады
+
+META defineOperationStock(prop, object, tabcaption)
+
+    // Отметка для групп
+    all###prop##sOperation 'Отм' = DATA BOOLEAN (Operation);
+
+    dataIn###prop##GroupOperation 'Отм.' = DATA BOOLEAN (StockGroup, Operation);
+
+    levelParent###prop##OperationStockGroup (operation, stockGroup) =
+        GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataIn###prop##GroupOperation(parent, operation)
+              BY operation, stockGroup PERSISTENT;
+    nearestParent###prop##GroupStockGroup (operation, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParent###prop##OperationStockGroup(operation, stockGroup));
+    nearestIn###prop##GroupOperation (stockGroup, operation) =
+        dataIn###prop##GroupOperation(nearestParent###prop##GroupStockGroup(operation, stockGroup), operation) PERSISTENT;
+
+    in###prop##GroupOperation 'Отм' (stockGroup, operation) =
+        OVERRIDE all###prop##sOperation(operation) AND stockGroup IS StockGroup,
+                 nearestIn###prop##GroupOperation(stockGroup, operation),
+                 dataIn###prop##GroupOperation(stockGroup, operation);
+
+    // Отметка для складов
+    dataIn###prop##Operation 'Отм.' = DATA BOOLEAN (Stock, Operation);
+    in###prop##Operation 'Отм' (stock, operation) =
+        OVERRIDE all###prop##sOperation(operation) AND stock IS Stock,
+                 nearestIn###prop##GroupOperation(stockGroupStock(stock), operation),
+                 dataIn###prop##Operation(stock, operation);
+
+    EXTEND FORM operation
+        TREE prop###groupTree object##a=STRING[3], object##g = StockGroup PARENT parentStockGroup
+        PROPERTIES READONLY OBJVALUE(object##a), stgTreeName = nameStockGroup(object##g)
+        PROPERTIES(o) all###prop##sOperation TODRAW object##a FORCE GRID
+        PROPERTIES in###prop###GroupOperation(object##g, o)
+        FILTERS stringEqualsAll(object##a),
+                countStockStockGroup(object##g)
+
+        OBJECTS object = Stock
+        PROPERTIES(object, o) in###prop##Operation
+        PROPERTIES(object) READONLY nameStock###object = nameStock, nameStockGroupStock
+        ORDER BY nameStock###object
+        FILTERS object IS Stock AND NOT object##g IS StockGroup OR
+                isParentStockGroupStock(object##g, object)
+        FILTERGROUP filters3
+                FILTER 'Показывать отмеченные' 'F10' in###prop##Operation(object, o)
+    ;
+
+    EXTEND DESIGN operation {
+        tabContainer {
+            NEW prop###Container{
+                childConstraints = TO THE RIGHT;
+                type = SPLITH;
+                caption = tabcaption;
+                ADD prop###groupTree.tree.box;
+                ADD object.box { fillHorizontal = 2.0; };
+            }
+        }
+    }
+
+END
+
+META defineDocumentOperationStock(object, prop, caption)
+    CONSTRAINT operation###object(object)
+               AND NOT in###prop##Operation(prop###object(object), operation###object(object))
+        CHECKED BY prop###object
+        MESSAGE caption##' должен совпадать с отмеченными в операции';
+END
+
+
 //Валюта
 
 META defineOperationCurrency(dumb)
@@ -218,7 +286,7 @@ META defineOperationCurrency(dumb)
         OBJECTS c = Currency
         PROPERTIES(c, o) inCurrencyOperation
         PROPERTIES(c) READONLY nameCurrency
-        FILTERGROUP filters3
+        FILTERGROUP filters4
             FILTER 'Показывать отмеченные' 'F11' inCurrencyOperation(c, o)
     ;
 
@@ -228,6 +296,23 @@ META defineOperationCurrency(dumb)
                 caption = 'Валюта';
                 ADD c.box;
             }
+        }
+    }
+END
+
+//Тип классификатора
+
+META defineOperationGroupType(dumb)
+    groupTypeOperation = DATA GroupType (Operation);
+    nameGroupTypeOperation 'Тип классификатора' (operation) = nameGroupType(groupTypeOperation(operation));
+
+    EXTEND FORM operation
+        PROPERTIES(o) nameGroupTypeOperation
+    ;
+
+    EXTEND DESIGN operation{
+        propertyContainer{
+            ADD PROPERTY(nameGroupTypeOperation);
         }
     }
 END

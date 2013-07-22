@@ -14,6 +14,7 @@ TABLE priceListTypeOperation(PriceListType, Operation);
 changeDataPriceListTypeOperation 'Изменять цены' = DATA BOOLEAN (DataPriceListType, Operation);
 showPriceListTypeOperation 'Показывать цены' = DATA BOOLEAN (PriceListType, Operation);
 
+@defineOperationStock(stock, st, 'Склады');
 @defineOperationLegalEntity(legalEntity, l, 'Организации');
 
 defaultLegalEntityOperation = DATA LegalEntity (Operation);
@@ -26,6 +27,7 @@ CONSTRAINT defaultLegalEntityOperation(operation) AND NOT inLegalEntityOperation
     CHECKED BY defaultLegalEntityOperation MESSAGE 'Организация по умолчанию должна быть в списке отмечанных организаций';
 
 @defineOperationCurrency();
+@defineOperationGroupType();
 userDefaultCurrencyOperation = DATA Currency (Operation);
 //userDefaultCurrencyOperation(operation) => inCurrencyOperation(userDefaultCurrencyOperation(operation), operation) RESOLVE FALSE;
 calcDefaultCurrencyOperation(operation) =
@@ -63,6 +65,19 @@ copyAbstractDataPriceList(priceList, userPriceList) +=copyOperationPriceList(pri
 CONSTRAINT operationUserPriceList(priceList) AND NOT inLegalEntityOperation(companyUserPriceList(priceList), operationUserPriceList(priceList))
     CHECKED BY companyUserPriceList MESSAGE 'Компания прайса должна соответствовать ограничениям операции';
 
+groupTypeUserPriceList(priceList) <- groupTypeOperation(operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));
+
+allStocksUserPriceList(priceList) <- allStocksOperation(operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));
+dataInUserPriceListStockGroup(priceList, stockGroup) <- dataInStockGroupOperation(stockGroup, operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));
+dataInUserPriceListStock(priceList, stock) <- dataInStockOperation(stock, operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));
+
+CONSTRAINT operationUserPriceList(priceList) AND NOT inStockOperation(stock, operationUserPriceList(priceList)) AND inPriceListStock(priceList, stock)
+    CHECKED BY inPriceListStock MESSAGE 'Склады прайса должна соответствовать ограничениям операции';
+
 EXTEND FORM operation
     OBJECTS pt = PriceListType
     PROPERTIES(pt, o) changeDataPriceListTypeOperation TODRAW pt FORCE GRID, showPriceListTypeOperation
@@ -72,6 +87,7 @@ EXTEND FORM operation
     PROPERTIES(l, o) isDefaultLegalEntityOperation AFTER inLegalEntityOperation
     PROPERTIES(c, o) isDefaultCurrencyOperation AFTER inCurrencyOperation
     PROPERTIES(o) nameDefaultLegalEntityOperation, nameDefaultCurrencyOperation
+    FILTERS isCompanyStock(st)
 ;
 
 EXTEND DESIGN operation {

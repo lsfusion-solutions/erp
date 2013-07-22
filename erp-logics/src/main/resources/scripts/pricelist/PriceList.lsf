@@ -96,6 +96,9 @@ userPriceListLegalEntity (legalEntity) = GROUP MAX userPriceList BY companyUserP
 
 @defineDocumentInterfaceCurrency(priceList);
 
+groupTypeUserPriceList = DATA GroupType (UserPriceList);
+nameGroupTypeUserPriceList 'Тип классификатора' = nameGroupType(groupTypeUserPriceList(UserPriceList));
+
 // Строки
 
 @defineDocumentInterfaceDetailDataTimePrefix(priceList, to, ' по');
@@ -315,21 +318,22 @@ filterPriceListTypeUserPriceListSkuStock (userPriceList, sku, stock) =
     (sku IS Sku AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
 
 FORM userPriceList 'Прайс'
-    TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
-    ORDER BY skuTreeName
-    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
-
     OBJECTS p = UserPriceList FIXED PANEL
     PROPERTIES(p) objectClassName, nameNumeratorObject, numberObject, seriesObject,
                   dateUserPriceList, timeUserPriceList,
                   fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
-                  nameCurrencyUserPriceList, nameCompanyUserPriceList, noteUserPriceList
+                  nameCurrencyUserPriceList, nameCompanyUserPriceList, noteUserPriceList,
+                  nameGroupTypeS = nameGroupTypeUserPriceList, nameGroupTypeP = nameGroupTypeUserPriceList
 
     OBJECTS t = PriceListType
     PROPERTIES(t) namePriceListType READONLY, includeVATLedgerPriceListType
     PROPERTIES(p, t) inPriceListDataPriceListType TODRAW t FORCE GRID, showPriceListPriceListType
     FILTERS (currencyUserPriceList(p) == currencyPriceListType(t)) OR (p IS UserPriceList AND t IS PriceListType AND NOT currencyPriceListType(t))
+
+    TREE skuTree sk = Group PARENT parentGroup
+    PROPERTIES READONLY skuTreeName = nameGroup(sk)
+    ORDER BY skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(sk) DEFAULT
 
     OBJECTS d = UserPriceListDetail
     PROPERTIES(d) BACKGROUND backgroundPriceListDetail(d)
@@ -339,7 +343,8 @@ FORM userPriceList 'Прайс'
     PROPERTIES(d, t) pricePriceListDetailDataPriceListType COLUMNS (t) HEADER headerNameDataPriceListType(p, t) SHOWIF headerNameDataPriceListType(p, t) BACKGROUND backgroundDataPriceListType(t) TODRAW d FORCE GRID
     PROPERTIES(p) TODRAW d FORCE PANEL TOOLBAR fillDocumentPriceList, addDetailInputBarcodeUserPriceListDetailUserPriceList
     FILTERS userPriceListUserPriceListDetail(d) == p,
-            isParentSkuGroupSku(sk, skuPriceListDetail(d)) OR (sk IS SkuGroup AND d IS PriceListDetail AND NOT skuPriceListDetail(d))
+            isParentGroupSku(sk, skuPriceListDetail(d)) OR (sk IS Group AND d IS PriceListDetail AND NOT skuPriceListDetail(d)),
+            groupTypeUserPriceList(p) == groupTypeGroup(sk)
     FILTERGROUP filters
         FILTER 'Активные строки' 'F10' isActivePriceListDetail(d)
 
@@ -369,10 +374,10 @@ FORM userPriceList 'Прайс'
     PROPERTIES(d)        nameCompanyUserPriceListDetail
     FILTERS isCompanyStock(tt)
 
-    TREE skuTree2 sk2 = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY skuTreeName2 = nameSkuGroup(sk2)
+    TREE skuTree2 sk2 = Group PARENT parentGroup
+    PROPERTIES READONLY skuTreeName2 = nameGroup(sk2)
     ORDER BY skuTreeName2
-    FILTERGROUP inactive1 FILTER 'Активные' 'F5' activeSkuGroup(sk2) DEFAULT
+    FILTERGROUP inactive1 FILTER 'Активные' 'F5' activeGroup(sk2) DEFAULT
 
     OBJECTS ts2 = Stock FIXED PANEL
     PROPERTIES(ts2) SELECTOR nameStock
@@ -384,12 +389,12 @@ FORM userPriceList 'Прайс'
     PROPERTIES inSkuUserPriceList(s2, p) ON CHANGE changeInSkuUserPriceList(s2, p)
     PROPERTIES READONLY inputName2 = nameSku(s2), idBarcodeSku(s2), currentBalanceSkuStock(s2, ts2)
     PROPERTIES READONLY currentPriceSkuPriceListStock(s2, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)
-    FILTERS    filterPriceListTypeUserPriceListSkuStock(p, s2, ts2)
-
+    FILTERS filterPriceListTypeUserPriceListSkuStock(p, s2, ts2),
+            groupTypeUserPriceList(p) == groupTypeGroup(sk2)
     FILTERGROUP filters3
         FILTER 'С остатком' 'F10' currentBalanceSkuStock(s2, ts2)
 
-    FILTERS isParentSkuGroupSku(sk2, s2)
+    FILTERS isParentGroupSku(sk2, s2)
     ORDER BY inputName2
 
     EVENTS
@@ -439,7 +444,11 @@ DESIGN userPriceList FROM DEFAULT {
                 NEW secondSecondContainer{
                     type = SPLITH;
                     childConstraints =  TO THE RIGHT;
-                    ADD skuTree.tree.box {caption = 'Товары';}
+                    NEW leftColumnContainer{
+                        childConstraints = TO THE BOTTOM;
+                        ADD PROPERTY(nameGroupTypeS);
+                        ADD skuTree.tree.box {caption = 'Товары';}
+                    }
                     NEW skuContainer{
                         childConstraints = TO THE BOTTOM;
                         NEW rowContainer{
@@ -466,7 +475,6 @@ DESIGN userPriceList FROM DEFAULT {
                 caption = 'Подбор';
                 NEW topThirdContainer{
                     childConstraints = TO THE RIGHT;
-                    ADD ts2.box;
                     NEW filtersContainer{
                         caption = 'Фильтры';
                         childConstraints = TO THE RIGHT;
@@ -476,7 +484,11 @@ DESIGN userPriceList FROM DEFAULT {
                 NEW detailFourthContainer{
                     childConstraints = TO THE RIGHT;
                     type = SPLITH;
-                    ADD skuTree2.tree.box;
+                    NEW leftColumnContainer2{
+                        childConstraints = TO THE BOTTOM;
+                        ADD PROPERTY(nameGroupTypeP);
+                        ADD skuTree2.tree.box{caption = 'Товары';}
+                    }
                     ADD s2.box{fillHorizontal = 3.0;}
                 }
             }
