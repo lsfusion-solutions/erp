@@ -46,61 +46,113 @@ orderPriceListLedger(ledger) = STRUCT(fromDateTimePriceListLedger(ledger), ledge
 
 orderPriceListLedgerLedgerPriceListType(ledger, type) = orderPriceListLedger(ledger) IF inPriceListLedgerLedgerPriceListType(ledger, type) PERSISTENT;
 
-concatLedgerPriceListTypeSkuDateTime(type, sku, dateTime) =
+concatBLedgerPriceListTypeSkuDateTime(type, sku, dateTime) =
     GROUP MAX orderPriceListLedgerLedgerPriceListType(ledger, type)
-              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn
           BY type, skuPriceListLedger(ledger), dateTimeIn;
 
-priceListLedgerLedgerPriceListTypeSkuDateTime(type, sku, dateTime) =
-    concatLedgerPriceListTypeSkuDateTime(type, sku, dateTime)[2];
+concatALedgerPriceListTypeSkuDateTime(type, sku, dateTime) =
+    GROUP MAX orderPriceListLedgerLedgerPriceListType(ledger, type)
+              IF fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+          BY type, skuPriceListLedger(ledger), dateTimeIn;
 
-priceLedgerPriceListTypeSkuDateTime 'Цена' (type, sku, dateTime) =
-    pricePriceListLedgerLedgerPriceListType(priceListLedgerLedgerPriceListTypeSkuDateTime(type, sku, dateTime), type);
+priceListLedgerBLedgerPriceListTypeSkuDateTime(type, sku, dateTime) =
+    concatBLedgerPriceListTypeSkuDateTime(type, sku, dateTime)[2];
 
-companyLedgerPriceListTypeSkuDateTime (type, sku, dateTime) =
-    companyPriceListLedger(priceListLedgerLedgerPriceListTypeSkuDateTime(type, sku, dateTime));
-nameCompanyLedgerPriceListTypeSkuDateTime 'Компания прайса' (type, sku, dateTime) =
-    nameLegalEntity(companyLedgerPriceListTypeSkuDateTime(type, sku, dateTime));
+priceListLedgerALedgerPriceListTypeSkuDateTime(type, sku, dateTime) =
+    concatALedgerPriceListTypeSkuDateTime(type, sku, dateTime)[2];
 
-descriptionLedgerPriceListTypeSkuDateTime 'Описание' (type, sku,  dateTime) =
-    descriptionPriceListLedger(priceListLedgerLedgerPriceListTypeSkuDateTime(type, sku, dateTime));
+priceBLedgerPriceListTypeSkuDateTime 'Цена' (type, sku, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerBLedgerPriceListTypeSkuDateTime(type, sku, dateTime), type);
+
+priceALedgerPriceListTypeSkuDateTime 'Цена' (type, sku, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerALedgerPriceListTypeSkuDateTime(type, sku, dateTime), type);
+
+companyBLedgerPriceListTypeSkuDateTime (type, sku, dateTime) =
+    companyPriceListLedger(priceListLedgerBLedgerPriceListTypeSkuDateTime(type, sku, dateTime));
+nameCompanyBLedgerPriceListTypeSkuDateTime 'Компания прайса' (type, sku, dateTime) =
+    nameLegalEntity(companyBLedgerPriceListTypeSkuDateTime(type, sku, dateTime));
+
+companyALedgerPriceListTypeSkuDateTime (type, sku, dateTime) =
+    companyPriceListLedger(priceListLedgerALedgerPriceListTypeSkuDateTime(type, sku, dateTime));
+nameCompanyALedgerPriceListTypeSkuDateTime 'Компания прайса' (type, sku, dateTime) =
+    nameLegalEntity(companyALedgerPriceListTypeSkuDateTime(type, sku, dateTime));
+
+descriptionBLedgerPriceListTypeSkuDateTime 'Описание' (type, sku,  dateTime) =
+    descriptionPriceListLedger(priceListLedgerBLedgerPriceListTypeSkuDateTime(type, sku, dateTime));
+
+descriptionALedgerPriceListTypeSkuDateTime 'Описание' (type, sku,  dateTime) =
+    descriptionPriceListLedger(priceListLedgerALedgerPriceListTypeSkuDateTime(type, sku, dateTime));
 
 // ------------------ Расчет цен для sku / company ---------------- //
 
-concatLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
+concatBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
     GROUP MAX orderPriceListLedgerLedgerPriceListType(ledger, type)
-              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn
           BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn;
 
-priceListLedgerLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
-    concatLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime)[2];
+concatALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
+    GROUP MAX orderPriceListLedgerLedgerPriceListType(ledger, type)
+              IF fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn;
 
-priceLedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
-    pricePriceListLedgerLedgerPriceListType(priceListLedgerLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime), type);
+priceListLedgerBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
+    concatBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime)[2];
 
-companyLedgerPriceListTypeSkuCompanyDateTime (type, sku, company, dateTime) =
-    companyPriceListLedger(priceListLedgerLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
-nameCompanyLedgerPriceListTypeSkuCompanyDateTime 'Компания прайса' (type, sku, company, dateTime) =
-    nameLegalEntity(companyLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
+priceListLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
+    concatALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime)[2];
 
-descriptionLedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
-    descriptionPriceListLedger(priceListLedgerLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
+priceBLedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime), type);
+
+priceALedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime), type);
+
+companyBLedgerPriceListTypeSkuCompanyDateTime (type, sku, company, dateTime) =
+    companyPriceListLedger(priceListLedgerBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
+nameCompanyBLedgerPriceListTypeSkuCompanyDateTime 'Компания прайса' (type, sku, company, dateTime) =
+    nameLegalEntity(companyBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
+
+companyALedgerPriceListTypeSkuCompanyDateTime (type, sku, company, dateTime) =
+    companyPriceListLedger(priceListLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
+nameCompanyALedgerPriceListTypeSkuCompanyDateTime 'Компания прайса' (type, sku, company, dateTime) =
+    nameLegalEntity(companyALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
+
+descriptionBLedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
+    descriptionPriceListLedger(priceListLedgerBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
+
+descriptionALedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
+    descriptionPriceListLedger(priceListLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
 
 // Только с ценами
 
-activeConcatLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
+activeConcatBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
     GROUP MAX orderPriceListLedgerLedgerPriceListType(ledger, type) IF pricePriceListLedgerLedgerPriceListType(ledger, type)
-              AND fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+              AND fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn
           BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn;
 
-activePriceListLedgerLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
-    activeConcatLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime)[2];
+activeConcatALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
+    GROUP MAX orderPriceListLedgerLedgerPriceListType(ledger, type) IF pricePriceListLedgerLedgerPriceListType(ledger, type)
+              AND fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn;
 
-activePriceLedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
-    pricePriceListLedgerLedgerPriceListType(activePriceListLedgerLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime), type);
+activePriceListLedgerBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
+    activeConcatBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime)[2];
 
-activeDescriptionLedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
-    descriptionPriceListLedger(activePriceListLedgerLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
+activePriceListLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime) =
+    activeConcatALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime)[2];
+
+activePriceBLedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(activePriceListLedgerBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime), type);
+
+activePriceALedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(activePriceListLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime), type);
+
+activeDescriptionBLedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
+    descriptionPriceListLedger(activePriceListLedgerBLedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
+
+activeDescriptionALedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
+    descriptionPriceListLedger(activePriceListLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));
 
 // ------------------ Расчет цен для sku / stock / datetime
 
@@ -108,62 +160,130 @@ TABLE priceListLedgerLedgerPriceListTypeStock (PriceListLedger, LedgerPriceListT
 orderPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
     orderPriceListLedger(ledger) IF inPriceListLedgerLedgerPriceListType(ledger, type) AND inPriceListLedgerStock(ledger, stock) PERSISTENT INDEXED;
 
-concatLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
+// По товарам
+concatBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
     GROUP MAX orderPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn
           BY type, skuPriceListLedger(ledger), stock, dateTimeIn;
-priceListLedgerLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    concatLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)[2];
 
-concatLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+concatALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
     GROUP MAX orderPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+              IF fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+          BY type, skuPriceListLedger(ledger), stock, dateTimeIn;
+
+priceListLedgerBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
+    concatBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)[2];
+
+priceListLedgerALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
+    concatALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)[2];
+
+priceBLedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime), type);
+
+priceALedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime), type);
+
+companyBLedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) =
+    companyPriceListLedger(priceListLedgerBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
+nameCompanyBLedgerPriceListTypeSkuStockDateTime 'Компания прайса' (type, sku, stock, dateTime) =
+    nameLegalEntity(companyBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
+
+companyALedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) =
+    companyPriceListLedger(priceListLedgerALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
+nameCompanyALedgerPriceListTypeSkuStockDateTime 'Компания прайса' (type, sku, stock, dateTime) =
+    nameLegalEntity(companyALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
+
+descriptionBLedgerPriceListTypeSkuStockDateTime 'Описание' (type, sku, stock, dateTime) =
+    descriptionPriceListLedger(priceListLedgerBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
+
+descriptionALedgerPriceListTypeSkuStockDateTime 'Описание' (type, sku, stock, dateTime) =
+    descriptionPriceListLedger(priceListLedgerALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
+
+// По партиям
+concatBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+    GROUP MAX orderPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
+              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn
           BY type, batchPriceListLedger(ledger), stock, dateTimeIn;
-priceListLedgerLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    IF batchLedgerPriceListType(type) THEN concatLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)[2]
-                                      ELSE priceListLedgerLedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime);
 
-priceLedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
-    pricePriceListLedgerLedgerPriceListType(priceListLedgerLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime), type);
-priceLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
-    pricePriceListLedgerLedgerPriceListType(priceListLedgerLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime), type);
+concatALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+    GROUP MAX orderPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
+              IF fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+          BY type, batchPriceListLedger(ledger), stock, dateTimeIn;
 
-companyLedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) =
-    companyPriceListLedger(priceListLedgerLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
-nameCompanyLedgerPriceListTypeSkuStockDateTime 'Компания прайса' (type, sku, stock, dateTime) =
-    nameLegalEntity(companyLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
-companyLedgerPriceListTypeBatchStockDateTime (type, batch, stock, dateTime) =
-    companyPriceListLedger(priceListLedgerLedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime));
-nameCompanyLedgerPriceListTypeBatchStockDateTime 'Компания прайса' (type, batch, stock, dateTime) =
-    nameLegalEntity(companyLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
+priceListLedgerBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+    IF batchLedgerPriceListType(type) THEN concatBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)[2]
+                                      ELSE priceListLedgerBLedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime);
 
-descriptionLedgerPriceListTypeSkuStockDateTime 'Описание' (type, sku, stock, dateTime) =
-    descriptionPriceListLedger(priceListLedgerLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
-descriptionLedgerPriceListTypeBatchStockDateTime 'Описание' (type, batch, stock, dateTime) =
-    descriptionPriceListLedger(priceListLedgerLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
+priceListLedgerALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+    IF batchLedgerPriceListType(type) THEN concatALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)[2]
+                                      ELSE priceListLedgerALedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime);
+
+priceBLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime), type);
+
+priceALedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime), type);
+
+companyBLedgerPriceListTypeBatchStockDateTime (type, batch, stock, dateTime) =
+    companyPriceListLedger(priceListLedgerBLedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime));
+nameCompanyBLedgerPriceListTypeBatchStockDateTime 'Компания прайса' (type, batch, stock, dateTime) =
+    nameLegalEntity(companyBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
+
+companyALedgerPriceListTypeBatchStockDateTime (type, batch, stock, dateTime) =
+    companyPriceListLedger(priceListLedgerALedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime));
+nameCompanyALedgerPriceListTypeBatchStockDateTime 'Компания прайса' (type, batch, stock, dateTime) =
+    nameLegalEntity(companyALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
+
+descriptionBLedgerPriceListTypeBatchStockDateTime 'Описание' (type, batch, stock, dateTime) =
+    descriptionPriceListLedger(priceListLedgerBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
+
+descriptionALedgerPriceListTypeBatchStockDateTime 'Описание' (type, batch, stock, dateTime) =
+    descriptionPriceListLedger(priceListLedgerALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
 
 // ------------------ Расчет цен для sku / stock / company / datetime
 
-concatLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime) =
+concatBLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime) =
     GROUP MAX orderPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+              IF fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn
           BY type, skuPriceListLedger(ledger), stock, companyPriceListLedger(ledger), dateTimeIn;
-priceListLedgerLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime) =
-    concatLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)[2];
 
-priceLedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, stock, company, dateTime) =
-    pricePriceListLedgerLedgerPriceListType(priceListLedgerLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime), type);
+concatALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime) =
+    GROUP MAX orderPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
+              IF fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) <= dateTimeIn
+          BY type, skuPriceListLedger(ledger), stock, companyPriceListLedger(ledger), dateTimeIn;
 
-countStockPriceListTypeSkuCompanyDateTime 'Кол-во складов' (type, sku, company, dateTime) =
-    GROUP SUM 1 IF priceLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)
+priceListLedgerBLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime) =
+    concatBLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)[2];
+
+priceListLedgerALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime) =
+    concatALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)[2];
+
+priceBLedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, stock, company, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerBLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime), type);
+
+priceALedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, stock, company, dateTime) =
+    pricePriceListLedgerLedgerPriceListType(priceListLedgerALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime), type);
+
+countStockBPriceListTypeSkuCompanyDateTime 'Кол-во складов' (type, sku, company, dateTime) =
+    GROUP SUM 1 IF priceBLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)
     BY type, sku, company, dateTime;
 
+countStockAPriceListTypeSkuCompanyDateTime 'Кол-во складов' (type, sku, company, dateTime) =
+    GROUP SUM 1 IF priceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)
+    BY type, sku, company, dateTime;
+
+// ------- НДС --- //
+
 includeVATLedgerPriceListType 'Цена с НДС' = ABSTRACT BOOLEAN (LedgerPriceListType);
-
-priceBasePriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
-priceBasePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
-
 includeVATBasePriceListType(type) += includeVATLedgerPriceListType(type);
+
+// ------------------ Связь с базовым видом цен ------------- //
+
+priceBBasePriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
+priceABasePriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
+
+priceBBasePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
+priceABasePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
 
 // ------ оптимизация для ассортиментов
 ledgerPriceListTypePriceListType = ABSTRACT LedgerPriceListType (PriceListType) PERSISTENT;
@@ -190,9 +310,9 @@ pricePriceListLedgerLedgerPriceListType(ledger, type) += pricePriceListLedgerSys
 
 //Учетные цены и суммы для партий
 accountPriceBBatchStockDate 'Учетная цена товара в партии на начало дня' (batch, stock, date) =
-    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(date));
+    prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(date));
 accountPriceABatchStockDate 'Учетная цена товара в партии на конец дня' (batch, stock, date) =
-    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(sumDate(date,1)));
+    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(sumDate(date,1)));
 accountSumBBatchStockDate 'Учетная сумма на начало дня' (batch, stock, date) =
     balanceBBatchStockDate(batch, stock, date) * accountPriceBBatchStockDate(batch, stock, date);
 accountSumABatchStockDate 'Учетная сумма на конец дня' (batch, stock, date) =
@@ -220,12 +340,12 @@ accountSumRecASkuGroupBatchStockDate 'Учетная сумма на конец 
 
 //--
 currentAccountPriceBatchStock 'Цена учетная' (batch, stock) =
-    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, currentDateTime());
+    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, currentDateTime());
 currentAccountSumBatchStock 'Сумма учетная' (batch, stock) =
     currentBalanceBatchStock(batch, stock) * currentAccountPriceBatchStock(batch, stock);
 
 accountPriceBatchStockDateTime 'Цена учетная' (batch, stock, dateTime) =
-    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);
+    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);
 accountSumBBatchStockDateTime 'Сумма учетная' (batch, stock, dateTime) =
     balanceBBatchStockDateTime(batch, stock, dateTime) * accountPriceBatchStockDateTime(batch, stock, dateTime);
 
@@ -238,8 +358,8 @@ EXTEND FORM balanceBatchStock
 // --------------------------- Формы ---------------------------- //
 
 EXTEND FORM priceListTypes
-    PROPERTIES(pt, sk, s, dt) READONLY nameCompanyLedgerPriceListTypeSkuStockDateTime, descriptionLedgerPriceListTypeSkuStockDateTime
-    PROPERTIES(pt, b, s, dt) READONLY nameCompanyLedgerPriceListTypeBatchStockDateTime, descriptionLedgerPriceListTypeBatchStockDateTime
+    PROPERTIES(pt, sk, s, dt) READONLY nameCompanyALedgerPriceListTypeSkuStockDateTime, descriptionALedgerPriceListTypeSkuStockDateTime
+    PROPERTIES(pt, b, s, dt) READONLY nameCompanyALedgerPriceListTypeBatchStockDateTime, descriptionALedgerPriceListTypeBatchStockDateTime
 ;
 
 // ----------------------------- Метакоды ------------------------ //
@@ -275,10 +395,10 @@ END
 
 // Derive
 META deriveDocumentDetailPriceSystemLedgerPriceListType (concrete, priceListTypeProp, prefixP, skuProp, stockProp)
-    prefixP###price###concrete##Detail (detail)  <- prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
-                                                                                           skuProp###concrete##Detail(detail),
-                                                                                           stockProp###concrete##Detail(detail),
-                                                                                           dateTime###concrete##Detail(detail))
+    prefixP###price###concrete##Detail (detail)  <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                            skuProp###concrete##Detail(detail),
+                                                                                            stockProp###concrete##Detail(detail),
+                                                                                            dateTime###concrete##Detail(detail))
                                                     WHEN DO CHANGED(skuProp###concrete##Detail(detail)) OR
                                                          CHANGED(stockProp###concrete##Detail(detail)) OR
                                                          CHANGED(dateTime###concrete##Detail(detail));
@@ -287,14 +407,14 @@ END
 META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceListTypeProp, prefixP, prefixB, skuProp, stockProp)
     prefixP###price###concrete##Detail (detail)  <- IF prefixB###batch###concrete##Detail(detail)
 
-                                                    THEN prevPricePriceListTypeBatchStockDateTime (SystemLedgerPriceListType.##priceListTypeProp,
-                                                                                               prefixB###batch###concrete##Detail(detail),
-                                                                                               stockProp###concrete##Detail(detail),
-                                                                                               dateTime###concrete##Detail(detail))
-                                                    ELSE prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
-                                                                                           prefixB###skuProp###concrete##Detail(detail),
-                                                                                           stockProp###concrete##Detail(detail),
-                                                                                           dateTime###concrete##Detail(detail))
+                                                    THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                                   prefixB###batch###concrete##Detail(detail),
+                                                                                                   stockProp###concrete##Detail(detail),
+                                                                                                   dateTime###concrete##Detail(detail))
+                                                    ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                                 prefixB###skuProp###concrete##Detail(detail),
+                                                                                                 stockProp###concrete##Detail(detail),
+                                                                                                 dateTime###concrete##Detail(detail))
                                                     WHEN DO CHANGED(prefixB###skuProp###concrete##Detail(detail)) OR
                                                          CHANGED(stockProp###concrete##Detail(detail)) OR
                                                          CHANGED(dateTime###concrete##Detail(detail)) OR

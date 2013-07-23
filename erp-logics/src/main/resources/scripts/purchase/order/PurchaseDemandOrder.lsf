@@ -18,7 +18,10 @@ diffStockReserveStockSkuDateTime 'Потребность' (stock, sku, dateTime)
 
 overStockReserveStockSkuDateTime 'Страховой запас (кол-во)'(stock, sku, dateTime) = overStockReserveStockSkuDate(stock, sku, toDate(dateTime));
 
-numberSkuStockReserveSupplierStockPriceListTypeDateTime 'Кол-во товаров' (supplier, stock, priceListType, dateTime) = GROUP SUM 1 IF (diffStockReserveStockSkuDateTime(stock, sku, dateTime) > 0 AND companyLedgerPriceListTypeSkuStockDateTime(priceListType, sku, stock, dateTime) == supplier) BY supplier, stock, priceListType, dateTime;
+numberSkuStockReserveSupplierStockPriceListTypeDateTime 'Кол-во товаров' (supplier, stock, priceListType, dateTime) =
+    GROUP SUM 1 IF (diffStockReserveStockSkuDateTime(stock, sku, dateTime) > 0 AND
+                    companyALedgerPriceListTypeSkuStockDateTime(priceListType, sku, stock, dateTime) == supplier)
+          BY supplier, stock, priceListType, dateTime;
 
 createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, priceListType, dateTime) NEWSESSION {
     FOR ADDOBJ o = Purchase.UserOrder DO {
@@ -31,7 +34,7 @@ createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, pri
         ASSIGN customerStockUserOrder(o) <- stock;
         ASSIGN priceListTypeUserOrder(o) <- priceListType;
 
-        FOR priceLedgerPriceListTypeSkuStockCompanyDateTime(priceListType, sku, stock, supplier, dateTime)
+        FOR priceALedgerPriceListTypeSkuStockCompanyDateTime(priceListType, sku, stock, supplier, dateTime)
             AND recommendedQuantitySkuStockUserOrder (sku, stock, o)
             ADDOBJ d = UserOrderDetail DO {
                 ASSIGN userOrderUserOrderDetail(d) <- o;
@@ -78,7 +81,7 @@ FORM demandOrder 'Заказы по потребностям'
     PROPERTIES currentBalanceSkuStock(s, st)
     PROPERTIES diffStockReserveStockSkuDateTime(st, s, dt)
 
-    FILTERS companyLedgerPriceListTypeSkuStockDateTime(p, s, st, dt) == l
+    FILTERS companyALedgerPriceListTypeSkuStockDateTime(p, s, st, dt) == l
 
     FILTERGROUP filterdiff
         FILTER 'С потребностью ' 'F11' diffStockReserveStockSkuDateTime(st, s, dt) > 0

@@ -491,10 +491,10 @@ DESIGN managementRepricing FROM DEFAULT {
 
 overManagementRepricing = ABSTRACT ACTION LIST (RepricingDetail,Sku,Stock,DATETIME);
 
-prevPricePriceListCalcListSkuStockDateTime (priceList, calcList, sku, department, time) =
-    IF prevPricePriceListTypeSkuStockDateTime(priceList, sku, department, time) AND calcList IS CalcPriceListType
-        THEN prevPricePriceListTypeSkuStockDateTime(priceList, sku, department, time) IF priceList IS PriceListType
-        ELSE prevPricePriceListTypeSkuStockDateTime(calcList, sku, department, time) IF calcList IS CalcPriceListType;
+prevPriceBPriceListCalcListSkuStockDateTime (priceList, calcList, sku, department, time) =
+    IF prevPriceBPriceListTypeSkuStockDateTime(priceList, sku, department, time)
+        THEN prevPriceBPriceListTypeSkuStockDateTime(priceList, sku, department, time)
+        ELSE prevPriceBPriceListTypeSkuStockDateTime(calcList, sku, department, time);
 
 
 
@@ -519,14 +519,14 @@ createManagementRepricing 'Создать управленческую пере�
             ASSIGN operationUserRepricing(r) <- oper();
 
             FOR currentBalanceSkuStock(sku, department()) AND
-                prevPricePriceListCalcListSkuStockDateTime(priceList(), calcList(), sku, department(), time()) != prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department(), time())
+                prevPriceBPriceListCalcListSkuStockDateTime(priceList(), calcList(), sku, department(), time()) != prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department(), time())
                 ADDOBJ rd = UserRepricingDetail DO {
                 ASSIGN userRepricingUserRepricingDetail(rd) <- r;
                 ASSIGN skuUserRepricingDetail(rd) <- sku;
                 ASSIGN quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, department());
-                ASSIGN retailPriceUserRepricingDetail(rd) <- prevPricePriceListCalcListSkuStockDateTime(priceList(), calcList(), sku, department(), time());
-                ASSIGN curRetailPriceUserRepricingDetail(rd) <- pricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department(), time());
-                ASSIGN priceUserRepricingDetail(rd) <- prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, department(), time());
+                ASSIGN retailPriceUserRepricingDetail(rd) <- prevPriceBPriceListCalcListSkuStockDateTime(priceList(), calcList(), sku, department(), time());
+                ASSIGN curRetailPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department(), time());
+                ASSIGN priceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, department(), time());
                 EXEC overManagementRepricing(rd, sku, department(), time());
             }
             FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;

@@ -56,17 +56,17 @@ EXTEND FORM priceListManage
     ORDER BY nameSku(csk)
     FILTERS isParentSkuGroupSku(cskg, csk)
 
-    PROPERTIES READONLY cPrice = activePriceLedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt), // последний прайс, в котором есть цена
-                        activeDescriptionLedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt)
+    PROPERTIES READONLY cPrice = activePriceALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt), // последний прайс, в котором есть цена
+                        activeDescriptionALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt)
     // на больших объемах возможно будет тормозить
-    FILTERS countStockPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) // фильтруем все товары, которые входят в ассортимент хотя бы одного склада
+    FILTERS countStockAPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) // фильтруем все товары, которые входят в ассортимент хотя бы одного склада
 
     OBJECTS cst = Stock
     PROPERTIES(cst)          READONLY nameStock
     PROPERTIES(csk, cst, dt) READONLY balanceASkuStockDateTime
-    PROPERTIES               READONLY cPriceStock = priceLedgerPriceListTypeSkuStockCompanyDateTime(pt, csk, cst, c, dt)
+    PROPERTIES               READONLY cPriceStock = priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, csk, cst, c, dt)
     ORDER BY nameStock(cst)
-    FILTERS priceLedgerPriceListTypeSkuStockCompanyDateTime(pt, csk, cst, c, dt)
+    FILTERS priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, csk, cst, c, dt)
 
     OBJECTS cpl = PriceListLedger
     PROPERTIES(cpl) READONLY isPostedPriceListLedger, fromDateTimePriceListLedger, toDateTimePriceListLedger, descriptionPriceListLedger, stocksPriceListLedger
@@ -117,7 +117,7 @@ EXTEND DESIGN priceListManage {
 
 fillCompanyPriceList = ACTION (userPriceList, dateTime, dataPriceListType, company) {
     ASSIGN fromDateUserPriceList(userPriceList) <- toDate(dateTime);
-    ASSIGN fromTimeUserPriceList(userPriceList) <- toTime(subtractDateTimeSeconds(dateTime,1));
+    ASSIGN fromTimeUserPriceList(userPriceList) <- toTime(dateTime);
     ASSIGN companyUserPriceList(userPriceList) <- company;
     ASSIGN currencyUserPriceList(userPriceList) <- currencyDataPriceListType(dataPriceListType);
     ASSIGN inUserPriceListDataPriceListType(userPriceList, dataPriceListType) <- TRUE;
@@ -128,7 +128,7 @@ fillCompanyPriceList = ACTION (userPriceList, dateTime, dataPriceListType, compa
     }
 
     // Выставляем все склады, которые есть хотя бы один раз для товаров
-    FOR [GROUP SUM 1 IF inSkuCustomUser(sku, currentUser()) AND priceLedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
+    FOR [GROUP SUM 1 IF inSkuCustomUser(sku, currentUser()) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
         dataInUserPriceListStock(userPriceList, stock) <- TRUE;
     }
 }
@@ -170,20 +170,20 @@ EXTEND FORM priceListManage
     ORDER BY nameSku(ssk)
     FILTERS isParentSkuGroupSku(sskg, ssk)
 
-    PROPERTIES(pt, ssk, s, dt) READONLY sPrice = pricePriceListTypeSkuStockDateTime,
-                                        nameCompanyLedgerPriceListTypeSkuStockDateTime,
-                                        descriptionLedgerPriceListTypeSkuStockDateTime
-    FILTERS pricePriceListTypeSkuStockDateTime(pt, ssk, s, dt)
+    PROPERTIES(pt, ssk, s, dt) READONLY sPrice = priceALedgerPriceListTypeSkuStockDateTime,
+                                        nameCompanyALedgerPriceListTypeSkuStockDateTime,
+                                        descriptionALedgerPriceListTypeSkuStockDateTime
+    FILTERS priceALedgerPriceListTypeSkuStockDateTime(pt, ssk, s, dt)
 
     OBJECTS sst = Stock
     PROPERTIES(sst)          READONLY nameStock
     PROPERTIES(ssk, sst, dt) READONLY balanceASkuStockDateTime
-    PROPERTIES(pt, ssk, sst, dt) READONLY sPriceStock = pricePriceListTypeSkuStockDateTime,
-                                          nameCompanyLedgerPriceListTypeSkuStockDateTime,
-                                          descriptionLedgerPriceListTypeSkuStockDateTime
+    PROPERTIES(pt, ssk, sst, dt) READONLY sPriceStock = priceALedgerPriceListTypeSkuStockDateTime,
+                                          nameCompanyALedgerPriceListTypeSkuStockDateTime,
+                                          descriptionALedgerPriceListTypeSkuStockDateTime
 
     ORDER BY nameStock(cst)
-    FILTERS pricePriceListTypeSkuStockDateTime(pt, ssk, sst, dt)
+    FILTERS priceALedgerPriceListTypeSkuStockDateTime(pt, ssk, sst, dt)
 
     OBJECTS spl = PriceListLedger
     PROPERTIES(spl) READONLY isPostedPriceListLedger, fromDateTimePriceListLedger, toDateTimePriceListLedger, descriptionPriceListLedger, stocksPriceListLedger
@@ -232,14 +232,14 @@ EXTEND DESIGN priceListManage {
 
 createCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, stock) NEWSESSION {
     FOR ADDOBJ u = UserPriceList DO {
-        ASSIGN fromDateUserPriceList(u) <- toDate(dateTime);
-        ASSIGN fromTimeUserPriceList(u) <- toTime(subtractDateTimeSeconds(dateTime,1));
-        ASSIGN companyUserPriceList(u) <- company;
-        ASSIGN currencyUserPriceList(u) <- currencyDataPriceListType(dataPriceListType);
-        ASSIGN inUserPriceListDataPriceListType(u, dataPriceListType) <- TRUE;
-        ASSIGN showUserPriceListPriceListType(u, dataPriceListType) <- TRUE;
-        ASSIGN dataInUserPriceListStock(u, stock) <- TRUE;
-        FOR inSkuCustomUser(sku, currentUser()) AND companyLedgerPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, dateTime) == company
+        fromDateUserPriceList(u) <- toDate(dateTime);
+        fromTimeUserPriceList(u) <- toTime(dateTime);
+        companyUserPriceList(u) <- company;
+        currencyUserPriceList(u) <- currencyDataPriceListType(dataPriceListType);
+        inUserPriceListDataPriceListType(u, dataPriceListType) <- TRUE;
+        showUserPriceListPriceListType(u, dataPriceListType) <- TRUE;
+        dataInUserPriceListStock(u, stock) <- TRUE;
+        FOR inSkuCustomUser(sku, currentUser()) AND companyALedgerPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, dateTime) == company
             ADDOBJ d = UserPriceListDetail DO {
             ASSIGN skuUserPriceListDetail(d) <- sku;
             ASSIGN userPriceListUserPriceListDetail(d) <- u;
@@ -249,7 +249,7 @@ createCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, stoc
 }
 // Создание прайс-листов
 createStockPriceList 'Создать прайсы' = ACTION (dateTime, dataPriceListType, stock) {
-    FOR [GROUP SUM 1 IF inSkuCustomUser(s, currentUser()) BY companyLedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
+    FOR [GROUP SUM 1 IF inSkuCustomUser(s, currentUser()) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
         createCompanyStockPriceList(company, dateTime, dataPriceListType, stock);
     }
 } TOOLBAR;

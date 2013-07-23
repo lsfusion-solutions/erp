@@ -36,10 +36,10 @@ WHEN SESSION FORMS userInvoice
      CHANGED(skuUserInvoiceDetail(detail)) OR
      CHANGED(customerStockUserInvoiceDetail(detail)) OR
      CHANGED(dateTimeUserInvoiceDetail(detail))) AND pt == calcRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
-     retailPriceListTypeUserInvoiceDetail(detail) <- IF prevPricePriceListTypeSkuStockDateTime(pt,
-                                                                                               skuUserInvoiceDetail(detail),
-                                                                                               customerStockUserInvoiceDetail(detail),
-                                                                                               dateTimeUserInvoiceDetail(detail))
+     retailPriceListTypeUserInvoiceDetail(detail) <- IF prevPriceBPriceListTypeSkuStockDateTime(pt,
+                                                                                                skuUserInvoiceDetail(detail),
+                                                                                                customerStockUserInvoiceDetail(detail),
+                                                                                                dateTimeUserInvoiceDetail(detail))
                                                         THEN pt
                                                         ELSE calcRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
@@ -201,20 +201,20 @@ createAdditionalValuation 'Создать дооценку' = ACTION () NEWSESSI
 //            ASSIGN operationUserRepricing(r) <- oper();
 
             FOR customerStockInvoiceDetail(detail) == department()
-                IF dateTimeInvoiceDetail(detail) >= timeFrom()
-                IF dateTimeInvoiceDetail(detail) <= timeTo()
-                IF retailPriceInvoiceDetail(detail)
-                IF prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuInvoiceDetail(detail), department(), dateTimeInvoiceDetail(detail)) != retailPriceInvoiceDetail(detail)
-                IF balanceBSkuDateTimeInvoiceDetail(detail)
-                IF isStockSkuInvoiceDetail(detail)
-                IF NOT costLedgerDepartmentStore(department())
-                IF isPostedInvoiceDetail(detail)
+                AND dateTimeInvoiceDetail(detail) >= timeFrom()
+                AND dateTimeInvoiceDetail(detail) <= timeTo()
+                AND retailPriceInvoiceDetail(detail)
+                AND prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuInvoiceDetail(detail), department(), dateTimeInvoiceDetail(detail)) != retailPriceInvoiceDetail(detail)
+                AND balanceBSkuDateTimeInvoiceDetail(detail) > 0
+                AND isStockSkuInvoiceDetail(detail)
+                AND NOT costLedgerDepartmentStore(department())
+                AND isPostedInvoiceDetail(detail)
                 ADDOBJ rd = UserRepricingDetail DO {
                     ASSIGN userRepricingUserRepricingDetail(rd) <- r;
                     ASSIGN skuUserRepricingDetail(rd) <- skuInvoiceDetail(detail);
                     ASSIGN quantityUserRepricingDetail(rd) <- balanceBSkuDateTimeInvoiceDetail(detail);
-                    ASSIGN curPriceUserRepricingDetail(rd) <- prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, skuInvoiceDetail(detail), department(), dateTimeInvoiceDetail(detail));
-                    ASSIGN curRetailPriceUserRepricingDetail(rd) <- prevPricePriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuInvoiceDetail(detail), department(), dateTimeInvoiceDetail(detail));
+                    ASSIGN curPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, skuInvoiceDetail(detail), department(), dateTimeInvoiceDetail(detail));
+                    ASSIGN curRetailPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuInvoiceDetail(detail), department(), dateTimeInvoiceDetail(detail));
 
                     ASSIGN priceUserRepricingDetail(rd) <- priceInvoiceDetail(detail);
                     ASSIGN retailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);
@@ -222,7 +222,6 @@ createAdditionalValuation 'Создать дооценку' = ACTION () NEWSESSI
                     EXEC overAdditionalValuation(rd, detail);
             }
             FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;
-
         }
     }
 } TOOLBAR ;

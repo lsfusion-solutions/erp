@@ -4,54 +4,54 @@ REQUIRE PriceListManage, Store;
 
 // -------------------- В ассортименте ----------------- //
 
-countDepartmentStorePriceListTypeSkuStoreDateTime 'В ассортименте' (type, sku, store, dateTime) =
-    GROUP SUM 1 IF pricePriceListTypeSkuStockDateTime(type, sku, stock, dateTime)
+countDepartmentStoreALedgerPriceListTypeSkuStoreDateTime 'В ассортименте' (type, sku, store, dateTime) =
+    GROUP SUM 1 IF priceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)
     BY type, sku, storeDepartmentStore(stock), dateTime;
 
-countStorePriceListTypeSkuChainStoresDateTime 'В ассортименте' (type, sku, chainStores, dateTime) =
-    GROUP SUM 1 IF countDepartmentStorePriceListTypeSkuStoreDateTime(type, sku, store, dateTime)
+countStoreALedgerPriceListTypeSkuChainStoresDateTime 'В ассортименте' (type, sku, chainStores, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreDateTime(type, sku, store, dateTime)
     BY type, sku, chainStoresStore(store), dateTime;
 
-countStorePriceListTypeSkuStoreTypeDateTime 'В ассортименте' (type, sku, storeType, dateTime) =
-    GROUP SUM 1 IF countDepartmentStorePriceListTypeSkuStoreDateTime(type, sku, store, dateTime)
+countStoreALedgerPriceListTypeSkuStoreTypeDateTime 'В ассортименте' (type, sku, storeType, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreDateTime(type, sku, store, dateTime)
     BY type, sku, storeTypeStore(store), dateTime;
 
-countStorePriceListTypeSkuDateTime 'В ассортименте' (type, sku, dateTime) =
-    GROUP SUM 1 IF countDepartmentStorePriceListTypeSkuStoreDateTime(type, sku, store, dateTime)
+countStoreALedgerPriceListTypeSkuDateTime 'В ассортименте' (type, sku, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreDateTime(type, sku, store, dateTime)
     BY type, sku, dateTime;
 
 // --------------------- В наличии ---------------- //
 
-countStoresSkuStoreTypeDateTime 'В наличии' (sku, storeType, dateTime) =
+countStoreASkuStoreTypeDateTime 'В наличии' (sku, storeType, dateTime) =
     GROUP SUM 1 IF balanceASkuStoreDateTime(sku, store, dateTime)
     BY sku, storeTypeStore(store), dateTime;
 
-countStoreSkuChainStoresDateTime 'В наличии' (sku, chainStores, dateTime) =
+countStoreASkuChainStoresDateTime 'В наличии' (sku, chainStores, dateTime) =
     GROUP SUM 1 IF balanceASkuStoreDateTime(sku, store, dateTime)
     BY sku, chainStoresStore(store), dateTime;
 
 EXTEND FORM priceListManage
     // --- По организациям
-    PROPERTIES READONLY countStorePriceListTypeSkuDateTime(pt, csk, dt) AFTER idBarcodeSku(csk)
+    PROPERTIES READONLY countStoreALedgerPriceListTypeSkuDateTime(pt, csk, dt) AFTER idBarcodeSku(csk)
 
     OBJECTS ccs = ChainStores
-    PROPERTIES READONLY nameChainStores(ccs), countStoreChainStores(ccs), countStorePriceListTypeSkuChainStoresDateTime(pt, csk, ccs, dt), countStoreSkuChainStoresDateTime(csk, ccs, dt)
-    FILTERS countStorePriceListTypeSkuChainStoresDateTime(pt, csk, ccs, dt)
+    PROPERTIES READONLY nameChainStores(ccs), countStoreChainStores(ccs), countStoreALedgerPriceListTypeSkuChainStoresDateTime(pt, csk, ccs, dt), countStoreASkuChainStoresDateTime(csk, ccs, dt)
+    FILTERS countStoreALedgerPriceListTypeSkuChainStoresDateTime(pt, csk, ccs, dt)
 
     OBJECTS ctp=StoreType
-    PROPERTIES READONLY nameStoreType(ctp), countStoreStoreType(ctp), countStorePriceListTypeSkuStoreTypeDateTime(pt, csk, ctp, dt), countStoresSkuStoreTypeDateTime(csk, ctp, dt)
-    FILTERS countStorePriceListTypeSkuStoreTypeDateTime(pt, csk, ctp, dt)
+    PROPERTIES READONLY nameStoreType(ctp), countStoreStoreType(ctp), countStoreALedgerPriceListTypeSkuStoreTypeDateTime(pt, csk, ctp, dt), countStoreASkuStoreTypeDateTime(csk, ctp, dt)
+    FILTERS countStoreALedgerPriceListTypeSkuStoreTypeDateTime(pt, csk, ctp, dt)
 
     // --- По складам
-    PROPERTIES READONLY countStorePriceListTypeSkuDateTime(pt, ssk, dt) AFTER idBarcodeSku(ssk)
+    PROPERTIES READONLY countStoreALedgerPriceListTypeSkuDateTime(pt, ssk, dt) AFTER idBarcodeSku(ssk)
 
     OBJECTS scs = ChainStores
-    PROPERTIES READONLY nameChainStores(scs), countStoreChainStores(scs), countStorePriceListTypeSkuChainStoresDateTime(pt, ssk, scs, dt), countStoreSkuChainStoresDateTime(ssk, scs, dt)
-    FILTERS countStorePriceListTypeSkuChainStoresDateTime(pt, ssk, scs, dt)
+    PROPERTIES READONLY nameChainStores(scs), countStoreChainStores(scs), countStoreALedgerPriceListTypeSkuChainStoresDateTime(pt, ssk, scs, dt), countStoreASkuChainStoresDateTime(ssk, scs, dt)
+    FILTERS countStoreALedgerPriceListTypeSkuChainStoresDateTime(pt, ssk, scs, dt)
 
     OBJECTS stp=StoreType
-    PROPERTIES READONLY nameStoreType(stp), countStoreStoreType(stp), countStorePriceListTypeSkuStoreTypeDateTime(pt, ssk, stp, dt), countStoresSkuStoreTypeDateTime(ssk, stp, dt)
-    FILTERS countStorePriceListTypeSkuStoreTypeDateTime(pt, ssk, stp, dt)
+    PROPERTIES READONLY nameStoreType(stp), countStoreStoreType(stp), countStoreALedgerPriceListTypeSkuStoreTypeDateTime(pt, ssk, stp, dt), countStoreASkuStoreTypeDateTime(ssk, stp, dt)
+    FILTERS countStoreALedgerPriceListTypeSkuStoreTypeDateTime(pt, ssk, stp, dt)
 ;
 
 EXTEND DESIGN priceListManage {
@@ -69,13 +69,17 @@ EXTEND DESIGN priceListManage {
 
 showRetailPrice (p, r) = p != r;
 
-activeMarkupLedgerPriceListTypeLedgerPriceListTypeSkuCompanyDateTime 'Надбавка, %' (rt, pt, s, c, dt) =
-    activePriceLedgerPriceListTypeSkuCompanyDateTime (rt, s, c, dt) * 100.0 /
-    (activePriceLedgerPriceListTypeSkuCompanyDateTime (pt, s, c, dt) IF activePriceLedgerPriceListTypeSkuCompanyDateTime (pt, s, c, dt) != 0) - 100.0;
+activeMarkupALedgerPriceListTypeLedgerPriceListTypeSkuCompanyDateTime 'Надбавка, %' (rt, pt, s, c, dt) =
+    activePriceALedgerPriceListTypeSkuCompanyDateTime (rt, s, c, dt) * 10000.0 /
+    ((valueRateRangeDate(VATSkuCountryDate(s, countryLegalEntity(c), DATE(dt)), DATE(dt)) + 100.0) *
+     activePriceALedgerPriceListTypeSkuCompanyDateTime (pt, s, c, dt) IF activePriceALedgerPriceListTypeSkuCompanyDateTime (pt, s, c, dt) != 0)
+    - 100.0;
 
-markupPriceListTypePriceListTypeSkuStockDateTime 'Надбавка, %' (rt, pt, sk, st, dt) =
-    pricePriceListTypeSkuStockDateTime (rt, sk, st, dt) * 100.0 /
-    (pricePriceListTypeSkuStockDateTime (pt, sk, st, dt) IF pricePriceListTypeSkuStockDateTime (pt, sk, st, dt) != 0) - 100.0;
+markupALedgerPriceListTypePriceListTypeSkuStockDateTime 'Надбавка, %' (rt, pt, sk, st, dt) =
+    priceALedgerPriceListTypeSkuStockDateTime (rt, sk, st, dt) * 10000.0 /
+    ((valueRateRangeDate(VATSkuCountryDate(sk, countryStock(st), DATE(dt)), DATE(dt)) + 100.0) *
+     priceALedgerPriceListTypeSkuStockDateTime (pt, sk, st, dt) IF priceALedgerPriceListTypeSkuStockDateTime (pt, sk, st, dt) != 0)
+    - 100.0;
 
 
 EXTEND FORM priceListManage
@@ -83,14 +87,14 @@ EXTEND FORM priceListManage
     PROPERTIES(rt) SELECTOR namePriceListType
 
     PROPERTIES TODRAW csk READONLY SHOWIF showRetailPrice(pt, rt) AFTER cPrice
-            cRetailPrice = activePriceLedgerPriceListTypeSkuCompanyDateTime(rt, csk, c, dt),
-            activeMarkupLedgerPriceListTypeLedgerPriceListTypeSkuCompanyDateTime(rt, pt, csk, c, dt)
-    PROPERTIES(rt, csk, cst, dt) TODRAW cst READONLY cRetailPriceStock = pricePriceListTypeSkuStockDateTime AFTER cPriceStock SHOWIF showRetailPrice(pt, rt)
+            cRetailPrice = activePriceALedgerPriceListTypeSkuCompanyDateTime(rt, csk, c, dt),
+            activeMarkupALedgerPriceListTypeLedgerPriceListTypeSkuCompanyDateTime(rt, pt, csk, c, dt)
+    PROPERTIES(rt, csk, cst, dt) TODRAW cst READONLY cRetailPriceStock = priceALedgerPriceListTypeSkuStockDateTime AFTER cPriceStock SHOWIF showRetailPrice(pt, rt)
 
     PROPERTIES TODRAW ssk READONLY SHOWIF showRetailPrice(pt, rt) AFTER sPrice
-            sRetailPrice = pricePriceListTypeSkuStockDateTime(rt, ssk, s, dt),
-            markupPriceListTypePriceListTypeSkuStockDateTime(rt, pt, ssk, s, dt)
-    PROPERTIES(rt, ssk, sst, dt) TODRAW sst READONLY sRetailPriceStock = pricePriceListTypeSkuStockDateTime AFTER sPriceStock SHOWIF showRetailPrice(pt, rt)
+            sRetailPrice = priceALedgerPriceListTypeSkuStockDateTime(rt, ssk, s, dt),
+            markupALedgerPriceListTypePriceListTypeSkuStockDateTime(rt, pt, ssk, s, dt)
+    PROPERTIES(rt, ssk, sst, dt) TODRAW sst READONLY sRetailPriceStock = priceALedgerPriceListTypeSkuStockDateTime AFTER sPriceStock SHOWIF showRetailPrice(pt, rt)
 ;
 
 EXTEND DESIGN priceListManage {
@@ -116,8 +120,8 @@ EXTEND DESIGN priceListManage {
 createCompanyRetailPriceList 'Создать розничный прайс' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) {
     FOR ADDOBJ u = UserPriceList DO {
         fillCompanyPriceList(u, dateTime, dataPriceListType, company);
-        ASSIGN inUserPriceListDataPriceListType(u, retailPriceListType) <- TRUE;
-        ASSIGN showUserPriceListPriceListType(u, retailPriceListType) <- TRUE;
+        inUserPriceListDataPriceListType(u, retailPriceListType) <- TRUE;
+        showUserPriceListPriceListType(u, retailPriceListType) <- TRUE;
         FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;

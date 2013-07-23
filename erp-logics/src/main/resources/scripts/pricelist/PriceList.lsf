@@ -135,7 +135,8 @@ pricePriceListDetailDataPriceListType 'Цена (новая)' = ABSTRACT NUMERIC
 priceUserPriceListDetailDataPriceListType 'Цена (новая)' = DATA NUMERIC[14,2] (PriceListDetail, DataPriceListType);
 pricePriceListDetailDataPriceListType (priceListDetail, dataPriceListType) += priceUserPriceListDetailDataPriceListType(priceListDetail, dataPriceListType);
 
-pricePriceListDetailDataPriceListType(detail, dataPriceListType) => inPriceListDataPriceListType(priceListPriceListDetail(detail), dataPriceListType) RESOLVE FALSE;
+inPriceListDetailDataPriceListType (detail, type) = inPriceListDataPriceListType(priceListPriceListDetail(detail), type) PERSISTENT;
+pricePriceListDetailDataPriceListType(detail, type) => inPriceListDetailDataPriceListType (detail, type) RESOLVE FALSE;
 
 //НДС
 
@@ -202,17 +203,23 @@ companyPriceListLedger (ledger) += companyPriceListDetail(ledger);
 
 descriptionPriceListLedger (ledger) += descriptionPriceList(priceListPriceListDetail(ledger));
 
-inPriceListLedgerLedgerPriceListType (ledger, type) += inPriceListDataPriceListType(priceListPriceListDetail(ledger), type);
+inPriceListLedgerLedgerPriceListType (ledger, type) += inPriceListDetailDataPriceListType(ledger, type);
 pricePriceListLedgerLedgerPriceListType (ledger, type) += pricePriceListDetailDataPriceListType(ledger, type);
 inPriceListLedgerStock (ledger, stock) += inPriceListStock(priceListPriceListDetail(ledger), stock);
 
 // -------------- Текущая действующая цена --------------- //
 
 currentPricePriceListDetailDataPriceListTypeStock 'Действующая цена' (priceListDetail, dataPriceListType, stock) =
-    prevPricePriceListTypeSkuStockDateTime(dataPriceListType, skuPriceListDetail(priceListDetail), stock, subtractDateTimeSeconds(fromDateTimePriceListDetail(priceListDetail), 1));
+    IF inPriceListDetailDataPriceListType(priceListDetail, dataPriceListType) THEN
+        prevPriceBPriceListTypeSkuStockDateTime(dataPriceListType, skuPriceListDetail(priceListDetail), stock, fromDateTimePriceListDetail(priceListDetail))
+    ELSE
+        prevPriceAPriceListTypeSkuStockDateTime(dataPriceListType, skuPriceListDetail(priceListDetail), stock, fromDateTimePriceListDetail(priceListDetail));
 
 currentPriceSkuPriceListDataPriceListTypeStock 'Действующая цена' (sku, priceList, dataPriceListType, stock) =
-    prevPricePriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, subtractDateTimeSeconds(fromDateTimePriceList(priceList), 1));
+    IF inPriceListDataPriceListType(priceList, dataPriceListType) THEN
+        prevPriceBPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, fromDateTimePriceList(priceList))
+    ELSE
+        prevPriceAPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, fromDateTimePriceList(priceList));
 
 changePricePriceListDetailDataPriceListTypeStock 'Изменение, %' (priceListDetail, dataPriceListType, stock) =
     pricePriceListDetailDataPriceListType(priceListDetail, dataPriceListType) * 100.0 /
@@ -475,6 +482,7 @@ DESIGN userPriceList FROM DEFAULT {
                 caption = 'Подбор';
                 NEW topThirdContainer{
                     childConstraints = TO THE RIGHT;
+                    ADD ts2.box;
                     NEW filtersContainer{
                         caption = 'Фильтры';
                         childConstraints = TO THE RIGHT;

@@ -122,7 +122,7 @@ EXTEND FORM userInvoice
         FILTER 'В документе ' 'F9' quantityUserInvoiceDetailSkuUserInvoice(ks, i)
     FILTERGROUP filter2
         FILTER 'С поступлением ' 'F8' quantityPurchaseSupplierSku(supplierUserInvoice(i), ks)
-        FILTER 'В ассортименте ' 'F7' companyLedgerPriceListTypeSkuStockDateTime(priceListTypeUserInvoiceSku(i, ks), ks, customerStockUserInvoice(i), dateTimeUserInvoice(i)) == supplierUserInvoice(i)
+        FILTER 'В ассортименте ' 'F7' companyALedgerPriceListTypeSkuStockDateTime(priceListTypeUserInvoiceSku(i, ks), ks, customerStockUserInvoice(i), dateTimeUserInvoice(i)) == supplierUserInvoice(i)
 ;
 EXTEND FORM userInvoice
 
@@ -131,7 +131,7 @@ EXTEND FORM userInvoice
         FILTER 'В документе ' 'F9' quantityUserInvoiceDetailBatchUserInvoice(b, i)
     FILTERGROUP filter4
         FILTER 'С поступлением ' 'F8' quantityPurchaseSupplierSku(supplierUserInvoice(i), skuBatch(b))
-        FILTER 'В ассортименте ' 'F7' companyLedgerPriceListTypeBatchStockDateTime(priceListTypeUserInvoiceBatch(i, b), b, customerStockUserInvoice(i), dateTimeUserInvoice(i)) == supplierUserInvoice(i)
+        FILTER 'В ассортименте ' 'F7' companyALedgerPriceListTypeBatchStockDateTime(priceListTypeUserInvoiceBatch(i, b), b, customerStockUserInvoice(i), dateTimeUserInvoice(i)) == supplierUserInvoice(i)
 ;
 
 // Резервы
@@ -185,42 +185,46 @@ inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceInv
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceInvoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN priceInvoiceDetail(ledger);
 
 //Учетные цены и суммы для партий
-purchaseInvoiceStockPriceBBatchStockDate 'Цена поставщика товара в партии на начало дня' (batch, stock, date) =
-    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, toDateTime(date));
-purchaseInvoiceStockPriceABatchStockDate 'Цена  поставщика товара в партии на конец дня' (batch, stock, date) =
-    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, toDateTime(sumDate(date,1)));
-purchaseInvoiceStockSumBBatchStockDate 'Сумма поставщика на начало дня' (batch, stock, date) =
+purchaseInvoiceStockPriceBBatchStockDate 'Цена поставщика (на утро)' (batch, stock, date) =
+    prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, toDateTime(date));
+purchaseInvoiceStockPriceABatchStockDate 'Цена  поставщика (на вечер)' (batch, stock, date) =
+    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, toDateTime(sumDate(date,1)));
+
+purchaseInvoiceStockSumBBatchStockDate 'Сумма поставщика (на утро)' (batch, stock, date) =
     balanceBBatchStockDate(batch, stock, date) * purchaseInvoiceStockPriceBBatchStockDate(batch, stock, date);
-purchaseInvoiceStockSumABatchStockDate 'Сумма поставщика на конец дня' (batch, stock, date) =
+purchaseInvoiceStockSumABatchStockDate 'Сумма поставщика (на вечер)' (batch, stock, date) =
     balanceABatchStockDate(batch, stock, date) * purchaseInvoiceStockPriceABatchStockDate(batch, stock, date);
-purchaseInvoiceStockSumBBatchesStockDate 'Сумма поставщика склада(по партиям) на начало дня' (stock, date) =
+
+purchaseInvoiceStockSumBBatchesStockDate 'Сумма поставщика (на утро)' (stock, date) =
     GROUP SUM purchaseInvoiceStockSumBBatchStockDate(batch, stock, date)
     BY stock, date;
-purchaseInvoiceStockSumABatchesStockDate 'Сумма поставщика склада(по партиям) на конец дня' (stock, date) =
+purchaseInvoiceStockSumABatchesStockDate 'Сумма поставщика (на вечер)' (stock, date) =
     GROUP SUM purchaseInvoiceStockSumABatchStockDate(batch, stock, date)
     BY stock, date;
 
-purchaseInvoiceStockSumBSkuGroupBatchStockDate 'Сумма постащика  на начало дня(по партиям)' (group, stock, date) =
+purchaseInvoiceStockSumBSkuGroupBatchStockDate 'Сумма поставщика (на утро)' (group, stock, date) =
     GROUP SUM purchaseInvoiceStockSumBBatchStockDate(batch, stock, date)
     BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, date;
-purchaseInvoiceStockSumRecBSkuGroupBatchStockDate 'Сумма постащика  на начало дня(по партиям)' (group, stock, date) =
+purchaseInvoiceStockSumRecBSkuGroupBatchStockDate 'Сумма поставщика (на утро)' (group, stock, date) =
     GROUP SUM purchaseInvoiceStockSumBBatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
     BY group, stock, date;
 
-purchaseInvoiceStockSumASkuGroupBatchStockDate 'Сумма поставщика на конец дня(по партиям)' (group, stock, date) =
+purchaseInvoiceStockSumASkuGroupBatchStockDate 'Сумма поставщика (на вечер)' (group, stock, date) =
     GROUP SUM purchaseInvoiceStockSumABatchStockDate(batch, stock, date)
     BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, date;
-purchaseInvoiceStockSumRecASkuGroupBatchStockDate 'Сумма поставщика на конец дня(по партиям)' (group, stock, date) =
+purchaseInvoiceStockSumRecASkuGroupBatchStockDate 'Сумма поставщика на (вечер)' (group, stock, date) =
     GROUP SUM purchaseInvoiceStockSumABatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
     BY group, stock, date;
-//--
-currentpurchaseInvoiceStockPriceBatchStock 'Цена поставщика' (batch, stock) =
-    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, currentDateTime());
-currentpurchaseInvoiceStockSumBatchStock 'Сумма поставщика' (batch, stock) =
-    currentBalanceBatchStock(batch, stock) * currentpurchaseInvoiceStockPriceBatchStock(batch, stock);
+
+// ----------------- Текущие ---------------------- //
+
+currentPurchaseInvoiceStockPriceBatchStock 'Цена поставщика' (batch, stock) =
+    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, currentDateTime());
+currentPurchaseInvoiceStockSumBatchStock 'Сумма поставщика' (batch, stock) =
+    currentBalanceBatchStock(batch, stock) * currentPurchaseInvoiceStockPriceBatchStock(batch, stock);
 
 purchaseInvoiceStockPriceBatchStockDateTime 'Цена поставщика' (batch, stock, dateTime) =
-    prevPricePriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, dateTime);
+    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, dateTime);
 purchaseInvoiceStockSumBBatchStockDateTime 'Сумма поставщика' (batch, stock, dateTime) =
     balanceBBatchStockDateTime(batch, stock, dateTime) * purchaseInvoiceStockPriceBatchStockDateTime(batch, stock, dateTime);
 

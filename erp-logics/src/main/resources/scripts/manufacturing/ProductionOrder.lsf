@@ -258,10 +258,10 @@ bruttoQuantitySkuOrder 'Количество брутто' (sku, order) = GROUP 
                                                                    orderComponentDetail(componentDetail) PERSISTENT;
 
 dataBruttoPriceSkuOrder 'Цена' = DATA NUMERIC[14,2] (Sku, Order);
-dataBruttoPriceSkuOrder (sku, order) <- prevPricePriceListTypeSkuStockDateTime(priceListTypeOrder(order),
-                                                                               sku,
-                                                                               componentsStockOrder(order),
-                                                                               dateTimeOrder(order))
+dataBruttoPriceSkuOrder (sku, order) <- prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order),
+                                                                                sku,
+                                                                                componentsStockOrder(order),
+                                                                                dateTimeOrder(order))
                                         WHEN CHANGED(priceListTypeOrder(order)) OR
                                              CHANGED(componentsStockOrder(order)) OR
                                              CHANGED(dateTimeOrder(order));
@@ -285,7 +285,7 @@ multiplierSubstitutesSku 'Коэффициент' = DATA SESSION NUMERIC[8,3] (S
 
 currentBalanceSkuSubstitutesSku 'Текущий остаток' (sku) =  currentBalanceSkuStock(sku, stockSubstitutesSku());
 
-SubstitutesPriceSkuOrder 'Цена' (sku,order)= prevPricePriceListTypeSkuStockDateTime(priceListTypeOrder(order), sku, stockSubstitutesSku(), dateTimeOrder(order));
+SubstitutesPriceSkuOrder 'Цена' (sku,order)= prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order), sku, stockSubstitutesSku(), dateTimeOrder(order));
 showPriceSubstitutesOrder (order) = TRUE IF stockSubstitutesSku() AND priceListTypeOrder(order);
 
 filterSubstituteFromToSku (fromSku, toSku) = TRUE AND NOT countSubstituteFromToSku(fromSku, toSku);
@@ -363,10 +363,10 @@ chooseSubstituteSkuOrder 'Выбрать замену' =  ACTION (fromSku, order
 
 dataSubstitutePriceSkuOrder 'Цена замены' = DATA NUMERIC[14,2] (Sku, Order);
 
-dataSubstitutePriceSkuOrder(sku,order) <- prevPricePriceListTypeSkuStockDateTime(priceListTypeOrder(order),
-                                                                                 substituteSkuOrder(sku, order),
-                                                                                 componentsStockOrder(order),
-                                                                                 dateTimeOrder(order))
+dataSubstitutePriceSkuOrder(sku,order) <- prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order),
+                                                                                  substituteSkuOrder(sku, order),
+                                                                                  componentsStockOrder(order),
+                                                                                  dateTimeOrder(order))
                                     WHEN CHANGED(priceListTypeOrder(order) IF sku IS Sku) OR
                                          CHANGED(componentsStockOrder(order) IF sku IS Sku) OR
                                          CHANGED(substituteSkuOrder(sku, order)) OR
@@ -374,7 +374,7 @@ dataSubstitutePriceSkuOrder(sku,order) <- prevPricePriceListTypeSkuStockDateTime
 substitutePriceSkuOrder 'Цена замены' (sku, order) = dataSubstitutePriceSkuOrder(sku, order) IF substituteQuantitySkuOrder(sku, order) PERSISTENT;
 
 currentBalanceSubstituteOrder'Текущий остаток' (substitute, order) = currentBalanceSkuStock(toSkuSubstitute(substitute), componentsStockOrder(order));
-substitutesPriceSubstituteOrder 'Цена' (substitute, order)= prevPricePriceListTypeSkuStockDateTime(priceListTypeOrder(order), toSkuSubstitute(substitute), componentsStockOrder(order), dateTimeOrder(order));
+substitutesPriceSubstituteOrder 'Цена' (substitute, order)= prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order), toSkuSubstitute(substitute), componentsStockOrder(order), dateTimeOrder(order));
 
 // Действие по заполнении замены через галочку
 isSubstituteSkuOrder 'Использовать замену' (substitute, sku, order) = substituteSkuOrder(sku, order) == toSkuSubstitute(substitute);
