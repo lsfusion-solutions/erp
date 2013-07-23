@@ -37,16 +37,52 @@ showComplianceInvoice 'Сертификация' = ABSTRACT BOOLEAN(Invoice);
 showComplianceUserInvoice 'Сертификация' = DATA BOOLEAN(UserInvoice) IN documentPrmGroup;
 showComplianceInvoice(invoice) += showComplianceUserInvoice(invoice);
 
-isComplianceInvoiceDetail 'Необходимость сертификации' = ABSTRACT BOOLEAN(InvoiceDetail);
-isComplianceUserInvoiceDetail 'Необходимость сертификации' = DATA BOOLEAN(UserInvoiceDetail);
-isComplianceInvoiceDetail(invoiceDetail) += isComplianceUserInvoiceDetail(invoiceDetail);
+//isComplianceInvoiceDetail 'Необходимость сертификации' = ABSTRACT BOOLEAN(InvoiceDetail);
+//isComplianceUserInvoiceDetail 'Необходимость сертификации' = DATA BOOLEAN(UserInvoiceDetail);
+//isComplianceInvoiceDetail(invoiceDetail) += isComplianceUserInvoiceDetail(invoiceDetail);
+//
+//quantityCompliancedInvoice 'Кол-во для сертификации' (invoice) = GROUP SUM 1 IF isComplianceInvoiceDetail(invoiceDetail) BY invoiceInvoiceDetail(invoiceDetail) PERSISTENT;
+//
+//isComplianceItemUserInvoiceDetail (userInvoiceDetail) = isCompliancedCountrySku(countryInvoiceDetail(userInvoiceDetail), skuUserInvoiceDetail(userInvoiceDetail));
+//isComplianceUserInvoiceDetail(userInvoiceDetail) <- isComplianceItemUserInvoiceDetail(userInvoiceDetail) WHEN CHANGED (countryInvoiceDetail(userInvoiceDetail)) OR
+//                                                                                                              CHANGED (skuUserInvoiceDetail(userInvoiceDetail));
 
-quantityCompliancedInvoice 'Кол-во для сертификации' (invoice) = GROUP SUM 1 IF isComplianceInvoiceDetail(invoiceDetail) BY invoiceInvoiceDetail(invoiceDetail) PERSISTENT;
-//isComplianceUserInvoice(invoice) <- TRUE IF quantityCompliancedInvoice(invoice) WHEN CHANGED(quantityCompliancedInvoice(invoice));
+// группы сертификации
+complianceGroupInvoiceDetail = ABSTRACT ComplianceGroup(InvoiceDetail);
+nameComplianceGroupInvoiceDetail 'Группа сертификации' (invoiceDetail) = nameComplianceGroup(complianceGroupInvoiceDetail(invoiceDetail));
 
-isComplianceItemUserInvoiceDetail (userInvoiceDetail) = isCompliancedCountrySku(countryInvoiceDetail(userInvoiceDetail), skuUserInvoiceDetail(userInvoiceDetail));
-isComplianceUserInvoiceDetail(userInvoiceDetail) <- isComplianceItemUserInvoiceDetail(userInvoiceDetail) WHEN CHANGED (countryInvoiceDetail(userInvoiceDetail)) OR
-                                                                                                              CHANGED (skuUserInvoiceDetail(userInvoiceDetail));
+complianceGroupUserInvoiceDetail = DATA ComplianceGroup(UserInvoiceDetail);
+nameComplianceGroupUserInvoiceDetail 'Группа сертификации' (userInvoiceDetail) = nameComplianceGroup(complianceGroupUserInvoiceDetail(userInvoiceDetail));
+
+complianceGroupInvoiceDetail(invoiceDetail) += complianceGroupUserInvoiceDetail(invoiceDetail);
+
+complianceGroupCountrySkuUserInvoiceDetail 'Группа' (userInvoiceDetail) = complianceGroupCountrySku(countryInvoiceDetail(userInvoiceDetail), skuUserInvoiceDetail(userInvoiceDetail));
+complianceGroupUserInvoiceDetail(userInvoiceDetail) <- complianceGroupCountrySkuUserInvoiceDetail(userInvoiceDetail) WHEN CHANGED (countryInvoiceDetail(userInvoiceDetail)) OR
+                                                                                                                          CHANGED (skuUserInvoiceDetail(userInvoiceDetail));
+
+setComplianceGroupInvoice 'Задать группы сертификации' = ACTION (invoice) {
+   FOR userInvoiceUserInvoiceDetail(invoiceDetail) == invoice DO {
+      ASSIGN complianceGroupUserInvoiceDetail(invoiceDetail) <- complianceGroupCountrySku(countryInvoiceDetail(invoiceDetail), skuInvoiceDetail(invoiceDetail));
+   };
+} TOOLBAR;
+
+CONSTRAINT complianceGroupUserInvoiceDetail(detail) AND complianceUserInvoiceDetail(detail) AND countComplianceGroupCompliance(complianceUserInvoiceDetail(detail))
+           AND NOT inComplianceGroupCompliance(complianceGroupUserInvoiceDetail(detail), complianceUserInvoiceDetail(detail))
+    CHECKED BY dataComplianceUserInvoiceDetail MESSAGE 'Сертификат должен соответствовать группе сертификации';
+
+// сертификаты для сертификационных групп
+countUserInvoiceComplianceGroup 'Кол-во' (invoice, complianceGroup) = GROUP SUM 1 IF detail IS UserInvoiceDetail BY userInvoiceUserInvoiceDetail(detail), complianceGroupUserInvoiceDetail(detail);
+
+complianceUserInvoiceComplianceGroup = DATA Compliance(UserInvoice, ComplianceGroup);
+descriptionComplianceComplianceGroup 'Сертификат' (invoice, complianceGroup) = descriptionCompliance(complianceUserInvoiceComplianceGroup(invoice, complianceGroup));
+
+dataComplianceUserInvoiceDetail(detail) <- complianceUserInvoiceComplianceGroup(userInvoiceUserInvoiceDetail(detail), complianceGroupUserInvoiceDetail(detail))
+        WHEN CHANGED(complianceUserInvoiceComplianceGroup(userInvoiceUserInvoiceDetail(detail), complianceGroupUserInvoiceDetail(detail)));
+
+CONSTRAINT complianceUserInvoiceComplianceGroup(invoice, group) AND countComplianceGroupCompliance(complianceUserInvoiceComplianceGroup(invoice, group))
+           AND NOT inComplianceGroupCompliance(group, complianceUserInvoiceComplianceGroup(invoice, group))
+    CHECKED BY complianceUserInvoiceComplianceGroup MESSAGE 'Сертификат должен соответствовать группе сертификации';
+
 
 FORM complianceInvoices 'Накладные сертификации'
     OBJECTS c=Compliance FIXED PANEL
@@ -60,17 +96,17 @@ FORM complianceInvoices 'Накладные сертификации'
     FILTERGROUP filtersImporter
         FILTER 'Только получателя' 'F11' legalEntityCompliance(c)==customerUserInvoice(i) DEFAULT
 
-    FILTERGROUP filtersComplianced
-        FILTER 'Требующие сертифицирования' 'F10' quantityCompliancedInvoice(i) DEFAULT
+//    FILTERGROUP filtersComplianced
+//        FILTER 'Требующие сертифицирования' 'F10' quantityCompliancedInvoice(i) DEFAULT
 
     OBJECTS id=UserInvoiceDetail
     PROPERTIES(c, id) inComplianceInvoiceDetail
-    PROPERTIES(id) READONLY indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, isComplianceUserInvoiceDetail,
+    PROPERTIES(id) READONLY indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, //isComplianceUserInvoiceDetail,
                    shortNameUOMSkuUserInvoiceDetail, quantityUserInvoiceDetail, priceUserInvoiceDetail
     FILTERS invoiceInvoiceDetail(id)==i
 
-    FILTERGROUP filtersDetail
-        FILTER 'Требующие сертифицирования' 'F9' isComplianceUserInvoiceDetail(id) DEFAULT
+//    FILTERGROUP filtersDetail
+//        FILTER 'Требующие сертифицирования' 'F9' isComplianceUserInvoiceDetail(id) DEFAULT
 ;
 
 showFormComplianceInvoices 'Накладные сертификации' = ACTION (compliance) {
@@ -82,7 +118,7 @@ EXTEND FORM compliance
     PROPERTIES(c) invoicesCompliance
 
     OBJECTS id=UserInvoiceDetail
-    PROPERTIES(id) READONLY seriesNumberInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, isComplianceUserInvoiceDetail,
+    PROPERTIES(id) READONLY seriesNumberInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, nameComplianceGroupUserInvoiceDetail,
                    quantityUserInvoiceDetail, priceUserInvoiceDetail, homePriceInvoiceDetail, sumHomeInvoiceDetail
 
     PROPERTIES (c) showFormComplianceInvoices TODRAW id FORCE PANEL TOOLBAR
@@ -121,7 +157,6 @@ skuComplianceDetail = DATA Sku(ComplianceDetail);
 nameSkuComplianceDetail 'Товар на экспертизу' (complianceDetail) = nameSku(skuComplianceDetail(complianceDetail));
 
 @defineDocumentPosted(compliance);
-//@defineDocumentDetailPosted(compliance, complianceDetail);
 @defineDocumentDetailBatchCustom(complianceDetail, batch);
 
 numberDefaultComplianceDetail 'Номер' (complianceDetail) =
@@ -142,6 +177,8 @@ inInvoiceDetailComplianceDetail 'Вкл.' (invoiceDetail, complianceDetail) = co
 quantityComplianceDetail 'Кол-во' (complianceDetail) = GROUP SUM quantityUserInvoiceDetail(invoiceDetail) BY complianceDetailInvoiceDetail(invoiceDetail) PERSISTENT;
 
 sumHomeComplianceDetail 'Стоимость' (complianceDetail) = GROUP SUM sumHomeInvoiceDetail(invoiceDetail) BY complianceDetailInvoiceDetail(invoiceDetail);
+
+//sumHomeCompliance 'Стоимость' (compliance) = GROUP SUM sumHomeInvoiceDetail(invoiceDetail) BY complianceInvoiceDetail(invoiceDetail);
 
 inComplianceDetailInvoice = GROUP SUM 1 BY complianceDetailInvoiceDetail(invoiceDetail), invoiceInvoiceDetail(invoiceDetail);
 
@@ -192,15 +229,15 @@ toCreateComplianceDetails 'Создать позиции' = ACTION (compliance) 
 
 EXTEND FORM compliance
 
-    OBJECTS cd=ComplianceDetail
-    PROPERTIES(id, cd) inInvoiceDetailComplianceDetail
-    PROPERTIES(cd) numberComplianceDetail
-    PROPERTIES(cd) READONLY invoicesComplianceDetail, nameComplianceComplianceDetail, quantityComplianceDetail
-    PROPERTIES(cd) nameSkuComplianceDetail, quantityCertificatedComplianceDetail, priceCertificatedComplianceDetail, sumDataCertificatedComplianceDetail, DELETESESSION
-
-    PROPERTIES (c) toCreateComplianceDetails TODRAW cd FORCE PANEL TOOLBAR
-    PROPERTIES (c) setSumComplianceDetail TODRAW cd FORCE PANEL TOOLBAR
-    FILTERS complianceComplianceDetail(cd) == c
+//    OBJECTS cd=ComplianceDetail
+//    PROPERTIES(id, cd) inInvoiceDetailComplianceDetail
+//    PROPERTIES(cd) numberComplianceDetail
+//    PROPERTIES(cd) READONLY invoicesComplianceDetail, nameComplianceComplianceDetail, quantityComplianceDetail
+//    PROPERTIES(cd) nameSkuComplianceDetail, quantityCertificatedComplianceDetail, priceCertificatedComplianceDetail, sumDataCertificatedComplianceDetail, DELETESESSION
+//
+//    PROPERTIES (c) toCreateComplianceDetails TODRAW cd FORCE PANEL TOOLBAR
+//    PROPERTIES (c) setSumComplianceDetail TODRAW cd FORCE PANEL TOOLBAR
+//    FILTERS complianceComplianceDetail(cd) == c
 
     EVENTS
         ON OK prePostCompliance(c)
@@ -208,9 +245,9 @@ EXTEND FORM compliance
 
 EXTEND DESIGN compliance {
     main {
-        ADD cd.box {
-            fillVertical = 2;
-        }
+//        ADD cd.box {
+//            fillVertical = 2;
+//        }
     }
     PROPERTY(formOk) {
         caption = 'Провести';
@@ -222,10 +259,10 @@ EXTEND FORM compliances
 
     PROPERTIES(c) FORCE GRID isPostedCompliance BEFORE numberObject(c)
 
-    OBJECTS cd=ComplianceDetail
-    PROPERTIES(cd) READONLY numberComplianceDetail, invoicesComplianceDetail, nameComplianceComplianceDetail, quantityComplianceDetail,
-                   nameSkuComplianceDetail, quantityCertificatedComplianceDetail, priceCertificatedComplianceDetail, sumDataCertificatedComplianceDetail
-    FILTERS complianceComplianceDetail(cd)==c
+//    OBJECTS cd=ComplianceDetail
+//    PROPERTIES(cd) READONLY numberComplianceDetail, invoicesComplianceDetail, nameComplianceComplianceDetail, quantityComplianceDetail,
+//                   nameSkuComplianceDetail, quantityCertificatedComplianceDetail, priceCertificatedComplianceDetail, sumDataCertificatedComplianceDetail
+//    FILTERS complianceComplianceDetail(cd)==c
 ;
 EXTEND FORM compliancesDialog
     PROPERTIES(c) FORCE GRID isPostedCompliance BEFORE numberObject(c)
@@ -244,22 +281,24 @@ calcSumComplianceDetailInvoiceDetail 'Стоимость экспертизы' (
 
 calcPriceComplianceDetailInvoiceDetail(invoiceDetail) = calcSumComplianceDetailInvoiceDetail(invoiceDetail)/quantityUserInvoiceDetail(invoiceDetail);
 
-coeffInvoiceDetailCompliance(invoiceDetail) = sumHomeInvoiceDetail(invoiceDetail)/sumCompliance(complianceInvoiceDetail(invoiceDetail));
+coeffInvoiceDetailCompliance(invoiceDetail) = sumInvoiceDetail(invoiceDetail)/sumCompliance(complianceInvoiceDetail(invoiceDetail)) IF sumCompliance(complianceInvoiceDetail(invoiceDetail))>0;
 
 calcSumComplianceInvoiceDetail 'Стоимость услуг' (invoiceDetail) = PARTITION UNGROUP sumCompliance
                                                                    PROPORTION STRICT ROUND(0) coeffInvoiceDetailCompliance(invoiceDetail)
                                                                                   BY complianceInvoiceDetail(invoiceDetail)
                                                                                ORDER invoiceDetail PERSISTENT;
 
-calcPriceComplianceInvoiceDetail(invoiceDetail) = calcSumComplianceInvoiceDetail(invoiceDetail)/quantityUserInvoiceDetail(invoiceDetail);
+calcPriceComplianceInvoiceDetail(invoiceDetail) = calcSumComplianceInvoiceDetail(invoiceDetail)/quantityUserInvoiceDetail(invoiceDetail) IF quantityUserInvoiceDetail(invoiceDetail)>0;
 
 certificateCostPriceUserInvoiceDetail(invoiceDetail) += priceComplianceUserInvoiceDetail(invoiceDetail);
 
 setPriceComplianceInvoiceDetailes 'Рассчитать расходы (за ед.)' = ACTION (compliance) {
    FOR complianceInvoiceDetail(invoiceDetail) == compliance DO {
-      ASSIGN priceComplianceInvoiceDetail(invoiceDetail) <- calcPriceComplianceInvoiceDetail(invoiceDetail) (+) calcPriceComplianceDetailInvoiceDetail(invoiceDetail);
+      ASSIGN priceComplianceUserInvoiceDetail(invoiceDetail) <- calcPriceComplianceInvoiceDetail(invoiceDetail); // (+) calcPriceComplianceDetailInvoiceDetail(invoiceDetail)
    }
 } TOOLBAR;
+
+
 
 EXTEND FORM compliance
     PROPERTIES(id) priceComplianceUserInvoiceDetail
@@ -268,9 +307,25 @@ EXTEND FORM compliance
 
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCompliancedInvoice(i) showComplianceUserInvoice
-    PROPERTIES(d) BACKGROUND backgroundCompliancedInvoice(i) isComplianceUserInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showComplianceUserInvoice(i)
     PROPERTIES(d) BACKGROUND backgroundCompliancedInvoice(i) priceComplianceUserInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showComplianceUserInvoice(i)
+
+    OBJECTS cg = ComplianceGroup FIXED GRID
+    PROPERTIES(cg) SHOWIF showComplianceUserInvoice(i) nameComplianceGroup READONLY
+    PROPERTIES(i, cg) descriptionComplianceComplianceGroup SHOWIF showComplianceUserInvoice(i)
+    FILTERS countUserInvoiceComplianceGroup(i, cg)
+
+    OBJECTS d2 = UserInvoiceDetail FIXED GRID
+    PROPERTIES(d2) SHOWIF showComplianceUserInvoice(i) indexUserInvoiceDetail, nameSkuUserInvoiceDetail, nameBatchUserInvoiceDetail, idBatchUserInvoiceDetail,
+                   nameComplianceGroupUserInvoiceDetail, descriptionComplianceUserInvoiceDetail
+    FILTERS userInvoiceUserInvoiceDetail(d2) == i
+
+    FILTERGROUP groupFilters
+        FILTER 'Текущей группы' 'F10' complianceGroupUserInvoiceDetail(d2) == cg
+        FILTER 'Без группы' 'F9' NOT complianceGroupUserInvoiceDetail(d2)
+
+    PROPERTIES(i) setComplianceGroupInvoice TODRAW d2 SHOWIF showComplianceUserInvoice(i)
 ;
+
 EXTEND DESIGN userInvoice {
     headerExtraParams {
         NEW headerCompliance {
@@ -278,11 +333,22 @@ EXTEND DESIGN userInvoice {
             ADD PROPERTY(showComplianceUserInvoice);
         }
     }
+
+    specification.box {
+        NEW complianceContainer{
+            caption = 'Сертификация';
+            NEW promContainer {
+                ADD cg.box;
+                ADD d2.box;
+            }
+        }
+    }
 }
+
 
 EXTEND FORM invoices
     PROPERTIES(i) READONLYIF isReadonly() BACKGROUND backgroundCompliancedInvoice(i) showComplianceInvoice FORCE GRID
-    PROPERTIES(d) READONLY BACKGROUND backgroundCompliancedInvoice(i) isComplianceInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showComplianceInvoice(i)
+    PROPERTIES(d) READONLY BACKGROUND backgroundCompliancedInvoice(i) nameComplianceGroupInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showComplianceInvoice(i)
     PROPERTIES(d) READONLY BACKGROUND backgroundCompliancedInvoice(i) priceComplianceInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showComplianceInvoice(i)
 ;
 

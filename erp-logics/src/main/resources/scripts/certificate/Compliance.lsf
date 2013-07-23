@@ -2,10 +2,30 @@ MODULE Compliance;
 
 REQUIRE Certificate, Shipment;
 
+CLASS ComplianceGroup 'Группа сертификации';
+TABLE complianceGroup (ComplianceGroup);
+
+nameComplianceGroup 'Наименование' = DATA VARISTRING[1000](ComplianceGroup) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+
+TABLE complianceGroupComplianceGroup (ComplianceGroup, ComplianceGroup);
+@defineHierarchy(complianceGroup);
+
+CLASS ComplianceType 'Тип сертификатов';
+nameComplianceType 'Тип сертификатов' = DATA VARSTRING[100](ComplianceType) IN base;
+
+EXTEND CLASS ComplianceType {
+    forBatch 'На партию',
+    forSku 'На товар',
+    forManufacturing 'На производство'
+}
+
 CLASS Compliance 'Сертификат соответствия' : Certificate, NumeratedObject;
 TABLE compliance(Compliance);
 
 CLASS CompliancePosted 'Проведенный сертификат' : Compliance, PostedObject;
+
+complianceTypeCompliance = DATA ComplianceType(Compliance);
+nameComplianceTypeCompliance 'Тип' (compliance) = staticCaption(complianceTypeCompliance(compliance));
 
 @defineNumeratedObjectDefault(Compliance, 'Нумератор для сертификатов', 'СС');
 @defineExternalizable(compliance, VARSTRING[100]);
@@ -20,9 +40,6 @@ fromDateCertificate(certificate) += fromDateCompliance(certificate);
 fromTimeCertificate(certificate) += fromTimeCompliance(certificate);
 
 @defineDocumentHeaderTimePrefix(Compliance, to, ' по');
-//toDateCompliance 'Дата по' = DATA DATE(Compliance);
-//toTimeCompliance 'Время по' = DATA TIME(Compliance);
-//toDateTimeCompliance 'Дата/время по'(compliance) = dateTimeToDateTime(toDateCompliance(compliance), toTimeCompliance(compliance));
 toDateCertificate(certificate) += toDateCompliance(certificate);
 toTimeCertificate(certificate) += toTimeCompliance(certificate);
 
@@ -34,7 +51,8 @@ textCompliance 'Текст сертификата' = DATA TEXT (Compliance);
 
 sumCompliance 'Стоимость услуг' = DATA NUMERIC[14,3](Compliance);
 
-isCompliancedCountrySku 'Необходимость сертификации' = ABSTRACT BOOLEAN(Country, Sku);
+//isCompliancedCountrySku 'Необходимость сертификации' = ABSTRACT BOOLEAN(Country, Sku);
+complianceGroupCountrySku = ABSTRACT ComplianceGroup(Country, Sku);
 
 descriptionCompliance 'Сертификат соответствия' (compliance) = CONCAT ' ', '№ ' + seriesNumberObject(compliance),
                                                  'от ' + fromDateCompliance(compliance), 'действует по ' + toDateCompliance(compliance);
@@ -50,11 +68,35 @@ CONSTRAINT legalEntityCompliance(compliance) IF stockCompliance(compliance) AND 
            inLegalEntityStock(legalEntityCompliance(compliance), stockCompliance (compliance))
     CHECKED BY stockCompliance MESSAGE 'Владелец и склад для сертификата не имеют связи';
 
+inComplianceGroupCompliance 'Вкл.' = DATA BOOLEAN(ComplianceGroup, Compliance);
+
+countComplianceGroupCompliance 'Кол-во' (compliance) = GROUP SUM 1 IF inComplianceGroupCompliance(complianceGroup, compliance) BY compliance PERSISTENT;
+
+FORM complianceType 'Тип сертификатов'
+    OBJECTS ct = ComplianceType FIXED PANEL
+    PROPERTIES(ct) staticCaption
+    EDIT ComplianceType OBJECT ct
+;
+
+FORM complianceTypes 'Типы сертификатов'
+    OBJECTS ct = ComplianceType
+    PROPERTIES(ct) READONLY staticCaption
+    PROPERTIES(ct) ADDFORM, EDITFORM, DELETE
+
+    DIALOG ComplianceType OBJECT ct
+;
+
 FORM compliance 'Сертификат соответствия'
     OBJECTS c = Compliance FIXED PANEL
     PROPERTIES(c) objectClassName, nameNumeratorObject, numberObject, seriesObject, dateCompliance, timeCompliance,
-                  fromDateCompliance, fromTimeCompliance, toDateCompliance, toTimeCompliance,
+                  fromDateCompliance, fromTimeCompliance, toDateCompliance, toTimeCompliance, nameComplianceTypeCompliance,
                   nameLegalEntityCompliance, nameStockCompliance, sumCompliance
+
+    OBJECTS cg = ComplianceGroup
+    PROPERTIES(cg) nameComplianceGroup, nameParentComplianceGroup
+
+    PROPERTIES(cg, c) inComplianceGroupCompliance
+
     EDIT Compliance OBJECT c
 ;
 
@@ -86,12 +128,15 @@ DESIGN compliance FROM DEFAULT{
                 NEW propContainer{
                     caption = 'Параметры документа';
                     childConstraints = TO THE RIGHTBOTTOM;
+                    ADD PROPERTY(nameComplianceTypeCompliance);
                     ADD PROPERTY(nameLegalEntityCompliance);
                     ADD PROPERTY(nameStockCompliance);
                     ADD PROPERTY(sumCompliance);
                 }
             }
         }
+
+        ADD cg.box;
     }
     ADD functions.box;
 }
@@ -100,21 +145,101 @@ FORM compliances 'Сертификаты соответствия'
     OBJECTS c = Compliance
     PROPERTIES(c) READONLY numberObject, seriesObject, dateCompliance, timeCompliance,
                   fromDateCompliance, fromTimeCompliance, toDateCompliance, toTimeCompliance,
-                  nameLegalEntityCompliance, nameStockCompliance, sumCompliance, objectClassName
+                  nameComplianceTypeCompliance, nameLegalEntityCompliance, nameStockCompliance, sumCompliance, objectClassName
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE
+
+    OBJECTS cg = ComplianceGroup
+    PROPERTIES(cg) READONLY nameComplianceGroup, nameParentComplianceGroup
+    PROPERTIES(cg, c) READONLY inComplianceGroupCompliance
+
+    FILTERS inComplianceGroupCompliance(cg, c)
 ;
 
 FORM compliancesDialog 'Сертификаты соответствия'
     OBJECTS c = Compliance
     PROPERTIES(c) READONLY numberObject, seriesObject, dateCompliance, timeCompliance,
                   fromDateCompliance, fromTimeCompliance, toDateCompliance, toTimeCompliance,
-                  nameLegalEntityCompliance, nameStockCompliance, objectClassName
+                  nameComplianceTypeCompliance, nameLegalEntityCompliance, nameStockCompliance, objectClassName
     PROPERTIES(c) ADDFORM, EDITFORM
     DIALOG Compliance OBJECT c
 ;
+
+FORM complianceGroup 'Группа сертификации'
+    OBJECTS cg = ComplianceGroup FIXED PANEL
+    PROPERTIES(cg) nameComplianceGroup, nameParentComplianceGroup
+
+    OBJECTS c = Compliance
+    PROPERTIES(c) READONLY numberObject, seriesObject, dateCompliance, timeCompliance, fromDateCompliance, fromTimeCompliance,
+                            toDateCompliance, toTimeCompliance, nameLegalEntityCompliance
+    PROPERTIES(cg, c) inComplianceGroupCompliance
+
+    EDIT ComplianceGroup OBJECT cg
+;
+
+addComplianceGroup 'Добавить' = ACTION (complianceGroup) NEWSESSION {
+    FOR ADDOBJ cg = ComplianceGroup DO {
+        ASSIGN parentComplianceGroup(cg) <- complianceGroup;
+        FORM complianceGroup OBJECTS cg=cg MODAL;
+        IF formResult() == FormResult.ok THEN
+            EXEC apply();
+    }
+} TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+
+FORM complianceGroups 'Группы сертификации'
+
+    TREE treeGroups a=STRING[3], gcg=ComplianceGroup PARENT parentComplianceGroup
+    PROPERTIES READONLY OBJVALUE(a), nameComplianceGroup(gcg)
+    PROPERTIES(gcg) addComplianceGroup, EDITFORM
+    ORDER BY nameComplianceGroup
+
+    OBJECTS cg = ComplianceGroup
+    PROPERTIES(cg) READONLY nameComplianceGroup, canonicalNameComplianceGroup
+    PROPERTIES(cg) ADDFORM, EDITFORM, DELETE
+    ORDER BY nameComplianceGroup
+
+    FILTERS stringEqualsAll(a)
+
+    FILTERGROUP filters
+        FILTER 'Все листья' 'F10' isParentLeafComplianceGroupComplianceGroup(cg, gcg) OR (cg IS ComplianceGroup AND isLeafComplianceGroup(cg) AND NOT gcg)
+        FILTER 'Всех потомков' 'F9' isParentComplianceGroupComplianceGroup(cg, gcg) OR (cg IS ComplianceGroup AND NOT gcg) DEFAULT
+        FILTER 'Только непосредственных потомков' 'F8' parentComplianceGroup(cg) == gcg OR (cg IS ComplianceGroup AND NOT parentComplianceGroup(cg) AND NOT gcg)
+
+    DIALOG ComplianceGroup OBJECT cg
+;
+
+DESIGN complianceGroups FROM DEFAULT{
+    main {
+        NEW split {
+            childConstraints = TO THE RIGHT;
+            type = SPLITH;
+            ADD treeGroups.tree.box{
+                fillHorizontal = 1;
+            };
+
+            ADD cg.box {
+                cg.grid {
+                    fillHorizontal = 2;
+                    defaultComponent = TRUE;
+                }
+            }
+
+            POSITION treeGroups.tree.box TO THE LEFT cg.box;
+        }
+
+        ADD functions.box;
+    }
+}
+
+@extendFormEditable(complianceGroups);
 
 NAVIGATOR {
     customsDocuments {
         ADD compliances;
     }
+
+    customsMasterData {
+        ADD complianceGroups;
+    }
 }
+
+
