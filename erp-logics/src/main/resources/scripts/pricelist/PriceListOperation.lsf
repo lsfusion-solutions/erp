@@ -65,8 +65,10 @@ copyAbstractDataPriceList(priceList, userPriceList) +=copyOperationPriceList(pri
 CONSTRAINT operationUserPriceList(priceList) AND NOT inLegalEntityOperation(companyUserPriceList(priceList), operationUserPriceList(priceList))
     CHECKED BY companyUserPriceList MESSAGE 'Компания прайса должна соответствовать ограничениям операции';
 
-groupTypeUserPriceList(priceList) <- groupTypeOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
+groupTypeUserPriceList(priceList) <- IF operationUserPriceList(priceList) THEN groupTypeOperation(operationUserPriceList(priceList))
+                                        ELSE SystemGroupType.skuGroupType
+    WHEN CHANGED(operationUserPriceList(priceList)) OR
+         SET(priceList IS UserPriceList);
 
 allStocksUserPriceList(priceList) <- allStocksOperation(operationUserPriceList(priceList))
     WHEN CHANGED(operationUserPriceList(priceList));

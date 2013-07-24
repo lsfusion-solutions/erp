@@ -14,15 +14,11 @@ NAMESPACE Sale;
 @defineOperationStock(customerStock, stc, 'Склады покупателя');
 
 EXTEND FORM operation
-    FILTERS isSellerLegalEntity(legalEntityStock(sts)),
+    FILTERS inSupplierOperation(legalEntityStock(sts), o),
+            inCustomerOperation(legalEntityStock(stc), o),
+            isSellerLegalEntity(legalEntityStock(sts)),
             isBuyerLegalEntity(legalEntityStock(stc))
 ;
-
-CONSTRAINT inSupplierStockOperation(stock, operation) AND NOT inSupplierOperation(supplier, operation) AND legalEntityStock(stock) == supplier
-    CHECKED BY inSupplierStockOperation MESSAGE 'Компании отмеченных складов должны совпадать с отмеченными поставщиками';
-
-CONSTRAINT inCustomerStockOperation(stock, operation) AND NOT inCustomerOperation(customer, operation) AND legalEntityStock(stock) == customer
-    CHECKED BY inCustomerStockOperation MESSAGE 'Компании отмеченных складов должны совпадать с отмеченными покупателями';
 
 @defineOperationRole();
 @extendFormFilterRole(o, dialogOperations);
