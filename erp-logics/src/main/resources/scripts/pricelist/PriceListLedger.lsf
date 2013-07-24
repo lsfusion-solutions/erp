@@ -1,6 +1,6 @@
 MODULE PriceListLedger;
 
-REQUIRE PriceListType;
+REQUIRE PriceListType, Historizable;
 
 NAMESPACE PriceList;
 
@@ -33,6 +33,10 @@ TABLE priceListLedgerLedgerPriceListType(PriceListLedger, LedgerPriceListType);
 inPriceListLedgerLedgerPriceListType = ABSTRACT BOOLEAN (PriceListLedger, LedgerPriceListType) PERSISTENT;
 pricePriceListLedgerLedgerPriceListType 'Цена' = ABSTRACT NUMERIC[14,2] (PriceListLedger, LedgerPriceListType) PERSISTENT;
 
+priceListTypesPriceListLedger 'Цены' (priceList) = GROUP CONCAT nameLedgerPriceListType(type) IF inPriceListLedgerLedgerPriceListType(priceList, type) , ', '
+                                                                BY priceList
+                                                                ORDER type MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
 inPriceListLedgerStock (ledger, stock) = ABSTRACT BOOLEAN (PriceListLedger, Stock);
 
 stocksPriceListLedger 'Склады' (priceList) = GROUP CONCAT nameStock(stock) IF inPriceListLedgerStock(priceList, stock) , ', '
@@ -41,6 +45,14 @@ stocksPriceListLedger 'Склады' (priceList) = GROUP CONCAT nameStock(stock)
 
 orderPriceListLedger(ledger) = STRUCT(fromDateTimePriceListLedger(ledger), ledger) IF activePriceListLedger(ledger) PERSISTENT;
 
+// История
+timeCreatedPriceListLedger 'Время создания'= ABSTRACT DATETIME (PriceListLedger) IN historyGroup;
+
+userCreatedPriceListLedger = ABSTRACT CustomUser (PriceListLedger);
+nameUserCreatedPriceListLedger 'Пользователь' (historizable) = nameContact (userCreatedPriceListLedger(historizable)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN historyGroup;
+
+computerCreatedPriceListLedger = ABSTRACT Computer (PriceListLedger);
+hostnameComputerCreatedPriceListLedger 'Компьютер' (historizable) = hostnameComputer (computerCreatedPriceListLedger(historizable)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN historyGroup;
 
 // ------------------ Расчет цен для sku ---------------- //
 

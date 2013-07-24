@@ -4,6 +4,24 @@ REQUIRE PriceListManage, Store;
 
 // -------------------- В ассортименте ----------------- //
 
+// по организациям
+countDepartmentStoreALedgerPriceListTypeSkuStoreCompanyDateTime 'В ассортименте' (type, sku, store, company, dateTime) =
+    GROUP SUM 1 IF priceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)
+    BY type, sku, storeDepartmentStore(stock), company, dateTime;
+
+countStoreALedgerPriceListTypeSkuChainStoresCompanyDateTime 'В ассортименте' (type, sku, chainStores, company, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreCompanyDateTime(type, sku, store, company, dateTime)
+    BY type, sku, chainStoresStore(store), company, dateTime;
+
+countStoreALedgerPriceListTypeSkuStoreTypeCompanyDateTime 'В ассортименте' (type, sku, storeType, company, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreCompanyDateTime(type, sku, store, company, dateTime)
+    BY type, sku, storeTypeStore(store), company, dateTime;
+
+countStoreALedgerPriceListTypeSkuCompanyDateTime 'В ассортименте' (type, sku, company, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreCompanyDateTime(type, sku, store, company, dateTime)
+    BY type, sku, company, dateTime;
+
+// по складам
 countDepartmentStoreALedgerPriceListTypeSkuStoreDateTime 'В ассортименте' (type, sku, store, dateTime) =
     GROUP SUM 1 IF priceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)
     BY type, sku, storeDepartmentStore(stock), dateTime;
@@ -32,15 +50,15 @@ countStoreASkuChainStoresDateTime 'В наличии' (sku, chainStores, dateTim
 
 EXTEND FORM priceListManage
     // --- По организациям
-    PROPERTIES READONLY countStoreALedgerPriceListTypeSkuDateTime(pt, csk, dt) AFTER idBarcodeSku(csk)
+    PROPERTIES READONLY countStoreALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) AFTER idBarcodeSku(csk)
 
     OBJECTS ccs = ChainStores
-    PROPERTIES READONLY nameChainStores(ccs), countStoreChainStores(ccs), countStoreALedgerPriceListTypeSkuChainStoresDateTime(pt, csk, ccs, dt), countStoreASkuChainStoresDateTime(csk, ccs, dt)
-    FILTERS countStoreALedgerPriceListTypeSkuChainStoresDateTime(pt, csk, ccs, dt)
+    PROPERTIES READONLY nameChainStores(ccs), countStoreChainStores(ccs), countStoreALedgerPriceListTypeSkuChainStoresCompanyDateTime(pt, csk, ccs, c, dt), countStoreASkuChainStoresDateTime(csk, ccs, dt)
+    FILTERS countStoreALedgerPriceListTypeSkuChainStoresCompanyDateTime(pt, csk, ccs, c, dt)
 
     OBJECTS ctp=StoreType
-    PROPERTIES READONLY nameStoreType(ctp), countStoreStoreType(ctp), countStoreALedgerPriceListTypeSkuStoreTypeDateTime(pt, csk, ctp, dt), countStoreASkuStoreTypeDateTime(csk, ctp, dt)
-    FILTERS countStoreALedgerPriceListTypeSkuStoreTypeDateTime(pt, csk, ctp, dt)
+    PROPERTIES READONLY nameStoreType(ctp), countStoreStoreType(ctp), countStoreALedgerPriceListTypeSkuStoreTypeCompanyDateTime(pt, csk, ctp, c, dt), countStoreASkuStoreTypeDateTime(csk, ctp, dt)
+    FILTERS countStoreALedgerPriceListTypeSkuStoreTypeCompanyDateTime(pt, csk, ctp, c, dt)
 
     // --- По складам
     PROPERTIES READONLY countStoreALedgerPriceListTypeSkuDateTime(pt, ssk, dt) AFTER idBarcodeSku(ssk)
@@ -91,10 +109,14 @@ EXTEND FORM priceListManage
             activeMarkupALedgerPriceListTypeLedgerPriceListTypeSkuCompanyDateTime(rt, pt, csk, c, dt)
     PROPERTIES(rt, csk, cst, dt) TODRAW cst READONLY cRetailPriceStock = priceALedgerPriceListTypeSkuStockDateTime AFTER cPriceStock SHOWIF showRetailPrice(pt, rt)
 
+    PROPERTIES TODRAW cpl READONLY SHOWIF showRetailPrice(pt, rt) pricePriceListLedgerLedgerPriceListType(cpl, rt)
+
     PROPERTIES TODRAW ssk READONLY SHOWIF showRetailPrice(pt, rt) AFTER sPrice
             sRetailPrice = priceALedgerPriceListTypeSkuStockDateTime(rt, ssk, s, dt),
             markupALedgerPriceListTypePriceListTypeSkuStockDateTime(rt, pt, ssk, s, dt)
     PROPERTIES(rt, ssk, sst, dt) TODRAW sst READONLY sRetailPriceStock = priceALedgerPriceListTypeSkuStockDateTime AFTER sPriceStock SHOWIF showRetailPrice(pt, rt)
+
+    PROPERTIES TODRAW spl READONLY SHOWIF showRetailPrice(pt, rt) pricePriceListLedgerLedgerPriceListType(spl, rt)
 ;
 
 EXTEND DESIGN priceListManage {
@@ -117,21 +139,267 @@ EXTEND DESIGN priceListManage {
     }
 }
 
-createCompanyRetailPriceList 'Создать розничный прайс' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) {
+defaultRetailPriceListType = DATA DataPriceListType();
+nameDefaultRetailPriceListType 'Вид розничной цены для управления ценами по умолчанию' = namePriceListType(defaultRetailPriceListType());
+EXTEND FORM options
+    PROPERTIES() nameDefaultRetailPriceListType
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(nameDefaultRetailPriceListType);
+    }
+}
+
+seekDefaultRetailPriceListType = ACTION SEEK priceListManage.rt defaultRetailPriceListType();
+EXTEND FORM priceListManage
+    EVENTS ON INIT seekDefaultRetailPriceListType()
+;
+
+
+// Согласованные и розничные цены
+
+// Добавление в ассортимент
+includeSessionDateTimeDataPriceListTypePriceListTypeCompany 'Включить' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) NEWSESSION {
     FOR ADDOBJ u = UserPriceList DO {
         fillCompanyPriceList(u, dateTime, dataPriceListType, company);
+        priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
+            activePriceALedgerPriceListTypeSkuCompanyDateTime(dataPriceListType, skuUserPriceListDetail(d), company, dateTime)
+            WHERE userPriceListUserPriceListDetail(d) == u;
+
         inUserPriceListDataPriceListType(u, retailPriceListType) <- TRUE;
         showUserPriceListPriceListType(u, retailPriceListType) <- TRUE;
+        priceUserPriceListDetailDataPriceListType(d, retailPriceListType) <-
+            activePriceALedgerPriceListTypeSkuCompanyDateTime(retailPriceListType, skuUserPriceListDetail(d), company, dateTime)
+            WHERE userPriceListUserPriceListDetail(d) == u;
+
         FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
     }
-} TOOLBAR;
+}
 
-createNewCompanyRetailPriceList 'Создать розничный прайс' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) {
+includeDateTimeDataPriceListTypePriceListTypeCompany 'Включить' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) {
     inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
     apply();
-    createCompanyRetailPriceList(dateTime, dataPriceListType, retailPriceListType, company);
-} TOOLBAR;
+    includeSessionDateTimeDataPriceListTypePriceListTypeCompany(dateTime, dataPriceListType, retailPriceListType, company);
+}
+
+// Изменение цен
+modifySessionDateTimeDataPriceListTypePriceListTypeCompany 'Изменить' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) NEWSESSION {
+    FOR ADDOBJ u = UserPriceList DO {
+        fillCompanyPriceList(u, dateTime, dataPriceListType, company);
+        priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
+            activePriceALedgerPriceListTypeSkuCompanyDateTime(dataPriceListType, skuUserPriceListDetail(d), company, dateTime)
+            WHERE userPriceListUserPriceListDetail(d) == u;
+
+        inUserPriceListDataPriceListType(u, retailPriceListType) <- TRUE;
+        showUserPriceListPriceListType(u, retailPriceListType) <- TRUE;
+        priceUserPriceListDetailDataPriceListType(d, retailPriceListType) <-
+            activePriceALedgerPriceListTypeSkuCompanyDateTime(retailPriceListType, skuUserPriceListDetail(d), company, dateTime)
+            WHERE userPriceListUserPriceListDetail(d) == u;
+
+        FOR [GROUP SUM 1 IF inSkuCustomUser(sku, currentUser()) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
+            dataInUserPriceListStock(u, stock) <- TRUE;
+        }
+
+        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+    }
+}
+
+modifyDateTimeDataPriceListTypePriceListTypeCompany 'Изменить' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) {
+    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
+    apply();
+    modifySessionDateTimeDataPriceListTypePriceListTypeCompany(dateTime, dataPriceListType, retailPriceListType, company);
+}
+
+// Исключение из ассортимента
+excludeSessionDateTimeDataPriceListTypePriceListTypeCompany 'Исключить' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) NEWSESSION {
+    FOR ADDOBJ u = UserPriceList DO {
+        fillCompanyPriceList(u, dateTime, dataPriceListType, company);
+
+        inUserPriceListDataPriceListType(u, retailPriceListType) <- TRUE;
+        showUserPriceListPriceListType(u, retailPriceListType) <- TRUE;
+
+        FOR [GROUP SUM 1 IF inSkuCustomUser(sku, currentUser()) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
+            dataInUserPriceListStock(u, stock) <- TRUE;
+        }
+        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+    }
+}
+
+excludeDateTimeDataPriceListTypePriceListTypeCompany 'Исключить' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) {
+    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
+    apply();
+    excludeSessionDateTimeDataPriceListTypePriceListTypeCompany(dateTime, dataPriceListType, retailPriceListType, company);
+}
 
 EXTEND FORM priceListManage
-    PROPERTIES createNewCompanyRetailPriceList(dt, pt, rt, c) TODRAW csk FORCE PANEL SHOWIF showRetailPrice(pt, rt)
+    PROPERTIES TODRAW csk FORCE PANEL SHOWIF showRetailPrice(pt, rt)
+                                      includeDateTimeDataPriceListTypePriceListTypeCompany(dt, pt, rt, c),
+                                      modifyDateTimeDataPriceListTypePriceListTypeCompany(dt, pt, rt, c),
+                                      excludeDateTimeDataPriceListTypePriceListTypeCompany(dt, pt, rt, c)
 ;
+
+EXTEND DESIGN priceListManage {
+    companyActionsContainer {
+        NEW primaryRetailCompanyActions {
+            caption = 'Согласованные и розничные цены';
+            ADD PROPERTY(includeDateTimeDataPriceListTypePriceListTypeCompany);
+            ADD PROPERTY(modifyDateTimeDataPriceListTypePriceListTypeCompany);
+            ADD PROPERTY(excludeDateTimeDataPriceListTypePriceListTypeCompany);
+        }
+    }
+}
+
+// ------------- Изменение розничных цен --------------- //
+
+// Изменение цен
+modifySessionDateTimeRetailDataPriceListTypePriceListTypeCompany 'Изменить' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) NEWSESSION {
+    FOR ADDOBJ u = UserPriceList DO {
+        fillCompanyPriceList(u, dateTime, retailPriceListType, company);
+        priceUserPriceListDetailDataPriceListType(d, retailPriceListType) <-
+            activePriceALedgerPriceListTypeSkuCompanyDateTime(retailPriceListType, skuUserPriceListDetail(d), company, dateTime)
+            WHERE userPriceListUserPriceListDetail(d) == u;
+
+        showUserPriceListPriceListType(u, dataPriceListType) <- TRUE;
+
+        FOR [GROUP SUM 1 IF inSkuCustomUser(sku, currentUser()) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (retailPriceListType, stock, company, dateTime) DO {
+            dataInUserPriceListStock(u, stock) <- TRUE;
+        }
+
+        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+    }
+}
+
+modifyDateTimeRetailDataPriceListTypePriceListTypeCompany 'Изменить' = ACTION (dateTime, dataPriceListType, retailPriceListType, company) {
+    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
+    apply();
+    modifySessionDateTimeRetailDataPriceListTypePriceListTypeCompany(dateTime, dataPriceListType, retailPriceListType, company);
+}
+
+EXTEND FORM priceListManage
+    PROPERTIES TODRAW csk FORCE PANEL SHOWIF showRetailPrice(pt, rt)
+                                      modifyDateTimeRetailDataPriceListTypePriceListTypeCompany(dt, pt, rt, c)
+;
+
+EXTEND DESIGN priceListManage {
+    companyActionsContainer {
+        NEW retailCompanyActions {
+            caption = 'Розничные цены';
+            ADD PROPERTY(modifyDateTimeRetailDataPriceListTypePriceListTypeCompany);
+        }
+    }
+}
+
+// -------------------- Изменение согласованных и розничных цен одновременно --------------------------- //
+createRetailCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, retailPriceListType, stock) NEWSESSION {
+    FOR ADDOBJ u = UserPriceList DO {
+        fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
+
+        inUserPriceListDataPriceListType(u, retailPriceListType) <- TRUE;
+        showUserPriceListPriceListType(u, retailPriceListType) <- TRUE;
+
+        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+    }
+}
+
+createRetailPriceCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, retailPriceListType, stock) NEWSESSION {
+    FOR ADDOBJ u = UserPriceList DO {
+        fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
+        priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
+            priceALedgerPriceListTypeSkuStockDateTime(dataPriceListType, skuUserPriceListDetail(d), stock, dateTime)
+            WHERE userPriceListUserPriceListDetail(d) == u;
+
+        inUserPriceListDataPriceListType(u, retailPriceListType) <- TRUE;
+        showUserPriceListPriceListType(u, retailPriceListType) <- TRUE;
+        priceUserPriceListDetailDataPriceListType(d, retailPriceListType) <-
+            priceALedgerPriceListTypeSkuStockDateTime(retailPriceListType, skuUserPriceListDetail(d), stock, dateTime)
+            WHERE userPriceListUserPriceListDetail(d) == u;
+
+        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+    }
+}
+
+// Изменение цен
+modifySessionDateTimeDataPriceListTypePriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, retailPriceListType, stock) {
+    FOR [GROUP SUM 1 IF inSkuCustomUser(s, currentUser()) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
+        createRetailPriceCompanyStockPriceList(company, dateTime, dataPriceListType, retailPriceListType, stock);
+    }
+}
+
+modifyDateTimeDataPriceListTypePriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, retailPriceListType, stock) {
+    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
+    apply();
+    modifySessionDateTimeDataPriceListTypePriceListTypeStock(dateTime, dataPriceListType, retailPriceListType, stock);
+}
+
+// Исключение из ассортимента
+excludeSessionDateTimeDataPriceListTypePriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, retailPriceListType, stock) {
+    FOR [GROUP SUM 1 IF inSkuCustomUser(s, currentUser()) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
+        createRetailCompanyStockPriceList(company, dateTime, dataPriceListType, retailPriceListType, stock);
+    }
+}
+
+excludeDateTimeDataPriceListTypePriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, retailPriceListType, stock) {
+    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
+    apply();
+    excludeSessionDateTimeDataPriceListTypePriceListTypeStock(dateTime, dataPriceListType, retailPriceListType, stock);
+}
+
+EXTEND FORM priceListManage
+    PROPERTIES TODRAW ssk FORCE PANEL modifyDateTimeDataPriceListTypePriceListTypeStock(dt, pt, rt, s),
+                                      excludeDateTimeDataPriceListTypePriceListTypeStock(dt, pt, rt, s)
+;
+
+EXTEND DESIGN priceListManage {
+    stockActionsContainer {
+        NEW primaryRetailStockActions {
+            caption = 'Согласованные и розничные цены';
+            ADD PROPERTY(modifyDateTimeDataPriceListTypePriceListTypeStock);
+            ADD PROPERTY(excludeDateTimeDataPriceListTypePriceListTypeStock);
+        }
+    }
+}
+
+// ------------------------------- Изменение розничных цен по складу -------------------------- //
+
+modifySessionDateTimeRetailDataPriceListTypePriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, retailPriceListType, stock) NEWSESSION {
+
+    FOR ADDOBJ u = UserPriceList DO {
+        fromDateUserPriceList(u) <- toDate(dateTime);
+        fromTimeUserPriceList(u) <- toTime(dateTime);
+        companyUserPriceList(u) <- legalEntityStock(stock);
+        currencyUserPriceList(u) <- currencyDataPriceListType(retailPriceListType);
+        inUserPriceListDataPriceListType(u, retailPriceListType) <- TRUE;
+        showUserPriceListPriceListType(u, retailPriceListType) <- TRUE;
+        showUserPriceListPriceListType(u, dataPriceListType) <- TRUE;
+        dataInUserPriceListStock(u, stock) <- TRUE;
+        FOR inSkuCustomUser(sku, currentUser())
+            ADDOBJ d = UserPriceListDetail DO {
+            skuUserPriceListDetail(d) <- sku;
+            userPriceListUserPriceListDetail(d) <- u;
+            priceUserPriceListDetailDataPriceListType(d, retailPriceListType) <-
+                        priceALedgerPriceListTypeSkuStockDateTime(retailPriceListType, skuUserPriceListDetail(d), stock, dateTime);
+        }
+
+        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+    }
+}
+
+modifyDateTimeRetailDataPriceListTypePriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, retailPriceListType, stock) {
+    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
+    apply();
+    modifySessionDateTimeRetailDataPriceListTypePriceListTypeStock(dateTime, dataPriceListType, retailPriceListType, stock);
+}
+
+EXTEND FORM priceListManage
+    PROPERTIES TODRAW csk FORCE PANEL SHOWIF showRetailPrice(pt, rt)
+                                      modifyDateTimeRetailDataPriceListTypePriceListTypeStock(dt, pt, rt, s)
+;
+
+EXTEND DESIGN priceListManage {
+    stockActionsContainer {
+        NEW retailStockActions {
+            caption = 'Розничные цены';
+            ADD PROPERTY(modifyDateTimeRetailDataPriceListTypePriceListTypeStock);
+        }
+    }
+}

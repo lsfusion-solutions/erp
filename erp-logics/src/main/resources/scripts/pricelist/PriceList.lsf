@@ -188,6 +188,18 @@ stocksPriceList 'Склады' (priceList) = GROUP CONCAT nameStock(stock) IF in
                                        BY priceList
                                        ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
 
+// История
+timeCreatedPriceListDetail 'Время создания'= ABSTRACT DATETIME (PriceListDetail) IN historyGroup;
+timeCreatedPriceListDetail (d) += timeCreatedHistorizable(userPriceListUserPriceListDetail(d));
+
+userCreatedPriceListDetail = ABSTRACT CustomUser (PriceListDetail);
+nameUserCreatedPriceListDetail 'Пользователь' (historizable) = nameContact (userCreatedPriceListDetail(historizable)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN historyGroup;
+userCreatedPriceListDetail (d) += userCreatedHistorizable(userPriceListUserPriceListDetail(d));
+
+computerCreatedPriceListDetail = ABSTRACT Computer (PriceListDetail);
+hostnameComputerCreatedPriceListDetail 'Компьютер' (historizable) = hostnameComputer (computerCreatedPriceListDetail(historizable)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN historyGroup;
+computerCreatedPriceListDetail (d) += computerCreatedHistorizable(userPriceListUserPriceListDetail(d));
+
 // ------- Проведение по priceListLedger ----- //
 
 EXTEND CLASS PriceListDetail : PriceListLedger;
@@ -206,6 +218,10 @@ descriptionPriceListLedger (ledger) += descriptionPriceList(priceListPriceListDe
 inPriceListLedgerLedgerPriceListType (ledger, type) += inPriceListDetailDataPriceListType(ledger, type);
 pricePriceListLedgerLedgerPriceListType (ledger, type) += pricePriceListDetailDataPriceListType(ledger, type);
 inPriceListLedgerStock (ledger, stock) += inPriceListStock(priceListPriceListDetail(ledger), stock);
+
+timeCreatedPriceListLedger (d) += timeCreatedPriceListDetail(d);
+userCreatedPriceListLedger (d) += userCreatedPriceListDetail(d);
+computerCreatedPriceListLedger (d) += computerCreatedPriceListDetail(d);
 
 // -------------- Текущая действующая цена --------------- //
 
