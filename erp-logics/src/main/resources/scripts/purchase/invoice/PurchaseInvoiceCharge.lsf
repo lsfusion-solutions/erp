@@ -53,6 +53,7 @@ EXTEND FORM userInvoice
                                                         chargePriceUserInvoiceDetail, chargeSumUserInvoiceDetail
 ;
 
+
 EXTEND DESIGN userInvoice {
     headerExtraParams {
         NEW headerCharge {
@@ -70,20 +71,26 @@ EXTEND FORM invoices
 
 //-------------Расчет транспорта по коэффициенту в шапке накладной-------------//
 
+chargeUserSumInvoice 'Сумма трансп. расходов' = ABSTRACT NUMERIC[16,2] (Invoice) IN documentSumGroup;
+chargeUserSumUserInvoice 'Сумма трансп. расходов' = DATA NUMERIC[16,2] (UserInvoice) IN documentSumGroup;
+chargeUserSumInvoice(invoice) += chargeUserSumUserInvoice(invoice);
+
 chargePercentInvoice '% трансп. расходов' = ABSTRACT NUMERIC[6,3] (Invoice) IN documentSumGroup;
 
 chargePercentUserInvoice '% трансп. расходов' (userInvoice) = DATA NUMERIC[6,3] (UserInvoice) IN documentSumGroup FIXEDCHARWIDTH 6;
 chargePercentUserInvoiceDetail '% трансп. расходов' (userInvoiceDetail) = DATA NUMERIC[6,3] (UserInvoiceDetail) MINCHARWIDTH 6;
 
 calcChargePercentUserInvoiceDetail (userInvoiceDetail) =
-    chargePercentUserInvoiceDetail(userInvoiceDetail) * priceUserInvoiceDetail(userInvoiceDetail) / 100;
+    chargePercentUserInvoiceDetail(userInvoiceDetail) * incomePriceUserInvoiceDetail(userInvoiceDetail) / 100;
 
 deriveCalcChargePriceUserInvoice 'Рассчитать сумму услуг по товарам' = ACTION (userInvoice) {
-    ASSIGN chargePercentUserInvoiceDetail(detail) <- chargePercentUserInvoice(userInvoiceUserInvoiceDetail(detail)) WHERE userInvoiceUserInvoiceDetail(detail) == userInvoice;
+    ASSIGN chargePercentUserInvoiceDetail(detail) <- IF chargeUserSumUserInvoice(userInvoiceUserInvoiceDetail(detail))
+        THEN (chargeUserSumUserInvoice(userInvoiceUserInvoiceDetail(detail)) * 100.0 / incomeSumUserInvoice(userInvoiceUserInvoiceDetail(detail)))
+        ELSE chargePercentUserInvoice(userInvoiceUserInvoiceDetail(detail)) WHERE userInvoiceUserInvoiceDetail(detail) == userInvoice;
  //   ASSIGN chargePriceUserInvoiceDetail(detail) <- calcChargePercentUserInvoiceDetail (detail) WHERE userInvoiceUserInvoiceDetail(detail) == userInvoice;
 }
 
-WHEN SESSION FORMS userInvoice CHANGED(chargePercentUserInvoice(userInvoice)) OR CHANGED(countUserInvoiceDetailUserInvoice(userInvoice))
+WHEN SESSION FORMS userInvoice CHANGED(chargePercentUserInvoice(userInvoice)) OR CHANGED(countUserInvoiceDetailUserInvoice(userInvoice)) OR CHANGED(chargeUserSumUserInvoice(userInvoice))
     DO EXEC deriveCalcChargePriceUserInvoice(userInvoice);
 
 chargePriceUserInvoiceDetail(userInvoiceDetail) <- calcChargePercentUserInvoiceDetail (userInvoiceDetail)
@@ -93,11 +100,13 @@ chargePercentInvoice(invoice) += chargePercentUserInvoice(invoice);
 
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) chargePercentUserInvoice
+    PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) chargeUserSumUserInvoice
     PROPERTIES(d) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) chargePercentUserInvoiceDetail BEFORE chargePriceUserInvoiceDetail(d)
 ;
 EXTEND DESIGN userInvoice {
     headerCharge {
         ADD PROPERTY(chargePercentUserInvoice);
+        ADD PROPERTY(chargeUserSumUserInvoice);
     }
 }
 
