@@ -44,6 +44,35 @@ extraCostPriceUserInvoiceDetail(detail) += chargePriceUserInvoiceDetail(detail);
 
 backgroundChargeInvoice 'Цвет' (invoice) = RGB(224, 255, 128) IF invoice IS Invoice;
 
+// страховка
+@defineDocumentInterfaceCreate(invoice, showInsurancePrice, 'Страховка');
+
+@defineOperationProperty(showInsurancePrice, 'Страховка', showContainer);
+@deriveDocumentOperationProperty(UserInvoice, showInsurancePrice);
+
+sumInsuranceInvoice 'Сумма страховки' = ABSTRACT NUMERIC[16,4](UserInvoice);
+sumInsuranceUserInvoice 'Сумма страховки' = DATA NUMERIC[16,4](UserInvoice) IN documentSumGroup;
+sumInsuranceInvoice(invoice) += sumInsuranceUserInvoice(invoice);
+
+calcInsurancePriceUserInvoiceDetail (detail) = [(X*Y)/(Z*W)](
+    sumUserInvoiceDetail(detail),
+    sumInsuranceUserInvoice(userInvoiceUserInvoiceDetail(detail)),
+    sumUserInvoiceDetailUserInvoice(userInvoiceUserInvoiceDetail(detail)),
+    quantityUserInvoiceDetail(detail)
+);
+
+@defineDocumentInterfaceDetailPriceCustomPrefix (invoiceDetail, insurance, ' страховки за ед.');
+@defineDocumentInterfaceDetailDataSumCustomPrefix (invoiceDetail, insurance, ' страховки');
+@deriveDocumentDetailSumCustomPrefix(userInvoiceDetail, insurance, currency, quantity);
+
+deriveInsurancePriceUserInvoice 'Расписать сумму страховки по товарам' = ACTION (userInvoice) {
+    ASSIGN insurancePriceUserInvoiceDetail(detail) <- calcInsurancePriceUserInvoiceDetail(detail) WHERE userInvoiceUserInvoiceDetail(detail) == userInvoice;
+}
+
+insurancePriceUserInvoiceDetail(detail) <- calcInsurancePriceUserInvoiceDetail(detail) WHEN CHANGED(sumInsuranceUserInvoice(userInvoiceUserInvoiceDetail(detail)));
+
+backgroundInsuranceInvoice 'Цвет' (invoice) = RGB(255, 192, 224) IF invoice IS Invoice;
+
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) showChargePriceUserInvoice
     PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i)
@@ -51,6 +80,11 @@ EXTEND FORM userInvoice
     PROPERTIES(i)                                       deriveChargePriceUserInvoice TODRAW d FORCE PANEL TOOLBAR
     PROPERTIES(d) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) BEFORE numberVATUserInvoiceDetail(d)
                                                         chargePriceUserInvoiceDetail, chargeSumUserInvoiceDetail
+
+    PROPERTIES(i) BACKGROUND backgroundInsuranceInvoice(i) showInsurancePriceUserInvoice
+    PROPERTIES(i) BACKGROUND backgroundInsuranceInvoice(i) SHOWIF showInsurancePriceUserInvoice(i) sumInsuranceUserInvoice
+    PROPERTIES(d) BACKGROUND backgroundInsuranceInvoice(i) SHOWIF showInsurancePriceUserInvoice(i) BEFORE numberVATUserInvoiceDetail(d)
+                                                        insurancePriceUserInvoiceDetail, insuranceSumUserInvoiceDetail
 ;
 
 
@@ -59,6 +93,11 @@ EXTEND DESIGN userInvoice {
         NEW headerCharge {
             caption = 'Услуги';
             ADD PROPERTY(showChargePriceUserInvoice);
+        }
+
+        NEW insuranceCharge {
+            caption = 'Страховка';
+            ADD PROPERTY(showInsurancePriceUserInvoice);
         }
     }
 }
@@ -103,6 +142,7 @@ EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) chargeUserSumUserInvoice
     PROPERTIES(d) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) chargePercentUserInvoiceDetail BEFORE chargePriceUserInvoiceDetail(d)
 ;
+
 EXTEND DESIGN userInvoice {
     headerCharge {
         ADD PROPERTY(chargePercentUserInvoice);
@@ -112,5 +152,9 @@ EXTEND DESIGN userInvoice {
 
 EXTEND FORM invoices
     PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) READONLYIF isReadonly() chargePercentInvoice
+    PROPERTIES(i) BACKGROUND backgroundInsuranceInvoice(i) showInsurancePriceInvoice
+    PROPERTIES(i) FORCE GRID sumInsuranceInvoice BACKGROUND backgroundInsuranceInvoice(i) READONLYIF isReadonly()
+    PROPERTIES(d) BACKGROUND backgroundInsuranceInvoice(i) SHOWIF showInsurancePriceInvoice(i) READONLY BEFORE numberVATInvoiceDetail(d)
+                                                               insurancePriceInvoiceDetail, insuranceSumInvoiceDetail
 ;
 

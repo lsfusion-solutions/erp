@@ -1,6 +1,6 @@
 MODULE PurchaseDeclaration;
 
-REQUIRE Declaration, PurchaseCertificate, PurchaseInvoice;
+REQUIRE Declaration, PurchaseCertificate, PurchaseInvoiceCharge; ///
 
 NAMESPACE Purchase;
 
@@ -140,9 +140,8 @@ showDeclarationUserInvoice 'Таможенные платежи' = DATA BOOLEAN(
 showDeclarationInvoice(invoice) += showDeclarationUserInvoice(invoice);
 
 //------------------------------------------ позиции декларации -------------------------------------------------------//
-//TABLE declarationNameUOMGroupVATExceptionCountryPrice(Declaration, STRING[200], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[14,2]);
+TABLE declarationNameUOMGroupExceptionCountryPrice(Declaration, VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[14,2]);
 overVATCustomsExceptionUserInvoiceDetail(userInvoiceDetail) = OVERRIDE VATCustomsException.none, VATCustomsExceptionUserInvoiceDetail(userInvoiceDetail);
-
 
 quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityUserInvoiceDetail(userInvoiceDetail)
                                            BY declarationUserInvoiceDetail(userInvoiceDetail),
@@ -151,7 +150,7 @@ quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityUserInvoiceDetail(use
                                               customsGroupInvoiceDetail(userInvoiceDetail),
                                               overVATCustomsExceptionUserInvoiceDetail(userInvoiceDetail),
                                               countrySkuUserInvoiceDetail(userInvoiceDetail),
-                                              priceUserInvoiceDetail(userInvoiceDetail);
+                                              priceUserInvoiceDetail(userInvoiceDetail) PERSISTENT;
 
 CLASS DeclarationDetail 'Позиция декларации';
 TABLE declarationDetail(DeclarationDetail);
@@ -207,13 +206,18 @@ overSumGrossWeightDeclarationDetail 'Вес брутто' (declarationDetail) = 
 
 quantityDeclarationDetail 'Кол-во' (declarationDetail) = GROUP SUM quantityUserInvoiceDetail(invoiceDetail) BY declarationDetailInvoiceDetail(invoiceDetail) PERSISTENT;
 
+sumChargeDeclarationDetail 'Сумма услуг' (declarationDetail) = GROUP SUM chargeSumUserInvoiceDetail(invoiceDetail) BY declarationDetailInvoiceDetail(invoiceDetail) PERSISTENT;
+
+sumInsuranceDeclarationDetail 'Сумма страховки' (declarationDetail) = GROUP SUM insuranceSumUserInvoiceDetail(invoiceDetail) BY declarationDetailInvoiceDetail(invoiceDetail) PERSISTENT;
+
 quantityDataDeclarationDetail 'Кол-во' = DATA NUMERIC[14,3](DeclarationDetail);
 
 overQuantityDeclarationDetail 'Кол-во' (declarationDetail) = OVERRIDE quantityDeclarationDetail(declarationDetail), quantityDataDeclarationDetail(declarationDetail);
 
 sumDeclarationDetail 'Стоимость (валют.)' (declarationDetail) = priceDeclarationDetail(declarationDetail) * overQuantityDeclarationDetail(declarationDetail);
 
-sumRateDeclarationDetail 'Стоимость (расч.)' (declarationDetail) = sumDeclarationDetail(declarationDetail) * rateExchangeDeclarationDetail(declarationDetail) MINCHARWIDTH 12 PERSISTENT;
+sumRateDeclarationDetail 'Стоимость (расч.)' (declarationDetail) = (sumDeclarationDetail(declarationDetail) * rateExchangeDeclarationDetail(declarationDetail)) (+)
+                                                                    sumChargeDeclarationDetail(declarationDetail) (+) sumInsuranceDeclarationDetail(declarationDetail) MINCHARWIDTH 12 PERSISTENT;
 
 sumDeclaration 'Сумма (валют.)' = GROUP SUM sumDeclarationDetail(declarationDetail) BY declarationDeclarationDetail(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
 
@@ -237,11 +241,14 @@ sumRateWeightDutyDeclarationDetail 'Пошлина по весу' (declarationDe
 
 percentDutyCustomsGroupDeclarationDetail 'Пошлина, % (расч.)' (declarationDetail) = percentDutyCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
 
-sumPriceDutyDeclarationDetail 'Пошлина по стоимости (валют.)' (declarationDetail) = sumDeclarationDetail(declarationDetail) *
-                                                                                    (percentDutyCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail))/100);
+//sumPriceDutyDeclarationDetail 'Пошлина по стоимости (валют.)' (declarationDetail) = sumDeclarationDetail(declarationDetail) *
+//                                                                                    (percentDutyCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail))/100);
 
-sumRatePriceDutyDeclarationDetail 'Пошлина по стоимости' (declarationDetail) = sumPriceDutyDeclarationDetail(declarationDetail) *
-                                                                               rateExchangeDeclarationDetail(declarationDetail) PERSISTENT;
+//sumRatePriceDutyDeclarationDetail 'Пошлина по стоимости' (declarationDetail) = sumPriceDutyDeclarationDetail(declarationDetail) *
+//                                                                               rateExchangeDeclarationDetail(declarationDetail) PERSISTENT;
+
+sumRatePriceDutyDeclarationDetail 'Пошлина по стоимости' (declarationDetail) = sumRateDeclarationDetail(declarationDetail) *
+                                                                               (percentDutyCustomsGroupDeclarationDetail(declarationDetail)/100) PERSISTENT;
 
 sumRateDutyDeclarationDetail 'Пошлина (расч.)' (declarationDetail) = roundCurrencyDeclarationDetail((MAX sumRateWeightDutyDeclarationDetail(declarationDetail),
                                                                                                          sumRatePriceDutyDeclarationDetail(declarationDetail)), declarationDetail) PERSISTENT MINCHARWIDTH 12;
@@ -307,6 +314,7 @@ setSumDeclarationDetail 'Рассчитать суммы' = ACTION (declaration)
    FOR declarationDeclarationDetail(declarationDetail) == declaration DO {
       ASSIGN sumDataDeclarationDetail(declarationDetail) <- sumRateDeclarationDetail(declarationDetail);
       ASSIGN percentDutyDataDeclarationDetail(declarationDetail) <- percentDutyCustomsGroupDate(customsGroupDeclarationDetail(declarationDetail), dateDeclarationDetail(declarationDetail));
+      ASSIGN sumDutyDataDeclarationDetail(declarationDetail) <- sumRateDutyDeclarationDetail(declarationDetail);
       ASSIGN VATRangeDataDeclarationDetail (declarationDetail) <- VATDeclarationDetail(declarationDetail);
    };
 };
@@ -341,8 +349,9 @@ EXTEND FORM declaration
                    nameCountryDeclarationDetail, overSumNetWeightDeclarationDetail, overSumGrossWeightDeclarationDetail,
                    codeCustomsGroupDeclarationDetail, nameVATCustomsExceptionDeclarationDetail BACKGROUND backgroundVATCustomsExceptionDeclarationDetail(dd),
                    overQuantityDeclarationDetail, priceDeclarationDetail
-    PROPERTIES(dd) READONLY sumDeclarationDetail, sumRateDeclarationDetail, percentDutyCustomsGroupDeclarationDetail, sumRateDutyDeclarationDetail,
-                   numberVATRangeCustomGroupDeclarationDetail, percentVATCustomsGroupDeclarationDetail, sumRateVATDeclarationDetail
+    PROPERTIES(dd) READONLY sumDeclarationDetail, sumChargeDeclarationDetail, sumInsuranceDeclarationDetail, sumRateDeclarationDetail,
+                   percentDutyCustomsGroupDeclarationDetail, sumRateDutyDeclarationDetail, numberVATRangeCustomGroupDeclarationDetail,
+                   percentVATCustomsGroupDeclarationDetail, sumRateVATDeclarationDetail
     PROPERTIES(dd) sumDataDeclarationDetail, percentDutyDataDeclarationDetail, sumDutyDataDeclarationDetail, numberVATRangeDataDeclarationDetail,
                    percentVATRangeDeclarationDetail, sumVATDataDeclarationDetail, ADDOBJ FORCE PANEL, DELETESESSION
 
@@ -374,8 +383,11 @@ EXTEND DESIGN declaration {
 
     PROPERTY(formOk) {
         caption = 'Провести';
+
     }
 
+    PROPERTY(sumChargeDeclarationDetail) { background = RGB (224, 255, 128); }
+    PROPERTY(sumInsuranceDeclarationDetail) { background = RGB (255, 192, 224); }
     PROPERTY(sumRateDeclarationDetail) { background = RGB(255, 224, 224); }
     PROPERTY(percentDutyCustomsGroupDeclarationDetail) { background = RGB(255, 224, 224); }
     PROPERTY(sumRateDutyDeclarationDetail) { background = RGB(255, 224, 224); }
@@ -401,16 +413,19 @@ EXTEND FORM declarations
     OBJECTS dd=DeclarationDetail
     PROPERTIES(dd) READONLY numberDeclarationDetail, nameCustomsDeclarationDetail, nameCountryDeclarationDetail, sumNetWeightDeclarationDetail,
                    codeCustomsGroupDeclarationDetail, overQuantityDeclarationDetail, priceDeclarationDetail, sumDeclarationDetail,
-                   sumRateDeclarationDetail, percentDutyCustomsGroupDeclarationDetail, sumRateDutyDeclarationDetail,
-                   numberVATRangeCustomGroupDeclarationDetail, percentVATCustomsGroupDeclarationDetail, sumRateVATDeclarationDetail,
-                   sumDataDeclarationDetail, percentDutyDataDeclarationDetail, sumDutyDataDeclarationDetail, numberVATRangeDataDeclarationDetail,
-                   percentVATRangeDeclarationDetail, sumVATDataDeclarationDetail
+                   sumChargeDeclarationDetail, sumInsuranceDeclarationDetail, sumRateDeclarationDetail, percentDutyCustomsGroupDeclarationDetail,
+                   sumRateDutyDeclarationDetail, numberVATRangeCustomGroupDeclarationDetail, percentVATCustomsGroupDeclarationDetail,
+                   sumRateVATDeclarationDetail, sumDataDeclarationDetail, percentDutyDataDeclarationDetail, sumDutyDataDeclarationDetail,
+                   numberVATRangeDataDeclarationDetail, percentVATRangeDeclarationDetail, sumVATDataDeclarationDetail
     FILTERS declarationDeclarationDetail(dd)==d
 ;
 
 EXTEND DESIGN declarations {
 
     PROPERTY(sumRateDeclarationDetail) { background = RGB (255, 224, 224); }
+    PROPERTY(sumChargeDeclarationDetail) { background = RGB (224, 255, 128); }
+    PROPERTY(sumInsuranceDeclarationDetail) { background = RGB (255, 192, 224); }
+
     PROPERTY(percentDutyCustomsGroupDeclarationDetail) { background = RGB (255, 224, 224); }
     PROPERTY(sumRateDutyDeclarationDetail) { background = RGB (255, 224, 224); }
     PROPERTY(numberVATRangeCustomGroupDeclarationDetail) { background = RGB (255, 224, 224); }
@@ -473,10 +488,10 @@ setPriceInvoiceDetailes 'Рассчитать расходы (за ед.)' = ACT
 
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCustomedInvoice(i) showDeclarationUserInvoice
-    PROPERTIES(d) BACKGROUND backgroundCustomedInvoice(i) codeCustomsGroupInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
-                                                          nameVATCustomsExceptionInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
-                                                          priceDutyUserInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
-                                                          priceRegistrationUserInvoiceDetail BEFORE chargePercentUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i)
+    PROPERTIES(d) BACKGROUND backgroundCustomedInvoice(i) codeCustomsGroupInvoiceDetail AFTER insuranceSumUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
+                                                          nameVATCustomsExceptionInvoiceDetail AFTER insuranceSumUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
+                                                          priceDutyUserInvoiceDetail AFTER insuranceSumUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
+                                                          priceRegistrationUserInvoiceDetail AFTER insuranceSumUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i)
 ;
 EXTEND DESIGN userInvoice {
     headerExtraParams {
@@ -490,16 +505,16 @@ EXTEND DESIGN userInvoice {
 
 EXTEND FORM invoices
     PROPERTIES(i) READONLYIF isReadonly() BACKGROUND backgroundCustomedInvoice(i) showDeclarationInvoice FORCE GRID
-    PROPERTIES(d) READONLY BACKGROUND backgroundCustomedInvoice(i) codeCustomsGroupInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showDeclarationInvoice(i),
-                                                                   nameVATCustomsExceptionInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showDeclarationInvoice(i),
-                                                                   priceDutyInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showDeclarationInvoice(i),
-                                                                   priceRegistrationInvoiceDetail BEFORE chargePriceInvoiceDetail SHOWIF showDeclarationInvoice(i)
+    PROPERTIES(d) READONLY BACKGROUND backgroundCustomedInvoice(i) codeCustomsGroupInvoiceDetail AFTER insuranceSumInvoiceDetail SHOWIF showDeclarationInvoice(i),
+                                                                   nameVATCustomsExceptionInvoiceDetail AFTER insuranceSumInvoiceDetail SHOWIF showDeclarationInvoice(i),
+                                                                   priceDutyInvoiceDetail AFTER insuranceSumInvoiceDetail SHOWIF showDeclarationInvoice(i),
+                                                                   priceRegistrationInvoiceDetail AFTER insuranceSumInvoiceDetail SHOWIF showDeclarationInvoice(i)
 ;
 
 EXTEND FORM declaration
     PROPERTIES(d) READONLY sumRegistrationCostDeclaration, sumDutyCostDeclaration
     PROPERTIES(d) setPriceInvoiceDetailes TODRAW id
-    PROPERTIES(id) priceDutyInvoiceDetail, priceRegistrationInvoiceDetail
+    PROPERTIES(id) chargePriceInvoiceDetail, insurancePriceInvoiceDetail, priceDutyInvoiceDetail, priceRegistrationInvoiceDetail
 ;
 
 EXTEND DESIGN declaration {
@@ -510,6 +525,8 @@ EXTEND DESIGN declaration {
         }
     }
 
+    PROPERTY(chargePriceInvoiceDetail) {background = RGB (224, 255, 128);}
+    PROPERTY(insurancePriceInvoiceDetail) {background = RGB (255, 192, 224);}
     PROPERTY(priceRegistrationInvoiceDetail) { background = RGB (255, 255, 192); }
     PROPERTY(priceDutyInvoiceDetail) { background = RGB (255, 224, 224); }
 

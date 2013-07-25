@@ -22,6 +22,8 @@ inComplianceInvoice 'Вкл.' (compliance, invoice) = complianceUserInvoice(invo
 
 inComplianceInvoiceDetail 'Вкл.' (compliance, invoiceDetail) = dataComplianceUserInvoiceDetail(invoiceDetail)==compliance;
 
+nameComplianceTypeComplianceUserInvoiceDetail 'Тип сертификата' (invoiceDetail) = nameComplianceTypeCompliance(complianceUserInvoiceDetail(invoiceDetail));
+
 invoicesCompliance 'Накладные' (compliance) =
     GROUP CONCAT shortDescriptionInvoice(invoice) IF inComplianceInvoice (compliance, invoice), ','
               BY compliance ORDER invoice PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
@@ -74,7 +76,8 @@ CONSTRAINT complianceGroupUserInvoiceDetail(detail) AND complianceUserInvoiceDet
 countUserInvoiceComplianceGroup 'Кол-во' (invoice, complianceGroup) = GROUP SUM 1 IF detail IS UserInvoiceDetail BY userInvoiceUserInvoiceDetail(detail), complianceGroupUserInvoiceDetail(detail);
 
 complianceUserInvoiceComplianceGroup = DATA Compliance(UserInvoice, ComplianceGroup);
-descriptionComplianceComplianceGroup 'Сертификат' (invoice, complianceGroup) = descriptionCompliance(complianceUserInvoiceComplianceGroup(invoice, complianceGroup));
+descriptionComplianceUserInvoiceComplianceGroup 'Сертификат' (invoice, complianceGroup) = descriptionCompliance(complianceUserInvoiceComplianceGroup(invoice, complianceGroup));
+nameComplianceTypeComplianceUserInvoiceComplianceGroup 'Тип сертификата' (invoice, complianceGroup) = nameComplianceTypeCompliance(complianceUserInvoiceComplianceGroup(invoice, complianceGroup));
 
 dataComplianceUserInvoiceDetail(detail) <- complianceUserInvoiceComplianceGroup(userInvoiceUserInvoiceDetail(detail), complianceGroupUserInvoiceDetail(detail))
         WHEN CHANGED(complianceUserInvoiceComplianceGroup(userInvoiceUserInvoiceDetail(detail), complianceGroupUserInvoiceDetail(detail)));
@@ -311,12 +314,13 @@ EXTEND FORM userInvoice
 
     OBJECTS cg = ComplianceGroup FIXED GRID
     PROPERTIES(cg) SHOWIF showComplianceUserInvoice(i) nameComplianceGroup READONLY
-    PROPERTIES(i, cg) descriptionComplianceComplianceGroup SHOWIF showComplianceUserInvoice(i)
+    PROPERTIES(i, cg) descriptionComplianceUserInvoiceComplianceGroup SHOWIF showComplianceUserInvoice(i),
+                      nameComplianceTypeComplianceUserInvoiceComplianceGroup SHOWIF showComplianceUserInvoice(i)
     FILTERS countUserInvoiceComplianceGroup(i, cg)
 
     OBJECTS d2 = UserInvoiceDetail FIXED GRID
     PROPERTIES(d2) SHOWIF showComplianceUserInvoice(i) indexUserInvoiceDetail, nameSkuUserInvoiceDetail, nameBatchUserInvoiceDetail, idBatchUserInvoiceDetail,
-                   nameComplianceGroupUserInvoiceDetail, descriptionComplianceUserInvoiceDetail
+                   nameComplianceGroupUserInvoiceDetail, descriptionComplianceUserInvoiceDetail, nameComplianceTypeComplianceUserInvoiceDetail
     FILTERS userInvoiceUserInvoiceDetail(d2) == i
 
     FILTERGROUP groupFilters
