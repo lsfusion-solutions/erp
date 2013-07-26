@@ -10,81 +10,49 @@ NAMESPACE Purchase;
 @defineOperationProperty(showChargePrice, 'Услуги', showContainer);
 @deriveDocumentOperationProperty(UserInvoice, showChargePrice);
 
-calcChargePriceUserInvoiceDetail  (detail) = [(X*Y)/(Z*W)](
-    sumUserInvoiceDetail(detail),
-    sumChargeUserInvoiceDetailUserInvoice(userInvoiceUserInvoiceDetail(detail)),
-    sumNotChargeUserInvoiceDetailUserInvoice(userInvoiceUserInvoiceDetail(detail)),
-    quantityUserInvoiceDetail(detail)
-) IF isStockSkuInvoiceDetail(detail);
-
 @defineDocumentInterfaceDetailPriceCustomPrefix (invoiceDetail, charge, ' услуг за ед.'); // объявляем цену услуг
 @defineDocumentInterfaceDetailDataSumCustomPrefix (invoiceDetail, charge, ' услуг'); // объявляем сумму услуг
 @deriveDocumentDetailSumCustomPrefix(userInvoiceDetail, charge, currency, quantity); // записываем сумму услуг
 
-chargeSumUserInvoiceDetailUserInvoice 'Сумма услуг в документе (построчно)' (userInvoice) = GROUP SUM chargeSumUserInvoiceDetail(idetail)
-    BY userInvoiceUserInvoiceDetail(idetail) IN documentSumGroup;
-chargeSumInvoiceDetailInvoice 'Сумма услуг в документе (построчно)' (invoice) = GROUP SUM chargeSumInvoiceDetail(idetail)
-    BY invoiceInvoiceDetail(idetail) IN documentSumGroup;
-
-deriveChargePriceUserInvoice 'Расписать сумму услуг по товарам' = ACTION (userInvoice) {
-    ASSIGN chargePriceUserInvoiceDetail(detail) <- calcChargePriceUserInvoiceDetail(detail) WHERE userInvoiceUserInvoiceDetail(detail) == userInvoice;
-}
-
-EXTEND CLASS SystemLedgerPriceListType {chargePriceStockPriceListType 'Услуги (последняя по складу)' }
-batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType. chargePriceStockPriceListType THEN TRUE;
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(chargePriceInvoiceDetail(ledger)) AND type == SystemLedgerPriceListType.chargePriceStockPriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(chargePriceInvoiceDetail(ledger)) AND type == SystemLedgerPriceListType.chargePriceStockPriceListType THEN chargePriceInvoiceDetail(ledger);
-
-EXTEND CLASS SystemLedgerPriceListType { chargePricePriceListType 'Услуги (последняя по ценовой группе)' }
-batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.chargePricePriceListType THEN TRUE;
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(chargePriceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) AND type == SystemLedgerPriceListType.chargePricePriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(chargePriceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) AND type == SystemLedgerPriceListType.chargePricePriceListType THEN chargePriceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
-
 extraCostPriceUserInvoiceDetail(detail) += chargePriceUserInvoiceDetail(detail);
 
-backgroundChargeInvoice 'Цвет' (invoice) = RGB(224, 255, 128) IF invoice IS Invoice;
+chargeSumUserInvoiceDetailUserInvoice 'Сумма услуг' (i) = GROUP SUM chargeSumUserInvoiceDetail(idetail)
+    BY userInvoiceUserInvoiceDetail(idetail) IN documentSumGroup PREFCHARWIDTH 15;
+chargeSumInvoiceDetailInvoice 'Сумма услуг' (i) = GROUP SUM chargeSumInvoiceDetail(idetail)
+    BY invoiceInvoiceDetail(idetail) IN documentSumGroup PREFCHARWIDTH 15;
 
-// страховка
-@defineDocumentInterfaceCreate(invoice, showInsurancePrice, 'Страховка');
+chargePercentUserInvoiceDetail '% услуг' (userInvoiceDetail) = DATA NUMERIC[6,3] (UserInvoiceDetail) MINCHARWIDTH 6;
 
-@defineOperationProperty(showInsurancePrice, 'Страховка', showContainer);
-@deriveDocumentOperationProperty(UserInvoice, showInsurancePrice);
+chargePercentUserInvoice '% услуг' (i) = chargeSumUserInvoiceDetailUserInvoice(i) * 100.0 / (incomeSumUserInvoice(i) IF incomeSumUserInvoice(i) != 0) FIXEDCHARWIDTH 6 PERSISTENT;
+chargePercentInvoice '% услуг' (i) = chargeSumInvoiceDetailInvoice(i) * 100.0 / (incomeSumInvoice(i) IF incomeSumInvoice(i) != 0) FIXEDCHARWIDTH 6 PERSISTENT;
 
-sumInsuranceInvoice 'Сумма страховки' = ABSTRACT NUMERIC[16,4](UserInvoice);
-sumInsuranceUserInvoice 'Сумма страховки' = DATA NUMERIC[16,4](UserInvoice) IN documentSumGroup;
-sumInsuranceInvoice(invoice) += sumInsuranceUserInvoice(invoice);
-
-calcInsurancePriceUserInvoiceDetail (detail) = [(X*Y)/(Z*W)](
-    sumUserInvoiceDetail(detail),
-    sumInsuranceUserInvoice(userInvoiceUserInvoiceDetail(detail)),
-    sumUserInvoiceDetailUserInvoice(userInvoiceUserInvoiceDetail(detail)),
-    quantityUserInvoiceDetail(detail)
-);
-
-@defineDocumentInterfaceDetailPriceCustomPrefix (invoiceDetail, insurance, ' страховки за ед.');
-@defineDocumentInterfaceDetailDataSumCustomPrefix (invoiceDetail, insurance, ' страховки');
-@deriveDocumentDetailSumCustomPrefix(userInvoiceDetail, insurance, currency, quantity);
-
-deriveInsurancePriceUserInvoice 'Расписать сумму страховки по товарам' = ACTION (userInvoice) {
-    ASSIGN insurancePriceUserInvoiceDetail(detail) <- calcInsurancePriceUserInvoiceDetail(detail) WHERE userInvoiceUserInvoiceDetail(detail) == userInvoice;
+setChargePercentUserInvoice = ACTION (userInvoice, percent) {
+    chargePercentUserInvoiceDetail(d) <- percent WHERE userInvoiceUserInvoiceDetail(d) == userInvoice;
 }
 
-insurancePriceUserInvoiceDetail(detail) <- calcInsurancePriceUserInvoiceDetail(detail) WHEN CHANGED(sumInsuranceUserInvoice(userInvoiceUserInvoiceDetail(detail)));
+WHEN SESSION FORMS userInvoice CHANGED(chargePercentUserInvoiceDetail(d)) OR CHANGED(incomePriceUserInvoiceDetail(d)) DO
+    chargePriceUserInvoiceDetail(d) <- chargePercentUserInvoiceDetail(d) * incomePriceUserInvoiceDetail(d) / 100.0;
 
-backgroundInsuranceInvoice 'Цвет' (invoice) = RGB(255, 192, 224) IF invoice IS Invoice;
+
+changeChargePercentUserInvoice = ACTION (userInvoice) {
+    REQUEST NUMERIC[10,5] INPUT;
+    setChargePercentUserInvoice(userInvoice, requestedNumeric());
+}
+
+changeChargeSumUserInvoiceDetailUserInvoice = ACTION (userInvoice) {
+    REQUEST NUMERIC[16,2] INPUT;
+    setChargePercentUserInvoice(userInvoice, requestedNumeric() * 100.0 / (incomeSumUserInvoice(userInvoice) IF incomeSumUserInvoice(userInvoice) != 0));
+}
+
+backgroundChargeInvoice 'Цвет' (invoice) = RGB(224, 255, 128) IF invoice IS Invoice;
 
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) showChargePriceUserInvoice
     PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i)
-                                                        sumChargeUserInvoiceDetailUserInvoice
-    PROPERTIES(i)                                       deriveChargePriceUserInvoice TODRAW d FORCE PANEL TOOLBAR
+                                                        chargePercentUserInvoice ON CHANGE changeChargePercentUserInvoice(i),
+                                                        chargeSumUserInvoiceDetailUserInvoice ON CHANGE changeChargeSumUserInvoiceDetailUserInvoice(i)
     PROPERTIES(d) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) BEFORE numberVATUserInvoiceDetail(d)
-                                                        chargePriceUserInvoiceDetail, chargeSumUserInvoiceDetail
-
-    PROPERTIES(i) BACKGROUND backgroundInsuranceInvoice(i) showInsurancePriceUserInvoice
-    PROPERTIES(i) BACKGROUND backgroundInsuranceInvoice(i) SHOWIF showInsurancePriceUserInvoice(i) sumInsuranceUserInvoice
-    PROPERTIES(d) BACKGROUND backgroundInsuranceInvoice(i) SHOWIF showInsurancePriceUserInvoice(i) BEFORE numberVATUserInvoiceDetail(d)
-                                                        insurancePriceUserInvoiceDetail, insuranceSumUserInvoiceDetail
+                                                        chargePercentUserInvoiceDetail, chargePriceUserInvoiceDetail, chargeSumUserInvoiceDetail
 ;
 
 
@@ -93,68 +61,31 @@ EXTEND DESIGN userInvoice {
         NEW headerCharge {
             caption = 'Услуги';
             ADD PROPERTY(showChargePriceUserInvoice);
-        }
-
-        NEW insuranceCharge {
-            caption = 'Страховка';
-            ADD PROPERTY(showInsurancePriceUserInvoice);
+            ADD PROPERTY(chargePercentUserInvoice);
+            ADD PROPERTY(chargeSumUserInvoiceDetailUserInvoice);
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) showChargePriceInvoice READONLYIF isReadonly(), sumChargeInvoiceDetailInvoice READONLY
+    PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) showChargePriceInvoice READONLYIF isReadonly()
     PROPERTIES(d) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceInvoice(i) READONLY BEFORE numberVATInvoiceDetail(d)
                                                         chargePriceInvoiceDetail, chargeSumInvoiceDetail
 ;
 
-//-------------Расчет транспорта по коэффициенту в шапке накладной-------------//
+// ----------------------- Расчет по услугам, которые включаются в накладную отдельной строкой ------------------------ //
 
-chargeUserSumInvoice 'Сумма трансп. расходов' = ABSTRACT NUMERIC[16,2] (Invoice) IN documentSumGroup;
-chargeUserSumUserInvoice 'Сумма трансп. расходов' = DATA NUMERIC[16,2] (UserInvoice) IN documentSumGroup;
-chargeUserSumInvoice(invoice) += chargeUserSumUserInvoice(invoice);
+calcChargePriceUserInvoiceDetail  (detail) = [(X*Y)/(Z*W)](
+    sumUserInvoiceDetail(detail),
+    sumChargeUserInvoiceDetailUserInvoice(userInvoiceUserInvoiceDetail(detail)),
+    sumNotChargeUserInvoiceDetailUserInvoice(userInvoiceUserInvoiceDetail(detail)),
+    quantityUserInvoiceDetail(detail)
+) IF isStockSkuInvoiceDetail(detail);
 
-chargePercentInvoice '% трансп. расходов' = ABSTRACT NUMERIC[6,3] (Invoice) IN documentSumGroup;
-
-chargePercentUserInvoice '% трансп. расходов' (userInvoice) = DATA NUMERIC[6,3] (UserInvoice) IN documentSumGroup FIXEDCHARWIDTH 6;
-chargePercentUserInvoiceDetail '% трансп. расходов' (userInvoiceDetail) = DATA NUMERIC[6,3] (UserInvoiceDetail) MINCHARWIDTH 6;
-
-calcChargePercentUserInvoiceDetail (userInvoiceDetail) =
-    chargePercentUserInvoiceDetail(userInvoiceDetail) * incomePriceUserInvoiceDetail(userInvoiceDetail) / 100;
-
-deriveCalcChargePriceUserInvoice 'Рассчитать сумму услуг по товарам' = ACTION (userInvoice) {
-    ASSIGN chargePercentUserInvoiceDetail(detail) <- IF chargeUserSumUserInvoice(userInvoiceUserInvoiceDetail(detail))
-        THEN (chargeUserSumUserInvoice(userInvoiceUserInvoiceDetail(detail)) * 100.0 / incomeSumUserInvoice(userInvoiceUserInvoiceDetail(detail)))
-        ELSE chargePercentUserInvoice(userInvoiceUserInvoiceDetail(detail)) WHERE userInvoiceUserInvoiceDetail(detail) == userInvoice;
- //   ASSIGN chargePriceUserInvoiceDetail(detail) <- calcChargePercentUserInvoiceDetail (detail) WHERE userInvoiceUserInvoiceDetail(detail) == userInvoice;
+deriveChargePriceUserInvoice 'Разнести услуги' = ACTION (userInvoice) {
+    chargePriceUserInvoiceDetail(detail) <- calcChargePriceUserInvoiceDetail(detail) WHERE userInvoiceUserInvoiceDetail(detail) == userInvoice;
 }
-
-WHEN SESSION FORMS userInvoice CHANGED(chargePercentUserInvoice(userInvoice)) OR CHANGED(countUserInvoiceDetailUserInvoice(userInvoice)) OR CHANGED(chargeUserSumUserInvoice(userInvoice))
-    DO EXEC deriveCalcChargePriceUserInvoice(userInvoice);
-
-chargePriceUserInvoiceDetail(userInvoiceDetail) <- calcChargePercentUserInvoiceDetail (userInvoiceDetail)
-    WHEN CHANGED(chargePercentUserInvoiceDetail(userInvoiceDetail)) OR CHANGED(sumUserInvoiceDetail(userInvoiceDetail));
-
-chargePercentInvoice(invoice) += chargePercentUserInvoice(invoice);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) chargePercentUserInvoice
-    PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) chargeUserSumUserInvoice
-    PROPERTIES(d) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) chargePercentUserInvoiceDetail BEFORE chargePriceUserInvoiceDetail(d)
+    PROPERTIES(i) SHOWIF sumChargeUserInvoiceDetailUserInvoice(i) deriveChargePriceUserInvoice TODRAW d FORCE PANEL TOOLBAR
 ;
-
-EXTEND DESIGN userInvoice {
-    headerCharge {
-        ADD PROPERTY(chargePercentUserInvoice);
-        ADD PROPERTY(chargeUserSumUserInvoice);
-    }
-}
-
-EXTEND FORM invoices
-    PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) READONLYIF isReadonly() chargePercentInvoice
-    PROPERTIES(i) BACKGROUND backgroundInsuranceInvoice(i) showInsurancePriceInvoice
-    PROPERTIES(i) FORCE GRID sumInsuranceInvoice BACKGROUND backgroundInsuranceInvoice(i) READONLYIF isReadonly()
-    PROPERTIES(d) BACKGROUND backgroundInsuranceInvoice(i) SHOWIF showInsurancePriceInvoice(i) READONLY BEFORE numberVATInvoiceDetail(d)
-                                                               insurancePriceInvoiceDetail, insuranceSumInvoiceDetail
-;
-

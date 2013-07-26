@@ -208,8 +208,6 @@ quantityDeclarationDetail 'Кол-во' (declarationDetail) = GROUP SUM quantity
 
 sumChargeDeclarationDetail 'Сумма услуг' (declarationDetail) = GROUP SUM chargeSumUserInvoiceDetail(invoiceDetail) BY declarationDetailInvoiceDetail(invoiceDetail) PERSISTENT;
 
-sumInsuranceDeclarationDetail 'Сумма страховки' (declarationDetail) = GROUP SUM insuranceSumUserInvoiceDetail(invoiceDetail) BY declarationDetailInvoiceDetail(invoiceDetail) PERSISTENT;
-
 quantityDataDeclarationDetail 'Кол-во' = DATA NUMERIC[14,3](DeclarationDetail);
 
 overQuantityDeclarationDetail 'Кол-во' (declarationDetail) = OVERRIDE quantityDeclarationDetail(declarationDetail), quantityDataDeclarationDetail(declarationDetail);
@@ -217,7 +215,7 @@ overQuantityDeclarationDetail 'Кол-во' (declarationDetail) = OVERRIDE quant
 sumDeclarationDetail 'Стоимость (валют.)' (declarationDetail) = priceDeclarationDetail(declarationDetail) * overQuantityDeclarationDetail(declarationDetail);
 
 sumRateDeclarationDetail 'Стоимость (расч.)' (declarationDetail) = (sumDeclarationDetail(declarationDetail) * rateExchangeDeclarationDetail(declarationDetail)) (+)
-                                                                    sumChargeDeclarationDetail(declarationDetail) (+) sumInsuranceDeclarationDetail(declarationDetail) MINCHARWIDTH 12 PERSISTENT;
+                                                                    sumChargeDeclarationDetail(declarationDetail) MINCHARWIDTH 12 PERSISTENT;
 
 sumDeclaration 'Сумма (валют.)' = GROUP SUM sumDeclarationDetail(declarationDetail) BY declarationDeclarationDetail(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
 
@@ -349,7 +347,7 @@ EXTEND FORM declaration
                    nameCountryDeclarationDetail, overSumNetWeightDeclarationDetail, overSumGrossWeightDeclarationDetail,
                    codeCustomsGroupDeclarationDetail, nameVATCustomsExceptionDeclarationDetail BACKGROUND backgroundVATCustomsExceptionDeclarationDetail(dd),
                    overQuantityDeclarationDetail, priceDeclarationDetail
-    PROPERTIES(dd) READONLY sumDeclarationDetail, sumChargeDeclarationDetail, sumInsuranceDeclarationDetail, sumRateDeclarationDetail,
+    PROPERTIES(dd) READONLY sumDeclarationDetail, sumChargeDeclarationDetail, sumRateDeclarationDetail,
                    percentDutyCustomsGroupDeclarationDetail, sumRateDutyDeclarationDetail, numberVATRangeCustomGroupDeclarationDetail,
                    percentVATCustomsGroupDeclarationDetail, sumRateVATDeclarationDetail
     PROPERTIES(dd) sumDataDeclarationDetail, percentDutyDataDeclarationDetail, sumDutyDataDeclarationDetail, numberVATRangeDataDeclarationDetail,
@@ -387,7 +385,6 @@ EXTEND DESIGN declaration {
     }
 
     PROPERTY(sumChargeDeclarationDetail) { background = RGB (224, 255, 128); }
-    PROPERTY(sumInsuranceDeclarationDetail) { background = RGB (255, 192, 224); }
     PROPERTY(sumRateDeclarationDetail) { background = RGB(255, 224, 224); }
     PROPERTY(percentDutyCustomsGroupDeclarationDetail) { background = RGB(255, 224, 224); }
     PROPERTY(sumRateDutyDeclarationDetail) { background = RGB(255, 224, 224); }
@@ -413,7 +410,7 @@ EXTEND FORM declarations
     OBJECTS dd=DeclarationDetail
     PROPERTIES(dd) READONLY numberDeclarationDetail, nameCustomsDeclarationDetail, nameCountryDeclarationDetail, sumNetWeightDeclarationDetail,
                    codeCustomsGroupDeclarationDetail, overQuantityDeclarationDetail, priceDeclarationDetail, sumDeclarationDetail,
-                   sumChargeDeclarationDetail, sumInsuranceDeclarationDetail, sumRateDeclarationDetail, percentDutyCustomsGroupDeclarationDetail,
+                   sumChargeDeclarationDetail, sumRateDeclarationDetail, percentDutyCustomsGroupDeclarationDetail,
                    sumRateDutyDeclarationDetail, numberVATRangeCustomGroupDeclarationDetail, percentVATCustomsGroupDeclarationDetail,
                    sumRateVATDeclarationDetail, sumDataDeclarationDetail, percentDutyDataDeclarationDetail, sumDutyDataDeclarationDetail,
                    numberVATRangeDataDeclarationDetail, percentVATRangeDeclarationDetail, sumVATDataDeclarationDetail
@@ -424,7 +421,6 @@ EXTEND DESIGN declarations {
 
     PROPERTY(sumRateDeclarationDetail) { background = RGB (255, 224, 224); }
     PROPERTY(sumChargeDeclarationDetail) { background = RGB (224, 255, 128); }
-    PROPERTY(sumInsuranceDeclarationDetail) { background = RGB (255, 192, 224); }
 
     PROPERTY(percentDutyCustomsGroupDeclarationDetail) { background = RGB (255, 224, 224); }
     PROPERTY(sumRateDutyDeclarationDetail) { background = RGB (255, 224, 224); }
@@ -488,10 +484,8 @@ setPriceInvoiceDetailes 'Рассчитать расходы (за ед.)' = ACT
 
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCustomedInvoice(i) showDeclarationUserInvoice
-    PROPERTIES(d) BACKGROUND backgroundCustomedInvoice(i) codeCustomsGroupInvoiceDetail AFTER insuranceSumUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
-                                                          nameVATCustomsExceptionInvoiceDetail AFTER insuranceSumUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
-                                                          priceDutyUserInvoiceDetail AFTER insuranceSumUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i),
-                                                          priceRegistrationUserInvoiceDetail AFTER insuranceSumUserInvoiceDetail SHOWIF showDeclarationUserInvoice(i)
+    PROPERTIES(d) BACKGROUND backgroundCustomedInvoice(i) SHOWIF showDeclarationUserInvoice(i) BEFORE numberVATUserInvoiceDetail
+        codeCustomsGroupInvoiceDetail, nameVATCustomsExceptionInvoiceDetail, priceDutyUserInvoiceDetail, priceRegistrationUserInvoiceDetail
 ;
 EXTEND DESIGN userInvoice {
     headerExtraParams {
@@ -505,16 +499,14 @@ EXTEND DESIGN userInvoice {
 
 EXTEND FORM invoices
     PROPERTIES(i) READONLYIF isReadonly() BACKGROUND backgroundCustomedInvoice(i) showDeclarationInvoice FORCE GRID
-    PROPERTIES(d) READONLY BACKGROUND backgroundCustomedInvoice(i) codeCustomsGroupInvoiceDetail AFTER insuranceSumInvoiceDetail SHOWIF showDeclarationInvoice(i),
-                                                                   nameVATCustomsExceptionInvoiceDetail AFTER insuranceSumInvoiceDetail SHOWIF showDeclarationInvoice(i),
-                                                                   priceDutyInvoiceDetail AFTER insuranceSumInvoiceDetail SHOWIF showDeclarationInvoice(i),
-                                                                   priceRegistrationInvoiceDetail AFTER insuranceSumInvoiceDetail SHOWIF showDeclarationInvoice(i)
+    PROPERTIES(d) READONLY BACKGROUND backgroundCustomedInvoice(i) SHOWIF showDeclarationInvoice(i) BEFORE numberVATInvoiceDetail
+        codeCustomsGroupInvoiceDetail, nameVATCustomsExceptionInvoiceDetail, priceDutyInvoiceDetail, priceRegistrationInvoiceDetail
 ;
 
 EXTEND FORM declaration
     PROPERTIES(d) READONLY sumRegistrationCostDeclaration, sumDutyCostDeclaration
     PROPERTIES(d) setPriceInvoiceDetailes TODRAW id
-    PROPERTIES(id) chargePriceInvoiceDetail, insurancePriceInvoiceDetail, priceDutyInvoiceDetail, priceRegistrationInvoiceDetail
+    PROPERTIES(id) chargePriceInvoiceDetail, priceDutyInvoiceDetail, priceRegistrationInvoiceDetail
 ;
 
 EXTEND DESIGN declaration {
@@ -526,7 +518,6 @@ EXTEND DESIGN declaration {
     }
 
     PROPERTY(chargePriceInvoiceDetail) {background = RGB (224, 255, 128);}
-    PROPERTY(insurancePriceInvoiceDetail) {background = RGB (255, 192, 224);}
     PROPERTY(priceRegistrationInvoiceDetail) { background = RGB (255, 255, 192); }
     PROPERTY(priceDutyInvoiceDetail) { background = RGB (255, 224, 224); }
 
