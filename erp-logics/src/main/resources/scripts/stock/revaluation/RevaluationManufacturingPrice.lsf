@@ -13,6 +13,8 @@ REQUIRE Revaluation, PurchaseManufacturingPrice;
 @defineDocumentInterfaceDetailDataSumPrefix (revaluation, manufacturing, ' изготовителя после');
 @deriveDocumentDetailSumPrefix(userRevaluation, manufacturing, currency, quantity);
 
+priceUserRevaluationDetail(detail) <- manufacturingPriceUserRevaluationDetail(detail) WHEN CHANGED(manufacturingPriceUserRevaluationDetail(detail));
+
 // -- Разница
 @defineDocumentInterfaceDetailDiffSumPrefix (revaluation, manufacturingSum, , cur, ' изменения изготовителя');
 
@@ -20,15 +22,15 @@ REQUIRE Revaluation, PurchaseManufacturingPrice;
 
 
 EXTEND FORM userRevaluation
-    PROPERTIES(p) AFTER diffSumUserRevaluationDetailUserRevaluation diffManufacturingSumUserRevaluationDetailUserRevaluation
-    PROPERTIES(d) AFTER curSumUserRevaluationDetail curManufacturingSumUserRevaluationDetail, curManufacturingPriceUserRevaluationDetail
-    PROPERTIES(d) AFTER sumUserRevaluationDetail manufacturingSumUserRevaluationDetail, manufacturingPriceUserRevaluationDetail
+    PROPERTIES(p) BEFORE diffSumUserRevaluationDetailUserRevaluation diffManufacturingSumUserRevaluationDetailUserRevaluation
+    PROPERTIES(d) BEFORE curPriceUserRevaluationDetail curManufacturingPriceUserRevaluationDetail, curManufacturingSumUserRevaluationDetail
+    PROPERTIES(d) BEFORE priceUserRevaluationDetail manufacturingPriceUserRevaluationDetail, manufacturingSumUserRevaluationDetail
 ;
 
 EXTEND FORM revaluations
-    PROPERTIES(p) READONLY AFTER diffSumRevaluationDetailRevaluation diffManufacturingSumRevaluationDetailRevaluation
-    PROPERTIES(d) READONLY AFTER curSumRevaluationDetail curManufacturingSumRevaluationDetail, curManufacturingPriceRevaluationDetail
-    PROPERTIES(d) READONLY AFTER sumRevaluationDetail manufacturingSumRevaluationDetail, manufacturingPriceRevaluationDetail
+    PROPERTIES(p) READONLY BEFORE diffSumRevaluationDetailRevaluation diffManufacturingSumRevaluationDetailRevaluation
+    PROPERTIES(d) READONLY BEFORE curPriceRevaluationDetail curManufacturingPriceRevaluationDetail, curManufacturingSumRevaluationDetail
+    PROPERTIES(d) READONLY BEFORE priceRevaluationDetail manufacturingPriceRevaluationDetail, manufacturingSumRevaluationDetail
 ;
 
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(manufacturingPriceRevaluationDetail(ledger)) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN TRUE;

@@ -1,0 +1,56 @@
+MODULE RevaluationPurchaseInvoice;
+
+REQUIRE RevaluationManufacturingPrice, PurchaseInvoice, PurchaseShipment, PurchaseDeclaration;
+
+PRIORITY Purchase;
+
+NAMESPACE Revaluation;
+
+invoiceDetailRevaluationDetail 'Строка инвойса' = invoiceDetailBatch(batchRevaluationDetail(detail));
+descriptionInvoiceDetailRevaluationDetail 'Строка инвойса' = descriptionInvoiceDetail(invoiceDetailRevaluationDetail(detail));
+
+priceInvoiceDetailRevaluationDetail 'Контрактная цена' (detail) = priceInvoiceDetail(invoiceDetailRevaluationDetail(detail));
+currencyInvoiceDetailRevaluationDetail 'Валюта контрактной цены' (detail) = currencyInvoiceDetail(invoiceDetailRevaluationDetail(detail));
+shortNameCurrencyInvoiceDetailRevaluationDetail 'Валюта контрактной цены' (detail) = shortNameCurrency(currencyInvoiceDetailRevaluationDetail(detail));
+rateExchangeInvoiceDetailRevaluationDetail 'Курс обмена' (detail) = rateExchangeInvoiceDetail(invoiceDetailRevaluationDetail(detail));
+homePriceInvoiceDetailRevaluationDetail 'Контрактная цена (конверт.)' = homePriceInvoiceDetail(invoiceDetailRevaluationDetail(detail));
+priceDutyInvoiceDetailRevaluationDetail 'Пошлина (ед.)' = priceDutyInvoiceDetail(invoiceDetailRevaluationDetail(detail));
+priceRegistrationInvoiceDetailRevaluationDetail 'Таможенный сбор (ед.)' = priceRegistrationInvoiceDetail(invoiceDetailRevaluationDetail(detail));
+manufacturingMarkupInvoiceDetailRevaluationDetail 'Надбавка,% (к цене изготовителя)' = manufacturingMarkupInvoiceDetail(invoiceDetailRevaluationDetail(detail));
+
+rateExchangeRevaluationDetail 'Курс обмена (новый)' = DATA NUMERIC[15,8] (UserRevaluationDetail);
+manufacturingMarkupRevaluationDetail 'Надбавка,% (к цене изготовителя, новая)' = DATA NUMERIC[8,3] (UserRevaluationDetail);
+
+typeExchangeUserRevaluation 'Тип обмена' = DATA TypeExchange (UserRevaluation);
+nameTypeExchangeRevaluation 'Тип обмена' = nameTypeExchange(typeExchangeUserRevaluation(document)) IN documentPrmGroup;
+typeExchangeUserRevaluationDetail = typeExchangeUserRevaluation(userRevaluationUserRevaluationDetail(detail));
+
+calcManufacturingPriceRevaluationDetail = round((priceInvoiceDetailRevaluationDetail(detail)*rateExchangeRevaluationDetail(detail) (+)
+    priceDutyInvoiceDetailRevaluationDetail(detail) (+) priceRegistrationInvoiceDetailRevaluationDetail(detail))*(100 (+) manufacturingMarkupRevaluationDetail(detail))/100, 2);
+
+manufacturingPriceUserRevaluationDetail(detail) <- calcManufacturingPriceRevaluationDetail(detail)
+    WHEN CHANGED(rateExchangeRevaluationDetail(detail)) OR CHANGED(manufacturingMarkupRevaluationDetail(detail));
+
+calcRateExchangeRevaluationDetail = rateTypeExchangeCurrencyDate(typeExchangeUserRevaluation(userRevaluationUserRevaluationDetail(detail)),
+    currencyInvoiceDetailRevaluationDetail(detail), toDate(dateTimeRevaluationDetail(detail)));
+
+rateExchangeRevaluationDetail(detail) <- calcRateExchangeRevaluationDetail(detail)
+    WHEN CHANGED(typeExchangeUserRevaluationDetail(detail)) OR CHANGED(dateTimeRevaluationDetail(detail));
+
+EXTEND FORM userRevaluation
+    PROPERTIES (p) nameTypeExchangeRevaluation
+    PROPERTIES (d) AFTER nameBatchUserRevaluationDetail descriptionInvoiceDetailRevaluationDetail
+    PROPERTIES (d) BEFORE curManufacturingPriceUserRevaluationDetail READONLY priceInvoiceDetailRevaluationDetail, shortNameCurrencyInvoiceDetailRevaluationDetail,
+                   rateExchangeInvoiceDetailRevaluationDetail, priceDutyInvoiceDetailRevaluationDetail, priceRegistrationInvoiceDetailRevaluationDetail, manufacturingMarkupInvoiceDetailRevaluationDetail
+    PROPERTIES (d) BEFORE manufacturingPriceUserRevaluationDetail manufacturingMarkupRevaluationDetail, rateExchangeRevaluationDetail
+;
+
+EXTEND DESIGN userRevaluation{
+    PROPERTY(manufacturingMarkupRevaluationDetail) { background = #FFFFCC; }
+    PROPERTY(rateExchangeRevaluationDetail) { background = #FFFFCC; }
+    PROPERTY(manufacturingSumUserRevaluationDetail) { background = #FFFFCC; }
+    PROPERTY(manufacturingPriceUserRevaluationDetail) { background = #FFFFCC; }
+    PROPERTY(priceUserRevaluationDetail) { background = #FFFFCC; }
+    PROPERTY(sumUserRevaluationDetail) { background = #FFFFCC; }
+}
+
