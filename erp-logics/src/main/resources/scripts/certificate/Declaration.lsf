@@ -67,12 +67,25 @@ roundDeclaration 'Точность округления' = DATA INTEGER(Declarat
 
 roundCurrencyDeclaration(number, declaration) = round(number AS NUMERIC[16,4], roundDeclaration(declaration));
 
+//дополнительные документы для декларации
+CLASS CustomsDocument 'Дополнительные документы декларации';
+
+nameCustomsDocument 'Наименование' = DATA VARSTRING[150] (CustomsDocument);
+dateCustomsDocument 'Дата' = DATA DATE (CustomsDocument);
+sumCustomsDocument 'Сумма' = DATA NUMERIC[16,2] (CustomsDocument);
+declarationCustomsDocument = DATA Declaration (CustomsDocument);
+
 FORM declaration 'Таможенная декларация'
     OBJECTS d = Declaration FIXED PANEL
     PROPERTIES(d) objectClassName, nameNumeratorObject, numberObject, seriesObject, dateDeclaration, timeDeclaration,
                   nameLegalEntityDeclaration, nameCurrencyDeclaration, nameCustomsZoneDeclaration, nameHomeCurrencyDeclaration,
                   nameTypeExchangeDeclaration, roundDeclaration, rateExchangeDeclaration, nameCurrencyCustomsZoneDeclaration READONLY,
                   rateExchangeCustomsZoneDeclaration
+
+    OBJECTS cd = CustomsDocument
+    PROPERTIES(cd) dateCustomsDocument, nameCustomsDocument, sumCustomsDocument
+    PROPERTIES(cd) ADDOBJ, DELETE
+    FILTERS declarationCustomsDocument(cd) == d
     EDIT Declaration OBJECT d
 ;
 
@@ -111,6 +124,19 @@ DESIGN declaration FROM DEFAULT{
                     ADD PROPERTY(nameCurrencyCustomsZoneDeclaration);
                     ADD PROPERTY(rateExchangeCustomsZoneDeclaration);
                 }
+            }
+        }
+        NEW tabContainer{
+            childConstraints = TO THE RIGHT;
+            type = TABBED;
+            NEW firstTab{
+                childConstraints = TO THE BOTTOM;
+                caption = 'Спецификация';
+            }
+            NEW secondTab{
+                childConstraints = TO THE BOTTOM;
+                caption = 'Дополнительные документы';
+                ADD cd.box;
             }
         }
     }
