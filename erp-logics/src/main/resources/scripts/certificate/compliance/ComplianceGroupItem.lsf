@@ -1,15 +1,6 @@
-MODULE ComplianceItem;
+MODULE ComplianceGroupItem;
 
-REQUIRE Compliance, CustomsGroupItem;
-
-//isCompliancedCustomsGroupCountryItem 'Необходимость сертификации' (country, item) = isCompliancedCustomsGroup(customsGroupCountryItem(country, item));
-
-//isCompliancedCountryItem 'Необходимость сертификации' = DATA BOOLEAN(Country, Item);
-//isCompliancedCountrySku(country, sku) += isCompliancedCountryItem(country, sku);
-
-//isCompliancedCountryItem(country, item) <- isCompliancedCustomsGroupCountryItem(country, item) WHEN CHANGED(customsGroupCountryItem(country, item));
-
-//isCompliancedDefaultCountryItem 'Необходимость сертификации' (item) = isCompliancedCountryItem (defaultCountry(), item);
+REQUIRE ComplianceGroup, Item;
 
 complianceGroupCountryItem = DATA ComplianceGroup(Country, Item);
 nameComplianceGroupCountryItem 'Группа сертификации' (country, item) = nameComplianceGroup(complianceGroupCountryItem(country, item)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
@@ -28,15 +19,6 @@ changeComplianceGroupCountryItem = ACTION (item) {
     }
 }
 
-//changeCompliancedCountryItem = ACTION (item) {
-//    REQUEST BOOLEAN INPUT;
-//    IF requestedLogical() THEN {
-//        isCompliancedCountryItem(country, item) <- TRUE WHERE country == defaultCountry();
-//    } ELSE {
-//        isCompliancedCountryItem(country, item) <- NULL WHERE country == defaultCountry();
-//    }
-//}
-
 EXTEND FORM item
     PROPERTIES(c, i) nameComplianceGroupCountryItem
     PROPERTIES(i) nameComplianceGroupDefaultCountryItem ON CHANGE changeComplianceGroupCountryItem(i)
@@ -44,6 +26,6 @@ EXTEND FORM item
 EXTEND DESIGN item { regionPrm  { ADD PROPERTY(nameComplianceGroupDefaultCountryItem); } }
 
 overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN complianceGroupCountryItem(c,d) <- complianceGroupCountryItem(c,s) WHERE complianceGroupCountryItem(c,s);
+    complianceGroupCountryItem(c,d) <- complianceGroupCountryItem(c,s) WHERE complianceGroupCountryItem(c,s);
 }
 

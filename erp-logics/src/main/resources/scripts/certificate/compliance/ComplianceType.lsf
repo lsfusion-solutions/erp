@@ -1,0 +1,48 @@
+MODULE ComplianceType;
+
+REQUIRE Compliance;
+
+NAMESPACE Compliance;
+
+// ------ Тип сертификатов ----------- //
+
+CLASS ComplianceType 'Тип сертификатов';
+TABLE complianceType(ComplianceType);
+
+nameComplianceType 'Тип сертификатов' = DATA VARSTRING[100](ComplianceType) IN base;
+
+EXTEND CLASS ComplianceType {
+    forBatch 'На партию',
+    forSku 'На товар',
+    forManufacturing 'На производство'
+}
+
+FORM complianceType 'Тип сертификатов'
+    OBJECTS ct = ComplianceType FIXED PANEL
+    PROPERTIES(ct) staticCaption
+    EDIT ComplianceType OBJECT ct
+;
+
+FORM complianceTypes 'Типы сертификатов'
+    OBJECTS ct = ComplianceType
+    PROPERTIES(ct) READONLY staticCaption
+    PROPERTIES(ct) ADDFORM, EDITFORM, DELETE
+
+    DIALOG ComplianceType OBJECT ct
+;
+
+complianceTypeCompliance = DATA ComplianceType(Compliance);
+nameComplianceTypeCompliance 'Тип' (compliance) = staticCaption(complianceTypeCompliance(compliance));
+
+EXTEND FORM compliance
+    PROPERTIES(c) nameComplianceTypeCompliance
+;
+EXTEND DESIGN compliance {
+    documentParams {
+        ADD PROPERTY(nameComplianceTypeCompliance);
+    }
+}
+
+EXTEND FORM compliances
+    PROPERTIES(c) READONLY nameComplianceTypeCompliance
+;

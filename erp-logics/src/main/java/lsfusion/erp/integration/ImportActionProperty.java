@@ -781,8 +781,8 @@ public class ImportActionProperty {
                 }
 
                 if (showField(dataUserInvoiceDetail, "priceCompliance")) {
-                    ImportField priceComplianceUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("priceComplianceUserInvoiceDetail"));
-                    props.add(new ImportProperty(priceComplianceUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.priceComplianceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    ImportField priceComplianceUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("compliancePriceUserInvoiceDetail"));
+                    props.add(new ImportProperty(priceComplianceUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.compliancePriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
                     fields.add(priceComplianceUserInvoiceDetailField);
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                         data.get(i).add(dataUserInvoiceDetail.get(i).priceCompliance);

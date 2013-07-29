@@ -58,6 +58,7 @@ roundDeclaration(d) <- defaultRoundCurrency(homeCurrencyDeclaration(d)) WHEN CHA
 
 //дополнительные документы для декларации
 CLASS CustomsDocument 'Дополнительные документы декларации';
+TABLE customsDocument(CustomsDocument);
 
 nameCustomsDocument 'Наименование' = DATA VARSTRING[150] (CustomsDocument);
 dateCustomsDocument 'Дата' = DATA DATE (CustomsDocument);
@@ -134,10 +135,6 @@ EXTEND DESIGN declaration {
         }
         ADD functions.box;
     }
-
-    PROPERTY(formOk) {
-        caption = 'Провести';
-    }
 }
 
 EXTEND FORM declarations
@@ -201,6 +198,9 @@ dutyPriceInvoiceDetail(detail) += dutyPriceUserInvoiceDetail(detail);
 registrationPriceInvoiceDetail 'Таможенный сбор (ед.)' = ABSTRACT NUMERIC[16,4](InvoiceDetail);
 registrationPriceUserInvoiceDetail 'Таможенный сбор (ед.)' = DATA NUMERIC[16,4](UserInvoiceDetail);
 registrationPriceInvoiceDetail(detail) += registrationPriceUserInvoiceDetail(detail);
+
+// Проводим по инвойсу
+customCostPriceUserInvoiceDetail(invoiceDetail) += registrationPriceUserInvoiceDetail(invoiceDetail) (+) dutyPriceUserInvoiceDetail(invoiceDetail);
 
 // -------------------------------- Расширение накладной свойствами декларации -------------------------- //
 
@@ -298,6 +298,17 @@ TABLE declarationDetail(DeclarationDetail);
 declarationDeclarationDetail = DATA Declaration(DeclarationDetail);
 
 @defineDocumentPosted(declaration);
+
+EXTEND FORM declaration
+    EVENTS
+        ON OK prePostDeclaration(d)
+;
+
+EXTEND DESIGN declaration {
+    PROPERTY(formOk) {
+        caption = 'Провести';
+    }
+}
 
 // Свойства полученные от декларации
 dateDeclarationDetail 'Дата' (d) = dateDeclaration(declarationDeclarationDetail(d));
@@ -591,8 +602,6 @@ EXTEND FORM declaration
     PROPERTIES (d) createDeclarationDetailDeclaration TODRAW dd FORCE PANEL TOOLBAR
     FILTERS declarationDeclarationDetail(dd) == d
 
-    EVENTS
-        ON OK prePostDeclaration(d)
 ;
 
 EXTEND DESIGN declaration {
@@ -654,9 +663,6 @@ recalculatePriceInvoiceDeclaration 'Рассчитать расходы (за е
 EXTEND FORM declaration
     PROPERTIES(d) recalculatePriceInvoiceDeclaration TODRAW id
 ;
-
-// Проводим по инвойсу
-customCostPriceUserInvoiceDetail(invoiceDetail) += registrationPriceUserInvoiceDetail(invoiceDetail) (+) dutyPriceUserInvoiceDetail(invoiceDetail);
 
 //-- Операция
 @defineOperationProperty(showDeclaration, 'Таможенные платежи', showContainer);

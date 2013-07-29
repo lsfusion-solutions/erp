@@ -1,0 +1,120 @@
+MODULE ComplianceGroup;
+
+REQUIRE Compliance;
+
+NAMESPACE Compliance;
+
+CLASS ComplianceGroup 'Группа сертификации';
+TABLE complianceGroup (ComplianceGroup);
+
+nameComplianceGroup 'Наименование' = DATA VARISTRING[200](ComplianceGroup) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+
+TABLE complianceGroupComplianceGroup (ComplianceGroup, ComplianceGroup);
+@defineHierarchy(complianceGroup);
+
+FORM complianceGroup 'Группа сертификации'
+    OBJECTS cg = ComplianceGroup FIXED PANEL
+    PROPERTIES(cg) nameComplianceGroup, nameParentComplianceGroup
+
+    EDIT ComplianceGroup OBJECT cg
+;
+
+addComplianceGroup 'Добавить' = ACTION (complianceGroup) NEWSESSION {
+    FOR ADDOBJ cg = ComplianceGroup DO {
+        parentComplianceGroup(cg) <- complianceGroup;
+        FORM complianceGroup OBJECTS cg=cg MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+
+FORM complianceGroups 'Группы сертификации'
+
+    TREE treeGroups a=STRING[3], gcg=ComplianceGroup PARENT parentComplianceGroup
+    PROPERTIES READONLY OBJVALUE(a), nameComplianceGroup(gcg)
+    PROPERTIES(gcg) addComplianceGroup, EDITFORM
+    ORDER BY nameComplianceGroup
+
+    OBJECTS cg = ComplianceGroup
+    PROPERTIES(cg) READONLY nameComplianceGroup, canonicalNameComplianceGroup
+    PROPERTIES(cg) ADDFORM, EDITFORM, DELETE
+    ORDER BY nameComplianceGroup
+
+    FILTERS stringEqualsAll(a)
+
+    FILTERGROUP filters
+        FILTER 'Все листья' 'F10' isParentLeafComplianceGroupComplianceGroup(cg, gcg) OR (cg IS ComplianceGroup AND isLeafComplianceGroup(cg) AND NOT gcg)
+        FILTER 'Всех потомков' 'F9' isParentComplianceGroupComplianceGroup(cg, gcg) OR (cg IS ComplianceGroup AND NOT gcg) DEFAULT
+        FILTER 'Только непосредственных потомков' 'F8' parentComplianceGroup(cg) == gcg OR (cg IS ComplianceGroup AND NOT parentComplianceGroup(cg) AND NOT gcg)
+
+    DIALOG ComplianceGroup OBJECT cg
+;
+
+DESIGN complianceGroups FROM DEFAULT{
+    main {
+        NEW split {
+            type = SPLITH;
+            ADD treeGroups.tree.box{
+                fillHorizontal = 1;
+            }
+
+            ADD cg.box {
+                cg.grid {
+                    fillHorizontal = 2;
+                    defaultComponent = TRUE;
+                }
+            }
+
+            POSITION treeGroups.tree.box TO THE LEFT cg.box;
+        }
+
+        ADD functions.box;
+    }
+}
+
+@extendFormEditable(complianceGroups);
+
+NAVIGATOR {
+    customsMasterData {
+        ADD complianceGroups;
+    }
+}
+
+// ---------------------- Расширение логики сертификатов ---------------------------------- //
+
+TABLE complianceGroupCompliance(ComplianceGroup, Compliance);
+inComplianceGroupCompliance 'Вкл.' = DATA BOOLEAN(ComplianceGroup, Compliance);
+
+countComplianceGroupCompliance 'Кол-во' (compliance) =
+    GROUP SUM 1 IF inComplianceGroupCompliance(complianceGroup, compliance) BY compliance PERSISTENT;
+
+EXTEND FORM compliance
+    OBJECTS cg = ComplianceGroup
+    PROPERTIES(cg) nameComplianceGroup, nameParentComplianceGroup
+
+    PROPERTIES(cg, c) inComplianceGroupCompliance
+;
+EXTEND DESIGN compliance {
+    pane {
+        ADD cg.box;
+    }
+}
+
+EXTEND FORM compliances
+    OBJECTS cg = ComplianceGroup
+    PROPERTIES(cg) READONLY nameComplianceGroup, nameParentComplianceGroup
+    PROPERTIES(cg, c) READONLY inComplianceGroupCompliance
+
+    FILTERS inComplianceGroupCompliance(cg, c)
+;
+
+EXTEND FORM complianceGroup
+    OBJECTS c = Compliance
+    PROPERTIES(c) READONLY numberObject, seriesObject, dateCompliance, timeCompliance, fromDateCompliance, fromTimeCompliance,
+                            toDateCompliance, toTimeCompliance, nameLegalEntityCompliance
+    PROPERTIES(cg, c) inComplianceGroupCompliance
+;
+
+// ------------------- По товарам --------------------- //
+complianceGroupCountrySku = ABSTRACT ComplianceGroup(Country, Sku);
+
+// Цвета по умолчанию
+backgroundCompliance 'Цвет' () = RGB(224, 224, 255);
