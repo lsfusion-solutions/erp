@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.customs;
+package lsfusion.erp.region.by.certificate.declaration;
 
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;

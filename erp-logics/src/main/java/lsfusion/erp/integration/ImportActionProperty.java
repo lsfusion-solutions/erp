@@ -773,8 +773,8 @@ public class ImportActionProperty {
 
 
                 if (showField(dataUserInvoiceDetail, "priceDuty")) {
-                    ImportField priceDutyUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("priceDutyUserInvoiceDetail"));
-                    props.add(new ImportProperty(priceDutyUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.priceDutyUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    ImportField priceDutyUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("dutyPriceUserInvoiceDetail"));
+                    props.add(new ImportProperty(priceDutyUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.dutyPriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
                     fields.add(priceDutyUserInvoiceDetailField);
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                         data.get(i).add(dataUserInvoiceDetail.get(i).priceDuty);
@@ -795,8 +795,8 @@ public class ImportActionProperty {
                 }
 
                 if (showField(dataUserInvoiceDetail, "priceRegistration")) {
-                    ImportField priceRegistrationUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("priceRegistrationUserInvoiceDetail"));
-                    props.add(new ImportProperty(priceRegistrationUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.priceRegistrationUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    ImportField priceRegistrationUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("registrationPriceUserInvoiceDetail"));
+                    props.add(new ImportProperty(priceRegistrationUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.registrationPriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
                     fields.add(priceRegistrationUserInvoiceDetailField);
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                         data.get(i).add(dataUserInvoiceDetail.get(i).priceRegistration);

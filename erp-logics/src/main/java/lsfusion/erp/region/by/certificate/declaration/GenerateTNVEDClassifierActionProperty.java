@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.customs;
+package lsfusion.erp.region.by.certificate.declaration;
 
 import org.apache.commons.lang.time.DateUtils;
 import org.xBaseJ.DBF;

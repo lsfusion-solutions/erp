@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.declaration;
+package lsfusion.erp.region.by.certificate.declaration;
 
 import org.jdom.Document;
 import org.jdom.Element;
@@ -103,9 +103,9 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
 
                     ImportField userNumberField = new ImportField(LM.findLCPByCompoundName("userNumberDeclarationDetail"));
                     ImportField nameCustomsField = new ImportField(LM.findLCPByCompoundName("nameCustomsDeclarationDetail"));
-                    ImportField sumDataField = new ImportField(LM.findLCPByCompoundName("sumDataDeclarationDetail"));
-                    ImportField sumDutyDataField = new ImportField(LM.findLCPByCompoundName("sumDutyDataDeclarationDetail"));
-                    ImportField sumVATDataField = new ImportField(LM.findLCPByCompoundName("sumVATDataDeclarationDetail"));
+                    ImportField sumDataField = new ImportField(LM.findLCPByCompoundName("homeSumDeclarationDetail"));
+                    ImportField sumDutyDataField = new ImportField(LM.findLCPByCompoundName("dutySumDeclarationDetail"));
+                    ImportField sumVATDataField = new ImportField(LM.findLCPByCompoundName("VATSumDeclarationDetail"));
                     ImportField dateField = new ImportField(DateClass.instance);
                     ImportField codeCustomsGroupField = new ImportField(LM.findLCPByCompoundName("codeCustomsGroupDeclarationDetail"));
                     ImportField sidOrigin2CountryField = new ImportField(LM.findLCPByCompoundName("sidOrigin2CountryDeclarationDetail"));
@@ -128,9 +128,9 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
 
                     properties.add(new ImportProperty(userNumberField, LM.findLCPByCompoundName("userNumberDeclarationDetail").getMapping(declarationDetailKey)));
                     properties.add(new ImportProperty(nameCustomsField, LM.findLCPByCompoundName("nameCustomsDeclarationDetail").getMapping(declarationDetailKey)));
-                    properties.add(new ImportProperty(sumDataField, LM.findLCPByCompoundName("sumDataDeclarationDetail").getMapping(declarationDetailKey)));
-                    properties.add(new ImportProperty(sumDutyDataField, LM.findLCPByCompoundName("sumDutyDataDeclarationDetail").getMapping(declarationDetailKey)));
-                    properties.add(new ImportProperty(sumVATDataField, LM.findLCPByCompoundName("sumVATDataDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(sumDataField, LM.findLCPByCompoundName("homeSumDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(sumDutyDataField, LM.findLCPByCompoundName("dutySumDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(sumVATDataField, LM.findLCPByCompoundName("VATSumDeclarationDetail").getMapping(declarationDetailKey)));
                     properties.add(new ImportProperty(declaration, LM.findLCPByCompoundName("declarationDeclarationDetail").getMapping(declarationDetailKey)));
 
                     properties.add(new ImportProperty(nameUOMField, LM.findLCPByCompoundName("nameUOM").getMapping(UOMKey)));

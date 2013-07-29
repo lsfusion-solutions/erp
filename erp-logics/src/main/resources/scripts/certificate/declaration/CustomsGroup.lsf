@@ -81,7 +81,8 @@ EXTEND CLASS VATCustomsException {
 
 // НДС
 rangeVATCustomsRate = DATA Range(VATCustomsRate);
-numberRangeVATCustomsRate 'НДС' (VATCustomsRate) = numberRange(rangeVATCustomsRate(VATCustomsRate)) IN base;
+numberRangeVATCustomsRate 'НДС, номер' (VATCustomsRate) = numberRange(rangeVATCustomsRate(VATCustomsRate)) IN base;
+valueCurrentVATCustomsRate 'НДС, %' (VATCustomsRate) = valueRateRangeDate(rangeVATCustomsRate(VATCustomsRate), currentDate()) IN base;
 
 VATCustomsGroupDate 'НДС' (customsGroup, date) = rangeVATCustomsRate(VATCustomsRateCustomsGroupDate(customsGroup, date));
 
@@ -89,14 +90,14 @@ dataValueSupplierVATCustomsGroupDate 'НДС, %' (customsGroup, date) = valueRat
 valueCurrentRateSupplierVATCustomsGroup 'НДС, %' (customsGroup) = valueRateRangeDate(VATCustomsGroupDate(customsGroup, currentDate()), currentDate());
 
 // пошлина
-percentDutyDutyCustomsRate 'Пошлина (%)' = DATA NUMERIC[14,3](DutyCustomsRate) IN base;
-weightDutyDutyCustomsRate 'Пошлина (валют.)' = DATA NUMERIC[14,3](DutyCustomsRate) IN base;
+percentDutyDutyCustomsRate 'Пошлина, %' = DATA NUMERIC[14,3](DutyCustomsRate) IN base;
+weightDutyDutyCustomsRate 'Пошлина, (мин.)' = DATA NUMERIC[14,3](DutyCustomsRate) IN base;
 
-percentDutyCustomsGroupDate 'Пошлина (%)' (customsGroup, date) = percentDutyDutyCustomsRate(dutyCustomsRateCustomsGroupDate(customsGroup, date));
-weightDutyCustomsGroupDate 'Пошлина (валют.)' (customsGroup, date) = weightDutyDutyCustomsRate(dutyCustomsRateCustomsGroupDate(customsGroup, date));
+percentDutyCustomsGroupDate 'Пошлина, %' (customsGroup, date) = percentDutyDutyCustomsRate(dutyCustomsRateCustomsGroupDate(customsGroup, date));
+weightDutyCustomsGroupDate 'Пошлина, (мин.)' (customsGroup, date) = weightDutyDutyCustomsRate(dutyCustomsRateCustomsGroupDate(customsGroup, date));
 
-percentDutyCustomsGroup 'Пошлина (%)' (customsGroup) = percentDutyCustomsGroupDate(customsGroup, currentDate());
-weightDutyCustomsGroup 'Пошлина (валют.)' (customsGroup) = weightDutyCustomsGroupDate(customsGroup, currentDate());
+percentDutyCustomsGroup 'Пошлина, %' (customsGroup) = percentDutyCustomsGroupDate(customsGroup, currentDate());
+weightDutyCustomsGroup 'Пошлина, (мин.)' (customsGroup) = weightDutyCustomsGroupDate(customsGroup, currentDate());
 
 //сбор
 sumRegistrationCustomsRate 'Таможенный сбор' = DATA NUMERIC[14,3](RegistrationCustomsRate) IN base;
@@ -108,7 +109,7 @@ registrationCustomsGroup 'Таможенный сбор' (customsGroup) = regist
 nameVATCustomsException 'Наименование' = DATA VARISTRING[150](VATCustomsException) IN base;
 
 rangeVATCustomsException = DATA Range(VATCustomsException);
-numberRangeVATCustomsException 'Льгота НДС' (VATCustomsException) = numberRange(rangeVATCustomsException(VATCustomsException)) IN base;
+numberRangeVATCustomsException 'Льгота НДС, номер' (VATCustomsException) = numberRange(rangeVATCustomsException(VATCustomsException)) IN base;
 dataValueVATCustomsExceptionDate 'Льгота НДС, %' (VATCustomsException, date) = valueRateRangeDate(rangeVATCustomsException(VATCustomsException), date);
 
 valueCurrentVATCustomsException 'Льгота НДС, %' (VATCustomsException) = valueRateRangeDate(rangeVATCustomsException(VATCustomsException), currentDate()) IN base;
@@ -116,7 +117,7 @@ valueCurrentVATCustomsException 'Льгота НДС, %' (VATCustomsException) =
 rangeVATCustomsExceptionCustomsGroupDate 'Льгота НДС' (customsGroup, date) = rangeVATCustomsException(VATCustomsExceptionCustomsGroupDate(customsGroup, date));
 dataValueVATCustomsExceptionGroupDate 'Льгота НДС, %' (customsGroup, date) = valueRateRangeDate(rangeVATCustomsExceptionCustomsGroupDate(customsGroup, date), date);
 
-countVATCustomsExceptionCustomsGroup 'Кол-во' (customsGroup) = GROUP SUM 1 IF VATCustomsException IS VATCustomsException BY customsGroupVATCustomsException(VATCustomsException) PERSISTENT;
+countVATCustomsExceptionCustomsGroup 'Кол-во льгот' (customsGroup) = GROUP SUM 1 IF VATCustomsException IS VATCustomsException BY customsGroupVATCustomsException(VATCustomsException) PERSISTENT;
 
 nameVATCustomsExceptionCustomsGroup 'Наименование' (customsGroup) = GROUP CONCAT VARSTRING[255](nameVATCustomsException(VATCustomsException))  , ', ' BY customsGroupVATCustomsException(VATCustomsException);
 
@@ -164,12 +165,12 @@ FORM customsGroup 'Позиция ТН ВЭД'
                    nameCustomsZoneCustomsGroup, dateFromCustomsGroup, dateToCustomsGroup, isCompliancedCustomsGroup, numberCustomsGroup
 
     OBJECTS vcr = VATCustomsRate
-    PROPERTIES(vcr) READONLY dateFromVATCustomsRate, dateToVATCustomsRate, numberRangeVATCustomsRate
+    PROPERTIES(vcr) READONLY dateFromVATCustomsRate, dateToVATCustomsRate, numberRangeVATCustomsRate, valueCurrentVATCustomsRate
     PROPERTIES(vcr) ADDFORM, EDITFORM, DELETE
     FILTERS customsGroupVATCustomsRate(vcr) == cg
 
     OBJECTS vce = VATCustomsException
-    PROPERTIES(vce) READONLY nameVATCustomsException, dateFromVATCustomsException, dateToVATCustomsException, numberRangeVATCustomsException
+    PROPERTIES(vce) READONLY nameVATCustomsException, dateFromVATCustomsException, dateToVATCustomsException, numberRangeVATCustomsException, valueCurrentVATCustomsException
     PROPERTIES(vce) ADDFORM, EDITFORM, DELETE
     FILTERS customsGroupVATCustomsException(vce) == cg
 
@@ -296,3 +297,7 @@ NAVIGATOR {
         ADD customsGroups;
     }
 }
+
+// Цвета по умолчанию
+backgroundCustoms 'Цвет' () = RGB(255, 224, 224);
+backgroundVATCustomsException 'Цвет' () = RGB(212, 255, 212);

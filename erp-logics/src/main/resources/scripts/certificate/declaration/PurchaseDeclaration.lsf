@@ -1,0 +1,34 @@
+MODULE PurchaseDeclaration;
+
+REQUIRE Declaration, PurchaseCertificate, PurchaseInvoiceCharge; ///
+
+NAMESPACE Purchase;
+
+// добавляем в инвойс декларацию
+@defineDocumentCertificateObject(declaration, invoice, i, 'Таможенная декларация');
+
+sumInvoiceDetailDeclaration 'Сумма (по инвойсам)' = GROUP SUM sumInvoiceDetail(d)
+                                                          BY declarationInvoiceDetail(d) MINCHARWIDTH 15;
+sumUserInvoiceDetailDeclaration 'Сумма (по инвойсам)' = GROUP SUM sumUserInvoiceDetail(d)
+                                                              BY declarationUserInvoiceDetail(d) MINCHARWIDTH 15;
+
+// проставляем в строку инвойса декларацию из партии
+dataDeclarationUserInvoiceDetail(detail)  <- IF batchUserInvoiceDetail(detail)
+                                                THEN prevDeclarationBatch(batchUserInvoiceDetail(detail))
+                                                ELSE prevDeclarationBatch(lastOrderBatchSkuStock(skuUserInvoiceDetail(detail), customerStockUserInvoiceDetail(detail)))
+    WHEN (CHANGED (batchUserInvoiceDetail(detail)) OR
+         CHANGED (skuUserInvoiceDetail(detail)) OR
+         CHANGED (customerStockUserInvoiceDetail(detail)))
+         AND NOT isHomeCurrencyUserInvoice(userInvoiceUserInvoiceDetail(detail));
+
+// добавляем в поставку декларацию
+@defineDocumentCertificateObject(declaration, shipment, s, 'Таможенная декларация');
+@deriveDocumentCertificate(declaration, shipment, customerStock, data);
+
+declarationShipmentDetail(detail) += declarationInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
+
+overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
+    ASSIGN dataDeclarationUserShipmentDetail(s) <- declarationInvoiceDetail(i);
+}
+
+declarationBatch (batch) += declarationShipmentDetail(shipmentDetailShipmentBatch(batch));

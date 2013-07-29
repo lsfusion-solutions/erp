@@ -62,8 +62,6 @@ extraDescriptionInvoiceDetail 'Доп. наименование' (invoiceDetail)
 
 editInvoice 'Редактировать' = ABSTRACT ACTION LIST (Invoice) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-countryInvoiceDetail(invoiceDetail) = countryStock(customerStockInvoice(invoiceInvoiceDetail(invoiceDetail)));
-
 //----------------------------------------------- Накладная ---------------------------------------------------//
 
 META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
@@ -632,7 +630,7 @@ META defineInvoiceHomeCurrency(dumb)
     homeCurrencyInvoice = ABSTRACT Currency(Invoice);
     homeCurrencyUserInvoice = DATA Currency(UserInvoice);
     homeCurrencyInvoice(i) += homeCurrencyUserInvoice(i);
-    nameHomeCurrencyInvoice 'Валюта (пост.)' (i) = nameCurrency(homeCurrencyInvoice(i));
+    nameHomeCurrencyInvoice 'Валюта (конв.)' (i) = nameCurrency(homeCurrencyInvoice(i));
 
     homeCurrencyUserInvoice(userInvoice) <- currencyLegalEntity(customerUserInvoice(userInvoice)) WHEN CHANGED(customerUserInvoice(userInvoice));
 
@@ -642,7 +640,7 @@ META defineInvoiceHomeCurrency(dumb)
     nameTypeExchangeInvoice 'Тип обмена' (i) = nameTypeExchange(typeExchangeInvoice(i));
 
     CONSTRAINT currencyTypeExchange(typeExchangeUserInvoice(invoice)) != homeCurrencyUserInvoice(invoice)
-        CHECKED BY typeExchangeUserInvoice MESSAGE 'Тип обмена должен соответствовать валюте (пост.)';
+        CHECKED BY typeExchangeUserInvoice MESSAGE 'Тип обмена должен соответствовать валюте (конв.)';
 
     dateRateExchangeInvoice 'Дата конвертации' = ABSTRACT DATE(Invoice);
     dateRateExchangeUserInvoice 'Дата конвертации' = DATA DATE(UserInvoice);
@@ -668,8 +666,8 @@ META defineInvoiceHomeCurrency(dumb)
     rateExchangeUserInvoiceDetail 'Курс' (d) = OVERRIDE rateExchangeUserInvoice(userInvoiceUserInvoiceDetail(d)),  dataRateExchangeUserInvoiceDetail(d);
     rateExchangeInvoiceDetail(d) += rateExchangeUserInvoiceDetail(d);
 
-    homePriceInvoiceDetail 'Цена (пост.)' = ABSTRACT NUMERIC[14,2](InvoiceDetail) PERSISTENT;
-    homePriceUserInvoiceDetail 'Цена (пост.)' = DATA NUMERIC[14,2](UserInvoiceDetail);
+    homePriceInvoiceDetail 'Цена (конв.)' = ABSTRACT NUMERIC[14,2](InvoiceDetail) PERSISTENT;
+    homePriceUserInvoiceDetail 'Цена (конв.)' = DATA NUMERIC[14,2](UserInvoiceDetail);
     homePriceInvoiceDetail(d) += homePriceUserInvoiceDetail(d);
 
     homePriceUserInvoiceDetail(d) <- roundPriceCurrency(priceUserInvoiceDetail(d) *
@@ -680,9 +678,9 @@ META defineInvoiceHomeCurrency(dumb)
                                                         CHANGED (homeCurrencyUserInvoice(userInvoiceUserInvoiceDetail(d))) OR
                                                         CHANGED (priceUserInvoiceDetail(d));
 
-    sumHomeInvoiceDetail 'Сумма (пост.)' (d) = quantityInvoiceDetail(d) * homePriceInvoiceDetail(d);
+    sumHomeInvoiceDetail 'Сумма (конв.)' (d) = quantityInvoiceDetail(d) * homePriceInvoiceDetail(d);
 
-    sumHomeInvoice 'Сумма (пост.)' (invoice) = GROUP SUM sumHomeInvoiceDetail(d) BY invoiceInvoiceDetail(d);
+    sumHomeInvoice 'Сумма (конв.)' (invoice) = GROUP SUM sumHomeInvoiceDetail(d) BY invoiceInvoiceDetail(d);
 
     EXTEND FORM userInvoice
         PROPERTIES(i) BACKGROUND backgroundHomeCurrencyInvoice(i) BEFORE nameAgreementUserInvoice

@@ -21,10 +21,10 @@ chargeSumUserInvoiceDetailUserInvoice 'Сумма услуг' (i) = GROUP SUM ch
 chargeSumInvoiceDetailInvoice 'Сумма услуг' (i) = GROUP SUM chargeSumInvoiceDetail(idetail)
     BY invoiceInvoiceDetail(idetail) IN documentSumGroup PREFCHARWIDTH 15;
 
-chargePercentUserInvoiceDetail '% услуг' (userInvoiceDetail) = DATA NUMERIC[6,3] (UserInvoiceDetail) MINCHARWIDTH 6;
+chargePercentUserInvoiceDetail '% услуг' (userInvoiceDetail) = DATA NUMERIC[12,6] (UserInvoiceDetail) MINCHARWIDTH 8;
 
-chargePercentUserInvoice '% услуг' (i) = chargeSumUserInvoiceDetailUserInvoice(i) * 100.0 / (incomeSumUserInvoice(i) IF incomeSumUserInvoice(i) != 0) FIXEDCHARWIDTH 6 PERSISTENT;
-chargePercentInvoice '% услуг' (i) = chargeSumInvoiceDetailInvoice(i) * 100.0 / (incomeSumInvoice(i) IF incomeSumInvoice(i) != 0) FIXEDCHARWIDTH 6 PERSISTENT;
+chargePercentUserInvoice '% услуг' (i) = NUMERIC[12,6](chargeSumUserInvoiceDetailUserInvoice(i) * 100.0 / (incomeSumUserInvoice(i) IF incomeSumUserInvoice(i) != 0)) FIXEDCHARWIDTH 10 PERSISTENT;
+chargePercentInvoice '% услуг' (i) = NUMERIC[12,6](chargeSumInvoiceDetailInvoice(i) * 100.0 / (incomeSumInvoice(i) IF incomeSumInvoice(i) != 0)) FIXEDCHARWIDTH 10 PERSISTENT;
 
 setChargePercentUserInvoice = ACTION (userInvoice, percent) {
     chargePercentUserInvoiceDetail(d) <- percent WHERE userInvoiceUserInvoiceDetail(d) == userInvoice;

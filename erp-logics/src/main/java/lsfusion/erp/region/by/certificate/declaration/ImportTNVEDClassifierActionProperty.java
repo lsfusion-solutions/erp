@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.customs;
+package lsfusion.erp.region.by.certificate.declaration;
 
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;

@@ -1,0 +1,58 @@
+MODULE Declaration;
+
+REQUIRE Certificate, Shipment, CustomsGroup;
+
+CLASS Declaration 'Таможенная декларация' : Certificate, NumeratedObject;
+CLASS DeclarationPosted 'Проведенная таможенная декларация' : Declaration, PostedObject;
+TABLE declaration(Declaration);
+
+@defineExternalizable(declaration, VARSTRING[100]);
+
+// Номер
+@defineNumeratedObjectDefault(Declaration, 'Нумератор для деклараций', 'ДД');
+seriesCertificate(declaration) += seriesObject(declaration) IF declaration IS Declaration;
+numberCertificate(declaration) += numberObject(declaration) IF declaration IS Declaration;
+
+// Валюта
+@defineDocumentHeaderTimePrefix(Declaration, ,' документа');
+@deriveDocumentHeaderTimePrefix(Declaration, );
+dateCertificate(declaration) += dateDeclaration(declaration);
+timeCertificate(declaration) += timeDeclaration(declaration);
+
+descriptionDeclaration 'Таможенная декларация' (declaration) = CONCAT ' ', '№ ' + seriesNumberObject(declaration), 'от ' + dateDeclaration(declaration);
+
+@defineCertificateObjectBatch(declaration, 'Таможенная декларация');
+
+FORM declaration 'Таможенная декларация'
+    OBJECTS d = Declaration FIXED PANEL
+    PROPERTIES(d) objectClassName, nameNumeratorObject, numberObject, seriesObject, dateDeclaration, timeDeclaration
+    EDIT Declaration OBJECT d
+;
+DESIGN declaration FROM DEFAULT {
+    main {
+        NEW header FIRST {
+            type = CONTAINERH;
+            caption = 'Шапка документа';
+            ADD PROPERTY(objectClassName);
+            ADD PROPERTY(nameNumeratorObject);
+            ADD PROPERTY(numberObject);
+            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(dateDeclaration);
+            ADD PROPERTY(timeDeclaration);
+        }
+    }
+}
+
+FORM declarations 'Таможенные декларации'
+    OBJECTS d = Declaration
+    PROPERTIES(d) READONLY numberObject, seriesObject, dateDeclaration, timeDeclaration
+    PROPERTIES(d) ADDFORM, EDITFORM, DELETE
+
+    DIALOG Declaration OBJECT d
+;
+
+NAVIGATOR {
+    customsDocuments {
+        ADD declarations;
+    }
+}

@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.declaration;
+package lsfusion.erp.region.by.certificate.declaration;
 
 import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
@@ -154,7 +154,7 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
                 invoiceQuery.addProperty("seriesNumberObject", getLCP("seriesNumberObject").getExpr(invoiceExpr));
                 invoiceQuery.addProperty("dateInvoice", getLCP("Purchase.dateInvoice").getExpr(invoiceExpr));
 
-                invoiceQuery.and(getLCP("inDeclarationDetailInvoice").getExpr(new DataObject(entry.getValue().get("declarationDetailID"), (ConcreteClass) getClass("declarationDetail")).getExpr(), invoiceExpr).getWhere());
+                invoiceQuery.and(getLCP("inDeclarationDetailUserInvoice").getExpr(new DataObject(entry.getValue().get("declarationDetailID"), (ConcreteClass) getClass("declarationDetail")).getExpr(), invoiceExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> invoiceResult = invoiceQuery.execute(context.getSession().sql);
 
