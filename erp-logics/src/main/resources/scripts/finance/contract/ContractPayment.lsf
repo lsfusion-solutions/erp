@@ -37,10 +37,10 @@ CONSTRAINT currencyTypeExchange(typeExchangeContractPayment(payment)) != currenc
     CHECKED BY typeExchangeContractPayment MESSAGE 'Валюта договора должна совпадать с валютой типа обмена';
 
 CONSTRAINT partyAContract(contractPayment(payment)) != beneficiaryPayment(payment)
-    CHECKED BY contractPayment MESSAGE 'Договор должен соответствовать организациям покупателю и поставщику';
+    CHECKED BY contractPayment MESSAGE 'Выбранный договор не действителен для бенефициара';
 
 CONSTRAINT partyBContract(contractPayment(payment)) != payerPayment(payment)
-    CHECKED BY contractPayment MESSAGE 'Договор должен соответствовать организациям покупателю и поставщику';
+    CHECKED BY contractPayment MESSAGE 'Выбранный договор не действителен для плательщика';
 
 @implementContractLedger( ,payment, contract);
 sumContractLedger(contractLedger) += -sumContractPayment(contractLedger);
@@ -139,6 +139,8 @@ payContractDate 'Оплатить по договору' = ACTION (contract, dat
     ADDOBJ Payment;
     FOR pm == addedObject() DO {
         ASSIGN datePayment(pm) <- date;
+        ASSIGN payerPayment(pr) <- partyBContract(contract);
+        ASSIGN beneficiaryPayment(pr) <- partyAContract(contract);
         ASSIGN contractPayment(pm) <- contract;
         ASSIGN sumContractPayment(pm) <- debtSumContractDate(contract, date);
         ASSIGN sumPayment(pm) <- debtSumContractDate(contract, date) IF currencyContractPayment(pm) == currencyAccountFromPayment(pm);
@@ -178,6 +180,7 @@ payPaymentConditionInContractLedgerDate 'Оплатить c учетом бон�
             }
         }
     }
+    ELSE {MESSAGE 'По текущему договору не заданы условия бонуса';}
 }
 
 payPaymentConditionContractDate 'Оплатить c учетом бонусов договора' = ACTION (contract, date) NEWSESSION {
@@ -207,10 +210,13 @@ payPaymentConditionContractDate 'Оплатить c учетом бонусов 
             }
         }
     }
+    ELSE {MESSAGE 'По текущему договору не заданы условия бонуса';}
 }
 
 addContractPayment 'Оплатить' = ACTION (contract) NEWSESSION{
     FOR ADDOBJ p = Payment DO{
+        ASSIGN payerPayment(pr) <- partyBContract(contract);
+        ASSIGN beneficiaryPayment(pr) <- partyAContract(contract);
         ASSIGN contractPayment(p) <- contract;
         FORM payment OBJECTS p=p MODAL;
         IF formResult() == FormResult.ok THEN

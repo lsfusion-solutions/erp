@@ -49,7 +49,7 @@ nameCurrencyAccountToPaymentRequest 'Валюта счета' (paymentRequest) =
 CONSTRAINT beneficiaryPaymentRequest(paymentRequest) != Bank.legalEntityAccount(accountToPaymentRequest(paymentRequest))
     CHECKED BY accountToPaymentRequest MESSAGE 'Организация счета должна совпадать с бенефициаром';
 
-sumPaymentRequest 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentRequest);
+sumPaymentRequest 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentRequest) PREFCHARWIDTH 16;
 
 descriptionPaymentRequest 'Название документа' =
     [FORMULA VARSTRING[200] '\'Платежное требование \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT) || \' \' || CAST($3 AS TEXT)'](
@@ -189,6 +189,8 @@ overCreatePaymentRequests = ABSTRACT ACTION LIST (PaymentRequest);
 createPaymentRequestContractDate 'Выставить платежное требование' = ACTION (contract, date) NEWSESSION {
     FOR ADDOBJ pr = PaymentRequest DO {
         datePaymentRequest(pr) <- date;
+        payerPaymentRequest(pr) <- partyBContract(contract);
+        beneficiaryPaymentRequest(pr) <- partyAContract(contract);
         contractPaymentRequest(pr) <- contract;
         sumPaymentRequest(pr) <- toRequestContractDate(contract, date);
         costPaymentRequestInContractLedger(pr, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(pr, inContractLedger)
@@ -234,6 +236,8 @@ createPaymentRequests 'Выставить платежные требовани�
                                                   AND (partyBContract(contract) == partyB() OR NOT partyB())
         ADDOBJ pr = PaymentRequestPosted DO {
         datePaymentRequest(pr) <- date;
+        payerPaymentRequest(pr) <- partyBContract(contract);
+        beneficiaryPaymentRequest(pr) <- partyAContract(contract);
         contractPaymentRequest(pr) <- contract;
         sumPaymentRequest(pr) <- toRequestContractDate(contract, date);
         costPaymentRequestInContractLedger(pr, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(pr, inContractLedger)
