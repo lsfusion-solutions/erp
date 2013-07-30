@@ -44,7 +44,8 @@ TABLE pharmacyPriceGroupPharmacyPriceInterval(PharmacyPriceGroup, PharmacyPriceI
 wholesaleMarkupPharmacyGroupInterval 'Оптовая надбавка' = DATA NUMERIC[8,3] (PharmacyPriceGroup, PharmacyPriceInterval);
 retailMarkupPharmacyGroupInterval 'Розничная надбавка' = DATA NUMERIC[8,3] (PharmacyPriceGroup, PharmacyPriceInterval);
 
-pharmacyExchangePriceDate (price, date) = price / rateTypeExchangeCurrencyDate(pharmacyTypeExchange(), currencyShortName('USD'), date);
+usdCurrency = currencyShortName('USD') PERSISTENT;
+pharmacyExchangePriceDate (price, date) = price / rateTypeExchangeCurrencyDate(pharmacyTypeExchange(), usdCurrency(), date);
 
 orderPharmacyInterval = STRUCT(pricePharmacyInterval(interval), fromDatePharmacyInterval(interval), interval) PERSISTENT;
 orderIntervalGroupPriceDate (group, price, date) = GROUP MAX orderPharmacyInterval(interval)
@@ -56,7 +57,7 @@ orderIntervalGroupPriceDate (group, price, date) = GROUP MAX orderPharmacyInterv
 pharmacyIntervalPharmacyGroupPriceDate (group, price, date) = orderIntervalGroupPriceDate(group, price, date)[3] COMPLEX;
 
 wholesaleMarkupPharmacyGroupPriceDate 'Оптовая надбавка' (priceGroup, price, date) = wholesaleMarkupPharmacyGroupInterval(priceGroup, pharmacyIntervalPharmacyGroupPriceDate(priceGroup, price, date));
-wholesaleMarkupPharmacySkuPriceDate 'Оптовая надбавка' (sku, price, date) =  wholesaleMarkupPharmacyGroupPriceDate(pharmacyPriceGroupSku(sku), price, date);
+wholesaleMarkupPharmacySkuPriceDate 'Оптовая надбавка' (sku, price, date) =  wholesaleMarkupPharmacyGroupPriceDate(pharmacyPriceGroupSku(sku), price, date) COMPLEX;
 wholesaleMarkupPharmacyBatchPriceDate 'Оптовая надбавка' (batch, price, date) =  wholesaleMarkupPharmacySkuPriceDate(skuBatch(batch), price, date);
 
 retailMarkupPharmacyGroupPriceDate 'Розничная надбавка' (priceGroup, price, date) = retailMarkupPharmacyGroupInterval(priceGroup, pharmacyIntervalPharmacyGroupPriceDate(priceGroup, price, date));
@@ -155,7 +156,7 @@ namePriceListType(type) += nameWholesalePharmacyPriceListType(type) IF type IS W
 calcPriceListTypeWholesalePharmacyPriceListType = DATA CalcPriceListType (WholesalePharmacyPriceListType);
 nameCalcPriceListTypeWholesalePharmacyPriceListType 'Вид цены с основной наценкой' (type) = namePriceListType(calcPriceListTypeWholesalePharmacyPriceListType(type));
 
-ledgerPriceListTypeWholesalePharmacyPriceListType(type) = basePriceListTypeCalcPriceListType(calcPriceListTypeWholesalePharmacyPriceListType(type)) AS LedgerPriceListType PERSISTENT; //DATA LedgerPriceListType (WholesalePharmacyPriceListType);
+ledgerPriceListTypeWholesalePharmacyPriceListType(type) = basePriceListTypeCalcPriceListType(calcPriceListTypeWholesalePharmacyPriceListType(type)) AS LedgerPriceListType PERSISTENT INDEXED; //DATA LedgerPriceListType (WholesalePharmacyPriceListType);
 
 ledgerPriceListTypePriceListType(type) += ledgerPriceListTypeWholesalePharmacyPriceListType(type);
 
@@ -218,7 +219,7 @@ limitMarkupPriceCalcPriceListTypeSkuDate(price, type, sku, date) =
         wholesaleMarkupPharmacySkuPriceDate(sku, price, date);
 
 limitPricePriceCalcPriceListTypeSkuDate(price, type, sku, date) =
-    NUMERIC[14,2](round (price * (100 + limitMarkupPriceCalcPriceListTypeSkuDate(price, type, sku, date)) / 100.0, 0));
+    NUMERIC[14,2](round (price * (100 + limitMarkupPriceCalcPriceListTypeSkuDate(price, type, sku, date)) / 100.0, 0)) COMPLEX;
 
 //---цена товара
 priceWholesaleBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
