@@ -10,7 +10,7 @@ TABLE pharmacyPriceGroup(PharmacyPriceGroup);
 namePharmacyPriceGroup 'Наименование' = DATA VARISTRING[50](PharmacyPriceGroup);
 @defineExternalizable(pharmacyPriceGroup, VARSTRING[100]);
 
-pharmacyPriceGroupSku= ABSTRACT PharmacyPriceGroup (Sku);
+pharmacyPriceGroupSku = ABSTRACT PharmacyPriceGroup (Sku) PERSISTENT;
 namePharmacyPriceGroupSku 'Тип лекарственного средства' (sku) = namePharmacyPriceGroup(pharmacyPriceGroupSku(sku));
 
 @defineObjectItemAttribute(pharmacyPriceGroup, PharmacyPriceGroup, namePharmacyPriceGroup, 'Тип лекарственного средства', itemPharmacyGroup);
@@ -44,15 +44,16 @@ TABLE pharmacyPriceGroupPharmacyPriceInterval(PharmacyPriceGroup, PharmacyPriceI
 wholesaleMarkupPharmacyGroupInterval 'Оптовая надбавка' = DATA NUMERIC[8,3] (PharmacyPriceGroup, PharmacyPriceInterval);
 retailMarkupPharmacyGroupInterval 'Розничная надбавка' = DATA NUMERIC[8,3] (PharmacyPriceGroup, PharmacyPriceInterval);
 
-pharmacyExchangePriceDate  (price, date)= price / rateTypeExchangeCurrencyDate(pharmacyTypeExchange(), currencyShortName('USD'), date);
+pharmacyExchangePriceDate (price, date) = price / rateTypeExchangeCurrencyDate(pharmacyTypeExchange(), currencyShortName('USD'), date);
 
-orderIntervalGroupPriceDate (group, price, date) = GROUP MAX STRUCT(pricePharmacyInterval(interval), fromDatePharmacyInterval(interval), interval)
+orderPharmacyInterval = STRUCT(pricePharmacyInterval(interval), fromDatePharmacyInterval(interval), interval) PERSISTENT;
+orderIntervalGroupPriceDate (group, price, date) = GROUP MAX orderPharmacyInterval(interval)
     IF pharmacyExchangePriceDate(price AS NUMERIC[14,2], date) > pricePharmacyInterval(interval)
-    IF date >= fromDatePharmacyInterval(interval)
-    IF NOT date > toDatePharmacyInterval(interval)
+    AND date >= fromDatePharmacyInterval(interval)
+    AND NOT date > toDatePharmacyInterval(interval)
         BY pharmacyGroupPharmacyInterval(interval), price, date;
 
-pharmacyIntervalPharmacyGroupPriceDate (group, price, date) = orderIntervalGroupPriceDate(group, price, date)[3];
+pharmacyIntervalPharmacyGroupPriceDate (group, price, date) = orderIntervalGroupPriceDate(group, price, date)[3] COMPLEX;
 
 wholesaleMarkupPharmacyGroupPriceDate 'Оптовая надбавка' (priceGroup, price, date) = wholesaleMarkupPharmacyGroupInterval(priceGroup, pharmacyIntervalPharmacyGroupPriceDate(priceGroup, price, date));
 wholesaleMarkupPharmacySkuPriceDate 'Оптовая надбавка' (sku, price, date) =  wholesaleMarkupPharmacyGroupPriceDate(pharmacyPriceGroupSku(sku), price, date);
@@ -151,67 +152,106 @@ CLASS WholesalePharmacyPriceListType 'Оптовая цена на медтов�
 nameWholesalePharmacyPriceListType 'Наименование' = DATA VARISTRING[50](WholesalePharmacyPriceListType);
 namePriceListType(type) += nameWholesalePharmacyPriceListType(type) IF type IS WholesalePharmacyPriceListType;
 
-basePriceListTypeWholesalePharmacyPriceListType(type) = DATA LedgerPriceListType (WholesalePharmacyPriceListType);
-nameBasePriceListTypeWholesalePharmacyPriceListType 'Базовый вид цены' (type) = nameBasePriceListType(basePriceListTypeWholesalePharmacyPriceListType(type));
-
-ledgerPriceListTypePriceListType(type) += basePriceListTypeWholesalePharmacyPriceListType(type) AS LedgerPriceListType;
-
 calcPriceListTypeWholesalePharmacyPriceListType = DATA CalcPriceListType (WholesalePharmacyPriceListType);
 nameCalcPriceListTypeWholesalePharmacyPriceListType 'Вид цены с основной наценкой' (type) = namePriceListType(calcPriceListTypeWholesalePharmacyPriceListType(type));
+
+ledgerPriceListTypeWholesalePharmacyPriceListType(type) = basePriceListTypeCalcPriceListType(calcPriceListTypeWholesalePharmacyPriceListType(type)) AS LedgerPriceListType PERSISTENT; //DATA LedgerPriceListType (WholesalePharmacyPriceListType);
+
+ledgerPriceListTypePriceListType(type) += ledgerPriceListTypeWholesalePharmacyPriceListType(type);
 
 @defineDocumentHeaderCurrency(wholesalePharmacyPriceListType);
 currencyPriceListType(pharmacyPriceListType) += currencyWholesalePharmacyPriceListType(pharmacyPriceListType);
 
+// -------------------- Старый механизм расчета --------------------- //
 //---цена товара
-markupWholesaleBPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
-    wholesaleMarkupPharmacySkuPriceDate(sku,
-                                        priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
-                                        DATE(dateTime));
-markupWholesaleAPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
-    wholesaleMarkupPharmacySkuPriceDate(sku,
-                                        priceABasePriceListTypeSkuStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
-                                        DATE(dateTime));
+//markupWholesaleBPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
+//    wholesaleMarkupPharmacySkuPriceDate(sku,
+//                                        priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
+//                                        DATE(dateTime));
+//maxPriceWholesaleBPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
+//    round((100 + markupWholesaleBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
+//           priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
+//priceWholesaleBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
+//    NUMERIC[14,2] (MIN priceBCalcPriceListTypeSkuStockDateTime(calcPriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
+//                       maxPriceWholesaleBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
+//
+//
+//markupWholesaleAPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
+//    wholesaleMarkupPharmacySkuPriceDate(sku,
+//                                        priceABasePriceListTypeSkuStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
+//                                        DATE(dateTime));
+//maxPriceWholesaleAPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
+//    round((100 + markupWholesaleAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
+//           priceABasePriceListTypeSkuStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
+//priceWholesaleAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
+//    NUMERIC[14,2] (MIN priceACalcPriceListTypeSkuStockDateTime(calcPriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
+//                       maxPriceWholesaleAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
 
-maxPriceWholesaleBPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
-    round((100 + markupWholesaleBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
-           priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
-maxPriceWholesaleAPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
-    round((100 + markupWholesaleAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
-           priceABasePriceListTypeSkuStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
+//---цена партии
+//markupWholesaleBPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
+//    wholesaleMarkupPharmacyBatchPriceDate(batch,
+//                                          priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
+//                                          DATE(dateTime));
+//markupWholesaleAPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
+//    wholesaleMarkupPharmacyBatchPriceDate(batch,
+//                                          priceABasePriceListTypeBatchStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
+//                                          DATE(dateTime));
+//
+//maxPriceWholesaleBPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
+//    round((100 + markupWholesaleBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
+//          priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime)/100, 0);
+//maxPriceWholesaleAPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
+//    round((100 + markupWholesaleAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
+//          priceABasePriceListTypeBatchStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime)/100, 0);
+//
+//priceWholesaleBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+//    NUMERIC[14,2] (MIN priceBCalcPriceListTypeBatchStockDateTime(calcPriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
+//                       maxPriceWholesaleBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)) COMPLEX;
+//priceWholesaleAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+//    NUMERIC[14,2] (MIN priceACalcPriceListTypeBatchStockDateTime(calcPriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
+//                       maxPriceWholesaleAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)) COMPLEX;
 
+// -------------------- Новый механизм расчета --------------------- //
+
+limitMarkupPriceCalcPriceListTypeSkuDate(price, type, sku, date) =
+    MIN markupCalcPriceListTypeSku(type, sku),
+        wholesaleMarkupPharmacySkuPriceDate(sku, price, date);
+
+limitPricePriceCalcPriceListTypeSkuDate(price, type, sku, date) =
+    NUMERIC[14,2](round (price * (100 + limitMarkupPriceCalcPriceListTypeSkuDate(price, type, sku, date)) / 100.0, 0));
+
+//---цена товара
 priceWholesaleBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    NUMERIC[14,2] (MIN priceBCalcPriceListTypeSkuStockDateTime(calcPriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
-                       maxPriceWholesaleBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
+    limitPricePriceCalcPriceListTypeSkuDate(
+        priceBLedgerPriceListTypeSkuStockDateTime(ledgerPriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
+        calcPriceListTypeWholesalePharmacyPriceListType(type),
+        sku,
+        DATE(dateTime));
+
 priceWholesaleAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    NUMERIC[14,2] (MIN priceACalcPriceListTypeSkuStockDateTime(calcPriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
-                       maxPriceWholesaleAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
+    limitPricePriceCalcPriceListTypeSkuDate(
+        priceALedgerPriceListTypeSkuStockDateTime(ledgerPriceListTypeWholesalePharmacyPriceListType(type), sku, stock, dateTime),
+        calcPriceListTypeWholesalePharmacyPriceListType(type),
+        sku,
+        DATE(dateTime));
 
 priceBPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceWholesaleBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
 priceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceWholesaleAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
 
 //---цена партии
-markupWholesaleBPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
-    wholesaleMarkupPharmacyBatchPriceDate(batch,
-                                          priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
-                                          DATE(dateTime));
-markupWholesaleAPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
-    wholesaleMarkupPharmacyBatchPriceDate(batch,
-                                          priceABasePriceListTypeBatchStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
-                                          DATE(dateTime));
-
-maxPriceWholesaleBPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
-    round((100 + markupWholesaleBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
-          priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime)/100, 0);
-maxPriceWholesaleAPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
-    round((100 + markupWholesaleAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
-          priceABasePriceListTypeBatchStockDateTime(basePriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime)/100, 0);
-
 priceWholesaleBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    NUMERIC[14,2] (MIN priceBCalcPriceListTypeBatchStockDateTime(calcPriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
-                       maxPriceWholesaleBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)) COMPLEX;
+    limitPricePriceCalcPriceListTypeSkuDate(
+        priceBLedgerPriceListTypeBatchStockDateTime(ledgerPriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
+        calcPriceListTypeWholesalePharmacyPriceListType(type),
+        skuBatch(batch),
+        DATE(dateTime));
+
 priceWholesaleAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    NUMERIC[14,2] (MIN priceACalcPriceListTypeBatchStockDateTime(calcPriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
-                       maxPriceWholesaleAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)) COMPLEX;
+    limitPricePriceCalcPriceListTypeSkuDate(
+        priceALedgerPriceListTypeBatchStockDateTime(ledgerPriceListTypeWholesalePharmacyPriceListType(type), batch, stock, dateTime),
+        calcPriceListTypeWholesalePharmacyPriceListType(type),
+        skuBatch(batch),
+        DATE(dateTime));
 
 priceBPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceWholesaleBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
 priceAPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceWholesaleAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
@@ -219,7 +259,7 @@ priceAPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceWhol
 FORM wholesalePharmacyPriceListType 'Оптовая цена на медтовары'
     OBJECTS p = WholesalePharmacyPriceListType FIXED PANEL
     PROPERTIES(p) nameWholesalePharmacyPriceListType, nameCurrencyWholesalePharmacyPriceListType,
-                  nameBasePriceListTypeWholesalePharmacyPriceListType, nameCalcPriceListTypeWholesalePharmacyPriceListType
+                  nameCalcPriceListTypeWholesalePharmacyPriceListType
 
     EDIT WholesalePharmacyPriceListType OBJECT p
 ;
@@ -228,7 +268,6 @@ DESIGN wholesalePharmacyPriceListType FROM DEFAULT {
     p.box{
         ADD PROPERTY(nameWholesalePharmacyPriceListType);
         ADD PROPERTY(nameCurrencyWholesalePharmacyPriceListType);
-        ADD PROPERTY(nameBasePriceListTypeWholesalePharmacyPriceListType);
         ADD PROPERTY(nameCalcPriceListTypeWholesalePharmacyPriceListType);
     }
 }
@@ -240,102 +279,103 @@ editPriceListType(priceListType) += editWholesalePharmacyPriceListType(priceList
 EXTEND FORM priceListTypes
     PROPERTIES() addWholesalePharmacyPriceListType TODRAW pt FORCE PANEL
 ;
-//---------------- специальный тип цены (розница)-----------------//
 
-CLASS RetailPharmacyPriceListType 'Розничная цена на медтовары' : PriceListType;
-
-nameRetailPharmacyPriceListType 'Наименование' = DATA VARISTRING[50](RetailPharmacyPriceListType);
-namePriceListType(type) += nameRetailPharmacyPriceListType(type) IF type IS RetailPharmacyPriceListType;
-
-basePriceListTypeRetailPharmacyPriceListType(type) = DATA LedgerPriceListType (RetailPharmacyPriceListType);
-nameBasePriceListTypeRetailPharmacyPriceListType 'Базовый вид цены' (type) = nameBasePriceListType(basePriceListTypeRetailPharmacyPriceListType(type));
-
-ledgerPriceListTypePriceListType(type) += basePriceListTypeRetailPharmacyPriceListType(type) AS LedgerPriceListType;
-
-calcPriceListTypeRetailPharmacyPriceListType = DATA CalcPriceListType (RetailPharmacyPriceListType);
-nameCalcPriceListTypeRetailPharmacyPriceListType 'Вид цены с основной наценкой' (type) = namePriceListType(calcPriceListTypeRetailPharmacyPriceListType(type));
-
-@defineDocumentHeaderCurrency(retailPharmacyPriceListType);
-currencyPriceListType(pharmacyPriceListType) += currencyRetailPharmacyPriceListType(pharmacyPriceListType);
-
-//---цена товара
-markupRetailBPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
-    retailMarkupPharmacySkuPriceDate(sku,
-                                     priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
-                                     DATE(dateTime));
-markupRetailAPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
-    retailMarkupPharmacySkuPriceDate(sku,
-                                     priceABasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
-                                     DATE(dateTime));
-
-maxPriceRetailBPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
-    round((100 + markupRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
-          priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
-maxPriceRetailAPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
-    round((100 + markupRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
-          priceABasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
-
-priceRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    NUMERIC[14,2] (MIN priceBCalcPriceListTypeSkuStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
-                       maxPriceRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
-priceRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    NUMERIC[14,2] (MIN priceACalcPriceListTypeSkuStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
-                       maxPriceRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
-
-priceBPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
-priceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
-
-//---цена партии
-markupRetailBPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
-    retailMarkupPharmacyBatchPriceDate(batch,
-                                       priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
-                                       DATE(dateTime));
-markupRetailAPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
-    retailMarkupPharmacyBatchPriceDate(batch,
-                                       priceABasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
-                                       DATE(dateTime));
-
-maxPriceRetailBPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
-    round((100 + markupRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
-          priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime) / 100, 0);
-maxPriceRetailAPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
-    round((100 + markupRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
-          priceABasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime) / 100, 0);
-
-priceRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    NUMERIC[14,2] (MIN priceBCalcPriceListTypeBatchStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
-                       maxPriceRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
-priceRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    NUMERIC[14,2] (MIN priceACalcPriceListTypeBatchStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
-                       maxPriceRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
-
-priceBPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
-priceAPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
-
-FORM retailPharmacyPriceListType 'Розничная цена на медтовары'
-    OBJECTS p = RetailPharmacyPriceListType FIXED PANEL
-    PROPERTIES(p) nameRetailPharmacyPriceListType, nameCurrencyRetailPharmacyPriceListType,
-                  nameBasePriceListTypeRetailPharmacyPriceListType, nameCalcPriceListTypeRetailPharmacyPriceListType
-
-    EDIT RetailPharmacyPriceListType OBJECT p
-;
-
-DESIGN retailPharmacyPriceListType FROM DEFAULT {
-    p.box {
-        ADD PROPERTY(nameRetailPharmacyPriceListType);
-        ADD PROPERTY(nameCurrencyRetailPharmacyPriceListType);
-        ADD PROPERTY(nameBasePriceListTypeRetailPharmacyPriceListType);
-        ADD PROPERTY(nameCalcPriceListTypeRetailPharmacyPriceListType);
-    }
-}
-
-addRetailPharmacyPriceListType 'Добавить розн.цену на медтовары' = ACTION ADDFORM RetailPharmacyPriceListType;
-editRetailPharmacyPriceListType 'Редактировать' = ACTION EDITFORM RetailPharmacyPriceListType;
-editPriceListType(priceListType) += editRetailPharmacyPriceListType(priceListType);
-
-EXTEND FORM priceListTypes
-    PROPERTIES() addRetailPharmacyPriceListType TODRAW pt FORCE PANEL
-;
+////---------------- специальный тип цены (розница)-----------------//
+//
+//CLASS RetailPharmacyPriceListType 'Розничная цена на медтовары' : PriceListType;
+//
+//nameRetailPharmacyPriceListType 'Наименование' = DATA VARISTRING[50](RetailPharmacyPriceListType);
+//namePriceListType(type) += nameRetailPharmacyPriceListType(type) IF type IS RetailPharmacyPriceListType;
+//
+//basePriceListTypeRetailPharmacyPriceListType(type) = DATA LedgerPriceListType (RetailPharmacyPriceListType);
+//nameBasePriceListTypeRetailPharmacyPriceListType 'Базовый вид цены' (type) = nameBasePriceListType(basePriceListTypeRetailPharmacyPriceListType(type));
+//
+//ledgerPriceListTypePriceListType(type) += basePriceListTypeRetailPharmacyPriceListType(type) AS LedgerPriceListType;
+//
+//calcPriceListTypeRetailPharmacyPriceListType = DATA CalcPriceListType (RetailPharmacyPriceListType);
+//nameCalcPriceListTypeRetailPharmacyPriceListType 'Вид цены с основной наценкой' (type) = namePriceListType(calcPriceListTypeRetailPharmacyPriceListType(type));
+//
+//@defineDocumentHeaderCurrency(retailPharmacyPriceListType);
+//currencyPriceListType(pharmacyPriceListType) += currencyRetailPharmacyPriceListType(pharmacyPriceListType);
+//
+////---цена товара
+//markupRetailBPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
+//    retailMarkupPharmacySkuPriceDate(sku,
+//                                     priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
+//                                     DATE(dateTime));
+//markupRetailAPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
+//    retailMarkupPharmacySkuPriceDate(sku,
+//                                     priceABasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
+//                                     DATE(dateTime));
+//
+//maxPriceRetailBPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
+//    round((100 + markupRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
+//          priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
+//maxPriceRetailAPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
+//    round((100 + markupRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
+//          priceABasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
+//
+//priceRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
+//    NUMERIC[14,2] (MIN priceBCalcPriceListTypeSkuStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
+//                       maxPriceRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
+//priceRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
+//    NUMERIC[14,2] (MIN priceACalcPriceListTypeSkuStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
+//                       maxPriceRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
+//
+//priceBPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
+//priceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
+//
+////---цена партии
+//markupRetailBPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
+//    retailMarkupPharmacyBatchPriceDate(batch,
+//                                       priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
+//                                       DATE(dateTime));
+//markupRetailAPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
+//    retailMarkupPharmacyBatchPriceDate(batch,
+//                                       priceABasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
+//                                       DATE(dateTime));
+//
+//maxPriceRetailBPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
+//    round((100 + markupRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
+//          priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime) / 100, 0);
+//maxPriceRetailAPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
+//    round((100 + markupRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
+//          priceABasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime) / 100, 0);
+//
+//priceRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+//    NUMERIC[14,2] (MIN priceBCalcPriceListTypeBatchStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
+//                       maxPriceRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
+//priceRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
+//    NUMERIC[14,2] (MIN priceACalcPriceListTypeBatchStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
+//                       maxPriceRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
+//
+//priceBPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
+//priceAPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
+//
+//FORM retailPharmacyPriceListType 'Розничная цена на медтовары'
+//    OBJECTS p = RetailPharmacyPriceListType FIXED PANEL
+//    PROPERTIES(p) nameRetailPharmacyPriceListType, nameCurrencyRetailPharmacyPriceListType,
+//                  nameBasePriceListTypeRetailPharmacyPriceListType, nameCalcPriceListTypeRetailPharmacyPriceListType
+//
+//    EDIT RetailPharmacyPriceListType OBJECT p
+//;
+//
+//DESIGN retailPharmacyPriceListType FROM DEFAULT {
+//    p.box {
+//        ADD PROPERTY(nameRetailPharmacyPriceListType);
+//        ADD PROPERTY(nameCurrencyRetailPharmacyPriceListType);
+//        ADD PROPERTY(nameBasePriceListTypeRetailPharmacyPriceListType);
+//        ADD PROPERTY(nameCalcPriceListTypeRetailPharmacyPriceListType);
+//    }
+//}
+//
+//addRetailPharmacyPriceListType 'Добавить розн.цену на медтовары' = ACTION ADDFORM RetailPharmacyPriceListType;
+//editRetailPharmacyPriceListType 'Редактировать' = ACTION EDITFORM RetailPharmacyPriceListType;
+//editPriceListType(priceListType) += editRetailPharmacyPriceListType(priceListType);
+//
+//EXTEND FORM priceListTypes
+//    PROPERTIES() addRetailPharmacyPriceListType TODRAW pt FORCE PANEL
+//;
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultPharmacyPriceGroup 'Добавить Типы лекарственных средств' = ACTION (iname, isid) {
