@@ -100,8 +100,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
     private List<UOM> importUOMsFromDBF(String itemsPath) throws IOException, xBaseJException, ParseException {
 
-        if (!(new File(itemsPath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + itemsPath + " не найден");
+        checkFileExistence(itemsPath);
 
         List<UOM> data = new ArrayList<UOM>();
 
@@ -119,8 +118,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
     private List<Item> importItemsFromDBF(String itemsPath, Integer numberOfItems) throws IOException, xBaseJException, ParseException {
 
-        if (!(new File(itemsPath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + itemsPath + " не найден");
+        checkFileExistence(itemsPath);
 
         List<Item> data = new ArrayList<Item>();
 
@@ -155,8 +153,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
     private List<LegalEntity> importLegalEntitiesFromDBF(String path) throws
             IOException, xBaseJException {
 
-        if (!(new File(path).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + path + " не найден");
+        checkFileExistence(path);
 
         DBF importFile = new DBF(path);
         int recordCount = importFile.getRecordCount();
@@ -191,8 +188,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
     private List<Warehouse> importWarehousesFromDBF(String spranaPath) throws
             IOException, xBaseJException {
 
-        if (!(new File(spranaPath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + spranaPath + " не найден");
+        checkFileExistence(spranaPath);
 
         DBF importFile = new DBF(spranaPath);
         int recordCount = importFile.getRecordCount();
@@ -229,14 +225,9 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
     private List<UserInvoiceDetail> importUserInvoicesFromDBF(String sprmatPath, String cenPath, String osttPath, Integer numberOfUserInvoices) throws IOException, xBaseJException, ParseException {
 
-        if (!(new File(sprmatPath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + sprmatPath + " не найден");
-
-        if (!(new File(cenPath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + cenPath + " не найден");
-
-        if (!(new File(osttPath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + osttPath + " не найден");
+        checkFileExistence(sprmatPath);
+        checkFileExistence(cenPath);
+        checkFileExistence(osttPath);
 
         Map<String, String> currenciesMap = new HashMap<String, String>() {
             {
@@ -478,11 +469,8 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
     private List<List<Object>> importUserInvoicePharmacyFromDBF(String sprmatPath, String osttPath, Integer numberOfUserInvoices) throws IOException, xBaseJException, ParseException {
 
-        if (!(new File(sprmatPath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + sprmatPath + " не найден");
-
-        if (!(new File(osttPath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + osttPath + " не найден");
+        checkFileExistence(sprmatPath);
+        checkFileExistence(osttPath);
 
         DBF sprmatImportFile = new DBF(sprmatPath);
         int totalRecordCount = sprmatImportFile.getRecordCount();
@@ -569,8 +557,7 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
 
     private List<List<Object>> importItemPharmacyFromFile(String sprmatPath, Integer numberOfItems) throws IOException, xBaseJException {
 
-        if (!(new File(sprmatPath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + sprmatPath + " не найден");
+        checkFileExistence(sprmatPath);
 
         List<List<Object>> data = new ArrayList<List<Object>>();
 
@@ -625,6 +612,11 @@ public class ImportVetrazActionProperty extends ScriptingActionProperty {
             }
         }
         return new String[]{ownershipShortName, ownershipName, name};
+    }
+
+    private void checkFileExistence(String filePath) {
+        if (!(new File(filePath).exists()))
+            throw new RuntimeException("Запрашиваемый файл " + filePath + " не найден");
     }
 
     private BigDecimal getBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
