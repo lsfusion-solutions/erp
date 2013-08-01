@@ -16,6 +16,13 @@ NAMESPACE Sale;
 
 @defineDocumentSkuStockSupplier (userOrder, userOrder, o, sts.box);
 
+@defineOrderBatch(supplierStock);
+
+@defineDocumentBatchPriceListType(userOrder, supplierStock);
+@extendFormDocumentBatch(userOrder, userOrder, o);
+@extendFormDocumentBatchAll(userOrder, userOrder, o);
+
+
 //----------------------------------------------- Операции -----------------------------------------------------//
 
 @defineDocumentOperation(order, o);
@@ -128,6 +135,19 @@ EXTEND FORM userOrder
     FILTERGROUP filter1
         FILTER 'С продажей' 'F8' inUserOrderSku(o, ks)
         FILTER 'В ассортименте' 'F7' ledgerPriceSkuStockUserOrder(ks, st, o) DEFAULT
+;
+
+inUserOrderBatch (userOrder, batch)= inCustomerSku(customerUserOrder(userOrder), skuBatch(batch));
+EXTEND FORM userOrder
+
+    FILTERGROUP filter3
+        FILTER 'С остатком ' 'F10' prevCurrentBalanceBatchUserOrder(b,o) DEFAULT
+        FILTER 'В документе ' 'F9' quantityUserOrderDetailBatchUserOrder(b,o)
+
+    FILTERGROUP filter4
+        FILTER 'С продажей ' 'F8' inUserOrderBatch(o,b)
+        FILTER 'В ассортименте' 'F7' ledgerPriceBatchUserOrder(b, o)
+
 ;
 
 // Резервы

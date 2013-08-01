@@ -196,7 +196,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     @defineDocumentInterfacePriceListType(order); // объявляем вид цены
     @deriveDocumentDetailPriceListTypeAgreement(userOrder); // записываем вид цены из соглашения
-    @deriveDocumentDetailPricePriceListTypeVAT (userOrder, stockProp); // записываем цены с НДС и без НДС на основе priceListType
+//    @deriveDocumentDetailPricePriceListTypeVAT (userOrder, stockProp); // записываем цены с НДС и без НДС на основе priceListType
 
     // суммма без НДС
     @defineDocumentInterfaceDetailDataSum(order);
@@ -507,4 +507,30 @@ META defineOrderStockDestination(fromStock, toStock)
     Order.toStockOrder(order) += toStock##Order(order);
     Order.dataFromStockOrderDetail(detail) += data###fromStock##OrderDetail(detail);
     Order.dataToStockOrderDetail(detail) += data###toStock##OrderDetail(detail);
+END
+
+// Партии
+META defineOrderBatch(stockProp)
+    @defineDocumentInterfaceDetailBatch(order, batch);
+    @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp, userOrder);
+
+    changePurchaseBatchUserOrderDetail = ACTION (userOrderDetail) {
+        FORM purchaseDialogBatch OBJECTS sk = skuUserOrderDetail(userOrderDetail) MODAL SHOWDROP;
+
+        IF formResult() == FormResult.ok THEN {
+            ASSIGN batchUserOrderDetail(userOrderDetail) <- chosenObject('bt');
+        } ELSE IF formResult() == FormResult.drop THEN {
+            ASSIGN batchUserOrderDetail(userOrderDetail) <- NULL;
+        }
+
+    };
+
+    EXTEND FORM userOrder
+        PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changePurchaseBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail
+    ;
+    EXTEND FORM orders PROPERTIES (d) READONLY nameBatchOrderDetail AFTER shortNameUOMSkuOrderDetail;
+    @defineBalancesBatch(OrderDetail); //-- показываем по нажатию правой клавиши остатки партии
+    @defineBalancesBatch(userOrderDetail); //-- показываем по нажатию правой клавиши остатки партии
+    @defineMovementBatch(OrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
+    @defineMovementBatch(userOrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
 END
