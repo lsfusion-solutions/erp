@@ -23,6 +23,7 @@ public class UserInvoiceDetail {
     public BigDecimal shipmentSum;
     public BigDecimal chargePrice;
     public BigDecimal manufacturingPrice;
+    public BigDecimal manufacturingMarkup;
     public BigDecimal wholesalePrice;
     public BigDecimal wholesaleMarkup;
     public BigDecimal retailPrice;
@@ -52,10 +53,11 @@ public class UserInvoiceDetail {
                              Boolean createShipment, String idUserInvoiceDetail, Date date, String idItem, Boolean isWare,
                              BigDecimal quantity, String idSupplier, String idCustomerStock, String idSupplierStock,
                              BigDecimal price, BigDecimal shipmentPrice, BigDecimal shipmentSum, BigDecimal chargePrice,
-                             BigDecimal manufacturingPrice, BigDecimal wholesalePrice, BigDecimal wholesaleMarkup, BigDecimal retailPrice,
-                             BigDecimal retailMarkup, String certificateText, String idContract, String numberDeclaration,
-                             Date dateDeclaration, String numberCompliance, Date fromDateCompliance, Date toDateCompliance,
-                             Date expiryDate, String idBin, BigDecimal rateExchange, BigDecimal homePrice, BigDecimal priceDuty,
+                             BigDecimal manufacturingPrice, BigDecimal manufacturingMarkup, BigDecimal wholesalePrice,
+                             BigDecimal wholesaleMarkup, BigDecimal retailPrice, BigDecimal retailMarkup,
+                             String certificateText, String idContract, String numberDeclaration, Date dateDeclaration,
+                             String numberCompliance, Date fromDateCompliance, Date toDateCompliance, Date expiryDate,
+                             String idBin, BigDecimal rateExchange, BigDecimal homePrice, BigDecimal priceDuty,
                              BigDecimal priceCompliance, BigDecimal priceRegistration, BigDecimal chargeSum,
                              Boolean isHomeCurrency, String shortNameCurrency, String codeCustomsGroup, BigDecimal retailVAT) {
         this.idUserInvoice = idUserInvoice;
@@ -76,6 +78,7 @@ public class UserInvoiceDetail {
         this.shipmentSum = shipmentSum;
         this.chargePrice = chargePrice;
         this.manufacturingPrice = manufacturingPrice;
+        this.manufacturingMarkup = manufacturingMarkup;
         this.wholesalePrice = wholesalePrice;
         this.wholesaleMarkup = wholesaleMarkup;
         this.retailPrice = retailPrice;

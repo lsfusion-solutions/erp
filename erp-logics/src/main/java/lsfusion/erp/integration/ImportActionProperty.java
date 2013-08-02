@@ -850,6 +850,11 @@ public class ImportActionProperty {
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).manufacturingPrice);
 
+                ImportField manufacturingMarkupUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.manufacturingMarkupUserInvoiceDetail"));
+                props.add(new ImportProperty(manufacturingMarkupUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.manufacturingMarkupUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                fields.add(manufacturingMarkupUserInvoiceDetailField);
+                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                    data.get(i).add(dataUserInvoiceDetail.get(i).manufacturingMarkup);
 
                 ImportField wholesalePriceUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail"));
                 props.add(new ImportProperty(wholesalePriceUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
