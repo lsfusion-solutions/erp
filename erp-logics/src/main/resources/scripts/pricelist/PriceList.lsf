@@ -11,7 +11,10 @@ CLASS DataPriceListType 'Пользовательский вид цены' : Led
 @defineExternalizable(dataPriceListType, VARSTRING[100]);
 idPriceListType (p) += idDataPriceListType(p);
 
-batchLedgerPriceListType (priceListType) += WHEN priceListType IS DataPriceListType THEN TRUE;
+batchLedgerDataPriceListType 'Использовать для партий свои цены' = DATA BOOLEAN (DataPriceListType);
+batchLedgerPriceListType (priceListType) += WHEN priceListType IS DataPriceListType THEN batchLedgerDataPriceListType(priceListType);
+
+//batchLedgerPriceListType (priceListType) += WHEN priceListType IS DataPriceListType THEN TRUE;
 
 nameDataPriceListType 'Наименование' = DATA VARISTRING[50](DataPriceListType);
 nameLedgerPriceListType(type) += nameDataPriceListType(type) IF type IS DataPriceListType;
@@ -24,7 +27,8 @@ currencyPriceListType(dataPriceListType) += currencyDataPriceListType(dataPriceL
 
 FORM dataPriceListType 'Пользовательский вид цен'
     OBJECTS d = DataPriceListType FIXED PANEL
-    PROPERTIES(d) nameDataPriceListType, idDataPriceListType SHOWIF showIDs(), includeVATPriceListType, nameCurrencyDataPriceListType, nameRoundConditionPriceListType
+    PROPERTIES(d) nameDataPriceListType, idDataPriceListType SHOWIF showIDs(), includeVATPriceListType,
+                  nameCurrencyDataPriceListType, nameRoundConditionPriceListType, batchLedgerDataPriceListType
 
     EDIT DataPriceListType OBJECT d
 ;
@@ -36,6 +40,7 @@ DESIGN dataPriceListType FROM DEFAULT {
         ADD PROPERTY(includeVATPriceListType);
         ADD PROPERTY(nameCurrencyDataPriceListType);
         ADD PROPERTY(nameRoundConditionPriceListType);
+        ADD PROPERTY(batchLedgerDataPriceListType);
     }
 }
 
@@ -200,6 +205,26 @@ computerCreatedPriceListDetail = ABSTRACT Computer (PriceListDetail);
 hostnameComputerCreatedPriceListDetail 'Компьютер' (historizable) = hostnameComputer (computerCreatedPriceListDetail(historizable)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN historyGroup;
 computerCreatedPriceListDetail (d) += computerCreatedHistorizable(userPriceListUserPriceListDetail(d));
 
+// Партии
+@defineDocumentInterfaceDetailBatch(priceList, batch);
+//@deriveDocumentDetailPricePriceListTypeVATBatch(userPriceList, stockProp, userPriceList);
+
+changePurchaseBatchUserPriceListDetail = ACTION (userPriceListDetail) {
+    FORM purchaseDialogBatch OBJECTS sk = skuUserPriceListDetail(userPriceListDetail) MODAL SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        ASSIGN batchUserPriceListDetail(userPriceListDetail) <- chosenObject('bt');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        ASSIGN batchUserPriceListDetail(userPriceListDetail) <- NULL;
+    }
+
+};
+
+//@defineBalancesBatch(priceListDetail); //-- показываем по нажатию правой клавиши остатки партии
+//@defineBalancesBatch(userPriceListDetail); //-- показываем по нажатию правой клавиши остатки партии
+//@defineMovementBatch(priceListDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
+//@defineMovementBatch(userPriceListDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
+
 // ------- Проведение по priceListLedger ----- //
 
 EXTEND CLASS PriceListDetail : PriceListLedger;
@@ -210,6 +235,7 @@ toDateTimePriceListLedger (ledger) += toDateTimePriceListDetail(ledger);
 isPostedPriceListLedger(ledger) += isPostedPriceListDetail(ledger);
 
 skuPriceListLedger (ledger) += skuPriceListDetail(ledger);
+batchPriceListLedger (ledger) += batchPriceListDetail(ledger);
 
 companyPriceListLedger (ledger) += companyPriceListDetail(ledger);
 
@@ -361,7 +387,8 @@ FORM userPriceList 'Прайс'
     OBJECTS d = UserPriceListDetail
     PROPERTIES(d) BACKGROUND backgroundPriceListDetail(d)
                   indexUserPriceListDetail, idBarcodeSkuUserPriceListDetail, nameSkuUserPriceListDetail,
-                  shortNameUOMSkuUserPriceListDetail, valueVATUserPriceListDetail, fromDateUserPriceListDetail, fromTimeUserPriceListDetail,
+                  shortNameUOMSkuUserPriceListDetail, nameBatchUserPriceListDetail ON CHANGE changePurchaseBatchUserPriceListDetail(d),
+                  valueVATUserPriceListDetail, fromDateUserPriceListDetail, fromTimeUserPriceListDetail,
                   toDateUserPriceListDetail, toTimeUserPriceListDetail, ADDOBJ, DELETESESSION
     PROPERTIES(d, t) pricePriceListDetailDataPriceListType COLUMNS (t) HEADER headerNameDataPriceListType(p, t) SHOWIF headerNameDataPriceListType(p, t) BACKGROUND backgroundDataPriceListType(t) TODRAW d FORCE GRID
     PROPERTIES(p) TODRAW d FORCE PANEL TOOLBAR fillDocumentPriceList, addDetailInputBarcodeUserPriceListDetailUserPriceList
@@ -817,7 +844,7 @@ FORM priceLists 'Прайсы'
 
     OBJECTS d = PriceListDetail
     PROPERTIES(d) READONLY indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail,
-                           shortNameUOMSkuPriceListDetail, nameCompanyPriceListDetail
+                           shortNameUOMSkuPriceListDetail, nameBatchPriceListDetail, nameCompanyPriceListDetail
 
     OBJECTS ts = Stock
     PROPERTIES(ts) READONLY nameStock
