@@ -660,13 +660,13 @@ public class ImportActionProperty {
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).number);
 
-
-                ImportField seriesUserInvoiceField = new ImportField(LM.findLCPByCompoundName("seriesObject"));
-                props.add(new ImportProperty(seriesUserInvoiceField, LM.findLCPByCompoundName("seriesObject").getMapping(userInvoiceKey)));
-                fields.add(seriesUserInvoiceField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).series);
-
+                if (showField(dataUserInvoiceDetail, "series")) {
+                    ImportField seriesUserInvoiceField = new ImportField(LM.findLCPByCompoundName("seriesObject"));
+                    props.add(new ImportProperty(seriesUserInvoiceField, LM.findLCPByCompoundName("seriesObject").getMapping(userInvoiceKey)));
+                    fields.add(seriesUserInvoiceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).series);
+                }
 
                 ImportField createPricingUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.createPricingUserInvoice"));
                 props.add(new ImportProperty(createPricingUserInvoiceField, LM.findLCPByCompoundName("Purchase.createPricingUserInvoice").getMapping(userInvoiceKey)));
@@ -856,12 +856,13 @@ public class ImportActionProperty {
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).manufacturingMarkup);
 
-                ImportField wholesalePriceUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail"));
-                props.add(new ImportProperty(wholesalePriceUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                fields.add(wholesalePriceUserInvoiceDetailField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).wholesalePrice);
-
+                if (showField(dataUserInvoiceDetail, "wholesalePrice")) {
+                    ImportField wholesalePriceUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail"));
+                    props.add(new ImportProperty(wholesalePriceUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    fields.add(wholesalePriceUserInvoiceDetailField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).wholesalePrice);
+                }
 
                 ImportField wholesaleMarkupUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.wholesaleMarkupUserInvoiceDetail"));
                 props.add(new ImportProperty(wholesaleMarkupUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.wholesaleMarkupUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
@@ -898,64 +899,64 @@ public class ImportActionProperty {
                     data.get(i).add(true);
 
 
-                ImportField userContractSkuField = new ImportField(LM.findLCPByCompoundName("idUserContractSku"));
-                ImportKey<?> userContractSkuKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UserContractSku"),
-                        LM.findLCPByCompoundName("userContractSkuId").getMapping(userContractSkuField));
-                keys.add(userContractSkuKey);
-                props.add(new ImportProperty(userContractSkuField, LM.findLCPByCompoundName("Purchase.contractSkuInvoice").getMapping(userInvoiceKey),
-                        LM.object(LM.findClassByCompoundName("Contract")).getMapping(userContractSkuKey)));
-                fields.add(userContractSkuField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).idContract);
+                if (showField(dataUserInvoiceDetail, "idContract")) {
+                    ImportField userContractSkuField = new ImportField(LM.findLCPByCompoundName("idUserContractSku"));
+                    ImportKey<?> userContractSkuKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UserContractSku"),
+                            LM.findLCPByCompoundName("userContractSkuId").getMapping(userContractSkuField));
+                    keys.add(userContractSkuKey);
+                    props.add(new ImportProperty(userContractSkuField, LM.findLCPByCompoundName("Purchase.contractSkuInvoice").getMapping(userInvoiceKey),
+                            LM.object(LM.findClassByCompoundName("Contract")).getMapping(userContractSkuKey)));
+                    fields.add(userContractSkuField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).idContract);
+                }
 
+                if (showField(dataUserInvoiceDetail, "numberDeclaration")) {
+                    ImportField numberDeclarationField = new ImportField(LM.findLCPByCompoundName("numberObject"));
+                    ImportKey<?> declarationKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Declaration"),
+                            LM.findLCPByCompoundName("declarationId").getMapping(numberDeclarationField));
+                    keys.add(declarationKey);
+                    props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("numberObject").getMapping(declarationKey)));
+                    props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("idDeclaration").getMapping(declarationKey)));
+                    props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("declarationUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                            LM.object(LM.findClassByCompoundName("Declaration")).getMapping(declarationKey)));
+                    fields.add(numberDeclarationField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).numberDeclaration);
 
-                ImportField numberDeclarationField = new ImportField(LM.findLCPByCompoundName("numberObject"));
-                ImportKey<?> declarationKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Declaration"),
-                        LM.findLCPByCompoundName("declarationId").getMapping(numberDeclarationField));
-                keys.add(declarationKey);
-                props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("numberObject").getMapping(declarationKey)));
-                props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("idDeclaration").getMapping(declarationKey)));
-                props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("declarationUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                        LM.object(LM.findClassByCompoundName("Declaration")).getMapping(declarationKey)));
-                fields.add(numberDeclarationField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).numberDeclaration);
+                    ImportField dateDeclarationField = new ImportField(LM.findLCPByCompoundName("dateDeclaration"));
+                    props.add(new ImportProperty(dateDeclarationField, LM.findLCPByCompoundName("dateDeclaration").getMapping(declarationKey)));
+                    fields.add(dateDeclarationField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).dateDeclaration);
+                }
 
+                if (showField(dataUserInvoiceDetail, "numberCompliance")) {
+                    ImportField numberComplianceField = new ImportField(LM.findLCPByCompoundName("numberObject"));
+                    ImportKey<?> complianceKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Compliance"),
+                            LM.findLCPByCompoundName("complianceId").getMapping(numberComplianceField));
+                    keys.add(complianceKey);
+                    props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("numberObject").getMapping(complianceKey)));
+                    props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("idCompliance").getMapping(complianceKey)));
+                    props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("complianceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                            LM.object(LM.findClassByCompoundName("Compliance")).getMapping(complianceKey)));
+                    fields.add(numberComplianceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).numberCompliance);
 
-                ImportField dateDeclarationField = new ImportField(LM.findLCPByCompoundName("dateDeclaration"));
-                props.add(new ImportProperty(dateDeclarationField, LM.findLCPByCompoundName("dateDeclaration").getMapping(declarationKey)));
-                fields.add(dateDeclarationField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).dateDeclaration);
+                    ImportField fromDateComplianceField = new ImportField(LM.findLCPByCompoundName("fromDateCompliance"));
+                    props.add(new ImportProperty(fromDateComplianceField, LM.findLCPByCompoundName("dateCompliance").getMapping(complianceKey)));
+                    props.add(new ImportProperty(fromDateComplianceField, LM.findLCPByCompoundName("fromDateCompliance").getMapping(complianceKey)));
+                    fields.add(fromDateComplianceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).fromDateCompliance);
 
-
-                ImportField numberComplianceField = new ImportField(LM.findLCPByCompoundName("numberObject"));
-                ImportKey<?> complianceKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Compliance"),
-                        LM.findLCPByCompoundName("complianceId").getMapping(numberComplianceField));
-                keys.add(complianceKey);
-                props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("numberObject").getMapping(complianceKey)));
-                props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("idCompliance").getMapping(complianceKey)));
-                props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("complianceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                        LM.object(LM.findClassByCompoundName("Compliance")).getMapping(complianceKey)));
-                fields.add(numberComplianceField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).numberCompliance);
-
-
-                ImportField fromDateComplianceField = new ImportField(LM.findLCPByCompoundName("fromDateCompliance"));
-                props.add(new ImportProperty(fromDateComplianceField, LM.findLCPByCompoundName("dateCompliance").getMapping(complianceKey)));
-                props.add(new ImportProperty(fromDateComplianceField, LM.findLCPByCompoundName("fromDateCompliance").getMapping(complianceKey)));
-                fields.add(fromDateComplianceField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).fromDateCompliance);
-
-
-                ImportField toDateComplianceField = new ImportField(LM.findLCPByCompoundName("toDateCompliance"));
-                props.add(new ImportProperty(toDateComplianceField, LM.findLCPByCompoundName("toDateCompliance").getMapping(complianceKey)));
-                fields.add(toDateComplianceField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).toDateCompliance);
-
+                    ImportField toDateComplianceField = new ImportField(LM.findLCPByCompoundName("toDateCompliance"));
+                    props.add(new ImportProperty(toDateComplianceField, LM.findLCPByCompoundName("toDateCompliance").getMapping(complianceKey)));
+                    fields.add(toDateComplianceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).toDateCompliance);
+                }
 
                 ImportField isHomeCurrencyUserInvoiceField = new ImportField(LM.findLCPByCompoundName("isHomeCurrencyUserInvoice"));
                 props.add(new ImportProperty(isHomeCurrencyUserInvoiceField, LM.findLCPByCompoundName("isHomeCurrencyUserInvoice").getMapping(userInvoiceKey)));
