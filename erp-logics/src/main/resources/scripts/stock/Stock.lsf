@@ -2395,11 +2395,24 @@ META defineDocumentBatchPriceListType(object, stockProp)
     priceListType###object###batch(object, batch) = OVERRIDE priceListType###object(object) IF batch IS Batch, priceListTypeAgreementSku(agreement###object(object), skuBatch(batch));
 
     priceBatch###object 'Цена' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(priceListType###object###batch(object, batch), batch, stockProp###object(object), dateTime###object(object));
+//    viewPriceBatch###object 'Цена' (batch, object) = DATA SESSION NUMERIC[17,3] (Batch, UserInvoice);
+
+//    updateViewPriceBatch###object (batch, object) = ACTION {
+//        FOR pt==priceListType###object###batch(object, batch) NOINLINE (pt) DO
+//            viewPriceBatch###object(batch, object) <- prevPriceBPriceListTypeBatchStockDateTime(pt, batch, stockProp###object(object), dateTime###object(object));
+//    }
+
     ledgerPriceBatch###object 'Цена (базовая)' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###batch(object, batch)), batch, stockProp###object(object), dateTime###object(object));
 END
 META defineDocumentBatchSystemLedgerPriceListType(object, priceListTypeProp, stockProp)
     @defineDocumentBatch(object, batch, sku, stockProp);
     priceBatch###object 'Цена' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp###object(object), dateTime###object(object));
+
+//    viewPriceBatch###object 'Цена' (batch, object) = priceBatch###object(batch, object);
+//    updateViewPriceBatch###object (batch, object) = ACTION {
+//        IF batch IS Batch AND object IS Object THEN {
+//        }
+//    }
 END
 
 META defineDocumentBatch(object, detail, batchProp, skuProp, stockProp)
@@ -2457,19 +2470,27 @@ END
 
 META extendFormDocumentBatchCustom(object, form, concrete, batchProp, detail)
 
+//    current###form###object() = DATA SESSION Object ();
+//    setCurrent###form###object(concrete) = ACTION current###form###object() <- concrete;
+
     EXTEND FORM form
 
         OBJECTS b=Batch
         PROPERTIES             READONLY dateTimeBatch(b), nameSkuBatch(b), idBarcodeSkuBatch(b), shortNameUOMBatch(b), nameBatch(b)
         PROPERTIES(b, concrete) quantity###detail###batchProp###object ON CHANGE changeQuantityBatch###object(b, concrete) BACKGROUND backgroundQuantityBatch###object(b, concrete),
                                 prevCurrentBalanceBatch###object READONLY, priceBatch###object READONLY
-
+//                                prevCurrentBalanceBatch###object READONLY, viewPriceBatch###object READONLY
 
         FILTERS                isParentSkuGroupBatch(sk, b)
 
         FILTERS nameSkuBatch(b)
         ORDER BY nameSkuBatch, dateTimeBatch
+
+//        EVENTS ON CHANGE concrete setCurrent###form###object(concrete)
     ;
+
+//    WHEN SESSION FORMS form SET([VIEW form.b](batch)) AND concrete==current###form###object() DO
+//        updateViewPriceBatch###object(batch, concrete);
 
     EXTEND DESIGN form {
         row1 {
