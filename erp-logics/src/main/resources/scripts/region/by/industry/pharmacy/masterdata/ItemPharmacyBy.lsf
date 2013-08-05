@@ -47,20 +47,23 @@ retailMarkupPharmacyGroupInterval 'Розничная надбавка' = DATA N
 usdCurrency = currencyShortName('USD') PERSISTENT;
 pharmacyExchangePriceDate (price, date) = price / rateTypeExchangeCurrencyDate(pharmacyTypeExchange(), usdCurrency(), date);
 
-orderPharmacyInterval = STRUCT(pricePharmacyInterval(interval), fromDatePharmacyInterval(interval), interval) PERSISTENT;
-orderIntervalGroupPriceDate (group, price, date) = GROUP MAX orderPharmacyInterval(interval)
-    IF pharmacyExchangePriceDate(price AS NUMERIC[14,2], date) > pricePharmacyInterval(interval)
-    AND date >= fromDatePharmacyInterval(interval)
-    AND NOT date > toDatePharmacyInterval(interval)
-        BY pharmacyGroupPharmacyInterval(interval), price, date;
+wholesaleMarkupPharmacyGroupPriceDate 'Оптовая надбавка' (priceGroup, price, date) =
+    GROUP LAST wholesaleMarkupPharmacyGroupInterval(pharmacyGroupPharmacyInterval(interval), interval)
+          BY pharmacyGroupPharmacyInterval(interval), price, date
+          ORDER pricePharmacyInterval(interval)
+          WHERE pharmacyExchangePriceDate(price AS NUMERIC[14,2], date) > pricePharmacyInterval(interval) AND
+                date >= fromDatePharmacyInterval(interval) AND NOT date > toDatePharmacyInterval(interval) COMPLEX;
 
-pharmacyIntervalPharmacyGroupPriceDate (group, price, date) = orderIntervalGroupPriceDate(group, price, date)[3] COMPLEX;
+retailMarkupPharmacyGroupPriceDate 'Оптовая надбавка' (priceGroup, price, date) =
+    GROUP LAST retailMarkupPharmacyGroupInterval(pharmacyGroupPharmacyInterval(interval), interval)
+          BY pharmacyGroupPharmacyInterval(interval), price, date
+          ORDER pricePharmacyInterval(interval)
+          WHERE pharmacyExchangePriceDate(price AS NUMERIC[14,2], date) > pricePharmacyInterval(interval) AND
+                date >= fromDatePharmacyInterval(interval) AND NOT date > toDatePharmacyInterval(interval) COMPLEX;
 
-wholesaleMarkupPharmacyGroupPriceDate 'Оптовая надбавка' (priceGroup, price, date) = wholesaleMarkupPharmacyGroupInterval(priceGroup, pharmacyIntervalPharmacyGroupPriceDate(priceGroup, price, date));
 wholesaleMarkupPharmacySkuPriceDate 'Оптовая надбавка' (sku, price, date) =  wholesaleMarkupPharmacyGroupPriceDate(pharmacyPriceGroupSku(sku), price, date) COMPLEX;
 wholesaleMarkupPharmacyBatchPriceDate 'Оптовая надбавка' (batch, price, date) =  wholesaleMarkupPharmacySkuPriceDate(skuBatch(batch), price, date);
 
-retailMarkupPharmacyGroupPriceDate 'Розничная надбавка' (priceGroup, price, date) = retailMarkupPharmacyGroupInterval(priceGroup, pharmacyIntervalPharmacyGroupPriceDate(priceGroup, price, date));
 retailMarkupPharmacySkuPriceDate 'Розничная надбавка' (sku, price, date) =  retailMarkupPharmacyGroupPriceDate(pharmacyPriceGroupSku(sku), price, date);
 retailMarkupPharmacyBatchPriceDate 'Розничная надбавка' (batch, price, date) =  retailMarkupPharmacySkuPriceDate(skuBatch(batch), price, date);
 

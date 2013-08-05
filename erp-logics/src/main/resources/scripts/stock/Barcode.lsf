@@ -4,7 +4,6 @@ REQUIRE System, Integration, Numerator, Stock, Utils;
 
 CLASS Barcode 'Штрих код';
 TABLE barcode (Barcode);
-TABLE stringDate (STRING[15], DATE);
 
 idBarcode 'Штрих код' = DATA STRING[15] (Barcode) IN recognize FIXEDCHARWIDTH 15 AGGPROP INDEXED;
 @defineExternalizable(barcode, VARSTRING[100], ext);
@@ -12,9 +11,11 @@ idBarcode 'Штрих код' = DATA STRING[15] (Barcode) IN recognize FIXEDCHAR
 dataDateBarcode 'Дата действия' = DATA DATE (Barcode);
 dateBarcode 'Дата действия' = OVERRIDE (2001_01_01 IF barcode IS Barcode), dataDateBarcode(barcode) IN base PERSISTENT;
 
-dataBarcodeIdDate (id, date) = GROUP AGGR barcode BY idBarcode(barcode), dateBarcode(barcode) WHERE barcode IS Barcode PERSISTENT;
-orderBarcodeIdDate 'Дата действия' (id, date) = GROUP MAX STRUCT(dateIn, dataBarcodeIdDate(id, dateIn)) IF dateIn <= date BY id, date IN base;
-barcodeIdDate (id, date) = orderBarcodeIdDate(id, date)[2];
+barcodeIdDate (id, date) =
+    GROUP LAST barcode
+          BY idBarcode(barcode), date
+          ORDER dateBarcode(barcode), barcode
+          WHERE dateBarcode(barcode) <= date COMPLEX;
 
 barcodeId (id) = barcodeIdDate(id, currentDate());
 activeBarcode 'Активный' (barcode) = barcodeId(idBarcode(barcode)) == barcode;

@@ -36,17 +36,22 @@ integerPriceRoundCondition 'Целое' (price, roundCondition) = divideInteger(
 fractionPriceRoundCondition 'Дробное' (price, roundCondition) = price -
     integerPriceRoundCondition(price, roundCondition) * denominatorPriceRoundCondition(roundCondition);
 
-inPriceIntervalPrice(priceInterval, price) = fractionPriceRoundCondition(price, roundConditionPriceInterval(priceInterval)) >= fromPriceInterval(priceInterval)
-    AND fractionPriceRoundCondition(price, roundConditionPriceInterval(priceInterval)) <= toPriceInterval(priceInterval);
+modifierPriceIntervalPriceRoundCondition (price, roundCondition) =
+    GROUP LAST modifierPriceInterval(interval)
+          BY price, roundConditionPriceInterval(interval)
+          ORDER interval
+          WHERE fractionPriceRoundCondition(price, roundConditionPriceInterval(interval)) >= fromPriceInterval(interval) AND
+                fractionPriceRoundCondition(price, roundConditionPriceInterval(interval)) < toPriceInterval(interval);
 
-priceIntervalPriceRoundCondition (price, roundCondition) = GROUP MAX priceInterval IF inPriceIntervalPrice(priceInterval, price)
-    BY price, roundConditionPriceInterval(priceInterval);
 
-
-roundPriceRoundCondition (price, roundCondition) = NUMERIC[14,2](IF price > minPriceRoundCondition(roundCondition) AND priceIntervalPriceRoundCondition (price, roundCondition)
-    THEN integerPriceRoundCondition(price, roundCondition)*denominatorPriceRoundCondition(roundCondition)
-        + modifierPriceInterval(priceIntervalPriceRoundCondition (price, roundCondition))
-    ELSE round(price AS NUMERIC[14,2], priceRoundRoundCondition(roundCondition))) COMPLEX; // для COMPLEX
+roundPriceRoundCondition (price, roundCondition) = NUMERIC[14,2](
+    IF price > minPriceRoundCondition(roundCondition) AND modifierPriceIntervalPriceRoundCondition(price, roundCondition)
+        THEN
+            integerPriceRoundCondition(price, roundCondition) * denominatorPriceRoundCondition(roundCondition) +
+            modifierPriceIntervalPriceRoundCondition(price, roundCondition)
+        ELSE
+            round(price AS NUMERIC[14,2], priceRoundRoundCondition(roundCondition))
+    ) COMPLEX; // для COMPLEX
 
 // -------------------- Группы для округления --------------- //
 
