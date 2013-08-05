@@ -163,8 +163,9 @@ customsGroupInvoiceDetail(d) += customsGroupUserInvoiceDetail(d);
 codeCustomsGroupInvoiceDetail 'ТН ВЭД' (d) = codeCustomsGroup(customsGroupInvoiceDetail(d));
 codeCustomsGroupUserInvoiceDetail 'ТН ВЭД' (d) = codeCustomsGroup(customsGroupUserInvoiceDetail(d));
 
-customsGroupUserInvoiceDetail(d) <- customsGroupCountrySku(countryUserInvoiceDetail(d), skuUserInvoiceDetail(d))
-    WHEN CHANGED(countryUserInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d));
+WHEN SESSION FORMS userInvoice
+    CHANGED(countryUserInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d)) DO
+        customsGroupUserInvoiceDetail(d) <- customsGroupCountrySku(countryUserInvoiceDetail(d), skuUserInvoiceDetail(d));
 
 // Льготы
 VATCustomsExceptionInvoiceDetail = ABSTRACT VATCustomsException(InvoiceDetail);
@@ -174,8 +175,9 @@ VATCustomsExceptionInvoiceDetail(d) += VATCustomsExceptionUserInvoiceDetail(d);
 nameVATCustomsExceptionInvoiceDetail 'Льгота НДС' (d) = nameVATCustomsException(VATCustomsExceptionInvoiceDetail(d)) MINCHARWIDTH 15;
 nameVATCustomsExceptionUserInvoiceDetail 'Льгота НДС' (d) = nameVATCustomsException(VATCustomsExceptionUserInvoiceDetail(d)) MINCHARWIDTH 15;
 
-VATCustomsExceptionUserInvoiceDetail(d) <- VATCustomsExceptionCountrySku(countryUserInvoiceDetail(d), skuUserInvoiceDetail(d))
-    WHEN CHANGED(countryUserInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d));
+WHEN SESSION FORMS userInvoice
+    CHANGED(countryUserInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d)) DO
+        VATCustomsExceptionUserInvoiceDetail(d) <- VATCustomsExceptionCountrySku(countryUserInvoiceDetail(d), skuUserInvoiceDetail(d));
 
 CONSTRAINT customsGroupUserInvoiceDetail(d) AND VATCustomsExceptionUserInvoiceDetail(d) AND NOT customsGroupVATCustomsException(VATCustomsExceptionUserInvoiceDetail(d)) == customsGroupUserInvoiceDetail(d)
     CHECKED BY VATCustomsExceptionUserInvoiceDetail MESSAGE 'Льгота НДС должна соответствовать ТН ВЭД';

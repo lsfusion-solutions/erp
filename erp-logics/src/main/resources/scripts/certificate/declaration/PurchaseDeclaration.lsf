@@ -13,13 +13,14 @@ sumUserInvoiceDetailDeclaration 'Сумма (по инвойсам)' = GROUP SUM
                                                               BY declarationUserInvoiceDetail(d) MINCHARWIDTH 15;
 
 // проставляем в строку инвойса декларацию из партии
-dataDeclarationUserInvoiceDetail(detail)  <- IF batchUserInvoiceDetail(detail)
-                                                THEN prevDeclarationBatch(batchUserInvoiceDetail(detail))
-                                                ELSE prevDeclarationBatch(lastOrderBatchSkuStock(skuUserInvoiceDetail(detail), customerStockUserInvoiceDetail(detail)))
-    WHEN (CHANGED (batchUserInvoiceDetail(detail)) OR
-         CHANGED (skuUserInvoiceDetail(detail)) OR
-         CHANGED (customerStockUserInvoiceDetail(detail)))
-         AND NOT isHomeCurrencyUserInvoice(userInvoiceUserInvoiceDetail(detail));
+WHEN SESSION FORMS userInvoice
+    (CHANGED (batchUserInvoiceDetail(detail)) OR
+    CHANGED (skuUserInvoiceDetail(detail)) OR
+    CHANGED (customerStockUserInvoiceDetail(detail)))
+    AND NOT isHomeCurrencyUserInvoice(userInvoiceUserInvoiceDetail(detail)) DO
+    dataDeclarationUserInvoiceDetail(detail)  <- IF batchUserInvoiceDetail(detail)
+                                                    THEN prevDeclarationBatch(batchUserInvoiceDetail(detail))
+                                                    ELSE prevDeclarationBatch(lastOrderBatchSkuStock(skuUserInvoiceDetail(detail), customerStockUserInvoiceDetail(detail)));
 
 // добавляем в поставку декларацию
 @defineDocumentCertificateObject(declaration, shipment, s, 'Таможенная декларация');
