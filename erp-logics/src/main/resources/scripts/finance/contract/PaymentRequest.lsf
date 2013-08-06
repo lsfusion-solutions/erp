@@ -58,8 +58,7 @@ descriptionPaymentRequest 'Название документа' =
 TABLE paymentRequestInContractLedger (PaymentRequest, InContractLedger);
 costPaymentRequestInContractLedger 'Сумма требования' (paymentRequest, inContractLedger) = DATA NUMERIC[16,2] (PaymentRequest, InContractLedger) PERSISTENT;
 requestedInContractLedger 'Выставлено требований' (inContractLedger) =
-    GROUP SUM costPaymentRequestInContractLedger(paymentRequest, inContractLedger) IF
-              activeInContractLedger(inContractLedger) AND isPostedPaymentRequest(paymentRequest)
+    GROUP SUM costPaymentRequestInContractLedger(paymentRequest, inContractLedger) IF isPostedPaymentRequest(paymentRequest)
     BY inContractLedger PERSISTENT;
 
 requestedDebtInContractLedger 'Неоплаченных требований' (inContractLedger) =
@@ -180,8 +179,11 @@ DESIGN paymentRequest FROM DEFAULT{
 
 // ------------------------ Требования по договору -------------------------- //
 
+toRequestContract 'Не выставлено требований' (contract) =
+    GROUP SUM toRequestInContractLedger(ledger) IF activeInContractLedger(ledger) BY contractInContractLedger(ledger);
+
 requestedDebtContract 'Неоплаченных требований' (contract) =
-    GROUP SUM requestedDebtInContractLedger (inContractLedger) BY contractInContractLedger(inContractLedger);
+    GROUP SUM requestedDebtInContractLedger (ledger) IF activeInContractLedger(ledger) BY contractInContractLedger(ledger);
 
 toRequestContractDate 'Необходимо выставить требований' (contract, date) = balanceAContractDate(contract, date) (-) requestedDebtContract(contract);
 
