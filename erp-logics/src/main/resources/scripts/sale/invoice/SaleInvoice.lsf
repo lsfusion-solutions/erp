@@ -1,6 +1,6 @@
 MODULE SaleInvoice;
 
-REQUIRE SaleOrder, OrderInvoice, StockTax, Store, SaleOperation;
+REQUIRE SaleOrder, OrderInvoice, StockTax, SaleOperation;
 
 NAMESPACE Sale;
 
@@ -37,27 +37,6 @@ NAMESPACE Sale;
 
 @defineOrderInvoice(' (продажа)', supplierStock);
 @defineOrderInvoiceAction (' (продажа)');
-
-// --------------------- НДС расчетный ----------------------- //
-
-@defineDocumentInterfaceHeaderTAX(invoice, VAT, 'НДС расч.');
-
-CONSTRAINT taxRange(VATUserInvoice(userInvoice)) != Tax.taxVAT OR
-           countryRange(VATUserInvoice(userInvoice)) != countryStock(supplierStockInvoice(userInvoice)) OR
-           rangeTypeRange(VATUserInvoice(userInvoice)) != RangeType.units
-           CHECKED BY VATUserInvoice
-           MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС: продажа';
-
-VATUserInvoice (userInvoice) <- rangeTaxTaxUnit(Tax.taxVAT, storeDepartmentStore(supplierStockUserInvoice(userInvoice)))
-        WHEN CHANGED(supplierStockUserInvoice(userInvoice));
-
-@deriveDocumentDetailVATHeader(userInvoice, VAT, supplierStock);
-
-isDepartmentStoreSupplierStockInvoice (invoice) = supplierStockInvoice(invoice) IS DepartmentStore;
-
-EXTEND FORM userInvoice
-    PROPERTIES(i) numberVATUserInvoice SHOWIF isDepartmentStoreSupplierStockInvoice(i), valueVATUserInvoice SHOWIF isDepartmentStoreSupplierStockInvoice(i);
-;
 
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 

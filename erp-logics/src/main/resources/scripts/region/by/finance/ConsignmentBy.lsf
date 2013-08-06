@@ -5,7 +5,6 @@ REQUIRE System,
         Stock,
         Employee,
         Utils,
-        Ware,
         Transport,
         Numerator; // вот эту зависимость нужно будет убрать
 
@@ -211,29 +210,38 @@ shortNameCurrencyConsignment 'Валюта' (consignment) = shortNameCurrency(cu
 documentNameCurrencyConsignment 'Валюта в накладной сокр.' (consignment) = documentNameCurrency(currencyConsignment(consignment));
 isCurrencyConsignment 'Выбрана валюта' (consignment) = TRUE IF currencyConsignment(consignment);
 
-// Посуда на возврате
+//// Посуда на возврате
 isWareConsignment 'Возврат поставщику' (consignment) = ABSTRACT BOOLEAN (Consignment);
-wareSumConsignmentDetailConsignment 'Сумма посуды с НДС' (consignment) = ABSTRACT NUMERIC[14,2] (Consignment);
+//wareSumConsignmentDetailConsignment 'Сумма посуды с НДС' (consignment) = ABSTRACT NUMERIC[14,2] (Consignment);
 supplierSumConsignmentDetailConsignment 'Сумма поставщика без НДС' (consignment) = ABSTRACT NUMERIC[14,2] (Consignment);
+//
+//wareConsignmentDetail (consignmentDetail) = ABSTRACT Ware (ConsignmentDetail);
+//nameWareConsignmentDetail 'Посуда' (consignmentDetail) = nameWare(wareConsignmentDetail(consignmentDetail));
+//warePriceConsignmentDetail 'Цена посуды с НДС' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//wareSumConsignmentDetail 'Сумма посуды с НДС' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//valueWareRangeConsignmentDetail 'НДС посуды, %' (consignmentDetail) = ABSTRACT NUMERIC[6,2] (ConsignmentDetail);
+//wareVATSumConsignmentDetail 'Сумма НДС по посуде' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//wareSupplierPriceConsignmentDetail 'Цена посуды без НДС' (consignmentDetail) =  ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//wareSupplierSumConsignmentDetail 'Сумма посуды без НДС' (consignmentDetail) =  ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+//
+//sumIaWConsignmentDetail 'Сумма с посудой без НДС' (consignmentDetail) = sumConsignmentDetail(consignmentDetail) (+) wareSupplierSumConsignmentDetail(consignmentDetail);
+overSumIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail) PERSISTENT;
+sumIaWConsignmentDetail (detail) = OVERRIDE sumConsignmentDetail(detail), overSumIaWConsignmentDetail(detail) PERSISTENT;
 
-wareConsignmentDetail (consignmentDetail) = ABSTRACT Ware (ConsignmentDetail);
-nameWareConsignmentDetail 'Посуда' (consignmentDetail) = nameWare(wareConsignmentDetail(consignmentDetail));
-warePriceConsignmentDetail 'Цена посуды с НДС' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-wareSumConsignmentDetail 'Сумма посуды с НДС' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-valueWareRangeConsignmentDetail 'НДС посуды, %' (consignmentDetail) = ABSTRACT NUMERIC[6,2] (ConsignmentDetail);
-wareVATSumConsignmentDetail 'Сумма НДС по посуде' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-wareSupplierPriceConsignmentDetail 'Цена посуды без НДС' (consignmentDetail) =  ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-wareSupplierSumConsignmentDetail 'Сумма посуды без НДС' (consignmentDetail) =  ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-
-sumIaWConsignmentDetail 'Сумма с посудой без НДС' (consignmentDetail) = sumConsignmentDetail(consignmentDetail) (+) wareSupplierSumConsignmentDetail(consignmentDetail);
 sumConsignmentDetailConsignment 'Сумма с посудой без НДС (всего)' (consignment) = GROUP SUM sumIaWConsignmentDetail(consignmentDetail)
                                                             BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignmentGroup;
+//
+//sumVATIaWConsignmentDetail 'Сумма НДС' (consignmentDetail) = sumVATConsignmentDetail(consignmentDetail) (+) wareVATSumConsignmentDetail(consignmentDetail);
+overSumVATIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail) PERSISTENT;
+sumVATIaWConsignmentDetail (detail) = OVERRIDE sumVATConsignmentDetail(detail), overSumVATIaWConsignmentDetail(detail) PERSISTENT;
 
-sumVATIaWConsignmentDetail 'Сумма НДС' (consignmentDetail) = sumVATConsignmentDetail(consignmentDetail) (+) wareVATSumConsignmentDetail(consignmentDetail);
 sumVATConsignmentDetailConsignment 'Сумма НДС (всего)' (consignment) = GROUP SUM sumVATIaWConsignmentDetail(consignmentDetail)
                                                             BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignmentGroup;
+//
+//sumInvoiceIaWConsignmentDetail 'Сумма с НДС' (consignmentDetail) = sumInvoiceConsignmentDetail(consignmentDetail) (+) wareSumConsignmentDetail(consignmentDetail);
+overSumInvoiceIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail) PERSISTENT;
+sumInvoiceIaWConsignmentDetail (detail) = OVERRIDE sumInvoiceConsignmentDetail(detail), overSumInvoiceIaWConsignmentDetail(detail) PERSISTENT;
 
-sumInvoiceIaWConsignmentDetail 'Сумма с НДС' (consignmentDetail) = sumInvoiceConsignmentDetail(consignmentDetail) (+) wareSumConsignmentDetail(consignmentDetail);
 sumInvoiceConsignmentDetailConsignment 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumInvoiceIaWConsignmentDetail(consignmentDetail)
                                                             BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignmentGroup;
 
@@ -266,9 +274,7 @@ META defineConsignmentFormSimple(form, caption)
 
         PROPERTIES(d) nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
                       sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
-                      noteConsignmentDetail, extraDescriptionConsignmentDetail, nameWareConsignmentDetail, warePriceConsignmentDetail, wareSumConsignmentDetail,
-                      valueWareRangeConsignmentDetail, wareVATSumConsignmentDetail, wareSupplierPriceConsignmentDetail,
-                      wareSupplierSumConsignmentDetail
+                      noteConsignmentDetail, extraDescriptionConsignmentDetail
 
         FILTERS consignmentConsignmentDetail(d) == c
     ;
@@ -292,18 +298,16 @@ META defineConsignmentForm(form, caption)
                        arrivalTimeConsignment, departureTimeConsignment, downtimeConsignment, raceQuantityConsignment,
                        quantityConsignmentDetailConsignment, packQuantityConsignmentDetailConsignment, grossWeightTonConsignmentDetailConsignment, grossWeightConsignmentDetailConsignment,
                        sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment, sumInvoiceConsignmentDetailConsignment,
-                       countConsignmentDetailConsignment, wareSumConsignmentDetailConsignment, supplierSumConsignmentDetailConsignment,
-                       seriesObject, numberObject, isWareConsignment, isCustomsFlowConsignment, isCurrencyConsignment, shortNameCurrencyConsignment,
+                       countConsignmentDetailConsignment, supplierSumConsignmentDetailConsignment,
+                       seriesObject, numberObject, isCustomsFlowConsignment, isCurrencyConsignment, shortNameCurrencyConsignment,
                        noteConsignment, documentNameCurrencyConsignment
 
         OBJECTS d=ConsignmentDetail
 
         PROPERTIES(d) nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
                       sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
-                      packQuantityConsignmentDetail, grossWeightTonConsignmentDetail, noteConsignmentDetail, extraDescriptionConsignmentDetail,
-                      nameWareConsignmentDetail, warePriceConsignmentDetail, valueWareRangeConsignmentDetail,
-                      wareSupplierPriceConsignmentDetail, wareSumConsignmentDetail, wareSupplierSumConsignmentDetail,
-                      wareVATSumConsignmentDetail, wareSumConsignmentDetail
+                      packQuantityConsignmentDetail, grossWeightTonConsignmentDetail, noteConsignmentDetail, extraDescriptionConsignmentDetail
+
 
         FILTERS consignmentConsignmentDetail(d) == c
     ;
@@ -337,10 +341,7 @@ FORM consignment 'Атрибуты накладной'
 
     PROPERTIES(d) nameSkuConsignmentDetail READONLY, shortNameUOMConsignmentDetail READONLY, quantityConsignmentDetail, priceConsignmentDetail,
                   sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
-                  packQuantityConsignmentDetail, grossWeightTonConsignmentDetail, noteConsignmentDetail READONLY, extraDescriptionConsignmentDetail READONLY,
-                  nameWareConsignmentDetail, warePriceConsignmentDetail, valueWareRangeConsignmentDetail,
-                  wareSupplierPriceConsignmentDetail, wareSumConsignmentDetail, wareSupplierSumConsignmentDetail,
-                  wareVATSumConsignmentDetail, wareSumConsignmentDetail
+                  packQuantityConsignmentDetail, grossWeightTonConsignmentDetail, noteConsignmentDetail READONLY, extraDescriptionConsignmentDetail READONLY
 
     FILTERS consignmentConsignmentDetail(d) == c
 ;

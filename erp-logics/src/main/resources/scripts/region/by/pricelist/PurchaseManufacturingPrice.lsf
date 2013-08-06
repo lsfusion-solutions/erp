@@ -1,6 +1,6 @@
 MODULE PurchaseManufacturingPrice;
 
-REQUIRE PurchaseInvoice, PricingPurchase, PurchaseDeclaration, PricingManufacturingPrice, RepricingManufacturingPrice, PriceListLedger;
+REQUIRE PurchaseInvoice, PurchaseDeclaration, PriceListLedger, PriceListCalc;
 
 NAMESPACE Purchase;
 
@@ -120,10 +120,10 @@ WHEN SESSION FORMS userInvoice, declaration
         manufacturingPriceUserInvoiceDetail(d) <- baseManufacturingPriceUserInvoiceDetail(d);
 }
 
-overAdditionalValuation(rd, detail) += ACTION (rd, detail) {
-    ASSIGN curManufacturingPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType, skuInvoiceDetail(detail), customerStockInvoiceDetail(detail), dateTimeInvoiceDetail(detail));
-    ASSIGN manufacturingPriceUserRepricingDetail(rd) <- manufacturingPriceInvoiceDetail(detail);
-}
+//overAdditionalValuation(rd, detail) += ACTION (rd, detail) {
+//    ASSIGN curManufacturingPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType, skuInvoiceDetail(detail), customerStockInvoiceDetail(detail), dateTimeInvoiceDetail(detail));
+//    ASSIGN manufacturingPriceUserRepricingDetail(rd) <- manufacturingPriceInvoiceDetail(detail);
+//}
 
 //@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, manufacturingPriceStockPriceListType, manufacturing, sku, customerStock);
 
@@ -131,10 +131,10 @@ overAdditionalValuation(rd, detail) += ACTION (rd, detail) {
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, manufacturingPriceStockPriceListType, curManufacturing, sku, customerStock);
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, curManufacturing, );
 
-@changeDocumentDetailPricePrefix(userInvoiceDetail, manufacturing, manRetail, retail, manufacturingMVAT, retail, retail);
-@changeDocumentDetailPricePrefix(userInvoiceDetail, curManufacturing, newManRetail, cur, curManufacturingMVAT, cur, curRetail);
+//@changeDocumentDetailPricePrefix(userInvoiceDetail, manufacturing, manRetail, retail, manufacturingMVAT, retail, retail);
+//@changeDocumentDetailPricePrefix(userInvoiceDetail, curManufacturing, newManRetail, cur, curManufacturingMVAT, cur, curRetail);
 
-toShowRepricingPriceInvoice (invoice) = createRepricingInvoice(invoice) AND showManufacturingPriceInvoice(invoice);
+//toShowRepricingPriceInvoice (invoice) = createRepricingInvoice(invoice) AND showManufacturingPriceInvoice(invoice);
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
 @deriveDocumentDetailSumPrefix(userInvoice, manufacturing, currency, quantity); // записываем сумму изготовителя
@@ -156,10 +156,10 @@ EXTEND FORM userInvoice
                   nameManufacturingCalcPriceListTypeUserInvoice
     PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) dateManufacturingRateExchangeUserInvoice, rateManufacturingExchangeUserInvoice
     PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) AFTER invoiceSumUserInvoiceDetail manufacturingSumUserInvoiceDetail,
-                  includeVATUserInvoiceDetail, manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d),
+                  includeVATUserInvoiceDetail, manufacturingPriceUserInvoiceDetail, //ON CHANGE changeManufacturingPriceUserInvoiceDetail(d),
                   manufacturingMarkupUserInvoiceDetail
-    PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
-                  curManufacturingPriceUserInvoiceDetail ON CHANGE changeCurManufacturingPriceUserInvoiceDetail(d)
+//    PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
+//                  curManufacturingPriceUserInvoiceDetail ON CHANGE changeCurManufacturingPriceUserInvoiceDetail(d)
 ;
 EXTEND DESIGN userInvoice {
     headerExtraParams {
@@ -188,15 +188,15 @@ EXTEND FORM invoices
                   manufacturingMarkupInvoiceDetail
 ;
 //--
-overPricingPricePricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
-overPricingPriceUserInvoiceDetail(detail) += manufacturingPriceUserInvoiceDetail(detail);
-
-manufacturingPricePricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
-//--
-overRepricingPriceRepricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
-overRepricingPriceUserInvoiceDetail(detail) += manufacturingPriceUserInvoiceDetail(detail);
-manufacturingPriceRepricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
-
-overCurRepricingPriceRepricingDetail(detail) += curManufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
-overCurRepricingPriceUserInvoiceDetail(detail) += curManufacturingPriceUserInvoiceDetail(detail);
-curManufacturingPriceRepricingDetail(detail) += curManufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
+//overPricingPricePricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
+//overPricingPriceUserInvoiceDetail(detail) += manufacturingPriceUserInvoiceDetail(detail);
+//
+//manufacturingPricePricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
+////--
+//overRepricingPriceRepricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
+//overRepricingPriceUserInvoiceDetail(detail) += manufacturingPriceUserInvoiceDetail(detail);
+//manufacturingPriceRepricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
+//
+//overCurRepricingPriceRepricingDetail(detail) += curManufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
+//overCurRepricingPriceUserInvoiceDetail(detail) += curManufacturingPriceUserInvoiceDetail(detail);
+//curManufacturingPriceRepricingDetail(detail) += curManufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));

@@ -1,6 +1,6 @@
 MODULE SaleOrder;
 
-REQUIRE Order, Store, SaleOperation, SalePack;
+REQUIRE Order, SaleOperation, SalePack;
 
 NAMESPACE Sale;
 
@@ -33,27 +33,6 @@ Order.operationOrder(order) += operationOrder(order);
 @defineDocumentOperationStock(userOrder, supplierStock, 'Склад поставщика');
 @defineDocumentOperationStock(userOrder, customerStock, 'Склад покупателя');
 @defineDocumentOperationRole(userOrder);
-
-// --------------------- НДС расчетный ----------------------- //
-
-@defineDocumentInterfaceHeaderTAX(order, VAT, 'НДС расч.');
-
-CONSTRAINT taxRange(VATUserOrder(userOrder)) != Tax.taxVAT OR
-           countryRange(VATUserOrder(userOrder)) != countryStock(supplierStockOrder(userOrder)) OR
-           rangeTypeRange(VATUserOrder(userOrder)) != RangeType.units
-           CHECKED BY VATUserOrder
-           MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС: продажа';
-
-VATUserOrder (userOrder) <- rangeTaxTaxUnit(Tax.taxVAT, storeDepartmentStore(supplierStockUserOrder(userOrder)))
-        WHEN CHANGED(supplierStockUserOrder(userOrder));
-
-@deriveDocumentDetailVATHeader(userOrder, VAT, supplierStock);
-
-isDepartmentStoreSupplierStockOrder (order) = supplierStockOrder(order) IS DepartmentStore;
-
-EXTEND FORM userOrder
-    PROPERTIES(o) numberVATUserOrder SHOWIF isDepartmentStoreSupplierStockOrder(o), valueVATUserOrder SHOWIF isDepartmentStoreSupplierStockOrder(o);
-;
 
 // --------------------- НДС суммы ----------------------- //
 
