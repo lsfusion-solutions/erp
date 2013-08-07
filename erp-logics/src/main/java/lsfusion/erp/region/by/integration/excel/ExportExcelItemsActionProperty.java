@@ -30,6 +30,10 @@ import java.util.Map;
 
 public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
+    //Опциональные модули
+    private ScriptingLogicsModule wareItemLM;
+    private ScriptingLogicsModule writeOffRateItemLM;
+
     public ExportExcelItemsActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
@@ -50,6 +54,9 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
 
+        wareItemLM = (ScriptingLogicsModule) context.getBL().getModule("WareItemLM");
+        writeOffRateItemLM = (ScriptingLogicsModule) context.getBL().getModule("WriteOffRateItem");
+
         List<List<String>> data = new ArrayList<List<String>>();
 
         DataSession session = context.getSession();
@@ -61,12 +68,19 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
             KeyExpr itemExpr = new KeyExpr("Item");
             ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "Item", itemExpr);
 
+            QueryBuilder<Object, Object> itemQuery = new QueryBuilder<Object, Object>(itemKeys);
             String[] itemProperties = new String[]{"itemGroupItem", "nameAttributeItem", "UOMItem",
                     "brandItem", "countryItem", "idBarcodeSku", "isWeightItem", "netWeightItem", "grossWeightItem",
-                    "compositionItem", "wareItem", "Purchase.amountPackSku", "Sale.amountPackSku"};
-            QueryBuilder<Object, Object> itemQuery = new QueryBuilder<Object, Object>(itemKeys);
+                    "compositionItem", "Purchase.amountPackSku", "Sale.amountPackSku"};
             for (String iProperty : itemProperties) {
                 itemQuery.addProperty(iProperty, getLCP(iProperty).getExpr(context.getModifier(), itemExpr));
+            }
+
+            if (wareItemLM != null) {
+                String[] wareItemProperties = new String[]{"wareItem"};
+                for (String iProperty : wareItemProperties) {
+                    itemQuery.addProperty(iProperty, getLCP(iProperty).getExpr(context.getModifier(), itemExpr));
+                }
             }
 
             itemQuery.and(getLCP("nameAttributeItem").getExpr(context.getModifier(), itemQuery.getMapExprs().get("Item")).getWhere());
@@ -121,10 +135,10 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 BigDecimal vatItem = countryObject == null ? null : (BigDecimal) LM.findLCPByCompoundName("valueVATItemCountryDate").read(session, itemObject, countryObject, dateObject);
                 String nameCountry = countryObject == null ? null : (String) LM.findLCPByCompoundName("nameCountry").read(session, countryObject);
 
-                Integer writeOffRateID = countryObject == null ? null : (Integer) LM.findLCPByCompoundName("writeOffRateCountryItem").read(session, countryObject, itemObject);
+                Integer writeOffRateID = (writeOffRateItemLM == null || countryObject == null) ? null : (Integer) LM.findLCPByCompoundName("writeOffRateCountryItem").read(session, countryObject, itemObject);
 
-                Double retailMarkup = retailCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundName("markupCalcPriceListTypeSku").read(session, (DataObject) retailCPLT, itemObject);
-                Double wholesaleMarkup = wholesaleCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundName("markupCalcPriceListTypeSku").read(session, (DataObject) wholesaleCPLT, itemObject);
+                Double retailMarkup = retailCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundName("markupCalcPriceListTypeSku").read(session, retailCPLT, itemObject);
+                Double wholesaleMarkup = wholesaleCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundName("markupCalcPriceListTypeSku").read(session, wholesaleCPLT, itemObject);
 
                 data.add(Arrays.asList(trimNotNull(itemID), trimNotNull(itemGroupID), trimNotNull(name), trimNotNull(nameUOM),
                         trimNotNull(shortNameUOM), trimNotNull(uomItem), trimNotNull(nameBrand), trimNotNull(brandItem),

@@ -27,6 +27,9 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
     private final ClassPropertyInterface dateFromInterface;
     private final ClassPropertyInterface dateToInterface;
 
+    //Опциональные модули
+    private ScriptingLogicsModule pricingPurchaseLM;
+
     public ExportExcelUserInvoicesActionProperty(ScriptingLogicsModule LM) {
         super(LM, DateClass.instance, DateClass.instance);
 
@@ -55,6 +58,8 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
     }
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
+
+        pricingPurchaseLM = (ScriptingLogicsModule) context.getBL().getModule("PricingPurchase");
 
         List<List<String>> data = new ArrayList<List<String>>();
 
@@ -89,7 +94,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
                     String seriesUserInvoice = (String) userInvoiceValue.get("seriesObject");
                     String numberUserInvoice = (String) userInvoiceValue.get("numberObject");
-                    String dateInvoice = date==null ? null : new SimpleDateFormat("dd.MM.yyyy").format(date);
+                    String dateInvoice = date == null ? null : new SimpleDateFormat("dd.MM.yyyy").format(date);
 
                     Integer supplierID = (Integer) userInvoiceValue.get("supplierUserInvoice");
                     Integer customerStockID = (Integer) userInvoiceValue.get("Purchase.customerStockInvoice");
@@ -98,14 +103,21 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     KeyExpr userInvoiceDetailExpr = new KeyExpr("UserInvoiceDetail");
                     ImRevMap<Object, KeyExpr> userInvoiceDetailKeys = MapFact.singletonRev((Object) "UserInvoiceDetail", userInvoiceDetailExpr);
 
-                    String[] userInvoiceDetailProperties = new String[]{"Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
-                            "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "Purchase.retailPriceUserInvoiceDetail",
-                            "Purchase.retailMarkupUserInvoiceDetail", "Purchase.wholesalePriceUserInvoiceDetail",
-                            "Purchase.wholesaleMarkupUserInvoiceDetail","certificateTextInvoiceDetail"};
                     QueryBuilder<Object, Object> userInvoiceDetailQuery = new QueryBuilder<Object, Object>(userInvoiceDetailKeys);
+                    String[] userInvoiceDetailProperties = new String[]{"Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
+                            "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "Purchase.wholesalePriceUserInvoiceDetail",
+                            "Purchase.wholesaleMarkupUserInvoiceDetail", "certificateTextInvoiceDetail"};
                     for (String uidProperty : userInvoiceDetailProperties) {
                         userInvoiceDetailQuery.addProperty(uidProperty, getLCP(uidProperty).getExpr(context.getModifier(), userInvoiceDetailExpr));
                     }
+
+                    if (pricingPurchaseLM != null) {
+                        String[] pricingPurchaseUserInvoiceDetailProperties = new String[]{"Purchase.retailPriceUserInvoiceDetail", "Purchase.retailMarkupUserInvoiceDetail"};
+                        for (String uidProperty : pricingPurchaseUserInvoiceDetailProperties) {
+                            userInvoiceDetailQuery.addProperty(uidProperty, pricingPurchaseLM.findLCPByCompoundName(uidProperty).getExpr(context.getModifier(), userInvoiceDetailExpr));
+                        }
+                    }
+
                     userInvoiceDetailQuery.and(getLCP("userInvoiceUserInvoiceDetail").getExpr(context.getModifier(), userInvoiceDetailQuery.getMapExprs().get("UserInvoiceDetail")).compare(userInvoiceObject.getExpr(), Compare.EQUALS));
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceDetailResult = userInvoiceDetailQuery.execute(context.getSession().sql);
