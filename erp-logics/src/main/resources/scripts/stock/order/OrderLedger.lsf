@@ -14,6 +14,8 @@ isClosedOrderLedger 'Закрыт' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PER
 skuOrderLedger (ledger) = ABSTRACT Sku (OrderLedger) PERSISTENT INDEXED;
 nameSkuOrderLedger 'SKU' (ledger) = nameSku(skuOrderLedger(ledger));
 
+batchOrderLedger (ledger) = ABSTRACT Batch (OrderLedger) PERSISTENT INDEXED;
+
 stockOrderLedger (ledger) = ABSTRACT Stock (OrderLedger) PERSISTENT INDEXED;
 nameStockOrderLedger 'Склад' (ledger) = nameStock(stockOrderLedger(ledger));
 
@@ -35,6 +37,7 @@ backgroundOrderLedgerDateTime 'Цвет' (ledger,dateTime) = RGB(212,255,212) IF
 
 //-------------------------------Продажа----------------------------------//
 
+//по SKU
 currentReserveSaleSkuStock 'Резерв продажа (всего)' (sku, stock) = GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger)
     BY skuOrderLedger(ledger), stockOrderLedger(ledger) PERSISTENT;
 
@@ -58,9 +61,34 @@ reserveASaleSkuStockDateTime 'Резерв продажи (после)' (sku, st
     [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) > dateTime
         BY skuOrderLedger(ledger), stockOrderLedger(ledger), dateTime](sku, stock, dateTime);
 
+//по партиям
+currentReserveSaleBatchStock 'Резерв продажа (всего)' (batch, stock) = GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger)
+    BY batchOrderLedger(ledger), stockOrderLedger(ledger) PERSISTENT;
+
+// без учета текущей даты/времени
+reserveBSaleBatchStockDate 'Резерв продажи на начало дня' (batch, stock, date) = currentReserveSaleBatchStock(batch, stock) (-)
+    [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) >= date
+        BY batchOrderLedger(ledger), stockOrderLedger(ledger), date](batch, stock, date);
+
+// с учетом текущей даты/времени
+reserveASaleBatchStockDate 'Резерв продажи на конец дня' (batch, stock, date) = currentReserveSaleBatchStock(batch, stock) (-)
+    [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) > date
+        BY batchOrderLedger(ledger), stockOrderLedger(ledger), date](batch, stock, date);
+
+// без учета текущей даты/времени
+reserveBSaleBatchStockDateTime 'Резерв продажи (до)' (batch, stock, dateTime) = currentReserveSaleBatchStock(batch, stock) (-)
+    [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) >= dateTime
+        BY batchOrderLedger(ledger), stockOrderLedger(ledger), dateTime](batch, stock, dateTime);
+
+// с учетом текущей даты/времени
+reserveASaleBatchStockDateTime 'Резерв продажи (после)' (batch, stock, dateTime) = currentReserveSaleBatchStock(batch, stock) (-)
+    [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) > dateTime
+        BY batchOrderLedger(ledger), stockOrderLedger(ledger), dateTime](batch, stock, dateTime);
+
 
 //-------------------------------Закупка----------------------------------//
 
+//по SKU
 currentReservePurchaseSkuStock 'Резерв закупка (всего)'(sku, stock) = GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger)
     BY skuOrderLedger(ledger), stockOrderLedger(ledger) PERSISTENT;
 
@@ -84,8 +112,33 @@ reserveAPurchaseSkuStockDateTime 'Резерв закупки (после)' (sku
     [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) > dateTime
         BY skuOrderLedger(ledger), stockOrderLedger(ledger), dateTime](sku, stock, dateTime);
 
+//по партиям
+currentReservePurchaseBatchStock 'Резерв закупка (всего)'(batch, stock) = GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger)
+    BY batchOrderLedger(ledger), stockOrderLedger(ledger) PERSISTENT;
+
+// без учета текущей даты/времени
+reserveBPurchaseBatchStockDate 'Резерв закупки на начало дня' (batch, stock, date) = currentReservePurchaseBatchStock(batch, stock) (-)
+    [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) >= date
+        BY batchOrderLedger(ledger), stockOrderLedger(ledger), date](batch, stock, date);
+
+// с учетом текущей даты/времени
+reserveAPurchaseBatchStockDate 'Резерв закупки на конец дня' (batch, stock, date) = currentReservePurchaseBatchStock(batch, stock) (-)
+    [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) > date
+        BY batchOrderLedger(ledger), stockOrderLedger(ledger), date](batch, stock, date);
+
+// без учета текущей даты/времени
+reserveBPurchaseBatchStockDateTime 'Резерв закупки (до)' (batch, stock, dateTime) = currentReservePurchaseBatchStock(batch, stock) (-)
+    [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) >= dateTime
+        BY batchOrderLedger(ledger), stockOrderLedger(ledger), dateTime](batch, stock, dateTime);
+
+// с учетом текущей даты/времени
+reserveAPurchaseBatchStockDateTime 'Резерв закупки (после)' (batch, stock, dateTime) = currentReservePurchaseBatchStock(batch, stock) (-)
+    [GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) > dateTime
+        BY batchOrderLedger(ledger), stockOrderLedger(ledger), dateTime](batch, stock, dateTime);
+
 //-------------------------------Общий----------------------------------//
 
+//по Sku
 currentReserveSkuStock 'Текущий резерв' (sku, stock) = currentReservePurchaseSkuStock (sku, stock) (-) currentReserveSaleSkuStock (sku, stock);
 
 reserveBSkuStockDate 'Резерв на начало дня' (sku, stock, date) = reserveBPurchaseSkuStockDate (sku, stock, date) (-) reserveBSaleSkuStockDate (sku, stock, date);
@@ -93,8 +146,16 @@ reserveASkuStockDate 'Резерв на конец дня' (sku, stock, date) = 
 reserveBSkuStockDateTime 'Резерв (до)' (sku, stock, dateTime) = reserveBPurchaseSkuStockDateTime (sku, stock, dateTime) (-) reserveBSaleSkuStockDateTime (sku, stock, dateTime);
 reserveASkuStockDateTime 'Резерв (после)' (sku, stock, dateTime) = reserveAPurchaseSkuStockDateTime (sku, stock, dateTime) (-) reserveASaleSkuStockDateTime (sku, stock, dateTime);
 
+//по партиям
+currentReserveBatchStock 'Текущий резерв' (batch, stock) = currentReservePurchaseBatchStock (batch, stock) (-) currentReserveSaleBatchStock (batch, stock);
+
+reserveBBatchStockDate 'Резерв на начало дня' (batch, stock, date) = reserveBPurchaseBatchStockDate (batch, stock, date) (-) reserveBSaleBatchStockDate (batch, stock, date);
+reserveABatchStockDate 'Резерв на конец дня' (batch, stock, date) = reserveAPurchaseBatchStockDate (batch, stock, date) (-) reserveASaleBatchStockDate (batch, stock, date);
+reserveBBatchStockDateTime 'Резерв (до)' (batch, stock, dateTime) = reserveBPurchaseBatchStockDateTime (batch, stock, dateTime) (-) reserveBSaleBatchStockDateTime (batch, stock, dateTime);
+reserveABatchStockDateTime 'Резерв (после)' (batch, stock, dateTime) = reserveAPurchaseBatchStockDateTime (batch, stock, dateTime) (-) reserveASaleBatchStockDateTime (batch, stock, dateTime);
+
 //---------------------------------------------- Формы продаж -------------------------------------//
-FORM orderLedger 'Резерв по позициям'
+FORM orderSkuLedger 'Резерв по позициям'
 
     OBJECTS t = DATETIME FIXED PANEL
     PROPERTIES  dVal=OBJVALUE(t)
@@ -123,7 +184,7 @@ FORM orderLedger 'Резерв по позициям'
 
 ;
 
-DESIGN orderLedger FROM DEFAULT {
+DESIGN orderSkuLedger FROM DEFAULT {
     main {
         childConstraints = TO THE BOTTOM;
         NEW row{
@@ -137,6 +198,50 @@ DESIGN orderLedger FROM DEFAULT {
     ADD functions.box;
 }
 
+FORM orderBatchLedger 'Резерв по партиям'
+
+    OBJECTS t = DATETIME FIXED PANEL
+    PROPERTIES  dVal=OBJVALUE(t)
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES  SELECTOR nameStock(st)
+
+    OBJECTS bt = Batch FIXED PANEL
+    PROPERTIES SELECTOR nameBatch(bt)
+
+    OBJECTS s = OrderLedger
+    PROPERTIES(s) READONLY BACKGROUND backgroundOrderLedgerDateTime(s,t)  dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+                           quantityOrderLedger, toShipQuantityOrderLedger
+    FILTERS stockOrderLedger(s)==st,
+            batchOrderLedger(s)==bt
+
+    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+
+    FILTERGROUP stockTimesFilters
+        FILTER 'Резерв (закупки) всего' 'F11' isPurchaseOrderLedger(s)
+        FILTER 'Резерв (продажи) всего' 'F10' TRUE AND NOT isPurchaseOrderLedger(s)
+        FILTER 'Резерв (закупки) на дату' 'F9' dateTimeOrderLedger(s) < t AND isPurchaseOrderLedger(s)
+        FILTER 'Резерв (продажи) на дату' 'F8' dateTimeOrderLedger(s)< t AND NOT isPurchaseOrderLedger(s)
+        FILTER 'На дату' 'F7' dateTimeOrderLedger(s) < t
+
+
+;
+
+DESIGN orderBatchLedger FROM DEFAULT {
+    main {
+        childConstraints = TO THE BOTTOM;
+        NEW row{
+            childConstraints = TO THE RIGHTBOTTOM;
+            ADD t.box;
+            ADD st.box;
+            ADD bt.box;
+        }
+        ADD s.box;
+    }
+    ADD functions.box;
+}
+
+
 //---------------------------------------------- Макросы для имплементаций Продажа-------------------------------------//
 
 META implementSaleOrderLedgerCustom(concrete, skuProp, dateTimeProp, stockProp, contactProp)
@@ -144,6 +249,7 @@ META implementSaleOrderLedgerCustom(concrete, skuProp, dateTimeProp, stockProp, 
     isPostedOrderLedger (ledger) += isPosted###concrete##Detail(ledger);
     isClosedOrderLedger (ledger) += isClosed###concrete##Detail(ledger);
     skuOrderLedger (ledger) += skuProp###concrete##Detail(ledger);
+    batchOrderLedger (ledger) += batch###concrete##Detail(ledger);
     stockOrderLedger (ledger) += stockProp###concrete##Detail(ledger);
     descriptionOrderLedger (ledger) += description###concrete##Detail(ledger);
     quantityOrderLedger (ledger) += quantity###concrete##Detail(ledger);
@@ -161,6 +267,7 @@ META implementPurchaseOrderLedgerCustom(concrete, skuProp, dateTimeProp, stockPr
     isPostedOrderLedger (ledger) += isPosted###concrete##Detail(ledger);
     isClosedOrderLedger (ledger) += isClosed###concrete##Detail(ledger);
     skuOrderLedger (ledger) += skuProp###concrete##Detail(ledger);
+    batchOrderLedger (ledger) += batch###concrete##Detail(ledger);
     stockOrderLedger (ledger) += stockProp###concrete##Detail(ledger);
     descriptionOrderLedger (ledger) += description###concrete##Detail(ledger);
     quantityOrderLedger (ledger) += quantity###concrete##Detail(ledger);
@@ -248,19 +355,20 @@ EXTEND DESIGN balanceSkuStock {
 
 //---------------------Расширение закладки подбара формы заказа резервами ---------------//
 
+//SKU
 availableQuantitySkuStockDateTime 'Доступное количество' (sku, stock, dateTime) = currentBalanceSkuStock(sku, stock) (+) reserveBSkuStockDateTime(sku, stock, dateTime);
 
-META extendFormDocumentOrderLedgerStock(object, form, concrete)
+META extendFormDocumentOrderSkuLedgerStock(object, form, concrete)
 
     availableQuantitySkuStock###object 'Доступное количество' (sku, stock, object)= availableQuantitySkuStockDateTime(sku, stock, shipmentDateTime###object(object));
 
     reserveBPurchaseSkuStock###object 'Резерв (закупка)' (sku, stock, object) = reserveBPurchaseSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
     reserveBSaleSkuStock###object 'Резерв (продажа)' (sku, stock, object) = reserveBSaleSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
 
-    reviewReserveSaleSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
-    reviewReservePurchaseSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
-    reviewReserveBSaleSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
-    reviewReserveBPurchaseSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
+    reviewReserveSaleSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
+    reviewReservePurchaseSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
+    reviewReserveBSaleSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
+    reviewReserveBPurchaseSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
 
     EXTEND FORM form
         PROPERTIES BEFORE currentBalanceSkuStock(ks, st) availableQuantitySkuStock###object(ks, st, concrete) READONLY
@@ -280,33 +388,90 @@ META extendFormDocumentOrderLedgerStock(object, form, concrete)
     }
 
 END
-META extendFormDocumentOrderLedgerStockAll(object, form, concrete)
+META extendFormDocumentOrderSkuLedgerStockAll(object, form, concrete)
 
-    available###form 'Доступное кол-во' = DATA SESSION BOOLEAN (Sku, Stock);
+    available###form##Sku 'Доступное кол-во' = DATA SESSION BOOLEAN (Sku, Stock);
 
-    change###available###form= ACTION (sku, object, stock) {
+    change###available###form##Sku= ACTION (sku, object, stock) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             ASSIGN requestedNumeric() <- NULL;
-            ASSIGN available###form (sku,stock) <- TRUE;
+            ASSIGN available###form##Sku (sku,stock) <- TRUE;
             ASSIGN requestedNumeric() <- availableQuantitySkuStock###object(sku, stock, object) WHERE availableQuantitySkuStock###object(sku, stock, object);
             EXEC changeQuantityValueSku###object###Stock(sku, object, stock);
         } ELSE {
-            ASSIGN available###form (sku,stock) <- NULL;
+            ASSIGN available###form##Sku (sku,stock) <- NULL;
             ASSIGN requestedNumeric() <- NULL;
             EXEC changeQuantityValueSku###object###Stock(sku, object, stock);
         }
     }
 
     EXTEND FORM form
-        PROPERTIES AFTER availableQuantitySkuStock###object(ks, st, concrete) available###form (ks,st) ON CHANGE change###available###form(ks,concrete,st)
+        PROPERTIES AFTER availableQuantitySkuStock###object(ks, st, concrete) available###form##Sku (ks,st) ON CHANGE change###available###form##Sku(ks,concrete,st)
+    ;
+END
+
+//Batch
+availableQuantityBatchStockDateTime 'Доступное количество' (batch, stock, dateTime) = currentBalanceBatchStock(batch, stock) (+) reserveBBatchStockDateTime(batch, stock, dateTime);
+
+META extendFormDocumentOrderBatchLedgerStock(object, form, concrete)
+
+    availableQuantityBatchStock###object 'Доступное количество' (batch, stock, object)= availableQuantityBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
+
+    reserveBPurchaseBatchStock###object 'Резерв (закупка)' (batch, stock, object) = reserveBPurchaseBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
+    reserveBSaleBatchStock###object 'Резерв (продажа)' (batch, stock, object) = reserveBSaleBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
+
+    reviewReserveSaleBatchStock###object 'Резерв' (batch,stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
+    reviewReservePurchaseBatchStock###object 'Резерв' (batch,stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
+    reviewReserveBSaleBatchStock###object 'Резерв' (batch,stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
+    reviewReserveBPurchaseBatchStock###object 'Резерв' (batch,stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
+
+    EXTEND FORM form
+        PROPERTIES availableQuantityBatchStock###object(b, st, concrete) READONLY
+
+        PROPERTIES //AFTER currentBalanceBatchStock(b, st)
+                   currentReserveSaleBatchStock(b,st) ON CHANGE reviewReserveSaleBatchStock###object(b,st,concrete),
+                   currentReservePurchaseBatchStock(b,st) ON CHANGE reviewReservePurchaseBatchStock###object(b,st,concrete),
+                   reserveBSaleBatchStock###object(b, st, concrete) ON CHANGE reviewReserveBSaleBatchStock###object(b,st,concrete),
+                   reserveBPurchaseBatchStock###object(b, st, concrete) ON CHANGE reviewReserveBPurchaseBatchStock###object(b,st,concrete)
+    ;
+    EXTEND DESIGN form {
+        PROPERTY(availableQuantityBatchStock###object) { background = #F4FFBD; }
+        PROPERTY(currentReservePurchaseBatchStock) { background = #CCFFCC; }
+        PROPERTY(reserveBPurchaseBatchStock###object) { background = #CCFFCC; }
+        PROPERTY(currentReserveSaleBatchStock) { background = #BDE3FF; }
+        PROPERTY(reserveBSaleBatchStock###object) { background = #BDE3FF; }
+    }
+
+END
+META extendFormDocumentOrderBatchLedgerStockAll(object, form, concrete)
+
+    available###form##Batch 'Доступное кол-во' = DATA SESSION BOOLEAN (Batch, Stock);
+
+    change###available###form##Batch= ACTION (batch, object, stock) {
+        REQUEST BOOLEAN INPUT;
+        IF requestedLogical() THEN {
+            ASSIGN requestedNumeric() <- NULL;
+            ASSIGN available###form##Batch (batch,stock) <- TRUE;
+            ASSIGN requestedNumeric() <- availableQuantityBatchStock###object(batch, stock, object) WHERE availableQuantityBatchStock###object(batch, stock, object);
+            EXEC changeQuantityValueBatch###object###Stock(batch, object, stock);
+        } ELSE {
+            ASSIGN available###form##Batch (batch,stock) <- NULL;
+            ASSIGN requestedNumeric() <- NULL;
+            EXEC changeQuantityValueBatch###object###Stock(batch, object, stock);
+        }
+    }
+
+    EXTEND FORM form
+        PROPERTIES AFTER availableQuantityBatchStock###object(b, st, concrete) available###form##Batch (b,st) ON CHANGE change###available###form##Batch(b,concrete,st)
     ;
 END
 
 
 //---------------------Расширение закладки подбара формы накладной резервами ---------------//
 
-META extendFormDocumentOrderLedger(object, form, stockProp, concrete)
+//SKU
+META extendFormDocumentOrderSkuLedger(object, form, stockProp, concrete)
 
     availableQuantitySku###object 'Доступное количество' (sku, object)= availableQuantitySkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
 
@@ -316,10 +481,10 @@ META extendFormDocumentOrderLedger(object, form, stockProp, concrete)
     reserveBSaleSku###object 'Резерв (продажа)' (sku, object) = reserveBSaleSkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
     currentReserveSaleSku###object 'Резерв продажа (всего)' (sku, object) = currentReserveSaleSkuStock(sku, stockProp###object(object));
 
-    reviewReserveSaleSku###object 'Резерв' (sku, object) = ACTION FORM orderLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
-    reviewReservePurchaseSku###object 'Резерв' (sku, object) = ACTION FORM orderLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
-    reviewReserveBSaleSku###object 'Резерв' (sku, object) = ACTION FORM orderLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
-    reviewReserveBPurchaseSku###object 'Резерв' (sku, object) = ACTION FORM orderLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
+    reviewReserveSaleSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
+    reviewReservePurchaseSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
+    reviewReserveBSaleSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
+    reviewReserveBPurchaseSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
 
     EXTEND FORM form
         PROPERTIES READONLY BEFORE prevCurrentBalanceSku###object(ks, concrete) availableQuantitySku###object(ks, concrete)
@@ -339,26 +504,84 @@ META extendFormDocumentOrderLedger(object, form, stockProp, concrete)
     }
 
 END
-META extendFormDocumentOrderLedgerAll(object, form, concrete)
+META extendFormDocumentOrderSkuLedgerAll(object, form, concrete)
 
-    available###form 'Доступное кол-во' = DATA SESSION BOOLEAN (Sku, ###object);
+    available###form##Sku 'Доступное кол-во' = DATA SESSION BOOLEAN (Sku, ###object);
 
-    change###available###form= ACTION (sku, object) {
+    change###available###form##Sku= ACTION (sku, object) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             ASSIGN requestedNumeric() <- NULL;
-            ASSIGN available###form (sku,object) <- TRUE;
+            ASSIGN available###form##Sku (sku,object) <- TRUE;
             ASSIGN requestedNumeric() <- availableQuantitySku###object(sku, object) WHERE availableQuantitySku###object(sku, object);
             EXEC changeQuantityValueSku###object(sku, object);
         } ELSE {
-            ASSIGN available###form (sku,object) <- NULL;
+            ASSIGN available###form##Sku (sku,object) <- NULL;
             ASSIGN requestedNumeric() <- NULL;
             EXEC changeQuantityValueSku###object(sku, object);
         }
     }
 
     EXTEND FORM form
-        PROPERTIES AFTER availableQuantitySku###object(ks, concrete) available###form (ks,concrete) ON CHANGE change###available###form(ks,concrete)
+        PROPERTIES AFTER availableQuantitySku###object(ks, concrete) available###form##Sku (ks,concrete) ON CHANGE change###available###form##Sku(ks,concrete)
     ;
 END
+
+//Batch
+META extendFormDocumentOrderBatchLedger(object, form, stockProp, concrete)
+
+    availableQuantityBatch###object 'Доступное количество' (batch, object)= availableQuantityBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
+
+    reserveBPurchaseBatch###object 'Резерв (закупка)' (batch, object) = reserveBPurchaseBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
+    currentReservePurchaseBatch###object 'Резерв закупка (всего)' (batch, object) = currentReservePurchaseBatchStock(batch, stockProp###object(object));
+
+    reserveBSaleBatch###object 'Резерв (продажа)' (batch, object) = reserveBSaleBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
+    currentReserveSaleBatch###object 'Резерв продажа (всего)' (batch, object) = currentReserveSaleBatchStock(batch, stockProp###object(object));
+
+    reviewReserveSaleBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
+    reviewReservePurchaseBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
+    reviewReserveBSaleBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
+    reviewReserveBPurchaseBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
+
+    EXTEND FORM form
+        PROPERTIES READONLY BEFORE prevCurrentBalanceBatch###object(b, concrete) availableQuantityBatch###object(b, concrete)
+
+        PROPERTIES AFTER prevCurrentBalanceBatch###object(b, concrete)
+                   currentReserveSaleBatch###object(b,concrete) ON CHANGE reviewReserveSaleBatch###object(b,concrete),
+                   currentReservePurchaseBatch###object(b,concrete) ON CHANGE reviewReservePurchaseBatch###object(b,concrete),
+                   reserveBSaleBatch###object(b, concrete) ON CHANGE reviewReserveBSaleBatch###object(b,concrete),
+                   reserveBPurchaseBatch###object(b, concrete) ON CHANGE reviewReserveBPurchaseBatch###object(b,concrete)
+    ;
+    EXTEND DESIGN form {
+        PROPERTY(availableQuantityBatch###object) { background = #F4FFBD; }
+        PROPERTY(currentReservePurchaseBatch###object) { background = #CCFFCC; }
+        PROPERTY(reserveBPurchaseBatch###object) { background = #CCFFCC; }
+        PROPERTY(currentReserveSaleBatch###object) { background = #BDE3FF; }
+        PROPERTY(reserveBSaleBatch###object) { background = #BDE3FF; }
+    }
+
+END
+META extendFormDocumentOrderBatchLedgerAll(object, form, concrete)
+
+    available###form##Batch 'Доступное кол-во' = DATA SESSION BOOLEAN (Batch, ###object);
+
+    change###available###form##Batch= ACTION (batch, object) {
+        REQUEST BOOLEAN INPUT;
+        IF requestedLogical() THEN {
+            ASSIGN requestedNumeric() <- NULL;
+            ASSIGN available###form##Batch (batch,object) <- TRUE;
+            ASSIGN requestedNumeric() <- availableQuantityBatch###object(batch, object) WHERE availableQuantityBatch###object(batch, object);
+            EXEC changeQuantityValueBatch###object(batch, object);
+        } ELSE {
+            ASSIGN available###form##Batch (batch,object) <- NULL;
+            ASSIGN requestedNumeric() <- NULL;
+            EXEC changeQuantityValueBatch###object(batch, object);
+        }
+    }
+
+    EXTEND FORM form
+        PROPERTIES AFTER availableQuantityBatch###object(b, concrete) available###form##Batch (b,concrete) ON CHANGE change###available###form##Batch(b,concrete)
+    ;
+END
+
 

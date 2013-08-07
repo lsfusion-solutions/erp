@@ -63,14 +63,14 @@ META extendFormDocumentArticleStockCustom(object, form, concrete, legalEntityPro
 
     EXTEND FORM form
 
-        OBJECTS sta=(sto=Stock, ar=Article)
-        PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar), stockName = nameStock(sto) SHOWIF not###stockProp###object(concrete)
+        OBJECTS sta=(stk=Stock, ar=Article)
+        PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar), stockName = nameStock(stk) SHOWIF not###stockProp###object(concrete)
         FILTERS           isParentGroupArticle(sk, ar),
-                          (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
-                          sto == stockProp###object(concrete) AND NOT sg AND NOT ts
+                          (stk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
+                          stk == stockProp###object(concrete) AND NOT sg AND NOT ts
         FILTERGROUP stockFilters
-            FILTER 'Собственные склады' 'F6' legalEntityStock(sto) == legalEntityProp###object(concrete) DEFAULT
-        FILTERS           captionArticle(ar), nameStock(sto)
+            FILTER 'Собственные склады' 'F6' legalEntityStock(stk) == legalEntityProp###object(concrete) DEFAULT
+        FILTERS           captionArticle(ar), nameStock(stk)
         ORDER BY          idArticle, stockName
 
         OBJECTS si=Size
@@ -81,11 +81,11 @@ META extendFormDocumentArticleStockCustom(object, form, concrete, legalEntityPro
         PROPERTIES(co) READONLY idColor SHOWIF showIDs(), nameColor
         FILTERS countColorArticle(co,ar)
 
-        PROPERTIES(ar,co,si,concrete,sto) quantityArticleColorSize###object###stockProp ON CHANGE changeQuantityArticleColorSize###object###Stock(ar,co,si,concrete,sto)
-                                          COLUMNS (si) HEADER nameSize(si) BACKGROUND backgroundQuantityArticleColorSize###object###Stock(ar,co,si,concrete,sto)
-        PROPERTIES(ar,co,si,sto,concrete) READONLY priceBalanceArticleColorSizeStock###object COLUMNS (si) HEADER nameBalanceSize(si)
+        PROPERTIES(ar,co,si,concrete,stk) quantityArticleColorSize###object###stockProp ON CHANGE changeQuantityArticleColorSize###object###Stock(ar,co,si,concrete,stk)
+                                          COLUMNS (si) HEADER nameSize(si) BACKGROUND backgroundQuantityArticleColorSize###object###Stock(ar,co,si,concrete,stk)
+        PROPERTIES(ar,co,si,stk,concrete) READONLY priceBalanceArticleColorSizeStock###object COLUMNS (si) HEADER nameBalanceSize(si)
 
-//        PROPERTIES(ar,co,si,sto,concrete) priceBalanceArticleColorSizeStock###object ON CHANGE changeQuantityArticleColorSize###object###Stock(ar,co,si,concrete,sto) COLUMNS (si) HEADER nameBalanceSize(si)
+//        PROPERTIES(ar,co,si,stk,concrete) priceBalanceArticleColorSizeStock###object ON CHANGE changeQuantityArticleColorSize###object###Stock(ar,co,si,concrete,stk) COLUMNS (si) HEADER nameBalanceSize(si)
 // Саше для выявления бага
         FILTERS nameColor(co), nameSize(si)
         ORDER BY nameColor, nameSize
