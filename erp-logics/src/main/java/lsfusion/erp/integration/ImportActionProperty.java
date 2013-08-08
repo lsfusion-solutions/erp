@@ -31,6 +31,7 @@ public class ImportActionProperty {
     ScriptingLogicsModule storeLM;
     ScriptingLogicsModule writeOffItemLM;
     ScriptingLogicsModule pricingPurchaseLM;
+    ScriptingLogicsModule purchaseInvoiceWholesalePriceLM;
 
     public ImportActionProperty(ScriptingLogicsModule LM, ImportData importData, ExecutionContext<ClassPropertyInterface> context) {
         this.LM = LM;
@@ -40,6 +41,7 @@ public class ImportActionProperty {
         this.storeLM = (ScriptingLogicsModule) context.getBL().getModule("Store");
         this.writeOffItemLM = (ScriptingLogicsModule) context.getBL().getModule("WriteOffItem");
         this.pricingPurchaseLM = (ScriptingLogicsModule) context.getBL().getModule("PricingPurchase");
+        this.purchaseInvoiceWholesalePriceLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoiceWholesalePrice");
     }
 
     public void makeImport() throws SQLException {
@@ -723,11 +725,27 @@ public class ImportActionProperty {
                         data.get(i).add(true);
                 }
 
-                ImportField showWholesalePriceUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.showWholesalePriceUserInvoice"));
-                props.add(new ImportProperty(showWholesalePriceUserInvoiceField, LM.findLCPByCompoundName("Purchase.showWholesalePriceUserInvoice").getMapping(userInvoiceKey)));
-                fields.add(showWholesalePriceUserInvoiceField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(true);
+                if (purchaseInvoiceWholesalePriceLM != null) {
+
+                    ImportField showWholesalePriceUserInvoiceField = new ImportField(purchaseInvoiceWholesalePriceLM.findLCPByCompoundName("Purchase.showWholesalePriceUserInvoice"));
+                    props.add(new ImportProperty(showWholesalePriceUserInvoiceField, purchaseInvoiceWholesalePriceLM.findLCPByCompoundName("Purchase.showWholesalePriceUserInvoice").getMapping(userInvoiceKey)));
+                    fields.add(showWholesalePriceUserInvoiceField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(true);
+
+                    ImportField wholesalePriceUserInvoiceDetailField = new ImportField(purchaseInvoiceWholesalePriceLM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail"));
+                    props.add(new ImportProperty(wholesalePriceUserInvoiceDetailField, purchaseInvoiceWholesalePriceLM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    fields.add(wholesalePriceUserInvoiceDetailField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).wholesalePrice);
+
+                    ImportField wholesaleMarkupUserInvoiceDetailField = new ImportField(purchaseInvoiceWholesalePriceLM.findLCPByCompoundName("Purchase.wholesaleMarkupUserInvoiceDetail"));
+                    props.add(new ImportProperty(wholesaleMarkupUserInvoiceDetailField, purchaseInvoiceWholesalePriceLM.findLCPByCompoundName("Purchase.wholesaleMarkupUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    fields.add(wholesaleMarkupUserInvoiceDetailField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).wholesaleMarkup);
+
+                }
 
                 ImportField dateUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.dateUserInvoice"));
                 props.add(new ImportProperty(dateUserInvoiceField, LM.findLCPByCompoundName("Purchase.dateUserInvoice").getMapping(userInvoiceKey)));
@@ -887,20 +905,6 @@ public class ImportActionProperty {
                 fields.add(manufacturingMarkupUserInvoiceDetailField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).manufacturingMarkup);
-
-                if (showField(dataUserInvoiceDetail, "wholesalePrice")) {
-                    ImportField wholesalePriceUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail"));
-                    props.add(new ImportProperty(wholesalePriceUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.wholesalePriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                    fields.add(wholesalePriceUserInvoiceDetailField);
-                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                        data.get(i).add(dataUserInvoiceDetail.get(i).wholesalePrice);
-                }
-
-                ImportField wholesaleMarkupUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.wholesaleMarkupUserInvoiceDetail"));
-                props.add(new ImportProperty(wholesaleMarkupUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.wholesaleMarkupUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                fields.add(wholesaleMarkupUserInvoiceDetailField);
-                for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).wholesaleMarkup);
 
                 ImportField certificateTextUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("certificateTextUserInvoiceDetail"));
                 props.add(new ImportProperty(certificateTextUserInvoiceDetailField, LM.findLCPByCompoundName("certificateTextUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
