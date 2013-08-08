@@ -52,7 +52,7 @@ FORM articles 'Артикулы'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeItemGroup(g) DEFAULT
 
     OBJECTS a=Article
-    PROPERTIES(a) READONLYIF isReadonly() captionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, nameItemGroupArticle
+    PROPERTIES(a) READONLYIF isReadonly() captionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle
     PROPERTIES(a) ADDFORM, EDITFORM, deletea=DELETE
     ORDER BY captionArticle
 
@@ -113,6 +113,55 @@ DESIGN colors FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 TABLE colorArticle(Color, Article);
 countColorArticle 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY colorItem(item), articleItem(item) PERSISTENT;
+
+colorArticle  = DATA Color(Article);
+nameColorArticle 'Цвет' (Article) = nameColor(colorArticle(Article)) IN articleDescriptionGroup;
+
+EXTEND FORM article PROPERTIES(a) nameColorArticle;
+EXTEND DESIGN article  {
+    rootContainer {
+        ADD a.articleDescriptionGroup {childConstraints = TO THE RIGHT;}
+    }
+}
+EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameColorArticle;
+
+//  Ед. изм.
+UOMArticle  = DATA UOM (Article);
+nameUOMArticle 'Единица измерения' (article) = nameUOM(UOMArticle(article)) IN articleBaseGroup MINCHARWIDTH 10 PREFCHARWIDTH 10;
+
+//  Состав
+compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN articleBaseGroup MINCHARWIDTH 30 PREFCHARWIDTH 40;
+
+EXTEND FORM article PROPERTIES(a) compositionArticle, nameUOMArticle;
+EXTEND FORM articles PROPERTIES(a) BEFORE nameColorArticle(a) READONLYIF isReadonly() nameUOMArticle, compositionArticle;
+
+// Коллекция
+CLASS Collection 'Коллекция';
+TABLE collection (Collection);
+
+@defineExternalizable(collection, VARSTRING[100]);
+nameCollection 'Наименование' = DATA VARISTRING[100](Collection);
+
+FORM collection 'Цвет товара'
+    OBJECTS t=Collection FIXED PANEL
+    PROPERTIES(t) nameCollection, idCollection SHOWIF showIDs()
+    EDIT Collection OBJECT t
+;
+
+FORM collections 'Цвета товара'
+    OBJECTS t=Collection
+    PROPERTIES(t) nameCollection READONLY, idCollection SHOWIF showIDs() READONLY, DELETE
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameCollection
+    DIALOG Collection OBJECT t
+;
+DESIGN collections FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+collectionArticle  = DATA Collection(Article);
+nameCollectionArticle 'Коллекция' (Article) = nameCollection(collectionArticle(Article)) IN articleDescriptionGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+EXTEND FORM article PROPERTIES(a)  nameCollectionArticle;
+EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameCollectionArticle;
 
 // Размер
 CLASS Size 'Размер товара';
