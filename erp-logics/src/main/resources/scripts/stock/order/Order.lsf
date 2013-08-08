@@ -388,16 +388,13 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         }
     }
 
-//-- SKU
-    @defineDocumentSkuStockPriceListType(userOrder, stockProp);
+    @defineDocumentSkuStockPriceListTypeAgreement(userOrder, stockProp);
+    @extendFormDocumentSkuStock(userOrder, userOrder, o, legalEntityProp, stockProp);
 
-    overChangeQuantityValueSkuUserOrderUserOrderDetail (d, o) +=  ACTION (d, o) {
-        ASSIGN shipmentDataDateUserOrderDetail (d) <- shipmentDateUserOrder(o);
-        ASSIGN shipmentDataTimeUserOrderDetail (d) <- shipmentTimeUserOrder(o);
-    };
-
-    @extendFormDocumentSkuStockCustom(userOrder, userOrder, o, legalEntityProp, stockProp);
-    @extendFormDocumentSkuStockCustomAll(userOrder, userOrder, o);
+    overChangeQuantityValueSkuUserOrderDetail (d) +=  ACTION (d) {
+        shipmentDataDateUserOrderDetail (d) <- shipmentDateUserOrder(userOrderUserOrderDetail(d));
+        shipmentDataTimeUserOrderDetail (d) <- shipmentTimeUserOrder(userOrderUserOrderDetail(d));
+    }
 
     addUserOrder 'Добавить' = ACTION ADDFORM UserOrder;
     editUserOrder 'Редактировать' (userOrder) = ACTION EDITFORM UserOrder;
@@ -514,9 +511,9 @@ END
 META defineOrderBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(order, batch);
     @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp, userOrder);
-    @defineDocumentBatchStockPriceListType(userOrder, supplierStock);
-    @extendFormDocumentBatchStockCustom(userOrder, userOrder, o, batch, userOrderDetail, row1, supplierStock, supplier);
-    @extendFormDocumentBatchStockAll(userOrder, userOrder, o);
+
+    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, supplierStock);
+    @extendFormDocumentBatchStock(userOrder, userOrder, o, supplier, supplierStock);
 
     changeBatchUserOrderDetail = ACTION (userOrderDetail) {
         FORM dialogBatch OBJECTS st = stockProp###userOrderDetail(userOrderDetail),
@@ -547,9 +544,9 @@ END
 META defineOrderPurchaseBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(order, batch);
     @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp, userOrder);
-    @defineDocumentBatchStockPriceListType(userOrder, customerStock);
-    @extendFormDocumentBatchStockCustom(userOrder, userOrder, o, batch, userOrderDetail, row1, customerStock, customer);
-    @extendFormDocumentBatchStockAll(userOrder, userOrder, o);
+
+    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, customerStock);
+    @extendFormDocumentBatchStock(userOrder, userOrder, o, customer, customerStock);
 
     changePurchaseBatchUserOrderDetail = ACTION (userOrderDetail) {
         FORM purchaseDialogBatch OBJECTS sk = skuUserOrderDetail(userOrderDetail) MODAL SHOWDROP;
