@@ -15,7 +15,9 @@ NAMESPACE SaleReturn;
 @extendFormFilterAccessLegalEntity(Shipment, s, shipments, supplier, company);
 @extendFormFilterAccessLegalEntity(Shipment, s, shipments, customer, customer);
 
-@defineShipmentPurchaseBatch(supplierStock);
+@defineShipmentBatch(supplierStock);
+@defineShipmentBatchDialog();
+
 expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDetail(detail)) WHEN CHANGED (batchUserShipmentDetail(detail));
 
 @defineShipmentStockDestination(customerStock, supplierStock);
@@ -25,9 +27,6 @@ expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDet
 @defineInvoiceShipmentAction(' (продажа-возврат)');
 
 @defineInvoiceShipmentBatch();
-
-@defineDocumentBatchPriceListTypeSystemLedger(userShipment, accountPriceListType, supplierStock);
-@extendFormDocumentBatch(userShipment, userShipment, s);
 
 @defineDocumentSkuStockSupplier (userShipment, userShipment, s);
 @defineDocumentBatchStockSupplier(userShipment, userShipment, s);
@@ -125,17 +124,13 @@ seriesDataSkuLedger (ledger) += seriesShipment(shipmentShipmentDetail(ledger));
 numberDataSkuLedger (ledger) += numberShipment(shipmentShipmentDetail(ledger));
 legalEntityDataSkuLedger (ledger) += customerShipment(shipmentShipmentDetail(ledger));
 legalEntityStockDataSkuLedger (ledger) += customerStockShipment(shipmentShipmentDetail(ledger));
+
 // ------------------------------- Проведение по товарному отчету ------------------------ //
 
 @implementStockDocumentLedgerInc(Shipment, supplierStock);
 sumIncStockDocumentLedger (ledger) += sumShipmentDetailShipment(ledger);
 sumItemIncStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
 sumContainerIncStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
-
-@defineBalancesBatch(shipmentDetail); //-- показываем по нажатию правой клавиши остатки партии
-@defineBalancesBatch(userShipmentDetail); //-- показываем по нажатию правой клавиши остатки партии
-@defineMovementBatch(shipmentDetail, supplierStock); //-- показываем по нажатию правой клавиши движение по партии
-@defineMovementBatch(userShipmentDetail, supplierStock); //-- показываем по нажатию правой клавиши движение по партии
 
 NAVIGATOR {
     saleStockNavigator {

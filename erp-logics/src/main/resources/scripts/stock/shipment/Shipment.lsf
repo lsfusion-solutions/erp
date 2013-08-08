@@ -420,25 +420,11 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @extendFormEditable(shipments);
 
 END
-//-- Партии на расходе
+
 META defineShipmentBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(shipment, batch);
 
-    changeBatchUserShipmentDetail = ACTION (userShipmentDetail) {
-        FORM dialogBatch OBJECTS st = stockProp###userShipmentDetail(userShipmentDetail),
-                                 t = dateTimeUserShipmentDetail(userShipmentDetail),
-                                 sk = skuUserShipmentDetail(userShipmentDetail) MODAL SHOWDROP;
-
-        IF formResult() == FormResult.ok THEN {
-            ASSIGN batchUserShipmentDetail(userShipmentDetail) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batchUserShipmentDetail(userShipmentDetail) <- NULL;
-        }
-    }
-
-    EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changeBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail;
-    EXTEND FORM shipments PROPERTIES (d) READONLY nameBatchShipmentDetail AFTER shortNameUOMSkuShipmentDetail;
-
+    // История по правой кнопке мыши
     @defineBalancesBatch(shipmentDetail); //-- показываем по нажатию правой клавиши остатки партии
     @defineBalancesBatch(userShipmentDetail); //-- показываем по нажатию правой клавиши остатки партии
     @defineMovementBatch(shipmentDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
@@ -449,21 +435,37 @@ META defineShipmentBatch(stockProp)
     @extendFormDocumentBatch(userShipment, userShipment, s);
 END
 
-//-- Партии на приходе
-META defineShipmentPurchaseBatch(stockProp)
-    @defineDocumentInterfaceDetailBatch(shipment, batch);
+META defineShipmentBatchDialogStock(stockProp)
 
-    changePurchaseBatchUserShipmentDetail = ACTION (userShipmentDetail) {
-        FORM purchaseDialogBatch OBJECTS sk = skuUserShipmentDetail(userShipmentDetail) MODAL SHOWDROP;
+    changeBatchUserShipmentDetail = ACTION (userShipmentDetail) {
+        FORM dialogBatchStock OBJECTS st = stockProp###userShipmentDetail(userShipmentDetail),
+                                 t = dateTimeUserShipmentDetail(userShipmentDetail),
+                                 sk = skuUserShipmentDetail(userShipmentDetail) MODAL SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {
-            ASSIGN batchUserShipmentDetail(userShipmentDetail) <- chosenObject('bt');
+            batchUserShipmentDetail(userShipmentDetail) <- chosenObject('bt');
         } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batchUserShipmentDetail(userShipmentDetail) <- NULL;
+            batchUserShipmentDetail(userShipmentDetail) <- NULL;
         }
     }
 
-    EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changePurchaseBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail;
+    EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changeBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail;
+    EXTEND FORM shipments PROPERTIES (d) READONLY nameBatchShipmentDetail AFTER shortNameUOMSkuShipmentDetail;
+END
+
+META defineShipmentBatchDialog(dumb)
+
+    changeBatchUserShipmentDetail = ACTION (userShipmentDetail) {
+        FORM dialogBatch OBJECTS sk = skuUserShipmentDetail(userShipmentDetail) MODAL SHOWDROP;
+
+        IF formResult() == FormResult.ok THEN {
+            batchUserShipmentDetail(userShipmentDetail) <- chosenObject('bt');
+        } ELSE IF formResult() == FormResult.drop THEN {
+            batchUserShipmentDetail(userShipmentDetail) <- NULL;
+        }
+    }
+
+    EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changeBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail;
     EXTEND FORM shipments PROPERTIES (d) READONLY nameBatchShipmentDetail AFTER shortNameUOMSkuShipmentDetail;
 
 END

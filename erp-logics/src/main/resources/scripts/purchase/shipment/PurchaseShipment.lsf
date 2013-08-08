@@ -12,7 +12,9 @@ NAMESPACE Purchase;
 @extendFormFilterAccessLegalEntity(Shipment, s, shipments, customer, company);
 @extendFormFilterAccessLegalEntity(Shipment, s, shipments, supplier, supplier);
 
-@defineShipmentPurchaseBatch(customerStock);
+@defineShipmentBatch(customerStock);
+@defineShipmentBatchDialog();
+
 expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDetail(detail)) WHEN CHANGED (batchUserShipmentDetail(detail));
 
 @defineShipmentStockDestination(supplierStock, customerStock);
@@ -20,10 +22,8 @@ expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDet
 @defineOrderShipment(' (закупка)', customerStock);
 @defineInvoiceShipment(' (закупка)', customerStock, company);
 @defineInvoiceShipmentAction(' (закупка)');
-@defineInvoiceShipmentBatch();
 
-@defineDocumentBatchPriceListTypeSystemLedger(userShipment, accountPriceListType, customerStock);
-@extendFormDocumentBatch(userShipment, userShipment, s);
+@defineInvoiceShipmentBatch();
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
@@ -215,11 +215,6 @@ EXTEND FORM userShipment
     PROPERTIES(s) TODRAW d mergeBatchUserShipment
 ;
 ledgerBatchUserShipmentDetail (detail) = OVERRIDE shipmentBatchShipmentDetail(detail), batchUserShipmentDetail(detail);
-
-@defineBalancesBatch(shipmentDetail, ledgerBatch); //-- показываем по нажатию правой клавиши остатки партии
-@defineBalancesBatch(userShipmentDetail, ledgerBatch); //-- показываем по нажатию правой клавиши остатки партии
-@defineMovementBatch(shipmentDetail, ledgerBatch, customerStock); //-- показываем по нажатию правой клавиши движение по партии
-@defineMovementBatch(userShipmentDetail, ledgerBatch, customerStock); //-- показываем по нажатию правой клавиши движение по партии
 
 //
 invoiceDetailBatch 'Строка инвойса партии' = invoiceDetailShipmentDetail(shipmentDetailShipmentBatch(batch));

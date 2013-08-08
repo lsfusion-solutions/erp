@@ -471,67 +471,61 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 
 END
 
-// Партии на расходе
+// -------------------------- Метакод по добавлению партий ------------------------- //
+
 META defineInvoiceBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(invoice, batch);
-    //@deriveDocumentDetailPriceBatchPriceListType(userInvoice, stockProp);
+
+    // Пишем в цену инвойса из вида цен в зависимости от партии
     @deriveDocumentDetailPricePriceListTypeVATBatch(userInvoice, stockProp, userInvoice);
 
-    changeBatchUserInvoiceDetail = ACTION (userInvoiceDetail) {
-        FORM dialogBatch OBJECTS st = stockProp###userInvoiceDetail(userInvoiceDetail),
-                                 t = dateTimeUserInvoiceDetail(userInvoiceDetail),
-                                 sk = skuUserInvoiceDetail(userInvoiceDetail) MODAL SHOWDROP;
-
-        IF formResult() == FormResult.ok THEN {
-            ASSIGN batchUserInvoiceDetail(userInvoiceDetail) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batchUserInvoiceDetail(userInvoiceDetail) <- NULL;
-        }
-
-    };
-
-    EXTEND FORM userInvoice
-        PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail
-//        HINTTABLE LIST batchUserInvoiceDetail
-    ;
-    EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail;
+    // История по правой кнопке
     @defineBalancesBatch(invoiceDetail); //-- показываем по нажатию правой клавиши остатки партии
     @defineBalancesBatch(userInvoiceDetail); //-- показываем по нажатию правой клавиши остатки партии
     @defineMovementBatch(invoiceDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
     @defineMovementBatch(userInvoiceDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
 
+    // Подбор по партиям
     @defineDocumentBatchPriceListTypeAgreement(userInvoice, stockProp);
     @extendFormDocumentBatch(userInvoice, userInvoice, i);
 END
 
-// Партии на приходе
-META defineInvoicePurchaseBatch(stockProp)
-    @defineDocumentInterfaceDetailBatch(invoice, batch);
-    @deriveDocumentDetailPricePriceListTypeVATBatch(userInvoice, stockProp, userInvoice);
+// Партии с диалогом по складам
+META defineInvoiceBatchDialogStock(stockProp)
 
-    changePurchaseBatchUserInvoiceDetail = ACTION (userInvoiceDetail) {
-        FORM purchaseDialogBatch OBJECTS sk = skuUserInvoiceDetail(userInvoiceDetail) MODAL SHOWDROP;
+    changeBatchUserInvoiceDetail = ACTION (userInvoiceDetail) {
+        FORM dialogBatchStock OBJECTS st = stockProp###userInvoiceDetail(userInvoiceDetail),
+                                 t = dateTimeUserInvoiceDetail(userInvoiceDetail),
+                                 sk = skuUserInvoiceDetail(userInvoiceDetail) MODAL SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {
-            ASSIGN batchUserInvoiceDetail(userInvoiceDetail) <- chosenObject('bt');
+            batchUserInvoiceDetail(userInvoiceDetail) <- chosenObject('bt');
         } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batchUserInvoiceDetail(userInvoiceDetail) <- NULL;
+            batchUserInvoiceDetail(userInvoiceDetail) <- NULL;
         }
-
-    };
+    }
 
     EXTEND FORM userInvoice
-        PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changePurchaseBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail
+        PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail
     ;
     EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail;
-    @defineBalancesBatch(invoiceDetail); //-- показываем по нажатию правой клавиши остатки партии
-    @defineBalancesBatch(userInvoiceDetail); //-- показываем по нажатию правой клавиши остатки партии
-    @defineMovementBatch(invoiceDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
-    @defineMovementBatch(userInvoiceDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
+END
 
-    // Добавляем подбор по партиям
-    @defineDocumentBatchPriceListTypeAgreement(userInvoice, stockProp);
-    @extendFormDocumentBatch(userInvoice, userInvoice, i);
+// Партии на приходе
+META defineInvoiceBatchDialog(dumb)
+    changeBatchUserInvoiceDetail = ACTION (userInvoiceDetail) {
+        FORM dialogBatch OBJECTS sk = skuUserInvoiceDetail(userInvoiceDetail) MODAL SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            batchUserInvoiceDetail(userInvoiceDetail) <- chosenObject('bt');
+        } ELSE IF formResult() == FormResult.drop THEN {
+            batchUserInvoiceDetail(userInvoiceDetail) <- NULL;
+        }
+    }
+
+    EXTEND FORM userInvoice
+        PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail
+    ;
+    EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail;
 END
 
 META defineInvoiceReturn(NS, NSR, stockProp)

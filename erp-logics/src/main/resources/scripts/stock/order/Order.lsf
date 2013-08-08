@@ -508,17 +508,45 @@ META defineOrderStockDestination(fromStock, toStock)
 END
 
 // Партии приход
-META defineOrderBatch(stockProp)
+META defineOrderBatch(legalEntityProp, stockProp)
     @defineDocumentInterfaceDetailBatch(order, batch);
+
+    // Пишем в цену заказа из вида цен в зависимости от партии
     @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp, userOrder);
 
-    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, supplierStock);
-    @extendFormDocumentBatchStock(userOrder, userOrder, o, supplier, supplierStock);
+    // История по правой кнопке
+    @defineBalancesBatch(orderDetail); //-- показываем по нажатию правой клавиши остатки партии
+    @defineBalancesBatch(userOrderDetail); //-- показываем по нажатию правой клавиши остатки партии
+    @defineMovementBatch(orderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
+    @defineMovementBatch(userOrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
 
+    // Подбор
+    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, stockProp);
+    @extendFormDocumentBatchStock(userOrder, userOrder, o, legalEntityProp, stockProp);
+END
+
+META defineOrderBatchDialog(dumb)
     changeBatchUserOrderDetail = ACTION (userOrderDetail) {
-        FORM dialogBatch OBJECTS st = stockProp###userOrderDetail(userOrderDetail),
-                                 t = dateTimeUserOrderDetail(userOrderDetail),
-                                 sk = skuUserOrderDetail(userOrderDetail) MODAL SHOWDROP;
+        FORM dialogBatch OBJECTS sk = skuUserOrderDetail(userOrderDetail) MODAL SHOWDROP;
+
+        IF formResult() == FormResult.ok THEN {
+            ASSIGN batchUserOrderDetail(userOrderDetail) <- chosenObject('bt');
+        } ELSE IF formResult() == FormResult.drop THEN {
+            ASSIGN batchUserOrderDetail(userOrderDetail) <- NULL;
+        }
+    }
+
+    EXTEND FORM userOrder
+        PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changeBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail
+    ;
+    EXTEND FORM orders PROPERTIES (d) READONLY nameBatchOrderDetail AFTER shortNameUOMSkuOrderDetail;
+END
+
+META defineOrderBatchDialogStock(stockProp)
+    changeBatchUserOrderDetail = ACTION (userOrderDetail) {
+        FORM dialogBatchStock OBJECTS st = stockProp###userOrderDetail(userOrderDetail),
+                                      t = dateTimeUserOrderDetail(userOrderDetail),
+                                      sk = skuUserOrderDetail(userOrderDetail) MODAL SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {
             ASSIGN batchUserOrderDetail(userOrderDetail) <- chosenObject('bt');
@@ -530,41 +558,6 @@ META defineOrderBatch(stockProp)
 
     EXTEND FORM userOrder
         PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changeBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail
-//        HINTTABLE LIST batchUserOrderDetail
     ;
     EXTEND FORM orders PROPERTIES (d) READONLY nameBatchOrderDetail AFTER shortNameUOMSkuOrderDetail;
-    @defineBalancesBatch(orderDetail); //-- показываем по нажатию правой клавиши остатки партии
-    @defineBalancesBatch(userOrderDetail); //-- показываем по нажатию правой клавиши остатки партии
-    @defineMovementBatch(orderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
-    @defineMovementBatch(userOrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
-END
-
-
-// Партии расход
-META defineOrderPurchaseBatch(stockProp)
-    @defineDocumentInterfaceDetailBatch(order, batch);
-    @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp, userOrder);
-
-    @defineDocumentBatchStockPriceListTypeAgreement(userOrder, customerStock);
-    @extendFormDocumentBatchStock(userOrder, userOrder, o, customer, customerStock);
-
-    changePurchaseBatchUserOrderDetail = ACTION (userOrderDetail) {
-        FORM purchaseDialogBatch OBJECTS sk = skuUserOrderDetail(userOrderDetail) MODAL SHOWDROP;
-
-        IF formResult() == FormResult.ok THEN {
-            ASSIGN batchUserOrderDetail(userOrderDetail) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batchUserOrderDetail(userOrderDetail) <- NULL;
-        }
-
-    };
-
-    EXTEND FORM userOrder
-        PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changePurchaseBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail
-    ;
-    EXTEND FORM orders PROPERTIES (d) READONLY nameBatchOrderDetail AFTER shortNameUOMSkuOrderDetail;
-    @defineBalancesBatch(OrderDetail); //-- показываем по нажатию правой клавиши остатки партии
-    @defineBalancesBatch(userOrderDetail); //-- показываем по нажатию правой клавиши остатки партии
-    @defineMovementBatch(OrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
-    @defineMovementBatch(userOrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
 END
