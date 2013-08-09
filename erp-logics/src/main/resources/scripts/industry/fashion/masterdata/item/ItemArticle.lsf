@@ -1,6 +1,6 @@
 MODULE ItemArticle;
 
-REQUIRE System, Item;
+REQUIRE System, Item, ComplianceGroup, CustomsGroupItem, Tax;
 
 NAMESPACE Item;
 
@@ -21,25 +21,51 @@ nameItemGroupArticle 'Товарная группа' (Article) = nameItemGroup(i
 
 TABLE itemGroupArticle(ItemGroup, Article);
 isParentGroupArticle(group, article) = isParentItemGroupItemGroup(itemGroupArticle(article), group) PERSISTENT INDEXED;
-canonicalNameItemGroupArticle 'Каноническое имя' (article) = canonicalNameGroup(itemGroupArticle(article)) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+canonicalNameItemGroupArticle 'Группа товара' (article) = canonicalNameGroup(itemGroupArticle(article)) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+
+// Изображение артикула
+imageArticle 'Изображение' = DATA IMAGEFILE (Article);
 
 FORM article 'Артикул'
     OBJECTS a=Article FIXED PANEL
-    PROPERTIES(a) captionArticle, idArticle SHOWIF showIDs(), nameItemGroupArticle
+    PROPERTIES(a) captionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, imageArticle
+
+    OBJECTS c = Country
+    PROPERTIES (c) READONLY nameCountry
+
     EDIT Article OBJECT a
 ;
 DESIGN article FROM DEFAULT {
     main {
-        NEW rootContainer {
+        NEW articleHeader BEFORE functions.box {
             childConstraints = TO THE BOTTOM;
-            NEW header {
-                childConstraints = TO THE RIGHT;
-                ADD PROPERTY(idArticle);
-                ADD PROPERTY(nameItemGroupArticle);
-            }
-            ADD a.articleBaseGroup {childConstraints = TO THE RIGHT;}
+            ADD PROPERTY(canonicalNameItemGroupArticle);
+            ADD PROPERTY(idArticle);
         }
-        ADD functions.box;
+        NEW articleDetail BEFORE functions.box {
+            type = TABBED;
+            NEW articlePrimary {
+                childConstraints = TO THE BOTTOM;
+                caption = 'Основные данные';
+                fillVertical = 1.0;
+                fillHorizontal = 1.0;
+                ADD a.articleBaseGroup {childConstraints = TO THE RIGHT;}
+            }
+            NEW regionalPrm {
+                caption = 'Региональные параметры';
+                ADD c.box;
+            }
+            NEW imageBox {
+                caption = 'Изображение';
+                ADD PROPERTY(imageArticle);
+                PROPERTY(imageArticle) {
+                    caption = '';
+                    preferredSize = ( -1, 600);
+                    fillVertical = 1.0;
+                    fillHorizontal = 1.0;
+                }
+            }
+        }
     }
 }
 
@@ -119,7 +145,7 @@ nameColorArticle 'Цвет' (Article) = nameColor(colorArticle(Article)) IN arti
 
 EXTEND FORM article PROPERTIES(a) nameColorArticle;
 EXTEND DESIGN article  {
-    rootContainer {
+    articlePrimary {
         ADD a.articleDescriptionGroup {childConstraints = TO THE RIGHT;}
     }
 }
@@ -163,6 +189,68 @@ nameCollectionArticle 'Коллекция' (Article) = nameCollection(collection
 EXTEND FORM article PROPERTIES(a)  nameCollectionArticle;
 EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameCollectionArticle;
 
+//-- ТН ВЭД
+TABLE countryArticle(Country, Article);
+customsGroupCountryArticle = DATA CustomsGroup(Country, Article);
+codeCustomsGroupCountryArticle 'ТН ВЭД' (country, article) = codeCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplierGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameCustomsGroupCountryArticle 'Позиция ТН ВЭД' (country, article) = nameCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplierGroup MINCHARWIDTH 30 PREFCHARWIDTH 40;
+codeCustomsGroupDefaultCountryArticle 'ТН ВЭД' (article) = codeCustomsGroup(customsGroupCountryArticle(defaultCountry(), article)) IN articleSupplierGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+changeCustomsGroupDefaultCountryArticle = ACTION (article) {
+    REQUEST OBJECT cg
+    FORM customsGroups OBJECTS cz = customsZoneDefaultCountry() MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        customsGroupCountryArticle(country, article) <- requestedObject() WHERE country == defaultCountry();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        customsGroupCountryArticle(country, article) <- NULL WHERE country == defaultCountry();
+    }
+}
+
+CONSTRAINT customsZoneCustomsGroup(customsGroupCountryArticle(country, article)) != customsZoneCountry(country) CHECKED BY customsGroupCountryArticle
+    MESSAGE 'Таможенная зона должна соответствовать стране';
+
+//-- Группа сертификации
+complianceGroupCountryArticle = DATA ComplianceGroup(Country, Article);
+nameComplianceGroupCountryArticle 'Группа сертификации' (country, article) = nameComplianceGroup(complianceGroupCountryArticle(country, article)) IN articleSupplierGroup MINCHARWIDTH 30 PREFCHARWIDTH 40;
+nameComplianceGroupDefaultCountryArticle 'Группа сертификации' (article) = nameComplianceGroup(complianceGroupCountryArticle(defaultCountry(), article)) IN articleSupplierGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+changeComplianceGroupDefaultCountryArticle = ACTION (article) {
+    REQUEST OBJECT cg
+    FORM complianceGroups MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        complianceGroupCountryArticle(country, article) <- requestedObject() WHERE country == defaultCountry();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        complianceGroupCountryArticle(country, article) <- NULL WHERE country == defaultCountry();
+    }
+}
+
+
+
+EXTEND FORM article
+    PROPERTIES(a)  codeCustomsGroupDefaultCountryArticle  ON CHANGE changeCustomsGroupDefaultCountryArticle(a),
+    nameComplianceGroupDefaultCountryArticle  ON CHANGE changeComplianceGroupDefaultCountryArticle(a)
+
+    PROPERTIES(c,a) codeCustomsGroupCountryArticle, nameComplianceGroupCountryArticle
+    FILTERGROUP filters1
+            FILTER 'Страны, у которых есть НДС' 'F11' countRangeTaxCountry (Tax.taxVAT, c) DEFAULT
+
+;
+EXTEND DESIGN article  {
+    articlePrimary {
+        NEW regionPrm AFTER a.articleBaseGroup{
+            caption = 'Региональные свойства';
+            childConstraints = TO THE RIGHT;
+            ADD PROPERTY(codeCustomsGroupDefaultCountryArticle);
+            ADD PROPERTY(nameComplianceGroupDefaultCountryArticle);
+        }
+    }
+}
+
+EXTEND FORM articles
+    PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  codeCustomsGroupDefaultCountryArticle, nameComplianceGroupDefaultCountryArticle
+;
 // Размер
 CLASS Size 'Размер товара';
 TABLE size(Size);
