@@ -127,6 +127,15 @@ skuReceiptDetail (receiptDetail) = OVERRIDE skuReceiptReturnDetail(receiptDetail
 nameSkuReceiptDetail 'Товар' (receiptDetail) = nameSkuStock(skuReceiptDetail(receiptDetail), departmentStoreReceiptDetail(receiptDetail)) IN recognize;
 shortNameUOMSkuReceiptDetail 'Ед. изм.' (receiptDetail) = shortNameUOMSku(skuReceiptDetail(receiptDetail));
 
+//партии
+@defineDocumentAbstractDetailBatchCustom(receiptDetail, batch);
+@defineDocumentDetailBatchCustom(receiptSaleDetail, batch);
+@defineDocumentDetailBatchCustom(receiptReturnDetail, batch);
+batchReceiptDetail(detail) += batchReceiptSaleDetail(detail);
+batchReceiptDetail(detail) += batchReceiptReturnDetail(detail);
+
+explicitBatchLedgerReceipt(receipt) = explicitBatchLedgerDepartmentStore(departmentStoreZReport(zReportReceipt(receipt)));
+                                                                ;
 numberReceipt 'Номер чека' (receipt) = DATA INTEGER (Receipt) IN documentHeaderGroup;
 numberReceiptReceiptDetail 'Номер чека' (receiptDetail) = numberReceipt(receiptReceiptDetail(receiptDetail));
 
@@ -421,8 +430,10 @@ FORM zReport 'Z-отчет'
     PROPERTIES(b) TODRAW d addDetailDialogSkuStockReceiptSaleDetailReceipt, addDetailDialogSkuStockReceiptReturnDetailReceipt
                            // todo : добавить операции возврата по штрих-коду
 
-    PROPERTIES(d) typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail, quantityReceiptDetail, quantityReturnedReceiptSaleDetail FORCE GRID, priceReceiptDetail,
-                  sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID, discountSumReceiptDetail, descriptionSaleReceiptReturnDetail, numberVATReceiptDetail, ADDOBJ, DELETESESSION
+    PROPERTIES(d) typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail, nameBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(b),
+                  quantityReceiptDetail, quantityReturnedReceiptSaleDetail FORCE GRID, priceReceiptDetail,
+                  sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID, discountSumReceiptDetail,
+                  descriptionSaleReceiptReturnDetail, numberVATReceiptDetail, ADDOBJ, DELETESESSION
 
     FILTERS receiptReceiptDetail(d)==b
 
@@ -484,8 +495,10 @@ FORM zReports 'Z-отчеты'
     ORDER BY                numberReceipt
 
     OBJECTS d=ReceiptDetail
-    PROPERTIES(d) READONLY  typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail, quantityReceiptDetail, quantityReturnedReceiptSaleDetail FORCE GRID, priceReceiptDetail,
-                            costSumSkuLedger, sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID, discountSumReceiptDetail, descriptionSaleReceiptReturnDetail
+    PROPERTIES(d) READONLY  typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail, nameBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(b),
+                            quantityReceiptDetail, quantityReturnedReceiptSaleDetail FORCE GRID, priceReceiptDetail,
+                            costSumSkuLedger, sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID,
+                            discountSumReceiptDetail, descriptionSaleReceiptReturnDetail
 
     FILTERS receiptReceiptDetail(d)==b
 
