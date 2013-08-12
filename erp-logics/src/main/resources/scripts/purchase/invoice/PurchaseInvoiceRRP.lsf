@@ -53,13 +53,15 @@ EXTEND FORM invoices
 
 // Создаем виды цен
 EXTEND CLASS SystemLedgerPriceListType { purchaseRRPInvoiceStockPriceListType 'RRP (последняя по складу)' }
-batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType THEN TRUE;
+batchLedgerPriceListTypeStock (type, stock) += WHEN type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType AND isCompanyStock(stock)
+                                               THEN explicitBatchLedgerStock(stock);
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(RRPPriceInvoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(RRPPriceInvoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType THEN RRPPriceInvoiceDetail(ledger);
 
 // Создаем вид цен по всем складам компании
 EXTEND CLASS SystemLedgerPriceListType { purchaseRRPInvoicePriceListType 'RRP (последняя по ценовой группе)' }
-batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.purchaseRRPInvoicePriceListType THEN TRUE;
+batchLedgerPriceListTypeStock (type, stock) += WHEN type == SystemLedgerPriceListType.purchaseRRPInvoicePriceListType AND isCompanyStock(stock)
+                                               THEN explicitBatchLedgerStock(stock);
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(RRPPriceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) AND type == SystemLedgerPriceListType.purchaseRRPInvoicePriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(RRPPriceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) AND type == SystemLedgerPriceListType.purchaseRRPInvoicePriceListType THEN RRPPriceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
 

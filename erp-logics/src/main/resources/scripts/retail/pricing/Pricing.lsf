@@ -12,16 +12,6 @@ EXTEND DESIGN departmentStore {
     }
 }
 
-batchPriceLedgerPriceListType 'Использовать для партий свои цены' = DATA BOOLEAN ();
-EXTEND FORM options
-    PROPERTIES() batchPriceLedgerPriceListType
-;
-EXTEND DESIGN options {
-    commons {
-        ADD PROPERTY(batchPriceLedgerPriceListType);
-    }
-}
-
 // ----------------------------------- Комиссия ------------------------------------------ //
 
 CLASS PricingCommittee 'Комиссия для акта расценки' : Committee;
@@ -767,8 +757,10 @@ EXTEND CLASS SystemLedgerPriceListType {
 }
 includeVATSystemLedgerPriceListType (priceListType) += WHEN priceListType == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
 
-batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.supplierPricingPriceListType THEN batchPriceLedgerPriceListType();
-batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.retailPricingPriceListType THEN batchPriceLedgerPriceListType();
+batchLedgerPriceListTypeStock(type, stock) += WHEN type == SystemLedgerPriceListType.supplierPricingPriceListType AND isCompanyStock(stock)
+                                              THEN explicitBatchLedgerStock(stock);
+batchLedgerPriceListTypeStock(type, stock) += WHEN type == SystemLedgerPriceListType.retailPricingPriceListType AND isCompanyStock(stock)
+                                              THEN explicitBatchLedgerStock(stock);
 
 EXTEND CLASS PricingDetail : PriceListLedger;
 

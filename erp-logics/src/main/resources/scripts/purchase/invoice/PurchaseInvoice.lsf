@@ -139,11 +139,11 @@ EXTEND FORM userInvoice
 ;
 
 // Резервы
-@extendFormDocumentOrderSkuLedger(userInvoice, userInvoice, customerStock, i);
-@extendFormDocumentOrderSkuLedgerAll(userInvoice, userInvoice, i);
+@extendFormDocumentSkuOrderLedger(userInvoice, userInvoice, i, customerStock);
+@extendFormDocumentSkuOrderLedgerAll(userInvoice, userInvoice, i);
 
-@extendFormDocumentOrderBatchLedger(userInvoice, userInvoice, customerStock, i);
-@extendFormDocumentOrderBatchLedgerAll(userInvoice, userInvoice, i);
+@extendFormDocumentBatchOrderLedger(userInvoice, userInvoice, i, customerStock);
+@extendFormDocumentBatchOrderLedgerAll(userInvoice, userInvoice, i);
 
 // --------------- Заполнение кода партии ----------------- //
 
@@ -187,7 +187,8 @@ companyPriceListLedger (ledger) += supplierInvoiceDetail(ledger);
 inPriceListLedgerStock (ledger, stock) += customerStockInvoiceDetail(ledger) == stock;
 
 EXTEND CLASS SystemLedgerPriceListType { purchaseInvoiceStockPriceListType 'Закупки (последняя по складу)' }
-batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN TRUE;
+batchLedgerPriceListTypeStock (type, stock) += WHEN type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType AND isCompanyStock(stock)
+                                               THEN explicitBatchLedgerStock(stock);
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceInvoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceInvoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN priceInvoiceDetail(ledger);
 
@@ -253,7 +254,8 @@ companyPriceListLedger (ledger) += supplierInvoiceDetail(invoiceDetailInvoicePri
 inPriceListLedgerStock (ledger, stock) += isCompanyStock(stock) AND priceStockGroupStock(customerStockInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) == priceStockGroupStock(stock);
 
 EXTEND CLASS SystemLedgerPriceListType { purchaseInvoicePriceListType 'Закупки (последняя по ценовой группе)' }
-batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN TRUE;
+batchLedgerPriceListTypeStock (type, stock) += WHEN type == SystemLedgerPriceListType.purchaseInvoicePriceListType AND isCompanyStock(stock)
+                                               THEN explicitBatchLedgerStock(stock);
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) AND type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(priceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) AND type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN priceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
 

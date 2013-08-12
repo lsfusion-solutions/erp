@@ -2224,7 +2224,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
                     NEW skuSelectPane {
                         type = CONTAINERV;
                         ADD ks.box {
-                            caption = 'По товарам';
+                            caption = 'Товары';
                             ks.grid {
                                 fillHorizontal = 2;
                             }
@@ -2363,7 +2363,7 @@ META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
             type = TABBED;
 
             ADD b.box {
-                caption = 'По партиям';
+                caption = 'Партии';
                 b.grid { fillHorizontal = 2; }
             }
         }
@@ -2462,7 +2462,8 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
         FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
         OBJECTS           sts=(st=Stock, ks=Sku)
-        PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks), stockName = nameStock(st) SHOWIF not###stockProp###object(concrete)
+        PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks)
+        PROPERTIES        READONLY stockName = nameStock(st) SHOWIF not###stockProp###object(concrete)
         PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
 
         FILTERS           isParentSkuGroupSku(sk, ks),
@@ -2499,7 +2500,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
                     NEW skuSelectPane {
                         type = CONTAINERV;
                         ADD sts.box {
-                            caption = 'По товарам';
+                            caption = 'Товары';
                             sts.grid { fillHorizontal = 2; }
                         }
                     }
@@ -2588,8 +2589,8 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
     EXTEND FORM form
 
         OBJECTS           stb=(sto=Stock, b=Batch)
-        PROPERTIES(sto) READONLY stockName = nameStock
         PROPERTIES(b) READONLY   nameSkuBatch, idBarcodeSkuBatch, shortNameUOMBatch, nameBatch
+        PROPERTIES(sto) READONLY stockName = nameStock SHOWIF not###stockProp###object(concrete)
 
         FILTERS           isParentSkuGroupBatch(sk, b),
                           (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
@@ -2601,8 +2602,8 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
         ORDER BY          nameSkuBatch
 
         PROPERTIES        quantityBatch###object###stockProp(b, concrete, sto) ON CHANGE changeQuantityBatch###object###stock(b, concrete, sto) BACKGROUND backgroundQuantityBatch###object###Stock(b, concrete, sto),
-                          prevCurrentBalanceBatchStock(b,sto) READONLY,
-                          allQuantityBatch###object(b,concrete,sto) ON CHANGE changeAllQuantityBatch###object(b, concrete, sto),
+                          prevCurrentBalanceBatchStock(b, sto) READONLY,
+                          allQuantityBatch###object(b, concrete, sto) ON CHANGE changeAllQuantityBatch###object(b, concrete, sto),
                           priceBatchStock###object(b, sto, concrete) READONLY
     ;
 

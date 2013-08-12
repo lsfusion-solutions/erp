@@ -9,7 +9,8 @@ CLASS ABSTRACT LedgerPriceListType 'Регистровый вид цены' : Ba
 nameLedgerPriceListType 'Наименование' = ABSTRACT VARISTRING[100](LedgerPriceListType) IN recognize;
 nameBasePriceListType(type) += nameLedgerPriceListType(type) IF type IS LedgerPriceListType;
 
-batchLedgerPriceListType 'Использовать для партий свои цены' = ABSTRACT CASE BOOLEAN (PriceListType) PERSISTENT;
+TABLE ledgerPriceListTypeStock (LedgerPriceListType, Stock);
+batchLedgerPriceListTypeStock 'Использовать для партий свои цены' = ABSTRACT CASE BOOLEAN (LedgerPriceListType, Stock) PERSISTENT;
 
 CLASS ABSTRACT PriceListLedger 'Изменение цены';
 TABLE priceListLedger(PriceListLedger);
@@ -166,7 +167,7 @@ nameCompanyALedgerPriceListTypeSkuStockDateTime 'Организация' (type, 
 
 // По партиям
 priceBLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
-    IF batchLedgerPriceListType(type) THEN
+    IF batchLedgerPriceListTypeStock(type, stock) THEN
         [GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
                BY type, batchPriceListLedger(ledger), stock, dateTimeIn
                ORDER fromDateTimePriceListLedger(ledger), ledger
@@ -176,7 +177,7 @@ priceBLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, date
         priceBLedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime) COMPLEX;
 
 priceALedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
-    IF batchLedgerPriceListType(type) THEN
+    IF batchLedgerPriceListTypeStock(type, stock) THEN
         [GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
                BY type, batchPriceListLedger(ledger), stock, dateTimeIn
                ORDER fromDateTimePriceListLedger(ledger), ledger
@@ -187,7 +188,7 @@ priceALedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, date
 
 META defineLastLedgerPriceListTypeBatchStock(property, caption)
     property##BLedgerPriceListTypeBatchStockDateTime caption (type, batch, stock, dateTime) =
-        IF batchLedgerPriceListType(type) THEN
+        IF batchLedgerPriceListTypeStock(type, stock) THEN
             [GROUP LAST property##PriceListLedger(ledger)
                    BY type, batchPriceListLedger(ledger), stock, dateTimeIn
                    ORDER fromDateTimePriceListLedger(ledger), ledger
@@ -197,7 +198,7 @@ META defineLastLedgerPriceListTypeBatchStock(property, caption)
             property##BLedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime) COMPLEX;
 
     property##ALedgerPriceListTypeBatchStockDateTime caption (type, batch, stock, dateTime) =
-        IF batchLedgerPriceListType(type) THEN
+        IF batchLedgerPriceListTypeStock(type, stock) THEN
             [GROUP LAST property##PriceListLedger(ledger)
                    BY type, batchPriceListLedger(ledger), stock, dateTimeIn
                    ORDER fromDateTimePriceListLedger(ledger), ledger
@@ -265,7 +266,8 @@ CLASS SystemLedgerPriceListType 'Системный вид цены (регис�
 
 nameLedgerPriceListType (type) += VARISTRING[100](staticCaption(type)) IF type IS SystemLedgerPriceListType;
 
-batchLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
+batchLedgerPriceListTypeStock(type, stock) += WHEN type == SystemLedgerPriceListType.accountPriceListType AND isCompanyStock(stock)
+                                              THEN explicitBatchLedgerStock(stock);
 
 includeVATSystemLedgerPriceListType 'Цена с НДС' = ABSTRACT CASE BOOLEAN (SystemLedgerPriceListType);
 includeVATLedgerPriceListType (type) += includeVATSystemLedgerPriceListType(type);

@@ -12,9 +12,8 @@ CLASS DataPriceListType 'Пользовательский вид цены' : Led
 idPriceListType (p) += idDataPriceListType(p);
 
 batchLedgerDataPriceListType 'Использовать для партий свои цены' = DATA BOOLEAN (DataPriceListType);
-batchLedgerPriceListType (priceListType) += WHEN priceListType IS DataPriceListType THEN batchLedgerDataPriceListType(priceListType);
-
-//batchLedgerPriceListType (priceListType) += WHEN priceListType IS DataPriceListType THEN TRUE;
+batchLedgerPriceListTypeStock (priceListType, stock) += WHEN priceListType IS DataPriceListType AND isCompanyStock(stock)
+                                                        THEN batchLedgerDataPriceListType(priceListType);
 
 nameDataPriceListType 'Наименование' = DATA VARISTRING[50](DataPriceListType);
 nameLedgerPriceListType(type) += nameDataPriceListType(type) IF type IS DataPriceListType;
@@ -292,20 +291,16 @@ detailSkuUserPriceList(sku, price) = GROUP SUM 1 IF sku == skuUserPriceListDetai
 
 inSkuUserPriceList 'Вкл.' (sku, price) = TRUE IF detailSkuUserPriceList(sku, price);
 
-changeInSkuUserPriceList = ACTION (sku, price) {
+changeInSkuUserPriceList = ACTION (sku, priceList) {
     REQUEST BOOLEAN INPUT;
-    IF TRUE IF NOT requestedLogical() THEN {
-        IF detailSkuUserPriceList(sku, price) THEN {
-            //FOR sku == skuUserPriceListDetail(detail) AND price == userPriceListUserPriceListDetail(detail) DO {
-            DELETE detail WHERE sku == skuUserPriceListDetail(detail) AND price == userPriceListUserPriceListDetail(detail);
-            //}
+    IF NOT requestedLogical() THEN {
+        IF detailSkuUserPriceList(sku, priceList) THEN {
+            DELETE detail WHERE sku == skuUserPriceListDetail(detail) AND priceList == userPriceListUserPriceListDetail(detail);
         }
     } ELSE {
-        IF requestedLogical() THEN {
-            FOR ADDOBJ d = UserPriceListDetail DO {
-               ASSIGN userPriceListUserPriceListDetail(d) <- price;
-               ASSIGN skuUserPriceListDetail(d) <- sku;
-            }
+        FOR ADDOBJ d = UserPriceListDetail DO {
+           userPriceListUserPriceListDetail(d) <- priceList;
+           skuUserPriceListDetail(d) <- sku;
         }
     }
 }
