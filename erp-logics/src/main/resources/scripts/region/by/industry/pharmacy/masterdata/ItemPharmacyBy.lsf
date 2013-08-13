@@ -41,21 +41,21 @@ fromDatePharmacyInterval 'Дата действия с' = DATA DATE (PharmacyPri
 toDatePharmacyInterval 'Дата действия по' = DATA DATE (PharmacyPriceInterval);
 
 TABLE pharmacyPriceGroupPharmacyPriceInterval(PharmacyPriceGroup, PharmacyPriceInterval);
-wholesaleMarkupPharmacyGroupInterval 'Оптовая надбавка' = DATA NUMERIC[8,3] (PharmacyPriceGroup, PharmacyPriceInterval);
-retailMarkupPharmacyGroupInterval 'Розничная надбавка' = DATA NUMERIC[8,3] (PharmacyPriceGroup, PharmacyPriceInterval);
 
+wholesaleMarkupPharmacyPriceInterval 'Оптовая надбавка' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
+retailMarkupPharmacyPriceInterval 'Розничная надбавка' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
 usdCurrency = currencyShortName('USD') PERSISTENT;
 pharmacyExchangePriceDate (price, date) = price / rateTypeExchangeCurrencyDate(pharmacyTypeExchange(), usdCurrency(), date);
 
 wholesaleMarkupPharmacyGroupPriceDate 'Оптовая надбавка' (priceGroup, price, date) =
-    GROUP LAST wholesaleMarkupPharmacyGroupInterval(pharmacyGroupPharmacyInterval(interval), interval)
+    GROUP LAST wholesaleMarkupPharmacyPriceInterval(interval)
           BY pharmacyGroupPharmacyInterval(interval), price, date
           ORDER pricePharmacyInterval(interval)
           WHERE pharmacyExchangePriceDate(price AS NUMERIC[14,2], date) > pricePharmacyInterval(interval) AND
                 date >= fromDatePharmacyInterval(interval) AND NOT date > toDatePharmacyInterval(interval) COMPLEX;
 
 retailMarkupPharmacyGroupPriceDate 'Оптовая надбавка' (priceGroup, price, date) =
-    GROUP LAST retailMarkupPharmacyGroupInterval(pharmacyGroupPharmacyInterval(interval), interval)
+    GROUP LAST retailMarkupPharmacyPriceInterval(interval)
           BY pharmacyGroupPharmacyInterval(interval), price, date
           ORDER pricePharmacyInterval(interval)
           WHERE pharmacyExchangePriceDate(price AS NUMERIC[14,2], date) > pricePharmacyInterval(interval) AND
@@ -76,7 +76,7 @@ FORM pharmacyMarkups 'Типы лекарственных средств'
 
     OBJECTS i=PharmacyPriceInterval
     PROPERTIES fromDatePharmacyInterval(i), toDatePharmacyInterval(i), pricePharmacyInterval(i),
-               wholesaleMarkupPharmacyGroupInterval(g,i), retailMarkupPharmacyGroupInterval(g,i)
+               wholesaleMarkupPharmacyPriceInterval(i), retailMarkupPharmacyPriceInterval(i)
     PROPERTIES(i) ADDOBJ, DELETESESSION
     FILTERS    pharmacyGroupPharmacyInterval(i)==g
     ORDER BY pricePharmacyInterval
@@ -130,7 +130,7 @@ FORM pharmacyPriceGroups 'Типы лекарственных средств'
 
     OBJECTS i=PharmacyPriceInterval
     PROPERTIES READONLY fromDatePharmacyInterval(i), toDatePharmacyInterval(i), pricePharmacyInterval(i),
-               wholesaleMarkupPharmacyGroupInterval(g,i), retailMarkupPharmacyGroupInterval(g,i)
+               wholesaleMarkupPharmacyPriceInterval(i), retailMarkupPharmacyPriceInterval(i)
     FILTERS    pharmacyGroupPharmacyInterval(i)==g
     ORDER BY pricePharmacyInterval
 
@@ -394,8 +394,8 @@ loadDefaultPharmacyPriceInterval 'Добавить интервал цен ле�
          ASSIGN pharmacyGroupPharmacyInterval(i) <- pharmacyPriceGroupId(sidGroup);
          ASSIGN pricePharmacyInterval(i) <- priceFrom;
          ASSIGN fromDatePharmacyInterval(i) <- 2013_01_01;
-         ASSIGN wholesaleMarkupPharmacyGroupInterval(g,i) <- wMarkup WHERE g == pharmacyPriceGroupId(sidGroup);
-         ASSIGN retailMarkupPharmacyGroupInterval(g,i) <- rMarkup WHERE g == pharmacyPriceGroupId(sidGroup);
+         ASSIGN wholesaleMarkupPharmacyPriceInterval(i) <- wMarkup;
+         ASSIGN retailMarkupPharmacyPriceInterval(i) <- rMarkup;
     }
 }
 
