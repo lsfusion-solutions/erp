@@ -12,8 +12,9 @@ META defineInvoicePaymentCondition (sign)
     descriptionPaymentConditionInvoice 'Условия оплаты' (i) = descriptionPaymentCondition(paymentConditionInvoice(i)) IN base;
     descriptionPaymentConditionUserInvoice 'Условия оплаты' (i) = descriptionPaymentCondition(paymentConditionUserInvoice(i));
 
-    paymentConditionUserInvoice(prop) <- paymentConditionAgreement(agreementUserInvoice(prop))
-        WHEN CHANGED(agreementUserInvoice(prop));
+    paymentConditionUserInvoice(prop) <- OVERRIDE paymentConditionAgreement(agreementUserInvoice(prop)), paymentConditionContractSku(contractSkuUserInvoice(prop))
+        WHEN CHANGED(agreementUserInvoice(prop)) OR
+             CHANGED(contractSkuUserInvoice(prop));
 
     EXTEND FORM userInvoice
         PROPERTIES(i) descriptionPaymentConditionUserInvoice

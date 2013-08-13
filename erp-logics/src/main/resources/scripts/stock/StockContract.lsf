@@ -75,6 +75,13 @@ isPrepaymentTypePaymentCondition(paymentCondition) = typePaymentCondition(paymen
 paymentConditionAgreement 'Условия оплаты' =  DATA PaymentCondition (Agreement);
 typePaymentAgreement 'Тип оплаты' (agreement) = typePaymentCondition(paymentConditionAgreement(agreement));
 
+paymentConditionContract 'Условия оплаты' =  ABSTRACT PaymentCondition (Contract);
+typePaymentContract 'Тип оплаты' (contract) = typePaymentCondition(paymentConditionContract(contract));
+
+paymentConditionContractSku 'Условия оплаты' =  DATA PaymentCondition (ContractSku);
+typePaymentContractSku 'Тип оплаты' (contract) = typePaymentCondition(paymentConditionContractSku(contract));
+paymentConditionContract(contract) += paymentConditionContractSku(contract);
+
 //для договора
 
 typeContractSku = DATA ContractSkuType (ContractSku);
@@ -96,6 +103,9 @@ descriptionPaymentCondition 'Условия оплаты' (paymentCondition) =
                 ORDER paymentPeriod;
 
 descriptionPaymentConditionAgreement 'Условия оплаты' (agreement) = descriptionPaymentCondition(paymentConditionAgreement(agreement));
+
+descriptionPaymentConditionContract 'Условия оплаты' (contract) = descriptionPaymentCondition(paymentConditionContract(contract));
+descriptionPaymentConditionContractSku 'Условия оплаты' (contract) = descriptionPaymentCondition(paymentConditionContractSku(contract));
 
 CLASS BonusPeriod 'Период бонуса';
 TABLE bonusPeriod(BonusPeriod);
@@ -150,14 +160,20 @@ FORM paymentConditions 'Условия оплаты'
 
 
 // Формы
+EXTEND FORM contracts
+    PROPERTIES(c) READONLY descriptionPaymentConditionContract BEFORE noteContract(c)
+;
+
 FORM userContractSku 'Договор на поставку товаров'
     OBJECTS c = UserContractSku FIXED PANEL
     PROPERTIES(c) nameSupplierContractSku, nameCustomerContractSku, nameTypeContractSku,
                   nameNumeratorObject, numberObject, seriesObject, dateFromContract, dateToContract,
-                  nameCurrencyContract,  nameTypeExchangeContract, noteContract, saveWordUserContractSku, openWordUserContractSku
+                  nameCurrencyContract,  nameTypeExchangeContract, descriptionPaymentConditionContractSku,
+                  noteContract, saveWordUserContractSku, openWordUserContractSku
 
     EDIT UserContractSku OBJECT c
 ;
+
 
 DESIGN userContractSku FROM DEFAULT{
     NEW row {
@@ -180,6 +196,7 @@ DESIGN userContractSku FROM DEFAULT{
             ADD PROPERTY(nameSupplierContractSku);
             ADD PROPERTY(nameCustomerContractSku);
             ADD PROPERTY(nameTypeContractSku);
+            ADD PROPERTY(descriptionPaymentConditionContractSku);
         }
         ADD c.contractGroup;
         ADD c.attributeGroup;
