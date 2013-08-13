@@ -1,0 +1,138 @@
+MODULE OrderPickingOrder;
+
+REQUIRE PickingOrder, Order, Bin;
+
+NAMESPACE Order;
+
+//--  Связь с заказом
+
+orderPickingOrder = ABSTRACT Order.Order (PickingOrder);
+
+META defineOrderPickingOrder(sign, stockProp)
+
+    orderPickingOrder = ABSTRACT Order (PickingOrder) PERSISTENT;
+    Order.orderPickingOrder (pickingOrder) += orderPickingOrder(pickingOrder);
+
+    orderUserPickingOrder = DATA Order(UserPickingOrder);
+    orderPickingOrder(pickingOrder) += orderUserPickingOrder(pickingOrder);
+
+    CONSTRAINT stockUserPickingOrder(pickingOrder) != stockProp###order(orderUserPickingOrder(pickingOrder))
+        CHECKED BY orderUserPickingOrder
+            MESSAGE 'Склад в заказе на комплектацию и в заказе должны соответствовать друг другу';
+
+//    GROUP orderGroup 'Информация о заказе' : public;
+
+//    descriptionOrderPickingOrder 'Заказ' (pickingOrder) = descriptionOrder(orderPickingOrder(pickingOrder)) IN orderGroup;
+//    descriptionOrderUserPickingOrder 'Заказ' (pickingOrder) = descriptionOrder(orderUserPickingOrder(pickingOrder)) IN orderGroup;
+
+    relationOrderPickingOrder (order, pickingOrder) = GROUP SUM 1 BY orderPickingOrder(pickingOrder), pickingOrder;
+    ordersPickingOrder 'Заказы' (pickingOrder) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF relationOrderPickingOrder(order, pickingOrder) , ', '
+                                             BY pickingOrder
+                                             ORDER order
+                                             IN orderGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+
+
+    EXTEND FORM pickingOrders
+        PROPERTIES (o)  READONLY ordersPickingOrder AFTER objectClassName(o)
+    ;
+//-- аггр.объект
+
+    @defineDocumentInterfaceCreate (order, createPickingOrder, 'Создать заказ на комплектацию');
+
+    EXTEND FORM userOrder
+        PROPERTIES(o)  createPickingOrderOrder
+    ;
+    EXTEND DESIGN userOrder {
+        headerCreateDocuments {
+            NEW headerPicking {
+                childConstraints = TO THE RIGHTBOTTOM;
+                caption = 'Заказ на комплектацию';
+                ADD PROPERTY(createPickingOrderOrder);
+
+            }
+        }
+    }
+
+    //-------------------- Ячейки -----------------------//
+
+
+    @defineDocumentInterfaceDetailBin(order);
+    @extendFormInterfaceDetailBin(order, o, , quantity);
+
+    @deriveDocumentOperationProperty(UserOrder, showBin);
+
+//    binUserOrderDetail(detail) <- binStockSku(customerStockUserShipmentDetail(detail), skuUserShipmentDetail(detail))
+//        WHEN CHANGED(customerStockUserShipmentDetail(detail)) OR
+//             CHANGED(skuUserShipmentDetail(detail));
+
+    CLASS OrderPickingOrder 'Заказ на комплектацию на основе заказа'###sign : PickingOrder;
+    CLASS OrderPickingOrderDetail 'Строка заказа на комплектацию на основе заказа'###sign : PickingOrderDetail;
+
+    @defineDocumentTables(orderPickingOrder);
+
+    @defineDocumentAggregation(order, orderPickingOrder, createPickingOrderOrder);
+
+    pickingOrderPickingOrderDetail(detail) += orderPickingOrderOrderPickingOrderDetail(detail);
+
+    @defineDocumentDetailIndex(orderPickingOrder);
+
+    datePickingOrder(order) += dateOrderPickingOrder(order);
+    timePickingOrder(order) += timeOrderPickingOrder(order);
+
+    stockPickingOrder(order) += stockProp###order(orderOrderPickingOrder(order));
+    numberPickingOrder(order) += numberOrder(orderOrderPickingOrder(order));
+    seriesPickingOrder(order) += seriesOrder(orderOrderPickingOrder(order));
+
+    seriesNumberOrderPickingOrder 'Серия/номер документа' (order) = seriesNumberOrder(orderOrderPickingOrder(order));
+
+    notePickingOrder(order) += noteOrder(orderOrderPickingOrder(order));
+
+    @defineDocumentDescription(orderPickingOrder, OrderPickingOrderDetail, seriesNumberOrderPickingOrder, 'Заказ на комплектацию на основе заказа'###sign);
+    descriptionPickingOrder (order) += descriptionOrderPickingOrder(order);
+
+    @defineDocumentAggregationDetailSku(order, orderPickingOrder, sku);
+    skuPickingOrderDetail(detail) +=  skuOrderPickingOrderDetail(detail);
+
+    quantityPickingOrderDetail(detail) += quantityOrderDetail(orderDetailOrderPickingOrderDetail(detail));
+    batchPickingOrderDetail(detail) += batchOrderDetail(orderDetailOrderPickingOrderDetail(detail));
+    binPickingOrderDetail(detail) += binOrderDetail(orderDetailOrderPickingOrderDetail(detail));
+
+    orderPickingOrder(pickingOrder) += orderOrderPickingOrder(pickingOrder);
+    editPickingOrder(pickingOrder) += ACTION EXEC editOrder(orderOrderPickingOrder(pickingOrder));
+
+    //-------------------- Расширяем операции свойством по созданию заказа на комплектацию -----------------------//
+
+    @defineOperationProperty(createPickingOrder, 'Заказ на комплектацию', createContainer);
+    @deriveDocumentOperationProperty(UserOrder, createPickingOrder);
+
+    calcPartOrder 'Частично собран' (order) = calcPartPickingOrder(orderPickingOrderOrder(order));
+    calcFullOrder 'Полностью собран' (order) = calcFullPickingOrder(orderPickingOrderOrder(order));
+    acceptedOrder 'Принят в работу' (order) = acceptedPickingOrder(orderPickingOrderOrder(order));
+    namePerformerOrder 'Комплектовщик' (order) = namePerformerPickingOrder(orderPickingOrderOrder(order));
+
+    startDateTimeOrder 'Дата/время начала' (order) = startDateTimePickingOrder(orderPickingOrderOrder(order));
+    finishDateTimeOrder 'Дата/время окончания' (order) = finishDateTimePickingOrder(orderPickingOrderOrder(order));
+    statusPickingOrder 'Статус комплектации' (order) = statusPickingPickingOrder(orderPickingOrderOrder(order));
+    backgroundStatusPickingOrder 'Цвет' (order) = backgroundStatusPickingPickingOrder(orderPickingOrderOrder(order));
+
+    EXTEND FORM orders
+        PROPERTIES(o) READONLY FORCE PANEL namePerformerOrder, startDateTimeOrder, finishDateTimeOrder, statusPickingOrder BACKGROUND backgroundStatusPickingOrder(o)
+    ;
+    EXTEND DESIGN orders {
+        documentHistory {
+            NEW picking {
+                caption = 'Комплектация';
+                childConstraints = TO THE BOTTOM;
+                ADD PROPERTY(namePerformerOrder);
+                ADD PROPERTY(startDateTimeOrder);
+                ADD PROPERTY(statusPickingOrder);
+                ADD PROPERTY(finishDateTimeOrder);
+            }
+        }
+    }
+END
+
+
+
+
+

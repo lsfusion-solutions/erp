@@ -1,0 +1,668 @@
+MODULE PickingOrder;
+
+REQUIRE System,
+        Utils,
+        Historizable,
+        Numerator,
+        Document,
+        Barcode,
+        StockReserve,
+        OrderLedger,
+        Bin,
+        EmployeeStock;
+
+PRIORITY Utils, Stock;
+
+//----------------------------------------------- Заказ на комплектацию ---------------------------------------------------//
+
+GROUP pickingOrdersGroup 'Информация о заказе' : base;
+
+CLASS ABSTRACT PickingOrder 'Заказ на комплектацию': Document ;
+CLASS ABSTRACT PickingOrderDetail 'Строка заказа на комплектацию': DocumentDetail;
+
+CLASS UserPickingOrder 'Заказ на комплектация (польз.)': PickingOrder, Historizable, NumeratedObject;
+CLASS UserPickingOrderDetail 'Строка заказа на комплектации (польз.)': PickingOrderDetail;
+
+@defineDocumentInterface(pickingOrder);
+@defineDocumentInterfaceNumber(pickingOrder);
+@defineNumeratedObjectDefault(UserPickingOrder, 'Нумератор для заказа на комплектацию', 'ЗК');
+
+@defineDocumentInterfaceStock(pickingOrder, stock, 'Склад ');
+
+@defineDocumentInterfaceDescription(pickingOrder, 'Заказ на комплектацию');
+
+@defineDocumentInterfaceDetailSku(pickingOrder, sku);
+@defineDocumentInterfaceDetailQuantity(pickingOrder);
+
+@defineDocumentInterfaceDetailBatch(pickingOrder, batch);
+@defineDocumentInterfaceDetailBin(pickingOrder);
+
+@defineDocumentInterfaceHeaderQuantity(pickingOrder);
+
+@defineDocumentHeaderSkuQuantity(pickingOrder, sku);
+@defineDocumentHeaderSkuQuantity(userPickingOrder, sku);
+
+@defineAddDetailDialogSkuStock(userPickingOrder, sku, stock, dialogSku);
+@defineAddDetailDialogBarcode(userPickingOrder, sku);
+
+// История по правой кнопке
+@defineMovementSku(pickingOrderDetail, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineMovementSku(userPickingOrderDetail, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(pickingOrderDetail); //-- показываем по нажатию правой клавиши остатки товара
+@defineBalancesSku(userPickingOrderDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+@defineBalancesBatch(pickingOrderDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineBalancesBatch(userPickingOrderDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(pickingOrderDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
+@defineMovementBatch(userPickingOrderDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
+
+//
+//    @defineDocumentDialogSupplierCustomerStock(userOrder, supplierFilter, customerFilter);
+//    @defineDocumentDialogSupplierCustomerStockDetail(userOrderDetail, supplierFilter, customerFilter);
+//    @defineDocumentDialogSupplierCustomerLegalEntity(userOrder, supplierFilter, customerFilter);
+
+changeBatchUserPickingOrderDetail = ACTION (detail) {
+    FORM dialogBatchStock OBJECTS st = stockUserPickingOrderDetail(detail),
+                                  t = dateTimeUserPickingOrderDetail(detail),
+                                  sk = skuUserPickingOrderDetail(detail) MODAL SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        ASSIGN batchUserPickingOrderDetail(detail) <- chosenObject('bt');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        ASSIGN batchUserPickingOrderDetail(userOrderDetail) <- NULL;
+    }
+};
+
+
+// --------------------------- Формы Заказа ---------------------------------
+
+editPickingOrder 'Редактировать' = ABSTRACT ACTION LIST (PickingOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+
+editSkuUserPickingOrderDetail 'Редактировать SKU' (d) = editSku(skuUserPickingOrderDetail(d));
+FORM userPickingOrder 'Заказ на комплектацию'
+    OBJECTS o = UserPickingOrder FIXED PANEL
+    PROPERTIES (o) nameStockUserPickingOrder,// ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
+                   nameNumeratorObject, numberObject, seriesObject, dateUserPickingOrder, timeUserPickingOrder,
+                   noteUserPickingOrder, countUserPickingOrderDetailUserPickingOrder, quantityUserPickingOrderDetailUserPickingOrder
+
+
+    OBJECTS d = UserPickingOrderDetail
+    PROPERTIES (d) indexUserPickingOrderDetail
+    PROPERTIES (d) ON EDIT editSkuUserPickingOrderDetail(d) idBarcodeSkuUserPickingOrderDetail, nameSkuUserPickingOrderDetail, shortNameUOMSkuUserPickingOrderDetail,
+                   nameBatchUserPickingOrderDetail ON CHANGE changeBatchUserPickingOrderDetail(d), nameBinUserPickingOrderDetail
+    PROPERTIES (d) quantityUserPickingOrderDetail, ADDOBJ, DELETESESSION
+
+    PROPERTIES(o) TODRAW d addDetailDialogSkuStockUserPickingOrderDetailUserPickingOrder,
+                           addDetailInputBarcodeUserPickingOrderDetailUserPickingOrder, deleteUserPickingOrderDetailUserPickingOrder
+    FILTERS userPickingOrderUserPickingOrderDetail(d) == o
+
+    EDIT UserPickingOrder OBJECT o
+;
+
+DESIGN userPickingOrder FROM DEFAULT{
+
+    main {
+        preferredSize = (1024, 768);
+        NEW specification.box BEFORE functions.box{
+            ADD d.box {
+                caption = 'Спецификация';
+                d.panel {
+                    childConstraints = TO THE BOTTOM;
+                }
+            }
+        }
+
+        NEW header.box BEFORE specification.box {
+            childConstraints = TO THE RIGHT;
+
+            NEW headerRow1 {
+                childConstraints = TO THE BOTTOM;
+
+                ADD o.documentHeaderGroup {
+                    childConstraints = TO THE RIGHTBOTTOM;
+                    ADD PROPERTY(nameStockUserPickingOrder);
+                    ADD PROPERTY(nameNumeratorObject);
+                    ADD PROPERTY(numberObject);
+                    ADD PROPERTY(seriesObject);
+                    ADD PROPERTY(dateUserPickingOrder);
+                    ADD PROPERTY(timeUserPickingOrder);
+                }
+                ADD o.documentPrmGroup;
+            }
+            ADD o.documentSumGroup {
+                childConstraints = TO THE BOTTOM;
+            }
+        }
+    }
+}
+
+//    @extendFormDocumentSkuStock(userOrder, userOrder, o, legalEntityProp, stockProp);
+
+
+
+addUserPickingOrder 'Добавить' = ACTION ADDFORM UserPickingOrder;
+editUserPickingOrder 'Редактировать' (userOrder) = ACTION EDITFORM UserPickingOrder;
+editPickingOrder(order) += editUserPickingOrder(order);
+
+
+copyPickingOrder 'Копировать' = ACTION (order) NEWSESSION {
+    FOR ADDOBJ o = UserPickingOrder DO {
+
+        ASSIGN stockUserPickingOrder(o) <- stockPickingOrder(order);
+        ASSIGN noteUserPickingOrder(o) <- notePickingOrder(order);
+
+        FOR pickingOrderPickingOrderDetail(orderDetail) == order DO {
+            FOR ADDOBJ d=UserPickingOrderDetail DO {
+                ASSIGN userPickingOrderUserPickingOrderDetail(d) <- o;
+                ASSIGN skuUserPickingOrderDetail(d) <- skuPickingOrderDetail(orderDetail);
+                ASSIGN quantityUserPickingOrderDetail(d) <- quantityPickingOrderDetail(orderDetail);
+                ASSIGN batchUserPickingOrderDetail(d) <- batchPickingOrderDetail(orderDetail);
+                ASSIGN binUserPickingOrderDetail(d) <- binPickingOrderDetail(orderDetail);
+            }
+        }
+
+        FORM userPickingOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+
+FORM pickingOrders 'Заказы на комплектицию'
+    OBJECTS o = PickingOrder
+    PROPERTIES (o) READONLYIF isReadonly() numberPickingOrder, seriesPickingOrder, datePickingOrder, timePickingOrder,
+                   nameStockPickingOrder
+
+    PROPERTIES (o) READONLY countPickingOrderDetailPickingOrder, quantityPickingOrderDetailPickingOrder
+
+    PROPERTIES (o) READONLYIF isReadonly() objectClassName, descriptionPickingOrder //notePickingOrder
+
+    PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable
+
+    PROPERTIES ()  addUserPickingOrder TODRAW o
+    PROPERTIES (o) editPickingOrder, copyPickingOrder
+    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserPickingOrder(o)
+
+    OBJECTS d=PickingOrderDetail
+    PROPERTIES (d) READONLY indexPickingOrderDetail, nameSkuPickingOrderDetail, shortNameUOMSkuPickingOrderDetail,
+                   nameBatchPickingOrderDetail, nameBinPickingOrderDetail, quantityPickingOrderDetail
+    FILTERS pickingOrderPickingOrderDetail(d) == o
+    DIALOG PickingOrder OBJECT o
+;
+
+DESIGN pickingOrders FROM DEFAULT {
+    PROPERTY (deleteo) {
+        askConfirm = TRUE;
+    }
+
+    NEW documentContainer BEFORE functions.box {
+        type = SPLITV;
+        childConstraints = TO THE BOTTOM;
+
+        ADD o.box { fillVertical = 2.0; }
+
+        NEW documentDetail {
+            type = TABBED;
+
+            ADD d.box {
+                caption = 'Спецификация';
+            }
+            NEW documentHistory {
+                caption = 'История';
+                ADD o.historyGroup;
+
+            }
+            NEW printTab {
+                caption = 'Печатные формы';
+                NEW printContainer {
+                    caption = 'Печать';
+                    childConstraints = TO THE BOTTOM;
+                }
+            }
+            NEW actionContainer {
+                caption = 'Действия';
+                childConstraints = TO THE RIGHT;
+                NEW createdContainer {
+                    caption = 'Создание на основе';
+                    childConstraints = TO THE BOTTOM;
+                    ADD PROPERTY(copyPickingOrder) { caption = 'Заказ на комплектацию';}
+                }
+            }
+        }
+    }
+}
+@extendFormEditable(pickingOrders);
+
+//----------------------------------------------- Комплектация ---------------------------------------------------//
+
+CLASS ABSTRACT Picking 'Комплектация': Document ;
+CLASS ABSTRACT PickingDetail 'Строка комплектации': DocumentDetail;
+
+CLASS UserPicking 'Комплектация (польз.)': Picking, Historizable, NumeratedObject;
+CLASS UserPickingDetail 'Комплектации (польз.)': PickingDetail;
+
+
+@defineDocumentInterface(picking);
+@defineDocumentInterfaceNumber(picking);
+@defineNumeratedObjectDefault(UserPicking, 'Нумератор для комплектаций', 'КК');
+@defineDocumentInterfaceStock(picking, stock, 'Склад ');
+
+@defineDocumentInterfaceDescription(picking, 'Комплектация');
+
+@defineDocumentInterfaceDetailSku(picking, sku);
+@defineDocumentInterfaceDetailQuantity(picking);
+
+@defineDocumentInterfaceDetailBatch(picking, batch);
+@defineDocumentInterfaceDetailBin(picking);
+
+@defineDocumentInterfaceHeaderQuantity(picking);
+
+@defineDocumentHeaderSkuQuantity(picking, sku);
+@defineDocumentHeaderSkuQuantity(userPicking, sku);
+
+@defineAddDetailDialogSkuStock(userPicking, sku, stock, dialogSku);
+@defineAddDetailDialogBarcode(userPicking, sku);
+
+// История по правой кнопке
+@defineMovementSku(pickingDetail, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineMovementSku(userPickingDetail, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(pickingDetail); //-- показываем по нажатию правой клавиши остатки товара
+@defineBalancesSku(userPickingDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+@defineBalancesBatch(pickingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineBalancesBatch(userPickingDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(pickingDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
+@defineMovementBatch(userPickingDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
+
+changeBatchUserPickingDetail = ACTION (detail) {
+    FORM dialogBatchStock OBJECTS st = stockUserPickingDetail(detail),
+                                  t = dateTimeUserPickingDetail(detail),
+                                  sk = skuUserPickingDetail(detail) MODAL SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        ASSIGN batchUserPickingDetail(detail) <- chosenObject('bt');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        ASSIGN batchUserPickingDetail(userPickingDetail) <- NULL;
+    }
+};
+
+
+// --------------------------- Формы Заказа ---------------------------------
+
+editPicking 'Редактировать' = ABSTRACT ACTION LIST (Picking) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+
+editSkuUserPickingDetail 'Редактировать SKU' (d) = editSku(skuUserPickingDetail(d));
+FORM userPicking 'Комплектация'
+    OBJECTS o = UserPicking FIXED PANEL
+    PROPERTIES (o) nameStockUserPicking,// ON CHANGE changeCustomerStock###customerFilter###userPicking(o),
+                   nameNumeratorObject, numberObject, seriesObject, dateUserPicking, timeUserPicking,
+                   noteUserPicking, countUserPickingDetailUserPicking, quantityUserPickingDetailUserPicking
+
+
+    OBJECTS d = UserPickingDetail
+    PROPERTIES (d) indexUserPickingDetail
+    PROPERTIES (d) ON EDIT editSkuUserPickingDetail(d) idBarcodeSkuUserPickingDetail, nameSkuUserPickingDetail, shortNameUOMSkuUserPickingDetail,
+                   nameBatchUserPickingDetail ON CHANGE changeBatchUserPickingDetail(d), nameBinUserPickingDetail
+    PROPERTIES (d) quantityUserPickingDetail, ADDOBJ, DELETESESSION
+
+    PROPERTIES(o) TODRAW d addDetailDialogSkuStockUserPickingDetailUserPicking,
+                           addDetailInputBarcodeUserPickingDetailUserPicking, deleteUserPickingDetailUserPicking
+    FILTERS userPickingUserPickingDetail(d) == o
+
+    EDIT UserPicking OBJECT o
+;
+
+DESIGN userPicking FROM DEFAULT{
+
+    main {
+        preferredSize = (1024, 768);
+        NEW specification.box BEFORE functions.box{
+            ADD d.box {
+                caption = 'Спецификация';
+                d.panel {
+                    childConstraints = TO THE BOTTOM;
+                }
+            }
+        }
+
+        NEW header.box BEFORE specification.box {
+            childConstraints = TO THE RIGHT;
+
+            NEW headerRow1 {
+                childConstraints = TO THE BOTTOM;
+
+                ADD o.documentHeaderGroup {
+                    childConstraints = TO THE RIGHTBOTTOM;
+                    ADD PROPERTY(nameStockUserPicking);
+                    ADD PROPERTY(nameNumeratorObject);
+                    ADD PROPERTY(numberObject);
+                    ADD PROPERTY(seriesObject);
+                    ADD PROPERTY(dateUserPicking);
+                    ADD PROPERTY(timeUserPicking);
+                }
+                ADD o.documentPrmGroup;
+            }
+            ADD o.documentSumGroup {
+                childConstraints = TO THE BOTTOM;
+            }
+        }
+    }
+}
+
+//    @extendFormDocumentSkuStock(userPicking, userPicking, o, legalEntityProp, stockProp);
+
+
+
+addUserPicking 'Добавить' = ACTION ADDFORM UserPicking;
+editUserPicking 'Редактировать' (userPicking) = ACTION EDITFORM UserPicking;
+editPicking(picking) += editUserPicking(picking);
+
+
+copyPicking 'Копировать' = ACTION (picking) NEWSESSION {
+    FOR ADDOBJ o = UserPicking DO {
+
+        ASSIGN stockUserPicking(o) <- stockPicking(picking);
+        ASSIGN noteUserPicking(o) <- notePicking(picking);
+
+        FOR pickingPickingDetail(pickingDetail) == picking DO {
+            FOR ADDOBJ d=UserPickingDetail DO {
+                ASSIGN userPickingUserPickingDetail(d) <- o;
+                ASSIGN skuUserPickingDetail(d) <- skuPickingDetail(pickingDetail);
+                ASSIGN quantityUserPickingDetail(d) <- quantityPickingDetail(pickingDetail);
+                ASSIGN batchUserPickingDetail(d) <- batchPickingDetail(pickingDetail);
+                ASSIGN binUserPickingDetail(d) <- binPickingDetail(pickingDetail);
+            }
+        }
+
+        FORM userPicking OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+
+FORM pickings 'Комплектиции'
+    OBJECTS o = Picking
+    PROPERTIES (o) READONLYIF isReadonly() numberPicking, seriesPicking, datePicking, timePicking,
+                   nameStockPicking
+
+    PROPERTIES (o) READONLY countPickingDetailPicking, quantityPickingDetailPicking
+
+    PROPERTIES (o) READONLYIF isReadonly() objectClassName  //notePicking
+
+    PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable
+
+    PROPERTIES ()  addUserPicking TODRAW o
+    PROPERTIES (o) editPicking, copyPicking
+    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserPicking(o)
+
+    OBJECTS d=PickingDetail
+    PROPERTIES (d) READONLY indexPickingDetail, nameSkuPickingDetail, shortNameUOMSkuPickingDetail,
+                   nameBatchPickingDetail, nameBinPickingDetail, quantityPickingDetail
+    FILTERS pickingPickingDetail(d) == o
+    DIALOG Picking OBJECT o
+;
+
+DESIGN pickings FROM DEFAULT {
+    PROPERTY (deleteo) {
+        askConfirm = TRUE;
+    }
+
+    NEW documentContainer BEFORE functions.box {
+        type = SPLITV;
+        childConstraints = TO THE BOTTOM;
+
+        ADD o.box { fillVertical = 2.0; }
+
+        NEW documentDetail {
+            type = TABBED;
+
+            ADD d.box {
+                caption = 'Спецификация';
+            }
+            NEW documentHistory {
+                caption = 'История';
+                ADD o.historyGroup;
+
+            }
+            NEW printTab {
+                caption = 'Печатные формы';
+                NEW printContainer {
+                    caption = 'Печать';
+                    childConstraints = TO THE BOTTOM;
+                }
+            }
+            NEW actionContainer {
+                caption = 'Действия';
+                childConstraints = TO THE RIGHT;
+                NEW createdContainer {
+                    caption = 'Создание на основе';
+                    childConstraints = TO THE BOTTOM;
+                    ADD PROPERTY(copyPicking) { caption = 'Комплектация';}
+                }
+            }
+        }
+    }
+}
+@extendFormEditable(pickings);
+
+//-------------------------- Связь комплектаций с заказами-комплектациями ------------------------------------//
+
+pickingOrderPicking = ABSTRACT PickingOrder (Picking) PERSISTENT;
+pickingOrderUserPicking = DATA PickingOrder (UserPicking);
+pickingOrderPicking(picking) += pickingOrderUserPicking(picking);
+
+CONSTRAINT stockUserPicking(picking) != stockPickingOrder(pickingOrderUserPicking(picking))
+    CHECKED BY pickingOrderUserPicking
+        MESSAGE 'Склад в заказе на комплектацию и в комплектации должны соответствовать друг другу';
+
+quantityPickingsPickingOrder 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 BY pickingOrderPicking(picking);
+relationPickingOrderPicking 'Количество комплектаций' (pickingOrder, picking) = GROUP SUM 1 BY pickingOrderPicking(picking), picking;
+
+pickingsPickingOrder 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255](descriptionPicking(picking)) IF relationPickingOrderPicking(pickingOrder, picking) , ', '
+                                         BY pickingOrder
+                                         ORDER picking
+//                                         IN orderGroup
+                                         MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+pickingOrdersPicking 'Заказы на комплектацию' (picking) = GROUP CONCAT VARSTRING[255](descriptionPickingOrder(pickingOrder)) IF relationPickingOrderPicking(pickingOrder, picking) , ', '
+                                         BY picking
+                                         ORDER pickingOrder
+                                         IN pickingOrdersGroup
+                                         MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+
+moveUserPickingPickingOrder 'Комплектация' = ACTION (pickingOrder) NEWSESSION {
+    FOR ADDOBJ p = UserPicking DO {
+        pickingOrderUserPicking(p) <- pickingOrder;
+        stockUserPicking(p) <- stockPickingOrder(pickingOrder);
+        FOR pickingOrderPickingOrderDetail(detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
+            userPickingUserPickingDetail(d) <- p;
+            skuUserPickingDetail(d) <- skuPickingOrderDetail(detail);
+            quantityUserPickingDetail(d) <- quantityPickingOrderDetail(detail);
+            batchUserPickingDetail(d) <- batchPickingOrderDetail(detail);
+            binUserPickingDetail(d) <- binPickingOrderDetail(detail);
+        }
+        FORM userPicking OBJECTS o=p MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+
+EXTEND FORM pickingOrders
+    PROPERTIES(o) READONLY BEFORE deleteo quantityPickingsPickingOrder, pickingsPickingOrder
+    PROPERTIES(o) moveUserPickingPickingOrder
+;
+
+
+EXTEND DESIGN pickingOrders {
+    createdContainer{
+        ADD PROPERTY(moveUserPickingPickingOrder);
+    }
+}
+
+//--
+FORM pickingsOrderPickings 'Заказы на комплектицию'
+    OBJECTS s = Stock FIXED PANEL
+    PROPERTIES (s) READONLY nameStock
+
+    OBJECTS o = PickingOrder
+    PROPERTIES (o) READONLY numberPickingOrder, seriesPickingOrder, datePickingOrder, timePickingOrder,
+                   countPickingOrderDetailPickingOrder, quantityPickingOrderDetailPickingOrder,
+                   notePickingOrder, objectClassName, quantityPickingsPickingOrder, pickingsPickingOrder
+
+    OBJECTS d=PickingOrderDetail
+    PROPERTIES (d) READONLY indexPickingOrderDetail, nameSkuPickingOrderDetail, shortNameUOMSkuPickingOrderDetail,
+                   nameBatchPickingOrderDetail, nameBinPickingOrderDetail, quantityPickingOrderDetail
+    FILTERS pickingOrderPickingOrderDetail(d) == o,
+            stockPickingOrder(o) == s
+;
+fillUserPickingOrderPicking 'Заполнить на основании заказа на комплектацию' = ACTION (userPicking) {
+    FORM pickingsOrderPickings OBJECTS s = stockUserPicking(userPicking) MODAL;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL order = PickingOrder();
+        order() <- chosenObject('o');
+        pickingOrderUserPicking(userPicking) <- order();
+
+        FOR pickingOrderPickingOrderDetail(detail) == order() ADDOBJ d = UserPickingDetail DO {
+            userPickingUserPickingDetail(d) <- userPicking;
+            skuUserPickingDetail(d) <- skuPickingOrderDetail(detail);
+            quantityUserPickingDetail(d) <- quantityPickingOrderDetail(detail);
+            batchUserPickingDetail(d) <- batchPickingOrderDetail(detail);
+            binUserPickingDetail(d) <- binPickingOrderDetail(detail);
+        }
+    }
+} IN pickingOrdersGroup;
+
+
+EXTEND FORM userPicking
+    PROPERTIES(o) fillUserPickingOrderPicking, pickingOrdersPicking READONLY
+;
+EXTEND DESIGN userPicking {
+    headerRow1 {
+        NEW baseContainer {
+            childConstraints = TO THE RIGHT;
+            caption = 'Основание' ;
+            ADD o.pickingOrdersGroup;
+        }
+    }
+}
+
+EXTEND FORM pickings
+    PROPERTIES(o) READONLY BEFORE deleteo pickingOrdersPicking
+;
+
+//------------------------- Определение стадий комплектации--------------------//
+
+countPickingOrderSkuPickingOrder 'Кол-во наименований' (pickingOrder) = GROUP SUM 1 IF quantityPickingOrderDetailSkuPickingOrder(sku, pickingOrder) BY pickingOrder;
+
+quantityPickingDetailSkuPickingOrder 'Кол-во в комплектациях' (sku, pickingOrder) = GROUP SUM quantityPickingDetailSkuPicking(sku, picking) BY sku, pickingOrderPicking(picking);
+countEqualPickingOrderSkuPickingOrder 'Кол-во наименований с равным кол-ом товара' (pickingOrder) = GROUP SUM 1 IF quantityPickingDetailSkuPickingOrder(sku, pickingOrder) == quantityPickingOrderDetailSkuPickingOrder(sku, pickingOrder) BY pickingOrder;
+
+calcPartPickingOrder 'Частично собран' (pickingOrder) = countPickingOrderSkuPickingOrder(pickingOrder) > countEqualPickingOrderSkuPickingOrder(pickingOrder);
+calcFullPickingOrder 'Полностью собран' (pickingOrder) = countPickingOrderSkuPickingOrder(pickingOrder) == countEqualPickingOrderSkuPickingOrder(pickingOrder);
+
+acceptedPickingOrder 'Принят в работу' = DATA BOOLEAN (PickingOrder);
+startDatePickingOrder 'Дата начала' = DATA DATE (PickingOrder);
+startTimePickingOrder 'Время начала' = DATA TIME (PickingOrder);
+startDateTimePickingOrder 'Дата/время начала' (o) = dateTimeToDateTime(startDatePickingOrder(o), startTimePickingOrder(o)) PERSISTENT;
+
+finishDatePickingOrder 'Дата окончания' = DATA DATE (PickingOrder);
+finishTimePickingOrder 'Время окончания' = DATA TIME (PickingOrder);
+finishDateTimePickingOrder 'Дата/время окончания' (o) = dateTimeToDateTime(finishDatePickingOrder(o), finishTimePickingOrder(o)) PERSISTENT;
+
+performerPickingOrder  = DATA CustomUser (PickingOrder);
+namePerformerPickingOrder 'Комплектовщик' (pickingOrder) = nameContact(performerPickingOrder(pickingOrder));
+
+statusPickingPickingOrder 'Статус комплектации' (order) = CASE
+                                          WHEN calcPartPickingOrder(order) THEN 'Частично собран'
+                                          WHEN calcFullPickingOrder(order) THEN 'Полностью собран'
+                                          WHEN acceptedPickingOrder(order) THEN 'Принят в работу'
+                                          WHEN order IS PickingOrder AND NOT acceptedPickingOrder(order) THEN 'Ждет обработки'
+                                          MINCHARWIDTH 20 PREFCHARWIDTH 30
+                                      ;
+backgroundStatusPickingPickingOrder 'Цвет' (order) =  CASE
+                                          WHEN calcPartPickingOrder(order) THEN RGB(212,212,255)
+                                          WHEN calcFullPickingOrder(order) THEN RGB(255,212,212)
+                                          WHEN acceptedPickingOrder(order) THEN RGB(212,255,212)
+                                          WHEN order IS PickingOrder AND NOT acceptedPickingOrder(order) THEN RGB(255,255,255)
+                                      ;
+
+toAcceptedPickingOrder 'Принять' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY{
+    acceptedPickingOrder(pickingOrder) <- TRUE;
+    performerPickingOrder(pickingOrder) <- currentUser();
+    startDatePickingOrder(pickingOrder) <- currentDate();
+    startTimePickingOrder(pickingOrder) <- currentTime();
+
+} TOOLBAR;
+unacceptedPickingOrder 'Отменить' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY {
+    acceptedPickingOrder(pickingOrder) <- NULL;
+    performerPickingOrder(pickingOrder) <- NULL;
+    startDatePickingOrder(pickingOrder) <- NULL;
+    startTimePickingOrder(pickingOrder) <- NULL;
+} TOOLBAR;
+
+fullyAssembledPickingOrder 'Собран полностью' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY {
+    finishDatePickingOrder(pickingOrder) <- currentDate();
+    finishTimePickingOrder(pickingOrder) <- currentTime();
+    FOR ADDOBJ p = UserPicking DO {
+        pickingOrderUserPicking(p) <- pickingOrder;
+        stockUserPicking(p) <- stockPickingOrder(pickingOrder);
+        FOR pickingOrderPickingOrderDetail(detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
+            userPickingUserPickingDetail(d) <- p;
+            skuUserPickingDetail(d) <- skuPickingOrderDetail(detail);
+            quantityUserPickingDetail(d) <- quantityPickingOrderDetail(detail);
+            batchUserPickingDetail(d) <- batchPickingOrderDetail(detail);
+            binUserPickingDetail(d) <- binPickingOrderDetail(detail);
+        }
+    }
+} TOOLBAR;
+partiallyAssembledPickingOrder 'Собран частично' = ACTION (pickingOrder) NEWSESSION{
+    finishDatePickingOrder(pickingOrder) <- currentDate();
+    finishTimePickingOrder(pickingOrder) <- currentTime();
+    FOR ADDOBJ p = UserPicking DO {
+        pickingOrderUserPicking(p) <- pickingOrder;
+        stockUserPicking(p) <- stockPickingOrder(pickingOrder);
+        FOR pickingOrderPickingOrderDetail(detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
+            userPickingUserPickingDetail(d) <- p;
+            skuUserPickingDetail(d) <- skuPickingOrderDetail(detail);
+            quantityUserPickingDetail(d) <- quantityPickingOrderDetail(detail);
+            batchUserPickingDetail(d) <- batchPickingOrderDetail(detail);
+            binUserPickingDetail(d) <- binPickingOrderDetail(detail);
+        }
+        FORM userPicking OBJECTS o=p MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+EXTEND FORM pickingOrders
+    PROPERTIES(o) READONLYIF isReadonly() namePerformerPickingOrder, startDatePickingOrder, startTimePickingOrder
+    PROPERTIES(o) READONLY statusPickingPickingOrder BACKGROUND backgroundStatusPickingPickingOrder(o)
+    PROPERTIES(o) READONLYIF isReadonly() finishDatePickingOrder, finishTimePickingOrder
+    PROPERTIES(o) toAcceptedPickingOrder, unacceptedPickingOrder, fullyAssembledPickingOrder, partiallyAssembledPickingOrder
+
+;
+
+EXTEND DESIGN pickingOrders {
+    actionContainer {
+        NEW  pickingContainer {
+            caption = 'Комплектация';
+            childConstraints = TO THE BOTTOM;
+            NEW pickingContainer1 {
+                childConstraints = TO THE RIGHT;
+                ADD PROPERTY(toAcceptedPickingOrder);
+                ADD PROPERTY(unacceptedPickingOrder);
+            }
+            NEW pickingContainer2 {
+                childConstraints = TO THE RIGHT;
+                ADD PROPERTY(fullyAssembledPickingOrder);
+                ADD PROPERTY(partiallyAssembledPickingOrder);
+            }
+        }
+    }
+}
+
+
+
+NAVIGATOR {
+    stockNavigator 'Склад' {
+        NEW picking 'Комплектация' {
+            ADD pickingOrders;
+            ADD pickings;
+        }
+    }
+}
+
+
