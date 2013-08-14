@@ -380,54 +380,42 @@ DESIGN userRepricing FROM DEFAULT {
     main {
         preferredSize = (1024, 768);
 
-        NEW specification.box BEFORE functions.box{
+        NEW header {
+            type = CONTAINERH;
 
-            ADD d.box {
-                caption = 'Спецификация';
-                d.panel {
-                    childConstraints = TO THE RIGHT;
-                }
-            }
-        }
-        NEW header.box BEFORE specification.box {
-            childConstraints = TO THE RIGHT;
-
-            NEW headerCol1 {
-                childConstraints = TO THE BOTTOM;
+            NEW headerColumn1 {
+                fill = 1;
                 ADD p.documentHeaderGroup {
-                    childConstraints = TO THE BOTTOM;
-                    NEW firstRow{
-                        childConstraints = TO THE RIGHT;
-                        ADD PROPERTY(objectClassName);
-                        ADD PROPERTY(nameDepartmentStoreUserRepricing);
-                        ADD PROPERTY(nameNumeratorObject);
-                        ADD PROPERTY(numberObject);
-                        ADD PROPERTY(seriesObject);
-                    }
-                    NEW secondRow{
-                        childConstraints = TO THE RIGHT;
-                        ADD PROPERTY(dateUserRepricing);
-                        ADD PROPERTY(timeUserRepricing);
-                        ADD PROPERTY(beforeDateUserRepricing);
-                    }
+                    type = CONTAINERH;
+                    ADD PROPERTY(objectClassName) { preferredCharWidth = 10; };
+                    ADD PROPERTY(nameDepartmentStoreUserRepricing);
+                    ADD PROPERTY(nameNumeratorObject);
+                    ADD PROPERTY(numberObject);
+                    ADD PROPERTY(seriesObject);
+                    ADD PROPERTY(dateUserRepricing);
+                    ADD PROPERTY(timeUserRepricing);
                 }
                 ADD p.documentPrmGroup {
-                    childConstraints = TO THE BOTTOM;
-                    NEW thirdRow{
-                        childConstraints = TO THE RIGHT;
-                        ADD PROPERTY(noteUserRepricing);
-                        ADD PROPERTY(numberDisposalUserRepricing);
-                    }
-                    NEW fourthRow{
-                        childConstraints = TO THE RIGHT;
-                        ADD PROPERTY(nameRepricingCommitteeUserRepricing);
-                        ADD PROPERTY(skipChangeLedgerUserRepricing);
-                    }
+                    type = COLUMNS;
+                    columns = 2;
+                    ADD PROPERTY(beforeDateUserRepricing);
+                    ADD PROPERTY(noteUserRepricing);
+                    ADD PROPERTY(numberDisposalUserRepricing);
+                    ADD PROPERTY(nameRepricingCommitteeUserRepricing);
+                    ADD PROPERTY(skipChangeLedgerUserRepricing);
                 }
             }
 
             ADD p.documentSumGroup {
-                childConstraints = TO THE BOTTOM;
+                columns = 1;
+            }
+        }
+
+        NEW specification.box {
+            fill = 1;
+            type = TABBED;
+            ADD d.box {
+                caption = 'Спецификация';
             }
         }
 
@@ -440,6 +428,8 @@ DESIGN userRepricing FROM DEFAULT {
         PROPERTY(VATSumUserRepricingDetail) { background = #FFFFCC; }
         PROPERTY(retailPriceUserRepricingDetail) { background = #FFFFCC; }
         PROPERTY(retailSumUserRepricingDetail) { background = #FFFFCC; }
+
+        ADD functions.box;
 
         PROPERTY(formOk) {
             caption = 'Провести';
@@ -471,7 +461,7 @@ EXTEND FORM userRepricing
     PROPERTIES(p) nameOperationUserRepricing
 ;
 EXTEND DESIGN userRepricing{
-    thirdRow{
+    p.documentPrmGroup {
         ADD PROPERTY (nameOperationUserRepricing) BEFORE PROPERTY(noteUserRepricing);
     }
 }
@@ -592,17 +582,16 @@ FORM repricings 'Акты переоценки' TITLE 'Акты переоцен
 @extendFormFilterAccessStock(Repricing, p, repricings, departmentStore, company);
 
 DESIGN repricings FROM DEFAULT {
-    PROPERTY (deletep) {
-        askConfirm = TRUE;
-    }
-
-    NEW documentContainer BEFORE functions.box {
+    NEW pane {
+        fill = 1;
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
 
-        ADD p.box { fillVertical = 2.0; }
+        ADD p.box {
+            fill = 2;
+        }
 
         NEW documentDetail {
+            fill = 1;
             type = TABBED;
 
             ADD d.box {
@@ -616,26 +605,21 @@ DESIGN repricings FROM DEFAULT {
             }
             NEW printTab {
                 caption = 'Печатные формы';
-                NEW printContainer {
-                    caption = 'Печать';
-                    childConstraints = TO THE BOTTOM;
-                    ADD p.printGroup;
-                }
+                ADD p.printGroup;
             }
             NEW actionContainer {
                 caption = 'Действия';
-                childConstraints = TO THE RIGHT;
+                type = CONTAINERH;
                 NEW createdContainer {
                     caption = 'Создание на основе';
-                    childConstraints = TO THE BOTTOM;
                 }
                 NEW machineryContainer {
                     caption = 'Загрузка';
-                    childConstraints = TO THE BOTTOM;
                 }
             }
         }
     }
+    ADD functions.box;
 }
 
 EXTEND FORM repricings

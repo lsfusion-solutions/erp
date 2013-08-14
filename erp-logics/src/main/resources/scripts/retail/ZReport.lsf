@@ -135,7 +135,7 @@ batchReceiptDetail(detail) += batchReceiptSaleDetail(detail);
 batchReceiptDetail(detail) += batchReceiptReturnDetail(detail);
 
 explicitBatchLedgerReceipt(receipt) = explicitBatchLedgerDepartmentStore(departmentStoreZReport(zReportReceipt(receipt)));
-notExplicitBatchLedgerReceipt(receipt) = NOT explicitBatchLedgerReceipt(receipt);
+notExplicitBatchLedgerReceipt(receipt) = departmentStoreZReport(zReportReceipt(receipt)) AND NOT explicitBatchLedgerReceipt(receipt);
 
 numberReceipt 'Номер чека' (receipt) = DATA INTEGER (Receipt) IN documentHeaderGroup;
 numberReceiptReceiptDetail 'Номер чека' (receiptDetail) = numberReceipt(receiptReceiptDetail(receiptDetail));
@@ -448,13 +448,12 @@ FORM zReport 'Z-отчет'
 
 DESIGN zReport FROM DEFAULT{
 
-    NEW topContainer{
-
+    NEW pane {
+        fill = 1;
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
 
         NEW firstCase {
-
+            fill = 1;
             type = SPLITV;
 
             ADD z.box;
@@ -462,13 +461,12 @@ DESIGN zReport FROM DEFAULT{
         }
 
         NEW secondCase{
-
+            fill = 1;
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
 
-            ADD d.box{
+            ADD d.box {
+                fill = 3;
                 caption = 'Строка чека';
-                fillHorizontal = 3;
             }
             ADD p.box;
         }
@@ -513,12 +511,11 @@ FORM zReports 'Z-отчеты'
 DESIGN zReports FROM DEFAULT{
 
     NEW topContainer{
-
+        fill = 1;
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
 
         NEW firstCase {
-
+            fill = 2;
             type = SPLITV;
 
             ADD z.box;
@@ -526,26 +523,22 @@ DESIGN zReports FROM DEFAULT{
         }
 
         NEW secondCase{
-
+            fill = 1;
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
 
             ADD d.box{
                 caption = 'Строка чека';
-                fillHorizontal = 3;
+                fill = 3;
             }
             ADD p.box;
         }
     }
 
+    ADD functions.box;
+
     PROPERTY(objectClassName) {
         preferredCharWidth = 15;
     }
-    PROPERTY (deletez) {
-        askConfirm = TRUE;
-    }
-
-    ADD functions.box;
 }
 
 // ----------------------------------------------- Стандартные значения ------------------------------------- //

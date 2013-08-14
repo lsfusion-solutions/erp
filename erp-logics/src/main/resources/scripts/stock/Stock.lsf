@@ -226,13 +226,13 @@ FORM customGroupType 'Тип дополнительного классифика
     EDIT CustomGroupType OBJECT t
 ;
 
-FORM dialogCustomGroupType 'Тип дополнительного классификатора SKU'
+FORM dialogCustomGroupType 'Тип дополнительной группы'
     OBJECTS t = CustomGroupType
     PROPERTIES(t) READONLY nameCustomGroupType
     DIALOG CustomGroupType OBJECT t
 ;
 
-FORM customGroupTypes 'Типы дополнительного классификатора SKU'
+FORM customGroupTypes 'Типы дополнительных групп'
     OBJECTS t = CustomGroupType
     PROPERTIES(t) READONLY nameCustomGroupType
     PROPERTIES(t) ADDFORM, EDITFORM, DELETE
@@ -2008,7 +2008,7 @@ FORM movementSkuStock 'Движение товара по складу'
 ;
 DESIGN movementSkuStock FROM DEFAULT {
     NEW topContainer{
-        childConstraints = TO THE RIGHT;
+        type = CONTAINERH;
         ADD s.box;
         ADD st.box;
     }
@@ -2078,7 +2078,7 @@ FORM movementBatchStock 'Движение по партии'
 ;
 DESIGN movementBatchStock FROM DEFAULT {
     NEW topContainer{
-        childConstraints = TO THE RIGHT;
+        type = CONTAINERH;
         ADD bt.box;
         ADD st.box;
     }
@@ -2224,20 +2224,18 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
         specification.box {
             type = TABBED;
             NEW itemBox {
-                childConstraints = TO THE RIGHT;
                 caption = 'Подбор';
                 type = SPLITH;
 
                 ADD skuTree.tree.box { caption = 'Группы SKU'; }
                 NEW skuMainPane {
+                    fill = 3;
                     type = CONTAINERV;
                     NEW skuSelectPane {
+                        fill = 1;
                         type = CONTAINERV;
                         ADD ks.box {
                             caption = 'Товары';
-                            ks.grid {
-                                fillHorizontal = 2;
-                            }
                         }
                     }
                 }
@@ -2374,7 +2372,6 @@ META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
 
             ADD b.box {
                 caption = 'Партии';
-                b.grid { fillHorizontal = 2; }
             }
         }
         PROPERTY(prevCurrentBalanceBatch###object) { background = #FFEEEE; }
@@ -2489,7 +2486,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
         ORDER BY skuTreeName
         FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
-        OBJECTS           sts=(st=Stock, ks=Sku)
+        OBJECTS           sts=(st=Stock, ks=Sku) FIXED GRID
         PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks)
         PROPERTIES        READONLY stockName = nameStock(st) SHOWIF not###stockProp###object(concrete)
         PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
@@ -2514,22 +2511,23 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
         specification.box {
             type = TABBED;
             NEW itemBox {
-                childConstraints = TO THE RIGHT;
                 caption = 'Подбор';
                 type = SPLITH;
 
                 NEW skuFilters {
+                    fill = 1;
                     type = SPLITV;
                     ADD stockTree.tree.box { caption = 'Группы складов'; }
                     ADD skuTree.tree.box { caption = 'Группы SKU'; }
                 }
                 NEW skuMainPane {
+                    fill = 3;
                     type = CONTAINERV;
                     NEW skuSelectPane {
+                        fill = 1;
                         type = CONTAINERV;
                         ADD sts.box {
                             caption = 'Товары';
-                            sts.grid { fillHorizontal = 2; }
                         }
                     }
                 }
@@ -2640,7 +2638,6 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
             type = TABBED;
             ADD stb.box {
                 caption = 'Партии';
-                stb.grid { fillHorizontal = 2; }
             }
         }
         PROPERTY(prevCurrentBalanceBatchStock) { background = #FFEEEE; }
@@ -2740,27 +2737,25 @@ META extendFormDocumentSkuStockContractorCustom(object, form, concrete, legalEnt
     ;
 
     EXTEND DESIGN form {
-        REMOVE cc.box;
         specification.box {
-            type = TABBED;
             NEW itemBox {
-                childConstraints = TO THE RIGHT;
+                fill = 1;
                 caption = 'Подбор';
                 type = SPLITH;
 
                 NEW skuFilters {
+                    fill = 1;
                     type = SPLITV;
                     ADD stockTree.tree.box { caption = 'Группы складов'; }
                     ADD skuTree.tree.box { caption = 'Группы SKU'; }
                 }
                 NEW skuMainPane {
+                    fill = 3;
                     type = CONTAINERV;
                     NEW skuSelectPane {
+                        fill = 1;
                         type = CONTAINERV;
-                        ADD sts.box {
-                            caption = 'SKU';
-                            sts.grid { fillHorizontal = 4; }
-                        }
+                        ADD sts.box;
                     }
                 }
             }
@@ -2906,16 +2901,16 @@ DESIGN stocks FROM DEFAULT {
 
         NEW topContainer {
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
+            fill = 1;
 
             ADD stockTree.tree.box {
                 caption = 'Склады';
             }
 
             ADD s.box {
+                fill = 3;
                 s.grid {
                     defaultComponent = TRUE;
-                    fillHorizontal = 2;
                 }
             }
         }
@@ -2946,16 +2941,16 @@ DESIGN companyStocks FROM DEFAULT {
 
         NEW topContainer {
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
+            fill = 1;
 
             ADD stockTree.tree.box {
                 caption = 'Склады';
             }
 
             ADD s.box {
+                fill = 3;
                 s.grid {
                     defaultComponent = TRUE;
-                    fillHorizontal = 2;
                 }
             }
         }
@@ -2985,16 +2980,16 @@ DESIGN supplierStocks FROM DEFAULT {
 
         NEW topContainer {
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
+            fill = 1;
 
             ADD stockTree.tree.box {
                 caption = 'Склады';
             }
 
             ADD s.box {
+                fill = 3;
                 s.grid {
                     defaultComponent = TRUE;
-                    fillHorizontal = 2;
                 }
             }
         }
@@ -3024,16 +3019,16 @@ DESIGN customerStocks FROM DEFAULT {
 
         NEW topContainer {
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
+            fill = 1;
 
             ADD stockTree.tree.box {
                 caption = 'Склады';
             }
 
             ADD s.box {
+                fill = 3;
                 s.grid {
                     defaultComponent = TRUE;
-                    fillHorizontal = 2;
                 }
             }
         }
@@ -3084,17 +3079,15 @@ DESIGN skus FROM DEFAULT {
         preferredSize = (1024, 768);
 
         NEW topContainer {
+            fill = 1;
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
 
-            ADD skuTree.tree.box {
-                caption = 'Группы SKU';
-            }
+            ADD skuTree.tree.box;
 
             ADD s.box {
+                fill = 4;
                 s.grid {
                     defaultComponent = TRUE;
-                    fillHorizontal = 4;
                 }
             }
         }
@@ -3121,17 +3114,15 @@ DESIGN filterSkus FROM DEFAULT {
         preferredSize = (1024, 768);
 
         NEW topContainer {
+            fill = 1;
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
 
-            ADD skuTree.tree.box {
-                caption = 'Группы SKU';
-            }
+            ADD skuTree.tree.box;
 
             ADD s.box {
+                fill = 4;
                 s.grid {
                     defaultComponent = TRUE;
-                    fillHorizontal = 4;
                 }
             }
         }
@@ -3200,15 +3191,15 @@ FORM costSkuLedger 'Себестоимость (операции)'
 
 DESIGN costSkuLedger FROM DEFAULT {
     NEW topContainer{
+        fill = 1;
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
 
         ADD bil.box;
         ADD bt.box;
     }
 
     NEW buttonContainer {
-        childConstraints = TO THE RIGHT;
+        type = CONTAINERH;
         ADD PROPERTY(setDataSkuLedgerBatchCost);
         ADD PROPERTY(resetDataSkuLedgerBatchCost);
         ADD PROPERTY(clearDataSkuLedgerBatchCost);
@@ -3246,8 +3237,8 @@ FORM costSkuBatchLedger 'Себестоимость (партии)'
 
 DESIGN costSkuBatchLedger FROM DEFAULT {
     NEW topContainer {
+        fill = 1;
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
 
         ADD bt.box;
         ADD bil.box;
@@ -3305,24 +3296,25 @@ DESIGN currentBalanceSkuStock FROM DEFAULT {
         preferredSize = (1024, 768);
 
         NEW topContainer {
+            fill = 1;
             type = SPLITH;
 
             NEW firstBottom {
+                fill = 1;
                 type = SPLITV;
                 ADD stockTree.tree.box { caption = 'Склады'; }
                 ADD skuTree.tree.box { caption = 'Группы'; }
             }
 
             NEW secondCase {
+                fill = 3;
                 type = SPLITV;
-                fillHorizontal = 2;
-                childConstraints = TO THE BOTTOM;
                 ADD sts.box {
-                    fillVertical = 2;
+                    fill = 2;
                 }
 
                 NEW ledger.box {
-                    fillVertical = 1;
+                    fill = 1;
                     caption = 'Изменение цен';
                     type = TABBED;
                     ADD bil.box;
@@ -3386,15 +3378,15 @@ DESIGN balanceSkuStock FROM DEFAULT {
         preferredSize = (1024, 768);
 
         NEW topContainer {
+            fill = 1;
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
 
             NEW firstCase {
-                type = SPLITV;
-                fillHorizontal = 1;
-                childConstraints = TO THE BOTTOM;
-                ADD t.box;
+                fill = 1;
+                type = CONTAINERV;
+                ADD t.box { fill = 0; }
                 NEW firstCaseTwo {
+                    fill = 1;
                     type = SPLITV;
                     ADD stockTree.tree.box { caption = 'Склады'; }
                     ADD skuTree.tree.box { caption = 'Группы'; }
@@ -3402,13 +3394,12 @@ DESIGN balanceSkuStock FROM DEFAULT {
             }
 
             NEW secondCase {
+                fill = 3;
                 type = SPLITV;
-                fillHorizontal = 2;
-                childConstraints = TO THE BOTTOM;
-                ADD sts.box {fillVertical = 2;}
+                ADD sts.box { fill = 2; }
 
                 NEW ledger.box {
-                    fillVertical = 1;
+                    fill = 1;
                     caption = 'Изменение цен';
                     type = TABBED;
                     ADD bil.box;
@@ -3470,23 +3461,20 @@ DESIGN currentBalanceBatchStock FROM DEFAULT {
         preferredSize = (1024, 768);
 
         NEW topContainer {
+            fill = 1;
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
 
             NEW firstCase {
+                fill = 1;
                 type = SPLITV;
-                fillHorizontal = 1;
-                childConstraints = TO THE BOTTOM;
                 ADD stockTree.tree.box { caption = 'Склады'; }
                 ADD skuTree.tree.box { caption = 'Группы'; }
             }
 
             NEW secondCase {
-                fillHorizontal = 2;
-                childConstraints = TO THE BOTTOM;
-                ADD stb.box {
-                    caption = 'Партии';
-                }
+                fill = 3;
+                type = SPLITV;
+                ADD stb.box { fill = 2; caption = 'Партии'; }
                 ADD bil.box {
                     caption = 'Движение';
                 }
@@ -3549,15 +3537,15 @@ DESIGN balanceBatchStock FROM DEFAULT {
         preferredSize = (1024, 768);
 
         NEW topContainer {
+            fill = 1;
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
 
             NEW firstCase {
-                type = SPLITV;
-                fillHorizontal = 1;
-                childConstraints = TO THE BOTTOM;
-                ADD t.box;
+                fill = 1;
+                type = CONTAINERV;
+                ADD t.box { fill = 0; }
                 NEW firstCaseTwo {
+                    fill = 1;
                     type = SPLITV;
                     ADD stockTree.tree.box { caption = 'Склады'; }
                     ADD skuTree.tree.box { caption = 'Группы'; }
@@ -3565,11 +3553,9 @@ DESIGN balanceBatchStock FROM DEFAULT {
             }
 
             NEW secondCase {
-                fillHorizontal = 2;
-                childConstraints = TO THE BOTTOM;
-                ADD stb.box {
-                    caption = 'Партии';
-                }
+                fill = 3;
+                type = SPLITV;
+                ADD stb.box { fill = 2; caption = 'Партии'; }
                 ADD bil.box {
                     caption = 'Движение';
                 }
@@ -3622,10 +3608,10 @@ DESIGN batches FROM DEFAULT {
         preferredSize = (1024, 768);
 
         NEW topContainer {
+            fill = 1;
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
-            ADD skuTree.tree.box { caption = 'Группы'; fillHorizontal = 1;}
-            ADD bt.box { caption = 'Партии'; fillHorizontal = 2;}
+            ADD skuTree.tree.box { caption = 'Группы'; }
+            ADD bt.box { fill = 3; caption = 'Партии'; }
         }
         ADD functions.box;
     }
@@ -3689,26 +3675,26 @@ META defineDialogSku (form)
         main {
             preferredSize = (1024, 768);
             NEW skuContainer BEFORE functions.box {
-                childConstraints = TO THE RIGHT;
+                fill = 1;
                 type = SPLITH;
 
                 ADD skuTree.tree.box;
                 NEW inputContainer {
-                    childConstraints = TO THE BOTTOM;
-                    type = SPLITV;
+                    fill = 2;
+                    type = CONTAINERV;;
 
                     NEW filterContainer {
+                        align = STRETCH;
                         childConstraints = TO THE RIGHTBOTTOM;
                         //ADD PROPERTY(form###nameStock());
                     }
 
                     NEW inputSkuContainer {
-                        childConstraints = TO THE BOTTOM;
+                        fill = 1;
                         type = SPLITV;
 
                         ADD s.box {
-                            fillVertical = 3;
-                            fillHorizontal = 2;
+                            fill = 3;
                         }
                         ADD si.box;
                     }
@@ -3811,11 +3797,10 @@ FORM chooseStocks 'Выбор складов'
 DESIGN chooseStocks FROM DEFAULT{
 
     NEW mainContainer{
-        REMOVE l.box;
+        fill = 1;
         type = SPLITH;
-        childConstraints = TO THE RIGHT;
         ADD stockTree.tree.box;
-        ADD s.box{fillHorizontal = 2.0;}
+        ADD s.box { fill = 3; }
     }
     ADD functions.box;
 }
@@ -3838,10 +3823,10 @@ EXTEND FORM legalEntity
     FILTERS isParentStockGroupStock(sg, st) OR (st IS Stock AND NOT sg)
     FILTERS inLegalEntityStock(l, st)
 
-    OBJECTS s=LegalEntity
+    OBJECTS s=LegalEntity FIXED GRID
     PROPERTIES(s) READONLY nameLegalEntity
 
-    OBJECTS c=LegalEntity
+    OBJECTS c=LegalEntity FIXED GRID
     PROPERTIES(c) READONLY nameLegalEntity
 ;
 
@@ -3851,31 +3836,31 @@ EXTEND DESIGN legalEntity{
             caption = 'Склады';
             childConstraints = TO THE RIGHT;
             type = SPLITH;
-            ADD stockTree.tree.box;
-            ADD st.box{fillHorizontal = 3.0;}
+            ADD stockTree.tree.box {
+                fill = 1;
+            }
+            ADD st.box {
+                fill = 3;
+            }
         }
 
-        NEW agreementBuyContainer {
+        NEW agreementPurchaseContainer {
             caption = 'Закупка';
             type = SPLITH;
-            ADD s.box {caption = 'Поставщики';}
-            NEW docContainer{
-                type = SPLITV;
-                caption = 'Договоры и соглашения';
-                childConstraints = TO THE BOTTOM;
-                fillHorizontal = 3;
+            ADD s.box { caption = 'Поставщики'; }
+            NEW docPurchaseContainer {
+                fill = 5;
+                type = TABBED;
             }
         }
 
         NEW agreementSaleContainer {
             caption = 'Продажа';
             type = SPLITH;
-            ADD c.box {caption = 'Покупатели';}
-            NEW docContainer2{
-                type = SPLITV;
-                caption = 'Договоры и соглашения';
-                childConstraints = TO THE BOTTOM;
-                fillHorizontal = 3;
+            ADD c.box { caption = 'Покупатели';}
+            NEW docSaleContainer {
+                fill = 5;
+                type = TABBED;
             }
         }
     }
@@ -3941,14 +3926,11 @@ FORM skuLedger 'Регистр движений'
 ;
 
 DESIGN skuLedger FROM DEFAULT {
-    main {
-        childConstraints = TO THE BOTTOM;
-        ADD dates.box {
-            childConstraints = TO THE RIGHT;
-        }
-        ADD s.box{
-            childConstraints = TO THE BOTTOM;
-        }
+    ADD dates.box {
+        type = CONTAINERH;
+    }
+    ADD s.box {
+        type = CONTAINERV;
     }
     ADD functions.box;
 }

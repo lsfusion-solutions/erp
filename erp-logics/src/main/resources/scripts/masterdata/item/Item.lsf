@@ -67,16 +67,12 @@ FORM dialogItemGroups 'Товарные группы'
 DESIGN dialogItemGroups FROM DEFAULT {
     main{
         preferredSize = (1024, 768);
-            NEW rootContainer BEFORE functions.box{
-                childConstraints = TO THE RIGHT;
-                type = SPLITH;
-
-            ADD treeGroups.tree.box {
-                fillHorizontal = 2;
-            }
-
+        NEW rootContainer BEFORE functions.box {
+            fill = 1;
+            type = SPLITH;
+            ADD treeGroups.tree.box;
             ADD g.box {
-                fillHorizontal = 4;
+                fill = 3;
             }
         }
     }
@@ -172,64 +168,54 @@ FORM item 'Товар'
 DESIGN item FROM DEFAULT {
     main {
         NEW itemHeader BEFORE functions.box {
-            childConstraints = TO THE RIGHT;
-            NEW itemHeaderColumn1 {
-                childConstraints = TO THE BOTTOM;
-                ADD PROPERTY(canonicalNameItemGroupItem);
-                ADD PROPERTY(idItem);
-                ADD PROPERTY(idBarcodeSku);
-            }
-            NEW itemHeaderColumn2 {
-                childConstraints = TO THE BOTTOM;
-            }
+            type = COLUMNS;
+            columns = 2;
+            ADD PROPERTY(canonicalNameItemGroupItem);
+            ADD PROPERTY(idBarcodeSku);
+            ADD PROPERTY(idItem);
         }
         NEW itemDetail BEFORE functions.box {
             type = TABBED;
+            fill = 1;
             NEW itemPrimary {
-                childConstraints = TO THE BOTTOM;
+                type = CONTAINERV;
                 caption = 'Основные данные';
-                fillVertical = 1.0;
-                fillHorizontal = 1.0;
 
                 NEW itemPrimaryRow1 {
-                    childConstraints = TO THE RIGHT;
+                    type = CONTAINERH;
                     NEW itemPrimaryColumn1 {
-                        childConstraints = TO THE BOTTOM;
+                        type = CONTAINERV;
                     }
                     NEW itemPrimaryColumn2 {
-                        childConstraints = TO THE BOTTOM;
+                        type = CONTAINERV;
                     }
                 }
                 ADD b.box;
             }
             NEW itemGroup {
-                childConstraints = TO THE RIGHT;
+                type = CONTAINERV;
                 caption = 'Классификаторы';
-                fillVertical = 1.0;
-                fillHorizontal = 1.0;
                 ADD cgt.box;
             }
             NEW regionalPrm {
+                type = CONTAINERV;
                 caption = 'Региональные параметры';
                 ADD dtr.box;
                 ADD c.box;
             }
             NEW calcPriceListTypePrm {
+                type = CONTAINERV;
                 caption = 'Цены';
                 childConstraints = TO THE BOTTOM;
                 ADD st2.box;
-                ADD ct.box{
-                    childConstraints = TO THE RIGHTBOTTOM;
-                }
+                ADD ct.box;
             }
             NEW itemImage {
+                type = CONTAINERV;
                 caption = 'Изображение';
-                ADD PROPERTY(imageItem);
-                PROPERTY(imageItem) {
+                ADD PROPERTY(imageItem) {
                     caption = '';
-                    preferredSize = ( -1, 600);
-                    fillVertical = 1.0;
-                    fillHorizontal = 1.0;
+                    fill = 1;
                 }
                 ADD PROPERTY(loadImageItem);
             }
@@ -271,32 +257,33 @@ FORM items 'Товары'
 ;
 
 DESIGN items FROM DEFAULT {
+    NEW rootContainer BEFORE functions.box {
+        type = SPLITH;
+        fill = 1;
 
-    NEW rootContainer {
-            type = SPLITH;
-            childConstraints = TO THE RIGHT;
-            NEW row1 {
-                caption = 'Классификатор';
-                childConstraints = TO THE BOTTOM;
-                ADD gt.box;
-                ADD groupTree.tree.box;
-            }
+        NEW row1 {
+            caption = 'Классификатор';
+            type = CONTAINERV;
+            ADD gt.box;
+            ADD groupTree.tree.box;
+        }
 
-            NEW row2 {
-                NEW row21 {
-                    childConstraints = TO THE RIGHT;
-                    ADD PROPERTY(seekBarcode);
+        NEW row2 {
+            fill = 3;
+            type = CONTAINERV;
+            NEW row21 {
+                type = CONTAINERH;
+                ADD PROPERTY(seekBarcode) {
+                    editKey = 'F4';
                 }
-                ADD i.box {
+            }
+            ADD i.box {
+                i.grid {
                     defaultComponent = TRUE;
-                    fillHorizontal = 4;
-                    PROPERTY(seekBarcode){
-                        editKey = 'F4';
-                    }
                 }
             }
+        }
     }
-    ADD functions.box;
 }
 
 @extendFormEditable(items);
@@ -409,7 +396,7 @@ META defineItemAttributeName (prefix, caption, group)
                                   IF numberInName###prefix##ItemAttribute(attribute) AND valueItemAttribute(item, attribute), ' ' BY item ORDER numberInName###prefix##ItemAttribute(attribute)](item))
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
     EXTEND FORM item PROPERTIES(i) READONLY name###prefix##AttributeItem;
-    EXTEND DESIGN item { itemHeaderColumn2 {ADD PROPERTY(name###prefix##AttributeItem); } }
+    EXTEND DESIGN item { itemHeader {ADD PROPERTY(name###prefix##AttributeItem); } }
 END
 
 // -------------------------------------- Типы атрибутов ------------------------------- //
@@ -584,8 +571,26 @@ inactiveSku(sku) += inactiveItem(sku);
 EXTEND FORM item PROPERTIES(i) inactiveItem;
 EXTEND FORM items FILTERGROUP inactive FILTER 'Активные' 'F10' activeItem(i) DEFAULT;
 
-EXTEND DESIGN item { itemPrimaryColumn1 { ADD i.itemBaseGroup; } }
-EXTEND DESIGN item { itemPrimaryColumn1 { NEW regionPrm AFTER i.itemBaseGroup {caption = 'Региональные свойства'; childConstraints = TO THE RIGHTBOTTOM;} } }
+EXTEND DESIGN item {
+    itemPrimaryColumn1 {
+        ADD i.itemBaseGroup {
+            columns = 2;
+            PROPERTY(compositionItem) {
+                minimumCharWidth = 20;
+                preferredCharWidth = 40;
+            }
+        }
+    }
+}
+EXTEND DESIGN item {
+    itemPrimaryColumn1 {
+        NEW regionPrm AFTER i.itemBaseGroup {
+            type = COLUMNS;
+            columns = 2;
+            caption = 'Региональные свойства';
+        }
+    }
+}
 
 // ------ Габариты товара ------ //
 
@@ -608,7 +613,13 @@ grossWeightItem(sku) <- netWeightItem(sku) WHEN CHANGED(netWeightItem(sku));
 //@defineDoubleItemAttribute(packQuantity, NUMERIC[9,3], 'Количество в грузовом месте', itemSizeGroup);
 //packQuantitySku(sku) += packQuantityItem(sku);
 
-EXTEND DESIGN item { itemPrimaryColumn2 { ADD i.itemSizeGroup; } }
+EXTEND DESIGN item {
+    itemPrimaryColumn2 {
+        ADD i.itemSizeGroup {
+            columns = 2;
+        }
+    }
+}
 
 loadDefaultItemAttributes 'Загрузить стандартные атрибуты товаров' = ABSTRACT ACTION LIST ();
 @implementLoadDefaultData(loadDefaultItemAttributes);

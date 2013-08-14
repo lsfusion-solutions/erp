@@ -7,7 +7,7 @@ REQUIRE Invoice, EmployeeStock, PriceRoundStore, Machinery, PricingOperation, Pr
 costLedgerDepartmentStore 'Учет по себестоимости' = DATA BOOLEAN (DepartmentStore) IN bookkeepingGroup;
 EXTEND FORM departmentStore PROPERTIES(d) costLedgerDepartmentStore;
 EXTEND DESIGN departmentStore {
-    headerExtraParams2{
+    headerExtraParams {
         ADD PROPERTY(costLedgerDepartmentStore);
     }
 }
@@ -531,23 +531,14 @@ DESIGN userPricing FROM DEFAULT{
     main {
         preferredSize = (1024, 768);
 
-        NEW specification.box BEFORE functions.box{
-
-            ADD d.box {
-                caption = 'Спецификация';
-                d.panel {
-                    childConstraints = TO THE RIGHTBOTTOM;
-                }
-            }
-        }
-        NEW header.box BEFORE specification.box {
-            childConstraints = TO THE RIGHT;
+        NEW header {
+            type = CONTAINERH;
 
             NEW headerRow1 {
-                childConstraints = TO THE BOTTOM;
+                fill = 1;
 
                 ADD p.documentHeaderGroup {
-                    childConstraints = TO THE RIGHT;
+                    type = CONTAINERH;
                     ADD PROPERTY(objectClassName) { preferredCharWidth = 10; }
                     ADD PROPERTY(nameDepartmentStoreUserPricing);
                     ADD PROPERTY(nameNumeratorObject);
@@ -557,17 +548,29 @@ DESIGN userPricing FROM DEFAULT{
                     ADD PROPERTY(timeUserPricing);
                 }
 
-                NEW headerColumn2 {
-                    childConstraints = TO THE RIGHT;
-                    ADD p.documentPrmGroup;
+                NEW params {
+                    ADD p.documentPrmGroup {
+                        columns = 2;
+                    }
                 }
-                ADD p.pricingCommitteeGroup;
+                ADD p.pricingCommitteeGroup {
+                    columns = 2;
+                }
             }
 
             ADD p.documentSumGroup {
-                childConstraints = TO THE BOTTOM;
+                columns = 1;
             }
         }
+
+        NEW specification.box {
+            fill = 1;
+            ADD d.box {
+                caption = 'Спецификация';
+            }
+        }
+
+        ADD functions.box;
 
         PROPERTY(formOk) {
             caption = 'Провести';
@@ -614,17 +617,16 @@ FORM pricings 'Акты расценки' TITLE 'Акты расценки'
 @extendFormFilterAccessLegalEntity(Pricing, p, pricings, supplier, supplier);
 
 DESIGN pricings FROM DEFAULT {
-    PROPERTY (deletep) {
-        askConfirm = TRUE;
-    }
-
-    NEW documentContainer BEFORE functions.box {
+    NEW pane {
+        fill = 1;
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
 
-        ADD p.box { fillVertical = 2.0; }
+        ADD p.box {
+            fill = 2;
+        }
 
         NEW documentDetail {
+            fill = 1;
             type = TABBED;
 
             ADD d.box {
@@ -638,26 +640,21 @@ DESIGN pricings FROM DEFAULT {
             }
             NEW printTab {
                 caption = 'Печатные формы';
-                NEW printContainer {
-                    caption = 'Печать';
-                    childConstraints = TO THE BOTTOM;
-                    ADD p.printGroup;
-                }
+                ADD p.printGroup;
             }
             NEW actionContainer {
                 caption = 'Действия';
-                childConstraints = TO THE RIGHT;
+                type = CONTAINERV;
                 NEW createdContainer {
                     caption = 'Создание на основе';
-                    childConstraints = TO THE BOTTOM;
                 }
                 NEW machineryContainer {
                     caption = 'Загрузка';
-                    childConstraints = TO THE BOTTOM;
                 }
             }
         }
     }
+    ADD functions.box;
 }
 
 NAVIGATOR {
@@ -911,7 +908,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     EXTEND FORM invoices
         PROPERTIES(i) FORCE PANEL printPricingInvoice SHOWIF createPricingInvoice(i)
     ;
-    EXTEND DESIGN invoices {printContainer { ADD i.printGroup;}}
+    EXTEND DESIGN invoices {printContainer { ADD i.printGroup{align=LEADING;};}}
 
     pricingPricingDetail(detail) += concrete###pricing###concrete###pricingDetail(detail);
     @defineDocumentDetailIndex(concrete###pricing);
@@ -1110,7 +1107,7 @@ META defineInvoicePricingRelation(sign, stockProp)
         PROPERTIES(p) fillInvoiceUserPricing, invoicesPricing READONLY
         PROPERTIES(d) descriptionIndexInvoiceDetailUserPricingDetail BEFORE deletepd
     ;
-    EXTEND DESIGN userPricing { headerColumn2 { ADD p.invoiceGroup; } }
+    EXTEND DESIGN userPricing { params { ADD p.invoiceGroup; } }
 
     EXTEND FORM pricings
         PROPERTIES(p) READONLY invoicesPricing, descriptionDocumentPricing

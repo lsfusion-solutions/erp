@@ -1,6 +1,6 @@
 MODULE Contract;
 
-REQUIRE System, Historizable, LegalEntity, Numerator, Document;
+REQUIRE System, Historizable, LegalEntity, Numerator, Document, PaymentCondition;
 
 // ---------------------------------------- Договора ------------------------------------ //
 
@@ -18,8 +18,8 @@ openWordContract 'Просмотреть файл договора' (contract) =
 
 
 //numberContract 'Номер договора' = DATA STRING[30] (Contract) IN contractGroup;
-dateFromContract 'Дата начала договора' = DATA DATE (Contract) IN contractGroup;
-dateToContract 'Дата окончания договора' = DATA DATE (Contract) IN contractGroup;
+dateFromContract 'Действует (с)' = DATA DATE (Contract) IN contractGroup;
+dateToContract 'Действует (по)' = DATA DATE (Contract) IN contractGroup;
 activeContract 'Действуюший' (contract, date) =
     dateFromContract(contract) <= date AND NOT dateToContract(contract) < date;
 
@@ -38,27 +38,33 @@ namePartyBContract 'Организация (покупатель)' (contract) = 
 countContractPartyAPartyB 'Кол-во договоров' (partyA, partyB) =
     GROUP SUM 1 IF partyAContract(contract) == partyA AND partyBContract(contract) == partyB BY partyA, partyB;
 
-GROUP attributeGroup 'Атрибуты' : public;
+GROUP paymentGroup 'Оплата' : public;
 
+// Валюты
 currencyContract = DATA Currency (Contract);
-nameCurrencyContract 'Валюта взаиморасчетов' (contract) = nameCurrency(currencyContract(contract)) IN attributeGroup;
-shortNameCurrencyContract 'Валюта взаиморасчетов' (contract) = shortNameCurrency(currencyContract(contract)) IN attributeGroup;
-symbolCurrencyContract 'Символ' (contract) = symbolCurrency(currencyContract(contract)) IN attributeGroup;
+nameCurrencyContract 'Валюта взаиморасчетов' (contract) = nameCurrency(currencyContract(contract)) IN paymentGroup;
+shortNameCurrencyContract 'Валюта взаиморасчетов' (contract) = shortNameCurrency(currencyContract(contract)) IN paymentGroup;
+symbolCurrencyContract 'Символ' (contract) = symbolCurrency(currencyContract(contract)) IN paymentGroup;
 
 typeExchangeContract (contract) = DATA TypeExchange (Contract);
-nameTypeExchangeContract 'Тип обмена' (contract) = nameTypeExchange(typeExchangeContract(contract)) IN attributeGroup;
+nameTypeExchangeContract 'Тип обмена' (contract) = nameTypeExchange(typeExchangeContract(contract)) IN paymentGroup;
 
 CONSTRAINT currencyContract(contract) != currencyTypeExchange(typeExchangeContract(contract))
     CHECKED BY typeExchangeContract MESSAGE 'Валюта типа обмена должна соответствовать валюте договора';
 
-noteContract 'Примечание' = DATA TEXT (Contract) MINCHARWIDTH 50 PREFCHARWIDTH 50 IN attributeGroup;
+// Условия оплаты
+paymentConditionContract 'Условия оплаты' =  DATA PaymentCondition (Contract);
+typePaymentContract 'Тип оплаты' (contract) = typePaymentCondition(paymentConditionContract(contract));
+descriptionPaymentConditionContract 'Условия оплаты' (contract) = descriptionPaymentCondition(paymentConditionContract(contract)) IN paymentGroup;
+
+noteContract 'Примечание' = DATA TEXT (Contract) MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
 editContract 'Редактировать' (contract) = ABSTRACT ACTION LIST (Contract) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM contracts 'Договоры'
     OBJECTS c = Contract
     PROPERTIES(c) READONLY namePartyAContract, namePartyBContract, seriesNumberContract, dateFromContract,
-                           dateToContract, nameCurrencyContract, nameTypeExchangeContract, noteContract
+                           dateToContract, nameCurrencyContract, nameTypeExchangeContract, descriptionPaymentConditionContract, noteContract
     PROPERTIES(c) editContract, DELETE
 
     DIALOG Contract OBJECT c

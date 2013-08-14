@@ -4,7 +4,8 @@ REQUIRE Currency,
         Document,
         LegalEntity,
         Numerator,
-        PriceListType;
+        PriceListType,
+        PaymentCondition;
 
 CLASS Agreement 'Соглашение' : NumeratedObject;
 TABLE agreement (Agreement);
@@ -160,6 +161,12 @@ priceListTypeAgreementSku (agreement, sku) = OVERRIDE priceListTypeAgreement(agr
 
 namePriceListTypeAgreementSku 'Вид цены' = namePriceListType(priceListTypeAgreementSku(agreement, sku));
 
+// ------------------------------------------- Условия оплаты ------------------------------------- //
+
+paymentConditionAgreement 'Условия оплаты' =  DATA PaymentCondition (Agreement);
+typePaymentAgreement 'Тип оплаты' (agreement) = typePaymentCondition(paymentConditionAgreement(agreement));
+descriptionPaymentConditionAgreement 'Условия оплаты' (agreement) = descriptionPaymentCondition(paymentConditionAgreement(agreement));
+
 // ------------------------------------------- Формы ---------------------------------------------- //
 
 FORM agreement 'Соглашение'
@@ -167,7 +174,7 @@ FORM agreement 'Соглашение'
     OBJECTS a = Agreement FIXED PANEL
     PROPERTIES(a) nameAgreement, nameNumeratorObject, numberObject, seriesObject, dateAgreement, timeAgreement,
                   fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
-                  nameCurrencyAgreement, namePriceListTypeAgreement, nameGroupTypeAgreement, noteAgreement,
+                  nameCurrencyAgreement, namePriceListTypeAgreement, descriptionPaymentConditionAgreement, nameGroupTypeAgreement, noteAgreement,
                   nameRRPPriceListTypeAgreement, nameCurrencyRRPPriceListTypeAgreement READONLY
 
     TREE supplierGroupTree f = LegalEntityGroup PARENT parentLegalEntityGroup
@@ -215,77 +222,78 @@ FORM agreement 'Соглашение'
 
 DESIGN agreement FROM DEFAULT {
 
-    NEW topContainer{
-        childConstraints = TO THE BOTTOM;
-        NEW headContainer {
-            caption = 'Шапка документа';
-            childConstraints = TO THE RIGHTBOTTOM;
-            ADD PROPERTY (nameAgreement);
-            ADD PROPERTY (nameNumeratorObject);
-            ADD PROPERTY (numberObject);
-            ADD PROPERTY (seriesObject);
-            ADD PROPERTY (dateAgreement);
-            ADD PROPERTY (timeAgreement);
+    NEW headContainer {
+        caption = 'Шапка документа';
+        type = CONTAINERH;
+        ADD PROPERTY (nameAgreement);
+        ADD PROPERTY (nameNumeratorObject);
+        ADD PROPERTY (numberObject);
+        ADD PROPERTY (seriesObject);
+        ADD PROPERTY (dateAgreement);
+        ADD PROPERTY (timeAgreement);
 
+    }
+    NEW firstContainer{
+        type = CONTAINERH;
+        NEW timeContainer{
+            caption = 'Период действия';
+            type = CONTAINERH;
+            ADD PROPERTY (fromDateAgreement);
+            ADD PROPERTY (fromTimeAgreement);
+            ADD PROPERTY (toDateAgreement);
+            ADD PROPERTY (toTimeAgreement);
         }
-        NEW firstContainer{
-            childConstraints = TO THE BOTTOM;
-            NEW timeContainer{
-                caption = 'Период действия';
-                childConstraints = TO THE RIGHTBOTTOM;
-                ADD PROPERTY (fromDateAgreement);
-                ADD PROPERTY (fromTimeAgreement);
-                ADD PROPERTY (toDateAgreement);
-                ADD PROPERTY (toTimeAgreement);
-            }
-            NEW propContainer{
-                caption = 'Параметры документа';
-                childConstraints = TO THE RIGHTBOTTOM;
-                ADD PROPERTY(nameCurrencyAgreement);
-                ADD PROPERTY(namePriceListTypeAgreement);
-                ADD PROPERTY(noteAgreement);
-            }
-            NEW rrpContainer{
-                caption = 'RRP';
-                childConstraints = TO THE RIGHTBOTTOM;
-                ADD PROPERTY(nameRRPPriceListTypeAgreement);
-                ADD PROPERTY(nameCurrencyRRPPriceListTypeAgreement);
+        NEW rrpContainer{
+            caption = 'RRP';
+            childConstraints = TO THE RIGHTBOTTOM;
+            ADD PROPERTY(nameRRPPriceListTypeAgreement);
+            ADD PROPERTY(nameCurrencyRRPPriceListTypeAgreement);
+        }
+    }
+    NEW propContainer{
+        caption = 'Параметры документа';
+        type = COLUMNS;
+        columns = 3;
+        ADD PROPERTY(nameCurrencyAgreement);
+        ADD PROPERTY(namePriceListTypeAgreement);
+        ADD PROPERTY(descriptionPaymentConditionAgreement);
+        ADD PROPERTY(noteAgreement);
+    }
+    NEW tabContainer {
+        fill = 1;
+        type = TABBED;
+        NEW supplierBox{
+            fill = 1;
+            caption = 'Поставщики';
+            type = SPLITH;
+            ADD supplierGroupTree.tree.box;
+            ADD cc.box {
+                fill = 3;
             }
         }
-            NEW tabContainer{
-                type = TABBED;
-                NEW supplierBox{
-                    caption = 'Поставщики';
-                    childConstraints = TO THE RIGHT;
-                    type = SPLITH;
-                    ADD supplierGroupTree.tree.box;
-                    ADD cc.box{
-                        fillHorizontal = 2.0;
-                    }
-                }
-                NEW customerBox{
-                    caption = 'Покупатели';
-                    childConstraints = TO THE RIGHT;
-                    type = SPLITH;
-                    ADD customerGroupTree.tree.box;
-                    ADD c.box{
-                        fillHorizontal = 2.0;
-                    }
-                }
-                NEW groupPane {
-                    childConstraints = TO THE BOTTOM;
-                    caption = 'Уточнение цен по ценовым группам';
-                    ADD PROPERTY(nameGroupTypeAgreement);
-                    ADD groupTree.tree.box;
-                }
-                NEW skuContainer{
-                    childConstraints = TO THE RIGHT;
-                    caption = 'Уточнение цен по товарам';
-                    type = SPLITH;
-                    ADD skuGroupTree.tree.box;
-                    ADD s.box{fillHorizontal = 3.0;}
-                }
+        NEW customerBox{
+            fill = 1;
+            caption = 'Покупатели';
+            type = SPLITH;
+            ADD customerGroupTree.tree.box;
+            ADD c.box {
+                fill = 3;
             }
+        }
+        NEW groupPane {
+            caption = 'Уточнение цен по ценовым группам';
+            ADD PROPERTY(nameGroupTypeAgreement);
+            ADD groupTree.tree.box;
+        }
+        NEW skuContainer{
+            fill = 1;
+            caption = 'Уточнение цен по товарам';
+            type = SPLITH;
+            ADD skuGroupTree.tree.box;
+            ADD s.box {
+                fill = 3;
+            }
+        }
     }
     ADD functions.box;
 }
@@ -441,8 +449,8 @@ EXTEND FORM legalEntity
             isSellerLegalEntity(s),
             l != s
 
-    FILTERGROUP filtersSupplier
-        FILTER 'Есть соглашение' 'F11' countAgreementSupplierCustomer(s, l)
+//    FILTERGROUP filtersSupplier
+//        FILTER 'Есть соглашение' 'F11' countAgreementSupplierCustomer(s, l)
 
     OBJECTS agc=Agreement
     PROPERTIES(agc, c) READONLY inAgreementCustomer
@@ -458,18 +466,18 @@ EXTEND FORM legalEntity
             isBuyerLegalEntity(c),
             c != l
 
-    FILTERGROUP filters3
-        FILTER 'Есть соглашение' 'F9' countAgreementSupplierCustomer(l, c)
+//    FILTERGROUP filters3
+//        FILTER 'Есть соглашение' 'F9' countAgreementSupplierCustomer(l, c)
 
 ;
 
 EXTEND DESIGN legalEntity {
     extendContainer {
-        docContainer{
+        docPurchaseContainer{
             ADD ags.box;
         }
 
-        docContainer2{
+        docSaleContainer{
             ADD agc.box;
         }
     }

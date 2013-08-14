@@ -225,22 +225,20 @@ FORM saleLedger 'Регистр продаж'
 @extendFormFilterAccessLegalEntity(SaleLedger, s, saleLedger, customer, customer);
 
 DESIGN saleLedger FROM DEFAULT {
-    main {
-        childConstraints = TO THE BOTTOM;
+    NEW top {
+        type = CONTAINERH;
         ADD dates.box {
-            childConstraints = TO THE RIGHT;
+            type = CONTAINERH;
             PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
             PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
         }
         ADD te.box {
-            childConstraints = TO THE RIGHT;
+            type = CONTAINERH;
             PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
             PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
         }
-        ADD s.box{
-            childConstraints = TO THE BOTTOM;
-        }
     }
+    ADD s.box;
     ADD functions.box;
 }
 
@@ -254,7 +252,7 @@ FORM saleSkuStock 'Продажи по неделям'
     OBJECTS te = TypeExchange FIXED PANEL
     PROPERTIES nameType = nameTypeExchange(te) SELECTOR, nameCurrencyTypeExchange(te) READONLY
 
-    OBJECTS w = INTEGER
+    OBJECTS w = INTEGER FIXED GRID
     FILTERS quantitySkuSoldWeekDateFromTo(w, dFrom, dTo)
 
     TREE stockTree sg = StockGroup PARENT parentStockGroup, ts = Stock
@@ -291,37 +289,37 @@ FORM saleSkuStock 'Продажи по неделям'
 
 DESIGN saleSkuStock FROM DEFAULT {
 
-    main {
-        NEW topContainer {
-            type = SPLITH;
-            childConstraints = TO THE RIGHT;
+    NEW topContainer {
+        fill = 1;
+        type = SPLITH;
 
-            NEW firstCase {
-                type = SPLITV;
-                childConstraints = TO THE BOTTOM;
+        NEW firstCase {
+            fill = 1;
+            type = SPLITV;
 
-                ADD stockTree.tree.box {caption = 'Магазины'; }
-                ADD skuTree.tree.box { caption = 'Товарные группы'; }
-            }
+            ADD stockTree.tree.box {caption = 'Магазины'; }
+            ADD skuTree.tree.box { caption = 'Товарные группы'; }
+        }
 
-            NEW secondCase {
-                fillHorizontal = 2;
-                childConstraints = TO THE BOTTOM;
+        NEW secondCase {
+            fill = 3;
 
-                ADD dates.box { childConstraints = TO THE RIGHT; }
+            NEW params {
+                type = CONTAINERH;
+                ADD dates.box {
+                    type = CONTAINERH;
+                }
                 ADD te.box {
-                    childConstraints = TO THE RIGHT;
+                    type = CONTAINERH;
                     PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
                     PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
                 }
-
-                REMOVE w.box;
-                ADD sts.box { fillVertical = 2; }
-
             }
+
+            ADD sts.box;
         }
-        ADD functions.box;
     }
+    ADD functions.box;
 }
 
 NAVIGATOR {

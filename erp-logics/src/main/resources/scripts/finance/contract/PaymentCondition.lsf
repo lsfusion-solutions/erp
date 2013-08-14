@@ -1,0 +1,95 @@
+MODULE PaymentCondition;
+
+REQUIRE System;
+
+NAMESPACE Contract;
+
+CLASS PaymentCondition 'Условия оплаты';
+TABLE paymentCondition(PaymentCondition);
+
+// Порядок оплаты
+
+CLASS AgreementPaymentType 'Порядок оплаты' {
+    prepayment 'С отсрочкой платежа',
+    implement 'По факту реализации',
+    requirement 'Платежное требование'
+}
+FORM agreementPaymentTypes
+    OBJECTS t = AgreementPaymentType
+    PROPERTIES(t) staticCaption
+    DIALOG AgreementPaymentType OBJECT t
+;
+
+typePaymentCondition = DATA AgreementPaymentType (PaymentCondition);
+nameTypePaymentCondition 'Тип оплаты' (paymentCondition) = staticCaption(typePaymentCondition(paymentCondition));
+
+isPrepaymentTypePaymentCondition(paymentCondition) = typePaymentCondition(paymentCondition) == AgreementPaymentType.prepayment;
+
+// Периоды рассрочки
+
+CLASS PaymentPeriod 'Период рассрочки';
+TABLE paymentPeriod(PaymentPeriod);
+
+countDaysPaymentPeriod 'Кол-во дней' = DATA INTEGER (PaymentPeriod);
+percentPaymentPeriod 'Процент' = DATA NUMERIC[8,3] (PaymentPeriod);
+descriptionPaymentPeriod(paymentPeriod) =
+    countDaysPaymentPeriod(paymentPeriod) + ' (' + percentPaymentPeriod(paymentPeriod) + '%)';
+paymentConditionPaymentPeriod 'Условия оплаты периода рассрочки' = DATA PaymentCondition(PaymentPeriod);
+
+descriptionPaymentCondition 'Условия оплаты' (paymentCondition) =
+    GROUP CONCAT descriptionPaymentPeriod(paymentPeriod) IF paymentConditionPaymentPeriod(paymentPeriod) == paymentCondition, ', '
+                BY paymentCondition
+                ORDER paymentPeriod;
+
+// Бонусы
+
+CLASS BonusPeriod 'Период бонуса';
+TABLE bonusPeriod(BonusPeriod);
+
+countDaysBonusPeriod 'Кол-во дней' = DATA INTEGER (BonusPeriod);
+percentBonusPeriod 'Процент' = DATA NUMERIC[8,3] (BonusPeriod);
+paymentConditionBonusPeriod 'Условия оплаты периода бонуса' = DATA PaymentCondition (BonusPeriod);
+
+bonusPeriodPaymentConditionDays(paymentCondition, days) = GROUP AGGR bonusPeriod BY paymentConditionBonusPeriod(bonusPeriod),
+                                                                                      countDaysBonusPeriod(bonusPeriod)
+                                                                                   WHERE bonusPeriod IS BonusPeriod;
+
+sumPercentPaymentCondition(paymentCondition) = GROUP SUM percentPaymentPeriod(paymentPeriod) BY paymentConditionPaymentPeriod(paymentPeriod);
+CONSTRAINT sumPercentPaymentCondition(paymentCondition) != 100.0 CHECKED BY sumPercentPaymentCondition
+    MESSAGE 'Сумма процентов рассрочки должна быть равна 100';
+
+FORM paymentCondition 'Условие оплаты'
+
+    OBJECTS pc = PaymentCondition FIXED PANEL
+    PROPERTIES(pc) nameTypePaymentCondition
+
+    OBJECTS pp = PaymentPeriod FIXED GRID
+    PROPERTIES(pp) countDaysPaymentPeriod SHOWIF isPrepaymentTypePaymentCondition(pc),
+                   percentPaymentPeriod SHOWIF isPrepaymentTypePaymentCondition(pc)
+    PROPERTIES(pp) ADDOBJ SHOWIF isPrepaymentTypePaymentCondition(pc),
+                   DELETESESSION SHOWIF isPrepaymentTypePaymentCondition(pc)
+
+    OBJECTS bp = BonusPeriod
+    PROPERTIES(bp) countDaysBonusPeriod, percentBonusPeriod
+    PROPERTIES(bp) ADDOBJ, DELETESESSION
+
+    FILTERS paymentConditionPaymentPeriod(pp) == pc,
+            paymentConditionBonusPeriod(bp) == pc
+
+    EDIT PaymentCondition OBJECT pc
+;
+
+DESIGN paymentCondition FROM DEFAULT{
+    main{
+        preferredSize = (1024, 768);
+    }
+}
+
+FORM paymentConditions 'Условия оплаты'
+
+    OBJECTS pc = PaymentCondition
+    PROPERTIES(pc) READONLY descriptionPaymentCondition, nameTypePaymentCondition
+    PROPERTIES(pc) ADDFORM, EDITFORM, DELETE
+
+    DIALOG PaymentCondition OBJECT pc
+;

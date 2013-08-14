@@ -159,33 +159,26 @@ FORM naturalLossGroups 'Справочник норм естественной �
 DESIGN naturalLossGroups FROM DEFAULT {
 
     NEW topContainer {
-        childConstraints = TO THE BOTTOM;
+        fill = 1;
+        type = CONTAINERV;
         ADD c.box;
-        NEW firstContainer{
+        NEW firstContainer {
+            fill = 1;
             type = SPLITH;
-            childConstraints = TO THE RIGHT;
+
             ADD treeNaturalLoss.tree.box;
             NEW firstCase {
+                fill = 3;
                 type = SPLITV;
-                childConstraints = TO THE BOTTOM;
-                fillHorizontal = 4;
-                ADD sg.box;
+                ADD sg.box {
+                    fill = 2;
+                }
                 ADD d.box;
             }
         }
     }
 
     ADD functions.box;
-
-    PROPERTY (deleten) {
-    caption = 'Удалить';
-    askConfirm = TRUE;
-    }
-
-    PROPERTY (deletesg) {
-    caption = 'Удалить';
-    askConfirm = TRUE;
-    }
 }
 
 //------------------------------------- Ведомость расчета естественной убыли ----------------------------------//
@@ -210,8 +203,9 @@ CLASS NaturalLossPosted 'Проведенная ведомость естест�
 //countryNaturalLoss(naturalLoss) = countryLegalEntity(legalEntityStore(storeDepartmentStore(departmentStoreNaturalLoss(naturalLoss))));
 countryNaturalLossDetail(naturalLossDetail) = countryNaturalLoss(naturalLossNaturalLossDetail(naturalLossDetail));
 
-dateFromNaturalLoss 'Дата с' = DATA DATE (NaturalLoss) IN documentPrmGroup;
-dateToNaturalLoss 'Дата по' = DATA DATE (NaturalLoss) IN documentPrmGroup;
+GROUP fillNaturalLossGroup 'Автоматическое заполнение' : public;
+dateFromNaturalLoss 'Дата с' = DATA DATE (NaturalLoss) IN fillNaturalLossGroup;
+dateToNaturalLoss 'Дата по' = DATA DATE (NaturalLoss) IN fillNaturalLossGroup;
 
 dateFromNaturalLossDetail 'Дата с' (naturalLossDetail) = dateFromNaturalLoss(naturalLossNaturalLossDetail(naturalLossDetail));
 dateToNaturalLossDetail 'Дата по' (naturalLossDetail) = dateToNaturalLoss(naturalLossNaturalLossDetail(naturalLossDetail));
@@ -288,7 +282,7 @@ toFillNaturalLossDetail 'Заполнить на основе продаж' = AC
             ASSIGN sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
         };
     };
-} IN documentPrmGroup CONFIRM;
+} IN fillNaturalLossGroup CONFIRM;
 
 FORM naturalLoss 'Ведомость естественной убыли'
     OBJECTS s=NaturalLoss FIXED PANEL
@@ -311,37 +305,38 @@ FORM naturalLoss 'Ведомость естественной убыли'
 
 DESIGN naturalLoss FROM DEFAULT{
 
-    NEW header.box  BEFORE d.box{
-        childConstraints = TO THE RIGHT;
+    NEW header.box BEFORE d.box {
+        type = CONTAINERH;
 
         NEW headerCol1 {
-            childConstraints = TO THE BOTTOM;
+            fill = 1;
+            type = CONTAINERV;
 
             ADD s.documentHeaderGroup {
-                childConstraints = TO THE RIGHTBOTTOM;
+                type = CONTAINERH;
                 ADD PROPERTY(objectClassName);
                 ADD PROPERTY(nameStockNaturalLoss);
                 ADD PROPERTY(numberObject);
                 ADD PROPERTY(seriesObject);
                 ADD PROPERTY(dateNaturalLoss);
                 ADD PROPERTY(timeNaturalLoss);
-            };
-
-            NEW headerCol1Row2 {
-                childConstraints = TO THE RIGHT;
-                ADD s.documentPrmGroup {
-                }
             }
 
-            ADD PROPERTY(noteNaturalLoss);
+            ADD s.documentPrmGroup {
+                columns = 2;
+            }
+            ADD s.fillNaturalLossGroup {
+                columns = 3;
+            }
         }
 
         ADD s.documentSumGroup {
-            childConstraints = TO THE BOTTOM;
+            columns = 1;
         }
-        PROPERTY(formOk) {
-            caption = 'Провести';
-        }
+    }
+
+    PROPERTY(formOk) {
+        caption = 'Провести';
     }
 }
 
@@ -389,17 +384,14 @@ FORM naturalLosses 'Ведомости естественной убыли'
 //    ADD functions.box;
 //}
 DESIGN naturalLosses FROM DEFAULT {
-    PROPERTY (deletes) {
-        askConfirm = TRUE;
-    }
-
     NEW documentContainer BEFORE functions.box {
+        fill = 1;
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
 
-        ADD s.box { fillVertical = 2.0; }
+        ADD s.box { fill = 2; }
 
         NEW documentDetail {
+            fill = 1;
             type = TABBED;
 
             ADD d.box {
@@ -415,7 +407,6 @@ DESIGN naturalLosses FROM DEFAULT {
                 caption = 'Печатные формы';
                 NEW printContainer {
                     caption = 'Печать';
-                    childConstraints = TO THE BOTTOM;
                 }
             }
         }
