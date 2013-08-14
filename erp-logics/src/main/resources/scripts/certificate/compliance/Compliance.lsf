@@ -40,10 +40,16 @@ textCompliance 'Текст сертификата' = DATA TEXT (Compliance);
 legalEntityCompliance = DATA LegalEntity(Compliance);
 nameLegalEntityCompliance 'Держатель' (compliance) = nameLegalEntity(legalEntityCompliance(compliance));
 
+// Файл сертификата
+wordCompliance 'Файл сертификата'  = DATA WORDFILE (Compliance);
+saveWordCompliance 'Загрузить файл сертификата' (compliance) = ACTION LOADFILE wordCompliance(compliance);
+openWordCompliance 'Просмотреть файл сертификата' (compliance) = ACTION OPENFILE wordCompliance(compliance);
+
 FORM compliance 'Сертификат соответствия'
     OBJECTS c = Compliance FIXED PANEL
     PROPERTIES(c) objectClassName, nameNumeratorObject, numberObject, seriesObject, dateCompliance, timeCompliance,
-                  fromDateCompliance, toDateCompliance, nameLegalEntityCompliance
+                  fromDateCompliance, toDateCompliance, nameLegalEntityCompliance, saveWordCompliance, openWordCompliance
+
     EDIT Compliance OBJECT c
 ;
 
@@ -75,6 +81,12 @@ DESIGN compliance FROM DEFAULT{
                     childConstraints = TO THE RIGHTBOTTOM;
                     ADD PROPERTY(nameLegalEntityCompliance);
                 }
+            }
+            NEW fileContainer{
+                type = CONTAINERH;
+                caption = 'Файл сертификата';
+                ADD PROPERTY(openWordCompliance);
+                ADD PROPERTY(saveWordCompliance);
             }
         }
         ADD functions.box;
