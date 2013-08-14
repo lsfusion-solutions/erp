@@ -173,7 +173,7 @@ FORM pickingOrders 'Заказы на комплектицию'
 
     PROPERTIES (o) READONLY countPickingOrderDetailPickingOrder, quantityPickingOrderDetailPickingOrder
 
-    PROPERTIES (o) READONLYIF isReadonly() objectClassName, descriptionPickingOrder //notePickingOrder
+    PROPERTIES (o) READONLYIF isReadonly() objectClassName //notePickingOrder
 
     PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable
 
@@ -651,6 +651,34 @@ EXTEND DESIGN pickingOrders {
                 ADD PROPERTY(partiallyAssembledPickingOrder);
             }
         }
+    }
+}
+
+//-------------------------------- Печатная форма-------------------------------//
+
+FORM printPickingOrder 'Заказ на комплектицию' PRINT
+    OBJECTS o = PickingOrder FIXED PANEL
+    PROPERTIES (o) READONLY seriesNumberPickingOrder, datePickingOrder, timePickingOrder,
+                   nameStockPickingOrder, objectClassName
+
+    PROPERTIES (o) READONLY countPickingOrderDetailPickingOrder, quantityPickingOrderDetailPickingOrder,
+                   namePerformerPickingOrder, startDatePickingOrder, startTimePickingOrder, statusPickingPickingOrder,
+                   finishDatePickingOrder, finishTimePickingOrder
+
+    OBJECTS d=PickingOrderDetail
+    PROPERTIES (d) READONLY indexPickingOrderDetail, nameSkuPickingOrderDetail, shortNameUOMSkuPickingOrderDetail,
+                   nameBatchPickingOrderDetail, nameBinPickingOrderDetail, quantityPickingOrderDetail
+    FILTERS pickingOrderPickingOrderDetail(d) == o
+;
+
+printPickingOrder 'Заказ на комплектицию' (order) = ACTION FORM printPickingOrder OBJECTS o = order IMAGE 'print.png' IN printGroup;
+
+EXTEND FORM pickingOrders
+    PROPERTIES(o) FORCE PANEL printPickingOrder
+;
+EXTEND DESIGN pickingOrders {
+    printContainer {
+        ADD o.printGroup;
     }
 }
 
