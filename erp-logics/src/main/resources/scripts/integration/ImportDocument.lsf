@@ -1,0 +1,64 @@
+MODULE ImportDocument;
+
+REQUIRE System;
+
+CLASS ImportTypeFileExtension 'Тип файла' {
+    xls 'XLS',
+    xlsx 'XLSX',
+    csv 'CSV',
+    dbf 'DBF'
+}
+
+CLASS ImportTypeDetail 'Свойство' {
+    idItem 'Код товара',
+    quantity 'Количество',
+    price 'Цена',
+    sum 'Сумма',
+    VAT	'НДС, %',
+    VATSum 'Сумма НДС',
+    invoiceSum 'Сумма с НДС'
+}
+
+CLASS ImportType 'Тип импорта';
+
+nameImportType 'Имя' =  DATA VARSTRING[100](ImportType);
+startRowImportType 'Начинать со строки' = DATA INTEGER(ImportType);
+byBarcodeImportType 'Импортировать по штрихкоду' = DATA BOOLEAN(ImportType);
+
+indexImportTypeImportTypeDetail 'Поле' = DATA VARSTRING[10] (ImportType, ImportTypeDetail);
+
+importTypeFileExtensionImportType  = DATA ImportTypeFileExtension(ImportType);
+captionImportTypeFileExtensionImportType 'Тип файла' (importType) = staticCaption(importTypeFileExtensionImportType(importType));
+
+FORM importTypeDetails
+    OBJECTS itd = ImportTypeDetail
+    PROPERTIES(itd) staticCaption
+    DIALOG ImportTypeDetail OBJECT itd
+;
+
+FORM importTypeFileExtensions 'Типы файлов'
+    OBJECTS f=ImportTypeFileExtension
+    PROPERTIES(f) READONLY staticCaption
+    DIALOG ImportTypeFileExtension OBJECT f
+;
+
+FORM importType 'Тип импорта'
+    OBJECTS it=ImportType FIXED PANEL
+    PROPERTIES(it) nameImportType, captionImportTypeFileExtensionImportType, startRowImportType, byBarcodeImportType
+    EDIT ImportType OBJECT it
+;
+
+FORM importTypes 'Типы импорта'
+    OBJECTS it=ImportType
+    PROPERTIES(it) READONLY nameImportType, captionImportTypeFileExtensionImportType, startRowImportType, byBarcodeImportType
+    PROPERTIES(it) ADDFORM, EDITFORM, DELETE
+    DIALOG ImportType OBJECT it
+
+     OBJECTS itd = ImportTypeDetail
+     PROPERTIES(itd) staticCaption
+     PROPERTIES(it,itd) indexImportTypeImportTypeDetail
+;
+
+
+
+
