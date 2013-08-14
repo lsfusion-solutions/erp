@@ -4,10 +4,53 @@ REQUIRE SaleInvoice, PriceListLedger;
 
 NAMESPACE Sale;
 
-@defineDocumentInterfaceCreate (invoice, showManufacturingPrice, 'Цена изготовителя');
+//заказ
+@defineDocumentInterfaceCreate (order, showManufacturingPrice, 'Цена изготовителя');
 
 // -- Операция
 @defineOperationProperty(showManufacturingPrice, 'Цена изготовителя', showContainer);
+@deriveDocumentOperationProperty(UserOrder, showManufacturingPrice);
+
+@defineDocumentInterfaceDetailPriceCustomPrefix(orderDetail, manufacturing, ' изготовителя');
+@defineDocumentInterfaceDetailInclVATCustomPrefix (orderDetail);
+includeVATUserOrderDetail(detail) <-  fixedPriceSku(skuUserOrderDetail(detail)) WHEN CHANGED (skuUserOrderDetail(detail));
+@defineDocumentInterfaceDetailMPVATCustomPrefix (orderDetail, manufacturing, );
+
+@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userOrder, manufacturingPriceStockPriceListType, manufacturing, sku, supplierStock);
+
+wholesaleMarkupOrderDetail 'Оптовая надбавка (от цены изг.)' (detail) = round2([(X/Y-1)*100](priceOrderDetail(detail),manufacturingMVATPriceOrderDetail(detail)));
+wholesaleMarkupUserOrderDetail 'Оптовая надбавка (от цены изг.)' (detail) = round2([(X/Y-1)*100](priceUserOrderDetail(detail),manufacturingMVATPriceUserOrderDetail(detail)));
+
+@defineDocumentInterfaceDetailDataSumPrefix (order, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
+@deriveDocumentDetailSumPrefix(userOrder, manufacturing, currency, quantity); // записываем сумму изготовителя
+
+@defineDocumentInterfaceHeaderItemSum (order, manufacturing, manufacturing);
+
+EXTEND FORM userOrder
+    PROPERTIES(o)  showManufacturingPriceUserOrder
+    PROPERTIES(d)  SHOWIF showManufacturingPriceUserOrder(o) AFTER invoiceSumUserOrderDetail  manufacturingSumUserOrderDetail, includeVATUserOrderDetail,
+                   wholesaleMarkupUserOrderDetail READONLY, manufacturingPriceUserOrderDetail
+
+;
+EXTEND DESIGN userOrder {
+    headerExtraParams {
+        NEW headerManufacturing {
+            caption = 'Цена изготовителя';
+            ADD PROPERTY(showManufacturingPriceUserOrder);
+        }
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES(o) READONLYIF isReadonly() showManufacturingPriceOrder
+    PROPERTIES(d) READONLY  SHOWIF showManufacturingPriceOrder(o) AFTER invoiceSumOrderDetail manufacturingSumOrderDetail, includeVATOrderDetail,
+                  wholesaleMarkupOrderDetail, manufacturingPriceOrderDetail
+;
+
+//накладная
+@defineDocumentInterfaceCreate (invoice, showManufacturingPrice, 'Цена изготовителя');
+
+// -- Операция
 @deriveDocumentOperationProperty(UserInvoice, showManufacturingPrice);
 
 @defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, manufacturing, ' изготовителя');
