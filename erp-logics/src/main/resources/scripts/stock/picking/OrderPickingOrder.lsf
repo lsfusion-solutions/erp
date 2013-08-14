@@ -146,6 +146,11 @@ META definePickingOrderInvoiceAction (sign, stockProp)
                                                               LIMIT STRICT quantityOrderDetail (orderDetail)
                                                               BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
                                                               ORDER orderDetail;
+    //-- Количество излишне подобранных товаров, которых нет в заказе
+    quantityPickingPickingDetailOrderSku (order, sku)= GROUP SUM pickingOrderDetail(detail) BY orderOrderDetail(detail), skuOrderDetail(detail);
+
+    excessQuantityPickingPickingDetailOrderSku (order, sku) = pickingPickingDetailOrderSku(order, sku) (-) quantityPickingPickingDetailOrderSku (order, sku);
+    excessQuantityPickingPickingDetailOrder( order) = GROUP SUM 1 IF excessQuantityPickingPickingDetailOrderSku (order, sku) >0 BY order;
 
     overCreatePickingDetailUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
     createPickingExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION LIST (UserInvoice, Order);
@@ -172,6 +177,14 @@ META definePickingOrderInvoiceAction (sign, stockProp)
 
                     EXEC overCreatePickingDetailUserInvoiceDetailOrderDetail(d, orderDetail);
             }
+
+        FOR excessQuantityPickingPickingDetailOrderSku(order, sku) > 0 ADDOBJ d = UserInvoiceDetail DO {
+            userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            orderUserInvoiceDetail(d) <- order;
+            skuUserInvoiceDetail(d) <- sku;
+            quantityUserInvoiceDetail (d) <- excessQuantityPickingPickingDetailOrderSku(order, sku);
+//            data###stockProp###userInvoiceDetail (d) <- data###stockProp###orderDetail(orderDetail);
+        }
     }
 
     fillPickingUserInvoiceOrder = ACTION (userInvoice, order) {
@@ -206,6 +219,9 @@ META definePickingOrderInvoiceAction (sign, stockProp)
 
     movePickingUserInvoiceOrder 'Накладная по комплектации'###sign =  ACTION (order) NEWSESSION{
         EXEC createPickingUserInvoiceOrder(order);
+        IF excessQuantityPickingPickingDetailOrder(order) THEN {
+            MESSAGE 'В накладной присутствуют товары, не указанные в заказе';
+        }
         FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
     } TOOLBAR;
 

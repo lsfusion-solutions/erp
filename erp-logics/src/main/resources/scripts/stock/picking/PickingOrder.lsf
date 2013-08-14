@@ -69,7 +69,7 @@ changeBatchUserPickingOrderDetail = ACTION (detail) {
     IF formResult() == FormResult.ok THEN {
         ASSIGN batchUserPickingOrderDetail(detail) <- chosenObject('bt');
     } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batchUserPickingOrderDetail(userOrderDetail) <- NULL;
+        ASSIGN batchUserPickingOrderDetail(detail) <- NULL;
     }
 };
 
@@ -280,7 +280,7 @@ changeBatchUserPickingDetail = ACTION (detail) {
     IF formResult() == FormResult.ok THEN {
         ASSIGN batchUserPickingDetail(detail) <- chosenObject('bt');
     } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batchUserPickingDetail(userPickingDetail) <- NULL;
+        ASSIGN batchUserPickingDetail(detail) <- NULL;
     }
 };
 
@@ -552,8 +552,8 @@ countPickingOrderSkuPickingOrder 'Кол-во наименований' (picking
 quantityPickingDetailSkuPickingOrder 'Кол-во в комплектациях' (sku, pickingOrder) = GROUP SUM quantityPickingDetailSkuPicking(sku, picking) BY sku, pickingOrderPicking(picking);
 countEqualPickingOrderSkuPickingOrder 'Кол-во наименований с равным кол-ом товара' (pickingOrder) = GROUP SUM 1 IF quantityPickingDetailSkuPickingOrder(sku, pickingOrder) == quantityPickingOrderDetailSkuPickingOrder(sku, pickingOrder) BY pickingOrder;
 
-calcPartPickingOrder 'Частично собран' (pickingOrder) = countPickingOrderSkuPickingOrder(pickingOrder) > countEqualPickingOrderSkuPickingOrder(pickingOrder);
 calcFullPickingOrder 'Полностью собран' (pickingOrder) = countPickingOrderSkuPickingOrder(pickingOrder) == countEqualPickingOrderSkuPickingOrder(pickingOrder);
+calcPartPickingOrder 'Частично собран' (pickingOrder) = quantityPickingsPickingOrder(pickingOrder) AND NOT calcFullPickingOrder(pickingOrder);
 
 acceptedPickingOrder 'Принят в работу' = DATA BOOLEAN (PickingOrder);
 startDatePickingOrder 'Дата начала' = DATA DATE (PickingOrder);
