@@ -1,7 +1,35 @@
 MODULE SalePickingOrder;
 
-REQUIRE OrderPickingOrder, SaleOrder, SaleBin;
+REQUIRE OrderPickingOrder, SaleOrder, SaleBin, SaleInvoice;
 
 NAMESPACE Sale;
 
 @defineOrderPickingOrder(' (продажа)', supplierStock);
+@definePickingOrderInvoiceAction (' (продажа)', supplierStock);
+
+pickingBatchOrderDetail (batch, orderDetail) = PARTITION UNGROUP pickingOrderDetail
+                                                           LIMIT STRICT currentBalanceBatchStock(batch, supplierStockOrderDetail(orderDetail)) IF skuBatch(batch) == skuOrderDetail(orderDetail)
+                                                           BY orderDetail
+                                                           ORDER orderBatch(batch);
+
+createPickingExplicitBatchDetailUserInvoiceOrder (userInvoice, order) += ACTION (userInvoice, order) {
+    FOR orderOrderDetail(orderDetail) == order AND pickingBatchOrderDetail(batch, orderDetail)
+        ADDOBJ d = UserInvoiceDetail DO {
+            ASSIGN userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            ASSIGN orderUserInvoiceDetail(d) <- order;
+            ASSIGN skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+            ASSIGN batchUserInvoiceDetail(d) <- batch;
+            ASSIGN quantityUserInvoiceDetail (d) <- pickingBatchOrderDetail(batch, orderDetail);
+       // todo: решить какие цены задавать: из заказа или из партии
+            ASSIGN barcodePackUserInvoiceDetail(d) <- barcodePackOrderDetail(orderDetail);
+            ASSIGN amountPackUserInvoiceDetail(d) <- amountPackOrderDetail(orderDetail);
+            ASSIGN packQuantityUserInvoiceDetail (d) <- pickingOrderDetail(orderDetail)/amountPackOrderDetail(orderDetail);
+            ASSIGN VATUserInvoiceDetail (d) <- VATOrderDetail(orderDetail);
+            ASSIGN valueVATUserInvoiceDetail (d) <- valueVATOrderDetail(orderDetail);
+            ASSIGN priceListTypeUserInvoiceDetail (d) <- priceListTypeOrderDetail(orderDetail);
+            ASSIGN priceUserInvoiceDetail (d) <- priceOrderDetail(orderDetail);
+            ASSIGN invoicePriceUserInvoiceDetail (d) <- invoicePriceOrderDetail(orderDetail);
+            ASSIGN sumUserInvoiceDetail (d) <- sumOrderDetail(orderDetail);
+            ASSIGN dataSupplierStockUserInvoiceDetail (d) <- dataSupplierStockOrderDetail(orderDetail);
+        }
+}

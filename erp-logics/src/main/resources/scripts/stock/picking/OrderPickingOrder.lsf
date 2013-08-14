@@ -1,6 +1,6 @@
 MODULE OrderPickingOrder;
 
-REQUIRE PickingOrder, Order, Bin;
+REQUIRE PickingOrder, Order, Bin, OrderInvoice;
 
 NAMESPACE Order;
 
@@ -52,7 +52,9 @@ META defineOrderPickingOrder(sign, stockProp)
             }
         }
     }
-
+    EXTEND FORM orders
+        PROPERTIES(o)  READONLY createPickingOrderOrder
+    ;
     //-------------------- Ячейки -----------------------//
 
 
@@ -115,6 +117,8 @@ META defineOrderPickingOrder(sign, stockProp)
     statusPickingOrder 'Статус комплектации' (order) = statusPickingPickingOrder(orderPickingOrderOrder(order));
     backgroundStatusPickingOrder 'Цвет' (order) = backgroundStatusPickingPickingOrder(orderPickingOrderOrder(order));
 
+    calcPartOrFullOrder 'Собран' (order) = calcPartOrder(order) OR calcFullOrder(order);
+
     EXTEND FORM orders
         PROPERTIES(o) READONLY FORCE PANEL namePerformerOrder, startDateTimeOrder, finishDateTimeOrder, statusPickingOrder BACKGROUND backgroundStatusPickingOrder(o)
     ;
@@ -129,6 +133,95 @@ META defineOrderPickingOrder(sign, stockProp)
                 ADD PROPERTY(finishDateTimeOrder);
             }
         }
+    }
+END
+
+//-- Действие
+
+META definePickingOrderInvoiceAction (sign, stockProp)
+
+    pickingPickingDetailOrderSku 'Скомплектовано' (order, sku) = GROUP SUM quantityPickingDetail(pickingDetail)
+                                                               BY orderPickingOrder(pickingOrderPicking(pickingPickingDetail(pickingDetail))), skuPickingDetail(pickingDetail);
+    pickingOrderDetail 'Кол-во (скомплектовано)' (orderDetail) = PARTITION UNGROUP pickingPickingDetailOrderSku
+                                                              LIMIT STRICT quantityOrderDetail (orderDetail)
+                                                              BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
+                                                              ORDER orderDetail;
+
+    overCreatePickingDetailUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
+    createPickingExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION LIST (UserInvoice, Order);
+
+    createPickingDetailUserInvoiceOrder = ACTION (userInvoice, order) {
+        IF useExplicitBatchDetailUserInvoiceOrder(userInvoice, order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
+            EXEC createPickingExplicitBatchDetailUserInvoiceOrder(userInvoice, order);
+        } ELSE
+            FOR orderOrderDetail(orderDetail) == order AND
+                pickingOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
+                AND inOrderDetailUserInvoice(orderDetail, userInvoice)
+                ADDOBJ d = UserInvoiceDetail DO {
+                    userInvoiceUserInvoiceDetail(d) <- userInvoice;
+                    orderUserInvoiceDetail(d) <- order;
+                    skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+                    batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
+                    quantityUserInvoiceDetail (d) <- pickingOrderDetail(orderDetail);
+                    VATUserInvoiceDetail (d) <- VATOrderDetail(orderDetail);
+                    valueVATUserInvoiceDetail (d) <- valueVATOrderDetail(orderDetail);
+                    priceListTypeUserInvoiceDetail (d) <- priceListTypeOrderDetail(orderDetail);
+                    priceUserInvoiceDetail (d) <- priceOrderDetail(orderDetail);
+                    invoicePriceUserInvoiceDetail (d) <- invoicePriceOrderDetail(orderDetail);
+                    data###stockProp###userInvoiceDetail (d) <- data###stockProp###orderDetail(orderDetail);
+
+                    EXEC overCreatePickingDetailUserInvoiceDetailOrderDetail(d, orderDetail);
+            }
+    }
+
+    fillPickingUserInvoiceOrder = ACTION (userInvoice, order) {
+        ASSIGN supplierUserInvoice(userInvoice) <- supplierOrder(order) WHERE supplierOrder(order);
+        ASSIGN supplierStockUserInvoice(userInvoice) <- supplierStockOrder(order) WHERE supplierStockOrder(order);
+
+        ASSIGN customerUserInvoice(userInvoice) <- customerOrder(order) WHERE customerOrder(order);
+        ASSIGN customerStockUserInvoice(userInvoice) <- customerStockOrder(order) WHERE customerStockOrder(order);
+
+        ASSIGN currencyUserInvoice(userInvoice) <- currencyOrder(order) WHERE currencyOrder(order);
+        ASSIGN agreementUserInvoice(userInvoice) <- agreementOrder(order) WHERE agreementOrder(order);
+        ASSIGN priceListTypeUserInvoice(userInvoice) <- priceListTypeOrder(order) WHERE priceListTypeOrder(order);
+//        ASSIGN contractSkuUserInvoice(userInvoice) <- contractSkuOrder(order) WHERE contractSkuOrder(order);
+//        ASSIGN isCommissionUserInvoice(userInvoice) <- isCommissionOrder(order) WHERE isCommissionOrder(order);
+
+        ASSIGN operationUserInvoice(userInvoice) <- operationOrder(order) WHERE operationOrder(order);
+
+        ASSIGN noteUserInvoice(userInvoice) <- noteOrder(order) WHERE noteOrder(order);
+
+        EXEC createPickingDetailUserInvoiceOrder(userInvoice, order);
+    }
+
+    createPickingUserInvoiceOrder 'Создать накладную по комплектации' = ACTION (order) {
+        IF order IS Order THEN {
+            ASSIGN  userInvoiceOrder(order) <- NULL;
+            FOR ADDOBJ i = UserInvoice DO {
+                EXEC fillPickingUserInvoiceOrder(i, order);
+                ASSIGN  userInvoiceOrder(order) <- i;
+            }
+        }
+    }
+
+    movePickingUserInvoiceOrder 'Накладная по комплектации'###sign =  ACTION (order) NEWSESSION{
+        EXEC createPickingUserInvoiceOrder(order);
+        FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
+    } TOOLBAR;
+
+    EXTEND FORM orders
+        PROPERTIES(o) SHOWIF calcPartOrFullOrder(o) movePickingUserInvoiceOrder
+    ;
+    EXTEND DESIGN orders {
+        createdContainer{
+            ADD PROPERTY(movePickingUserInvoiceOrder);
+        }
+    }
+
+    overCreatePickingDetailUserInvoiceDetailOrderDetail(i, o) += ACTION (i, o) {
+        ASSIGN barcodePackUserInvoiceDetail(i) <- barcodePackOrderDetail(o);
+        ASSIGN amountPackUserInvoiceDetail(i) <- amountPackOrderDetail(o);
+        ASSIGN packQuantityUserInvoiceDetail (i) <- pickingOrderDetail(o)/amountPackOrderDetail(o);
     }
 END
 
