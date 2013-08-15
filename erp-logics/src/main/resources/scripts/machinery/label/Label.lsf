@@ -107,7 +107,8 @@ includeLabelTypeSku 'Из документа' (labelType, sku) = OVERRIDE
 
 FORM labelType 'Тип ценника'
     OBJECTS l = LabelType FIXED PANEL
-    PROPERTIES(l) nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType, namePriceListTypeLabelType, nameGroupTypeLabelType
+    PROPERTIES(l) nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType,
+                  namePriceListTypeLabelType, nameGroupTypeLabelType
 
     TREE treeStore a=STRING[3], st=StoreType, s=Store
     PROPERTIES READONLY OBJVALUE(a), nameStockGroup(st), nameStore(s)
@@ -145,27 +146,42 @@ FORM labelType 'Тип ценника'
 DESIGN labelType FROM DEFAULT {
     main {
         preferredSize = (1024, 768);
-        childConstraints = TO THE BOTTOM;
-        ADD l.box;
+
+        ADD l.box {
+            NEW wor1 {
+                type = CONTAINERH;
+                ADD PROPERTY(nameLabelType);
+                ADD PROPERTY(widthLabelType);
+                ADD PROPERTY(heightLabelType);
+                ADD PROPERTY(nameOrientationLabelType);
+            }
+            NEW wor2 {
+                type = CONTAINERH;
+                ADD PROPERTY(fileTemplateLabelType);
+                ADD PROPERTY(namePriceListTypeLabelType);
+                ADD PROPERTY(nameGroupTypeLabelType);
+            }
+        };
         NEW specification{
             type = TABBED;
+            fill = 1;
             NEW departmentCase {
                 caption = 'Склады';
-                childConstraints = TO THE RIGHT;
-                ADD treeStore.tree.box {fillHorizontal = 1;}
-                ADD d.box {fillHorizontal = 2;};
+                type = CONTAINERH;
+                ADD treeStore.tree.box;
+                ADD d.box {fill = 2;}
             }
             NEW itemCase {
                 caption = 'Товары';
-                childConstraints = TO THE BOTTOM;
                 NEW row1 {
                     caption = 'Классификатор';
                     ADD PROPERTY(nameGroupTypeLabelType);
                 }
                 NEW row2 {
-                    childConstraints = TO THE RIGHT;
-                    ADD treeGroup.tree.box {fillHorizontal = 1;}
-                    ADD sk.box {fillHorizontal = 2;}
+                    fill = 1;
+                    type = CONTAINERH;
+                    ADD treeGroup.tree.box;
+                    ADD sk.box {fill = 2;}
                 }
             }
         }
@@ -284,14 +300,17 @@ FORM labelTransactions 'Печать ценников'
 @extendFormFilterStockAccess(DepartmentStore, d, labelTransactions);
 
 DESIGN labelTransactions FROM DEFAULT {
-    NEW topContainer{
-        type = SPLITV;
-        childConstraints = TO THE BOTTOM;
+    main {
+        ADD d.box;
+        NEW topContainer{
+            type = SPLITV;
+            fill = 1;
 
-        ADD l.box;
-        ADD b.box;
+            ADD l.box;
+            ADD b.box;
+        }
+        ADD functions.box;
     }
-    ADD functions.box;
 }
 
 // -------------------------------------------- Действия по печати ценников ------------------------------ //

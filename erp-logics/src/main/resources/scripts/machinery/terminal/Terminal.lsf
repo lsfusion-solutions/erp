@@ -136,7 +136,7 @@ FORM groupsTerminalDocumentType 'Группы типов документов'
 DESIGN groupsTerminalDocumentType FROM DEFAULT {
     NEW topContainer{
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
+        fill = 1;
 
         ADD gtdt.box;
         ADD tdt.box;
@@ -177,7 +177,7 @@ FORM groupsTerminal 'Группы ТСД'
 DESIGN groupsTerminal FROM DEFAULT {
     NEW topContainer{
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
+        fill = 1;
 
         ADD grt.box;
         ADD t.box;
@@ -194,13 +194,13 @@ idTerminalDocument 'Номер' = DATA INTEGER (TerminalDocument) IN base;
 terminalDocumentID (terminalDocument) = GROUP AGGR terminalDocument BY idTerminalDocument (terminalDocument)
                                                        WHERE terminalDocument IS TerminalDocument;
 
-titleTerminalDocument 'Имя' = DATA VARSTRING[100] (TerminalDocument) IN base;
+titleTerminalDocument 'Имя' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
 quantityTerminalDocument 'Количество' = DATA NUMERIC[14,3] (TerminalDocument) IN base;
 idTerminalHandbookType1TerminalDocument 'Код в справочнике 1' = DATA INTEGER (TerminalDocument) IN base;
 idTerminalHandbookType2TerminalDocument 'Код в справочнике 2' = DATA INTEGER (TerminalDocument) IN base;
 
 terminalDocumentTypeTerminalDocument = DATA TerminalDocumentType (TerminalDocument);
-nameTerminalDocumentTypeTerminalDocument 'Тип документа' (terminalDocument) = nameTerminalDocumentType (terminalDocumentTypeTerminalDocument (terminalDocument));
+nameTerminalDocumentTypeTerminalDocument 'Тип документа' (terminalDocument) = nameTerminalDocumentType (terminalDocumentTypeTerminalDocument (terminalDocument)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 idTerminalDocumentTypeTerminalDocument (terminalDocument) = idTerminalDocumentType (terminalDocumentTypeTerminalDocument (terminalDocument));
 
@@ -237,23 +237,28 @@ FORM terminalDocument 'Документ ТСД'
 
     FILTERS terminalDocumentTerminalDocumentDetail(tdd) == td
 
-    FILTERGROUP filterUse
-        FILTER 'Неиспользованные' 'F10' notUsedTerminalDocument(td) DEFAULT
-
     EDIT TerminalDocument OBJECT td;
 ;
 
 DESIGN terminalDocument FROM DEFAULT {
-    main {
-        preferredSize = (1024, 768);
-        NEW topContainer {
-            type = SPLITV;
-            childConstraints = TO THE BOTTOM;
+    td.box{
+        type = CONTAINERV;
 
-            ADD td.box;
-            ADD tdd.box;
+        NEW row1 {
+            type = CONTAINERH;
+            ADD PROPERTY(idTerminalDocument);
+            ADD PROPERTY(nameTerminalDocumentTypeTerminalDocument);
+            ADD PROPERTY(titleTerminalDocument);
+        }
+        NEW row2 {
+            type = CONTAINERH;
+            ADD PROPERTY(idTerminalHandbookType1TerminalDocument);
+            ADD PROPERTY(idTerminalHandbookType2TerminalDocument);
+            ADD PROPERTY(quantityTerminalDocument);
+            ADD PROPERTY(usedTerminalDocument);
         }
     }
+    ADD tdd.box;
     ADD functions.box;
 }
 
@@ -277,7 +282,7 @@ DESIGN terminalDocuments FROM DEFAULT {
         preferredSize = (1024, 768);
         NEW topContainer{
             type = SPLITV;
-            childConstraints = TO THE BOTTOM;
+            fill = 1;
 
             ADD td.box;
             ADD tdd.box;
