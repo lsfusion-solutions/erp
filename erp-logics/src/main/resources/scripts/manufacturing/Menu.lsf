@@ -54,7 +54,7 @@ groupTypeMenu = ABSTRACT GroupType (Menu);
 nameGroupTypeMenu 'Тип классификатора' (menu) = nameGroupType(groupTypeMenu(menu));
 
 groupTypeUserMenu = DATA GroupType (UserMenu);
-nameGroupTypeUserMenu 'Тип классификатора' (userMenu) = nameGroupType(groupTypeUserMenu(userMenu));
+nameGroupTypeUserMenu 'Тип классификатора' (userMenu) = nameGroupType(groupTypeUserMenu(userMenu)) IN documentPrmGroup;
 groupTypeMenu(menu) += groupTypeUserMenu(menu);
 
 productYieldMenuDetail 'Выход' = ABSTRACT VARSTRING[100] (MenuDetail) MINCHARWIDTH 20 PREFCHARWIDTH 20;
@@ -99,9 +99,9 @@ hasParentDetailGroup (detail,group)= hasParentChildGroup(groupGroupTypeSku(group
 
 FORM userMenu 'Меню'
     OBJECTS m = UserMenu FIXED PANEL
-    PROPERTIES (m) objectClassName, nameStockUserMenu, nameNumeratorObject, numberObject, seriesObject, dateUserMenu, timeUserMenu,
-                   nameCurrencyUserMenu, namePriceListTypeUserMenu, noteUserMenu, countUserMenuDetailUserMenu,
-                   nameGroupTypeUserMenu
+    PROPERTIES (m) objectClassName, nameGroupTypeUserMenu, nameStockUserMenu, nameNumeratorObject, numberObject, seriesObject, dateUserMenu, timeUserMenu,
+                   nameCurrencyUserMenu, namePriceListTypeUserMenu, noteUserMenu, countUserMenuDetailUserMenu
+
 
     OBJECTS d = UserMenuDetail
     PROPERTIES (d) indexUserMenuDetail, idBarcodeSkuUserMenuDetail, nameSkuUserMenuDetail, shortNameUOMSkuUserMenuDetail, namePriceListTypeUserMenuDetail,
@@ -144,30 +144,30 @@ DESIGN userMenu FROM DEFAULT{
     main {
         preferredSize = (1024, 768);
         NEW specification.box BEFORE functions.box{
+            fill = 1;
             type = TABBED;
             ADD d.box {
+                fill = 1;
                 caption = 'Спецификация';
-                d.panel {
-                    childConstraints = TO THE BOTTOM;
-                }
             }
             NEW treeContainer{
                 caption = 'Группировка';
                 type = SPLITH;
-                childConstraints = TO THE RIGHT;
-                ADD treeGroup.tree.box { fillHorizontal = 1.0; }
-                ADD dd.box {fillHorizontal = 2.0; }
+                type = CONTAINERH;
+
+                ADD treeGroup.tree.box;
+                ADD dd.box {
+                    fill = 2;
+                }
             }
         }
 
         NEW header.box BEFORE specification.box {
-            childConstraints = TO THE RIGHT;
+            type = CONTAINERH;
 
             NEW headerRow1 {
-                childConstraints = TO THE BOTTOM;
-
                 ADD m.documentHeaderGroup {
-                    childConstraints = TO THE RIGHTBOTTOM;
+                    type = CONTAINERH;
                     ADD PROPERTY(objectClassName) { preferredCharWidth = 10; }
                     ADD PROPERTY(nameNumeratorObject);
                     ADD PROPERTY(numberObject);
@@ -176,19 +176,13 @@ DESIGN userMenu FROM DEFAULT{
                     ADD PROPERTY(timeUserMenu);
                     ADD PROPERTY(nameStockUserMenu);
                 }
-                NEW row1 {
-                    childConstraints = TO THE RIGHTBOTTOM;
-                    NEW row11 {
-                        caption = 'Классификатор';
-                        ADD PROPERTY(nameGroupTypeUserMenu);
-                    }
-                    ADD m.documentPrmGroup {
-                        childConstraints = TO THE RIGHTBOTTOM;
-                    }
+                ADD m.documentPrmGroup {
+                    columns = 3;
                 }
+
             }
             ADD m.documentSumGroup {
-                childConstraints = TO THE BOTTOM;
+                columns = 1;
             }
         }
 
@@ -265,15 +259,21 @@ DESIGN menus FROM DEFAULT {
 
     NEW documentContainer BEFORE functions.box {
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
+        type = CONTAINERV;
+        fill = 1;
 
-        ADD m.box;
+        ADD m.box {
+            fill = 1;
+        }
 
         NEW documentDetail {
             type = TABBED;
+            fill = 1;
 
             ADD d.box {
+                fill = 1;
                 caption = 'Спецификация';
+
             }
             NEW documentHistory {
                 caption = 'История';
@@ -282,11 +282,8 @@ DESIGN menus FROM DEFAULT {
                 ADD m.postedGroup;
             }
             NEW printTab {
-                caption = 'Печать';
-                childConstraints = TO THE BOTTOM;
-                fillVertical = 1.0;
-                fillHorizontal = 1.0;
-
+                caption = 'Печатные формы';
+                type = CONTAINERV;
             }
         }
     }
