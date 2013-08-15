@@ -77,32 +77,40 @@ FORM postReceiptPayment 'Оплата по чеку'
     PROPERTIES(r) READONLY sumReceiptDetailReceipt, changePaymentReceipt
 
     OBJECTS p = Payment FIXED GRID
-    PROPERTIES(p) sumPayment, namePaymentTypePayment, ADDOBJ, deletep=DELETESESSION
+    PROPERTIES(p) sumPayment, namePaymentTypePayment
     FILTERS receiptPayment(p) == r
 ;
 
 DESIGN postReceiptPayment FROM DEFAULT {
 
-    main {
-        preferredSize = (800, 320);
-        NEW payContainer {
-            childConstraints = TO THE BOTTOM;
-            ADD p.box {
-                p.grid {
-                    defaultComponent = TRUE;
-                }
-                PROPERTY(sumPayment) { font = 'Tahoma bold 36'; }
-                PROPERTY(namePaymentTypePayment) { font = 'Tahoma bold 36'; }
-                PROPERTY(deletep) { font = 'Tahoma bold 36'; }
+    ADD p.box {
+        fill = 1;
+        p.grid {
+            defaultComponent = TRUE;
+        }
+        PROPERTY(sumPayment) { font = 'Tahoma bold 36'; }
+        PROPERTY(namePaymentTypePayment) { font = 'Tahoma bold 36'; }
+        REMOVE p.toolbar;
+    }
+    NEW south {
+        type = CONTAINERH;
+        ADD PROPERTY(sumReceiptDetailReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 72'; }
+        ADD PROPERTY(changePaymentReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 72'; }
+        ADD rightControls {
+            alignment = STRETCH;
+            type = CONTAINERV;
+            PROPERTY(formOk) {
+                fill = 1;
+                font = 'Tahoma bold 36';
             }
-            NEW southContainer {
-                childConstraints = TO THE RIGHT;
-                ADD PROPERTY(sumReceiptDetailReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 72'; }
-                ADD PROPERTY(changePaymentReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 72'; }
+            PROPERTY(formClose) {
+                fill = 1;
+                font = 'Tahoma bold 36';
             }
-            ADD functions.box;
         }
     }
+    REMOVE leftControls;
+    REMOVE PROPERTY(formRefresh);
 }
 
 postReceipt 'Смешанный платеж' = ACTION (receipt) {
@@ -184,7 +192,7 @@ cancelReceipt 'Отменить чек' = ACTION (receipt) {
 // Продажи
 FORM chooseBatchReceipt 'Выбор партии'
     OBJECTS st = DepartmentStore FIXED PANEL
-    OBJECTS d = ReceiptDetail
+    OBJECTS d = ReceiptDetail FIXED PANEL
 
     OBJECTS bt = Batch
     PROPERTIES(bt) READONLY dateTimeBatch, nameBatch
@@ -194,11 +202,6 @@ FORM chooseBatchReceipt 'Выбор партии'
     FILTERS skuBatch(bt) == skuReceiptDetail(d),
             currentPOSPriceBatchReceiptDetail(bt, d)
 ;
-
-DESIGN chooseBatchReceipt FROM DEFAULT{
-    REMOVE d.box;
-    REMOVE st.box;
-}
 
 changeBatchReceiptDetail 'Изменить партию строки чека' = ACTION (detail) {
     IF explicitBatchLedgerReceipt(receiptReceiptDetail(detail)) THEN {
@@ -287,11 +290,12 @@ FORM searchSkuSaleReceipt 'Поиск SKU'
 DESIGN searchSkuSaleReceipt FROM DEFAULT {
     main{
         preferredSize = (1024, 768);
-        NEW topContainer BEFORE functions.box {
+        NEW top BEFORE functions.box {
+            fill = 1;
             type = SPLITH;
             ADD skuTree.tree.box { caption = 'Группы'; }
             ADD s.box {
-                fillHorizontal = 2;
+                fill = 3;
                 s.grid {
                     defaultComponent = TRUE;
                 }
@@ -335,11 +339,12 @@ FORM searchBatchSaleReceipt 'Поиск партии'
 DESIGN searchBatchSaleReceipt FROM DEFAULT {
     main{
         preferredSize = (1280, 768);
-        NEW topContainer BEFORE functions.box {
+        NEW top BEFORE functions.box {
+            fill = 1;
             type = SPLITH;
             ADD skuTree.tree.box { caption = 'Группы'; }
             ADD b.box {
-                fillHorizontal = 2;
+                fill = 3;
                 b.grid {
                     defaultComponent = TRUE;
                 }
@@ -452,7 +457,7 @@ FORM inputDiscountCardNumberReceipt 'Ввод номера дисконтной 
 
 DESIGN inputDiscountCardNumberReceipt FROM DEFAULT{
     NEW centerContainer BEFORE functions.box {
-        childConstraints = TO THE RIGHT;
+        type = CONTAINERH;
         ADD PROPERTY(number) { caption = 'Номер'; font = 'Tahoma bold 72'; }
         ADD PROPERTY(series) { minimumCharWidth = 3; caption = 'Серия'; font = 'Tahoma bold 72'; }
     }
@@ -722,33 +727,36 @@ FORM POS
 DESIGN POS FROM DEFAULT {
     NEW north {
         type = CONTAINERH;
+        alignment = STRETCH;
 
         ADD r.receiptSaleActionGroup {
             type = CONTAINERV;
             alignment = STRETCH;
-            ADD PROPERTY(searchSkuSaleReceipt) { focusable = FALSE; font = 'Tahoma bold 22'; }
-            ADD PROPERTY(searchBatchSaleReceipt) { focusable = FALSE; font = 'Tahoma bold 22'; }
+            ADD PROPERTY(searchSkuSaleReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 22'; }
+            ADD PROPERTY(searchBatchSaleReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 22'; }
             ADD PROPERTY(barcodeSale) { caption = 'Ввести штрих-код'; panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 22'; editKey = 'F4'; }
         }
         ADD r.receiptReturnActionGroup {
             type = CONTAINERV;
             alignment = STRETCH;
-            ADD PROPERTY(searchSkuReturnReceipt) { focusable = FALSE; font = 'Tahoma bold 22'; }
-            ADD PROPERTY(scanBarcodeReturnReceipt) { focusable = FALSE; font = 'Tahoma bold 22'; }
+            ADD PROPERTY(searchSkuReturnReceipt) { fill = 1; focusable = FALSE; font = 'Tahoma bold 22'; }
+            ADD PROPERTY(scanBarcodeReturnReceipt) { fill = 1; focusable = FALSE; font = 'Tahoma bold 22'; }
         }
         ADD r.receiptDiscountGroup {
+            fill = 1;
             type = CONTAINERV;
-            alignment = STRETCH;
-            NEW receiptDiscountRow1 {
-                type = CONTAINERH;
-                ADD PROPERTY(numberDiscountCardReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 22'; }
-                ADD PROPERTY(nameLegalEntityDiscountCardReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 22'; }
-            }
+            ADD PROPERTY(nameLegalEntityDiscountCardReceipt) { alignment = STRETCH; caption = 'Держатель'; focusable = FALSE; font = 'Tahoma bold 22'; }
             NEW receiptDiscountRow2 {
+                fill = 1;
                 type = CONTAINERH;
-                alignment = STRETCH;
-                ADD PROPERTY(inputDiscountCardNumberReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 14'; }
-                ADD PROPERTY(clearDiscountCardReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 14'; }
+                ADD PROPERTY(numberDiscountCardReceipt) { alignment = STRETCH; caption = 'Номер'; focusable = FALSE; font = 'Tahoma bold 22'; }
+                NEW receiptDiscountActions {
+                    fill = 1;
+                    type = CONTAINERH;
+                    childrenAlignment = TRAILING;
+                    ADD PROPERTY(inputDiscountCardNumberReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 14'; }
+                    ADD PROPERTY(clearDiscountCardReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 14'; }
+                }
             }
         }
         ADD PROPERTY(closedCurrentZReportMessage()) {
@@ -781,36 +789,36 @@ DESIGN POS FROM DEFAULT {
         NEW details {
             fill = 1;
             preferredSize = ( -1, 0);
-            type = CONTAINERV;
             ADD d.panel {
-                type = CONTAINERV;
                 ADD PROPERTY(nameSkuPanel) {
+                    alignment = STRETCH;
                     panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
-                    fillHorizontal = 1.0;
                 }
                 ADD PROPERTY(nameBatchPanel) {
+                    alignment = STRETCH;
                     panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
-                    fillHorizontal = 1.0;
                 }
                 NEW skuDetail {
+                    alignment = STRETCH;
                     type = CONTAINERH;
                     ADD PROPERTY(idBarcodePanel) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24'; }
-                    ADD PROPERTY(quantityPanel) {
-                        panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
-                        minimumCharWidth = 5;
-                        directions = (0.0, -0.1, 0.0, 0.1);
-                    }
-                    ADD PROPERTY(shortNameUOMSkuPanel) {
-                        panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
-                        directions = (0.0, -0.1, 0.0, 0.1);
-                    }
-                    ADD PROPERTY(pricePanel) {
-                        panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
-                        directions = (0.0, -0.1, 0.0, 0.1);
-                    }
-                    ADD PROPERTY(sumPanel) {
-                        panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
-                        directions = (0.0, -0.1, 0.0, 0.1);
+                    NEW priceDetail {
+                        fill = 1;
+                        type = CONTAINERH;
+                        childrenAlignment = TRAILING;
+                        ADD PROPERTY(quantityPanel) {
+                            panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
+                            minimumCharWidth = 5;
+                        }
+                        ADD PROPERTY(shortNameUOMSkuPanel) {
+                            panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
+                        }
+                        ADD PROPERTY(pricePanel) {
+                            panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
+                        }
+                        ADD PROPERTY(sumPanel) {
+                            panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 24';
+                        }
                     }
                 }
             }
@@ -827,16 +835,25 @@ DESIGN POS FROM DEFAULT {
             }
             NEW misc {
                 type = CONTAINERH;
+                alignment = STRETCH;
                 ADD PROPERTY(formRefresh) {
+                    fill = 1;
                     focusable = FALSE;
-                    alignment = STRETCH;
                 }
                 NEW currentContainer {
+                    alignment = STRETCH;
                     caption = 'Текущие значения';
-                    type = CONTAINERV;
-                    ADD PROPERTY(hostnameCurrentComputer) { focusable = FALSE; }
-                    ADD PROPERTY(currentDateTime) { focusable = FALSE; }
-                    ADD PROPERTY(currentUserName) { focusable = FALSE; }
+                    ADD PROPERTY(hostnameCurrentComputer) {
+                        caption = 'Компьютер';
+                        alignment = STRETCH;
+                        focusable = FALSE;
+                    }
+                    NEW currentRow2 {
+                        alignment = STRETCH;
+                        type = CONTAINERH;
+                        ADD PROPERTY(currentDateTime) { caption = 'Время'; focusable = FALSE; }
+                        ADD PROPERTY(currentUserName) { caption = 'Пользователь'; focusable = FALSE; }
+                    }
                 }
                 NEW actionsContainer {
                     caption = 'Действия с кассой';
@@ -849,20 +866,19 @@ DESIGN POS FROM DEFAULT {
         }
         NEW east {
             alignment = STRETCH;
-            type = CONTAINERV;
             ADD r.receiptActionGroup {
                 type = CONTAINERV;
-                ADD PROPERTY(postReceipt) { focusable = FALSE; font = 'Tahoma bold 22'; }
-                ADD PROPERTY(postCardReceipt) { focusable = FALSE; font = 'Tahoma bold 22'; }
-                ADD PROPERTY(postCashReceipt) { focusable = FALSE; font = 'Tahoma bold 22'; }
-                ADD PROPERTY(cancelReceipt) { focusable = FALSE; font = 'Tahoma bold 22'; }
+                alignment = STRETCH;
+                ADD PROPERTY(postReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 22'; }
+                ADD PROPERTY(postCardReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 22'; }
+                ADD PROPERTY(postCashReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 22'; }
+                ADD PROPERTY(cancelReceipt) { alignment = STRETCH; focusable = FALSE; font = 'Tahoma bold 22'; }
             }
             NEW receiptSums {
+                alignment = STRETCH;
                 caption = 'Итого';
-                type = CONTAINERV;
-                childConstraints = TO THE BOTTOM;
-                ADD PROPERTY(discountSumReceiptDetailReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 48'; }
-                ADD PROPERTY(sumReceiptDetailReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 48'; }
+                ADD PROPERTY(discountSumReceiptDetailReceipt) { alignment = STRETCH; panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 48'; }
+                ADD PROPERTY(sumReceiptDetailReceipt) { alignment = STRETCH; panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 48'; }
             }
         }
     }
@@ -906,7 +922,7 @@ EXTEND FORM operationCashRegister
             dateZReport(z) <= dTo
 ;
 
-EXTEND DESIGN operationCashRegister{
+EXTEND DESIGN operationCashRegister {
     main {
         actions {
             ADD PROPERTY(fiscalZReport) { font = 'Tahoma 24'; }
@@ -927,6 +943,6 @@ EXTEND FORM operationCashRegister
 
 EXTEND DESIGN operationCashRegister{
     actions {
-            ADD PROPERTY(fiscalUpdateData) BEFORE PROPERTY(fiscalXReport) { font = 'Tahoma 24'; }
-            }
+        ADD PROPERTY(fiscalUpdateData) BEFORE PROPERTY(fiscalXReport) { font = 'Tahoma 24'; }
+    }
 }
