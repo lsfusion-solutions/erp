@@ -63,15 +63,16 @@ DESIGN inventoryCommittee FROM DEFAULT {
         preferredSize = (1024, 768);
 
         NEW caseOne BEFORE e.box {
-            childConstraints = TO THE RIGHT;
-            caption = 'Отделы, для которых действуют комиссии';
+            fill = 1;
+            type = SPLITH;
 
-            ADD stockTree.tree.box;
-
-            ADD ts.box {
-                fillHorizontal = 2;
+            ADD stockTree.tree.box {
+                caption = 'Группы складов';
             }
-        };
+            ADD ts.box {
+                fill = 1;
+            }
+        }
     }
 }
 
@@ -110,7 +111,6 @@ isBatchInventory 'По партиям' (inventory) = DATA BOOLEAN (Inventory);
 isSkuInventory (inventory) = inventory IS Inventory AND NOT isBatchInventory(inventory);
 
 nameInventory 'Название инвентаризации' = DATA VARSTRING[100] (Inventory) IN documentPrmGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
-infoInventory 'Дополнительная информация по инвентаризации' = DATA VARSTRING[500] (Inventory) IN documentPrmGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
 timeFromInventory 'Начато' (inventory) = DATA DATETIME (Inventory) IN documentPrmGroup;
 timeToInventory 'Закончено' (inventory) = DATA DATETIME (Inventory) IN documentPrmGroup;
@@ -777,13 +777,17 @@ FORM dialogStockInventory 'Выбор складов для инвентариз
 DESIGN dialogStockInventory FROM DEFAULT {
     main{
         preferredSize = (1024, 768);
-        childConstraints = TO THE BOTTOM;
-        ADD in.box;
+        ADD in.box {
+            in.panel {
+                type = CONTAINERH;
+            }
+        }
         NEW stockCase {
-            childConstraints = TO THE RIGHT;
+            fill = 1;
+            type = SPLITH;
             ADD stockTree.tree.box;
             ADD ts.box {
-                fillHorizontal = 2;
+                fill = 3;
             }
         }
         ADD functions.box;
@@ -797,7 +801,7 @@ dialogStockInventory 'Выбрать склады для инвентариза�
 
 FORM dialogSkuCollationSheet 'Выбор SKU для сличительной ведомости'
     OBJECTS cs=ManyCollationSheet FIXED PANEL
-    PROPERTIES (cs) READONLY nameCollationSheet, nameTypeOfAdditionCollationSheet, nameStockCollationSheet
+    PROPERTIES (cs) READONLY nameCollationSheet, nameTypeOfAdditionCollationSheet
 
     TREE treeGroup g=SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY nameSkuGroup(g)
@@ -814,13 +818,22 @@ FORM dialogSkuCollationSheet 'Выбор SKU для сличительной в�
 ;
 
 DESIGN dialogSkuCollationSheet FROM DEFAULT {
-    POSITION treeGroup.tree.box TO THE LEFT i.box;
-        treeGroup.tree.box { fillHorizontal = 1.5; }
-        i.box { fillHorizontal = 3.5; }
-
+    ADD cs.box;
+    NEW pane {
+        fill = 1;
+        type = SPLITH;
+        ADD treeGroup.tree.box;
+        ADD i.box {
+            fill = 3;
+        }
+    }
+    ADD functions.box;
 }
 
-dialogSkuCollationSheet 'Добавить товар' (collationSheet) = ACTION IF collationSheet IS ManyCollationSheet THEN FORM dialogSkuCollationSheet OBJECTS cs = collationSheet MODAL;
+dialogSkuCollationSheet 'Добавить товар' = ACTION (collationSheet) {
+    IF collationSheet IS ManyCollationSheet THEN
+        FORM dialogSkuCollationSheet OBJECTS cs = collationSheet MODAL;
+} TOOLBAR;
 
 //------------------------------------ Формы редактирования описей ------------------------------------------//
 
@@ -860,37 +873,34 @@ FORM listInventory 'Опись'
 DESIGN listInventory FROM DEFAULT {
     main{
         preferredSize = (1024, 768);
-        childConstraints = TO THE BOTTOM;
-        ADD li.box {
-            childConstraints = TO THE RIGHT;
+        NEW header {
+            type = CONTAINERH;
             NEW row {
-                childConstraints = TO THE BOTTOM;
                 ADD li.documentHeaderGroup {
-                    childConstraints = TO THE RIGHT;
+                    type = CONTAINERH;
                     ADD PROPERTY(nameInventoryListInventory);
                     ADD PROPERTY(nameListInventory);
                 }
                 ADD li.inventoryCommitteeGroup {
-                    childConstraints = TO THE RIGHT;
+                    type = CONTAINERH;
                 }
-                ADD li.documentPrmGroup;
-
-
+                ADD li.documentPrmGroup {
+                    columns = 2;
+                }
             }
             ADD li.documentSumGroup {
-                childConstraints = TO THE BOTTOM;
+                columns = 1;
                 PROPERTY(countPageInventoryListInventory) {
                     caption = 'Количество страниц';
                 }
             }
         }
         NEW wor {
-            childConstraints = TO THE RIGHT;
-            ADD pl.box {
-                fillHorizontal = 1;
-            }
+            fill = 1;
+            type = SPLITH;
+            ADD pl.box;
             NEW case1 {
-                fillHorizontal = 2;
+                fill = 2;
                 type = TABBED;
 
                 ADD dp.box;
@@ -925,7 +935,7 @@ FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory FIXED PANEL
     PROPERTIES (in)  isBatchInventory, nameNumeratorObject, numberObject, seriesObject,
                      nameInventory, nameTypeOfAdditionInventory, dateInventory, timeInventory,
-                     noteInventory, infoInventory, nameStockInventory ON CHANGE dialogStockInventory(in),
+                     noteInventory, nameStockInventory ON CHANGE dialogStockInventory(in),
                      recalculatePriceInventory, recalculateBalanceInventory,
                      timeFromInventory, timeToInventory, nameHeadManInventory,
                      nameCommitteeInventory, nameChairmanCommitteeInventory, nameEmployeeInventory
@@ -995,7 +1005,7 @@ FORM inventory 'Инвентаризация'
             FILTER 'Товар с разными ценами' 'F10' differentPriceCollationSheetSku(cs, i)
     ORDER BY                                    iNameSku
 
-    OBJECTS         b=Batch
+    OBJECTS         b=Batch FIXED GRID
     PROPERTIES(b) READONLY SHOWIF isBatchCollationSheet(cs) idBarcodeSkuBatch, nameSkuBatch, nameBatch
     PROPERTIES(cs,b) SHOWIF isBatchCollationSheet(cs)       quantityPageInventoryDetailCollationSheetBatch, quantityBalanceCollationSheetBatch,
                                                             quantityShortageCollationSheetBatch
@@ -1013,155 +1023,123 @@ FORM inventory 'Инвентаризация'
 ;
 
 DESIGN inventory FROM DEFAULT {
-    main {
-        NEW header.box BEFORE in.box {
-            childConstraints = TO THE BOTTOM;
 
-            ADD in.documentHeaderGroup {
-                childConstraints = TO THE RIGHT;
-                ADD PROPERTY(nameStockInventory);
-                ADD PROPERTY(nameNumeratorObject);
-                ADD PROPERTY(numberObject);
-                ADD PROPERTY(seriesObject);
-                ADD PROPERTY(dateInventory);
-                ADD PROPERTY(timeInventory);
-            }
-
-            NEW headerRow2 {
-                childConstraints = TO THE RIGHT;
-                ADD in.documentPrmGroup {
-                    childConstraints = TO THE BOTTOM;
-                    type = CONTAINERV;
-                    NEW headerRow2Col1Row1 {
-                        childConstraints = TO THE RIGHT;
-                        type = CONTAINERH;
-                        ADD PROPERTY(nameTypeOfAdditionInventory);
-                        ADD PROPERTY(nameInventory);
-                    }
-                    NEW headerRow2Col1Row2 {
-                        childConstraints = TO THE RIGHT;
-                        type = CONTAINERH;
-                        ADD PROPERTY(noteInventory);
-                        ADD PROPERTY(infoInventory);
-                    }
-                    NEW headerRow2Col1Row3 {
-                        ADD in.inventoryCommitteeGroup {
-                            childConstraints = TO THE RIGHT;
-                        }
-                    }
-
-                    NEW headerRow2Col1Row4 {
-                        childConstraints = TO THE RIGHT;
-
-                        NEW headerRow2Col1Row41 {
-                            caption = 'Снятие остатков';
-                            childConstraints = TO THE RIGHT;
-                            ADD PROPERTY(timeFromInventory);
-                            ADD PROPERTY(timeToInventory);
-                        }
-                        NEW headerRow2Col1Row42 {
-                            caption = 'Руководство';
-                            ADD PROPERTY(nameHeadManInventory);
-                        }
-                    }
-                }
-                NEW actionContainer {
-                    childConstraints = TO THE BOTTOM;
-                    ADD in.inventoryActionGroup {
-                        childConstraints = TO THE BOTTOM;
-                    }
-                    NEW actionContainer2 {
-                        ADD PROPERTY(isBatchInventory);
-                    }
-                }
-            }
+    NEW header.box {
+        ADD in.documentHeaderGroup {
+            type = CONTAINERH;
+            ADD PROPERTY(nameStockInventory);
+            ADD PROPERTY(nameNumeratorObject);
+            ADD PROPERTY(numberObject);
+            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(dateInventory);
+            ADD PROPERTY(timeInventory);
         }
 
-        NEW secondCase BEFORE functions.box {
-            type = TABBED;
-            NEW z.box { caption = 'Описи';
-                fillVertical = 5;
-                childConstraints = TO THE RIGHT;
-                ADD treeStock.tree.box {
-                    fillHorizontal = 2;
-
-                    PROPERTY(objectClassName) {
-                            preferredCharWidth = 15;
-                    }
-                    PROPERTY (dumbPageInventory) {
-                        caption = 'Статус';
-                        minimumCharWidth = 15;
-                    }
-                    PROPERTY (postListInventory) {
-                        caption = 'Закрыть';
-                    }
-                    PROPERTY (unpostListInventory) {
-                        caption = 'Открыть';
-                    }
-                    PROPERTY (editLI) {
-                        caption = 'Редактировать';
-                    }
-                    PROPERTY (deleteli) {
-                        caption = 'Удалить';
-                        askConfirm = TRUE;
-                    }
+        NEW header {
+            type = CONTAINERH;
+            NEW headerColumn1 {
+                ADD in.documentPrmGroup {
+                    type = COLUMNS;
+                    columns = 2;
+                    ADD PROPERTY(nameTypeOfAdditionInventory);
+                    ADD PROPERTY(nameInventory);
+                    ADD PROPERTY(isBatchInventory);
+                    ADD PROPERTY(noteInventory);
                 }
-                NEW case1  {
-                    type = TABBED;
-                    fillHorizontal = 3;
-                    ADD dp.box;
-                    ADD it.box {
-                        caption = 'Опись-товар';
+                ADD in.inventoryCommitteeGroup {
+                    type = CONTAINERH;
+                }
+
+                NEW row4 {
+                    type = CONTAINERH;
+                    NEW balance {
+                        caption = 'Снятие остатков';
+                        type = CONTAINERH;
+                        ADD PROPERTY(timeFromInventory);
+                        ADD PROPERTY(timeToInventory);
                     }
-                    ADD bt.box {
-                        caption = 'Опись-партия';
+                    NEW management {
+                        caption = 'Руководство';
+                        ADD PROPERTY(nameHeadManInventory);
                     }
                 }
             }
-
-            NEW x.box { caption = 'Сличительные ведомости';
-                fillVertical = 5;
-                NEW pop1 {
-                    childConstraints = TO THE RIGHT;
-                    ADD cs.box  {
-                        fillVertical = 1;
-                        fillHorizontal = 4;
-                    }
-                    ADD cs.panel {
-                        caption = 'Суммы товар/тара';
-                        childConstraints = TO THE BOTTOM;
-                        fillHorizontal = 1;
-                    }
-                }
-                NEW firstCase { caption = 'Пересчитанный товар';
-                    childConstraints = TO THE BOTTOM;
-                    fillVertical = 3.8;
-                    NEW wor1 {
-                        childConstraints = TO THE RIGHT;
-                        fillVertical = 4;
-                        ADD treeGroup.tree.box {
-                            caption = 'Товарные группы';
-                            fillHorizontal = 1.5;
-                        }
-                        NEW wor11 {
-                            caption = 'Результат';
-                            fillHorizontal = 3.5;
-                            type = TABBED;
-                            ADD i.box;
-                            ADD b.box;
-
-                        }
-                    }
-                    NEW wor2 {
-                        fillVertical = 0.2;
-                        ADD PROPERTY(dialogSkuCollationSheet(cs));
-                    }
-
+            NEW actions {
+                ADD in.inventoryActionGroup {
+                    columns = 1;
                 }
             }
-
         }
     }
+
+    NEW secondCase {
+        fill = 1;
+        type = TABBED;
+        NEW z.box {
+            caption = 'Описи';
+            type = SPLITH;
+            ADD treeStock.tree.box {
+                PROPERTY(objectClassName) {
+                        preferredCharWidth = 15;
+                }
+                PROPERTY (dumbPageInventory) {
+                    caption = 'Статус';
+                    minimumCharWidth = 15;
+                }
+                PROPERTY (postListInventory) {
+                    caption = 'Закрыть';
+                }
+                PROPERTY (unpostListInventory) {
+                    caption = 'Открыть';
+                }
+                PROPERTY (editLI) {
+                    caption = 'Редактировать';
+                }
+            }
+            NEW case1  {
+                fill = 1;
+                type = TABBED;
+                ADD dp.box;
+                ADD it.box {
+                    caption = 'Опись-товар';
+                }
+                ADD bt.box {
+                    caption = 'Опись-партия';
+                }
+            }
+        }
+
+        NEW x.box {
+            caption = 'Сличительные ведомости';
+            NEW pop1 {
+                type = CONTAINERH;
+                ADD cs.box {
+                    fill = 1;
+                    preferredSize = ( -1, 0);
+                }
+                ADD cs.panel.props {
+                    type = COLUMNS;
+                    columns = 1;
+                    caption = 'Суммы товар/тара';
+                }
+            }
+            NEW wor1 {
+                fill = 3;
+                type = SPLITH;
+                ADD treeGroup.tree.box {
+                    caption = 'Товарные группы';
+                }
+                NEW wor11 {
+                    fill = 3;
+                    type = TABBED;
+                    ADD i.box;
+                    ADD b.box;
+                }
+            }
+        }
+    }
+
+    ADD functions.box;
 }
 
 FORM inventories 'Инвентаризации'
@@ -1188,7 +1166,7 @@ FORM inventories 'Инвентаризации'
     FILTERS                 inventoryListInventory(li) == in
     ORDER BY                nameStockListInventory
 
-    OBJECTS         i=Sku
+    OBJECTS         i=Sku FIXED GRID
     PROPERTIES(li,i) READONLY indexListInventorySku
     PROPERTIES(i)    READONLY idBarcodeSku, nameSku
     PROPERTIES(li,i) READONLY quantityPageInventoryDetailListInventorySku,
@@ -1197,7 +1175,7 @@ FORM inventories 'Инвентаризации'
     FILTERS                   quantityPageInventoryDetailListInventorySku(li,i)
     ORDER BY                  indexListInventorySku
 
-    OBJECTS         b=Batch
+    OBJECTS         b=Batch FIXED GRID
     PROPERTIES(li,b) READONLY SHOWIF isBatchListInventory(li) indexListInventoryBatch
     PROPERTIES(b)    READONLY SHOWIF isBatchListInventory(li) idBarcodeSkuBatch, nameSkuBatch, nameBatch
     PROPERTIES(li,b) READONLY SHOWIF isBatchListInventory(li) quantityPageInventoryDetailListInventoryBatch,
@@ -1236,76 +1214,65 @@ FORM inventories 'Инвентаризации'
 ;
 
 DESIGN inventories FROM DEFAULT {
-    main {
-        childConstraints = TO THE BOTTOM;
+    NEW topContainer{
+        fill = 1;
+        type = SPLITV;
 
-        NEW topContainer{
-
-            type = SPLITV;
-
-            ADD in.box {
-                fillVertical = 1;
-                PROPERTY(objectClassName) {
-                    preferredCharWidth = 25;
-                }
-                PROPERTY (deletein) {
-                    askConfirm = TRUE;
-                }
-            }
-
-            NEW wor {
-                fillVertical = 2;
-                type = TABBED;
-
-                NEW wor1 {
-                    caption = 'Товары';
-                    ADD il.box {
-                        caption = 'Товары с недостачей (излишком)';
-                    }
-                }
-                NEW wor2 {
-                    caption = 'Партии';
-                    ADD ib.box {
-                        caption = 'Партии с недостачей (излишком)';
-                    }
-                }
-                NEW wor3 {
-                    caption = 'Описи';
-                    childConstraints = TO THE RIGHT;
-                    ADD li.box;
-                    NEW wor31 {
-                        type = TABBED;
-                        ADD i.box;
-                        ADD b.box;
-                    }
-                }
-                NEW wor4 {
-                    caption = 'Ведомости';
-                    childConstraints = TO THE RIGHT;
-                    ADD cs.box;
-                    NEW wor41 {
-                        type = TABBED;
-                        ADD it.box;
-                        ADD bt.box;
-                    }
-                }
-
-                NEW documentHistory {
-                    childConstraints = TO THE RIGHT;
-                    caption = 'История';
-                    ADD in.historyGroup {
-                        childConstraints = TO THE BOTTOM;
-                    }
-                    ADD in.postedGroup {
-                        childConstraints = TO THE BOTTOM;
-                    }
-                }
-
+        ADD in.box {
+            PROPERTY(objectClassName) {
+                preferredCharWidth = 20;
             }
         }
 
-        ADD functions.box;
+        NEW wor {
+            fill = 2;
+            type = TABBED;
+
+            NEW wor1 {
+                caption = 'Товары';
+                ADD il.box {
+                    caption = 'Товары с недостачей (излишком)';
+                }
+            }
+            NEW wor2 {
+                caption = 'Партии';
+                ADD ib.box {
+                    caption = 'Партии с недостачей (излишком)';
+                }
+            }
+            NEW wor3 {
+                caption = 'Описи';
+                type = SPLITH;
+                ADD li.box;
+                NEW wor31 {
+                    fill = 2;
+                    type = TABBED;
+                    ADD i.box;
+                    ADD b.box;
+                }
+            }
+            NEW wor4 {
+                caption = 'Ведомости';
+                type = CONTAINERH;
+                ADD cs.box;
+                NEW wor41 {
+                    fill = 1;
+                    type = TABBED;
+                    ADD it.box;
+                    ADD bt.box;
+                }
+            }
+
+            NEW documentHistory {
+                type = CONTAINERH;
+                caption = 'История';
+                ADD in.historyGroup;
+                ADD in.postedGroup;
+            }
+        }
     }
+
+    ADD functions.box;
 }
 
 NAVIGATOR {
