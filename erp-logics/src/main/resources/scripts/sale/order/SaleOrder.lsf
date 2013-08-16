@@ -32,6 +32,12 @@ Order.operationOrder(order) += operationOrder(order);
 
 // --------------------- НДС суммы ----------------------- //
 
+overVATUserOrderDetail = ABSTRACT Range (UserOrderDetail);
+VATUserOrderDetail(detail) <- OVERRIDE VATSkuCountryDate (skuUserOrderDetail(detail), countryStock(supplierStockUserOrderDetail(detail)), dateUserOrderDetail(detail)),
+                                       overVATUserOrderDetail(detail)
+    WHEN DO CHANGED(skuUserOrderDetail(detail)) OR CHANGED (supplierStockUserOrderDetail(detail)) OR CHANGED (dateUserOrderDetail(detail)) OR CHANGED(overVATUserOrderDetail(detail));
+
+
 @deriveDocumentDetailVATDataSum(userOrder); // записываем сумму НДС
 @deriveDocumentDetailVATPrefixSum (userOrder, invoice); // записываем сумму с НДС
 
