@@ -104,22 +104,18 @@ DESIGN userPickingOrder FROM DEFAULT{
     main {
         preferredSize = (1024, 768);
         NEW specification.box BEFORE functions.box{
+            fill = 1;
             ADD d.box {
                 caption = 'Спецификация';
-                d.panel {
-                    childConstraints = TO THE BOTTOM;
-                }
             }
         }
 
         NEW header.box BEFORE specification.box {
-            childConstraints = TO THE RIGHT;
+            type = CONTAINERH;
 
             NEW headerRow1 {
-                childConstraints = TO THE BOTTOM;
-
                 ADD o.documentHeaderGroup {
-                    childConstraints = TO THE RIGHTBOTTOM;
+                    type = CONTAINERH;
                     ADD PROPERTY(nameStockUserPickingOrder);
                     ADD PROPERTY(nameNumeratorObject);
                     ADD PROPERTY(numberObject);
@@ -127,10 +123,10 @@ DESIGN userPickingOrder FROM DEFAULT{
                     ADD PROPERTY(dateUserPickingOrder);
                     ADD PROPERTY(timeUserPickingOrder);
                 }
-                ADD o.documentPrmGroup;
+                ADD o.documentPrmGroup {type = CONTAINERH;}
             }
             ADD o.documentSumGroup {
-                childConstraints = TO THE BOTTOM;
+                columns = 1;
             }
         }
     }
@@ -166,7 +162,7 @@ copyPickingOrder 'Копировать' = ACTION (order) NEWSESSION {
 } TOOLBAR;
 
 
-FORM pickingOrders 'Заказы на комплектицию'
+FORM pickingOrders 'Заказы на комплектацию'
     OBJECTS o = PickingOrder
     PROPERTIES (o) READONLYIF isReadonly() numberPickingOrder, seriesPickingOrder, datePickingOrder, timePickingOrder,
                    nameStockPickingOrder
@@ -195,12 +191,13 @@ DESIGN pickingOrders FROM DEFAULT {
 
     NEW documentContainer BEFORE functions.box {
         type = SPLITV;
-        childConstraints = TO THE BOTTOM;
+        fill = 1;
 
-        ADD o.box { fillVertical = 2.0; }
+        ADD o.box;
 
         NEW documentDetail {
             type = TABBED;
+            fill = 1;
 
             ADD d.box {
                 caption = 'Спецификация';
@@ -214,15 +211,13 @@ DESIGN pickingOrders FROM DEFAULT {
                 caption = 'Печатные формы';
                 NEW printContainer {
                     caption = 'Печать';
-                    childConstraints = TO THE BOTTOM;
                 }
             }
             NEW actionContainer {
                 caption = 'Действия';
-                childConstraints = TO THE RIGHT;
+                type = CONTAINERH;
                 NEW createdContainer {
                     caption = 'Создание на основе';
-                    childConstraints = TO THE BOTTOM;
                     ADD PROPERTY(copyPickingOrder) { caption = 'Заказ на комплектацию';}
                 }
             }
@@ -342,7 +337,7 @@ DESIGN userPicking FROM DEFAULT{
                 ADD o.documentPrmGroup;
             }
             ADD o.documentSumGroup {
-                childConstraints = TO THE BOTTOM;
+                columns = 1;
             }
         }
     }
@@ -664,7 +659,7 @@ EXTEND DESIGN pickingOrders {
 
 //-------------------------------- Печатная форма-------------------------------//
 
-FORM printPickingOrder 'Заказ на комплектицию' PRINT
+FORM printPickingOrder 'Заказ на комплектацию' PRINT
     OBJECTS o = PickingOrder FIXED PANEL
     PROPERTIES (o) READONLY seriesNumberPickingOrder, datePickingOrder, timePickingOrder,
                    nameStockPickingOrder, objectClassName
@@ -679,7 +674,7 @@ FORM printPickingOrder 'Заказ на комплектицию' PRINT
     FILTERS pickingOrderPickingOrderDetail(d) == o
 ;
 
-printPickingOrder 'Заказ на комплектицию' (order) = ACTION FORM printPickingOrder OBJECTS o = order IMAGE 'print.png' IN printGroup;
+printPickingOrder 'Заказ на комплектацию' (order) = ACTION FORM printPickingOrder OBJECTS o = order IMAGE 'print.png' IN printGroup;
 
 EXTEND FORM pickingOrders
     PROPERTIES(o) FORCE PANEL printPickingOrder
