@@ -200,6 +200,9 @@ CLASS NaturalLossPosted 'Проведенная ведомость естест�
 
 @defineDocumentHeaderQuantity(naturalLoss);
 
+@defineAddDetailDialogSkuStock(naturalLoss, sku, stock, dialogSku);
+@defineAddDetailDialogBarcode(naturalLoss, sku);
+
 //countryNaturalLoss(naturalLoss) = countryLegalEntity(legalEntityStore(storeDepartmentStore(departmentStoreNaturalLoss(naturalLoss))));
 countryNaturalLossDetail(naturalLossDetail) = countryNaturalLoss(naturalLossNaturalLossDetail(naturalLossDetail));
 
@@ -295,6 +298,9 @@ FORM naturalLoss 'Ведомость естественной убыли'
                   codeNaturalLossDetail, nameSubNaturalDetailNaturalLossDetail, percentNaturalLossDetail, quantityNaturalLossDetail, priceNaturalLossDetail,
                   sumNaturalLossDetail, ADDOBJ, DELETESESSION
 
+    PROPERTIES(s) TODRAW d addDetailDialogSkuStockNaturalLossDetailNaturalLoss,
+                           addDetailInputBarcodeNaturalLossDetailNaturalLoss, deleteNaturalLossDetailNaturalLoss
+
     FILTERS inNaturalLossNaturalLossDetail(s, d)
 
     EVENTS
@@ -304,41 +310,60 @@ FORM naturalLoss 'Ведомость естественной убыли'
 ;
 
 DESIGN naturalLoss FROM DEFAULT{
+    main {
+        NEW header.box {
+            type = CONTAINERH;
 
-    NEW header.box BEFORE d.box {
-        type = CONTAINERH;
+            NEW headerCol1 {
+                fill = 1;
+                type = CONTAINERV;
 
-        NEW headerCol1 {
+                ADD s.documentHeaderGroup {
+                    type = CONTAINERH;
+                    ADD PROPERTY(objectClassName);
+                    ADD PROPERTY(nameStockNaturalLoss);
+                    ADD PROPERTY(numberObject);
+                    ADD PROPERTY(seriesObject);
+                    ADD PROPERTY(dateNaturalLoss);
+                    ADD PROPERTY(timeNaturalLoss);
+                }
+
+                ADD s.documentPrmGroup {
+                    columns = 2;
+                }
+                ADD s.fillNaturalLossGroup {
+                    columns = 3;
+                }
+            }
+
+            ADD s.documentSumGroup {
+                columns = 1;
+            }
+        }
+        NEW specification.box {
             fill = 1;
-            type = CONTAINERV;
-
-            ADD s.documentHeaderGroup {
-                type = CONTAINERH;
-                ADD PROPERTY(objectClassName);
-                ADD PROPERTY(nameStockNaturalLoss);
-                ADD PROPERTY(numberObject);
-                ADD PROPERTY(seriesObject);
-                ADD PROPERTY(dateNaturalLoss);
-                ADD PROPERTY(timeNaturalLoss);
-            }
-
-            ADD s.documentPrmGroup {
-                columns = 2;
-            }
-            ADD s.fillNaturalLossGroup {
-                columns = 3;
+            type = TABBED;
+            ADD d.box {
+                caption = 'Спецификация';
             }
         }
+        ADD functions.box;
 
-        ADD s.documentSumGroup {
-            columns = 1;
+        PROPERTY(formOk) {
+            caption = 'Провести';
         }
-    }
-
-    PROPERTY(formOk) {
-        caption = 'Провести';
     }
 }
+
+//-- SKU
+
+priceSkuStockNaturalLoss 'Цена' (sku, stock, naturalLoss) = prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTimeNaturalLoss(naturalLoss));
+@defineDocumentSkuStockCustom(naturalLoss, naturalLossDetail, sku, stock);
+@extendFormDocumentSkuStock(naturalLoss, naturalLoss, s, legalEntityStock, stock);
+
+priceBatchStockNaturalLoss 'Цена' (batch, stock, naturalLoss) = prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTimeNaturalLoss(naturalLoss));
+@defineDocumentBatchStockCustom(naturalLoss, naturalLossDetail, batch, sku, stock);
+@extendFormDocumentBatchStock(naturalLoss, naturalLoss, s, legalEntityStock, stock);
 
 FORM naturalLosses 'Ведомости естественной убыли'
     OBJECTS s=NaturalLoss
@@ -357,32 +382,6 @@ FORM naturalLosses 'Ведомости естественной убыли'
 ;
 @extendFormFilterAccessStock(NaturalLoss, s, naturalLosses, stock, company);
 
-//DESIGN naturalLosses FROM DEFAULT {
-//
-//    NEW topContainer{
-//        type = SPLITV;
-//        childConstraints = TO THE BOTTOM;
-//
-//        ADD s.box;
-//        ADD d.box;
-//    }
-//
-//    PROPERTY (delete(s)) {
-//        askConfirm = TRUE;
-//    }
-//
-//    ADD s.historyGroup{
-//        childConstraints = TO THE BOTTOM;
-//    }
-//
-//    ADD s.postedGroup{
-//        childConstraints = TO THE BOTTOM;
-//    }
-//
-//    POSITION s.postedGroup TO THE RIGHT s.historyGroup;
-//
-//    ADD functions.box;
-//}
 DESIGN naturalLosses FROM DEFAULT {
     NEW documentContainer BEFORE functions.box {
         fill = 1;

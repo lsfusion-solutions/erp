@@ -2414,6 +2414,11 @@ META defineDocumentSkuStockPriceListTypeSystemLedger(object, priceListTypeProp, 
 END
 
 META defineDocumentSkuStock(object, detail, skuProp, stockProp)
+    @defineDocumentSkuStockCustom(object, detail, skuProp, stockProp);
+    overStock###object##Detail(d,stock) += ACTION (d,stock) data###stockProp###detail (d) <- stock;
+END
+
+META defineDocumentSkuStockCustom(object, detail, skuProp, stockProp)
     detail###Sku###object###stockProp (sku, object, stock) =  GROUP MAX detail
         BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail);
 
@@ -2424,6 +2429,7 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
         (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
 
     overChangeQuantityValueSku###object##Detail = ABSTRACT ACTION LIST (###detail);
+    overStock###object##Detail = ABSTRACT ACTION LIST (###detail, Stock);
 
     changeQuantityValueSku###object###Stock = ACTION (sku, object, stock) {
         IF detail###Sku###object###stockProp(sku, object, stock) THEN {
@@ -2438,7 +2444,7 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
                    object###detail(d) <- object;
-                   data###stockProp###detail (d) <- stock;
+                   overStock###object##Detail(d,stock); //   data###stockProp###detail (d) <- stock;
                    skuProp###detail(d) <- sku;
                    quantity###detail (d) <- requestedNumeric();
                    overChangeQuantityValueSku###object##Detail(d);
@@ -2552,6 +2558,10 @@ META defineDocumentBatchStockPriceListTypeSystemLedger(object, priceListTypeProp
 END
 
 META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
+    @defineDocumentBatchStockCustom(object, detail, batchProp, skuProp, stockProp);
+    overStockBatch###object##Detail(d,stock) += ACTION (d,stock) data###stockProp###detail (d) <- stock;
+END
+META defineDocumentBatchStockCustom(object, detail, batchProp, skuProp, stockProp)
     detail###batch###object###stockProp (batch, object, stock) =  GROUP MAX detail
         BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail);
 
@@ -2562,6 +2572,7 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
         quantityBatch###object###stockProp(batch, object, stock) <= currentBalanceBatchStock(batch, stock);
 
     overChangeQuantityValueBatch###object##Detail = ABSTRACT ACTION LIST (###detail);
+    overStockBatch###object##Detail = ABSTRACT ACTION LIST (###detail, Stock);
 
     changeQuantityValueBatch###object###Stock = ACTION (batch, object, stock) {
         IF detail###batch###object###stockProp(batch, object, stock) THEN {
@@ -2575,7 +2586,7 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
                     object###detail(d) <- object;
-                    data###stockProp###detail (d) <- stock;
+                    overStockBatch###object##Detail(d,stock); // data###stockProp###detail (d) <- stock;
                     skuProp###detail(d) <- skuBatch(batch);
                     batchProp###detail(d) <- batch;
                     quantity###detail (d) <- requestedNumeric();
