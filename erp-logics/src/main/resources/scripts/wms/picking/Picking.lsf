@@ -58,6 +58,9 @@ changeBatchUserPickingDetail = ACTION (detail) {
     }
 };
 
+packQuantityPicking 'Кол-во собранных мест' = ABSTRACT NUMERIC[8,2] (Picking);
+packQuantityUserPicking 'Кол-во собранных мест' = DATA NUMERIC[8,2] (UserPicking);
+packQuantityPicking(picking) += packQuantityUserPicking(picking);
 
 // --------------------------- Формы Заказа ---------------------------------
 
@@ -68,8 +71,8 @@ FORM userPicking 'Комплектация'
     OBJECTS o = UserPicking FIXED PANEL
     PROPERTIES (o) nameStockUserPicking,// ON CHANGE changeCustomerStock###customerFilter###userPicking(o),
                    nameNumeratorObject, numberObject, seriesObject, dateUserPicking, timeUserPicking,
-                   noteUserPicking, countUserPickingDetailUserPicking, quantityUserPickingDetailUserPicking
-
+                   noteUserPicking, countUserPickingDetailUserPicking, quantityUserPickingDetailUserPicking,
+                   packQuantityUserPicking
 
     OBJECTS d = UserPickingDetail
     PROPERTIES (d) indexUserPickingDetail
@@ -115,9 +118,14 @@ DESIGN userPicking FROM DEFAULT{
                 }
                 ADD o.documentPrmGroup;
             }
-            ADD o.documentSumGroup {
-                columns = 1;
-            }
+                NEW sumContainer {
+                    ADD o.documentSumGroup {
+                        columns = 1;
+                    }
+                    NEW seatContainer {
+                        ADD PROPERTY(packQuantityUserPicking);
+                    }
+                }
         }
     }
 }
@@ -159,7 +167,7 @@ FORM pickings 'Комплектации'
 
     PROPERTIES (o) READONLY countPickingDetailPicking, quantityPickingDetailPicking
 
-    PROPERTIES (o) READONLYIF isReadonly() objectClassName  //notePicking
+    PROPERTIES (o) READONLYIF isReadonly() packQuantityPicking, objectClassName  //notePicking
 
     PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable
 
@@ -337,6 +345,8 @@ countEqualPickingOrderSkuPickingOrder 'Кол-во наименований с �
 calcFullPickingOrder 'Полностью собран' (pickingOrder) = countPickingOrderSkuPickingOrder(pickingOrder) == countEqualPickingOrderSkuPickingOrder(pickingOrder);
 calcPartPickingOrder 'Частично собран' (pickingOrder) = quantityPickingsPickingOrder(pickingOrder) AND NOT calcFullPickingOrder(pickingOrder);
 
+packQuantityPickingOrder 'Кол-во собранных мест' (pickingOrder) = GROUP SUM packQuantityPicking(picking) BY pickingOrderPicking(picking);
+
 acceptedPickingOrder 'Принят в работу' = DATA BOOLEAN (PickingOrder);
 startDatePickingOrder 'Дата начала' = DATA DATE (PickingOrder);
 startTimePickingOrder 'Время начала' = DATA TIME (PickingOrder);
@@ -377,35 +387,60 @@ unacceptedPickingOrder 'Отменить' = ACTION (pickingOrder) NEWSESSION AUT
     startTimePickingOrder(pickingOrder) <- NULL;
 } TOOLBAR EDITKEY 'ctrl DELETE';
 
+FORM packQuantity 'Комплектация'
+    OBJECTS n = NUMERIC[8,2] FIXED PANEL
+    PROPERTIES val = OBJVALUE(n)
+;
+DESIGN packQuantity FROM DEFAULT {
+    main {
+
+        ADD PROPERTY(val) {
+            caption = 'Введите количество собранных мест';
+            panelLabelAbove = TRUE;
+            font = 'Tahoma bold 36';
+        }
+        ADD functions.box;
+    }
+}
+
 fullyAssembledPickingOrder 'Собран полностью' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY {
-    finishDatePickingOrder(pickingOrder) <- currentDate();
-    finishTimePickingOrder(pickingOrder) <- currentTime();
-    FOR ADDOBJ p = UserPicking DO {
-        pickingOrderUserPicking(p) <- pickingOrder;
-        stockUserPicking(p) <- stockPickingOrder(pickingOrder);
-        FOR pickingOrderPickingOrderDetail(detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
-            userPickingUserPickingDetail(d) <- p;
-            skuUserPickingDetail(d) <- skuPickingOrderDetail(detail);
-            quantityUserPickingDetail(d) <- quantityPickingOrderDetail(detail);
-            batchUserPickingDetail(d) <- batchPickingOrderDetail(detail);
-            binUserPickingDetail(d) <- binPickingOrderDetail(detail);
+    FORM packQuantity MODAL;
+    IF formResult() == FormResult.ok THEN {
+        finishDatePickingOrder(pickingOrder) <- currentDate();
+        finishTimePickingOrder(pickingOrder) <- currentTime();
+        FOR ADDOBJ p = UserPicking DO {
+            pickingOrderUserPicking(p) <- pickingOrder;
+            stockUserPicking(p) <- stockPickingOrder(pickingOrder);
+            packQuantityUserPicking(p) <- chosenNumeric('n');
+            FOR pickingOrderPickingOrderDetail(detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
+                userPickingUserPickingDetail(d) <- p;
+                skuUserPickingDetail(d) <- skuPickingOrderDetail(detail);
+                quantityUserPickingDetail(d) <- quantityPickingOrderDetail(detail);
+                batchUserPickingDetail(d) <- batchPickingOrderDetail(detail);
+                binUserPickingDetail(d) <- binPickingOrderDetail(detail);
+            }
         }
     }
 } TOOLBAR EDITKEY 'F10';
+
 partiallyAssembledPickingOrder 'Собран частично' = ACTION (pickingOrder) NEWSESSION{
-    finishDatePickingOrder(pickingOrder) <- currentDate();
-    finishTimePickingOrder(pickingOrder) <- currentTime();
-    FOR ADDOBJ p = UserPicking DO {
-        pickingOrderUserPicking(p) <- pickingOrder;
-        stockUserPicking(p) <- stockPickingOrder(pickingOrder);
-        FOR pickingOrderPickingOrderDetail(detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
-            userPickingUserPickingDetail(d) <- p;
-            skuUserPickingDetail(d) <- skuPickingOrderDetail(detail);
-            quantityUserPickingDetail(d) <- quantityPickingOrderDetail(detail);
-            batchUserPickingDetail(d) <- batchPickingOrderDetail(detail);
-            binUserPickingDetail(d) <- binPickingOrderDetail(detail);
+    FORM packQuantity MODAL;
+    IF formResult() == FormResult.ok THEN {
+        finishDatePickingOrder(pickingOrder) <- currentDate();
+        finishTimePickingOrder(pickingOrder) <- currentTime();
+        FOR ADDOBJ p = UserPicking DO {
+            pickingOrderUserPicking(p) <- pickingOrder;
+            stockUserPicking(p) <- stockPickingOrder(pickingOrder);
+            packQuantityUserPicking(p) <- chosenNumeric('n');
+            FOR pickingOrderPickingOrderDetail(detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
+                userPickingUserPickingDetail(d) <- p;
+                skuUserPickingDetail(d) <- skuPickingOrderDetail(detail);
+                quantityUserPickingDetail(d) <- quantityPickingOrderDetail(detail);
+                batchUserPickingDetail(d) <- batchPickingOrderDetail(detail);
+                binUserPickingDetail(d) <- binPickingOrderDetail(detail);
+            }
+            FORM userPicking OBJECTS o=p MANAGESESSION DOCKEDMODAL;
         }
-        FORM userPicking OBJECTS o=p MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR EDITKEY 'F9';
 
@@ -413,6 +448,7 @@ EXTEND FORM pickingOrders
     PROPERTIES(o) READONLYIF isReadonly() namePerformerPickingOrder, startDatePickingOrder, startTimePickingOrder
     PROPERTIES(o) READONLY statusPickingPickingOrder BACKGROUND backgroundStatusPickingPickingOrder(o)
     PROPERTIES(o) READONLYIF isReadonly() finishDatePickingOrder, finishTimePickingOrder
+    PROPERTIES(o) READONLY packQuantityPickingOrder
     PROPERTIES(o) toAcceptedPickingOrder, unacceptedPickingOrder, fullyAssembledPickingOrder, partiallyAssembledPickingOrder
 
 ;
