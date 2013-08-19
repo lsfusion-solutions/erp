@@ -188,8 +188,8 @@ CLASS NaturalLossDetail 'Строка ведомости естественно�
 CLASS NaturalLossPosted 'Проведенная ведомость естественной убыли' : NaturalLoss, PostedObject;
 
 @defineDocument(naturalLoss);
-//@defineDocumentDepartmentStore(naturalLoss);
-@defineDocumentStock(naturalLoss, stock, 'Склад');
+
+@defineDocumentDataStock (naturalLoss, stock, 'Склад', );
 @defineDocumentPosted(naturalLoss);
 
 @defineDocumentDetailSku(naturalLoss, sku);
@@ -296,7 +296,7 @@ FORM naturalLoss 'Ведомость естественной убыли'
     PROPERTIES(d) indexNaturalLossDetail, idBarcodeSkuNaturalLossDetail, nameSkuNaturalLossDetail, shortNameUOMSkuNaturalLossDetail,
                   nameBatchNaturalLossDetail, quantityLossNaturalLossDetail, nameSubNaturalLossGroupNaturalLossDetail,
                   codeNaturalLossDetail, nameSubNaturalDetailNaturalLossDetail, percentNaturalLossDetail, quantityNaturalLossDetail, priceNaturalLossDetail,
-                  sumNaturalLossDetail, ADDOBJ, DELETESESSION
+                  sumNaturalLossDetail, nameStockNaturalLossDetail, ADDOBJ, DELETESESSION
 
     PROPERTIES(s) TODRAW d addDetailDialogSkuStockNaturalLossDetailNaturalLoss,
                            addDetailInputBarcodeNaturalLossDetailNaturalLoss, deleteNaturalLossDetailNaturalLoss
@@ -356,14 +356,11 @@ DESIGN naturalLoss FROM DEFAULT{
 }
 
 //-- SKU
+@defineDocumentSkuStockPriceListTypeSystemLedger(naturalLoss, accountPriceListType, stock);
+@extendFormDocumentSkuStock(naturalLoss, naturalLoss, s, legalEntityStock, stock);
 
-//priceSkuStockNaturalLoss 'Цена' (sku, stock, naturalLoss) = prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTimeNaturalLoss(naturalLoss));
-//@defineDocumentSkuStockCustom(naturalLoss, naturalLossDetail, sku, stock);
-//@extendFormDocumentSkuStock(naturalLoss, naturalLoss, s, legalEntityStock, stock);
-
-//priceBatchStockNaturalLoss 'Цена' (batch, stock, naturalLoss) = prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTimeNaturalLoss(naturalLoss));
-//@defineDocumentBatchStockCustom(naturalLoss, naturalLossDetail, batch, sku, stock);
-//@extendFormDocumentBatchStock(naturalLoss, naturalLoss, s, legalEntityStock, stock);
+@defineDocumentBatchStockPriceListTypeSystemLedger(naturalLoss, accountPriceListType, stock);
+@extendFormDocumentBatchStock(naturalLoss, naturalLoss, s, legalEntityStock, stock);
 
 FORM naturalLosses 'Ведомости естественной убыли'
     OBJECTS s=NaturalLoss
@@ -376,7 +373,7 @@ FORM naturalLosses 'Ведомости естественной убыли'
     PROPERTIES(d) READONLY indexNaturalLossDetail, idBarcodeSkuNaturalLossDetail, nameSkuNaturalLossDetail, shortNameUOMSkuNaturalLossDetail,
                            nameBatchNaturalLossDetail, quantityLossNaturalLossDetail,
                            nameSubNaturalLossGroupNaturalLossDetail, codeNaturalLossDetail, nameSubNaturalDetailNaturalLossDetail,
-                           percentNaturalLossDetail, quantityNaturalLossDetail, priceNaturalLossDetail, sumNaturalLossDetail
+                           percentNaturalLossDetail, quantityNaturalLossDetail, priceNaturalLossDetail, sumNaturalLossDetail, nameStockNaturalLossDetail
 
     FILTERS inNaturalLossNaturalLossDetail(s, d)
 ;
