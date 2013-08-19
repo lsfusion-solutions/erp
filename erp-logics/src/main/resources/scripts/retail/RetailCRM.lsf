@@ -263,14 +263,14 @@ TABLE promotionConditionSkuGroup (PromotionCondition, SkuGroup);
 inDataPromotionConditionSkuGroup 'В условии' = DATA BOOLEAN (PromotionCondition, SkuGroup);
 inParentPromotionConditionSkuGroup (promotionCondition, skuGroup) = GROUP SUM 1 IF inDataPromotionConditionSkuGroup(promotionCondition, parent) AND isParentSkuGroupSkuGroup(child, parent)
                                                                           BY promotionCondition, child PERSISTENT;
-inPromotionConditionSkuGroup 'В условии' = (TRUE IF inParentPromotionConditionSkuGroup(promotionCondition, skuGroup)) OR inDataPromotionConditionSkuGroup(promotionCondition, skuGroup);
+inPromotionConditionSkuGroup 'В условии' = inParentPromotionConditionSkuGroup(promotionCondition, skuGroup) OR inDataPromotionConditionSkuGroup(promotionCondition, skuGroup);
 
 // sku
 TABLE promotionConditionSku (PromotionCondition, Sku);
 inDataPromotionConditionSku 'В условии' = DATA BOOLEAN (PromotionCondition, Sku);
 
-inPromotionConditionSku 'В условии' (promotionCondition, sku) = OVERRIDE ((TRUE IF countPromotionConditionSku(promotionCondition, sku)) OR (allDiscountSkuGroupPromotionCondition(promotionCondition) AND sku IS Sku)) AND
-                                                                            inParentPromotionConditionSkuGroup(promotionCondition, skuGroupSku(sku)),
+inPromotionConditionSku 'В условии' (promotionCondition, sku) = OVERRIDE (countPromotionConditionSku(promotionCondition, sku) OR (allDiscountSkuGroupPromotionCondition(promotionCondition) AND sku IS Sku)) AND
+                                                                          inParentPromotionConditionSkuGroup(promotionCondition, skuGroupSku(sku)),
                                                                           inDataPromotionConditionSku(promotionCondition, sku);
 
 FORM promotion 'Акция'

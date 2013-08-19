@@ -133,7 +133,7 @@ META defineScheduleOrder(sign, stockProp)
     tmpDateP = DATA SESSION DATE();
     tmpDateS = DATA SESSION DATE();
 
-    createScheduleOrder 'Генерировать предварительные заказы' = ACTION (scheduleOrder) {
+    createScheduleOrder 'Сгенерировать предварительные заказы' = ACTION (scheduleOrder) {
         // генерация через N дней
         IF typeScheduleOrder(scheduleOrder) == GenType.genDays THEN {
             ASSIGN tmpDate() <- dayLastOrderScheduleOrder(scheduleOrder);
@@ -281,70 +281,70 @@ META defineScheduleOrder(sign, stockProp)
     ;
 
     DESIGN scheduleOrder FROM DEFAULT{
-        main {
-            NEW topContainer {
-                NEW orderContainer {
-                    childConstraints = TO THE RIGHT;
-                    NEW suppContainer {
-                        caption = 'Поставщик';
-                        ADD PROPERTY(nameSupplierScheduleOrder);
-                        ADD PROPERTY(nameSupplierStockScheduleOrder);
-                    }
-
-                    NEW custContainer {
-                        caption = 'Покупатель';
-                        ADD PROPERTY(nameCustomerScheduleOrder);
-                        ADD PROPERTY(nameCustomerStockScheduleOrder);
-                    }
-
-                    NEW dateContainer {
-                        caption = 'Сроки';
-                        ADD PROPERTY(startDateScheduleOrder);
-                        ADD PROPERTY(endDateScheduleOrder);
-                    }
-                }
+        NEW header {
+            type = CONTAINERH;
+            NEW suppContainer {
+                caption = 'Поставщик';
+                type = COLUMNS;
+                columns = 1;
+                ADD PROPERTY(nameSupplierScheduleOrder);
+                ADD PROPERTY(nameSupplierStockScheduleOrder);
             }
 
-            NEW bottomContainer {
-                fillVertical = 2;
-                type = TABBED;
-                NEW paramContainer {
-                    caption = 'Параметры';
-                    childConstraints = TO THE RIGHT;
-                    type = SPLITH;
-                    NEW createContainer {
-                        fillHorizontal = 1;
-                        NEW propContainer {
-                            caption = 'Общие';
-                            ADD PROPERTY(nameTypeScheduleOrder);
-                            ADD PROPERTY(dayBeforeScheduleOrder);
-                        }
-
-                        NEW changeContainer {
-                            caption = 'Для типа';
-                            ADD PROPERTY(overPeriodScheduleOrder);
-                            ADD PROPERTY(inAllMonthScheduleOrder);
-                            ADD PROPERTY(dayLastOrderScheduleOrder);
-                            ADD PROPERTY(dayAfterScheduleOrder);
-                            ADD PROPERTY(stringNumberScheduleOrder);
-                            ADD PROPERTY(nameTransferDayScheduleOrder);
-                        }
-                    }
-
-                    NEW monthContainer {
-                        childConstraints = TO THE RIGHT;
-                        fillHorizontal = 2;
-                        ADD m.box;
-                        ADD d.box;
-                    }
-                }
-
-                ADD sd.box {
-                    caption = 'Предварительные заказы';
-                };
+            NEW custContainer {
+                caption = 'Покупатель';
+                type = COLUMNS;
+                columns = 1;
+                ADD PROPERTY(nameCustomerScheduleOrder);
+                ADD PROPERTY(nameCustomerStockScheduleOrder);
             }
-            ADD functions.box;
+
+            NEW dateContainer {
+                caption = 'Сроки';
+                type = COLUMNS;
+                columns = 1;
+                ADD PROPERTY(startDateScheduleOrder);
+                ADD PROPERTY(endDateScheduleOrder);
+            }
         }
+
+        NEW bottomContainer {
+            fill = 1;
+            type = TABBED;
+            NEW params {
+                caption = 'Параметры';
+                NEW paramsHeader {
+                    NEW paramsProps {
+                        caption = 'Общие';
+                        type = CONTAINERH;
+                        ADD PROPERTY(nameTypeScheduleOrder);
+                        ADD PROPERTY(dayBeforeScheduleOrder);
+                    }
+
+                    NEW paramsCustom {
+                        caption = 'Параметры графика';
+                        ADD PROPERTY(overPeriodScheduleOrder);
+                        ADD PROPERTY(inAllMonthScheduleOrder);
+                        ADD PROPERTY(dayLastOrderScheduleOrder);
+                        ADD PROPERTY(dayAfterScheduleOrder);
+                        ADD PROPERTY(stringNumberScheduleOrder);
+                        ADD PROPERTY(nameTransferDayScheduleOrder);
+                    }
+                }
+
+                NEW days {
+                    fill = 1;
+                    type = CONTAINERH;
+                    ADD m.box;
+                    ADD d.box;
+                }
+            }
+
+            ADD sd.box {
+                caption = 'Предварительные заказы';
+            }
+        }
+        ADD functions.box;
     }
 
     editScheduleOrder 'Редактировать' = ACTION EDITFORM ScheduleOrder TOOLBAR;
@@ -359,7 +359,7 @@ META defineScheduleOrder(sign, stockProp)
             ASSIGN customerScheduleOrder(s) <- customer;
 
             FORM scheduleOrder OBJECTS s = s MANAGESESSION DOCKEDMODAL;
-            IF TRUE IF NOT formResult() == FormResult.ok THEN {
+            IF NOT formResult() == FormResult.ok THEN {
                 DELETE s;
             }
         }
@@ -408,18 +408,16 @@ META defineScheduleOrder(sign, stockProp)
     ;
 
     DESIGN scheduleOrderDetails FROM DEFAULT{
-        main {
-            NEW topContainer {
-                childConstraints = TO THE RIGHTBOTTOM;
-                ADD PROPERTY(dv);
-                ADD PROPERTY(nameSupplier);
-                ADD PROPERTY(nameSupplierStock);
-                ADD PROPERTY(nameCustomer);
-                ADD PROPERTY(nameCustomerStock);
-            }
-            ADD sd.box;
-            ADD functions.box;
+        NEW header {
+            type = CONTAINERH;
+            ADD PROPERTY(dv);
+            ADD PROPERTY(nameSupplier);
+            ADD PROPERTY(nameSupplierStock);
+            ADD PROPERTY(nameCustomer);
+            ADD PROPERTY(nameCustomerStock);
         }
+        ADD sd.box;
+        ADD functions.box;
     }
 
 
@@ -456,20 +454,18 @@ META defineScheduleOrder(sign, stockProp)
     ;
 
     DESIGN scheduleOrders FROM DEFAULT{
-        main {
-            NEW topContainer {
-                childConstraints = TO THE RIGHTBOTTOM;
-                ADD PROPERTY(dv);
-                ADD PROPERTY(nameSupplier);
-                ADD PROPERTY(nameSupplierStock);
-                ADD PROPERTY(nameCustomer);
-                ADD PROPERTY(nameCustomerStock);
-            }
-            ADD s.box;
-            ADD sd.box;
-
-            ADD functions.box;
+        NEW header {
+            type = CONTAINERH;
+            ADD PROPERTY(dv);
+            ADD PROPERTY(nameSupplier);
+            ADD PROPERTY(nameSupplierStock);
+            ADD PROPERTY(nameCustomer);
+            ADD PROPERTY(nameCustomerStock);
         }
+        ADD s.box;
+        ADD sd.box;
+
+        ADD functions.box;
     }
 
 END

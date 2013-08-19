@@ -358,7 +358,7 @@ nameFilterPriceListTypeUserPriceList 'Вид цены' (userPriceList) = namePri
 currentPriceSkuPriceListStock 'Текущая цена' (sku, userPriceList, stock) =
     currentPriceSkuPriceListDataPriceListTypeStock(sku, userPriceList, filterPriceListTypeUserPriceList(userPriceList), stock);
 filterPriceListTypeUserPriceListSkuStock (userPriceList, sku, stock) =
-    (TRUE IF currentPriceSkuPriceListStock (sku, userPriceList, stock)) OR
+    currentPriceSkuPriceListStock (sku, userPriceList, stock) OR
     (sku IS Sku AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
 
 FORM userPriceList 'Прайс'
@@ -906,15 +906,14 @@ NAVIGATOR {
 
 // Заполнение на основании
 
-addUnderPriceListUserPriceList 'Заполнить на основании' = ACTION (userPriceList) {
+addUnderPriceListUserPriceList 'Заполнить на основании' = ACTION (p) {
     FORM priceLists MODAL;
     IF formResult() == FormResult.ok THEN {
-        FOR priceListPriceListDetail(detail) == chosenObject('p') DO {
-            ADDOBJ UserPriceListDetail;
-            FOR d == addedObject() DO {
-                ASSIGN userPriceListUserPriceListDetail(d) <- userPriceList;
-                ASSIGN skuUserPriceListDetail(d) <- skuPriceListDetail(detail);
-            }
+        FOR priceListPriceListDetail(detail) == chosenObject('p') ADDOBJ d = UserPriceListDetail DO {
+            userPriceListUserPriceListDetail(d) <- p;
+            skuUserPriceListDetail(d) <- skuPriceListDetail(detail);
+            priceUserPriceListDetailDataPriceListType(d, type) <- pricePriceListDetailDataPriceListType(detail, type)
+                                                                  WHERE inUserPriceListDataPriceListType(p, type); 
         }
     }
 }
@@ -957,7 +956,7 @@ addUserPriceListLegalEntity 'Добавить' = ACTION (legalEntity) {
     FOR ADDOBJ u = UserPriceList DO {
         ASSIGN companyUserPriceList(u) <- legalEntity;
         FORM userPriceList OBJECTS p = u DOCKEDMODAL;
-        IF TRUE IF NOT formResult() == FormResult.ok THEN {
+        IF NOT formResult() == FormResult.ok THEN {
             DELETE u;
         }
     }
