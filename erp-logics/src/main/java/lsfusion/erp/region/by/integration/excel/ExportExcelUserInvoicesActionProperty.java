@@ -29,6 +29,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
     //Опциональные модули
     private ScriptingLogicsModule pricingPurchaseLM;
+    private ScriptingLogicsModule purchaseInvoiceWholesaleLM;
 
     public ExportExcelUserInvoicesActionProperty(ScriptingLogicsModule LM) {
         super(LM, DateClass.instance, DateClass.instance);
@@ -60,6 +61,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
 
         pricingPurchaseLM = (ScriptingLogicsModule) context.getBL().getModule("PricingPurchase");
+        purchaseInvoiceWholesaleLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoiceWholesalePrice");
 
         List<List<String>> data = new ArrayList<List<String>>();
 
@@ -105,10 +107,16 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
                     QueryBuilder<Object, Object> userInvoiceDetailQuery = new QueryBuilder<Object, Object>(userInvoiceDetailKeys);
                     String[] userInvoiceDetailProperties = new String[]{"Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
-                            "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "Purchase.wholesalePriceUserInvoiceDetail",
-                            "Purchase.wholesaleMarkupUserInvoiceDetail", "certificateTextInvoiceDetail"};
+                            "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "certificateTextInvoiceDetail"};
                     for (String uidProperty : userInvoiceDetailProperties) {
                         userInvoiceDetailQuery.addProperty(uidProperty, getLCP(uidProperty).getExpr(context.getModifier(), userInvoiceDetailExpr));
+                    }
+
+                    if (purchaseInvoiceWholesaleLM != null) {
+                        String[] purchaseInvoiceWholesaleUserInvoiceDetailProperties = new String[]{"Purchase.wholesalePriceUserInvoiceDetail", "Purchase.wholesaleMarkupUserInvoiceDetail"};
+                        for (String uidProperty : purchaseInvoiceWholesaleUserInvoiceDetailProperties) {
+                            userInvoiceDetailQuery.addProperty(uidProperty, purchaseInvoiceWholesaleLM.findLCPByCompoundName(uidProperty).getExpr(context.getModifier(), userInvoiceDetailExpr));
+                        }
                     }
 
                     if (pricingPurchaseLM != null) {
