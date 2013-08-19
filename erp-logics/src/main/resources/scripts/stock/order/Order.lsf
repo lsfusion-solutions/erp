@@ -183,7 +183,15 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     Order.priceOrderDetail(detail) += priceOrderDetail(detail);
 
     @defineDocumentInterfaceDetailVAT(order, country###stockProp, , ); // объявляем шкалу
-    // саму шкалу не записываем, поскольку на продаже может быть расчетный НДС
+    
+    overVATUserOrderDetail = ABSTRACT Range (UserOrderDetail); 
+    WHEN SESSION
+        CHANGED(skuUserOrderDetail(detail)) OR CHANGED (supplierStockUserOrderDetail(detail)) OR 
+        CHANGED(dateUserOrderDetail(detail)) OR CHANGED(overVATUserOrderDetail(detail)) DO {
+            VATUserOrderDetail(detail) <- OVERRIDE VATSkuCountryDate (skuUserOrderDetail(detail), countryStock(supplierStockUserOrderDetail(detail)), dateUserOrderDetail(detail)),
+                                                   overVATUserOrderDetail(detail);
+        } // записываем шкалу
+
     @deriveDocumentDetailValueVAT(userOrder); // записываем значение ставки
 
     Order.VATOrderDetail(detail) += VATOrderDetail(detail);
@@ -208,7 +216,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     // суммы НДС и с НДС
     @defineDocumentInterfaceDetailVATDataSum (order, invoice); // объявляем свойства суммы НДС и суммы с НДС
-    // суммы НДС и с НДС не записываем, поскольку для продажи нужен расчетный НДС
+    @deriveDocumentDetailVATDataSum(userOrder); // записываем сумму НДС
+    @deriveDocumentDetailVATPrefixSum (userOrder, invoice); // записываем сумму с НДС
 
     Order.VATSumOrderDetail(detail) += VATSumOrderDetail(detail);
     Order.invoiceSumOrderDetail(detail) += invoiceSumOrderDetail(detail);

@@ -145,7 +145,13 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     Invoice.priceInvoiceDetail(detail) += priceInvoiceDetail(detail);
 
     @defineDocumentInterfaceDetailVAT(invoice, country###stockProp, , ); // объявляем шкалу
-    // саму шкалу не записываем, поскольку на продаже может быть расчетный НДС
+    overVATUserInvoiceDetail = ABSTRACT Range (UserInvoiceDetail); 
+    WHEN SESSION
+        CHANGED(skuUserInvoiceDetail(detail)) OR CHANGED (supplierStockUserInvoiceDetail(detail)) OR 
+        CHANGED(dateUserInvoiceDetail(detail)) OR CHANGED(overVATUserInvoiceDetail(detail)) DO {
+            VATUserInvoiceDetail(detail) <- OVERRIDE VATSkuCountryDate (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail)), dateUserInvoiceDetail(detail)),
+                                                     overVATUserInvoiceDetail(detail);
+        } // записываем шкалу
     @deriveDocumentDetailValueVAT(userInvoice); // записываем значение ставки
 
     Invoice.VATInvoiceDetail(detail) += VATInvoiceDetail(detail);

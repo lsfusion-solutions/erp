@@ -363,8 +363,10 @@ END
 
 // ------------ derive
 META deriveDocumentDetailValueVATCustom(detail, prefix)
-    value###prefix###VAT###detail (detail)  <- valueRateRangeDate(prefix###VAT###detail(detail), date###detail(detail))
-                    WHEN DO CHANGED(prefix###VAT###detail(detail)) OR CHANGED (date###detail(detail));
+    WHEN SESSION
+        CHANGED(prefix###VAT###detail(detail)) OR CHANGED (date###detail(detail)) DO {
+            value###prefix###VAT###detail (detail) <- valueRateRangeDate(prefix###VAT###detail(detail), date###detail(detail));
+        }
 END
 META deriveDocumentDetailValueVAT(object, prefix)
     @deriveDocumentDetailValueVATCustom(object##Detail, prefix);
