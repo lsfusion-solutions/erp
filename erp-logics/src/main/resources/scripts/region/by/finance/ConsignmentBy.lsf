@@ -73,9 +73,9 @@ nameDriverConsignment 'Водитель' (consignment) = OVERRIDE nameContact(dr
 
 dataWaybillConsignment 'Путевой лист' (consignment) = ABSTRACT VARSTRING[20] (Consignment) IN carConsignmentGroup;
 
-waybillConsignment 'Путевой лист' (consignment) = ABSTRACT STRING[20] (Consignment) IN carConsignmentGroup;
+waybillConsignment 'Путевой лист' (consignment) = ABSTRACT STRING[20] (Consignment);
 
-overWaybillConsignment 'Путевой лист' (consignment) = OVERRIDE waybillConsignment(consignment), dataWaybillConsignment(consignment);
+overWaybillConsignment 'Путевой лист' (consignment) = OVERRIDE waybillConsignment(consignment), dataWaybillConsignment(consignment) IN carConsignmentGroup;
 
 
 // Склад погрузки
@@ -354,97 +354,69 @@ DESIGN consignment FROM DEFAULT {
     main {
         preferredSize = (1024, 768);
 
-        NEW top {
+        NEW header {
+            caption = 'Шапка документа';
             type = CONTAINERH;
-
-            NEW header.box {
-                caption = 'Накладная';
-                NEW headerCol1 {
-                    NEW container5 {
-                        type = CONTAINERH;
-                        NEW container55 {
-                            caption = 'Объект';
-                            ADD PROPERTY (objectClassName) {
-                                preferredCharWidth = 15;
-                            }
-                        }
-                        NEW headerCol11 {
-                            caption = 'Шапка документа';
-                            type = CONTAINERH;
-                            ADD PROPERTY(nameSupplierStockConsignment);
-                            ADD PROPERTY(numberObject);
-                            ADD PROPERTY(seriesObject);
-                            ADD PROPERTY(dateConsignment);
-                        }
-                    }
-
-                    NEW headerCol22 {
-                        NEW headerCol221 {
-                            type = CONTAINERH;
-                            NEW row11 {
-                                caption = 'Грузоотправитель';
-                                type = CONTAINERV;
-                                ADD PROPERTY(fullNameSupplierConsignment);
-                                ADD PROPERTY(UNPSupplierConsignment);
-                                ADD PROPERTY(addressSupplierConsignment);
-                            }
-                            NEW row22 {
-                                caption = 'Грузополучатель';
-                                type = CONTAINERV;
-                                ADD PROPERTY(fullNameCustomerConsignment);
-                                ADD PROPERTY(UNPCustomerConsignment);
-                                ADD PROPERTY(addressCustomerConsignment);
-                            }
-                        }
-                        NEW row33 {
-                            caption = 'Заказчик грузоперевозки (плательщик)';
-                            ADD PROPERTY(fullNamePayerConsignment);
-                        }
-                    }
-                }
-                NEW consignment{
-                    caption = 'Атрибуты накладной';
-                    type = CONTAINERH;
-                    NEW wor1 {
-                        ADD c.carConsignmentGroup {
-                            columns = 2;
-                        };
-                        NEW wor11 {
-                            caption = 'Дополнительно';
-                            type = CONTAINERH;
-                            ADD PROPERTY (noteConsignment(c));
-                            ADD PROPERTY (shortNameCurrencyConsignment(c));
-                        }
-                    }
-                }
-            }
-            NEW wor2 {
-                ADD c.issuanceConsignmentGroup {type = CONTAINERV;}
-                ADD c.loadingConsignmentGroup {type = CONTAINERV;}
-                ADD c.sumConsignmentGroup {
-                    type = CONTAINERV;
-                    NEW wor21 {
-                        type = CONTAINERV;
-                        ADD PROPERTY(countConsignmentDetailConsignment);
-                        ADD PROPERTY(quantityConsignmentDetailConsignment);
-                        ADD PROPERTY(overPackQuantityConsignmentDetailConsignment);
-                        ADD PROPERTY(grossWeightTonConsignmentDetailConsignment);
-                    }
-                    NEW wor22 {
-                        type = CONTAINERV;
-                        ADD PROPERTY(sumConsignmentDetailConsignment);
-                        ADD PROPERTY(sumVATConsignmentDetailConsignment);
-                        ADD PROPERTY(sumInvoiceConsignmentDetailConsignment);
-                    }
-                }
-            }
+            ADD PROPERTY (objectClassName) { preferredCharWidth = 15; }
+            ADD PROPERTY(nameSupplierStockConsignment);
+            ADD PROPERTY(numberObject);
+            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(dateConsignment);
         }
-        ADD d.box {
-            fill = 1;
-            caption = 'Спецификация';
+
+        NEW supplier {
+            caption = 'Грузоотправитель';
+            type = CONTAINERH;
+            ADD PROPERTY(fullNameSupplierConsignment);
+            ADD PROPERTY(UNPSupplierConsignment);
+            ADD PROPERTY(addressSupplierConsignment);
         }
-        ADD functions.box;
+
+        NEW customer {
+            caption = 'Грузополучатель';
+            type = CONTAINERH;
+            ADD PROPERTY(fullNameCustomerConsignment);
+            ADD PROPERTY(UNPCustomerConsignment);
+            ADD PROPERTY(addressCustomerConsignment);
+        }
+
+        NEW payer {
+            caption = 'Заказчик ';
+            type = CONTAINERH;
+            ADD PROPERTY(fullNamePayerConsignment);
+            ADD PROPERTY(UNPPayerConsignment);
+            ADD PROPERTY(addressPayerConsignment);
+        }
+        ADD c.carConsignmentGroup {
+            columns = 4;
+        }
+        NEW misc {
+            caption = 'Дополнительно';
+            
+            type = CONTAINERH;
+            ADD PROPERTY (noteConsignment(c));
+            ADD PROPERTY (shortNameCurrencyConsignment(c));
+        }
+        ADD c.issuanceConsignmentGroup {
+            columns = 4;
+        }
+        ADD c.loadingConsignmentGroup {
+            columns = 4;
+        }
+        ADD c.sumConsignmentGroup {
+            columns = 4;
+            ADD PROPERTY(countConsignmentDetailConsignment);
+            ADD PROPERTY(quantityConsignmentDetailConsignment);
+            ADD PROPERTY(overPackQuantityConsignmentDetailConsignment);
+            ADD PROPERTY(grossWeightTonConsignmentDetailConsignment);
+            ADD PROPERTY(sumConsignmentDetailConsignment);
+            ADD PROPERTY(sumVATConsignmentDetailConsignment);
+            ADD PROPERTY(sumInvoiceConsignmentDetailConsignment);
+        }
     }
+        
+    ADD d.box;
+    ADD functions.box;
 }
 
 editConsignment 'Заполнить атрибуты накладной' (consignment) = ACTION FORM consignment OBJECTS c = consignment DOCKEDMODAL IMAGE 'edit.png';
