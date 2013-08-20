@@ -82,18 +82,6 @@ showPointsTrip 'Показать путь на карте' (trip) = ACTION (trip
 
 } TOOLBAR;
 
-selectTripOrder 'Отмечен' = DATA SESSION BOOLEAN(Trip, Order);
-
-quantityAllFromTripStock (trip, stock) = GROUP SUM 1 IF selectTripOrder(trip, order) BY trip, fromStockOrder(order);
-quantityAllToTripStock (trip, stock) = GROUP SUM 1 IF selectTripOrder(trip, order) BY trip, toStockOrder(order);
-quantityAllTripStock(trip, stock) = quantityAllFromTripStock(trip, stock) (+) quantityAllToTripStock(trip, stock);
-
-showPointOrders 'Показать отмеченные заказы' (trip) = ACTION (trip) {
-    ASSIGN numberPathPOI(stock) <- 1 IF quantityAllTripStock(trip, stock);
-    EXEC showOnMapPath();
-
-} TOOLBAR;
-
 createPathTrip 'Рассчитать путь' (trip) = ACTION (trip) {
     ASSIGN startPathPOI() <- firstStockTrip(trip);
     ASSIGN inPathPOI(stock) <- TRUE IF quantityTripStock(trip, stock);
@@ -128,11 +116,10 @@ FORM trip 'Рейс'
     PROPERTIES (t) READONLY grossWeightOrderedTrip, grossWeightShippedTrip
 
     OBJECTS o=Order
-    PROPERTIES(t, o) selectTripOrder, inTripOrder
+    PROPERTIES(t, o) inTripOrder
     PROPERTIES(o) READONLY numberOrder, seriesOrder, dateOrder, nameSupplierOrder, nameFromStockOrder, nameCustomerOrder, nameToStockOrder, grossWeightOrderDetailOrder
     PROPERTIES(o) editOrder
     PROPERTIES printOrdersTrip(t) TODRAW o FORCE PANEL
-    PROPERTIES showPointOrders(t) TODRAW o
 
     FILTERS isPostedOrder(o)
 
@@ -225,7 +212,7 @@ DESIGN trip FROM DEFAULT{
                     type = CONTAINERH;
                     NEW truckContainer {
                         type = COLUMNS;
-                        columns = 2;
+                        columns = 3;
                         caption = 'Параметры машины';
                         ADD PROPERTY(nameDriverTrip);
                         ADD PROPERTY(sidTruckTrip);
@@ -236,6 +223,8 @@ DESIGN trip FROM DEFAULT{
 
                     NEW sumContainer {
                         caption = 'Итоги';
+                        type = COLUMNS;
+                        columns = 1;
                         ADD PROPERTY(grossWeightOrderedTrip);
                         ADD PROPERTY(grossWeightShippedTrip);
                     }
@@ -292,6 +281,20 @@ DESIGN trip FROM DEFAULT{
         ADD functions.box;
     }
 }
+
+// Показываем отмеченные заказы на карте
+filteredFromTripStock (stock) = GROUP SUM 1 IF [FILTER trip.o](order) BY fromStockOrder(order);
+filteredToTripStock (stock) = GROUP SUM 1 IF [FILTER trip.o](order) BY toStockOrder(order);
+filteredTripStock(stock) = filteredFromTripStock(stock) (+) filteredToTripStock(stock);
+
+showPointOrders 'Показать отобранные заказы' () = ACTION () {
+    numberPathPOI(stock) <- 1 IF filteredTripStock(stock);
+    showOnMapPath();
+} TOOLBAR;
+
+EXTEND FORM trip
+    PROPERTIES showPointOrders() TODRAW o
+;
 
 FORM trips 'Рейсы'
     OBJECTS t=Trip
