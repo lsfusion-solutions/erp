@@ -101,11 +101,11 @@ DESIGN postReceiptPayment FROM DEFAULT {
             type = CONTAINERV;
             PROPERTY(formOk) {
                 fill = 1;
-                font = 'Tahoma bold 36';
+                font = 'Tahoma bold 28';
             }
             PROPERTY(formClose) {
                 fill = 1;
-                font = 'Tahoma bold 36';
+                font = 'Tahoma bold 28';
             }
         }
     }
@@ -252,16 +252,23 @@ createReceiptSaleDetailSku 'Добавить строку продажи' = ACTI
 GROUP receiptSaleActionGroup 'Продажа' : public;
 
 // По штрих-коду
+consumedChangeBarcodeSaleReceipt = DATA SESSION BOOLEAN();
+overChangeBarcodeSaleReceipt = ABSTRACT ACTION LIST (STRING[15], Receipt);
+
 changeBarcodeSaleReceipt = ACTION (receipt) {
     REQUEST STRING[15] INPUT;
-    LOCAL dialogBarcodeSku = Sku();
-    ASSIGN dialogBarcodeSku() <- skuBarcodeIdDate(requestedString(), currentDate());
+    consumedChangeBarcodeSaleReceipt() <- TRUE;
+    overChangeBarcodeSaleReceipt(requestedString(), receipt);
+    IF NOT consumedChangeBarcodeSaleReceipt() THEN{
+        LOCAL dialogBarcodeSku = Sku();
+        ASSIGN dialogBarcodeSku() <- skuBarcodeIdDate(requestedString(), currentDate());
 
-    IF dialogBarcodeSku() IS Sku THEN {
-        EXEC createReceiptSaleDetailSku(receipt, dialogBarcodeSku(), requestedString());
-    } ELSE
-        MESSAGE 'Не найден штрих-код';
-};
+        IF dialogBarcodeSku() IS Sku THEN {
+            EXEC createReceiptSaleDetailSku(receipt, dialogBarcodeSku(), requestedString());
+        } ELSE
+            MESSAGE 'Не найден штрих-код';
+    }
+}
 
 // Поиск подбором SKU
 FORM searchSkuSaleReceipt 'Поиск SKU'
@@ -689,11 +696,11 @@ FORM POS
                                           inputDiscountCardNumberReceipt, clearDiscountCardReceipt
 
     OBJECTS d = ReceiptDetail FIXED GRID
-    PROPERTIES(d) SHOWIF currentZReport() READONLY indexReceiptDetail, typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail,
-                                                   prevCurrentBalanceSkuReceiptDetail SHOWIF notExplicitBatchLedgerReceipt(r),
-                                                   prevCurrentBalanceBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(r)
-    PROPERTIES(d) SHOWIF currentZReport()          quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID,
-                                                   discountSumReceiptDetail, numberVATReceiptDetail, valueVATReceiptDetail, deleted=DELETESESSION
+    PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID indexReceiptDetail, typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail,
+                                                              prevCurrentBalanceSkuReceiptDetail SHOWIF notExplicitBatchLedgerReceipt(r),
+                                                              prevCurrentBalanceBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(r)
+    PROPERTIES(d) SHOWIF currentZReport() FORCE GRID quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountPercentReceiptSaleDetail,
+                                                     discountSumReceiptDetail, numberVATReceiptDetail, valueVATReceiptDetail, deleted=DELETESESSION
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE PANEL idBarcodePanel = idBarcodeReceiptDetail,
                                                                nameSkuPanel = nameSkuReceiptDetail,
                                                                quantityPanel = quantityReceiptDetail,

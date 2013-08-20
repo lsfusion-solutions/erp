@@ -99,19 +99,29 @@ userReceipt(receipt) <- currentUser() WHEN SET(receipt IS Receipt);
 @defineDocumentDetailCurrency (receipt, receiptSaleDetail);
 @defineDocumentDetailCurrency (receipt, receiptReturnDetail);
 
-receiptReceiptDetail (receiptDetail) = MULTI receiptReceiptReturnDetail(receiptDetail), receiptReceiptSaleDetail(receiptDetail) PERSISTENT;
+receiptReceiptDetail = ABSTRACT Receipt (ReceiptDetail);
+receiptReceiptDetail(detail) += receiptReceiptReturnDetail(detail);
+receiptReceiptDetail(detail) += receiptReceiptSaleDetail(detail);
 
 zReportReceiptDetail (receiptDetail) = zReportReceipt(receiptReceiptDetail(receiptDetail));
 sidCashRegisterModelReceiptDetail 'Код модели' (receiptDetail) = sidCashRegisterModelReceipt(receiptReceiptDetail(receiptDetail));
 
-typeReceiptDetail 'Тип' (receiptDetail) = MULTI 'Продажа' IF receiptDetail IS ReceiptSaleDetail, 'Возврат' IF receiptDetail IS ReceiptReturnDetail FIXEDCHARWIDTH 8;
+typeReceiptDetail 'Тип' = ABSTRACT STRING[10] (ReceiptDetail);
+typeReceiptDetail(detail) += 'Продажа' IF detail IS ReceiptSaleDetail;
+typeReceiptDetail(detail) += 'Возврат' IF detail IS ReceiptReturnDetail;
 
 @defineDocumentDetailIndex(receipt, ReceiptDetail);
 
 @defineDocumentDetailTime(receipt, ReceiptSaleDetail);
 @defineDocumentDetailTime(receipt, ReceiptReturnDetail);
-dateReceiptDetail 'Дата' (receiptDetail) = MULTI dateReceiptReturnDetail(receiptDetail), dateReceiptSaleDetail(receiptDetail) PERSISTENT;
-dateTimeReceiptDetail 'Дата/время' (receiptDetail) = MULTI dateTimeReceiptReturnDetail(receiptDetail), dateTimeReceiptSaleDetail(receiptDetail) PERSISTENT;
+
+dateReceiptDetail 'Дата' = ABSTRACT DATE (ReceiptDetail);
+dateReceiptDetail(detail) += dateReceiptReturnDetail(detail);
+dateReceiptDetail(detail) += dateReceiptSaleDetail(detail);
+
+dateTimeReceiptDetail 'Дата/время' = ABSTRACT DATETIME (ReceiptDetail);
+dateTimeReceiptDetail(detail) += dateTimeReceiptReturnDetail(detail);
+dateTimeReceiptDetail(detail) += dateTimeReceiptSaleDetail(detail);
 
 @defineDocumentDetailPosted(receipt, ReceiptSaleDetail);
 @defineDocumentDetailPosted(receipt, ReceiptReturnDetail);
@@ -215,9 +225,18 @@ discountSumReceiptReturnDetail (detail) <- roundPriceRoundCondition(quantityRece
                                                 CHANGED(receiptSaleDetailReceiptReturnDetail(detail)) OR
                                                 CHANGED(departmentStoreReceiptReturnDetail(detail));
 
-quantityReceiptDetail 'Количество' (receiptDetail) = MULTI quantityReceiptReturnDetail(receiptDetail), quantityReceiptSaleDetail(receiptDetail) PERSISTENT;
-priceReceiptDetail 'Цена' (receiptDetail) = MULTI priceReceiptReturnDetail(receiptDetail), priceReceiptSaleDetail(receiptDetail) PERSISTENT;
-sumReceiptDetail 'Сумма' (receiptDetail) = MULTI sumReceiptReturnDetail(receiptDetail), sumReceiptSaleDetail(receiptDetail) PERSISTENT;
+quantityReceiptDetail 'Количество' = ABSTRACT NUMERIC[14,3] (ReceiptDetail);
+quantityReceiptDetail(detail) += quantityReceiptReturnDetail(detail);
+quantityReceiptDetail(detail) += quantityReceiptSaleDetail(detail);
+
+priceReceiptDetail 'Цена' = ABSTRACT NUMERIC[14,2] (ReceiptDetail);
+priceReceiptDetail(detail) += priceReceiptReturnDetail(detail);
+priceReceiptDetail(detail) += priceReceiptSaleDetail(detail);
+
+sumReceiptDetail 'Сумма' = ABSTRACT NUMERIC[16,2] (ReceiptDetail);
+sumReceiptDetail(detail) += sumReceiptReturnDetail(detail);
+sumReceiptDetail(detail) += sumReceiptSaleDetail(detail);
+
 discountSumReceiptDetail 'Сумма скидки' (receiptDetail) = MULTI discountSumReceiptReturnDetail(receiptDetail), discountSumReceiptSaleDetail(receiptDetail) PERSISTENT;
 
 sumReceiptSaleDetailReceipt 'Сумма продажи' (receipt) = GROUP SUM sumReceiptSaleDetail(receiptDetail)
@@ -226,7 +245,14 @@ sumReceiptSaleDetailReceipt 'Сумма продажи' (receipt) = GROUP SUM su
 sumReceiptReturnDetailReceipt 'Сумма возврата' (receipt) = GROUP SUM sumReceiptReturnDetail(receiptDetail)
     BY receiptReceiptReturnDetail (receiptDetail) IN documentSumGroup PERSISTENT;
 
-sumReceiptDetailReceipt 'Сумма чека' (receipt) = sumReceiptSaleDetailReceipt(receipt) (-) sumReceiptReturnDetailReceipt(receipt) PERSISTENT;
+signSumReceiptDetail = ABSTRACT NUMERIC[16,2] (ReceiptDetail);
+signSumReceiptDetail(detail) += -sumReceiptReturnDetail(detail);
+signSumReceiptDetail(detail) += sumReceiptSaleDetail(detail);
+
+sumReceiptDetailReceipt 'Сумма чека' (receipt) = GROUP SUM signSumReceiptDetail(detail)
+    BY receiptReceiptDetail(detail);
+
+//sumReceiptDetailReceipt 'Сумма чека' (receipt) = sumReceiptSaleDetailReceipt(receipt) (-) sumReceiptReturnDetailReceipt(receipt) PERSISTENT;
 sumReceiptDetailReceiptDetail 'Сумма чека' (receiptDetail) = sumReceiptDetailReceipt(receiptReceiptDetail(receiptDetail));
 
 discountSumSaleReceiptDetailSaleReceipt 'Сумма скидки (продажи)' (receipt) = GROUP SUM discountSumReceiptSaleDetail(receiptDetail)
@@ -340,6 +366,21 @@ namePaymentMeansPaymentType 'Форма оплаты' (paymentType) = staticCapt
 sidPaymentType 'Идентификатор' = DATA STRING[10] (PaymentType) IN base;
 sidToTypePayment (tp) = GROUP AGGR paymentType BY sidPaymentType(paymentType) WHERE paymentType IS PaymentType;
 
+FORM paymentType 'Тип платежа'
+    OBJECTS pt = PaymentType FIXED PANEL
+    PROPERTIES(pt) namePaymentType, namePaymentMeansPaymentType, sidPaymentType
+
+    EDIT PaymentType OBJECT pt
+;
+
+FORM paymentTypes 'Тип платежа'
+    OBJECTS pt = PaymentType
+    PROPERTIES(pt) READONLY namePaymentType, namePaymentMeansPaymentType, sidPaymentType
+    PROPERTIES(pt) ADDFORM, EDITFORM, DELETE
+
+    DIALOG PaymentType OBJECT pt
+;
+
 receiptPayment (payment) = DATA Receipt (Payment) NOT NULL DELETE;
 
 countPaymentReceipt 'Кол-во типов платежей' (receipt) = GROUP SUM 1 IF receiptPayment(payment) == receipt BY receipt;
@@ -366,11 +407,11 @@ sumInCashPaymentReceipt (receipt) = GROUP SUM sumPayment(payment) IF paymentMean
 changePaymentReceipt 'Сдача' (receipt) = sumPaymentReceipt(receipt) - sumReceiptDetailReceipt(receipt);
 
 sumCashPaymentReceipt (receipt) = sumInCashPaymentReceipt(receipt) - changePaymentReceipt(receipt);
-sumNotCashPaymentReceipt (receipt) = GROUP SUM sumPayment(payment) IF NOT paymentMeansPayment(payment) == PaymentMeans.paymentMeansCash BY receiptPayment(payment);
+sumCardPaymentReceipt (receipt) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment) == PaymentMeans.paymentMeansCard BY receiptPayment(payment);
 
 CONSTRAINT receipt IS Receipt AND NOT sumPaymentReceipt(receipt) MESSAGE 'По чеку не указаны платежи';
 CONSTRAINT sumReceiptDetailReceipt(receipt) > sumPaymentReceipt(receipt) MESSAGE 'Сумма платежей по чеку меньше суммы чека';
-CONSTRAINT sumReceiptDetailReceipt(receipt) < sumNotCashPaymentReceipt(receipt) MESSAGE 'Сумма платежей по безналичному расчету больше суммы чека';
+CONSTRAINT sumReceiptDetailReceipt(receipt) < sumCardPaymentReceipt(receipt) MESSAGE 'Сумма платежей по безналичному расчету больше суммы чека';
 
 // Итоги по Z-отчету
 

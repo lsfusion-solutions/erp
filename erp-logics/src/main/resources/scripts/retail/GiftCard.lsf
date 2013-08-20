@@ -1,0 +1,234 @@
+MODULE GiftCard;
+
+REQUIRE POS;
+
+//подарочные сертификаты
+CLASS GiftCard 'Подарочный сертификат' : NumeratedObject;
+
+numberGiftCard 'Номер' (giftCard) = numberObject(giftCard) IF giftCard IS GiftCard PERSISTENT;
+seriesGiftCard 'Серия' = seriesObject(giftCard) IF giftCard IS GiftCard PERSISTENT;
+seriesNumberGiftCard 'Серия/Номер' (giftCard) = seriesNumberObject(giftCard) IF giftCard IS GiftCard PERSISTENT;
+
+giftCardSeriesNumber (string) =
+    GROUP AGGR giftCard
+        BY seriesNumberGiftCard(giftCard) WHERE giftCard IS GiftCard;
+
+@defineNumeratedObjectDefault(GiftCard, 'Нумератор для подарочных сертификатов', 'ПС');
+
+priceGiftCard 'Цена' = DATA NUMERIC[14,2] (GiftCard);
+
+//регистр движений подарочного сертификата
+CLASS ABSTRACT GiftCardLedger 'Движение подарочных сертификатов';
+
+giftCardGiftCardLedger = ABSTRACT GiftCard (GiftCardLedger);
+dateTimeGiftCardLedger 'Дата/время' = ABSTRACT DATETIME (GiftCardLedger);
+seriesNumberGiftCardLedger 'Серия/Номер' = ABSTRACT STRING[20] (GiftCardLedger);
+sumGiftCardLedger 'Сумма' = ABSTRACT NUMERIC[16,2] (GiftCardLedger);
+descriptionGiftCardLedger 'Описание' = ABSTRACT STRING[15] (GiftCardLedger);
+
+//продажа подарочных сертификатов
+CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертификата' : ReceiptDetail, GiftCardLedger;
+
+giftCardReceiptGiftCardSaleDetail = DATA GiftCard (ReceiptGiftCardSaleDetail);
+
+soldGiftCard (giftCard) =
+    GROUP AGGR detail
+        BY giftCardReceiptGiftCardSaleDetail(detail) WHERE detail IS ReceiptGiftCardSaleDetail;
+isSoldGiftCard 'Продан' (giftCard) = TRUE IF soldGiftCard(giftCard);
+
+receiptReceiptGiftCardSaleDetail = DATA Receipt (ReceiptGiftCardSaleDetail);
+receiptReceiptDetail(detail) += receiptReceiptGiftCardSaleDetail(detail);
+
+typeReceiptDetail(detail) += 'Сертификат' IF detail IS ReceiptGiftCardSaleDetail;
+quantityReceiptDetail(detail) += 1.0 IF detail IS ReceiptGiftCardSaleDetail;
+
+priceReceiptGiftCardSaleDetail 'Цена' = DATA NUMERIC[14,2] (ReceiptGiftCardSaleDetail);
+priceReceiptDetail(detail) += priceReceiptGiftCardSaleDetail(detail);
+
+sumReceiptGiftCardSaleDetail 'Сумма' = DATA NUMERIC[16,2] (ReceiptGiftCardSaleDetail);
+sumReceiptDetail(detail) += sumReceiptGiftCardSaleDetail(detail);
+signSumReceiptDetail(detail) += sumReceiptGiftCardSaleDetail(detail);
+
+//имплемент в GiftCardLedger
+giftCardGiftCardLedger(detail) += giftCardReceiptGiftCardSaleDetail(detail);
+dateTimeGiftCardLedger(detail) += dateTimeReceipt(receiptReceiptGiftCardSaleDetail(detail));
+seriesNumberGiftCardLedger(detail) += seriesNumberGiftCard(giftCardReceiptGiftCardSaleDetail(detail));
+sumGiftCardLedger(detail) += sumReceiptGiftCardSaleDetail(detail);
+descriptionGiftCardLedger(detail) += 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
+
+//продажа подарочных сертификатов
+overChangeBarcodeGiftCard = ACTION (string, receipt) {
+    IF giftCardSeriesNumber(string) AND receipt IS Receipt AND string IS STRING[15] THEN {
+        LOCAL giftCard = GiftCard();
+        giftCard() <- giftCardSeriesNumber(string);
+
+        IF soldGiftCard(giftCard()) THEN {
+            MESSAGE 'Сертификат ' + seriesNumberGiftCard(giftCard()) +' был использован';
+        } ELSE {
+            FOR ADDOBJ d = ReceiptGiftCardSaleDetail DO {
+                receiptReceiptGiftCardSaleDetail(d) <- receipt;
+                giftCardReceiptGiftCardSaleDetail(d) <- giftCard();
+                idBarcodeReceiptDetail(d) <- string;
+                priceReceiptGiftCardSaleDetail(d) <- priceGiftCard(giftCard());
+                sumReceiptGiftCardSaleDetail(d) <- priceGiftCard(giftCard());
+                seek(d);
+            }
+        }
+        consumedChangeBarcodeSaleReceipt() <- TRUE;
+    }
+} TOOLBAR;
+
+overChangeBarcodeSaleReceipt(string, receipt) += overChangeBarcodeGiftCard(string, receipt);
+
+//генерация подарочных сертификатов
+FORM generationGiftCards 'Генерация подарочных сертификатов'
+    OBJECTS n=Numerator  FIXED PANEL
+    PROPERTIES(n) SELECTOR nameNumerator
+
+    OBJECTS quantityCards=INTEGER FIXED PANEL
+    PROPERTIES(quantityCards) intValueQuantityCards = OBJVALUE
+
+    OBJECTS priceCards=NUMERIC[14,2] FIXED PANEL
+    PROPERTIES(priceCards) valuePriceCards = OBJVALUE
+;
+
+DESIGN generationGiftCards FROM DEFAULT {
+    main{
+        NEW topContainer{
+            caption = 'Параметры';
+            ADD PROPERTY(nameNumerator);
+            ADD PROPERTY(intValueQuantityCards) {caption = 'Количество подарочных сертификатов';}
+            ADD PROPERTY(valuePriceCards) {caption = 'Цена подарочных сертификатов';}
+        }
+        ADD functions.box;
+    }
+}
+
+generateGiftCards 'Сгенерировать подарочные сертификаты' = ACTION() {
+    FORM generationGiftCards OBJECTS n=defaultNumeratorGiftCard() MODAL CHECK;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL num = INTEGER();
+        ASSIGN num() <- 0;
+        WHILE num() < chosenInteger('quantityCards') DO {
+            ADDOBJ GiftCard;
+            FOR g == addedObject() DO {
+              // todo : новый способ не работает корректно
+//            FOR ADDOBJ g = GiftCard DO {
+                numeratorObject(g) <- chosenObject('n');
+                numberObject(g) <- curStringValueNumerator(numeratorObject(g));
+                seriesObject(g) <- seriesNumerator(numeratorObject(g));
+                priceGiftCard(g) <- chosenNumeric('priceCards');
+                curValueNumerator(numerator) <- curValueNumerator(numerator) + 1 WHERE numerator == numeratorObject(g);
+                num() <- num() + 1;
+            }
+        }
+    }
+} TOOLBAR;
+
+//формы
+FORM giftCard 'Подарочный сертификат'
+    OBJECTS g = GiftCard FIXED PANEL
+    PROPERTIES(g) nameNumeratorObject, numberGiftCard, seriesGiftCard, priceGiftCard
+
+    EDIT GiftCard OBJECT g
+;
+
+DESIGN giftCard FROM DEFAULT {
+    NEW topContainer{
+        caption = 'Подарочный сертификат';
+        ADD PROPERTY(nameNumeratorObject);
+        ADD PROPERTY(numberGiftCard);
+        ADD PROPERTY(seriesGiftCard);
+        ADD PROPERTY(priceGiftCard);
+    }
+    ADD functions.box;
+}
+
+FORM dialogGiftCards 'Подарочные сертификаты'
+    OBJECTS g = GiftCard
+    PROPERTIES(g) READONLY seriesNumberGiftCard, priceGiftCard
+    FILTERS soldGiftCard(g)
+
+    DIALOG GiftCard OBJECT g
+;
+
+FORM giftCards 'Подарочные сертификаты'
+    OBJECTS g = GiftCard
+    PROPERTIES(g) READONLY objectClassName, nameNumeratorObject, numberGiftCard, seriesGiftCard, priceGiftCard,
+                           isSoldGiftCard
+    PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
+    PROPERTIES(g) ADDFORM, EDITFORM, DELETE
+
+    OBJECTS l = GiftCardLedger
+    PROPERTIES(l) READONLY dateTimeGiftCardLedger, seriesNumberGiftCardLedger, sumGiftCardLedger, descriptionGiftCardLedger
+    ORDER BY dateTimeGiftCardLedger
+    FILTERS giftCardGiftCardLedger(l) == g
+;
+
+NAVIGATOR {
+    POSNavigator{
+        ADD giftCards;
+    }
+}
+
+//использование подарочных сертификатов при оплате
+CLASS PaymentGiftCard : Payment, GiftCardLedger;
+
+giftCardPaymentGiftCard = DATA GiftCard (PaymentGiftCard);
+
+//имплемент в GiftCardLedger
+giftCardGiftCardLedger(payment) += giftCardPaymentGiftCard(payment);
+dateTimeGiftCardLedger(payment) += dateTimeReceipt(receiptPayment(payment)) IF payment IS PaymentGiftCard;
+seriesNumberGiftCardLedger(payment) += seriesNumberGiftCard(giftCardPaymentGiftCard(payment));
+sumGiftCardLedger(payment) += sumPayment(payment) IF payment IS PaymentGiftCard;
+descriptionGiftCardLedger(payment) += 'Погашение' IF payment IS PaymentGiftCard;
+
+sumGiftCardReceipt 'Сумма подарочных сертификатов в чеке' (receipt) =
+    GROUP SUM sumPayment(payment) IF payment IS PaymentGiftCard
+    BY receiptPayment(payment);
+
+usedGiftCard (giftCard) =
+    GROUP AGGR payment
+        BY giftCardPaymentGiftCard(payment) WHERE payment IS PaymentGiftCard;
+isUsedGiftCard 'Погашен' (giftCard) = TRUE IF usedGiftCard(giftCard);
+
+EXTEND FORM dialogGiftCards
+    FILTERS NOT isUsedGiftCard(g)
+;
+
+EXTEND FORM giftCards
+    PROPERTIES(g) READONLY isUsedGiftCard
+;
+
+EXTEND CLASS PaymentMeans {paymentMeansGiftCard 'Подарочный сертификат'}
+
+minGiftCardPaymentType() = GROUP MIN paymentType IF paymentMeansPaymentType(paymentType) == PaymentMeans.paymentMeansGiftCard;
+
+addPaymentGiftCard 'Оплатить сертификатом' = ACTION (receipt) {
+    FOR ADDOBJ pg = PaymentGiftCard DO {
+        FORM dialogGiftCards MODAL;
+        LOCAL giftCard = GiftCard();
+        giftCard() <- chosenObject('g');
+        IF formResult() == FormResult.ok THEN {
+            giftCardPaymentGiftCard(pg) <- giftCard();
+            receiptPayment(pg) <- receipt;
+            paymentTypePayment(pg) <- minGiftCardPaymentType();
+            sumPayment(pg) <- priceGiftCard(giftCard());
+        } ELSE {
+            DELETE pg;
+        }
+    }
+}
+
+EXTEND FORM postReceiptPayment
+    PROPERTIES addPaymentGiftCard(r) TODRAW p FORCE PANEL
+;
+
+EXTEND DESIGN postReceiptPayment {
+    rightControls{
+        ADD PROPERTY(addPaymentGiftCard) BEFORE PROPERTY(formOk){
+            fill = 1;
+            font = 'Tahoma bold 28';
+        }
+    }
+}
