@@ -32,21 +32,21 @@ dateConsignment 'Дата' (consignment) = ABSTRACT DATE (Consignment);
 // ---------------------------------- Юридические лица ---------------------- //
 supplierConsignment = ABSTRACT LegalEntity (Consignment);
 UNPSupplierConsignment 'УНП отправителя' (consignment) = UNPLegalEntity(supplierConsignment(consignment));
-addressSupplierConsignment 'Юридический адрес отправителя' (consignment) =
+addressSupplierConsignment 'Юр. адрес отправителя' (consignment) =
     addressLegalEntityDate(supplierConsignment(consignment), dateConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-fullNameSupplierConsignment 'Наименование для накладных отправителя' (consignment) = fullNameLegalEntity(supplierConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+fullNameSupplierConsignment 'Наим-ие отправителя' (consignment) = fullNameLegalEntity(supplierConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 customerConsignment = ABSTRACT LegalEntity (Consignment);
 UNPCustomerConsignment 'УНП получателя' (consignment) = UNPLegalEntity(customerConsignment(consignment));
-addressCustomerConsignment 'Юридический адрес получателя' (consignment) =
+addressCustomerConsignment 'Юр. адрес получателя' (consignment) =
     addressLegalEntityDate(customerConsignment(consignment), dateConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-fullNameCustomerConsignment 'Наименование для накладных получателя' (consignment) = fullNameLegalEntity(customerConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+fullNameCustomerConsignment 'Наим-ие получателя' (consignment) = fullNameLegalEntity(customerConsignment(consignment)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 payerConsignment = ABSTRACT LegalEntity (Consignment);
 UNPPayerConsignment 'УНП заказчика перевозки' (consignment) = UNPLegalEntity(payerConsignment(consignment));
-addressPayerConsignment 'Юридический адрес заказчика перевозки' (consignment) =
+addressPayerConsignment 'Юр. адрес заказчика перевозки' (consignment) =
     addressLegalEntityDate(payerConsignment(consignment), dateConsignment(consignment));
-fullNamePayerConsignment 'Наименование для накладных заказчика перевозки' (consignment) =
+fullNamePayerConsignment 'Наим-ие для накладных заказчика перевозки' (consignment) =
     fullNameLegalEntity(payerConsignment(consignment)) ;
 
 // ------------------------------------- Атрибуты --------------------------------- //
@@ -196,7 +196,7 @@ quantityConsignmentDetailConsignment 'Количество (всего)' (consig
 packQuantityConsignmentDetailConsignment 'Общее количество грузовых мест' (consignment) = GROUP SUM packQuantityConsignmentDetail(consignmentDetail)
                                                             BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignmentGroup;
 
-packQuantityConsignment 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (Consignment);
+packQuantityConsignment 'Общее количество грузовых мест' = ABSTRACT NUMERIC[8,2] (Consignment);
 overPackQuantityConsignmentDetailConsignment 'Общее количество грузовых мест' (consignment) = OVERRIDE packQuantityConsignmentDetailConsignment(consignment),
                                                                                                        packQuantityConsignment(consignment);
 
@@ -354,98 +354,96 @@ DESIGN consignment FROM DEFAULT {
     main {
         preferredSize = (1024, 768);
 
-        NEW specification.box BEFORE functions.box{
+        NEW top {
+            type = CONTAINERH;
 
-            NEW consignment{
-                caption = 'Атрибуты накладной';
-                childConstraints = TO THE RIGHT;
-
-                NEW wor1 {
-                    childConstraints = TO THE BOTTOM;
-                    ADD c.carConsignmentGroup;
-                    NEW wor11 {
-                        caption = 'Дополнительно';
-                        childConstraints = TO THE RIGHT;
-                        ADD PROPERTY (noteConsignment(c));
-                        ADD PROPERTY (shortNameCurrencyConsignment(c));
-                    }
-                }
-                NEW wor2 {
-                    childConstraints = TO THE BOTTOM;
-                    ADD c.issuanceConsignmentGroup;
-                    ADD c.loadingConsignmentGroup;
-                    ADD c.sumConsignmentGroup {
-                        childConstraints = TO THE BOTTOM;
-                        NEW wor21 {
-                            childConstraints = TO THE RIGHT;
-                            ADD PROPERTY(countConsignmentDetailConsignment);
-                            ADD PROPERTY(quantityConsignmentDetailConsignment);
-                            ADD PROPERTY(overPackQuantityConsignmentDetailConsignment);
-                            ADD PROPERTY(grossWeightTonConsignmentDetailConsignment);
+            NEW header.box {
+                caption = 'Накладная';
+                NEW headerCol1 {
+                    NEW container5 {
+                        type = CONTAINERH;
+                        NEW container55 {
+                            caption = 'Объект';
+                            ADD PROPERTY (objectClassName) {
+                                preferredCharWidth = 15;
+                            }
                         }
-                        NEW wor22 {
-                            childConstraints = TO THE RIGHT;
-                            ADD PROPERTY(sumConsignmentDetailConsignment);
-                            ADD PROPERTY(sumVATConsignmentDetailConsignment);
-                            ADD PROPERTY(sumInvoiceConsignmentDetailConsignment);
+                        NEW headerCol11 {
+                            caption = 'Шапка документа';
+                            type = CONTAINERH;
+                            ADD PROPERTY(nameSupplierStockConsignment);
+                            ADD PROPERTY(numberObject);
+                            ADD PROPERTY(seriesObject);
+                            ADD PROPERTY(dateConsignment);
                         }
                     }
-                }
 
+                    NEW headerCol22 {
+                        NEW headerCol221 {
+                            type = CONTAINERH;
+                            NEW row11 {
+                                caption = 'Грузоотправитель';
+                                type = CONTAINERV;
+                                ADD PROPERTY(fullNameSupplierConsignment);
+                                ADD PROPERTY(UNPSupplierConsignment);
+                                ADD PROPERTY(addressSupplierConsignment);
+                            }
+                            NEW row22 {
+                                caption = 'Грузополучатель';
+                                type = CONTAINERV;
+                                ADD PROPERTY(fullNameCustomerConsignment);
+                                ADD PROPERTY(UNPCustomerConsignment);
+                                ADD PROPERTY(addressCustomerConsignment);
+                            }
+                        }
+                        NEW row33 {
+                            caption = 'Заказчик грузоперевозки (плательщик)';
+                            ADD PROPERTY(fullNamePayerConsignment);
+                        }
+                    }
+                }
+                NEW consignment{
+                    caption = 'Атрибуты накладной';
+                    type = CONTAINERH;
+                    NEW wor1 {
+                        ADD c.carConsignmentGroup {
+                            columns = 2;
+                        };
+                        NEW wor11 {
+                            caption = 'Дополнительно';
+                            type = CONTAINERH;
+                            ADD PROPERTY (noteConsignment(c));
+                            ADD PROPERTY (shortNameCurrencyConsignment(c));
+                        }
+                    }
+                }
             }
-            ADD d.box {
-                caption = 'Спецификация';
-            }
-
-        }
-
-        NEW header.box BEFORE specification.box {
-            caption = 'Накладная';
-            childConstraints = TO THE RIGHT;
-
-            NEW headerCol1 {
-                childConstraints = TO THE BOTTOM;
-                NEW container5 {
-                    childConstraints = TO THE RIGHT;
-                    NEW container55 {
-                        caption = 'Объект';
-                        ADD PROPERTY (objectClassName) {
-                            preferredCharWidth = 15;
-                        }
+            NEW wor2 {
+                ADD c.issuanceConsignmentGroup {type = CONTAINERV;}
+                ADD c.loadingConsignmentGroup {type = CONTAINERV;}
+                ADD c.sumConsignmentGroup {
+                    type = CONTAINERV;
+                    NEW wor21 {
+                        type = CONTAINERV;
+                        ADD PROPERTY(countConsignmentDetailConsignment);
+                        ADD PROPERTY(quantityConsignmentDetailConsignment);
+                        ADD PROPERTY(overPackQuantityConsignmentDetailConsignment);
+                        ADD PROPERTY(grossWeightTonConsignmentDetailConsignment);
                     }
-                    NEW headerCol11 {
-                        caption = 'Шапка документа';
-                        childConstraints = TO THE RIGHT;
-                        ADD PROPERTY(nameSupplierStockConsignment);
-                        ADD PROPERTY(numberObject);
-                        ADD PROPERTY(seriesObject);
-                        ADD PROPERTY(dateConsignment);
-                    }
-                }
-
-                NEW headerCol22 {
-                    childConstraints = TO THE BOTTOM;
-                    NEW row11 {
-                        caption = 'Грузоотправитель';
-                        childConstraints = TO THE RIGHT;
-                        ADD PROPERTY(fullNameSupplierConsignment);
-                        ADD PROPERTY(UNPSupplierConsignment);
-                        ADD PROPERTY(addressSupplierConsignment);
-                    }
-                    NEW row22 {
-                        caption = 'Грузополучатель';
-                        childConstraints = TO THE RIGHT;
-                        ADD PROPERTY(fullNameCustomerConsignment);
-                        ADD PROPERTY(UNPCustomerConsignment);
-                        ADD PROPERTY(addressCustomerConsignment);
-                    }
-                    NEW row33 {
-                        caption = 'Заказчик грузоперевозки (плательщик)';
-                        ADD PROPERTY(fullNamePayerConsignment);
+                    NEW wor22 {
+                        type = CONTAINERV;
+                        ADD PROPERTY(sumConsignmentDetailConsignment);
+                        ADD PROPERTY(sumVATConsignmentDetailConsignment);
+                        ADD PROPERTY(sumInvoiceConsignmentDetailConsignment);
                     }
                 }
             }
         }
+        ADD d.box {
+            fill = 1;
+            caption = 'Спецификация';
+        }
+        ADD functions.box;
     }
 }
 

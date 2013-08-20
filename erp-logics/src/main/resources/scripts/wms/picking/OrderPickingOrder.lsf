@@ -1,6 +1,6 @@
 MODULE OrderPickingOrder;
 
-REQUIRE Picking, Order, Bin, OrderInvoice, InvoiceConsignmentBy;
+REQUIRE Picking, Order, Bin, OrderInvoice;
 
 NAMESPACE Order;
 
@@ -209,6 +209,9 @@ META definePickingOrderInvoiceAction (sign, stockProp)
 
         EXEC createPickingDetailUserInvoiceOrder(userInvoice, order);
     }
+    packQuantityInvoice 'Общее количество грузовых мест' = ABSTRACT NUMERIC[8,2] (Invoice);
+    packQuantityUserInvoice 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (UserInvoice);
+    packQuantityInvoice(invoice) += packQuantityUserInvoice(invoice);
 
     createPickingUserInvoiceOrder 'Создать накладную по комплектации' = ACTION (order) {
         IF order IS Order THEN {
@@ -216,7 +219,7 @@ META definePickingOrderInvoiceAction (sign, stockProp)
             FOR ADDOBJ i = UserInvoicePosted DO {
                 EXEC fillPickingUserInvoiceOrder(i, order);
                 ASSIGN  userInvoiceOrder(order) <- i;
-                ASSIGN packQuantityConsignment(i) <- packQuantityOrder(order);
+                ASSIGN packQuantityUserInvoice(i) <- packQuantityOrder(order);
             }
         }
     }
