@@ -2,33 +2,20 @@ package lsfusion.erp.integration;
 
 import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
-import lsfusion.base.col.interfaces.immutable.ImMap;
-import lsfusion.base.col.interfaces.immutable.ImOrderMap;
-import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
-import org.apache.poi.hssf.usermodel.HSSFCell;
-import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.DBF;
@@ -40,11 +27,11 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
 
-public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
+public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty {
     private final ClassPropertyInterface orderInterface;
 
     public ImportSaleOrderActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("Sale.Order")});
+        super(LM, LM.findClassByCompoundName("Sale.Order"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         orderInterface = i.next();
@@ -62,39 +49,34 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
             if (!(importTypeObject instanceof NullValue)) {
 
                 String fileExtension = (String) LM.findLCPByCompoundName("captionImportTypeFileExtensionImportType").read(context, importTypeObject);
-                Boolean byBarcode = LM.findLCPByCompoundName("byBarcodeImportType").read(context, importTypeObject) !=null;
+                Boolean byBarcode = LM.findLCPByCompoundName("byBarcodeImportType").read(context, importTypeObject) != null;
+                String csvSeparator = (String) LM.findLCPByCompoundName("separatorImportType").read(context, importTypeObject);
+                csvSeparator = csvSeparator == null ? ";" : csvSeparator;
                 Integer startRow = (Integer) LM.findLCPByCompoundName("startRowImportType").read(context, importTypeObject);
                 startRow = startRow == null ? 1 : startRow;
 
-                LCP<?> isImportTypeDetail = LM.is(getClass("ImportTypeDetail"));
-                ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isImportTypeDetail.getMapKeys();
-                KeyExpr key = keys.singleValue();
-                QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-                query.addProperty("staticName", getLCP("staticName").getExpr(context.getModifier(), key));
-                query.addProperty("indexImportTypeImportTypeDetail", getLCP("indexImportTypeImportTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
-                query.and(isImportTypeDetail.getExpr(key).getWhere());
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context.getSession().sql);
+                ObjectValue supplier = LM.findLCPByCompoundName("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject supplierObject = supplier instanceof NullValue ? null : (DataObject) supplier;
+                ObjectValue supplierStock = LM.findLCPByCompoundName("autoImportSupplierStockImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject supplierStockObject = supplierStock instanceof NullValue ? null : (DataObject) supplierStock;
+                ObjectValue customer = LM.findLCPByCompoundName("autoImportCustomerImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject customerObject = customer instanceof NullValue ? null : (DataObject) customer;
+                ObjectValue customerStock = LM.findLCPByCompoundName("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject customerStockObject = customerStock instanceof NullValue ? null : (DataObject) customerStock;
 
-                Map<String, String> importColumns = new HashMap<String, String>();
+                Map<String, String> importColumns = readImportColumns(context, importTypeObject);
 
-                for (ImMap<Object, Object> entry : result.valueIt()) {
+                if (importColumns != null && fileExtension != null) {
 
-                    String[] field = ((String) entry.get("staticName")).trim().split("\\.");
-                    String index = (String) entry.get("indexImportTypeImportTypeDetail");
-                    if(index!=null)
-                    importColumns.put(field[field.length - 1], index.trim());
-                }
-
-                if (!importColumns.isEmpty() && fileExtension != null) {
-
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
+                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension.trim() + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
                         List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
 
                         for (byte[] file : fileList) {
 
-                            importOrders(context, orderObject, importColumns, file, fileExtension.trim(), startRow, byBarcode);
+                            importOrders(context, orderObject, importColumns, file, fileExtension.trim(), startRow, csvSeparator, byBarcode,
+                                    supplierObject, supplierStockObject, customerObject, customerStockObject);
 
                         }
                     }
@@ -113,8 +95,9 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
         }
     }
 
-    private void importOrders(ExecutionContext context, DataObject orderObject, Map<String, String> importColumns,
-                              byte[] file, String fileExtension, Integer startRow, Boolean byBarcode)
+    public void importOrders(ExecutionContext context, DataObject orderObject, Map<String, String> importColumns,
+                             byte[] file, String fileExtension, Integer startRow, String csvSeparator, Boolean byBarcode,
+                             DataObject supplierObject, DataObject supplierStockObject, DataObject customerObject, DataObject customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
         List<List<Object>> orderDetailsList;
@@ -126,7 +109,7 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
         else if (fileExtension.equals("XLSX"))
             orderDetailsList = importOrdersFromXLSX(file, importColumns, startRow, (Integer) orderObject.object);
         else if (fileExtension.equals("CSV"))
-            orderDetailsList = importOrdersFromCSV(file, importColumns, startRow, (Integer) orderObject.object);
+            orderDetailsList = importOrdersFromCSV(file, importColumns, startRow, csvSeparator, (Integer) orderObject.object);
         else
             orderDetailsList = null;
 
@@ -136,6 +119,10 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
+            ImportField numberOrderField = new ImportField(LM.findLCPByCompoundName("numberObject"));
+            props.add(new ImportProperty(numberOrderField, LM.findLCPByCompoundName("numberObject").getMapping(orderObject)));
+            fields.add(numberOrderField);
+
             ImportField idUserOrderDetailField = new ImportField(LM.findLCPByCompoundName("idUserOrderDetail"));
             ImportKey<?> orderDetailKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Sale.UserOrderDetail"),
                     LM.findLCPByCompoundName("userOrderDetailId").getMapping(idUserOrderDetailField));
@@ -143,6 +130,26 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
             props.add(new ImportProperty(idUserOrderDetailField, LM.findLCPByCompoundName("idUserOrderDetail").getMapping(orderDetailKey)));
             props.add(new ImportProperty(orderObject, LM.findLCPByCompoundName("Sale.orderOrderDetail").getMapping(orderDetailKey)));
             fields.add(idUserOrderDetailField);
+
+            if (supplierObject != null) {
+                props.add(new ImportProperty(supplierObject, LM.findLCPByCompoundName("Sale.supplierOrderDetail").getMapping(orderDetailKey)));
+                props.add(new ImportProperty(supplierObject, LM.findLCPByCompoundName("Sale.supplierOrder").getMapping(orderObject)));
+            }
+
+            if (supplierStockObject != null) {
+                props.add(new ImportProperty(supplierStockObject, LM.findLCPByCompoundName("Sale.supplierStockOrderDetail").getMapping(orderDetailKey)));
+                props.add(new ImportProperty(supplierStockObject, LM.findLCPByCompoundName("Sale.supplierStockOrder").getMapping(orderObject)));
+            }
+
+            if (customerObject != null) {
+                props.add(new ImportProperty(customerObject, LM.findLCPByCompoundName("Sale.customerOrderDetail").getMapping(orderDetailKey)));
+                props.add(new ImportProperty(customerObject, LM.findLCPByCompoundName("Sale.customerOrder").getMapping(orderObject)));
+            }
+
+            if (customerStockObject != null) {
+                props.add(new ImportProperty(customerStockObject, LM.findLCPByCompoundName("Sale.customerStockOrderDetail").getMapping(orderDetailKey)));
+                props.add(new ImportProperty(customerStockObject, LM.findLCPByCompoundName("Sale.customerStockOrder").getMapping(orderObject)));
+            }
 
             ImportField idItemField = new ImportField(LM.findLCPByCompoundName(byBarcode ? "idBarcodeSku" : "idItem"));
             ImportKey<?> itemKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Item"),
@@ -156,9 +163,9 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
             props.add(new ImportProperty(quantityOrderDetailField, LM.findLCPByCompoundName("Sale.quantityOrderDetail").getMapping(orderDetailKey)));
             fields.add(quantityOrderDetailField);
 
-            ImportField pricOrderDetail = new ImportField(LM.findLCPByCompoundName("Sale.priceOrderDetail"));
-            props.add(new ImportProperty(pricOrderDetail, LM.findLCPByCompoundName("Sale.priceOrderDetail").getMapping(orderDetailKey)));
-            fields.add(pricOrderDetail);
+            ImportField priceOrderDetail = new ImportField(LM.findLCPByCompoundName("Sale.priceOrderDetail"));
+            props.add(new ImportProperty(priceOrderDetail, LM.findLCPByCompoundName("Sale.priceOrderDetail").getMapping(orderDetailKey)));
+            fields.add(priceOrderDetail);
 
             ImportField sumOrderDetail = new ImportField(LM.findLCPByCompoundName("Sale.sumOrderDetail"));
             props.add(new ImportProperty(sumOrderDetail, LM.findLCPByCompoundName("Sale.sumOrderDetail").getMapping(orderDetailKey)));
@@ -193,8 +200,6 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
         }
     }
 
-    List<BigDecimal> allowedVAT = Arrays.asList(BigDecimal.valueOf(0.0), BigDecimal.valueOf(9.09), BigDecimal.valueOf(16.67), BigDecimal.valueOf(10.0), BigDecimal.valueOf(20.0), BigDecimal.valueOf(24.0));
-
     private List<List<Object>> importOrdersFromXLS(byte[] importFile, Map<String, String> importColumns, Integer startRow, Integer orderObject) throws BiffException, IOException, ParseException {
 
         List<List<Object>> orderDetailList = new ArrayList<List<Object>>();
@@ -203,6 +208,7 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
 
         HSSFSheet sheet = Wb.getSheetAt(0);
 
+        Integer numberOrderColumn = getColumnNumber(importColumns.get("numberDocument"));
         Integer idItemColumn = getColumnNumber(importColumns.get("idItem"));
         Integer quantityColumn = getColumnNumber(importColumns.get("quantity"));
         Integer priceColumn = getColumnNumber(importColumns.get("price"));
@@ -212,23 +218,26 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
         Integer invoiceSumColumn = getColumnNumber(importColumns.get("invoiceSum"));
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
+            String numberOrder = getXLSFieldValue(sheet, i, numberOrderColumn, null);
             String idUserOrderDetail = String.valueOf(orderObject) + i;
-            String idItem = idItemColumn == null ? null : getXLSFieldValue(sheet, i, idItemColumn, null);
-            BigDecimal quantity = quantityColumn == null ? null : getXLSBigDecimalFieldValue(sheet, i, quantityColumn, null);
-            BigDecimal price = priceColumn == null ? null : getXLSBigDecimalFieldValue(sheet, i, priceColumn, null);
-            BigDecimal sum = sumColumn == null ? null : getXLSBigDecimalFieldValue(sheet, i, sumColumn, null);
-            BigDecimal VAT = VATColumn == null ? null : getXLSBigDecimalFieldValue(sheet, i, VATColumn, null);
-            BigDecimal VATSum = VATSumColumn == null ? null : getXLSBigDecimalFieldValue(sheet, i, VATSumColumn, null);
-            BigDecimal invoiceSum = invoiceSumColumn == null ? null : getXLSBigDecimalFieldValue(sheet, i, invoiceSumColumn, null);
+            String idItem = getXLSFieldValue(sheet, i, idItemColumn, null);
+            BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, quantityColumn, null);
+            BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, priceColumn, null);
+            BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, sumColumn, null);
+            BigDecimal VAT = getXLSBigDecimalFieldValue(sheet, i, VATColumn, null);
+            BigDecimal VATSum = getXLSBigDecimalFieldValue(sheet, i, VATSumColumn, null);
+            BigDecimal invoiceSum = getXLSBigDecimalFieldValue(sheet, i, invoiceSumColumn, null);
 
-            orderDetailList.add(Arrays.asList((Object) idUserOrderDetail, idItem, quantity, price, sum,
+            orderDetailList.add(Arrays.asList((Object) numberOrder, idUserOrderDetail, idItem, quantity, price, sum,
                     allowedVAT.contains(VAT) ? VAT : null, VATSum, invoiceSum));
         }
 
         return orderDetailList;
     }
 
-    private List<List<Object>> importOrdersFromCSV(byte[] importFile, Map<String, String> importColumns, Integer startRow, Integer orderObject) throws BiffException, IOException, ParseException {
+    private List<List<Object>> importOrdersFromCSV(byte[] importFile, Map<String, String> importColumns,
+                                                   Integer startRow, String csvSeparator, Integer orderObject)
+            throws BiffException, IOException, ParseException {
 
         List<List<Object>> orderDetailList = new ArrayList<List<Object>>();
 
@@ -236,6 +245,7 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
         String line;
         int count = 0;
 
+        Integer numberOrderColumn = getColumnNumber(importColumns.get("numberDocument"));
         Integer idItemColumn = getColumnNumber(importColumns.get("idItem"));
         Integer quantityColumn = getColumnNumber(importColumns.get("quantity"));
         Integer priceColumn = getColumnNumber(importColumns.get("price"));
@@ -250,18 +260,19 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
 
             if (count >= startRow) {
 
-                String[] values = line.split(";");
+                String[] values = line.split(csvSeparator);
 
+                String numberOrder = getCSVFieldValue(values, numberOrderColumn, null);
                 String idUserOrderDetail = String.valueOf(orderObject) + count;
-                String idItem = idItemColumn == null ? null : getCSVFieldValue(values, idItemColumn, null);
-                BigDecimal quantity = quantityColumn == null ? null : getCSVBigDecimalFieldValue(values, quantityColumn, null);
-                BigDecimal price = priceColumn == null ? null : getCSVBigDecimalFieldValue(values, priceColumn, null);
-                BigDecimal sum = sumColumn == null ? null : getCSVBigDecimalFieldValue(values, sumColumn, null);
-                BigDecimal VAT = VATColumn == null ? null : getCSVBigDecimalFieldValue(values, VATColumn, null);
-                BigDecimal VATSum = VATSumColumn == null ? null : getCSVBigDecimalFieldValue(values, VATSumColumn, null);
-                BigDecimal invoiceSum = invoiceSumColumn == null ? null : getCSVBigDecimalFieldValue(values, invoiceSumColumn, null);
+                String idItem = getCSVFieldValue(values, idItemColumn, null);
+                BigDecimal quantity = getCSVBigDecimalFieldValue(values, quantityColumn, null);
+                BigDecimal price = getCSVBigDecimalFieldValue(values, priceColumn, null);
+                BigDecimal sum = getCSVBigDecimalFieldValue(values, sumColumn, null);
+                BigDecimal VAT = getCSVBigDecimalFieldValue(values, VATColumn, null);
+                BigDecimal VATSum = getCSVBigDecimalFieldValue(values, VATSumColumn, null);
+                BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, invoiceSumColumn, null);
 
-                orderDetailList.add(Arrays.asList((Object) idUserOrderDetail, idItem, quantity, price, sum,
+                orderDetailList.add(Arrays.asList((Object) numberOrder, idUserOrderDetail, idItem, quantity, price, sum,
                         allowedVAT.contains(VAT) ? VAT : null, VATSum, invoiceSum));
 
             }
@@ -278,6 +289,7 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
 
         XSSFSheet sheet = Wb.getSheetAt(0);
 
+        Integer numberOrderColumn = getColumnNumber(importColumns.get("numberDocument"));
         Integer idItemColumn = getColumnNumber(importColumns.get("idItem"));
         Integer quantityColumn = getColumnNumber(importColumns.get("quantity"));
         Integer priceColumn = getColumnNumber(importColumns.get("price"));
@@ -287,17 +299,18 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
         Integer invoiceSumColumn = getColumnNumber(importColumns.get("invoiceSum"));
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
+            String numberOrder = getXLSXFieldValue(sheet, i, numberOrderColumn, null);
             String idUserOrderDetail = String.valueOf(orderObject) + i;
-            String idItem = idItemColumn == null ? null : getXLSXFieldValue(sheet, i, idItemColumn, null);
-            BigDecimal quantity = quantityColumn == null ? null : getXLSXBigDecimalFieldValue(sheet, i, quantityColumn, null);
-            BigDecimal price = priceColumn == null ? null : getXLSXBigDecimalFieldValue(sheet, i, priceColumn, null);
-            BigDecimal sum = sumColumn == null ? null : getXLSXBigDecimalFieldValue(sheet, i, sumColumn, null);
-            BigDecimal VAT = VATColumn == null ? null : getXLSXBigDecimalFieldValue(sheet, i, VATColumn, null);
-            BigDecimal VATSum = VATSumColumn == null ? null : getXLSXBigDecimalFieldValue(sheet, i, VATSumColumn, null);
-            BigDecimal invoiceSum = invoiceSumColumn == null ? null : getXLSXBigDecimalFieldValue(sheet, i, invoiceSumColumn, null);
+            String idItem = getXLSXFieldValue(sheet, i, idItemColumn, null);
+            BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, quantityColumn, null);
+            BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, priceColumn, null);
+            BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, sumColumn, null);
+            BigDecimal VAT = getXLSXBigDecimalFieldValue(sheet, i, VATColumn, null);
+            BigDecimal VATSum = getXLSXBigDecimalFieldValue(sheet, i, VATSumColumn, null);
+            BigDecimal invoiceSum = getXLSXBigDecimalFieldValue(sheet, i, invoiceSumColumn, null);
 
-            orderDetailList.add(Arrays.asList((Object) idUserOrderDetail, idItem, quantity, price, sum, allowedVAT.contains(VAT) ? VAT : null,
-                    VATSum, invoiceSum));
+            orderDetailList.add(Arrays.asList((Object) numberOrder, idUserOrderDetail, idItem, quantity, price, sum,
+                    allowedVAT.contains(VAT) ? VAT : null, VATSum, invoiceSum));
         }
 
         return orderDetailList;
@@ -311,7 +324,6 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
         IOUtils.putFileBytes(tempFile, importFile);
 
 
-
         DBF file = new DBF(tempFile.getPath());
 
         int totalRecordCount = file.getRecordCount();
@@ -320,6 +332,7 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
 
             file.read();
 
+            String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"), "Cp866", "");
             String idUserOrderDetail = String.valueOf(orderObject) + i;
             String idItem = getDBFFieldValue(file, importColumns.get("idItem"), "Cp866", "");
             BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns.get("quantity"), "Cp866", "0");
@@ -329,83 +342,10 @@ public class ImportSaleOrderActionProperty extends ScriptingActionProperty {
             BigDecimal VATSum = getDBFBigDecimalFieldValue(file, importColumns.get("VATSum"), "Cp866", null);
             BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"), "Cp866", null);
 
-            ordersList.add(Arrays.asList((Object) idUserOrderDetail, idItem, quantity, price, sum, allowedVAT.contains(VAT) ? VAT : null, VATSum, invoiceSum));
+            ordersList.add(Arrays.asList((Object) numberOrder, idUserOrderDetail, idItem, quantity, price, sum,
+                    allowedVAT.contains(VAT) ? VAT : null, VATSum, invoiceSum));
         }
 
         return ordersList;
     }
-
-    protected static String getCSVFieldValue(String[] values, int index, String defaultValue) throws ParseException {
-        return values.length <= index ? defaultValue : values[index];
-    }
-
-    protected static BigDecimal getCSVBigDecimalFieldValue(String[] values, int index, String defaultValue) throws ParseException {
-        String value = getCSVFieldValue(values, index, defaultValue);
-        return value == null ? null : new BigDecimal(value);
-    }
-
-    protected static String getXLSFieldValue(HSSFSheet sheet, int row, int cell, String defaultValue) throws ParseException {
-        HSSFRow hssfRow = sheet.getRow(row);
-        if (hssfRow == null) return defaultValue;
-        HSSFCell hssfCell = hssfRow.getCell(cell);
-        if (hssfCell == null) return defaultValue;
-        switch (hssfCell.getCellType()) {
-            case Cell.CELL_TYPE_NUMERIC:
-                String result = String.valueOf(hssfCell.getNumericCellValue());
-                return result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
-            case Cell.CELL_TYPE_STRING:
-            default:
-                return (hssfCell.getStringCellValue().isEmpty()) ? defaultValue : hssfCell.getStringCellValue().trim();
-        }
-    }
-
-    protected static BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, int row, int cell, BigDecimal defaultValue) throws ParseException {
-        HSSFRow hssfRow = sheet.getRow(row);
-        if (hssfRow == null) return defaultValue;
-        HSSFCell hssfCell = hssfRow.getCell(cell);
-        return (hssfCell == null || hssfCell.getCellType() != Cell.CELL_TYPE_NUMERIC) ? defaultValue : BigDecimal.valueOf(hssfCell.getNumericCellValue());
-    }
-
-    protected static String getXLSXFieldValue(XSSFSheet sheet, int row, int cell, String defaultValue) throws ParseException {
-        XSSFRow xssfRow = sheet.getRow(row);
-        if (xssfRow == null) return defaultValue;
-        XSSFCell xssfCell = xssfRow.getCell(cell);
-        if (xssfCell == null) return defaultValue;
-        switch (xssfCell.getCellType()) {
-            case Cell.CELL_TYPE_NUMERIC:
-                String result = String.valueOf(xssfCell.getNumericCellValue());
-                return result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
-            case Cell.CELL_TYPE_STRING:
-            default:
-                return (xssfCell.getStringCellValue().isEmpty()) ? defaultValue : xssfCell.getStringCellValue().trim();
-        }
-    }
-
-    protected static BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, int row, int cell, BigDecimal defaultValue) throws ParseException {
-        XSSFRow xssfRow = sheet.getRow(row);
-        if (xssfRow == null) return defaultValue;
-        XSSFCell xssfCell = xssfRow.getCell(cell);
-        return (xssfCell == null || xssfCell.getCellType() != Cell.CELL_TYPE_NUMERIC) ? defaultValue : BigDecimal.valueOf(xssfCell.getNumericCellValue());
-    }
-
-    private String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
-        try {
-            if (fieldName == null)
-                return null;
-            String result = new String(importFile.getField(fieldName).getBytes(), charset).trim();
-            return result.isEmpty() ? defaultValue : result;
-        } catch (xBaseJException e) {
-            return defaultValue;
-        }
-    }
-
-    private BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
-        String value = getDBFFieldValue(importFile, fieldName, charset, defaultValue);
-        return value == null ? null : new BigDecimal(value);
-    }
-
-    private Integer getColumnNumber(String importColumn) {
-        return importColumn == null ? null : (Integer.parseInt(importColumn) - 1);
-    }
 }
-

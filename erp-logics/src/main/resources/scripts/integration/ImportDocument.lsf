@@ -10,6 +10,7 @@ CLASS ImportTypeFileExtension 'Тип файла' {
 }
 
 CLASS ImportTypeDetail 'Свойство' {
+    numberDocument 'Номер инвойса',
     idItem 'Код товара',
     quantity 'Количество',
     price 'Цена',
@@ -23,6 +24,7 @@ CLASS ImportType 'Тип импорта';
 
 nameImportType 'Имя' =  DATA VARSTRING[100](ImportType);
 startRowImportType 'Начинать со строки' = DATA INTEGER(ImportType);
+separatorImportType 'Разделитель' = DATA INTEGER(ImportType);
 byBarcodeImportType 'Импортировать по штрихкоду' = DATA BOOLEAN(ImportType);
 
 indexImportTypeImportTypeDetail 'Поле' = DATA VARSTRING[10] (ImportType, ImportTypeDetail);
@@ -42,22 +44,39 @@ FORM importTypeFileExtensions 'Типы файлов'
     DIALOG ImportTypeFileExtension OBJECT f
 ;
 
+showSeparator (importType) = importType==ImportTypeFileExtension.csv;
+
 FORM importType 'Тип импорта'
-    OBJECTS it=ImportType FIXED PANEL
-    PROPERTIES(it) nameImportType, captionImportTypeFileExtensionImportType, startRowImportType, byBarcodeImportType
-    EDIT ImportType OBJECT it
+    OBJECTS i=ImportType FIXED PANEL
+    PROPERTIES(i) nameImportType, captionImportTypeFileExtensionImportType, startRowImportType,
+                   separatorImportType SHOWIF showSeparator(i), byBarcodeImportType
+    EDIT ImportType OBJECT i
 ;
 
 FORM importTypes 'Типы импорта'
-    OBJECTS it=ImportType
-    PROPERTIES(it) READONLY nameImportType, captionImportTypeFileExtensionImportType, startRowImportType, byBarcodeImportType
-    PROPERTIES(it) ADDFORM, EDITFORM, DELETE
-    DIALOG ImportType OBJECT it
+    OBJECTS i=ImportType
+    PROPERTIES(i) READONLY nameImportType, captionImportTypeFileExtensionImportType, startRowImportType,
+                   separatorImportType SHOWIF showSeparator(i), byBarcodeImportType
+    PROPERTIES(i) ADDFORM, EDITFORM, DELETE
+    DIALOG ImportType OBJECT i
 
-     OBJECTS itd = ImportTypeDetail
-     PROPERTIES(itd) staticCaption
-     PROPERTIES(it,itd) indexImportTypeImportTypeDetail
+     OBJECTS d = ImportTypeDetail
+     PROPERTIES(d) staticCaption
+     PROPERTIES(i,d) indexImportTypeImportTypeDetail
 ;
+
+EXTEND DESIGN importTypes {
+    ADD i.box;
+    NEW tabbedContainer {
+        fill = 1;
+        type = TABBED;
+        NEW columnsContainer {
+            caption = 'Колонки';
+            ADD d.box;
+        }
+    }
+    ADD functions.box;
+}
 
 
 
