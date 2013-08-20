@@ -196,10 +196,18 @@ dutyPriceInvoiceDetail 'Пошлина (ед.)' = ABSTRACT NUMERIC[16,4](UserInv
 dutyPriceUserInvoiceDetail 'Пошлина (ед.)' = DATA NUMERIC[16,4](UserInvoiceDetail);
 dutyPriceInvoiceDetail(detail) += dutyPriceUserInvoiceDetail(detail);
 
+dutySumInvoiceDetail 'Сумма (пошлина)' (detail) = dutyPriceInvoiceDetail(detail)*quantityInvoiceDetail(detail);
+dutySumUserInvoiceDetail 'Сумма (пошлина)' (detail) = dutyPriceUserInvoiceDetail(detail)*quantityUserInvoiceDetail(detail);
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, duty, ' (пошлина) всего');
+
 // Сбор
 registrationPriceInvoiceDetail 'Таможенный сбор (ед.)' = ABSTRACT NUMERIC[16,4](InvoiceDetail);
 registrationPriceUserInvoiceDetail 'Таможенный сбор (ед.)' = DATA NUMERIC[16,4](UserInvoiceDetail);
 registrationPriceInvoiceDetail(detail) += registrationPriceUserInvoiceDetail(detail);
+
+registrationSumInvoiceDetail 'Сумма (таможенный сбор)' (detail) = registrationPriceInvoiceDetail(detail)*quantityInvoiceDetail(detail);
+registrationSumUserInvoiceDetail 'Сумма (таможенный сбор)' (detail) = registrationPriceUserInvoiceDetail(detail)*quantityUserInvoiceDetail(detail);
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, registration, ' (таможенный сбор) всего');
 
 // Проводим по инвойсу
 customCostPriceUserInvoiceDetail(invoiceDetail) += registrationPriceUserInvoiceDetail(invoiceDetail) (+) dutyPriceUserInvoiceDetail(invoiceDetail);
