@@ -4,6 +4,27 @@ REQUIRE PurchaseInvoice, PurchaseDeclaration, PriceListLedger, PriceListCalc;
 
 NAMESPACE Purchase;
 
+//заказ
+@defineDocumentInterfaceCreate (order, showManufacturingPrice, 'Цена изготовителя');
+
+// -- Операция
+@defineOperationProperty(showManufacturingPrice, 'Цена изготовителя', priceContainer);
+@deriveDocumentOperationProperty(UserOrder, showManufacturingPrice);
+
+EXTEND FORM userOrder
+    PROPERTIES(o)  showManufacturingPriceUserOrder
+
+;
+EXTEND DESIGN userOrder {
+    headerExtraParams {
+        NEW headerManufacturing {
+            caption = 'Цена изготовителя';
+            ADD PROPERTY(showManufacturingPriceUserOrder);
+        }
+    }
+}
+
+//накладная
 dateManufacturingRateExchangeInvoice 'Дата калькуляции' = ABSTRACT DATE(Invoice);
 dateManufacturingRateExchangeUserInvoice 'Дата калькуляции' = DATA DATE(UserInvoice);
 dateManufacturingRateExchangeInvoice(i) += dateManufacturingRateExchangeUserInvoice(i);
@@ -51,7 +72,6 @@ costManufacturingPriceUserInvoiceDetail(detail) = NUMERIC[14,2] (incomeManufactu
 @defineDocumentInterfaceCreate (invoice, showManufacturingPrice, 'Цена изготовителя');
 
 // -- Операция
-@defineOperationProperty(showManufacturingPrice, 'Цена изготовителя', priceContainer);
 @deriveDocumentOperationProperty(UserInvoice, showManufacturingPrice);
 
 @defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, manufacturing, ' изготовителя');
@@ -207,8 +227,8 @@ EXTEND FORM invoices
 //curManufacturingPriceRepricingDetail(detail) += curManufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
 
 // цены в подборе
-@extendFormDocumentPriceSku(userOrder, manufacturingPriceStockPriceListType, customerStock, ' изготовителя', userOrder, o, isUserOrder);
-@extendFormDocumentPriceBatch(userOrder, manufacturingPriceStockPriceListType,  customerStock, ' изготовителя', userOrder, o, isUserOrder);
+@extendFormDocumentPriceSku(userOrder, manufacturingPriceStockPriceListType, customerStock, ' изготовителя', userOrder, o, showManufacturingPriceUserOrder);
+@extendFormDocumentPriceBatch(userOrder, manufacturingPriceStockPriceListType,  customerStock, ' изготовителя', userOrder, o, showManufacturingPriceUserOrder);
 
 @extendFormDocumentPriceSku(userInvoice, manufacturingPriceStockPriceListType, customerStock, ' изготовителя', userInvoice, i, showManufacturingPriceUserInvoice);
 @extendFormDocumentPriceBatch(userInvoice, manufacturingPriceStockPriceListType, customerStock, ' изготовителя', userInvoice, i, showManufacturingPriceUserInvoice);
