@@ -1,11 +1,13 @@
 MODULE PaymentCondition;
 
-REQUIRE System;
+REQUIRE System, Integration;
 
 NAMESPACE Contract;
 
 CLASS PaymentCondition 'Условия оплаты';
 TABLE paymentCondition(PaymentCondition);
+
+@defineExternalizable(paymentCondition, VARSTRING[100]);
 
 // Порядок оплаты
 
@@ -61,7 +63,7 @@ CONSTRAINT sumPercentPaymentCondition(paymentCondition) != 100.0 CHECKED BY sumP
 FORM paymentCondition 'Условие оплаты'
 
     OBJECTS pc = PaymentCondition FIXED PANEL
-    PROPERTIES(pc) nameTypePaymentCondition
+    PROPERTIES(pc) idPaymentCondition SHOWIF showIDs(), nameTypePaymentCondition
 
     OBJECTS pp = PaymentPeriod FIXED GRID
     PROPERTIES(pp) countDaysPaymentPeriod SHOWIF isPrepaymentTypePaymentCondition(pc),
@@ -88,7 +90,7 @@ DESIGN paymentCondition FROM DEFAULT{
 FORM paymentConditions 'Условия оплаты'
 
     OBJECTS pc = PaymentCondition
-    PROPERTIES(pc) READONLY descriptionPaymentCondition, nameTypePaymentCondition
+    PROPERTIES(pc) READONLY idPaymentCondition SHOWIF showIDs(), descriptionPaymentCondition, nameTypePaymentCondition
     PROPERTIES(pc) ADDFORM, EDITFORM, DELETE
 
     DIALOG PaymentCondition OBJECT pc
