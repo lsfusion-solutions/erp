@@ -925,6 +925,7 @@ public class ImportActionProperty {
                     ImportField userContractSkuField = new ImportField(LM.findLCPByCompoundName("idUserContractSku"));
                     ImportKey<?> userContractSkuKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UserContractSku"),
                             LM.findLCPByCompoundName("userContractSkuId").getMapping(userContractSkuField));
+                    userContractSkuKey.skipKey = skipKeys;
                     keys.add(userContractSkuKey);
                     props.add(new ImportProperty(userContractSkuField, LM.findLCPByCompoundName("Purchase.contractSkuInvoice").getMapping(userInvoiceKey),
                             LM.object(LM.findClassByCompoundName("Contract")).getMapping(userContractSkuKey)));
