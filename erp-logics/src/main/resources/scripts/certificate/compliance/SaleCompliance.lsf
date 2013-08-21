@@ -8,11 +8,35 @@ NAMESPACE Sale;
 @defineDocumentCertificateConstraint(compliance, invoice, 'Сертификат соответствия');
 @deriveDocumentCertificate(compliance, invoice, supplierStock, data);
 
-wordUserInvoiceDetail 'Файл сертификата' (userInvoiceDetail) = wordCompliance(complianceUserInvoiceDetail(userInvoiceDetail));
-openWordUserInvoiceDetail 'Просмотреть сертификата' (userInvoiceDetail) = ACTION OPENFILE wordUserInvoiceDetail(userInvoiceDetail);
+countComplianceInvoice (compliance, invoice) =
+    GROUP SUM 1
+    BY complianceInvoiceDetail(detail), invoiceInvoiceDetail(detail);
+
+imageInvoiceDetail 'Файл сертификата' (invoiceDetail) = imageCompliance(complianceInvoiceDetail(invoiceDetail));
+openImageInvoiceDetail 'Просмотреть сертификата' (invoiceDetail) = ACTION OPENFILE imageInvoiceDetail(invoiceDetail);
+
+// todo : при попытке распечатать выдет сообщение "Форма не подходит для данных параметров"
+FORM imageComplianceInvoice 'Файл сертификата' PRINT
+    OBJECTS i = Invoice FIXED PANEL
+
+    OBJECTS c = Compliance
+    PROPERTIES(c) imageCompliance
+
+    FILTERS countComplianceInvoice(c, i)
+;
+
+printAllImageInvoice 'Печать сертификатов' = ACTION (invoice) {
+    FORM imageComplianceInvoice OBJECTS i = invoice;
+}
 
 EXTEND FORM userInvoice
-    PROPERTIES(dc) TODRAW dc FORCE PANEL TOOLBAR openWordUserInvoiceDetail
+    PROPERTIES(i) TODRAW dc FORCE PANEL TOOLBAR printAllImageInvoice
+    PROPERTIES(dc) TODRAW dc FORCE PANEL TOOLBAR openImageInvoiceDetail
+;
+
+EXTEND FORM invoices
+    PROPERTIES(i) TODRAW dc FORCE PANEL TOOLBAR printAllImageInvoice
+    PROPERTIES(dc) TODRAW dc FORCE PANEL TOOLBAR openImageInvoiceDetail
 ;
 
 @defineDocumentCertificateObject(compliance, shipment, s, 'Сертификат соответствия');
