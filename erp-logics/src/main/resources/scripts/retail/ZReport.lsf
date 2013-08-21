@@ -99,14 +99,14 @@ userReceipt(receipt) <- currentUser() WHEN SET(receipt IS Receipt);
 @defineDocumentDetailCurrency (receipt, receiptSaleDetail);
 @defineDocumentDetailCurrency (receipt, receiptReturnDetail);
 
-receiptReceiptDetail = ABSTRACT Receipt (ReceiptDetail);
+receiptReceiptDetail = ABSTRACT Receipt (ReceiptDetail) PERSISTENT;
 receiptReceiptDetail(detail) += receiptReceiptReturnDetail(detail);
 receiptReceiptDetail(detail) += receiptReceiptSaleDetail(detail);
 
 zReportReceiptDetail (receiptDetail) = zReportReceipt(receiptReceiptDetail(receiptDetail));
 sidCashRegisterModelReceiptDetail 'Код модели' (receiptDetail) = sidCashRegisterModelReceipt(receiptReceiptDetail(receiptDetail));
 
-typeReceiptDetail 'Тип' = ABSTRACT STRING[10] (ReceiptDetail);
+typeReceiptDetail 'Тип' = ABSTRACT STRING[10] (ReceiptDetail) PERSISTENT;
 typeReceiptDetail(detail) += 'Продажа' IF detail IS ReceiptSaleDetail;
 typeReceiptDetail(detail) += 'Возврат' IF detail IS ReceiptReturnDetail;
 
@@ -115,11 +115,11 @@ typeReceiptDetail(detail) += 'Возврат' IF detail IS ReceiptReturnDetail;
 @defineDocumentDetailTime(receipt, ReceiptSaleDetail);
 @defineDocumentDetailTime(receipt, ReceiptReturnDetail);
 
-dateReceiptDetail 'Дата' = ABSTRACT DATE (ReceiptDetail);
+dateReceiptDetail 'Дата' = ABSTRACT DATE (ReceiptDetail) PERSISTENT;
 dateReceiptDetail(detail) += dateReceiptReturnDetail(detail);
 dateReceiptDetail(detail) += dateReceiptSaleDetail(detail);
 
-dateTimeReceiptDetail 'Дата/время' = ABSTRACT DATETIME (ReceiptDetail);
+dateTimeReceiptDetail 'Дата/время' = ABSTRACT DATETIME (ReceiptDetail) PERSISTENT;
 dateTimeReceiptDetail(detail) += dateTimeReceiptReturnDetail(detail);
 dateTimeReceiptDetail(detail) += dateTimeReceiptSaleDetail(detail);
 
@@ -225,15 +225,15 @@ discountSumReceiptReturnDetail (detail) <- roundPriceRoundCondition(quantityRece
                                                 CHANGED(receiptSaleDetailReceiptReturnDetail(detail)) OR
                                                 CHANGED(departmentStoreReceiptReturnDetail(detail));
 
-quantityReceiptDetail 'Количество' = ABSTRACT NUMERIC[14,3] (ReceiptDetail);
+quantityReceiptDetail 'Количество' = ABSTRACT NUMERIC[14,3] (ReceiptDetail) PERSISTENT;
 quantityReceiptDetail(detail) += quantityReceiptReturnDetail(detail);
 quantityReceiptDetail(detail) += quantityReceiptSaleDetail(detail);
 
-priceReceiptDetail 'Цена' = ABSTRACT NUMERIC[14,2] (ReceiptDetail);
+priceReceiptDetail 'Цена' = ABSTRACT NUMERIC[14,2] (ReceiptDetail) PERSISTENT;
 priceReceiptDetail(detail) += priceReceiptReturnDetail(detail);
 priceReceiptDetail(detail) += priceReceiptSaleDetail(detail);
 
-sumReceiptDetail 'Сумма' = ABSTRACT NUMERIC[16,2] (ReceiptDetail);
+sumReceiptDetail 'Сумма' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT;
 sumReceiptDetail(detail) += sumReceiptReturnDetail(detail);
 sumReceiptDetail(detail) += sumReceiptSaleDetail(detail);
 
@@ -245,11 +245,11 @@ sumReceiptSaleDetailReceipt 'Сумма продажи' (receipt) = GROUP SUM su
 sumReceiptReturnDetailReceipt 'Сумма возврата' (receipt) = GROUP SUM sumReceiptReturnDetail(receiptDetail)
     BY receiptReceiptReturnDetail (receiptDetail) IN documentSumGroup PERSISTENT;
 
-signSumReceiptDetail = ABSTRACT NUMERIC[16,2] (ReceiptDetail);
-signSumReceiptDetail(detail) += -sumReceiptReturnDetail(detail);
-signSumReceiptDetail(detail) += sumReceiptSaleDetail(detail);
+signedSumReceiptDetail = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT;
+signedSumReceiptDetail(detail) += -sumReceiptReturnDetail(detail);
+signedSumReceiptDetail(detail) += sumReceiptSaleDetail(detail);
 
-sumReceiptDetailReceipt 'Сумма чека' (receipt) = GROUP SUM signSumReceiptDetail(detail)
+sumReceiptDetailReceipt 'Сумма чека' (receipt) = GROUP SUM signedSumReceiptDetail(detail)
     BY receiptReceiptDetail(detail);
 
 //sumReceiptDetailReceipt 'Сумма чека' (receipt) = sumReceiptSaleDetailReceipt(receipt) (-) sumReceiptReturnDetailReceipt(receipt) PERSISTENT;
