@@ -69,26 +69,28 @@ CLASS Driver 'Водитель': Employee;
 sidDriver 'Табельный номер' = DATA STRING[10](Driver);
 typeDriver 'Класс' = DATA STRING[10](Driver);
 
-FORM driver 'Водитель'
-    OBJECTS d=Driver FIXED PANEL
-    PROPERTIES (d) firstNameContact, lastNameContact, nameContact, sidDriver, typeDriver
+defaultTruckDriver = DATA Truck(Driver);
+nameDefaultTruckDriver 'Машина по умолчанию' = nameTruck(defaultTruckDriver(driver));
 
-    EDIT Driver OBJECT d
+EXTEND FORM employee
+    PROPERTIES(e) sidDriver, typeDriver, nameDefaultTruckDriver
 ;
 
-FORM drivers 'Водители'
-    OBJECTS d=Driver
-    PROPERTIES(d) READONLY firstNameContact, lastNameContact, nameContact, sidDriver, typeDriver
-    PROPERTIES(d) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-
-    DIALOG Driver OBJECT d
-;
+EXTEND DESIGN employee{
+    oneCase{
+        NEW driverCase BEFORE row {
+            caption = 'Данные водителя';
+            ADD PROPERTY(nameDefaultTruckDriver);
+            ADD PROPERTY(sidDriver);
+            ADD PROPERTY(typeDriver);
+        }
+    }
+}
 
 NAVIGATOR {
     NEW transportNavigator 'Транспорт' BEFORE administration TO toolbar IMAGE '/images/truck.png' {
         NEW transportDocuments 'Документы';
         NEW transportMasterData 'Справочники' {
-            ADD drivers;
             ADD trucks;
             ADD truckModels;
         }
