@@ -1,12 +1,22 @@
 MODULE StockPharmacy;
 
-REQUIRE Stock, PurchaseShipmentPharmacy;
+REQUIRE Stock;
 
 NAMESPACE Stock;
 
-seriesPharmacyBatch 'Серия лекарственного средства' = ABSTRACT VARSTRING[100] (Batch) PERSISTENT;
+showSeriesPharmacy 'Показывать серию лекарственного средства' = DATA BOOLEAN ();
 
-seriesPharmacyBatch (batch) += seriesPharmacyShipmentDetail(shipmentDetailShipmentBatch(batch));
+EXTEND FORM options
+    PROPERTIES() showSeriesPharmacy
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(showSeriesPharmacy);
+    }
+}
+
+seriesPharmacyBatch 'Серия лекарственного средства' = ABSTRACT VARSTRING[100] (Batch) PERSISTENT;
 
 EXTEND FORM currentBalanceBatchStock
     PROPERTIES READONLY seriesPharmacyBatch(bt) SHOWIF showSeriesPharmacy() AFTER nameSkuBatch(bt)
