@@ -30,6 +30,34 @@ CLASS ABSTRACT ConsignmentDetail 'Строка накладной';
 dateConsignment 'Дата' (consignment) = ABSTRACT DATE (Consignment);
 
 // ---------------------------------- Юридические лица ---------------------- //
+
+countRowsSimpleVertical 'Макс. кол-во строк в бланке (ТН-2 вер.)' = DATA INTEGER ();
+countRowsSimpleHorizontal 'Макс. кол-во строк в бланке (ТН-2 гор.)' = DATA INTEGER ();
+countRowsVerticalA 'Макс. кол-во строк в бланке (ТТН-1 вер.А)' = DATA INTEGER ();
+countRowsVerticalAB 'Макс. кол-во строк в бланке (ТТН-1 вер.А/Б)' = DATA INTEGER ();
+countRowsHorizontal 'Макс. кол-во строк в бланке (ТТН-1 гор.А)' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES() countRowsSimpleVertical, countRowsSimpleHorizontal, countRowsVerticalA, countRowsVerticalAB, countRowsHorizontal
+
+;
+
+EXTEND DESIGN options {
+    commons {
+        NEW consignment  {
+            type = CONTAINERV;
+            caption = 'Накладная';
+            ADD PROPERTY(countRowsSimpleVertical);
+            ADD PROPERTY(countRowsSimpleHorizontal);
+            ADD PROPERTY(countRowsVerticalA);
+            ADD PROPERTY(countRowsVerticalAB);
+            ADD PROPERTY(countRowsHorizontal);
+        }
+
+    }
+}
+
+// ---------------------------------- Юридические лица ---------------------- //
 supplierConsignment = ABSTRACT LegalEntity (Consignment);
 UNPSupplierConsignment 'УНП отправителя' (consignment) = UNPLegalEntity(supplierConsignment(consignment));
 addressSupplierConsignment 'Юр. адрес отправителя' (consignment) =
@@ -273,7 +301,7 @@ META defineConsignmentFormSimple(form, caption)
                        fullNameSupplierConsignment, fullNameCustomerConsignment, numberObject, seriesObject, countConsignmentDetailConsignment,
                        isWareConsignment, isCustomsFlowConsignment, isCurrencyConsignment, shortNameCurrencyConsignment,
                        noteConsignment, documentNameCurrencyConsignment
-
+        PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
 
         PROPERTIES(d) nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
@@ -305,7 +333,7 @@ META defineConsignmentForm(form, caption)
                        countConsignmentDetailConsignment, supplierSumConsignmentDetailConsignment,
                        seriesObject, numberObject, isCustomsFlowConsignment, isCurrencyConsignment, shortNameCurrencyConsignment,
                        noteConsignment, documentNameCurrencyConsignment
-
+        PROPERTIES()   TODRAW c countRowsVerticalA, countRowsVerticalAB, countRowsHorizontal
         OBJECTS d=ConsignmentDetail
 
         PROPERTIES(d) nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
