@@ -1,6 +1,6 @@
 MODULE ItemArticle;
 
-REQUIRE System, Item, ComplianceGroup, CustomsGroupItem, Tax;
+REQUIRE System, Item, ComplianceGroup, ComplianceGroupItem, CustomsGroupItem, CustomsGroupItem, Tax;
 
 NAMESPACE Item;
 
@@ -96,10 +96,13 @@ DESIGN articles FROM DEFAULT {
             type = SPLITH;
 
             ADD groupTree.tree.box;
-            ADD a.box {
-                fill = 4;
-                defaultComponent = TRUE;
-            }
+            NEW articleItemBox {
+                fill = 3;
+                ADD a.box {
+                    fill = 2;
+                    defaultComponent = TRUE;
+                }
+            }    
         }
         ADD functions.box;
     }
@@ -304,9 +307,78 @@ FORM sizeHeights 'Роста товара'
 ;
 DESIGN sizeHeights FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(sizeHeight, SizeHeight, nameSizeHeight, 'Рост', itemBaseGroup);
+@defineObjectItemAttribute(sizeHeight, SizeHeight, nameSizeHeight, 'Рост', itemArticleGroup);
 @defineObjectItemAttributeBatch (sizeHeight, nameSizeHeight, 'Рост');
 @implementItemAttribute(nameSizeHeightItem, 'Рост', String, itemSizeHeight);
+
+EXTEND FORM article
+
+    OBJECTS i = Item
+    PROPERTIES (i) captionItem, canonicalNameItemGroupItem, compositionItem, nameUOMItem, nameColorItem,                        
+                   codeCustomsGroupDefaultCountryItem ON CHANGE changeCustomsGroupDefaultCountryItem(i), 
+                   nameComplianceGroupDefaultCountryItem ON CHANGE changeComplianceGroupCountryItem(i),
+                   nameSizeItem, nameSizeHeightItem     
+    PROPERTIES (i) ADDOBJ, DELETESESSION   
+                                                                    
+    FILTERS articleItem(i) == a      
+    
+;
+EXTEND DESIGN article {
+    articleDetail{
+        ADD i.box;
+    }
+} 
+
+EXTEND FORM articles
+
+    OBJECTS i = Item
+    PROPERTIES (i) READONLY captionItem, compositionItem, nameUOMItem, nameColorItem, 
+                   nameSizeItem, nameSizeHeightItem       
+    
+    FILTERS articleItem(i) == a      
+    
+;
+
+EXTEND DESIGN articles {
+    articleItemBox{
+        ADD i.box;
+    }
+} 
+
+WHEN SESSION FORMS article CHANGED(captionArticle(article)) DO         
+    captionItem(i) <- captionArticle(article) WHERE articleItem(i)==article;
+    
+WHEN SESSION FORMS article CHANGED(itemGroupArticle(article)) DO         
+    itemGroupItem(i) <- itemGroupArticle(article) WHERE articleItem(i)==article;
+        
+WHEN SESSION FORMS article CHANGED(compositionArticle(article)) DO         
+    compositionItem(i) <- compositionArticle(article) WHERE articleItem(i)==article;   
+
+WHEN SESSION FORMS article CHANGED(UOMArticle(article)) DO         
+    UOMItem(i) <- UOMArticle(article) WHERE articleItem(i)==article;  
+    
+WHEN SESSION FORMS article CHANGED(colorArticle(article)) DO         
+    colorItem(i) <- colorArticle(article) WHERE articleItem(i)==article;
+        
+WHEN SESSION FORMS article CHANGED(customsGroupCountryArticle(country, article)) DO         
+    customsGroupCountryItem(country, i) <- customsGroupCountryArticle(country, article) WHERE articleItem(i)==article;      
+
+WHEN SESSION FORMS article CHANGED(complianceGroupCountryArticle(country, article)) DO         
+    complianceGroupCountryItem(country, i) <- complianceGroupCountryArticle(country, article) WHERE articleItem(i)==article; 
+        
+        
+WHEN SESSION FORMS article
+    SET(i IS Item) AND articleItem(i)==article DO { 
+        ASSIGN captionItem(i) <- captionArticle(article);
+        ASSIGN itemGroupItem(i) <- itemGroupArticle(article) WHERE articleItem(i)==article;
+        ASSIGN compositionItem(i) <- compositionArticle(article);  
+        ASSIGN UOMItem(i) <- UOMArticle(article);  
+        ASSIGN colorItem(i) <- colorArticle(article);
+        ASSIGN customsGroupCountryItem(country, i) <- customsGroupCountryArticle(country, article);      
+        ASSIGN complianceGroupCountryItem(country, i) <- complianceGroupCountryArticle(country, article); 
+    }    
+
+
 
 overCopyItem(s, d) += ACTION (s, d) {
     ASSIGN articleItem(d) <- articleItem(s);
