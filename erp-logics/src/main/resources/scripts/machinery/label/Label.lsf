@@ -415,7 +415,7 @@ END
 
 // ------------------------- Подключение печати ценников в документ --------------------- //
 META defineDocumentLabelTransaction (document, skuProp, stockProp)
-    create###document##LabelTransaction 'Печать ценников' = ACTION (document) NEWSESSION AUTOAPPLY {
+    create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {
         ASSIGN quantityLabelTransactionSku(skuProp) <- quantity###document##Detail###skuProp###document(skuProp, document);
         ASSIGN createLabelTransactionDocument() <- document;
         EXEC createLabelTransaction(stockProp###document(document));
@@ -427,7 +427,7 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
         ASSIGN createLabelTransactionDocument() <- document;
         ASSIGN createLabelTransactionSnapshot() <- TRUE;
         EXEC createLabelTransaction(stockProp###document(document));
-    } CONFIRM;
+    } TOOLBAR CONFIRM;
 
     showPrintLabelTransaction###document 'Показывать' (document) = isPosted###document(document) AND NOT Label.skipPriceTransactionDocument(document)
                                                                                                  AND NOT printedPriceTransactionDocument(document);
@@ -436,13 +436,20 @@ END
 
 META extendFormDocumentLabelTransaction(form, object, document, afterProp, propContainer)
     EXTEND FORM form
-        PROPERTIES(object) statusLabelPriceTransactionDocument ON SHORTCUT createSnapshot###document##LabelTransaction(object) BACKGROUND backgroundPrintLabelTransaction###document(object) READONLY AFTER afterProp,
-                           create###document##LabelTransaction FORCE PANEL SHOWIF showPrintLabelTransaction###document(object)
+        PROPERTIES(object) statusLabelPriceTransactionDocument BACKGROUND backgroundPrintLabelTransaction###document(object) READONLY AFTER afterProp,
+                           create###document##LabelTransaction FORCE PANEL SHOWIF showPrintLabelTransaction###document(object), 
+                           createSnapshot###document##LabelTransaction FORCE PANEL
     ;
 
     EXTEND DESIGN form {
         propContainer{
-            ADD PROPERTY (create###document##LabelTransaction);
+            NEW label {
+                caption = 'Ценники' ;
+                type = CONTAINERV;
+                
+                ADD PROPERTY (create###document##LabelTransaction);
+                ADD PROPERTY (createSnapshot###document##LabelTransaction);
+            }
         }
     }
 END

@@ -1,0 +1,33 @@
+MODULE SalePurchaseLabel;
+
+REQUIRE LabelPricing, SalePurchaseInvoice, LabelPurchaseInvoice;
+
+PRIORITY Sale;
+
+// ------------------------------------- Печать ценников ------------------------------ //
+
+statusLabelPriceSaleInvoice 'Статус печати ценника' (invoice) = statusLabelPriceTransactionDocument(purchaseInvoiceInvoice(invoice));
+backgroundPrintLabelTransactionSaleInvoice 'Цвет' (invoice) = backgroundPrintLabelTransactionInvoice(purchaseInvoiceInvoice(invoice));
+createSaleInvoiceLabelTransaction 'Распечатать ценники' (invoice) = Purchase.createInvoiceLabelTransaction(purchaseInvoiceInvoice(invoice)) TOOLBAR;
+createSnapshotSaleInvoiceLabelTransaction 'Перепечатать ценники' (invoice) = Purchase.createSnapshotInvoiceLabelTransaction(purchaseInvoiceInvoice(invoice)) TOOLBAR;
+
+
+showToPrintLabelTransactionSaleInvoice 'Показывать' (invoice) = Purchase.showToPrintLabelTransactionInvoice(purchaseInvoiceInvoice(invoice))
+                                                                                      AND isCompanyStock(customerStockInvoice(invoice));
+
+EXTEND FORM invoices
+PROPERTIES(i) statusLabelPriceSaleInvoice  BACKGROUND backgroundPrintLabelTransactionSaleInvoice(i) READONLY AFTER isCommissionInvoice,
+              createSaleInvoiceLabelTransaction FORCE PANEL SHOWIF showToPrintLabelTransactionSaleInvoice(i), 
+              createSnapshotSaleInvoiceLabelTransaction FORCE PANEL
+;
+EXTEND DESIGN invoices {
+    machineryContainer{
+        NEW label {
+            caption = 'Ценники' ;
+            type = CONTAINERV;
+            
+            ADD PROPERTY (createSaleInvoiceLabelTransaction);
+            ADD PROPERTY (createSnapshotSaleInvoiceLabelTransaction);
+        }
+    }
+}
