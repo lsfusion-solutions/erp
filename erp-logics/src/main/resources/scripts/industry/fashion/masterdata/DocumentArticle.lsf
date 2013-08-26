@@ -6,8 +6,14 @@ REQUIRE ItemArticle;
 
 currentBalanceArticleColorSizeStock 'Текущий остаток' (article, color, size, stock)= GROUP SUM currentBalanceSkuStock(sku, stock)
     BY articleItem(sku), colorItem(sku), sizeItem(sku), stock;
-
 prevCurrentBalanceArticleColorSizeStock 'Текущий остаток' (article, color, size, stock)= PREV(currentBalanceArticleColorSizeStock(article, color, size, stock));
+
+currentBalanceSkuGroupStock 'Текущий остаток' (skuGroup, stock)= GROUP SUM currentBalanceSkuStock(sku,stock) BY skuGroupSku(sku), stock;
+recCurrentBalanceSkuGroupStock 'Текущий остаток' (skuGroup, stock)= GROUP SUM currentBalanceSkuGroupStock(group, stock) IF isParentSkuGroupSkuGroup(group, parent) 
+    BY parent, stock;
+
+currentBalanceArticleStock 'Текущий остаток' (article, stock)= GROUP SUM currentBalanceSkuStock(sku,stock) BY articleItem(sku), stock;
+prevCurrentBalanceArticleStock 'Текущий остаток' (article, stock) = PREV(currentBalanceArticleStock(article, stock));
 
 defaultSkuColorSizeStock (article, color, size)= GROUP MAX sku
     BY articleItem(sku), colorItem(sku), sizeItem(sku);
@@ -22,6 +28,16 @@ META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
 
     quantityArticleColorSize###object###stockProp 'Кол-во товара в документе' (article, color, size, object, stock) = GROUP SUM quantitySku###object###stockProp(sku, object, stock)
         BY articleItem(sku), colorItem(sku), sizeItem(sku), object, stock;
+
+    quantityArticle###object###stockProp 'Кол-во товара в документе' (article, object, stock) = GROUP SUM quantitySku###object###stockProp(sku, object, stock)
+        BY articleItem(sku), object, stock;        
+
+    calcQuantitySkuGroup###object###stockProp 'Кол-во товара в документе' (skuGroup, object, stock) = GROUP SUM quantitySku###object###stockProp(sku, object, stock)
+        BY skuGroupSku(sku), object, stock; 
+        
+    recQuantitySkuGroup###object###stockProp 'Кол-во товара в документе (рек.)' (skuGroup, object, stock) = GROUP SUM calcQuantitySkuGroup###object###stockProp(group, object, stock) 
+        IF isParentSkuGroupSkuGroup(group, parent) BY parent, object, stock;
+                                                 
 
     priceBalanceArticleColorSizeStock###object  (article, color, size, stock, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stock), priceSkuStock###object(defaultSkuColorSizeStock (article,color,size), stock, object);
 
@@ -118,7 +134,14 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
     quantityArticleColorSize###object 'Кол-во товара в документе' (article, color, size, object) = GROUP SUM quantity###detail###skuProp###object(sku, object)
         BY articleItem(sku), colorItem(sku), sizeItem(sku), object;
 
-
+    quantityArticle###object 'Кол-во товара в документе' (article, object) = GROUP SUM quantity###detail###skuProp###object(sku, object)
+        BY articleItem(sku), object;
+         
+    calcQuantitySkuGroup###object 'Кол-во товара в документе' (skuGroup, object) = GROUP SUM quantity###detail###skuProp###object(sku, object)
+        BY skuGroupSku(sku), object;    
+              
+    recQuantitySkuGroup###object 'Кол-во товара в документе (рек.)' (skuGroup, object) = GROUP SUM calcQuantitySkuGroup###object(group, object) 
+        IF isParentSkuGroupSkuGroup(group, parent) BY parent, object;              
 
     priceBalanceArticleColorSize###object  (article, color, size, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stockProp###object(object)),priceSku###object(defaultSkuColorSizeStock (article,color,size), object);
 
