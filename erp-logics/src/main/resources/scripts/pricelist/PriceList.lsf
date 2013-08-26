@@ -449,6 +449,33 @@ FORM userPriceList 'Прайс'
     EDIT UserPriceList OBJECT p
 ;
 
+// Оптимизация с преподсчетом видов цен в сессионное свойство
+
+//viewCurrentPricePriceListDetailDataPriceListTypeStock 'Действующая цена' = DATA SESSION NUMERIC[14,2] (UserPriceListDetail, DataPriceListType, Stock);
+//
+//currentUserPriceList = DATA SESSION UserPriceList ();
+//setCurrentUserPriceList (u) = ACTION currentUserPriceList() <- u;
+//
+//EXTEND FORM userPriceList
+//    PROPERTIES(d, t, ts) viewCurrentPricePriceListDetailDataPriceListTypeStock COLUMNS (t) HEADER headerNameCurrentDataPriceListType(p, t) SHOWIF headerNameCurrentDataPriceListType(p, t) BACKGROUND backgroundCurrentDataPriceListType(t)
+//    PROPERTIES(d, t, tt) viewCurrentPricePriceListDetailDataPriceListTypeStock COLUMNS (t) HEADER headerNameCurrentDataPriceListType(p, t) SHOWIF headerNameCurrentDataPriceListType(p, t) BACKGROUND backgroundCurrentDataPriceListType(t) TODRAW d FORCE GRID
+//    EVENTS
+//        ON CHANGE p setCurrentUserPriceList(p)
+//;
+//
+//WHEN SESSION FORMS userPriceList SET([VIEW userPriceList.d](d)) AND p == currentUserPriceList() DO
+//    FOR showUserPriceListPriceListType(p, pt) AND isCompanyStock(s) NOINLINE (pt) DO
+//        viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s);  
+//
+//WHEN SESSION FORMS userPriceList CHANGED(showUserPriceListPriceListType(p, pt)) NOINLINE (pt) DO
+//    viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s) 
+//        WHERE [VIEW userPriceList.d](d) AND isCompanyStock(s);  
+//
+//WHEN SESSION FORMS userPriceList CHANGED(skuUserPriceListDetail(d)) OR CHANGED(fromDateTimeUserPriceListDetail(d)) DO
+//    viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s) 
+//        WHERE showUserPriceListPriceListType(userPriceListUserPriceListDetail(d), pt) AND isCompanyStock(s);  
+//
+
 DESIGN userPriceList FROM DEFAULT {
     NEW headContainer {
         caption = 'Шапка документа';
