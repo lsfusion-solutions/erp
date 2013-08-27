@@ -7,4 +7,94 @@ NAMESPACE Sale;
 //------------------------------ Расширение формы (артикул)-----------------------------//
 
 @defineDocumentArticleStock(userOrder, sku, supplierStock);
-@extendFormDocumentArticleStockCustom(userOrder, userOrder, o, supplier, supplierStock);
+//@extendFormDocumentArticleStockCustom(userOrder, userOrder, o, supplier, supplierStock);
+
+CLASS RowType 'Тип' {
+    balanceSupplier 'Остаток скл. пост-ка',
+    inDocument 'В документе',
+    balanceCustomer 'Остаток скл. пок-ля'
+};
+dataOrderRowType 'Порядок' = DATA INTEGER (RowType);
+defaultOrderRowType 'Порядок' = ABSTRACT CASE INTEGER (RowType);
+orderRowType 'Порядок' (ty)= OVERRIDE defaultOrderRowType(ty), dataOrderRowType(ty);  
+
+defaultOrderRowType(ty) += WHEN ty == RowType.balanceSupplier  THEN 1; 
+defaultOrderRowType(ty) += WHEN ty == RowType.inDocument  THEN 3;
+defaultOrderRowType(ty) += WHEN ty == RowType.balanceCustomer  THEN 4;
+
+prevCurrentBalanceCustomerArticleColorSizeUserOrder(ar, co, si, o)= prevCurrentBalanceArticleColorSizeStock(ar, co, si, customerStockUserOrder(o));
+
+quantityArticleColorSizeUserOrderSupplierStockRowType = ABSTRACT CASE NUMERIC[14,3] (Article,Color,Size,UserOrder,Stock, RowType);
+
+quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk,ty) +=  
+                                          WHEN ty == RowType.balanceSupplier AND o IS UserOrder THEN NUMERIC[14,3](prevCurrentBalanceArticleColorSizeStock(ar, co, si, stk))
+                                          ;
+quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk,ty) +=  
+                                          WHEN ty == RowType.inDocument THEN NUMERIC[14,3](quantityArticleColorSizeUserOrderSupplierStock(ar,co,si,o,stk))
+                                          ;
+quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk,ty) +=  
+                                          WHEN ty == RowType.balanceCustomer AND stk IS Stock THEN NUMERIC[14,3](prevCurrentBalanceCustomerArticleColorSizeUserOrder(ar, co, si, o))
+                                          ;                                          
+
+changeQuantityArticleColorSizeUserOrderStockRowType = ACTION (article, color, size, userOrder, stock, type) {
+    IF type == RowType.inDocument THEN { 
+        REQUEST NUMERIC[14,3] INPUT;
+        EXEC changeQuantityValueArticleColorSizeUserOrderStock(article, color, size, userOrder, stock);
+    }               
+}
+
+backgroundQuantityArticleColorSizeUserOrderStockRowType(article, color, size, userOrder, stock, type) = 
+    IF type == RowType.inDocument THEN 
+        IF quantityArticleColorSizeUserOrderSupplierStock(article, color, size, userOrder, stock) 
+                AND NOT (quantityArticleColorSizeUserOrderSupplierStock(article, color, size, userOrder, stock) <= prevCurrentBalanceArticleColorSizeStock(article, color, size, stock)) THEN
+            RGB(255,128,128) 
+        ELSE
+            RGB(204,255,204)
+    ;
+
+backgroundRowType 'Цвет' (type) = RGB(204,255,204) IF  type == RowType.inDocument;
+
+EXTEND FORM userOrder
+
+    OBJECTS sta=(stk=Stock, ar=Article)
+    PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar), stockName = nameStock(stk) SHOWIF notSupplierStockUserOrder(o)
+    FILTERS           isParentGroupArticle(sk, ar),
+                      (stk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockUserOrder(o) OR
+                      stk == supplierStockUserOrder(o) AND NOT sg AND NOT ts
+    FILTERGROUP stockFilters
+        FILTER 'Собственные склады' 'F6' legalEntityStock(stk) == supplierUserOrder(o) DEFAULT
+    FILTERS           captionArticle(ar), nameStock(stk)
+    ORDER BY          idArticle, stockName
+
+    OBJECTS si=Size
+    PROPERTIES(si) nameSize
+    FILTERS countSizeArticle(si,ar)
+
+    OBJECTS cor=(co=Color, ty=RowType) 
+    PROPERTIES(co) READONLY BACKGROUND backgroundRowType(ty) idColor SHOWIF showIDs(), nameColor
+    PROPERTIES(ty) READONLY BACKGROUND backgroundRowType(ty) staticCaption 
+    FILTERS countColorArticle(co,ar)
+
+    PROPERTIES(ar,co,si,o,stk,ty) quantityArticleColorSizeUserOrderSupplierStockRowType ON CHANGE changeQuantityArticleColorSizeUserOrderStockRowType(ar,co,si,o,stk,ty)
+                                      COLUMNS (si) HEADER nameQuantitySize(si) BACKGROUND backgroundQuantityArticleColorSizeUserOrderStockRowType(ar,co,si,o,stk,ty)
+
+    PROPERTIES(ty)  orderRowType
+    FILTERS nameColor(co), nameSize(si)
+    ORDER BY nameColor, nameSize, orderRowType
+;
+
+EXTEND DESIGN userOrder {
+    skuSelectPane {
+        type = TABBED;
+        NEW articleContainer {
+            caption = 'Артикулы';
+            childConstraints = TO THE BOTTOM;
+            ADD sta.box {caption = 'Артикул';};
+            REMOVE si.box;
+            ADD cor.box {
+                cor.grid { fillHorizontal = 2; }
+            }
+        }
+    }
+//    PROPERTY(priceBalanceArticleColorSizeStockUserOrder) { background = #FFEEEE; }
+}
