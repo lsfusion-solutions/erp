@@ -67,6 +67,8 @@ inLabelTypeGroup 'Вкл.' (labelType, group) =
 inLabelTypeSku 'Вкл.' (labelType, sku) =
     OVERRIDE inLabelTypeGroup(labelType, groupGroupTypeSku(groupTypeLabelType(labelType), sku)), dataInLabelTypeSku(labelType, sku);
 
+inLabelTypeSkuDepartmentStore (labelType, sku, departmentStore) = inLabelTypeSku(labelType, sku) AND inLabelTypeDepartmentStore(labelType, departmentStore);
+
 //-- Множитель
 dataCountLabelTypeGroup 'Множитель' = DATA INTEGER (LabelType, Group);
 dataCountLabelTypeSku 'Множитель' = DATA INTEGER (LabelType, Sku);
@@ -225,6 +227,8 @@ dateLabelTransaction (transaction) <- currentDate() WHEN SET(transaction IS Labe
 timeLabelTransaction 'Время' = DATA TIME (LabelTransaction);
 timeLabelTransaction (transaction) <- currentTime() WHEN SET(transaction IS LabelTransaction);
 
+dateTimeLabelTransaction 'Дата/время' (t) = dateTimeToDateTime(dateLabelTransaction(t), timeLabelTransaction(t)) PERSISTENT;
+
 departmentStoreLabelTransaction = DATA DepartmentStore (LabelTransaction);
 nameDepartmentStoreLabelTransaction 'Отдел магазина' (transaction) = nameDepartmentStore(departmentStoreLabelTransaction(transaction));
 nameStoreLabelTransaction 'Магазин' (transaction) = nameStore(storeDepartmentStore(departmentStoreLabelTransaction(transaction)));
@@ -249,24 +253,40 @@ statusLabelPriceTransactionDocument 'Статус печати ценника' (
                                                             ELSE 'Не распечатан' IF document IS PriceTransactionDocument
                                                         ;
 
-TABLE labelTransactionBarcode(LabelTransaction, Barcode);
+CLASS LabelTransactionDetail 'Строка печати ценников';
+TABLE LabelTransactionDetail(LabelTransactionDetail);
 
-inLabelTransactionBarcode 'Вкл' (labelTransaction, barcode) = DATA BOOLEAN (LabelTransaction, Barcode);
+labelTransactionLabelTransactionDetail = DATA LabelTransaction (LabelTransactionDetail);
 
-quantityLabelTransactionBarcode 'Кол-во' (labelTransaction, barcode) = DATA INTEGER (LabelTransaction, Barcode);
-nameLabelTransactionBarcode 'Наименование' = DATA VARSTRING[255] (LabelTransaction, Barcode);
-priceLabelTransactionBarcode 'Цена' = DATA NUMERIC[14,2] (LabelTransaction, Barcode);
+labelTypeLabelTransactionDetail (d) = labelTypeLabelTransaction(labelTransactionLabelTransactionDetail(d));
+priceListTypeLabelTransactionDetail(d) = priceListTypeLabelType(labelTypeLabelTransactionDetail(d));
+
+departmentStoreLabelTransactionDetail (d) = departmentStoreLabelTransaction(labelTransactionLabelTransactionDetail(d));
+
+dateTimeLabelTransactionDetail(d) = dateTimeLabelTransaction(labelTransactionLabelTransactionDetail(d));
+
+skuLabelTransactionDetail = DATA Sku (LabelTransactionDetail);
+nameSkuLabelTransactionDetail 'SKU' (d) = nameSku(skuLabelTransactionDetail(d));
+
+batchLabelTransactionDetail = DATA Batch (LabelTransactionDetail);
+nameBatchLabelTransactionDetail 'Партия' (d) = nameBatch(batchLabelTransactionDetail(d));
+
+barcodeLabelTransactionDetail = DATA Barcode (LabelTransactionDetail);
+idBarcodeLabelTransactionDetail 'Штрих-код' (b) = idBarcode(barcodeLabelTransactionDetail(b)); 
+
+quantityLabelTransactionDetail 'Кол-во' = DATA INTEGER (LabelTransactionDetail);
+nameLabelTransactionDetail 'Наименование' = DATA VARSTRING[255] (LabelTransactionDetail);  
+priceLabelTransactionDetail 'Цена' = DATA NUMERIC[14,2] (LabelTransactionDetail);
 
 FORM printLabelTransaction 'Печать ценников' PRINT
     OBJECTS l = LabelTransaction REPORTFILE fileTemplateLabelTransaction(l) FIXED PANEL
     PROPERTIES(l) READONLY nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, descriptionLabelTransaction,
                   dateLabelTransaction, timeLabelTransaction, nameStoreLabelTransaction, nameLegalEntityLabelTransaction
-
-    OBJECTS b = Barcode
-    PROPERTIES(l, b) READONLY inLabelTransactionBarcode
-    PROPERTIES(b)    READONLY idBarcode
-    PROPERTIES(l, b) READONLY quantityLabelTransactionBarcode, nameLabelTransactionBarcode, priceLabelTransactionBarcode
-    FILTERS inLabelTransactionBarcode(l, b)
+    
+    OBJECTS d = LabelTransactionDetail
+    PROPERTIES(d) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
+                           quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail
+    FILTERS labelTransactionLabelTransactionDetail(d) == l
 ;
 
 FORM customLabelTransaction 'Печать ценников'
@@ -274,11 +294,11 @@ FORM customLabelTransaction 'Печать ценников'
     PROPERTIES(l) nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, descriptionLabelTransaction, dateLabelTransaction, timeLabelTransaction,
                   nameStoreLabelTransaction, nameLegalEntityLabelTransaction
 
-    OBJECTS b = Barcode
-    PROPERTIES(l, b)          inLabelTransactionBarcode
-    PROPERTIES(b)    READONLY idBarcode
-    PROPERTIES(l, b)          quantityLabelTransactionBarcode, nameLabelTransactionBarcode, priceLabelTransactionBarcode
-    FILTERS inLabelTransactionBarcode(l, b)
+    OBJECTS d = LabelTransactionDetail
+    PROPERTIES(d) idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
+                  quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail,
+                  ADDOBJ, DELETESESSION
+    FILTERS labelTransactionLabelTransactionDetail(d) == l
 ;
 
 FORM labelTransactions 'Печать ценников'
@@ -291,12 +311,12 @@ FORM labelTransactions 'Печать ценников'
     PROPERTIES(l) DELETESESSION
     FILTERS departmentStoreLabelTransaction(l) == d
 
-    OBJECTS b = Barcode
-    PROPERTIES(l, b) READONLY inLabelTransactionBarcode
-    PROPERTIES(b)    READONLY idBarcode
-    PROPERTIES(l, b) READONLY quantityLabelTransactionBarcode, nameLabelTransactionBarcode, priceLabelTransactionBarcode
-    FILTERS inLabelTransactionBarcode(l, b)
+    OBJECTS dt = LabelTransactionDetail
+    PROPERTIES(dt) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
+                            quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail
+    FILTERS labelTransactionLabelTransactionDetail(dt) == l
 ;
+
 @extendFormFilterStockAccess(DepartmentStore, d, labelTransactions);
 
 DESIGN labelTransactions FROM DEFAULT {
@@ -307,7 +327,7 @@ DESIGN labelTransactions FROM DEFAULT {
             fill = 1;
 
             ADD l.box;
-            ADD b.box;
+            ADD d.box;
         }
         ADD functions.box;
     }
@@ -315,118 +335,122 @@ DESIGN labelTransactions FROM DEFAULT {
 
 // -------------------------------------------- Действия по печати ценников ------------------------------ //
 
-inLabelTypeBarcodeDepartmentStore (labelType, barcode, departmentStore) = inLabelTypeSku(labelType, skuBarcode(barcode)) AND inLabelTypeDepartmentStore(labelType, departmentStore);
-priceLabelTypeBarcodeDepartmentStore (labelType, barcode, departmentStore) =
-    priceAPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType),
-                                        skuBarcode(barcode),
-                                        departmentStore,
-                                        currentDateTime())
-    IF inLabelTypeBarcodeDepartmentStore (labelType, barcode, departmentStore);
+documentQuantityLabelTransactionDetail = DATA SESSION NUMERIC[14,3] (LabelTransactionDetail);
 
-countLabelTypeBarcode (labelType, barcode) = countLabelTypeSku(labelType, skuBarcode(barcode));
-includeLabelTypeBarcode (labelType, barcode)= includeLabelTypeSku(labelType, skuBarcode(barcode));
+calcPriceLabelTransactionDetail (d) =
+    IF batchLabelTransactionDetail(d) THEN
+        prevPriceAPriceListTypeBatchStockDateTime(priceListTypeLabelTransactionDetail(d),
+                                                  batchLabelTransactionDetail(d),
+                                                  departmentStoreLabelTransactionDetail(d),
+                                                  dateTimeLabelTransactionDetail(d))
+    ELSE
+        prevPriceAPriceListTypeSkuStockDateTime(priceListTypeLabelTransactionDetail(d),
+                                                skuLabelTransactionDetail(d),
+                                                departmentStoreLabelTransactionDetail(d),
+                                                dateTimeLabelTransactionDetail(d));
 
-quantityLabelTransactionSku = DATA SESSION NUMERIC[14,3] (Sku);
-createLabelTransactionDocument = DATA SESSION PriceTransactionDocument();
-createLabelTransactionSnapshot = DATA SESSION BOOLEAN();
-
-createAttributeLabelTransaction = ABSTRACT ACTION LIST (LabelTransaction);
-
-
-    WHEN SESSION FORMS customLabelTransaction
-        CHANGED(labelTypeLabelTransaction(transaction))
-            DO {
-                ASSIGN priceLabelTransactionBarcode(transaction, barcode) <- priceLabelTypeBarcodeDepartmentStore(labelTypeLabelTransaction(transaction), barcode, departmentStoreLabelTransaction(transaction)) WHERE inLabelTransactionBarcode(transaction, barcode);
-            };
-
-    WHEN SESSION FORMS customLabelTransaction
-        CHANGED(labelTypeLabelTransaction(transaction))
-            DO {
-                ASSIGN quantityLabelTransactionBarcode(transaction, barcode) <- IF includeLabelTypeBarcode(labelTypeLabelTransaction(transaction), barcode)
-                                                                                 THEN INTEGER(quantityLabelTransactionSku(skuBarcode(barcode)))
-                                                                                 ELSE countLabelTypeBarcode(labelTypeLabelTransaction(transaction), barcode)
-                                                                                     WHERE inLabelTransactionBarcode(transaction, barcode);
-            };
-
-
-createLabelTransactionFillParams 'Заполнить параметры' = ACTION (labelTransaction, departmentStore) {
-    ASSIGN departmentStoreLabelTransaction(labelTransaction) <- departmentStore;
-    ASSIGN priceTransactionDocumentLabelTransaction(labelTransaction) <- createLabelTransactionDocument();
-    ASSIGN nameLabelTransactionBarcode(labelTransaction, barcode) <- nameSkuBarcode(barcode) WHERE inLabelTransactionBarcode(labelTransaction, barcode);
-
-    EXEC createAttributeLabelTransaction(labelTransaction);
+WHEN SESSION FORMS customLabelTransaction
+    CHANGED(labelTypeLabelTransactionDetail(d)) DO {
+        priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
 }
 
-createLabelTransaction 'Распечатать ценники' = ACTION (departmentStore) {
+WHEN SESSION FORMS customLabelTransaction
+    CHANGED(labelTypeLabelTransactionDetail(d)) DO {
+        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
+                                                INTEGER(documentQuantityLabelTransactionDetail(d))
+                                             ELSE 
+                                                countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));
+}
 
-    LOCAL inBarcode = BOOLEAN (Barcode);
-    ASSIGN inBarcode(barcode) <- TRUE IF quantityLabelTransactionSku(skuBarcode(barcode));
+createAttributeLabelTransactionDetail = ABSTRACT ACTION LIST (LabelTransactionDetail);
 
-    // разбивается на несколько выполнений, чтобы не тупил PostgreSQL со сложным запросом
-    ASSIGN inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрих-код является активным
+// -------------------------------- Добавление новых атрибутов -------------------------- //
+META defineLabelTransactionAttributeAction(object, skuProp)
+    createAttributeLabelTransactionDetail(d) +=
+        ACTION object##LabelTransactionDetail(d) <- skuProp(skuLabelTransactionDetail(d));
 
-    IF createLabelTransactionSnapshot() THEN {
+    EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY object##LabelTransactionDetail;
+    EXTEND FORM customLabelTransaction PROPERTIES(d) object##LabelTransactionDetail;
+    EXTEND FORM labelTransactions PROPERTIES(dt) READONLY object##LabelTransactionDetail;
+END
+
+META defineLabelTransactionAttribute(object, caption, type, skuProp)
+    object##LabelTransactionDetail caption  = DATA type (LabelTransactionDetail);
+    @defineLabelTransactionAttributeAction(object, skuProp);
+END
+
+// ---------- Атрибуты по умолчанию ------ //
+
+@defineLabelTransactionAttribute(shortNameUOM, 'Ед. изм.', STRING[5], shortNameUOMSku);
+@defineLabelTransactionAttribute(country, 'Страна', VARSTRING[255], nameCountrySku);
+
+// ------------------------- Подключение печати ценников в документ --------------------- //
+META defineDocumentLabelTransaction (document, skuProp, stockProp)
+    create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {
+
+        LOCAL inBarcode = BOOLEAN (Barcode);
+        inBarcode(barcode) <- TRUE IF quantity###document##Detail###skuProp###document(skuBarcode(barcode), document);
+    
+        // разбивается на несколько выполнений, чтобы не тупил PostgreSQL со сложным запросом
+        inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрих-код является активным
+
+        // бежим по всем типам ценников из управленческих параметров
+        // для каждого создаем по операции печати ценников
+        FOR ([GROUP SUM 1 IF inBarcode(barcode) AND inLabelTypeSkuDepartmentStore(labelType, skuBarcode(barcode), departmentStore) BY labelType, departmentStore](labelType, stockProp###document(document)))
+            ADDOBJ t = LabelTransaction DO {
+                departmentStoreLabelTransaction(t) <- stockProp###document(document);
+                priceTransactionDocumentLabelTransaction(t) <- document;
+                
+                FOR document###document##Detail(dd) == document AND 
+                    inBarcode(barcode) AND skuBarcode(barcode) == skuProp###document##Detail(dd) AND 
+                    inLabelTypeSkuDepartmentStore(labelType, skuBarcode(barcode), stockProp###document(document))
+                    ADDOBJ d = LabelTransactionDetail DO {
+                    labelTransactionLabelTransactionDetail(d) <- t;
+                    skuLabelTransactionDetail(d) <- skuProp###document##Detail(dd);
+                    batchLabelTransactionDetail(d) <- batch###document##Detail(dd);
+                    barcodeLabelTransactionDetail(d) <- barcode;
+
+                    nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
+                    createAttributeLabelTransactionDetail(d);
+
+                    quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
+                                                            THEN INTEGER(quantity###document##Detail(dd))
+                                                         ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
+                    priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+                } 
+                // вызываем печатную форму для каждого из них
+                FORM printLabelTransaction OBJECTS l = t;
+        }
+        printedPriceTransactionDocument(document) <- TRUE;
+    } TOOLBAR CONFIRM;
+
+    createSnapshot###document##LabelTransaction 'Перепечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {
+
+        LOCAL inBarcode = BOOLEAN (Barcode);
+        inBarcode(barcode) <- TRUE IF quantity###document##Detail###skuProp###document(skuBarcode(barcode), document);
+    
+        // разбивается на несколько выполнений, чтобы не тупил PostgreSQL со сложным запросом
+        inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрих-код является активным
+
         FOR ADDOBJ t = LabelTransaction DO {
-            ASSIGN inLabelTransactionBarcode(t, barcode) <- inBarcode(barcode);
-            EXEC createLabelTransactionFillParams(t, departmentStore);
+            departmentStoreLabelTransaction(t) <- stockProp###document(document);
+            priceTransactionDocumentLabelTransaction(t) <- document;
+
+            FOR document###document##Detail(dd) == document AND inBarcode(barcode) AND skuBarcode(barcode) == skuProp###document##Detail(dd) 
+                ADDOBJ d = LabelTransactionDetail DO {
+                    labelTransactionLabelTransactionDetail(d) <- t;
+                    skuLabelTransactionDetail(d) <- skuProp###document##Detail(dd);
+                    batchLabelTransactionDetail(d) <- batch###document##Detail(dd);
+                    barcodeLabelTransactionDetail(d) <- barcode;
+
+                    nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
+                    createAttributeLabelTransactionDetail(d);
+            }
             FORM customLabelTransaction OBJECTS l = t MODAL;
             IF formResult() == FormResult.ok THEN {
                 FORM printLabelTransaction OBJECTS l = t;
             }
         }
-    } ELSE {
-        // бежим по всем типам ценников из управленческих параметров
-        FOR ([GROUP SUM 1 IF inBarcode(barcode) AND inLabelTypeBarcodeDepartmentStore(labelType, barcode, departmentStore) BY labelType, departmentStore](labelType, departmentStore)) DO {
-            // для каждого создаем по операции печати ценников
-            FOR ADDOBJ t = LabelTransaction DO {
-                ASSIGN inLabelTransactionBarcode(t, barcode) <- inBarcode(barcode) WHERE inLabelTypeBarcodeDepartmentStore(labelType, barcode, departmentStore);
-                ASSIGN quantityLabelTransactionBarcode(t, barcode) <- IF includeLabelTypeBarcode(labelType, barcode)
-                                                                    THEN INTEGER(quantityLabelTransactionSku(skuBarcode(barcode)))
-                                                                    ELSE countLabelTypeBarcode(labelType, barcode)
-                                                                        WHERE inLabelTransactionBarcode(t, barcode);
-                ASSIGN priceLabelTransactionBarcode(t, barcode) <- priceLabelTypeBarcodeDepartmentStore(labelType, barcode, departmentStore) WHERE inLabelTransactionBarcode(t, barcode);
-                ASSIGN labelTypeLabelTransaction(t) <- labelType;
-                EXEC createLabelTransactionFillParams(t, departmentStore);
-                // вызываем печатную форму для каждого из них
-                FORM printLabelTransaction OBJECTS l = t;
-            }
-        }
-    }
-}
-// -------------------------------- Добавление новых атрибутов -------------------------- //
-META defineLabelTransactionAttributeAction(object, barcodeProp)
-    createAttributeLabelTransaction(labelTransaction) +=
-        ACTION ASSIGN object##LabelTransactionBarcode(labelTransaction, barcode) <- barcodeProp##Barcode(barcode) WHERE inLabelTransactionBarcode(labelTransaction, barcode);
-
-    EXTEND FORM printLabelTransaction PROPERTIES(l, b) READONLY object##LabelTransactionBarcode;
-    EXTEND FORM customLabelTransaction PROPERTIES(l, b) object##LabelTransactionBarcode;
-    EXTEND FORM labelTransactions PROPERTIES(l, b) READONLY object##LabelTransactionBarcode;
-END
-
-META defineLabelTransactionAttribute(object, caption, type, barcodeProp)
-    object##LabelTransactionBarcode caption  = DATA type (LabelTransaction, Barcode);
-    @defineLabelTransactionAttributeAction(object, barcodeProp);
-END
-
-// ---------- Атрибуты по умолчанию ------ //
-
-@defineLabelTransactionAttribute(shortNameUOM, 'Ед. изм.', STRING[5], shortNameUOM);
-@defineLabelTransactionAttribute(country, 'Страна', VARSTRING[255], nameCountry);
-
-// ------------------------- Подключение печати ценников в документ --------------------- //
-META defineDocumentLabelTransaction (document, skuProp, stockProp)
-    create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {
-        ASSIGN quantityLabelTransactionSku(skuProp) <- quantity###document##Detail###skuProp###document(skuProp, document);
-        ASSIGN createLabelTransactionDocument() <- document;
-        EXEC createLabelTransaction(stockProp###document(document));
-        ASSIGN printedPriceTransactionDocument(document) <- TRUE;
-    } TOOLBAR CONFIRM;
-
-    createSnapshot###document##LabelTransaction 'Перепечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {
-        ASSIGN quantityLabelTransactionSku(skuProp) <- quantity###document##Detail###skuProp###document(skuProp, document);
-        ASSIGN createLabelTransactionDocument() <- document;
-        ASSIGN createLabelTransactionSnapshot() <- TRUE;
-        EXEC createLabelTransaction(stockProp###document(document));
     } TOOLBAR CONFIRM;
 
     showPrintLabelTransaction###document 'Показывать' (document) = isPosted###document(document) AND NOT Label.skipPriceTransactionDocument(document)
