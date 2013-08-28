@@ -1,4 +1,4 @@
-package lsfusion.erp.integration;
+package lsfusion.erp.integration.universal;
 
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -13,6 +13,7 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import org.apache.commons.lang.time.DateUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
@@ -25,6 +26,7 @@ import org.xBaseJ.xBaseJException;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.Arrays;
@@ -72,9 +74,14 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         return values.length <= index ? defaultValue : values[index];
     }
 
-    protected BigDecimal getCSVBigDecimalFieldValue(String[] values, int index, String defaultValue) throws ParseException {
-        String value = getCSVFieldValue(values, index, defaultValue);
-        return value == null ? null : new BigDecimal(value);
+    protected BigDecimal getCSVBigDecimalFieldValue(String[] values, int index, BigDecimal defaultValue) throws ParseException {
+        String value = getCSVFieldValue(values, index, null);
+        return value == null ? defaultValue : new BigDecimal(value);
+    }
+
+    protected Date getCSVDateFieldValue(String[] values, int index, Date defaultValue) throws ParseException {
+        String value = getCSVFieldValue(values, index, null);
+        return value == null ? defaultValue : new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy"}).getTime());
     }
 
     protected String getXLSFieldValue(HSSFSheet sheet, Integer row, Integer cell, String defaultValue) throws ParseException {
@@ -85,7 +92,8 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         if (hssfCell == null) return defaultValue;
         switch (hssfCell.getCellType()) {
             case Cell.CELL_TYPE_NUMERIC:
-                String result = String.valueOf(hssfCell.getNumericCellValue());
+                hssfCell.setCellType(HSSFCell.CELL_TYPE_STRING);
+                String result = hssfCell.getStringCellValue();
                 return result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
             case Cell.CELL_TYPE_STRING:
             default:
@@ -99,6 +107,14 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         if (hssfRow == null) return defaultValue;
         HSSFCell hssfCell = hssfRow.getCell(cell);
         return (hssfCell == null || hssfCell.getCellType() != Cell.CELL_TYPE_NUMERIC) ? defaultValue : BigDecimal.valueOf(hssfCell.getNumericCellValue());
+    }
+
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {
+        if (cell == null) return defaultValue;
+        HSSFRow hssfRow = sheet.getRow(row);
+        if (hssfRow == null) return defaultValue;
+        HSSFCell hssfCell = hssfRow.getCell(cell);
+        return hssfCell == null ? defaultValue : new Date(hssfCell.getDateCellValue().getTime());
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer cell, String defaultValue) throws ParseException {
@@ -125,6 +141,14 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         return (xssfCell == null || xssfCell.getCellType() != Cell.CELL_TYPE_NUMERIC) ? defaultValue : BigDecimal.valueOf(xssfCell.getNumericCellValue());
     }
 
+    protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {
+        if (cell == null) return defaultValue;
+        XSSFRow xssfRow = sheet.getRow(row);
+        if (xssfRow == null) return defaultValue;
+        XSSFCell xssfCell = xssfRow.getCell(cell);
+        return xssfCell == null ? defaultValue : new Date(xssfCell.getDateCellValue().getTime());
+    }
+
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
         try {
             if (fieldName == null)
@@ -139,6 +163,11 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
         String value = getDBFFieldValue(importFile, fieldName, charset, defaultValue);
         return value == null ? null : new BigDecimal(value);
+    }
+
+    protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset, Date defaultValue) throws UnsupportedEncodingException, ParseException {
+        String dateString = getDBFFieldValue(importFile, fieldName, charset, "");
+        return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd"}).getTime());
     }
 
     protected Integer getColumnNumber(String importColumn) {

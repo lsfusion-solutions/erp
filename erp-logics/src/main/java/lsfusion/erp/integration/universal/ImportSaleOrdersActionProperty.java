@@ -1,4 +1,4 @@
-package lsfusion.erp.integration;
+package lsfusion.erp.integration.universal;
 
 import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
@@ -45,7 +45,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
             importTypeQuery.addProperty("captionImportTypeFileExtensionImportType", getLCP("captionImportTypeFileExtensionImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("startRowImportType", getLCP("startRowImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("separatorImportType", getLCP("separatorImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("byBarcodeImportType", getLCP("byBarcodeImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionImportKeyTypeImportType", getLCP("captionImportKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
 
             importTypeQuery.addProperty("autoImportSupplierImportType", getLCP("autoImportSupplierImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("autoImportSupplierStockImportType", getLCP("autoImportSupplierStockImportType").getExpr(context.getModifier(), importTypeKey));
@@ -66,7 +66,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                 String fileExtension = (String) entryValue.get("captionImportTypeFileExtensionImportType").getValue();
                 Integer startRow = (Integer) entryValue.get("startRowImportType").getValue();
                 String csvSeparator = (String) entryValue.get("separatorImportType").getValue();
-                Boolean byBarcode = entryValue.get("byBarcodeImportType").getValue() != null;
+                String captionImportKeyTypeImportType = (String) entryValue.get("captionImportKeyTypeImportType").getValue();
 
                 ObjectValue autoImportSupplier = entryValue.get("autoImportSupplierImportType");
                 DataObject autoImportSupplierObject = autoImportSupplier instanceof NullValue ? null : (DataObject) autoImportSupplier;
@@ -106,7 +106,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                                 DataObject orderObject = context.addObject((ConcreteCustomClass) LM.findClassByCompoundName("Sale.UserOrder"));
                                 new ImportSaleOrderActionProperty(LM).importOrders(context, orderObject, importColumns,
                                         IOUtils.getFileBytes(f), fileExtension.trim(), startRow,
-                                        csvSeparator==null ? null : csvSeparator.trim(), byBarcode,
+                                        csvSeparator==null ? null : csvSeparator.trim(), captionImportKeyTypeImportType,
                                         autoImportSupplierObject, autoImportSupplierStockObject,
                                         autoImportCustomerObject, autoImportCustomerStockObject);
                             }

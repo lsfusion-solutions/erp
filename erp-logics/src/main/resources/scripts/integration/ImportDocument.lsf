@@ -1,6 +1,6 @@
 MODULE ImportDocument;
 
-REQUIRE System;
+REQUIRE System, Import;
 
 CLASS ImportTypeFileExtension 'Тип файла' {
     xls 'XLS',
@@ -9,15 +9,35 @@ CLASS ImportTypeFileExtension 'Тип файла' {
     dbf 'DBF'
 }
 
+CLASS ImportKeyType 'Ключ товара' {
+    barcode 'Штрихкод',
+    batch   'Код партии',
+    item    'Код товара'
+}
+
+skuBatchId (idBatch) = skuBatch(batchId(idBatch));
+
 CLASS ImportTypeDetail 'Свойство' {
     numberDocument 'Номер инвойса',
     idItem 'Код товара',
+    barcodeItem 'Штрихкод товара',
+    idBatch 'Код партии',
+    captionItem 'Наименование',
+    UOMItem 'Единица измерения',
+    manufacturerItem 'Производитель',
+    countryItem 'Страна',
+    pharmacyPriceGroupItem 'Тип лекарственного средства',
     quantity 'Количество',
     price 'Цена',
+    manufacturingPrice 'Цена производителя',
     sum 'Сумма',
-    VAT	'НДС, %',
-    VATSum 'Сумма НДС',
-    invoiceSum 'Сумма с НДС'
+    valueVAT 'НДС, %',
+    sumVAT 'Сумма НДС',
+    invoiceSum 'Сумма с НДС',
+    seriesPharmacy 'Серия лекарственного средства',
+    compliance 'Сертификат',
+    declaration 'Декларация',
+    expiryDate 'Срок годности'
 }
 
 CLASS ImportType 'Тип импорта';
@@ -25,7 +45,9 @@ CLASS ImportType 'Тип импорта';
 nameImportType 'Имя' =  DATA VARSTRING[100](ImportType);
 startRowImportType 'Начинать со строки' = DATA INTEGER(ImportType);
 separatorImportType 'Разделитель' = DATA INTEGER(ImportType);
-byBarcodeImportType 'Импортировать по штрихкоду' = DATA BOOLEAN(ImportType);
+importKeyTypeImportType 'Тип ключа' = DATA ImportKeyType(ImportType);
+captionImportKeyTypeImportType 'Тип ключа' (importType) = staticCaption(importKeyTypeImportType(importType));
+nameImportKeyTypeImportType 'Тип ключа' (importType) = staticName(importKeyTypeImportType(importType));
 
 indexImportTypeImportTypeDetail 'Поле' = DATA VARSTRING[10] (ImportType, ImportTypeDetail);
 
@@ -44,19 +66,25 @@ FORM importTypeFileExtensions 'Типы файлов'
     DIALOG ImportTypeFileExtension OBJECT f
 ;
 
+FORM importKeyTypes 'Типы ключа'
+    OBJECTS k=ImportKeyType
+    PROPERTIES(k) READONLY staticCaption
+    DIALOG ImportKeyType OBJECT k
+;
+
 showSeparator (importType) = importType==ImportTypeFileExtension.csv;
 
 FORM importType 'Тип импорта'
     OBJECTS i=ImportType FIXED PANEL
     PROPERTIES(i) nameImportType, captionImportTypeFileExtensionImportType, startRowImportType,
-                   separatorImportType SHOWIF showSeparator(i), byBarcodeImportType
+                   separatorImportType SHOWIF showSeparator(i), captionImportKeyTypeImportType
     EDIT ImportType OBJECT i
 ;
 
 FORM importTypes 'Типы импорта'
     OBJECTS i=ImportType
     PROPERTIES(i) READONLY nameImportType, captionImportTypeFileExtensionImportType, startRowImportType,
-                   separatorImportType SHOWIF showSeparator(i), byBarcodeImportType
+                   separatorImportType SHOWIF showSeparator(i), captionImportKeyTypeImportType
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE
     DIALOG ImportType OBJECT i
 
