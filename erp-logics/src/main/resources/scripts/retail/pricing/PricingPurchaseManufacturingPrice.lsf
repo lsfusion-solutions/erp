@@ -4,39 +4,7 @@ REQUIRE PurchaseManufacturingPrice, PricingPurchase, PricingManufacturingPrice, 
 
 NAMESPACE Purchase;
 
-@changeDocumentDetailPricePrefix(userInvoiceDetail, curManufacturing, newManRetail, cur, curManufacturingMVAT, cur, curRetail);
-
-calcManRetailPriceUserInvoiceDetail(userInvoiceDetail)  = roundPriceRoundCondition(NUMERIC[14,2]([X*(Y+100)*(Z+100)/10000](
-    manufacturingMVATPriceUserInvoiceDetail(userInvoiceDetail),
-    retailMarkupUserInvoiceDetail(userInvoiceDetail),
-    valueRetailVATUserInvoiceDetail(userInvoiceDetail))), roundConditionUserInvoiceDetail(userInvoiceDetail));
-
-
-WHEN SESSION FORMS userInvoice
-    CHANGED(manufacturingMVATPriceUserInvoiceDetail(userInvoiceDetail)) AND createPricingUserInvoiceDetail(userInvoiceDetail) DO
-        retailPriceUserInvoiceDetail(userInvoiceDetail) <- calcManRetailPriceUserInvoiceDetail(userInvoiceDetail);
-
-toShowRepricingPriceInvoice (invoice) = createRepricingInvoice(invoice) AND showManufacturingPriceInvoice(invoice);
-
-overAdditionalValuation(rd, detail) += ACTION (rd, detail) {
-    ASSIGN curManufacturingPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType, skuInvoiceDetail(detail), customerStockInvoiceDetail(detail), dateTimeInvoiceDetail(detail));
-    ASSIGN manufacturingPriceUserRepricingDetail(rd) <- manufacturingPriceInvoiceDetail(detail);
-}
-
-EXTEND FORM userInvoice
-    PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
-                  curManufacturingPriceUserInvoiceDetail ON CHANGE changeCurManufacturingPriceUserInvoiceDetail(d)
-;
-//--
 overPricingPricePricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
 overPricingPriceUserInvoiceDetail(detail) += manufacturingPriceUserInvoiceDetail(detail);
 
 manufacturingPricePricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
-//--
-overRepricingPriceRepricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
-overRepricingPriceUserInvoiceDetail(detail) += manufacturingPriceUserInvoiceDetail(detail);
-manufacturingPriceRepricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
-
-overCurRepricingPriceRepricingDetail(detail) += curManufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
-overCurRepricingPriceUserInvoiceDetail(detail) += curManufacturingPriceUserInvoiceDetail(detail);
-curManufacturingPriceRepricingDetail(detail) += curManufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));

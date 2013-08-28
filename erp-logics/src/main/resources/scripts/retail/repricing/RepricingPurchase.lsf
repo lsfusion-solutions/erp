@@ -1,0 +1,121 @@
+MODULE RepricingPurchase;
+
+REQUIRE PricingPurchase, RepricingInvoice, PurchaseInvoice, PurchaseShipment, PurchaseOperation;
+
+NAMESPACE Purchase;
+
+//----------------------------------------------- Акт дооценки ---------------------------------------------------//
+@defineRepricingAggregation(' (закупка)', customerStock); 
+@defineOperationProperty(createRepricing, 'Акт дооценки', createContainer);
+@deriveDocumentOperationProperty(UserInvoice, createRepricing);
+
+repricingOperationOperation  = DATA Repricing.Operation (Operation);
+nameRepricingOperationOperation 'Операция (переоценки)' (operation)= Repricing.nameOperation(repricingOperationOperation(operation));
+
+
+EXTEND FORM operation
+    PROPERTIES(o) nameRepricingOperationOperation
+;
+EXTEND DESIGN operation {
+    createContainer {
+        ADD PROPERTY(nameRepricingOperationOperation) AFTER PROPERTY(createRepricingOperation);
+    }
+}
+
+// Операция переоценки
+@defineDocumentInterfaceOperationPrefix (invoice, repricing, Repricing, ' ( переоценка)');
+repricingOperationUserInvoice(i) <- repricingOperationOperation(operationUserInvoice(i))
+    WHEN CHANGED(operationUserInvoice(i));
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) BACKGROUND backgroundCurInvoice(i) SHOWIF createRepricingUserInvoice(i) nameRepricingOperationUserInvoice
+;
+EXTEND DESIGN userInvoice {
+    headerCreateRepricing {
+        ADD PROPERTY(nameRepricingOperationUserInvoice) BEFORE PROPERTY(nameRepricingCommitteeUserInvoice);
+    }
+}
+
+operationRepricing (repricing)+= repricingOperationInvoice(invoiceInvoiceRepricing(repricing));
+
+//------------------------ Дооценка ----------------------------//
+
+FORM additionalValuation 'Дооценка'
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES (d) SELECTOR nameDepartmentStore
+
+    OBJECTS tf=DATETIME FIXED PANEL
+    PROPERTIES(tf) OBJVALUE
+
+    OBJECTS tt=DATETIME FIXED PANEL
+    PROPERTIES(tt) OBJVALUE
+
+;
+DESIGN additionalValuation FROM DEFAULT {
+    main {
+        childConstraints = TO THE BOTTOM;
+
+        NEW topContainer {
+            childConstraints = TO THE RIGHT;
+            ADD d.box { caption = 'Выберите отдел магазина';}
+            ADD tf.box { caption = 'Дата/время с'; }
+            ADD tt.box { caption = 'Дата/время по'; }
+        }
+        ADD functions.box;
+    }
+}
+
+balanceBSkuDateTimeInvoiceDetail (detail)  = [PREV(balanceBSkuStockDateTime(sku, stock, dateTime) IF dateTime IS DATETIME)](skuInvoiceDetail(detail), customerStockInvoiceDetail(detail), dateTimeInvoiceDetail(detail));
+
+overAdditionalValuation = ABSTRACT ACTION LIST (RepricingDetail, InvoiceDetail);
+createAdditionalValuation 'Создать дооценку' = ACTION () NEWSESSION {
+
+    FORM additionalValuation  MODAL;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL department = DepartmentStore();
+        LOCAL timeFrom =  DATETIME();
+        LOCAL timeTo = DATETIME();
+
+        ASSIGN department() <- chosenObject('d');
+        ASSIGN timeFrom() <- chosenDateTime('tf');
+        ASSIGN timeTo() <- chosenDateTime('tt');
+
+        FOR ADDOBJ r = UserRepricing DO {
+            ASSIGN departmentStoreUserRepricing(r) <-  department();
+//            ASSIGN operationUserRepricing(r) <- oper();
+
+            FOR customerStockInvoiceDetail(detail) == department()
+                AND dateTimeInvoiceDetail(detail) >= timeFrom()
+                AND dateTimeInvoiceDetail(detail) <= timeTo()
+                AND retailPriceInvoiceDetail(detail)
+                AND prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuInvoiceDetail(detail), department(), dateTimeInvoiceDetail(detail)) != retailPriceInvoiceDetail(detail)
+                AND balanceBSkuDateTimeInvoiceDetail(detail) > 0
+                AND isStockSkuInvoiceDetail(detail)
+                AND NOT costLedgerDepartmentStore(department())
+                AND isPostedInvoiceDetail(detail)
+                ADDOBJ rd = UserRepricingDetail DO {
+                    ASSIGN userRepricingUserRepricingDetail(rd) <- r;
+                    ASSIGN skuUserRepricingDetail(rd) <- skuInvoiceDetail(detail);
+                    ASSIGN quantityUserRepricingDetail(rd) <- balanceBSkuDateTimeInvoiceDetail(detail);
+                    ASSIGN curPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, skuInvoiceDetail(detail), department(), dateTimeInvoiceDetail(detail));
+                    ASSIGN curRetailPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuInvoiceDetail(detail), department(), dateTimeInvoiceDetail(detail));
+
+                    ASSIGN priceUserRepricingDetail(rd) <- priceInvoiceDetail(detail);
+                    ASSIGN retailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);
+
+                    EXEC overAdditionalValuation(rd, detail);
+            }
+            FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;
+        }
+    }
+} TOOLBAR ;
+
+EXTEND FORM repricings
+    PROPERTIES ()  createAdditionalValuation TODRAW p
+;
+
+overCopyInvoice(s, d) += ACTION (s, d) {
+    ASSIGN createRepricingUserInvoice(d) <- createRepricingUserInvoice(s);
+    ASSIGN repricingOperationUserInvoice(d) <- repricingOperationUserInvoice(s);
+}
+

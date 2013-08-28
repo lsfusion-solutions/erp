@@ -1,0 +1,28 @@
+MODULE RepricingPurchaseManufacturingPrice;
+
+REQUIRE RepricingPurchase, PricingManufacturingPrice, PurchaseManufacturingPrice, RepricingManufacturingPrice;
+
+NAMESPACE Purchase;
+
+@changeDocumentDetailPricePrefix(userInvoiceDetail, curManufacturing, newManRetail, cur, curManufacturingMVAT, cur, curRetail);
+
+toShowRepricingPriceInvoice (invoice) = createRepricingInvoice(invoice) AND showManufacturingPriceInvoice(invoice);
+
+overAdditionalValuation(rd, detail) += ACTION (rd, detail) {
+    curManufacturingPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType, skuInvoiceDetail(detail), customerStockInvoiceDetail(detail), dateTimeInvoiceDetail(detail));
+    manufacturingPriceUserRepricingDetail(rd) <- manufacturingPriceInvoiceDetail(detail);
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
+                  curManufacturingPriceUserInvoiceDetail ON CHANGE changeCurManufacturingPriceUserInvoiceDetail(d)
+;
+
+//--
+overRepricingPriceRepricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
+overRepricingPriceUserInvoiceDetail(detail) += manufacturingPriceUserInvoiceDetail(detail);
+manufacturingPriceRepricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
+
+overCurRepricingPriceRepricingDetail(detail) += curManufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
+overCurRepricingPriceUserInvoiceDetail(detail) += curManufacturingPriceUserInvoiceDetail(detail);
+curManufacturingPriceRepricingDetail(detail) += curManufacturingPriceInvoiceDetail(invoiceDetailInvoiceRepricingDetail(detail));
