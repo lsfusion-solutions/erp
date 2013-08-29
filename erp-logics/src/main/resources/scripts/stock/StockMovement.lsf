@@ -1,0 +1,153 @@
+MODULE StockMovement;
+
+REQUIRE SkuLedger;
+
+NAMESPACE Stock;
+
+// -------------------------------- Движение товара -------------------------- //
+
+FORM movementSku 'Движение товара'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY nameSku
+
+    OBJECTS bil = SkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger,
+                             balanceASkuLedger
+    ORDER BY dateTimeSkuLedger
+    FILTERS skuSkuLedger(bil) == s,
+            isPostedSkuLedger(bil),
+            isCompanyStockSkuLedger(bil)
+;
+FORM movementSkuStock 'Движение товара по складу'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY nameSku
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) READONLY nameStock
+
+    OBJECTS bil = SkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger,
+                             signedSumSkuLedger , balanceASkuLedger
+    ORDER BY dateTimeSkuLedger
+    FILTERS skuSkuLedger(bil) == s,
+            isPostedSkuLedger(bil),
+            stockSkuLedger(bil)==st,
+            isCompanyStock(st)
+;
+DESIGN movementSkuStock FROM DEFAULT {
+    NEW topContainer{
+        type = CONTAINERH;
+        ADD s.box;
+        ADD st.box;
+    }
+    ADD bil.box;
+    ADD functions.box;
+}
+
+
+META defineMovementSku(detail, stockProp)
+    showMovementSkuStock###detail 'Показать движение товара по складу' (detail) = ACTION FORM movementSkuStock OBJECTS s = sku###detail(detail), st = stockProp###detail(detail) MODAL SHORTCUT nameSku###detail;
+    showMovementSku###detail 'Показать движение товара' (detail) = ACTION FORM movementSku OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
+END
+
+
+FORM balancesSkuStock 'Остатки'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY nameSku
+
+    OBJECTS st = Stock
+    PROPERTIES(st) READONLY idStock, nameStock
+    PROPERTIES READONLY currentBalanceSkuStock(s,st)
+
+    ORDER BY idStock
+    FILTERS currentBalanceSkuStock(s,st),
+            isCompanyStock(st)
+;
+META defineBalancesSku(detail)
+    showBalancesSkuStock###detail 'Показать остатки товара' (detail) = ACTION FORM balancesSkuStock OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
+END
+
+// -------------------------------- Движение по партии -------------------------- //
+balanceABatchLedger 'Остаток (после)' (batch, ledger) = balanceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
+
+FORM movementBatch 'Движение по партии'
+    OBJECTS bt = Batch FIXED PANEL
+    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
+
+    OBJECTS bil = SkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger
+
+    PROPERTIES      READONLY balanceABatchLedger(bt,bil) //costSkuLedgerBatch(bil, bt),
+    ORDER BY dateTimeSkuLedger
+    FILTERS costSkuLedgerBatch(bil, bt),
+            isPostedSkuLedger(bil),
+            isCompanyStockSkuLedger(bil)
+
+;
+FORM movementBatchStock 'Движение по партии'
+    OBJECTS bt = Batch FIXED PANEL
+    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) READONLY nameStock
+
+    OBJECTS bil = SkuLedger
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger,
+                             signedSumSkuLedger
+    PROPERTIES      READONLY balanceABatchLedger(bt,bil) //costSkuLedgerBatch(bil, bt),
+
+    ORDER BY dateTimeSkuLedger
+    FILTERS costSkuLedgerBatch(bil, bt),
+            isPostedSkuLedger(bil),
+            stockSkuLedger(bil)==st,
+            isCompanyStock(st)
+;
+DESIGN movementBatchStock FROM DEFAULT {
+    NEW topContainer{
+        type = CONTAINERH;
+        ADD bt.box;
+        ADD st.box;
+    }
+    ADD bil.box;
+    ADD functions.box;
+}
+
+
+META defineMovementBatch(detail, batchProp, stockProp)
+    showMovementBatchStock###detail 'Показать движение по партии и складу' (detail) = ACTION FORM movementBatchStock OBJECTS bt = batchProp###detail(detail), st = stockProp###detail(detail) MODAL SHORTCUT nameBatch###detail;
+    showMovementBatch###detail 'Показать движение по партии' (detail) = ACTION FORM movementBatch OBJECTS bt = batchProp###detail(detail) MODAL SHORTCUT nameBatch###detail;
+END
+META defineMovementBatch(detail, stockProp)
+    @defineMovementBatch(detail, batch, stockProp);
+END
+
+
+FORM balancesBatchStock 'Остатки'
+    OBJECTS bt = Batch FIXED PANEL
+    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
+
+    OBJECTS st = Stock
+    PROPERTIES(st) READONLY idStock, nameStock
+    PROPERTIES READONLY currentBalanceBatchStock(bt,st)
+
+    ORDER BY idStock
+    FILTERS currentBalanceBatchStock(bt,st),
+            isCompanyStock(st)
+;
+META defineBalancesBatch(detail, batchProp)
+    showBalancesBatchStock###detail 'Показать остатки по партии' (detail) = ACTION FORM balancesBatchStock OBJECTS bt = batchProp###detail(detail) MODAL SHORTCUT nameBatch###detail;
+END
+META defineBalancesBatch(detail)
+    @defineBalancesBatch(detail, batch);
+END
+
+showMovementBatchStockBatch 'Показать движение по партии и складу' (batch) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stockBatch(batch) MODAL SHORTCUT nameBatch;
+showMovementBatchBatch 'Показать движение по партии' (batch) = ACTION FORM movementBatch OBJECTS bt = batch MODAL SHORTCUT nameBatch;
+showBalancesBatchStockBatch 'Показать остатки по партии' (batch) = ACTION FORM balancesBatchStock OBJECTS bt = batch MODAL SHORTCUT nameBatch;
+
+@defineMovementSku(batch, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(batch); //-- показываем по нажатию правой клавиши остатки товара

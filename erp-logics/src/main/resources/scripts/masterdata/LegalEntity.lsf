@@ -512,6 +512,31 @@ META defineDocumentPhone(object, contact, caption)
     phone###contact###object 'Телефон'###caption (object) = phoneLegalEntity(contact###object(object)) IN documentPrmGroup;
 END
 
+// Агрегации
+
+META defineDocumentAggregationHeaderLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
+    prefixA###legalEntityProp###aggrObject (object) = prefixP###legalEntityProp###primObject(primObject###aggrObject(object)) PERSISTENT;
+    name###prefixA###legalEntityProp###aggrObject legalEntityCaption (object) = nameLegalEntity(prefixA###legalEntityProp###aggrObject(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+END
+META defineDocumentAggregationHeaderLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
+    @defineDocumentAggregationHeaderLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, , );
+END
+
+META defineDocumentAggregationDetailLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
+    prefixA###legalEntityProp###aggrObject##Detail (detail) = prefixP###legalEntityProp###primObject##Detail(primObject##Detail###aggrObject##Detail(detail)) PERSISTENT;
+END
+META defineDocumentAggregationDetailLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
+    @defineDocumentAggregationDetailLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, , );
+END
+
+META defineDocumentAggregationLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
+    @defineDocumentAggregationHeaderLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA);
+    @defineDocumentAggregationDetailLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA);
+END
+META defineDocumentAggregationLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
+    @defineDocumentAggregationLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, , );
+END
+
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultStaticOwnership 'Добавить Формы собственности' = ACTION (iname, isname, sidCountry, static) {    //статик класс

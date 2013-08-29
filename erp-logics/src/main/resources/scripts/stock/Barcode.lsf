@@ -1,6 +1,6 @@
 MODULE Barcode;
 
-REQUIRE System, Integration, Numerator, Stock, Utils;
+REQUIRE System, Integration, Numerator, SkuLedger, StockSkuDocument, Utils;
 
 CLASS Barcode 'Штрих код';
 TABLE barcode (Barcode);
@@ -146,7 +146,7 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
             }
             EXEC setSkuAddedUser(dialogBarcodeSku());
         } ELSE {
-            FORM filterSkus MODAL;
+            FORM emptyBarcodeSkus MODAL;
             IF formResult() == FormResult.ok THEN {
                 FOR s == chosenObject('s') DO {
                     ASSIGN dialogBarcodeSku() <- s;
@@ -214,10 +214,41 @@ EXTEND FORM skus
     PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku
 ;
 
-EXTEND FORM filterSkus
-    PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku
+FORM emptyBarcodeSkus 'Sku'
+    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY skuGroupName = nameSkuGroup(sg)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY nameSku, idBarcodeSku, shortNameUOMSku
+    PROPERTIES() addSku TODRAW s
+    PROPERTIES(s) editSku, copySku
+    FILTERS isParentSkuGroupSku(sg, s)
     FILTERS NOT idBarcodeSku(s)
+    ORDER BY nameSku
 ;
+
+DESIGN emptyBarcodeSkus FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            fill = 1;
+            type = SPLITH;
+
+            ADD skuTree.tree.box;
+
+            ADD s.box {
+                fill = 4;
+                s.grid {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        ADD functions.box;
+    }
+}
 
 EXTEND FORM currentBalanceSkuStock
     PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku

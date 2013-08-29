@@ -1,0 +1,647 @@
+MODULE Sku;
+
+REQUIRE Integration, Hierarchy, Stock;
+
+NAMESPACE Stock;
+
+// ----------------------------------- Единицы измерения ------------------------------------------ //
+
+CLASS UOM 'Единица измерения';
+TABLE UOM (UOM);
+
+@defineExternalizable(UOM, VARSTRING[100]);
+
+nameUOM 'Наименование' = DATA VARISTRING[50](UOM) MINCHARWIDTH 7 PREFCHARWIDTH 14;
+shortNameUOM 'Краткое наименование' = DATA VARISTRING[10](UOM) MINCHARWIDTH 3 PREFCHARWIDTH 6;  ////
+
+baseUOM = DATA UOM(UOM);
+shortNameBaseUOM 'Базовая ед.изм.' (UOM) = shortNameUOM(baseUOM(UOM)) IN base;
+genitiveNameUOM 'Ед. изм. (родительный)' = DATA VARSTRING[20](UOM) IN base;
+factorUOM 'Коэффициент пересчета в баз.ед.' = DATA NUMERIC[14,3] (UOM) IN base;
+
+FORM UOM 'Единица измерения'
+    OBJECTS u=UOM FIXED PANEL
+    PROPERTIES(u) nameUOM, idUOM SHOWIF showIDs(), shortNameUOM, shortNameBaseUOM, genitiveNameUOM, factorUOM
+    EDIT UOM OBJECT u
+;
+
+FORM UOMs 'Единицы измерений'
+    OBJECTS u=UOM
+    PROPERTIES(u) READONLY nameUOM, idUOM SHOWIF showIDs(), shortNameUOM, shortNameBaseUOM, genitiveNameUOM, factorUOM
+    PROPERTIES(u) ADDFORM, EDITFORM, DELETE
+    DIALOG UOM OBJECT u
+;
+
+// ----------------------------------- Абстрактная группа ------------------------------------------ //
+
+CLASS ABSTRACT Group 'Классификатор SKU';
+TABLE group(Group);
+
+nameGroup 'Наименование' = ABSTRACT VARISTRING[150](Group) PERSISTENT INDEXED;
+
+TABLE groupGroup(Group, Group);
+@defineHierarchyAbstract(group, Group);
+
+CLASS ABSTRACT GroupType 'Тип классификатора SKU';
+nameGroupType 'Наименование' = ABSTRACT VARISTRING[100](GroupType);
+
+FORM groupTypes 'Типы классификатора SKU'
+    OBJECTS g = GroupType
+    PROPERTIES(g) READONLY nameGroupType
+    DIALOG GroupType OBJECT g
+;
+
+CLASS SystemGroupType 'Системный тип классификатор SKU' : GroupType;
+TABLE systemGroupType(SystemGroupType);
+
+nameGroupType(type) += VARISTRING[100](staticCaption(type)) IF type IS SystemGroupType;
+
+groupTypeGroup = ABSTRACT GroupType (Group) PERSISTENT INDEXED;
+nameGroupTypeGroup 'Тип классификатора SKU' (group) = nameGroupType(groupTypeGroup(group));
+
+TABLE groupTypeSku(GroupType, Sku);
+groupGroupTypeSku = ABSTRACT CASE Group (GroupType, Sku) PERSISTENT INDEXED;
+nameGroupGroupTypeSku 'Имя' (type, sku) = nameGroup(groupGroupTypeSku(type, sku));
+canonicalNameGroupGroupTypeSku 'Каноническое имя' (type, sku) = canonicalNameGroup(groupGroupTypeSku(type, sku));
+
+TABLE groupStock(Group, Stock);
+TABLE groupSku(Group, Sku);
+isParentGroupSku(group, sku) = isParentGroupGroup(groupGroupTypeSku(groupTypeGroup(group), sku), group) PERSISTENT INDEXED;
+
+inactiveGroup 'Неактивная' = ABSTRACT BOOLEAN (Group) PERSISTENT;
+activeGroup 'Активный' (group) = group IS Group AND NOT inactiveGroup(group);
+
+// ----------------------------------- Custom Group ------------------------------------------ //
+
+CLASS CustomGroup 'Дополнительный классификатор SKU' : Group;
+TABLE customGroup (CustomGroup);
+
+nameCustomGroup 'Наименование' = DATA VARISTRING[150](CustomGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+nameGroup(group) += nameCustomGroup(group) IF group IS CustomGroup;
+
+TABLE customGroupCustomGroup(CustomGroup, CustomGroup);
+@defineHierarchy(customGroup);
+
+parentGroup (group) += parentCustomGroup(group);
+
+CLASS CustomGroupType 'Тип дополнительного классификатора SKU' : GroupType;
+TABLE customGroupType (CustomGroupType);
+
+nameCustomGroupType 'Наименование' = DATA VARISTRING[50](CustomGroupType);
+
+nameGroupType(type) += nameCustomGroupType(type) IF type IS CustomGroupType;
+
+customGroupTypeCustomGroup = DATA CustomGroupType (CustomGroup) AUTOSET;
+nameCustomGroupTypeCustomGroup 'Тип классификатора' (customGroup) = nameCustomGroupType(customGroupTypeCustomGroup(customGroup));
+
+CONSTRAINT customGroupTypeCustomGroup(parentCustomGroup(group)) != customGroupTypeCustomGroup(group)
+           CHECKED BY parentCustomGroup MESSAGE 'Родительский объект классификатора SKU имеет неправильный тип';
+
+groupTypeGroup (group) += customGroupTypeCustomGroup(group);
+
+TABLE customGroupTypeSku(CustomGroupType, Sku);
+customGroupCustomGroupTypeSku = ABSTRACT CustomGroup (CustomGroupType, Sku) PERSISTENT INDEXED;
+
+groupGroupTypeSku(type, sku) += WHEN CLASS(customGroupCustomGroupTypeSku(type, sku)) THEN customGroupCustomGroupTypeSku(type, sku);
+
+inCustomGroup 'Отм.' = DATA SESSION BOOLEAN (CustomGroup);
+
+FORM moveCustomGroup 'Дополнительные группы'
+    OBJECTS t = CustomGroupType FIXED PANEL
+    PROPERTIES(t) READONLY nameCustomGroupType
+
+    TREE treeGroups g=CustomGroup PARENT parentCustomGroup
+    PROPERTIES(g) READONLY nameCustomGroup, canonicalNameCustomGroup
+    FILTERS customGroupTypeCustomGroup(g) == t
+    ORDER BY canonicalNameCustomGroup
+;
+
+moveCustomGroup 'Перенести отмеченные группы' = ACTION (customGroupType){
+
+    FORM moveCustomGroup OBJECTS t = customGroupType MODAL;
+    IF formResult() == FormResult.ok THEN {
+        ASSIGN parentCustomGroup(customGroup) <- chosenObject('g') WHERE inCustomGroup(customGroup);
+        ASSIGN inCustomGroup(customGroup) <- NULL;
+    }
+}
+
+FORM customGroupType 'Тип дополнительного классификатора SKU'
+    OBJECTS t = CustomGroupType FIXED PANEL
+    PROPERTIES(t) nameCustomGroupType
+    EDIT CustomGroupType OBJECT t
+;
+
+FORM dialogCustomGroupType 'Тип дополнительной группы'
+    OBJECTS t = CustomGroupType
+    PROPERTIES(t) READONLY nameCustomGroupType
+    DIALOG CustomGroupType OBJECT t
+;
+
+FORM customGroupTypes 'Типы дополнительных групп'
+    OBJECTS t = CustomGroupType
+    PROPERTIES(t) READONLY nameCustomGroupType
+    PROPERTIES(t) ADDFORM, EDITFORM, DELETE
+;
+
+FORM customGroup 'Дополнительная группа'
+    OBJECTS g=CustomGroup FIXED PANEL
+    PROPERTIES(g) nameCustomGroupTypeCustomGroup, nameCustomGroup, nameParentCustomGroup
+    EDIT CustomGroup OBJECT g
+;
+
+FORM customGroups 'Дополнительные группы'
+    OBJECTS t = CustomGroupType FIXED PANEL
+    PROPERTIES(t) SELECTOR nameCustomGroupType
+
+    TREE treeGroups g=CustomGroup PARENT parentCustomGroup
+    PROPERTIES inCustomGroup(g), moveCustomGroup(t) TODRAW g FORCE PANEL TOOLBAR
+    PROPERTIES(g) READONLY nameCustomGroup, canonicalNameCustomGroup
+    PROPERTIES(g) ADDFORM, EDITFORM, DELETE
+    FILTERS customGroupTypeCustomGroup(g) == t
+    ORDER BY canonicalNameCustomGroup
+
+    DIALOG CustomGroup OBJECT g
+;
+
+// ----------------------------------- Sku Group ------------------------------------------ //
+
+CLASS ABSTRACT SkuGroup 'Группа SKU' : Group;
+TABLE skuGroup (SkuGroup);
+
+nameSkuGroup 'Наименование' = ABSTRACT VARISTRING[150](SkuGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+nameGroup(group) += nameSkuGroup(group) IF group IS SkuGroup;
+
+TABLE skuGroupSkuGroup(SkuGroup, SkuGroup);
+@defineHierarchyAbstract(skuGroup, SkuGroup);
+
+EXTEND CLASS SystemGroupType { skuGroupType 'Основной' }
+
+parentGroup(skuGroup) += parentSkuGroup(skuGroup);
+
+TABLE skuGroupLanguage(SkuGroup, Language);
+nameSkuGroupLanguage 'Наименование (иностр.)' = ABSTRACT VARSTRING[110] (SkuGroup, Language) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+
+nameSkuGroupStock 'Наименование (иностр.)' (skuGroup, stock) = IF languageStock(stock) THEN nameSkuGroupLanguage(skuGroup, languageStock(stock)) ELSE nameSkuGroup(skuGroup);
+
+// ----------------------------------- Sku Type ------------------------------------------ //
+
+CLASS SkuType 'Тип SKU' {
+    skuTypeItem 'Товар',
+    skuTypeContainer 'Тара',
+    skuTypeCharge 'Услуги'
+}
+FORM skuTypes
+    OBJECTS t = SkuType
+    PROPERTIES(t) staticCaption
+    DIALOG SkuType OBJECT t
+;
+
+TABLE skuType (SkuType);
+isStockSkuType 'Складируемые' (type) = type IS SkuType AND NOT type == SkuType.skuTypeCharge PERSISTENT;
+
+// ----------------------------------- Sku ------------------------------------------ //
+
+CLASS ABSTRACT Sku 'SKU';
+TABLE sku(Sku);
+TABLE legalEntitySku(LegalEntity, Sku);
+TABLE countrySku(Country, Sku);
+
+skuGroupSku (sku) = ABSTRACT SkuGroup (Sku) PERSISTENT INDEXED;
+nameSkuGroupSku 'Группа' (sku)= nameSkuGroup(skuGroupSku(sku));
+
+groupTypeGroup(group) += SystemGroupType.skuGroupType IF group IS SkuGroup;
+groupGroupTypeSku(type, sku) += WHEN CLASS(skuGroupSku(sku)) AND type == SystemGroupType.skuGroupType THEN skuGroupSku(sku);
+
+nameSku 'Наименование' (sku) = ABSTRACT VARISTRING[255] (Sku) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP IN base;
+
+TABLE skuLanguage(Sku, Language);
+nameSkuLanguage 'Наименование (иностр.)' = ABSTRACT VARISTRING[200] (Sku, Language) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+
+nameSkuStock 'Наименование (иностр.)' (sku, stock) = IF languageStock(stock) THEN nameSkuLanguage(sku, languageStock(stock)) ELSE nameSku(sku);
+
+UOMSku (sku) = ABSTRACT UOM (Sku) PERSISTENT;
+shortNameUOMSku 'Ед. изм.' (sku) = shortNameUOM(UOMSku(sku)) IN base;
+
+countrySku = ABSTRACT Country (Sku) PERSISTENT;
+nameCountrySku 'Страна' (sku) = nameCountry(countrySku(sku)) IN base;
+
+TABLE skuGroupSku(SkuGroup, Sku);
+isParentSkuGroupSku (skuGroup, sku) = isParentSkuGroupSkuGroup(skuGroupSku(sku), skuGroup) PERSISTENT;
+
+netWeightSku 'Вес нетто' = ABSTRACT NUMERIC[9,3] (Sku) PERSISTENT;
+grossWeightSku 'Вес брутто' = ABSTRACT NUMERIC[9,3] (Sku) PERSISTENT;
+volumeSku 'Объем' = ABSTRACT NUMERIC[9,3] (Sku) PERSISTENT;
+compositionSku 'Состав' = ABSTRACT VARSTRING[255] (Sku) PERSISTENT;
+
+skuTypeSku = ABSTRACT SkuType (Sku) PERSISTENT INDEXED;
+
+isStockSku 'Складируемый' (sku) = isStockSkuType(skuTypeSku(sku)) PERSISTENT;
+
+isItemSku 'Товар' (sku) = skuTypeSku(sku) == SkuType.skuTypeItem PERSISTENT;
+isContainerSku 'Тара' (sku) = skuTypeSku(sku) == SkuType.skuTypeContainer PERSISTENT;
+isChargeSku 'Услуги' (sku) = skuTypeSku(sku) == SkuType.skuTypeCharge PERSISTENT;
+isNotChargeSku 'Не услуги' (sku) = NOT isChargeSku(sku) AND sku IS Sku PERSISTENT;
+isNotItemSku 'Не товар' (sku) = NOT isItemSku(sku) AND sku IS Sku PERSISTENT;
+isNotContainerSku 'Не тара' (sku) = NOT isContainerSku(sku) AND sku IS Sku PERSISTENT;
+
+isWeightSku 'Весовой товар' =  ABSTRACT BOOLEAN (Sku) PERSISTENT;
+fixedPriceSku 'Товар с фиксированной ценой' =  ABSTRACT BOOLEAN (Sku) PERSISTENT;
+inactiveSku 'Неактивный' = ABSTRACT BOOLEAN (Sku) PERSISTENT;
+activeSku 'Активный' (sku) = sku IS Sku AND NOT inactiveSku(sku);
+inactiveSkuGroup 'Неактивная' = ABSTRACT BOOLEAN (SkuGroup) PERSISTENT;
+activeSkuGroup 'Активный' (group) = group IS SkuGroup AND NOT inactiveSkuGroup(group);
+inactiveGroup(group) += inactiveSkuGroup(group);
+
+replaceSkuSku = ABSTRACT ACTION LIST (Sku, Sku);
+
+countSkuGroupGroupType 'Кол-во непосредственных товаров в группе' (group, groupType) =
+    GROUP SUM 1 IF groupGroupTypeSku(groupType, sku) == group
+    BY group, groupType;
+
+// ----------------------- Действия по изменению Sku ----------------------------------- //
+
+editSku 'Редактировать' = ABSTRACT ACTION LIST (Sku) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+addSku 'Добавить' = ABSTRACT ACTION LIST () IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
+copySku 'Копировать' = ABSTRACT ACTION LIST (Sku)  TOOLBAR;
+
+// ------------------------- Формы ------------------------------------ //
+
+// Sku
+FORM skus 'Sku'
+    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY skuGroupName = nameSkuGroup(sg)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY nameSku, shortNameUOMSku
+    PROPERTIES() addSku TODRAW s
+    PROPERTIES(s) editSku, copySku
+    FILTERS isParentSkuGroupSku(sg, s)
+    ORDER BY nameSku
+
+    DIALOG Sku OBJECT s
+;
+
+DESIGN skus FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            fill = 1;
+            type = SPLITH;
+
+            ADD skuTree.tree.box;
+
+            ADD s.box {
+                fill = 4;
+                s.grid {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        ADD functions.box;
+    }
+}
+
+NAVIGATOR {
+    masterData {
+        NEW skuNavigator 'Товар' AFTER legalEntities {
+            ADD UOMs;
+            ADD customGroupTypes;
+            ADD customGroups;
+        }
+    }
+}
+
+// ---------------------------------------------- Макросы для документов ------------------------------------------------- //
+
+// Sku
+META defineDocumentDetailSkuCustomPrefix (detail, skuClass, prefix, caption)
+    @defineDocumentDetailSkuCustomPrefixInner(detail, skuClass, ###skuClass, prefix, caption);
+END
+
+META defineDocumentDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, prefix, caption)
+    prefix###skuClass###detail = DATA skuClassUpper (###detail);
+    prefix###nameSku###detail 'SKU'###caption (detail) = nameSku(prefix###skuClass###detail(detail)) IN recognize;
+    prefix###shortNameUOMSku###detail 'Ед. изм.'###caption = shortNameUOMSku(prefix###skuClass###detail(detail)) IN recognize;
+    prefix###idBarcodeSku###detail 'Штрих-код'###caption (detail) = idBarcodeSku(prefix###skuClass###detail(detail)) IN recognize;
+    replaceSkuSku(s, d) += ACTION (s, d){ASSIGN prefix###skuClass###detail(detail) <- d WHERE prefix###skuClass###detail(detail) == s;}
+END
+
+META defineDocumentAbstractDetailSkuCustomPrefix (detail, skuClass, prefix, caption)
+    @defineDocumentAbstractDetailSkuCustomPrefixInner(detail, skuClass, ###skuClass, prefix, caption);
+END
+
+META defineDocumentAbstractDetailSkuCustomPrefixInner (detail, skuClass, skuClassUpper, prefix, caption)
+    prefix###skuClass###detail = ABSTRACT skuClassUpper (###detail) PERSISTENT;
+    prefix###nameSku###detail 'SKU'###caption (detail) = nameSku(prefix###skuClass###detail(detail)) IN base;
+    prefix###shortNameUOMSku###detail 'Ед. изм.'###caption = shortNameUOMSku(prefix###skuClass###detail(detail)) IN base;
+    prefix###idBarcodeSku###detail 'Штрих-код'###caption (detail) = idBarcodeSku(prefix###skuClass###detail(detail)) IN base;
+END
+META defineDocumentInterfaceDetailSkuCustomPrefix (detail, skuClass, prefix, caption)
+    @defineDocumentAbstractDetailSkuCustomPrefix(detail, skuClass, prefix, caption);
+    @defineDocumentDetailSkuCustomPrefix(user###detail, skuClass, prefix, caption);
+    prefix###skuClass###detail(detail) += prefix###skuClass###user###detail(detail);
+END
+
+META defineDocumentDetailSkuCustom (detail, skuClass)
+    @defineDocumentDetailSkuCustomPrefix(detail, skuClass, ,);
+END
+META defineDocumentAbstractDetailSkuCustom (detail, skuClass)
+    @defineDocumentAbstractDetailSkuCustomPrefix(detail, skuClass, ,);
+END
+META defineDocumentInterfaceDetailSkuCustom (detail, skuClass)
+    @defineDocumentInterfaceDetailSkuCustomPrefix(detail, skuClass, ,);
+END
+
+META defineDocumentDetailSkuPrefix (object, skuClass, prefix, caption)
+    @defineDocumentDetailSkuCustomPrefix(object##Detail, skuClass, prefix, caption);
+END
+META defineDocumentAbstractDetailSkuPrefix (object, skuClass, prefix, caption)
+    @defineDocumentAbstractDetailSkuCustomPrefix(object###Detail, skuClass, prefix, caption);
+END
+META defineDocumentInterfaceDetailSkuPrefix (object, skuClass, prefix, caption)
+    @defineDocumentInterfaceDetailSkuCustomPrefix(object###Detail, skuClass, prefix, caption);
+END
+
+META defineDocumentDetailSku (object, skuClass)
+    @defineDocumentDetailSkuPrefix(object, skuClass, ,);
+END
+META defineDocumentAbstractDetailSku (object, skuClass)
+    @defineDocumentAbstractDetailSkuPrefix(object, skuClass, ,);
+END
+META defineDocumentInterfaceDetailSku (object, skuClass)
+    @defineDocumentInterfaceDetailSkuPrefix(object, skuClass, ,);
+END
+
+// -- Net Weight
+META defineDocumentDetailNetWeightCustomPrefix (detail, skuProp, prefix, caption)
+    prefix###netWeight###detail 'Вес нетто'###caption (detail) = quantity###detail(detail) * netWeightSku(skuProp###detail(detail)) PERSISTENT;
+END
+META defineDocumentInterfaceDetailNetWeightCustomPrefix (detail, skuProp, prefix, caption)
+    @defineDocumentDetailNetWeightCustomPrefix(detail, skuProp, prefix, caption);
+    @defineDocumentDetailNetWeightCustomPrefix (user###detail, skuProp, prefix, caption);
+    prefix###netWeight###detail (detail) += prefix###netWeight###user###detail(detail);
+END
+
+META defineDocumentDetailNetWeightCustom (detail, skuProp)
+    @defineDocumentDetailNetWeightCustomPrefix(detail, skuProp, , );
+END
+META defineDocumentInterfaceDetailNetWeightCustom (detail, skuProp)
+    @defineDocumentInterfaceDetailNetWeightCustomPrefix(detail, skuProp, , );
+END
+
+META defineDocumentDetailNetWeightPrefix (object, skuProp, prefix, caption)
+    @defineDocumentDetailNetWeightCustomPrefix(object##Detail, skuProp, prefix, caption);
+END
+META defineDocumentInterfaceDetailNetWeightPrefix (object, skuProp, prefix, caption)
+    @defineDocumentInterfaceDetailNetWeightCustomPrefix(object##Detail, skuProp, prefix, caption);
+END
+
+META defineDocumentDetailNetWeight (object, skuProp)
+    @defineDocumentDetailNetWeightPrefix(object, skuProp, , );
+END
+META defineDocumentInterfaceDetailNetWeight (object, skuProp)
+    @defineDocumentInterfaceDetailNetWeightPrefix(object, skuProp, , );
+END
+
+META defineDocumentHeaderNetWeightCustomPrefix (object, detail, prefix, caption)
+    prefix###netWeight###detail###object 'Вес нетто (всего)'###caption (object) = GROUP SUM prefix###netWeight###detail(idetail) BY object###detail(idetail) IN documentSumGroup PERSISTENT;
+END
+META defineDocumentInterfaceHeaderNetWeightCustomPrefix (object, detail, prefix, caption)
+    @defineDocumentHeaderNetWeightCustomPrefix (object, detail, prefix, caption);
+    @defineDocumentHeaderNetWeightCustomPrefix (user###object, user###detail, prefix, caption);
+END
+
+// Итоги
+META defineDocumentHeaderNetWeightCustom (object, detail)
+    @defineDocumentHeaderNetWeightCustomPrefix(object, detail, , );
+END
+META defineDocumentInterfaceHeaderNetWeightCustom (object, detail)
+    @defineDocumentHeaderNetWeightCustom (object, detail)
+    @defineDocumentHeaderNetWeightCustom (user###object, user###detail)
+END
+
+META defineDocumentHeaderNetWeightPrefix (object, prefix, caption)
+    @defineDocumentHeaderNetWeightCustomPrefix(object, object##Detail, prefix, caption);
+END
+META defineDocumentInterfaceHeaderNetWeightPrefix (object, prefix, caption)
+    @defineDocumentHeaderNetWeightPrefix (object, prefix, caption)
+    @defineDocumentHeaderNetWeightPrefix (user###object, prefix, caption)
+END
+
+META defineDocumentHeaderNetWeight (object)
+    @defineDocumentHeaderNetWeightCustomPrefix(object, object##Detail, , );
+END
+META defineDocumentInterfaceHeaderNetWeight (object)
+    @defineDocumentHeaderNetWeight(object);
+    @defineDocumentHeaderNetWeight(user###object);
+END
+
+// Gross Weight
+META defineDocumentDetailGrossWeightCustomPrefix (detail, skuProp, prefix, caption)
+    prefix###grossWeight###detail 'Вес брутто, кг'###caption (detail) = quantity###detail(detail) * grossWeightSku(skuProp###detail(detail)) PERSISTENT;
+    prefix###grossWeightTon###detail 'Вес брутто, т'###caption (detail) = round6(prefix###grossWeight###detail(detail) / 1000);
+END
+META defineDocumentInterfaceDetailGrossWeightCustomPrefix (detail, skuProp, prefix, caption)
+    @defineDocumentDetailGrossWeightCustomPrefix(detail, skuProp, prefix, caption);
+    @defineDocumentDetailGrossWeightCustomPrefix (user###detail, skuProp, prefix, caption);
+    prefix###grossWeight###detail (detail) += prefix###grossWeight###user###detail(detail);
+END
+
+META defineDocumentDetailGrossWeightCustom (detail, skuProp)
+    @defineDocumentDetailGrossWeightCustomPrefix(detail, skuProp, , );
+END
+META defineDocumentInterfaceDetailGrossWeightCustom (detail, skuProp)
+    @defineDocumentInterfaceDetailGrossWeightCustomPrefix(detail, skuProp, , );
+END
+
+META defineDocumentDetailGrossWeightPrefix (object, skuProp, prefix, caption)
+    @defineDocumentDetailGrossWeightCustomPrefix(object##Detail, skuProp, prefix, caption);
+END
+META defineDocumentInterfaceDetailGrossWeightPrefix (object, skuProp, prefix, caption)
+    @defineDocumentInterfaceDetailGrossWeightCustomPrefix(object##Detail, skuProp, prefix, caption);
+END
+
+META defineDocumentDetailGrossWeight (object, skuProp)
+    @defineDocumentDetailGrossWeightPrefix(object, skuProp, , );
+END
+META defineDocumentInterfaceDetailGrossWeight (object, skuProp)
+    @defineDocumentInterfaceDetailGrossWeightPrefix(object, skuProp, , );
+END
+
+// Итоги
+META defineDocumentHeaderGrossWeightCustomPrefix (object, detail, prefix, caption)
+    prefix###grossWeight###detail###object 'Вес брутто (всего)'###caption (object) = GROUP SUM prefix###grossWeight###detail(idetail) BY object###detail(idetail) IN documentSumGroup PERSISTENT;
+END
+META defineDocumentInterfaceHeaderGrossWeightCustomPrefix (object, detail, prefix, caption)
+    @defineDocumentHeaderGrossWeightCustomPrefix (object, detail, prefix, caption);
+    @defineDocumentHeaderGrossWeightCustomPrefix (user###object, user###detail, prefix, caption);
+END
+
+META defineDocumentHeaderGrossWeightCustom (object, detail)
+    @defineDocumentHeaderGrossWeightCustomPrefix(object, detail, , );
+END
+META defineDocumentInterfaceHeaderGrossWeightCustom (object, detail)
+    @defineDocumentHeaderGrossWeightCustom (object, detail)
+    @defineDocumentHeaderGrossWeightCustom (user###object, user###detail)
+END
+
+META defineDocumentHeaderGrossWeightPrefix (object, prefix, caption)
+    @defineDocumentHeaderGrossWeightCustomPrefix(object, object##Detail, prefix, caption);
+END
+META defineDocumentInterfaceHeaderGrossWeightPrefix (object, prefix, caption)
+    @defineDocumentHeaderGrossWeightPrefix (object, prefix, caption)
+    @defineDocumentHeaderGrossWeightPrefix (user###object, prefix, caption)
+END
+
+META defineDocumentHeaderGrossWeight (object)
+    @defineDocumentHeaderGrossWeightCustomPrefix(object, object##Detail, , );
+END
+META defineDocumentInterfaceHeaderGrossWeight (object)
+    @defineDocumentHeaderGrossWeight(object);
+    @defineDocumentHeaderGrossWeight(user###object);
+END
+
+// Агрегации
+
+// Sku
+META defineDocumentAggregationDetailSkuPrefix (primObject, aggrObject, skuProp, prefix)
+    skuProp###aggrObject##Detail (detail) = prefix###skuProp###primObject##Detail(primObject##Detail###aggrObject##Detail(detail));
+    nameSku###aggrObject##Detail 'SKU' (detail) = nameSku(skuProp###aggrObject##Detail(detail)) IN recognize;
+    idBarcodeSku###aggrObject##Detail 'Штрих-код' (detail) = idBarcodeSku(skuProp###aggrObject##Detail(detail)) IN recognize;
+END
+META defineDocumentAggregationDetailSku (primObject, aggrObject, skuProp)
+    @defineDocumentAggregationDetailSkuPrefix(primObject, aggrObject, skuProp, );
+END
+
+// Batch
+META defineDocumentAggregationDetailBatch (primObject, aggrObject)
+    batch###aggrObject##Detail 'Партия' (detail) = batch###primObject##Detail(primObject##Detail###aggrObject##Detail(detail)) PERSISTENT;
+END
+
+// ------------------------------------------ Итоги по Sku в документе ------------------------------------- //
+
+META defineDocumentHeaderSkuQuantity (object, detail, skuProp, caption)
+    quantity###detail###skuProp###object 'Кол-во товара в документе'###caption (sku, object) = 
+        GROUP SUM quantity###detail(idetail)
+              BY  skuProp###detail(idetail),
+                  object###detail(idetail);
+END
+
+META defineDocumentHeaderSkuQuantity (object, detail, skuProp)
+    @defineDocumentHeaderSkuQuantity(object, detail, skuProp, );
+END
+
+META defineDocumentHeaderSkuQuantity (object, skuProp)
+    @defineDocumentHeaderSkuQuantity(object, object###detail, skuProp);
+END
+
+// -------------------------------------- Суммы по документам по товару, таре, услугам ----------------------------- //
+
+META defineDocumentHeaderItemSumCustom (object, detail, prefixA, prefixB)
+    prefixB###sumItem###detail###object 'Сумма, товар' (object) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isItemSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###sumContainer###detail###object 'Сумма, тара' (object) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isContainerSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###sumCharge###detail###object 'Сумма услуг' (object) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isChargeSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###sumNotCharge###detail###object 'Сумма кроме услуг' (object) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isNotChargeSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###sumNotItem###detail###object 'Сумма кроме товара' (object) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isNotItemSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###sumNotContainer###detail###object 'Сумма кроме тары' (object) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isNotContainerSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+
+END
+META defineDocumentHeaderItemSum (object, prefixA, prefixB)
+    @defineDocumentHeaderItemSumCustom(object, object##Detail, prefixA, prefixB);
+END
+META defineDocumentInterfaceHeaderItemSum (object, prefixA, prefixB)
+    @defineDocumentHeaderItemSum (object, prefixA, prefixB);
+    @defineDocumentHeaderItemSum (user###object, prefixA, prefixB);
+END
+
+//-  Суммы по товару, таре, услугам по двум объектам (первый из них документ)
+META defineDocumentHeaderItemSumDoubleCustom (object1, object2, detail, prefixA, prefixB, prefixC, object2Prop)
+    prefixB###sum###detail###object1###prefixC###object2 'Сумма, товар' (object1, object2) =
+        GROUP SUM prefixA###sum###detail(idetail) BY object1###detail(idetail), object2Prop###detail(idetail) IN documentSumGroup;
+    prefixB###sumItem###detail###object1###prefixC###object2 'Сумма, товар' (object1, object2) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isItemSku(sku###detail(idetail))
+            BY object1###detail(idetail), object2Prop###detail(idetail) IN documentSumGroup;
+    prefixB###sumContainer###detail###object1###prefixC###object2 'Сумма, тара' (object1, object2) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isContainerSku(sku###detail(idetail))
+            BY object1###detail(idetail), object2Prop###detail(idetail) IN documentSumGroup;
+    prefixB###sumCharge###detail###object1###prefixC###object2 'Сумма услуг' (object1, object2) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isChargeSku(sku###detail(idetail))
+            BY object1###detail(idetail), object2Prop###detail(idetail) IN documentSumGroup;
+    prefixB###sumNotCharge###detail###object1###prefixC###object2 'Сумма кроме услуг' (object1, object2) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isNotChargeSku(sku###detail(idetail))
+            BY object1###detail(idetail), object2Prop###detail(idetail) IN documentSumGroup;
+    prefixB###sumNotItem###detail###object1###prefixC###object2 'Сумма кроме товара' (object1, object2) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isNotItemSku(sku###detail(idetail))
+            BY object1###detail(idetail), object2Prop###detail(idetail) IN documentSumGroup;
+    prefixB###sumNotContainer###detail###object1###prefixC###object2 'Сумма кроме тары' (object1, object2) =
+        GROUP SUM prefixA###sum###detail(idetail) IF isNotContainerSku(sku###detail(idetail))
+            BY object1###detail(idetail), object2Prop###detail(idetail) IN documentSumGroup;
+END
+META defineDocumentHeaderItemSumDouble (object1, object2, prefixA, prefixB, prefixC, object2Prop)
+    @defineDocumentHeaderItemSumDoubleCustom(object1, object2, object1##Detail, prefixA, prefixB, prefixC, object2Prop);
+END
+META defineDocumentInterfaceHeaderItemSumDouble (object1, object2, prefixA, prefixB, prefixC, object2Prop)
+    @defineDocumentHeaderItemSumDouble (object1, object2, prefixA, prefixB, prefixC, object2Prop);
+    @defineDocumentHeaderItemSumDouble (user###object1, object2, prefixA, prefixB, prefixC, object2Prop);
+END
+
+// ------------------------------------------------ Стандартные значения --------------------------------------- //
+
+loadDefaultUOM 'Добавить ед.изм.' = ACTION (stringOne, stringTwo, numeric) {
+    ADDOBJ UOM;
+    FOR u == addedObject() DO {
+       ASSIGN nameUOM(u) <- stringOne;
+       ASSIGN shortNameUOM(u) <- stringTwo;
+       ASSIGN baseUOM(u) <- u;
+       ASSIGN factorUOM(u) <- numeric;
+    }
+}
+
+loadDefaultUOMs 'Загрузить стандартные единицы измерений' = ACTION () {
+    EXEC loadDefaultUOM('Банка', 'бан', 1.0);
+    EXEC loadDefaultUOM('Бутылка', 'бут', 1.0);
+    EXEC loadDefaultUOM('Килограмм', 'кг', 1.0);
+    EXEC loadDefaultUOM('Коробка', 'кор', 1.0);
+    EXEC loadDefaultUOM('Литр', 'л', 1.0);
+    EXEC loadDefaultUOM('Место', 'мест', 1.0);
+    EXEC loadDefaultUOM('Мешок', 'меш', 1.0);
+    EXEC loadDefaultUOM('Пакет', 'пак', 1.0);
+    EXEC loadDefaultUOM('Пачка', 'пач', 1.0);
+    EXEC loadDefaultUOM('Рубль', 'руб', 1.0);
+    EXEC loadDefaultUOM('Рулон', 'рул', 1.0);
+    EXEC loadDefaultUOM('Упаковка', 'упак', 1.0);
+    EXEC loadDefaultUOM('Штука', 'шт', 1.0);
+    EXEC loadDefaultUOM('Ящик', 'ящ', 1.0);
+    EXEC loadDefaultUOM('Десяток', 'дес', 1.0);
+    EXEC loadDefaultUOM('Изделие', 'изд', 1.0);
+    EXEC loadDefaultUOM('Набор', 'набор', 1.0);
+    EXEC loadDefaultUOM('Пара', 'пар', 1.0);
+    EXEC loadDefaultUOM('Погонный метр', 'пог.м', 1.0);
+    EXEC loadDefaultUOM('Условный метр', 'усл.м', 1.0);
+    EXEC loadDefaultUOM('Номер', 'ном', 1.0);
+    EXEC loadDefaultUOM('Лист', 'л.', 1.0);
+    EXEC loadDefaultUOM('Элемент', 'элем', 1.0);
+    EXEC loadDefaultUOM('Единица', 'ед', 1.0);
+    EXEC loadDefaultUOM('Комплект', 'компл', 1.0);
+    EXEC loadDefaultUOM('Флакон', 'флак', 1.0);
+    EXEC loadDefaultUOM('Ампула', 'ампул', 1.0);
+} IN loadDefaultGroup;
+
+@implementLoadDefaultData(loadDefaultUOMs);

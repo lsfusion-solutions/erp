@@ -45,10 +45,19 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
     @defineDocumentDetailSku(blanketOrder, sku);
     @defineDocumentDetailQuantity(blanketOrder);
 
-    @defineDocumentHeaderQuantityContractor(blanketOrder, customerStock);
+    quantityBlanketOrderDetailBlanketOrderCustomerStock 'Кол-во (всего)' (blanketOrder, customerStock) = 
+        GROUP SUM quantityBlanketOrderDetail(idetail) 
+              BY blanketOrderBlanketOrderDetail(idetail), customerStockBlanketOrderDetail(idetail) 
+              IN documentSumGroup;
+              
     @defineDocumentHeaderQuantity(blanketOrder);
 
-    @defineDocumentHeaderSkuQuantityContractor (blanketOrder, sku, customerStock);
+    quantityBlanketOrderDetailSkuBlanketOrderCustomerStock 'Кол-во товара в документе' (sku, blanketOrder, customerStock) = 
+        GROUP SUM quantityBlanketOrderDetail(idetail)
+              BY  skuBlanketOrderDetail(idetail),
+                  blanketOrderBlanketOrderDetail(idetail),
+                  customerStockBlanketOrderDetail(idetail);
+
     @defineDocumentHeaderSkuQuantity(blanketOrder, sku);
 
     countBlanketOrderDetailStockBlanketOrder 'Кол-во строк по складу '(stock, blanketOrder) = GROUP SUM 1 BY supplierStockBlanketOrderDetail(blanketOrderDetail), blanketOrderBlanketOrderDetail(blanketOrderDetail);
@@ -103,7 +112,12 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
 
     @defineDocumentHeaderVATSum (blanketOrder, blanketOrderDetail, invoice);
 
-    @defineDocumentHeaderSumContractor (blanketOrder, customerStock);
+    sumBlanketOrderDetailBlanketOrderCustomerStock 'Сумма' (blanketOrder, customerStock) = 
+        GROUP SUM sumBlanketOrderDetail(idetail) 
+              BY blanketOrderBlanketOrderDetail(idetail), 
+                 customerStockBlanketOrderDetail(idetail)  
+              IN documentSumGroup;
+
     @defineDocumentHeaderSum (blanketOrder);
 
     countBlanketOrderDetailBlanketOrderCustomerStock 'Количество строк в документе' (order, stock) =
@@ -243,7 +257,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
 
 //-- SKU
     @defineDocumentSkuStockExtra(blanketOrder, sku, supplierStock, customerStock);
-    @extendFormDocumentSkuStockContractorCustom(blanketOrder, blanketOrder, o, supplier, supplierStock, customerStock);
+    @extendFormDocumentSkuStockExtraCustom(blanketOrder, blanketOrder, o, supplier, supplierStock, customerStock);
     @defineDocumentSkuStockSupplier (blanketOrder, blanketOrder, o);
 
     FORM blanketOrders 'Множественные заказы' TITLE 'Множественные заказы'###sign
