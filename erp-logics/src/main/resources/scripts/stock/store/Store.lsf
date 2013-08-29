@@ -1,6 +1,6 @@
 MODULE Store;
 
-REQUIRE System, Utils, Historizable, Stock, Employee, Tax, WriteOff, LegalEntity, Retail, Bank, Cash;
+REQUIRE System, Utils, Historizable, EmployeeStock, Tax, LegalEntity, Retail, Bank, Cash;
 
 // -------------------------------------- Торговая сеть ------------------------------- //
 
@@ -175,9 +175,6 @@ longitudeDepartmentStore 'Координата Y' (departmentStore) = longitudeS
 latitudePOI (departmentStore) += latitudeDepartmentStore(departmentStore);
 longitudePOI (departmentStore) += longitudeDepartmentStore(departmentStore);
 
-explicitBatchLedgerDepartmentStore 'Партионный учет' = DATA BOOLEAN (DepartmentStore)IN  bookkeepingGroup;
-explicitBatchLedgerStock(stock) += explicitBatchLedgerDepartmentStore(stock);
-
 regionStock(stock) += regionStore(storeDepartmentStore(stock));
 
 @defineHistorizable(tradingSquareDepartmentStore, 'Торговая площадь', NUMERIC[10,2], departmentStore, nameDepartmentStore, public);
@@ -197,16 +194,12 @@ inChainStoresStoreTypeStoreDepartmentStore (chainStores, storeType, store, depar
     (chainStoresDepartmentStore(department) == chainStores AND NOT store AND NOT storeType) OR
     (department IS DepartmentStore AND NOT store AND NOT storeType AND NOT chainStores);
 
-balanceASkuStoreDateTime(sku, stock, dateTime) =
-    GROUP SUM balanceASkuStockDateTime(sku, stock, dateTime)
-    BY sku, storeDepartmentStore(stock), dateTime;
-
 // -------------------------------------- Формы отдела магазинов ------------------------------------------ //
 
 FORM departmentStore 'Отдел магазина'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES(d) nameDep=nameDepartmentStore, nameStoreDepartmentStore, tradingSquareDepartmentStore, nameWriteOffCommitteeStock,
-                  explicitBatchLedgerDepartmentStore, numberCashAccountDepartmentStore, quantityDaysCloseDepartmentStore,
+    PROPERTIES(d) nameDep=nameDepartmentStore, nameStoreDepartmentStore, tradingSquareDepartmentStore,
+                  numberCashAccountDepartmentStore, quantityDaysCloseDepartmentStore,
                   idDepartmentStore SHOWIF showIDs()
 
     OBJECTS e = Employee
@@ -235,16 +228,11 @@ DESIGN departmentStore FROM DEFAULT {
                     type = COLUMNS;
                     columns = 2;
                     caption = 'Дополнительные параметры';
-                    ADD PROPERTY(explicitBatchLedgerDepartmentStore);
                     ADD PROPERTY(numberCashAccountDepartmentStore);
                     ADD PROPERTY(quantityDaysCloseDepartmentStore);
                 }
             }
-            NEW headerRight {
-                ADD d.committeeGroup {
-                    columns = 1;
-                }
-            }
+            NEW headerRight;
         }
         ADD e.box;
         ADD functions.box;

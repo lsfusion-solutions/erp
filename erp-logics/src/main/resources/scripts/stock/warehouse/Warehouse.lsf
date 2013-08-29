@@ -2,8 +2,8 @@ MODULE Warehouse;
 
 REQUIRE System,
         Stock,
+        EmployeeStock,
         Hierarchy,
-        WriteOff,
         LegalEntity;
 
 // ----------------------------------------- Группы складов ------------------------------ //
@@ -72,9 +72,6 @@ longitudeWarehouse 'Координата Y' = DATA NUMERIC[10,5](Warehouse);
 latitudePOI (warehouse) += latitudeWarehouse(warehouse);
 longitudePOI (warehouse) += longitudeWarehouse(warehouse);
 
-explicitBatchLedgerWarehouse 'Партионный учет' = DATA BOOLEAN (Warehouse);
-explicitBatchLedgerStock(stock) += explicitBatchLedgerWarehouse(stock);
-
 quantityDaysCloseWarehouse 'Срок автоматического закрытия заказов' = DATA INTEGER(Warehouse);
 quantityDaysCloseOrdersStock(stock) += quantityDaysCloseWarehouse(stock);
 
@@ -86,8 +83,8 @@ regionStock(warehouse) += regionWarehouse(warehouse);
 FORM warehouse 'Склад'
 
     OBJECTS           w=Warehouse FIXED PANEL
-    PROPERTIES(w)     nameWarehouse, idWarehouse SHOWIF showIDs(), nameWarehouseGroupWarehouse, addressWarehouse, nameLegalEntityWarehouse, nameWriteOffCommitteeStock,
-                      explicitBatchLedgerWarehouse, latitudeWarehouse, longitudeWarehouse, showOnMapPOI, quantityDaysCloseWarehouse, nameRegionStock
+    PROPERTIES(w)     nameWarehouse, idWarehouse SHOWIF showIDs(), nameWarehouseGroupWarehouse, addressWarehouse, nameLegalEntityWarehouse,
+                      latitudeWarehouse, longitudeWarehouse, showOnMapPOI, quantityDaysCloseWarehouse, nameRegionStock
     ORDER BY          nameWarehouse
 
     OBJECTS           e = Employee
@@ -101,7 +98,7 @@ FORM warehouse 'Склад'
 DESIGN warehouse FROM DEFAULT{
     NEW headerParams {
         type = CONTAINERH;
-        NEW headerParamsLeft {
+        NEW headerLeft {
             type = CONTAINERV;
             NEW headerMainParams {
                 caption = 'Основные параметры';
@@ -122,18 +119,11 @@ DESIGN warehouse FROM DEFAULT{
             NEW headerExtraParams {
                 caption = 'Дополнительные параметры';
                 type = CONTAINERH;
-                ADD PROPERTY(explicitBatchLedgerWarehouse);
                 ADD PROPERTY(nameRegionStock);
                 ADD PROPERTY(quantityDaysCloseWarehouse);
             }
         }
-        NEW headerParamsRight {
-            type = CONTAINERV;
-            ADD w.committeeGroup {
-                type = COLUMNS;
-                columns = 1;
-            }
-        }
+        NEW headerRight;
     }
     ADD e.box;
     ADD functions.box;
