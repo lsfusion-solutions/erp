@@ -152,7 +152,7 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
         try {
             if (fieldName == null)
-                return null;
+                return defaultValue;
             String result = new String(importFile.getField(fieldName).getBytes(), charset).trim();
             return result.isEmpty() ? defaultValue : result;
         } catch (xBaseJException e) {

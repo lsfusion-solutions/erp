@@ -22,10 +22,14 @@ import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
 import java.io.*;
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty {
     private final ClassPropertyInterface orderInterface;
@@ -128,11 +132,13 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             List<List<Object>> data = initData(orderDetailsList.size());
 
-            ImportField numberOrderField = new ImportField(LM.findLCPByCompoundName("numberObject"));
-            props.add(new ImportProperty(numberOrderField, LM.findLCPByCompoundName("numberObject").getMapping(orderObject)));
-            fields.add(numberOrderField);
-            for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).numberOrder);
+            if (showField(orderDetailsList, "numberOrder")) {
+                ImportField numberOrderField = new ImportField(LM.findLCPByCompoundName("numberObject"));
+                props.add(new ImportProperty(numberOrderField, LM.findLCPByCompoundName("numberObject").getMapping(orderObject)));
+                fields.add(numberOrderField);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).numberOrder);
+            }
 
             ImportField idUserOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.idUserOrderDetail"));
             ImportKey<?> orderDetailKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Sale.UserOrderDetail"),
@@ -198,58 +204,72 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             props.add(new ImportProperty(iField, LM.findLCPByCompoundName("skuBarcode").getMapping(barcodeKey),
                     LM.object(LM.findClassByCompoundName("Item")).getMapping(itemKey)));
 
-            ImportField idManufacturerField = new ImportField(LM.findLCPByCompoundName("idManufacturer"));
-            ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Manufacturer"),
-                    LM.findLCPByCompoundName("manufacturerId").getMapping(idManufacturerField));
-            keys.add(manufacturerKey);
-            props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("idManufacturer").getMapping(manufacturerKey)));
-            props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("manufacturerItem").getMapping(itemKey),
-                    LM.object(LM.findClassByCompoundName("Manufacturer")).getMapping(manufacturerKey)));
-            fields.add(idManufacturerField);
-            for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).idManufacturer);
+            if (showField(orderDetailsList, "idManufacturer")) {
+                ImportField idManufacturerField = new ImportField(LM.findLCPByCompoundName("idManufacturer"));
+                ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Manufacturer"),
+                        LM.findLCPByCompoundName("manufacturerId").getMapping(idManufacturerField));
+                keys.add(manufacturerKey);
+                props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("idManufacturer").getMapping(manufacturerKey)));
+                props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("manufacturerItem").getMapping(itemKey),
+                        LM.object(LM.findClassByCompoundName("Manufacturer")).getMapping(manufacturerKey)));
+                fields.add(idManufacturerField);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).idManufacturer);
+            }
 
-            ImportField quantityOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.quantityOrderDetail"));
-            props.add(new ImportProperty(quantityOrderDetailField, LM.findLCPByCompoundName("Sale.quantityOrderDetail").getMapping(orderDetailKey)));
-            fields.add(quantityOrderDetailField);
-            for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).quantity);
+            if (showField(orderDetailsList, "quantity")) {
+                ImportField quantityOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.quantityOrderDetail"));
+                props.add(new ImportProperty(quantityOrderDetailField, LM.findLCPByCompoundName("Sale.quantityOrderDetail").getMapping(orderDetailKey)));
+                fields.add(quantityOrderDetailField);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).quantity);
+            }
 
-            ImportField priceOrderDetail = new ImportField(LM.findLCPByCompoundName("Sale.priceOrderDetail"));
-            props.add(new ImportProperty(priceOrderDetail, LM.findLCPByCompoundName("Sale.priceOrderDetail").getMapping(orderDetailKey)));
-            fields.add(priceOrderDetail);
-            for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).price);
+            if (showField(orderDetailsList, "price")) {
+                ImportField priceOrderDetail = new ImportField(LM.findLCPByCompoundName("Sale.priceOrderDetail"));
+                props.add(new ImportProperty(priceOrderDetail, LM.findLCPByCompoundName("Sale.priceOrderDetail").getMapping(orderDetailKey)));
+                fields.add(priceOrderDetail);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).price);
+            }
 
-            ImportField sumOrderDetail = new ImportField(LM.findLCPByCompoundName("Sale.sumOrderDetail"));
-            props.add(new ImportProperty(sumOrderDetail, LM.findLCPByCompoundName("Sale.sumOrderDetail").getMapping(orderDetailKey)));
-            fields.add(sumOrderDetail);
-            for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).sum);
+            if (showField(orderDetailsList, "sum")) {
+                ImportField sumOrderDetail = new ImportField(LM.findLCPByCompoundName("Sale.sumOrderDetail"));
+                props.add(new ImportProperty(sumOrderDetail, LM.findLCPByCompoundName("Sale.sumOrderDetail").getMapping(orderDetailKey)));
+                fields.add(sumOrderDetail);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).sum);
+            }
 
-            ImportField valueVATOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.valueVATOrderDetail"));
-            ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Range"),
-                    LM.findLCPByCompoundName("valueCurrentVATDefaultValue").getMapping(valueVATOrderDetailField));
-            keys.add(VATKey);
-            props.add(new ImportProperty(valueVATOrderDetailField, LM.findLCPByCompoundName("Sale.VATOrderDetail").getMapping(orderDetailKey),
-                    LM.object(LM.findClassByCompoundName("Range")).getMapping(VATKey)));
-            fields.add(valueVATOrderDetailField);
-            for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).valueVAT);
+            if (showField(orderDetailsList, "valueVAT")) {
+                ImportField valueVATOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.valueVATOrderDetail"));
+                ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Range"),
+                        LM.findLCPByCompoundName("valueCurrentVATDefaultValue").getMapping(valueVATOrderDetailField));
+                keys.add(VATKey);
+                props.add(new ImportProperty(valueVATOrderDetailField, LM.findLCPByCompoundName("Sale.VATOrderDetail").getMapping(orderDetailKey),
+                        LM.object(LM.findClassByCompoundName("Range")).getMapping(VATKey)));
+                fields.add(valueVATOrderDetailField);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).valueVAT);
+            }
 
-            ImportField VATSumOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.VATSumOrderDetail"));
-            props.add(new ImportProperty(VATSumOrderDetailField, LM.findLCPByCompoundName("Sale.VATSumOrderDetail").getMapping(orderDetailKey)));
-            fields.add(VATSumOrderDetailField);
-            for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).sumVAT);
+            if (showField(orderDetailsList, "sumVAT")) {
+                ImportField VATSumOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.VATSumOrderDetail"));
+                props.add(new ImportProperty(VATSumOrderDetailField, LM.findLCPByCompoundName("Sale.VATSumOrderDetail").getMapping(orderDetailKey)));
+                fields.add(VATSumOrderDetailField);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).sumVAT);
+            }
 
-            ImportField invoiceSumOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.invoiceSumOrderDetail"));
-            props.add(new ImportProperty(invoiceSumOrderDetailField, LM.findLCPByCompoundName("Sale.invoiceSumOrderDetail").getMapping(orderDetailKey)));
-            fields.add(invoiceSumOrderDetailField);
-            for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).invoiceSum);
+            if (showField(orderDetailsList, "invoiceSum")) {
+                ImportField invoiceSumOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.invoiceSumOrderDetail"));
+                props.add(new ImportProperty(invoiceSumOrderDetailField, LM.findLCPByCompoundName("Sale.invoiceSumOrderDetail").getMapping(orderDetailKey)));
+                fields.add(invoiceSumOrderDetailField);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).invoiceSum);
+            }
 
-            if (saleManufacturingPriceLM != null) {
+            if ((saleManufacturingPriceLM != null) && showField(orderDetailsList, "manufacturingPrice")) {
                 ImportField manufacturingPriceOrderDetailField = new ImportField(saleManufacturingPriceLM.findLCPByCompoundName("Sale.manufacturingPriceOrderDetail"));
                 props.add(new ImportProperty(manufacturingPriceOrderDetailField, saleManufacturingPriceLM.findLCPByCompoundName("Sale.manufacturingPriceOrderDetail").getMapping(orderDetailKey)));
                 fields.add(manufacturingPriceOrderDetailField);
@@ -279,7 +299,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         HSSFSheet sheet = Wb.getSheetAt(0);
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
-            String numberOrder = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("numberDocument")), "");
+            String numberOrder = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("numberDocument")), null);
             String idOrderDetail = String.valueOf(orderObject) + i;
             String barcodeItem = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("barcodeItem")), null);
             String idBatch = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("idBatch")), null);
@@ -319,7 +339,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                 String[] values = line.split(csvSeparator);
 
-                String numberOrder = getCSVFieldValue(values, getColumnNumber(importColumns.get("numberDocument")), "");
+                String numberOrder = getCSVFieldValue(values, getColumnNumber(importColumns.get("numberDocument")), null);
                 String idOrderDetail = String.valueOf(orderObject) + count;
                 String barcodeItem = getCSVFieldValue(values, getColumnNumber(importColumns.get("barcodeItem")), null);
                 String idBatch = getCSVFieldValue(values, getColumnNumber(importColumns.get("idBatch")), null);
@@ -351,7 +371,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
 
-            String numberOrder = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("numberDocument")), "");
+            String numberOrder = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("numberDocument")), null);
             String idOrderDetail = String.valueOf(orderObject) + i;
             String barcodeItem = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("barcodeItem")), null);
             String idBatch = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("idBatch")), null);
@@ -389,7 +409,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             file.read();
 
-            String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"), "cp866", "");
+            String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"), "cp866", null);
             String idOrderDetail = String.valueOf(orderObject) + i;
             String barcodeItem = getDBFFieldValue(file, importColumns.get("barcodeItem"), "cp866", null);
             String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), "cp866", null);
@@ -417,5 +437,21 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             data.add(new ArrayList<Object>());
         }
         return data;
+    }
+
+    private Boolean showField(List<SaleOrderDetail> data, String fieldName) {
+        try {
+            Field field = SaleOrderDetail.class.getField(fieldName);
+
+            for (int i = 0; i < data.size(); i++) {
+                if (field.get(data.get(i)) != null)
+                    return true;
+            }
+        } catch (NoSuchFieldException e) {
+            return true;
+        } catch (IllegalAccessException e) {
+            return true;
+        }
+        return false;
     }
 }
