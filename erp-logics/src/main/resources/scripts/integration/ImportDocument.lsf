@@ -77,7 +77,10 @@ showSeparator (importType) = importType==ImportTypeFileExtension.csv;
 FORM importType 'Тип импорта'
     OBJECTS i=ImportType FIXED PANEL
     PROPERTIES(i) nameImportType, captionImportTypeFileExtensionImportType, startRowImportType,
-                   separatorImportType SHOWIF showSeparator(i), captionImportKeyTypeImportType
+                  separatorImportType SHOWIF showSeparator(i), captionImportKeyTypeImportType
+    OBJECTS d = ImportTypeDetail
+    PROPERTIES(d) staticCaption
+    PROPERTIES(i,d) indexImportTypeImportTypeDetail                   
     EDIT ImportType OBJECT i
 ;
 
@@ -87,13 +90,9 @@ FORM importTypes 'Типы импорта'
                    separatorImportType SHOWIF showSeparator(i), captionImportKeyTypeImportType
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE
     DIALOG ImportType OBJECT i
-
-     OBJECTS d = ImportTypeDetail
-     PROPERTIES(d) staticCaption
-     PROPERTIES(i,d) indexImportTypeImportTypeDetail
 ;
 
-EXTEND DESIGN importTypes {
+EXTEND DESIGN importType {
     ADD i.box;
     NEW tabbedContainer {
         fill = 1;
@@ -106,6 +105,19 @@ EXTEND DESIGN importTypes {
     ADD functions.box;
 }
 
-
-
+EXTEND FORM integrationData
+    OBJECTS i=ImportType
+    PROPERTIES(i) READONLY nameImportType, captionImportTypeFileExtensionImportType, startRowImportType,
+                   separatorImportType SHOWIF showSeparator(i), captionImportKeyTypeImportType
+    PROPERTIES(i) ADDFORM, EDITFORM, DELETE
+    DIALOG ImportType OBJECT i
+;
+EXTEND DESIGN integrationData {
+    pane {
+        NEW importType {
+            ADD i.box;
+            caption = 'Универсальный импорт';
+        }
+    }
+}
 
