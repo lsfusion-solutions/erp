@@ -145,8 +145,10 @@ supplierStockBatch (ledger) += supplierStockShipmentDetail(shipmentDetailShipmen
 
 ledgerBatchShipmentDetail (detail) = OVERRIDE shipmentBatchShipmentDetail(detail), batchShipmentDetail(detail) PERSISTENT;
 
-batchPriceListLedger(ledger) += OVERRIDE ledgerBatchShipmentDetail(invoiceShipmentDetailInvoiceDetail(ledger)), batchInvoiceDetail(ledger);
-batchPriceListLedger(ledger) += OVERRIDE ledgerBatchShipmentDetail(invoiceShipmentDetailInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))), batchInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
+inInvoiceDetailBatch(detail, batch) = TRUE IF [GROUP SUM 1 BY invoiceDetailShipmentDetail(d), ledgerBatchShipmentDetail(d)](detail, batch); 
+
+inPriceListLedgerBatch (ledger, batch) += inInvoiceDetailBatch(ledger, batch); 
+inPriceListLedgerBatch (ledger, batch) += inInvoiceDetailBatch(invoiceDetailInvoicePriceListLedger(ledger), batch); 
 
 nameBatch(batch) += CONCAT '', STRING[10](dateShipmentDetail(shipmentDetailShipmentBatch(batch))), '/ ' + seriesNumberShipment(shipmentShipmentDetail(shipmentDetailShipmentBatch(batch))),
                              '/ ' + nameSupplierShipmentDetail(shipmentDetailShipmentBatch(batch));
@@ -184,7 +186,7 @@ costShipmentDetailBatch(detail, batch) += IF createBatchShipmentDetail(detail) T
 
 supplierShipmentSkuLedger (ledger) = supplierShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 @implementSystemLedgerPriceListType(account, ShipmentSkuLedger, supplier, stock);
-batchPriceListLedger(ledger) += batchShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
+inPriceListLedgerBatch (ledger, batch) += batchShipmentDetail(shipmentDetailShipmentSkuLedger(ledger)) == batch; 
 
 // ------------------------------- Проведение по товарному отчету ------------------------ //
 @implementStockDocumentLedgerInc(Shipment, customerStock);
