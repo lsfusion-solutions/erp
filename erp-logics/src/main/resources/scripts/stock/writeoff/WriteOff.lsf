@@ -22,6 +22,8 @@ nameWriteOffCommittee 'Наименование' = DATA VARISTRING[150](WriteOff
 
 nameCommittee(committee) += nameWriteOffCommittee(committee) IF committee IS WriteOffCommittee;
 
+@defineCommitteeEmployeePrefix(writeOffCommittee, chairman, 'Председатель');
+
 writeOffCommitteeStock 'Комиссия для списания товаров (ИД)' = DATA WriteOffCommittee (Stock);
 nameWriteOffCommitteeStock 'Комиссия для списания товаров' (stock) = nameWriteOffCommittee(writeOffCommitteeStock(stock)) IN committeeGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
 isWriteOffCommitteeStock 'По умолчанию' (writeOffCommittee, stock) = writeOffCommitteeStock(stock) == writeOffCommittee;
@@ -30,7 +32,7 @@ CONSTRAINT writeOffCommitteeStock(stock) AND NOT inCommitteeStock(writeOffCommit
 
 FORM writeOffCommittee 'Комиссия для списания товаров'
     OBJECTS c=WriteOffCommittee FIXED PANEL
-    PROPERTIES(c)      nameWriteOffCommittee
+    PROPERTIES(c)      nameWriteOffCommittee, nameChairmanWriteOffCommittee, namePositionChairmanWriteOffCommittee 
 
     TREE stockTree sg = StockGroup PARENT parentStockGroup
     PROPERTIES READONLY sgTreeName = nameStockGroup(sg)
@@ -47,7 +49,8 @@ FORM writeOffCommittee 'Комиссия для списания товаров'
     PROPERTIES(e)      READONLY nameContact, firstNameContact, lastNameContact, namePositionEmployee
     PROPERTIES(e)      ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
-    PROPERTIES(c, e)   inCommitteeEmployee
+    PROPERTIES(c, e)   numberCommitteeEmployee,
+                       inCommitteeEmployee
     FILTERS            countStockEmployeeCommittee (e, c)
     FILTERGROUP filters6
         FILTER 'Показывать только членов комиссии' 'F10' inCommitteeEmployee(c, e)
@@ -63,7 +66,7 @@ FORM writeOffCommittee 'Комиссия для списания товаров'
 DESIGN writeOffCommittee FROM DEFAULT {
     main {
         preferredSize = (1024, 768);
-
+        PROPERTY(namePositionChairmanWriteOffCommittee) {caption = 'Должность';}
         NEW caseOne BEFORE e.box {
             fill = 1;
             type = SPLITH;
@@ -79,11 +82,16 @@ DESIGN writeOffCommittee FROM DEFAULT {
 
 FORM writeOffCommittees 'Комиссии для списания товаров'
     OBJECTS w=WriteOffCommittee
-    PROPERTIES(w)      READONLY nameWriteOffCommittee, nameStocksCommittee, nameEmployeeCommittee
+    PROPERTIES(w)      READONLY nameWriteOffCommittee, nameChairmanWriteOffCommittee, namePositionChairmanWriteOffCommittee, 
+                                nameStocksCommittee, nameEmployeeCommittee
     PROPERTIES(w)      ADDFORM, EDITFORM
 
     DIALOG WriteOffCommittee OBJECT w
 ;
+
+DESIGN writeOffCommittees FROM DEFAULT {
+    PROPERTY(namePositionChairmanWriteOffCommittee) {caption = 'Должность';}
+}
 // ----------------------------------- Макрос для задания комиссии для документов ------------------------------------------ //
 
 META defineDocumentHeaderWriteOffCommittee(object, stockProp)
@@ -355,6 +363,7 @@ DESIGN writeOffs FROM DEFAULT {
                 caption = 'Печатные формы';
                 NEW printContainer {
                     caption = 'Печать';
+                    type = CONTAINERH;
                 }
             }
         }
