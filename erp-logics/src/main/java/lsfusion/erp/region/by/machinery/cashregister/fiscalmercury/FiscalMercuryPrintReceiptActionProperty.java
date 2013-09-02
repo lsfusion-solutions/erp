@@ -114,13 +114,15 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                     receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name,
                             sumReceiptDetail, discountSumReceiptDetail));
                 if (quantity != null && isGiftCard) {
-                    //barcode = barcode.matches("\\p{L}{2}.*") ? barcode.substring(2) : barcode;
                     receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат",
                             sumReceiptDetail, discountSumReceiptDetail));
                 }
-                if (quantityReturn != null)
-                    receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, barcode, name,
-                            sumReceiptDetail, discountSumReceiptDetail));
+                if (quantityReturn != null) {
+                    BigDecimal discount = discountSumReceiptDetail==null ? BigDecimal.ZERO : discountSumReceiptDetail.divide(quantityReturn);
+                    receiptReturnItemList.add(new ReceiptItem(isGiftCard,
+                            price.add(discount), quantityReturn, barcode,
+                            name, sumReceiptDetail, null));
+                }
             }
 
             if (!receiptSaleItemList.isEmpty() && !receiptReturnItemList.isEmpty())

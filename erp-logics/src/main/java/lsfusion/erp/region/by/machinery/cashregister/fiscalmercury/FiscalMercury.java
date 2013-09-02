@@ -238,9 +238,9 @@ public class FiscalMercury {
                 for(String giftCardNumber : receipt.giftCardNumbers)
                     printString("Использован сертификат: " + giftCardNumber);
 
-            String sumCash = (receipt.sumCash != null) ? String.valueOf(receipt.sumCash.multiply(multiplier)) : "0";
-            String sumCard = (receipt.sumCard != null) ? String.valueOf(receipt.sumCard.multiply(multiplier)) : "0";
-            String sumGiftCard = (receipt.sumGiftCard != null) ? String.valueOf(receipt.sumGiftCard.multiply(multiplier)) : "0";
+            String sumCash = (receipt.sumCash != null) ? String.valueOf((type==RETURN ? receipt.sumCash.negate() : receipt.sumCash).multiply(multiplier)) : "0";
+            String sumCard = (receipt.sumCard != null) ? String.valueOf((type==RETURN ? receipt.sumCard.negate() : receipt.sumCard).multiply(multiplier)) : "0";
+            String sumGiftCard = (receipt.sumGiftCard != null) ? String.valueOf((type==RETURN ? receipt.sumGiftCard.negate() : receipt.sumGiftCard).multiply(multiplier)) : "0";
             payment(sumCash, sumCard, sumGiftCard);
             cutReceipt();
 
