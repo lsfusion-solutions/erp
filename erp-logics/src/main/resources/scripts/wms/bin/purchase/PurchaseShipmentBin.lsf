@@ -10,6 +10,9 @@ NAMESPACE Purchase;
 //---------------------------------Ячейка ----------------------------------//
 
 @defineDocumentInterfaceDetailBin(shipment);
+overCopyShipmentDetail(d, detail) += ACTION (d, detail) {      
+    binUserShipmentDetail(d) <- binUserShipmentDetail(detail);
+}
 @extendFormInterfaceDetailBin(shipment, s, , quantity);
 binUserShipmentDetail(detail) <- binStockSku(customerStockUserShipmentDetail(detail), skuUserShipmentDetail(detail))
     WHEN CHANGED(customerStockUserShipmentDetail(detail)) OR
@@ -66,8 +69,10 @@ WHEN SESSION FORMS userShipment
 
 WHEN SESSION FORMS userShipment
     CHANGED(skuUserShipmentDetail(detail)) AND binUserShipmentDetail(detail)
-        DO ASSIGN invoiceDetailUserShipmentDetail(detail) <- defaultInvoiceDetailSkuDimensionUserShipment(skuUserShipmentDetail(detail), binUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail));
+        DO ASSIGN invoiceDetailUserShipmentDetail(detail) <- defaultInvoiceDetailSkuDimensionUserShipment(skuUserShipmentDetail(detail), binUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail))
+                                                                WHERE defaultInvoiceDetailSkuDimensionUserShipment(skuUserShipmentDetail(detail), binUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail));
 
 WHEN SESSION FORMS userShipment
     CHANGED(skuUserShipmentDetail(detail)) AND NOT binUserShipmentDetail(detail)
-        DO ASSIGN invoiceDetailUserShipmentDetail(detail) <- defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail));
+        DO ASSIGN invoiceDetailUserShipmentDetail(detail) <- defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail)) 
+                                                                WHERE defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail));

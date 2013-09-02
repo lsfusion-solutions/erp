@@ -393,7 +393,26 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
             FORM userInvoice OBJECTS i = i MANAGESESSION DOCKEDMODAL;
         }
     } TOOLBAR;
+    
+//-- Копирование строк     
+    overCopyInvoiceDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, UserInvoiceDetail);
 
+    copyInvoiceDetail 'Копировать строку' = ACTION (detail) {
+        FOR ADDOBJ d = UserInvoiceDetail DO {          
+
+            ASSIGN userInvoiceUserInvoiceDetail(d) <- userInvoiceUserInvoiceDetail(detail);
+            ASSIGN skuUserInvoiceDetail(d) <- skuUserInvoiceDetail(detail);
+            ASSIGN quantityUserInvoiceDetail(d) <- quantityUserInvoiceDetail(detail);
+            ASSIGN priceUserInvoiceDetail(d) <- priceUserInvoiceDetail(detail);
+            ASSIGN data###stockProp###userInvoiceDetail(d) <- data###stockProp###userInvoiceDetail(detail);
+            
+            EXEC overCopyInvoiceDetail(d, detail);                              
+        }
+    } TOOLBAR;
+    
+    EXTEND FORM userInvoice 
+        PROPERTIES(d) copyInvoiceDetail FORCE PANEL 
+    ;
 
 
     FORM invoices 'Накладные' TITLE 'Накладные'###sign
@@ -497,6 +516,10 @@ END
 
 META defineInvoiceBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(invoice, batch);
+    
+    overCopyInvoiceDetail(d, detail) += ACTION (d, detail) {      
+        batchUserInvoiceDetail(d) <- batchUserInvoiceDetail(detail);
+    }  
 
     // Пишем в цену инвойса из вида цен в зависимости от партии
     @deriveDocumentDetailPricePriceListTypeVATBatch(userInvoice, stockProp, userInvoice);
@@ -692,6 +715,10 @@ META defineInvoiceHomeCurrency(dumb)
     homePriceInvoiceDetail 'Цена (конв.)' = ABSTRACT NUMERIC[14,2](InvoiceDetail) PERSISTENT;
     homePriceUserInvoiceDetail 'Цена (конв.)' = DATA NUMERIC[14,2](UserInvoiceDetail);
     homePriceInvoiceDetail(d) += homePriceUserInvoiceDetail(d);
+    
+    overCopyInvoiceDetail(d, detail) += ACTION (d, detail) {      
+        dataRateExchangeUserInvoiceDetail(d) <- dataRateExchangeUserInvoiceDetail(detail);
+    }  
 
     homePriceUserInvoiceDetail(d) <- roundPriceCurrency(priceUserInvoiceDetail(d) *
                                                         rateExchangeUserInvoiceDetail(d),

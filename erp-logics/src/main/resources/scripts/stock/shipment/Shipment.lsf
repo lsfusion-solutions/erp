@@ -354,6 +354,27 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
             FORM userShipment OBJECTS s = s MANAGESESSION DOCKEDMODAL;
         }
     } TOOLBAR;
+    
+//-- Копирование строк     
+    overCopyShipmentDetail = ABSTRACT ACTION LIST (UserShipmentDetail, UserShipmentDetail);
+
+    copyShipmentDetail 'Копировать строку' = ACTION (detail) {
+        FOR ADDOBJ d = UserShipmentDetail DO {          
+
+            ASSIGN userShipmentUserShipmentDetail(d) <- userShipmentUserShipmentDetail(detail);
+            ASSIGN skuUserShipmentDetail(d) <- skuUserShipmentDetail(detail);
+            ASSIGN quantityUserShipmentDetail(d) <- quantityUserShipmentDetail(detail);
+            ASSIGN priceUserShipmentDetail(d) <- priceUserShipmentDetail(detail);
+            ASSIGN data###stockProp###userShipmentDetail(d) <- data###stockProp###userShipmentDetail(detail);
+            ASSIGN expiryDateUserShipmentDetail(d) <- expiryDateUserShipmentDetail(detail);
+            
+            EXEC overCopyShipmentDetail(d, detail);                              
+        }
+    } TOOLBAR;
+    
+    EXTEND FORM userShipment 
+        PROPERTIES(d) copyShipmentDetail FORCE PANEL 
+    ;    
 
     FORM shipments captions TITLE captions###sign
         OBJECTS s = Shipment
@@ -424,6 +445,9 @@ END
 
 META defineShipmentBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(shipment, batch);
+    overCopyShipmentDetail(d, detail) += ACTION (d, detail) {      
+        batchUserShipmentDetail(d) <- batchUserShipmentDetail(detail);
+    } 
 
     // История по правой кнопке мыши
     @defineBalancesBatch(shipmentDetail); //-- показываем по нажатию правой клавиши остатки партии
