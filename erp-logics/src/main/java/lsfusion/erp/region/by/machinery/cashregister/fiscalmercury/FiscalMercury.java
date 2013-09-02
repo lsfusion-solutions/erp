@@ -1,301 +1,252 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalmercury;
 
-import com.jacob.activeX.ActiveXComponent;
-import com.jacob.com.Dispatch;
+import com.sun.jna.Library;
+import com.sun.jna.Native;
 
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
 
 public class FiscalMercury {
 
-    static Dispatch cashDispatch;
-    static ActiveXComponent cashRegister;
+    private static BigDecimal multiplier = BigDecimal.valueOf(10000);
 
-    public final static int CASH_IN = 5;
-    public final static int CASH_OUT = 6;
-    public final static int FONT = 2;
-    public final static int WIDTH = 28;
-    public final static String delimiter = "";
+    public interface mercuryDLL extends Library {
 
-    static void init(int comPort, int baudRate) {
-        cashRegister = new ActiveXComponent("Incotex.MercuryFPrtX");
-        cashRegister.setProperty("PortNum", comPort);
-        cashRegister.setProperty("BaudRate", baudRate/*115200*/);
-        cashRegister.setProperty("Password", "0000");
+        mercuryDLL mercury = (mercuryDLL) Native.loadLibrary("megawdriver", mercuryDLL.class);
 
-        cashDispatch = cashRegister.getObject();
-        Dispatch.call(cashDispatch, "Open");
-        Dispatch.call(cashDispatch, "SetDisplayBaudRate", 9600);
+        //подключение
+        int FrWConnect();
+
+        //логин
+        int FrWLogIn(int code, String password, int mode, byte[] username); //code=1, password=1111111, Mode=1, username=Кассир
+
+        //логаут
+        int FrWLogOut();
+
+        //отрезка чека
+        int FrWCutReceipt();
+
+        //прокрутка
+        int FrWFeed(int count);
+
+        //открытие денежного ящика
+        int FrWOpenDrawer(); //непроверено
+
+        //печать произвольных данных
+        int FrWPrintData(byte[] strData, int station, String strFName);
+        //station=0, strFName=null
+
+        //проверка ошибок
+        int FrWGetErrorDescription(int errorCode, byte[] description, int len);
+
+        //открытие чека
+        int FrWCreateDoc(char docType, int slip, boolean fLinePrn, String pathOne, String pathTwo);
+        //docType=1 (продажа), slip=0, fLinePrn=true, pathOne=null, pathTwo=null
+
+        int FrWAddItem(char Dept, Long Quantity, Long Price, Long/*String*/ code, String name, String comment, long[] sum, Short iStrCheck);
+
+        //добавление строки чека
+        int FrWAddItem2(short dept, String quantity, String price, String itemCode, String itemName, String itemComment, String somethingElse, String somethingElse2);
+        //dept=1(номер секции)
+
+        //добавление скидки к строке чека
+        int FrWAdjustment2(short fPercent, String sum, String realSum, String totalSum);
+
+        //оплата и закрытие чека
+        int FrWPayment2(String sumCash, String sumCard, String sum3, String sum4, String sum5);
+
+        //аннулирование чека
+        int FrWCancelReceipt(); //непроверено
+
+        //внесение наличных
+        int FrWCashIncome(long sum, int curr);//curr=0
+
+        //изъятие наличных
+        int FrWCashOutcome(long sum, int curr);//curr=0
+
+        //печать отчёта
+        int FrWPrintReport(int type, String beg, String end); //type: 0 - x, 1- z, beg=null, end=null
+    }
+
+    public final static char SALE = 1;
+    public final static char RETURN = 3;
+    public final static char CASH_IN = 9;
+    public final static char CASH_OUT = 10;
+
+    public final static int CASHIER = 2;
+    public final static int ADMIN = 3;
+
+    public final static char ITEM = 1;
+    public final static char GIFT_CARD = 2;
+
+    //old
+    static void init() throws UnsupportedEncodingException {
+        try {
+            System.loadLibrary("megawdriver");
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
+
+        connect();
+
         try {
             Thread.sleep(100);
-        }
-        catch (Exception e) {
+        } catch (Exception ignored) {
         }
 
     }
 
-    public static void printReceipt(int comPort, int baudRate, int type, ReceiptInstance receipt) {
-        //if (dispose) {
-            dispose("Before PrintReceipt");
-        //}
+    public static void connect() throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWConnect();
+        checkErrors(result, true);
+    }
 
-        openDocument(comPort, baudRate, type);
+    public static boolean login(int user, String password, String cashierName) throws RuntimeException, UnsupportedEncodingException {
+        logout();
+        int result = mercuryDLL.mercury.FrWLogIn(1, password + "\0", user, (cashierName + "\0").getBytes("cp1251"));
+        checkErrors(result, true);
+
+        return true;
+    }
+
+    public static void logout() throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWLogOut();
+        checkErrors(result, true);
+    }
+
+    public static void advancePaper(int count) throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWFeed(count);
+        checkErrors(result, true);
+    }
+
+    public static boolean openDrawer() throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWOpenDrawer();
+        return checkErrors(result, false);
+    }
+
+    public static void printString(String input) throws RuntimeException, UnsupportedEncodingException {
+        if (input != null) {
+            int result = mercuryDLL.mercury.FrWPrintData((input + "\n\0").getBytes("cp1251"), 0, null);
+            checkErrors(result, true);
+        }
+    }
+
+    public static void openDocument(char type) throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWCreateDoc(type, 0, true, "Shablon.txt\0", "Shablon1.txt\0");
+        checkErrors(result, true);
+    }
+
+    public static void addItem(char dept, Long quantity, Long price, Long roundSum, Long discountSum, String barcode, char type) throws RuntimeException, UnsupportedEncodingException {
+        long[] sum = new long[1];
+        while (barcode.length() < 26)
+            barcode += " ";
+        int result = mercuryDLL.mercury.FrWAddItem(dept, quantity, price, null/*barcode + "\0"*/, "                            \0", "\0", sum, (short) 0);
+        checkErrors(result, true);
+        Long adjustment = roundSum - Long.parseLong(String.valueOf(sum[0])) - discountSum;
+        if (adjustment != 0)
+            addDiscount(String.valueOf(adjustment * (type == RETURN ? (-1) : 1)));
+    }
+
+    public static void addDiscount(String sum) throws RuntimeException, UnsupportedEncodingException {
+        String realSum = null;
+        String totalSum = null;
+        int result = mercuryDLL.mercury.FrWAdjustment2((short) 1, sum, realSum, totalSum);
+        checkErrors(result, true);
+    }
+
+    public static void payment(String sumCash, String sumCard, String sumGiftCard) throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWPayment2(sumCash, sumCard, sumGiftCard, "0", "0");
+        checkErrors(result, true);
+    }
+
+    public static void cancelReceipt() throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWCancelReceipt();
+        checkErrors(result, true);
+    }
+
+    public static boolean cashIncome(long sum) throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWCashIncome(sum, 0);
+        return checkErrors(result, true);
+    }
+
+    public static boolean cashOutcome(long sum) throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWCashOutcome(sum, 0);
+        return checkErrors(result, true);
+    }
+
+    public static void xReport() throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWPrintReport(0, null, null);
+        checkErrors(result, true);
+    }
+
+    public static void zReport() throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWPrintReport(1, null, null);
+        checkErrors(result, true);
+    }
+
+    public static void inOut(char type, long sum) throws RuntimeException, UnsupportedEncodingException {
+        openDocument(type);
+        if (sum > 0)
+            cashIncome(sum * 10000);
+        else
+            cashOutcome(-sum * 10000);
+        cutReceipt();
+    }
+
+    public static boolean cutReceipt() throws RuntimeException, UnsupportedEncodingException {
+        int result = mercuryDLL.mercury.FrWCutReceipt();
+        return checkErrors(result, true);
+    }
+
+    private static boolean checkErrors(int errorCode, Boolean throwException) throws RuntimeException, UnsupportedEncodingException {
+        if (errorCode < 0) {
+            if (throwException) {
+                byte[] description = new byte[100];
+                mercuryDLL.mercury.FrWGetErrorDescription(errorCode, description, 100);
+                throw new RuntimeException(new String(description, Charset.forName("cp1251")).trim());
+            } else return false;
+        }
+        return true;
+    }
+
+    public static void printReceipt(char type, ReceiptInstance receipt) throws RuntimeException, UnsupportedEncodingException {
+
+        openDocument(type);
 
         try {
-            //печать заголовка
-            int k = printHeaderAndNumbers(cashDispatch, receipt);
+            if (receipt.numberDiscountCard != null && !receipt.numberDiscountCard.isEmpty())
+                printString("Дисконтная карта: " + receipt.numberDiscountCard);
+            if (receipt.holderDiscountCard != null && !receipt.holderDiscountCard.isEmpty())
+                printString("Владелец: " + receipt.holderDiscountCard);
 
             //печать товаров
             for (ReceiptItem item : receipt.receiptList) {
-                Dispatch.call(cashDispatch, "AddCustom", item.barcode, FONT, 0, k++);
-                String name = item.name.substring(0, Math.min(item.name.length(), WIDTH));
-                Dispatch.call(cashDispatch, "AddCustom", name, FONT, 0, k++);
+                printString(item.barcode + " " + item.name);
 
-                Dispatch.invoke(cashDispatch, "AddItem", Dispatch.Method, new Object[]{0, item.price, false,
-                        0, 1, 0, item.quantity.multiply(BigDecimal.valueOf(1000)), 3, 0, "шт.", 0, 0, k++, 0}, new int[1]);
+                Long quantity = item.quantity == null ? null : item.quantity.multiply(multiplier).longValue();
+                Long price = item.price == null ? 0 : item.price.multiply(multiplier).longValue();
+                Long sum = item.sumPos == null ? 0 : item.sumPos.multiply(multiplier).longValue();
+                Long discountSum = item.articleDiscSum == null ? 0 : item.articleDiscSum.multiply(multiplier).longValue();
+                addItem(item.isGiftCard ? GIFT_CARD : ITEM, quantity, price, sum, discountSum, "\0", type);
 
-                if (item.articleDiscSum.doubleValue() > 0) {
-                    String msg = "Скидка " + item.articleDisc + "%, всего " + item.articleDiscSum;
-                    Dispatch.call(cashDispatch, "AddCustom", msg, FONT, 0, k++);
-                }
+                if (item.articleDiscSum != null && item.articleDiscSum.doubleValue() != 0)
+                    addDiscount(String.valueOf(item.articleDiscSum.multiply(multiplier).multiply(BigDecimal.valueOf(type == RETURN ? (-1) : 1))));
             }
 
-            Dispatch.call(cashDispatch, "AddCustom", "Всего: " + receipt.sumTotal, FONT, 0, k++);
-            if (receipt.clientDiscount != null) {
-                Dispatch.call(cashDispatch, "AddCustom", "Скидка: " + receipt.clientDiscount, FONT, 0, k++);
-            }
+            if (receipt.giftCardNumbers != null)
+                for(String giftCardNumber : receipt.giftCardNumbers)
+                    printString("Использован сертификат: " + giftCardNumber);
 
-            //Общая информация
-            Dispatch.call(cashDispatch, "AddCustom", delimiter, FONT, 0, k++);
-            if (receipt.sumDisc > 0) {
-                Dispatch.call(cashDispatch, "AddDocAmountAdj", -receipt.sumDisc, 0, FONT, 0, k++, 15);
-            }
-            Dispatch.call(cashDispatch, "AddTotal", FONT, 0, k++, 15);
-
-            if (type == 1) {
-                //выбор варианта оплаты
-                boolean needChange = true;
-                if (receipt.sumCash > 0 && receipt.sumCard > 0) {
-                    Dispatch.call(cashDispatch, "AddPay", 4, receipt.sumCash, receipt.sumCard, "Pay", FONT, 0, k++, 15);
-                } else if (receipt.sumCard > 0) {
-                    Dispatch.call(cashDispatch, "AddPay", 2, receipt.sumCard, receipt.sumCard, "Pay", FONT, 0, k++, 25);
-                    needChange = false;
-                } else {
-                    Dispatch.call(cashDispatch, "AddPay", 0, receipt.sumCash, receipt.sumCard, "Pay", FONT, 0, k++, 15);
-                }
-
-                if (needChange) {
-                    Dispatch.call(cashDispatch, "AddChange", FONT, 0, k++, 15);
-                }
-            }
-            Dispatch.call(cashDispatch, "CloseFiscalDoc");
+            String sumCash = (receipt.sumCash != null) ? String.valueOf(receipt.sumCash.multiply(multiplier)) : "0";
+            String sumCard = (receipt.sumCard != null) ? String.valueOf(receipt.sumCard.multiply(multiplier)) : "0";
+            String sumGiftCard = (receipt.sumGiftCard != null) ? String.valueOf(receipt.sumGiftCard.multiply(multiplier)) : "0";
+            payment(sumCash, sumCard, sumGiftCard);
+            cutReceipt();
 
         } catch (RuntimeException e) {
             cancelReceipt();
             throw e;
-        }
-        Dispatch.call(cashDispatch, "ExternalPulse", 1, 60, 10, 1);
-
-        //if (dispose) {
-            FiscalMercury.dispose("After PrintReceipt");
-        //}
-    }
-
-    public static void openDocument(int comPort, int baudRate, int type) throws RuntimeException {
-        Dispatch cashDispatch = getDispatch(comPort, baudRate);
-        Dispatch.call(cashDispatch, "OpenFiscalDoc", type);
-    }
-
-    public static void closePort() throws RuntimeException {
-        dispose("closePort");
-    }
-
-    public static void cancelReceipt() throws RuntimeException {
-        Dispatch.call(cashDispatch, "CancelFiscalDoc", false);
-    }
-
-    public static void xReport(int comPort, int baudRate) throws RuntimeException {
-        Dispatch cashDispatch = getDispatch(comPort, baudRate);
-        Dispatch.call(cashDispatch, "XReport", 0/*FONT*/);
-    }
-
-    public static void zReport(int comPort, int baudRate) throws RuntimeException {
-        Dispatch cashDispatch = getDispatch(comPort, baudRate);
-        Dispatch.call(cashDispatch, "ZReport", 0/*FONT*/);
-    }
-
-    public static void advancePaper() throws RuntimeException {
-        //Пока ничего не делаем
-    }
-
-    public static boolean inOut(int comPort, int baudRate, int type, double sum) throws RuntimeException {
-
-        openDocument(comPort, baudRate, type);
-
-        try {
-
-            int k = printHeaderAndNumbers(cashDispatch, null);
-
-            Dispatch.invoke(cashDispatch, "AddItem", Dispatch.Method, new Object[]{0, sum, false,
-                    0, 1, 0, 1, 1, 0, "шт.", FONT, 0, k++, 0}, new int[1]);
-
-            Dispatch.call(cashDispatch, "AddTotal", FONT, 0, k++, 15);
-
-            Dispatch.call(cashDispatch, "CloseFiscalDoc");
-        } catch (RuntimeException e) {
-            cancelReceipt();
-            throw e;
-        }
-        Dispatch.call(cashDispatch, "ExternalPulse", 1, 60, 10, 1);
-
-        return true;
-    }
-
-    public static boolean openDrawer(int comPort, int baudRate) throws RuntimeException {
-        Dispatch cashDispatch = getDispatch(comPort, baudRate);
-        Dispatch.call(cashDispatch, "ExternalPulse", 1, 60, 10, 1);
-        return true;
-    }
-
-    public static void displayText(ReceiptItem item) throws RuntimeException {
-
-/*        int comPort = parameters.getScreenComPort();
-        int fiscalCom = parameters.getFiscalComPort();
-        int size = 20;
-        if (comPort < 0) {
-            if (fiscalCom < 0) {
-                return;
-            }
-            size = 26;
-        }
-
-        String out[] = new String[5];
-        for (Map.Entry<ExternalScreenComponent, ExternalScreenConstraints> entry : components.entrySet()) {
-            out[entry.getValue().order] = entry.getKey().getValue();
-        }
-
-        String output = format(check(out[1]), check(out[2]), size) + format(check(out[3]), check(out[4]), size);
-//        System.out.println(output);
-
-
-        ActiveXComponent commActive = null;
-        if (comPort > 0) {
-            try {
-                logger.info("Before creating ActiveX");
-                commActive = new ActiveXComponent("MSCommLib.MSComm");
-                commActive.setProperty("CommPort", comPort);
-                commActive.setProperty("PortOpen", true);
-                commActive.setProperty("Output", new String(output.getBytes("Cp866"), "Cp1251"));
-                commActive.setProperty("PortOpen", false);
-                logger.info("After ActiveX work");
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                if (commActive != null) {
-                    try {
-                        if (commActive.getPropertyAsBoolean("PortOpen"))
-                            commActive.setProperty("PortOpen", false);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        } else {
-            if (fiscalCom <= 0) {
-                return;
-            }
-            if (comPort == 0) {
-                return;
-            }
-            try {
-                Dispatch cashDispatch = FiscalReg.getDispatch(fiscalCom);
-                Dispatch.call(cashDispatch, "ShowDisplay", output, true, true);
-                if (parameters.dispose) {
-                    FiscalReg.dispose("ShowDisplay");
-                }
-            } catch (Exception e) {
-                // пока игнорируем
-            }*/
-
-
-        /*try {
-            String firstLine = " " + toStr(item.quantity) + "x" + toStr(BigDecimal.valueOf(item.price));
-            firstLine = item.name.substring(0, 16 - Math.min(16, firstLine.length())) + firstLine;
-            String secondLine = toStr(BigDecimal.valueOf(item.sumPos));
-            while (secondLine.length() < 11)
-                secondLine = " " + secondLine;
-            secondLine = "ИТОГ:" + secondLine;
-            if (!mercuryDLL.mercury.mercury_indik((firstLine + "\0").getBytes("cp1251"), (new String(secondLine + "\0")).getBytes("cp1251")))
-                checkErrors(true);
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }*/
-    }
-
-    public static int printHeaderAndNumbers(Dispatch cashDispatch, ReceiptInstance receipt) {
-        int k = 0;
-        //печать заголовка
-        Dispatch.call(cashDispatch, "AddHeaderLine", 1, FONT, 0, k++);
-        Dispatch.call(cashDispatch, "AddHeaderLine", 2, FONT, 0, k++);
-        Dispatch.call(cashDispatch, "AddHeaderLine", 3, FONT, 0, k++);
-        Dispatch.call(cashDispatch, "AddHeaderLine", 4, FONT, 0, k++);
-
-        //печать номеров и даты
-        Dispatch.call(cashDispatch, "AddSerialNumber", FONT, 0, k++);
-        Dispatch.call(cashDispatch, "AddTaxPayerNumber", FONT, 0, k++);
-        Dispatch.call(cashDispatch, "AddDateTime", FONT, 0, k++);
-        Dispatch.call(cashDispatch, "AddDocNumber", FONT, 0, k++);
-        Dispatch.call(cashDispatch, "AddReceiptNumber", FONT, 0, k++);
-        Dispatch.call(cashDispatch, "AddOperInfo", 0, FONT, 0, k++);
-        if (receipt != null) {
-            if (receipt.cashierName != null) {
-                Dispatch.call(cashDispatch, "AddCustom", getFiscalString("Продавец: " + receipt.cashierName), FONT, 0, k++);
-            }
-
-            if (receipt.clientName != null) {
-                Dispatch.call(cashDispatch, "AddCustom", getFiscalString("Покупатель: " + receipt.clientName), FONT, 0, k++);
-
-                if (receipt.clientSum != null) {
-                    Dispatch.call(cashDispatch, "AddCustom", getFiscalString("Накопленная сумма: " + receipt.clientSum.intValue()), FONT, 0, k++);
-                }
-            }
-        }
-        Dispatch.call(cashDispatch, "AddCustom", delimiter, FONT, 0, k++);
-        return k;
-    }
-
-    public static String getFiscalString(String str) {
-        return str.substring(0, Math.min(str.length(), 28));
-    }
-
-    public static void dispose(String reason) {
-        if (cashDispatch != null) {
-            try {
-                Dispatch.call(cashDispatch, "Close", false);
-            } catch (Exception e) {
-                throw new RuntimeException("Ошибка при закрытии соединения с фискальным регистратором\n" + reason, e);
-            }
-            cashDispatch = null;
-            System.gc();
-        }
-    }
-
-    public static Dispatch getDispatch(int comPort, int baudRate) {
-        initDispatch(comPort, baudRate);
-        return cashDispatch;
-    }
-
-    public static void initDispatch(int comPort, int baudRate) {
-        if (cashDispatch == null) {
-            init(comPort, baudRate);
-        } else {
-            try {
-                Dispatch.call(cashDispatch, "TestConnection");
-                if (!cashRegister.getProperty("Active").getBoolean()) {
-                    init(comPort, baudRate);
-                }
-            } catch (Exception e) {
-                init(comPort, baudRate);
-            }
         }
     }
 }

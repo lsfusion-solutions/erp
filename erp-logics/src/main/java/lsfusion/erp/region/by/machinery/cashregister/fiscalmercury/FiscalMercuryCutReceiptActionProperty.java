@@ -7,16 +7,17 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-public class FiscalMercuryAdvancePaperActionProperty extends ScriptingActionProperty {
+public class FiscalMercuryCutReceiptActionProperty extends ScriptingActionProperty {
 
-    public FiscalMercuryAdvancePaperActionProperty(ScriptingLogicsModule LM) {
+    public FiscalMercuryCutReceiptActionProperty(ScriptingLogicsModule LM) {
         super(LM, new ValueClass[]{});
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
 
-        String result = (String)context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(3));
+        String result = (String) context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(5));
         if (result != null)
             context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+
     }
 }

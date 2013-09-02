@@ -9,13 +9,9 @@ import java.math.BigDecimal;
 
 public class FiscalMercuryServiceInOutClientAction implements ClientAction {
 
-    int baudRate;
-    int comPort;
     BigDecimal sum;
 
-    public FiscalMercuryServiceInOutClientAction(Integer baudRate, Integer comPort, BigDecimal sum) {
-        this.baudRate = baudRate == null ? 0 : baudRate;
-        this.comPort = comPort == null ? 0 : comPort;
+    public FiscalMercuryServiceInOutClientAction(BigDecimal sum) {
         this.sum = sum;
     }
 
@@ -24,19 +20,19 @@ public class FiscalMercuryServiceInOutClientAction implements ClientAction {
 
         try {
 
-            int type = sum.longValue()>0 ? FiscalMercury.CASH_IN : FiscalMercury.CASH_OUT;
-            FiscalMercury.init(comPort, baudRate);
+            char type = sum.longValue() > 0 ? FiscalMercury.CASH_IN : FiscalMercury.CASH_OUT;
+            FiscalMercury.init();
+            if (FiscalMercury.login(FiscalMercury.CASHIER, "1111111", "Кассир")) {
 
-            if (!FiscalMercury.inOut(comPort, baudRate, type, sum.longValue()))
-                return "Недостаточно наличных в кассе";
-            else {
-                if(!FiscalMercury.openDrawer(comPort, baudRate))
+                FiscalMercury.inOut(type, sum.longValue());
+                if (!FiscalMercury.openDrawer())
                     return "Не удалось открыть денежный ящик";
-                FiscalMercury.closePort();
+                FiscalMercury.logout();
             }
-
+            return null;
         } catch (RuntimeException e) {
+            FiscalMercury.cancelReceipt();
+            return e.toString();
         }
-        return null;
     }
 }

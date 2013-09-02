@@ -21,15 +21,13 @@ public class FiscalMercuryZReportActionProperty extends ScriptingActionProperty 
         try {
             DataSession session = context.getSession();
 
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
-
             if (context.checkApply()) {
-               String result = (String)context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(2, baudRate, comPort));
-                if (result != null)
+                String result = (String) context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(2));
+                if (result == null)
+                    LM.findLAPByCompoundName("closeCurrentZReport").execute(session);
+                else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-            LM.findLAPByCompoundName("closeCurrentZReport").execute(session);
         } catch (SQLException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         } catch (ScriptingErrorLog.SemanticErrorException e) {

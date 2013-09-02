@@ -9,25 +9,30 @@ import java.io.IOException;
 public class FiscalMercuryPrintReceiptClientAction implements ClientAction {
 
     ReceiptInstance receipt;
-    int baudRate;
-    int comPort;
-    int placeNumber;
-    int operatorNumber;
+    Boolean isReturn;
 
-    public FiscalMercuryPrintReceiptClientAction(Integer baudRate, Integer comPort, Integer placeNumber,
-                                                 Integer operatorNumber, ReceiptInstance receipt) {
+    public FiscalMercuryPrintReceiptClientAction(ReceiptInstance receipt, Boolean isReturn) {
         this.receipt = receipt;
-        this.baudRate = baudRate == null ? 0 : baudRate;
-        this.comPort = comPort == null ? 0 : comPort;
-        this.placeNumber = placeNumber == null ? 1 : placeNumber;
-        this.operatorNumber = operatorNumber == null ? 1 : operatorNumber;
+        this.isReturn = isReturn;
     }
 
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
-        FiscalMercury.printReceipt(comPort, baudRate, 1/*type*/, receipt);
+        try {
 
-        return null;
+            FiscalMercury.init();
+            if (FiscalMercury.login(FiscalMercury.CASHIER, "1111111", receipt.cashierName)) {
+
+                FiscalMercury.printReceipt(isReturn ? FiscalMercury.RETURN : FiscalMercury.SALE, receipt);
+
+                FiscalMercury.logout();
+            }
+
+
+            return null;
+        } catch (RuntimeException e) {
+            return e.getMessage();
+        }
     }
 }

@@ -9,38 +9,41 @@ import java.io.IOException;
 public class FiscalMercuryCustomOperationClientAction implements ClientAction {
 
     int type;
-    int baudRate;
-    int comPort;
 
-    public FiscalMercuryCustomOperationClientAction(int type, Integer baudRate, Integer comPort) {
+    public FiscalMercuryCustomOperationClientAction(int type) {
         this.type = type;
-        this.baudRate = baudRate == null ? 0 : baudRate;
-        this.comPort = comPort == null ? 0 : comPort;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
         try {
-            FiscalMercury.init(comPort, baudRate);
-            switch (type) {
-                case 1:
-                    FiscalMercury.xReport(comPort, baudRate);
-                    break;
-                case 2:
-                    FiscalMercury.zReport(comPort, baudRate);
-                    break;
-                case 3:
-                    FiscalMercury.advancePaper();
-                    break;
-                case 4:
-                    FiscalMercury.cancelReceipt();
-                    break;
-                default:
-                    break;
+
+            FiscalMercury.init();
+            if (FiscalMercury.login(FiscalMercury.ADMIN, "2222222", "Кассир")) {
+                switch (type) {
+                    case 1:
+                        FiscalMercury.xReport();
+                        break;
+                    case 2:
+                        FiscalMercury.zReport();
+                        break;
+                    case 3:
+                        FiscalMercury.advancePaper(5);
+                        break;
+                    case 4:
+                        FiscalMercury.cancelReceipt();
+                        break;
+                    case 5:
+                        FiscalMercury.cutReceipt();
+                        break;
+                    default:
+                        break;
+                }
+                FiscalMercury.logout();
             }
-            //FiscalMercury.closePort();
+            return null;
         } catch (RuntimeException e) {
+            return e.toString();
         }
-        return null;
     }
 }
