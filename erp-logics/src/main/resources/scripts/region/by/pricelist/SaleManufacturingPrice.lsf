@@ -26,10 +26,19 @@ wholesaleMarkupUserOrderDetail 'Оптовая надбавка (от цены �
 
 @defineDocumentInterfaceHeaderItemSum (order, manufacturing, manufacturing);
 
+overChangeManufacturingPriceUserOrderDetail = ABSTRACT ACTION LIST (OrderDetail);
+changeManufacturingPriceUserOrderDetail (detail) = ACTION (detail) {
+  REQUEST NUMERIC[14,2] INPUT;
+  IF requestedNumeric() THEN {
+      ASSIGN manufacturingPriceUserOrderDetail(detail) <- requestedNumeric();   
+      overChangeManufacturingPriceUserOrderDetail(detail);
+  }
+};
+
 EXTEND FORM userOrder
     PROPERTIES(o)  showManufacturingPriceUserOrder
     PROPERTIES(d)  SHOWIF showManufacturingPriceUserOrder(o) AFTER invoiceSumUserOrderDetail  manufacturingSumUserOrderDetail, includeVATUserOrderDetail,
-                   wholesaleMarkupUserOrderDetail READONLY, manufacturingPriceUserOrderDetail
+                   wholesaleMarkupUserOrderDetail READONLY, manufacturingPriceUserOrderDetail ON CHANGE changeManufacturingPriceUserOrderDetail(d)
 
 ;
 EXTEND DESIGN userOrder {
