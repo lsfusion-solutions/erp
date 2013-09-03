@@ -37,6 +37,8 @@ nameCurrencyCustomsZoneDeclaration 'Валюта платежей' (declaration)
 typeExchangeDeclaration = DATA TypeExchange(Declaration);
 nameTypeExchangeDeclaration 'Тип обмена' (declaration) = nameTypeExchange(typeExchangeDeclaration(declaration));
 
+typeExchangeDeclaration(d) <- defaultTypeExchangeCustomsZone(customsZoneDeclaration(d)) WHEN CHANGED(customsZoneDeclaration(d));
+
 CONSTRAINT currencyTypeExchange(typeExchangeDeclaration(declaration)) != homeCurrencyDeclaration(declaration)
     CHECKED BY typeExchangeDeclaration MESSAGE 'Тип обмена должен соответствовать расчётной валюте';
 
@@ -705,3 +707,51 @@ EXTEND FORM declaration
 //-- Операция
 @defineOperationProperty(showDeclaration, 'Таможенные платежи', commonContainer);
 @deriveDocumentOperationProperty(UserInvoice, showDeclaration);
+
+
+//-- Декларирование
+inInvoiceDeclaration (invoice, declaration)= GROUP SUM 1 IF declarationInvoiceDetail(detail)== declaration AND invoiceInvoiceDetail(detail) == invoice BY invoice, declaration;
+
+inInvoiceDeclarationInvoiceDetail = inInvoiceDeclaration(invoiceInvoiceDetail(detail), declarationInvoiceDetail(detail)); 
+
+createDeclarationDetailUserInvoice 'Рассчитать платежи' (userInvoice) = ACTION (userInvoice) {
+    FOR inInvoiceDeclaration(userInvoice, declaration) DO {
+        createDeclarationDetailDeclaration(declaration);
+        FOR declarationDeclarationDetail(detail)== declaration DO {
+            homeSumDeclarationDetail(detail) <- (sumDeclarationDetail(detail) * rateExchangeDeclaration(declarationDeclarationDetail(detail))) (+)
+                                            deliverySumDeclarationDetail(detail) (+) chargeSumDeclarationDetail(detail);
+            percentDutyDeclarationDetail(detail) <- percentDutyCustomsGroupDate(customsGroupDeclarationDetail(detail), dateDeclarationDetail(detail));
+            weightDutyDeclarationDetail(detail) <- weightDutyCustomsGroupDate(customsGroupDeclarationDetail(detail), dateDeclarationDetail(detail));
+            VATDeclarationDetail(detail) <- IF VATCustomsExceptionDeclarationDetail(detail) THEN
+                                           rangeVATCustomsException(VATCustomsExceptionDeclarationDetail(detail))
+                                       ELSE
+                                           VATCustomsGroupDate(customsGroupDeclarationDetail(detail), dateDeclarationDetail(detail));
+            deliverySumDeclarationDetail(detail) <- calcDeliverySumDeclarationDetail(detail);
+            chargeSumDeclarationDetail(detail) <- calcChargeSumDeclarationDetail(detail);
+            dutySumDeclarationDetail(detail) <- calcDutySumDeclarationDetail(detail);
+            VATSumDeclarationDetail(detail) <- calcVATSumDeclarationDetail(detail);                                                                                                                                           
+                                                                                                                               
+        }
+        recalculatePriceInvoiceDeclaration(declaration);
+    }    
+} TOOLBAR; 
+
+EXTEND FORM userInvoice
+    OBJECTS d3 = UserInvoiceDetail
+    PROPERTIES(d3) indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, descriptionDeclarationUserInvoiceDetail, 
+                   codeCustomsGroupUserInvoiceDetail, nameVATCustomsExceptionUserInvoiceDetail, dutyPriceUserInvoiceDetail, registrationPriceUserInvoiceDetail
+    PROPERTIES(i) createDeclarationDetailUserInvoice TODRAW d3                     
+    FILTERS userInvoiceUserInvoiceDetail(d3) == i                   
+                   
+;
+
+EXTEND DESIGN userInvoice{
+    specification.box {
+        NEW declarationContainer {
+            caption = 'Декларирование';
+            ADD PROPERTY(descriptionDeclarationUserInvoice);
+            type = CONTAINERV;
+            ADD d3.box;
+        }
+    }
+}
