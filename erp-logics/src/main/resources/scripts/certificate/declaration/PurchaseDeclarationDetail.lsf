@@ -737,19 +737,26 @@ createDeclarationDetailUserInvoice 'Рассчитать платежи' (userIn
 } TOOLBAR; 
 
 EXTEND FORM userInvoice
-    OBJECTS d3 = UserInvoiceDetail
-    PROPERTIES(d3) indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, descriptionDeclarationUserInvoiceDetail, 
+    PROPERTIES(i) BACKGROUND backgroundCustoms() showDeclarationUserInvoice
+    OBJECTS d3 = UserInvoiceDetail FIXED GRID
+    PROPERTIES(d3) SHOWIF showDeclarationUserInvoice(i) indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, descriptionDeclarationUserInvoiceDetail, 
                    codeCustomsGroupUserInvoiceDetail, nameVATCustomsExceptionUserInvoiceDetail, dutyPriceUserInvoiceDetail, registrationPriceUserInvoiceDetail
-    PROPERTIES(i) createDeclarationDetailUserInvoice TODRAW d3                     
+    PROPERTIES(i) createDeclarationDetailUserInvoice TODRAW d3 SHOWIF showDeclarationUserInvoice(i), descriptionDeclarationTabUserInvoice = descriptionDeclarationUserInvoice SHOWIF showDeclarationUserInvoice(i)                      
     FILTERS userInvoiceUserInvoiceDetail(d3) == i                   
                    
 ;
 
 EXTEND DESIGN userInvoice{
     specification.box {
+        headerExtraParams {
+            headerCustoms {
+                ADD PROPERTY(showDeclarationUserInvoice);
+            }
+        }
         NEW declarationContainer {
+            
             caption = 'Декларирование';
-            ADD PROPERTY(descriptionDeclarationUserInvoice);
+            ADD PROPERTY(descriptionDeclarationTabUserInvoice);
             type = CONTAINERV;
             ADD d3.box;
         }
