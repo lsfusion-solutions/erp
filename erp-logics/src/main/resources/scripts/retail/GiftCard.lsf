@@ -5,9 +5,13 @@ REQUIRE POS;
 //подарочные сертификаты
 CLASS GiftCard 'Подарочный сертификат' : NumeratedObject;
 
-numberGiftCard 'Номер' (giftCard) = numberObject(giftCard) IF giftCard IS GiftCard PERSISTENT;
-seriesGiftCard 'Серия' = seriesObject(giftCard) IF giftCard IS GiftCard PERSISTENT;
-seriesNumberGiftCard 'Серия/Номер' (giftCard) = seriesNumberObject(giftCard) IF giftCard IS GiftCard PERSISTENT;
+@defineExternalizable(giftCard, VARSTRING[100]);
+
+numberGiftCard 'Номер' (giftCard) = numberObject(giftCard) IF giftCard IS GiftCard;// PERSISTENT убран, чтобы проходил импорт
+seriesGiftCard 'Серия' = seriesObject(giftCard) IF giftCard IS GiftCard; // PERSISTENT убран, чтобы проходил импорт
+seriesNumberGiftCard 'Серия/Номер' (giftCard) = seriesNumberObject(giftCard) IF giftCard IS GiftCard;  // PERSISTENT убран, чтобы проходил импорт
+dateGiftCard 'Дата' = DATA DATE(GiftCard);
+expiryDaysGiftCard 'Срок действия (дней)' = DATA INTEGER(GiftCard);
 
 giftCardSeriesNumber (string) =
     GROUP AGGR giftCard
@@ -28,6 +32,8 @@ descriptionGiftCardLedger 'Описание' = ABSTRACT STRING[15] (GiftCardLedg
 
 //продажа подарочных сертификатов
 CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертификата' : ReceiptDetail, GiftCardLedger;
+
+@defineExternalizable(receiptGiftCardSaleDetail, VARSTRING[100]);
 
 giftCardReceiptGiftCardSaleDetail = DATA GiftCard (ReceiptGiftCardSaleDetail);
 
@@ -126,7 +132,7 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
 //формы
 FORM giftCard 'Подарочный сертификат'
     OBJECTS g = GiftCard FIXED PANEL
-    PROPERTIES(g) nameNumeratorObject, numberGiftCard, seriesGiftCard, priceGiftCard
+    PROPERTIES(g) nameNumeratorObject, numberGiftCard, seriesGiftCard, priceGiftCard, dateGiftCard, expiryDaysGiftCard
 
     EDIT GiftCard OBJECT g
 ;
@@ -138,13 +144,15 @@ DESIGN giftCard FROM DEFAULT {
         ADD PROPERTY(numberGiftCard);
         ADD PROPERTY(seriesGiftCard);
         ADD PROPERTY(priceGiftCard);
+        ADD PROPERTY(dateGiftCard);
+        ADD PROPERTY(expiryDaysGiftCard);
     }
     ADD functions.box;
 }
 
 FORM dialogGiftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLY seriesNumberGiftCard, priceGiftCard
+    PROPERTIES(g) READONLY seriesNumberGiftCard, priceGiftCard, dateGiftCard, expiryDaysGiftCard
     FILTERS soldGiftCard(g)
 
     DIALOG GiftCard OBJECT g
@@ -153,7 +161,7 @@ FORM dialogGiftCards 'Подарочные сертификаты'
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
     PROPERTIES(g) READONLY objectClassName, nameNumeratorObject, numberGiftCard, seriesGiftCard, priceGiftCard,
-                           isSoldGiftCard
+                           dateGiftCard, expiryDaysGiftCard, isSoldGiftCard
     PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE
 
@@ -171,6 +179,8 @@ NAVIGATOR {
 
 //использование подарочных сертификатов при оплате
 CLASS PaymentGiftCard : Payment, GiftCardLedger;
+
+@defineExternalizable(paymentGiftCard, VARSTRING[100]);
 
 giftCardPaymentGiftCard = DATA GiftCard (PaymentGiftCard);
 seriesNumberGiftCardPaymentGiftCard 'Серия/номер' (payment) = seriesNumberObject(giftCardPaymentGiftCard(payment));
