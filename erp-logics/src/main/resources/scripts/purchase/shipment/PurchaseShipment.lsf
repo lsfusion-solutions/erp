@@ -25,6 +25,19 @@ expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDet
 
 @defineInvoiceShipmentBatch();
 
+statusShippedInvoice 'Статус приемки' (invoice)= IF shippedInvoice(invoice) 
+                                                    THEN 'Оприходавана'
+                                                    ELSE 'Не оприходавана' IF invoice IS Invoice;
+backgroundShipInvoice 'Цвет' (invoice)= RGB(108, 255, 108) IF shippedInvoice(invoice);  
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY statusShippedInvoice BACKGROUND backgroundShipInvoice(i) BEFORE isPostedInvoice(i) 
+    
+    FILTERGROUP shipped 
+        FILTER 'Не оприходованы' 'F11' i IS Invoice AND NOT shippedInvoice(i)     
+        FILTER 'Оприходованы' 'F10' shippedInvoice(i) 
+;    
+
 //----------------------------------------------- Операции -----------------------------------------------------//
 
 @defineDocumentOperation(shipment, s);
