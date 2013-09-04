@@ -71,7 +71,7 @@ energyProductDetail 'Энерг.ценность (ед.)'(productDetail) = energ
 netWeightProduct 'Вес нетто, кг' (product)= netWeightItem(skuProduct(product));
 descriptionBOMProduct 'Спецификация'(product) = descriptionBOM(BOMProduct(product));
 
-FORM costCardOrderBy 'Калькуляционная карта' PRINT
+FORM costCardOrderBy 'Калькуляционная карта'
 
     OBJECTS o = Order FIXED PANEL
     PROPERTIES(o) objectClassName, nameProductsLegalEntityStockOrder, UNPProductsLegalEntityStockOrder, addressProductsLegalEntityStockOrder,
@@ -93,9 +93,9 @@ FORM costCardOrderBy 'Калькуляционная карта' PRINT
     FILTERS quantityProductDetailSku(pd,s)
 
 ;
-printCostCardOrder 'Калькуляционная карта' (order) = ACTION FORM costCardOrderBy OBJECTS o = order IMAGE 'print.png' IN printGroup;
+printCostCardOrder 'Калькуляционная карта' (order) = ACTION FORM costCardOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN printGroup;
 
-FORM intakeSheetOrderBy 'Заборный лист' PRINT
+FORM intakeSheetOrderBy 'Заборный лист'
 
     OBJECTS o = Order FIXED PANEL
     PROPERTIES(o) nameProductsLegalEntityStockOrder, nameComponentsStockOrder, nameProductsStockOrder, numberObject, seriesObject, seriesNumberObject,
@@ -108,14 +108,14 @@ FORM intakeSheetOrderBy 'Заборный лист' PRINT
     FILTERS orderProductDetail(pd)==o
 
 ;
-printIntakeSheetOrder 'Заборный лист' (order) = ACTION FORM intakeSheetOrderBy OBJECTS o = order IMAGE 'print.png' IN printGroup;
+printIntakeSheetOrder 'Заборный лист' (order) = ACTION FORM intakeSheetOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN printGroup;
 EXTEND FORM orders
     PROPERTIES(o) FORCE PANEL printCostCardOrder, printIntakeSheetOrder
 ;
 
 selectDateProduct = DATA SESSION BOOLEAN (DATE, Product);
 
-FORM technologicalCardsProductBy 'Технологическая карта' PRINT
+FORM technologicalCardsProductBy 'Технологическая карта'
     OBJECTS dt=DATE FIXED PANEL
     PROPERTIES (dt) OBJVALUE
 
@@ -138,7 +138,7 @@ printTechnologicalCardBOM 'Технологическая карта'  = ACTION 
             FOR BOMProduct(product) == BOM DO {
                 ASSIGN selectDateProduct(date,product) <- product IS Product WHERE date == chosenDate('d');
             }
-            FORM technologicalCardsProductBy  OBJECTS dt = chosenDate('d') MODAL;
+            FORM technologicalCardsProductBy  OBJECTS dt = chosenDate('d') MODAL PRINT;
         }
 } IMAGE 'print.png' IN printGroup;
 
@@ -156,7 +156,7 @@ printTechnologicalCardOrder 'Технологическая карта'  = ACTIO
     FOR quantityProductOrder(product,order) DO {
         ASSIGN selectDateProduct(date,product) <- product IS Product WHERE date == dateOrder(order);
     }
-    FORM technologicalCardsProductBy  OBJECTS dt = dateOrder(order) MODAL;
+    FORM technologicalCardsProductBy  OBJECTS dt = dateOrder(order) MODAL PRINT;
 
 } IMAGE 'print.png' IN printGroup;
 
@@ -170,7 +170,7 @@ EXTEND FORM orders
 //}
 
 // todo: глючит иерархия, печатает то два объекта (product) то шесть. Оставил для решения вопроса, если понадобится.
-//FORM technologicalCardBOMBy 'Технологическая карта' PRINT
+//FORM technologicalCardBOMBy 'Технологическая карта'
 //    OBJECTS dt=DATE FIXED PANEL
 //    PROPERTIES (dt) OBJVALUE
 //    OBJECTS b=BOM FIXED PANEL
@@ -192,11 +192,11 @@ EXTEND FORM orders
 //printTechnologicalCardBOM 'Технологическая карта'  = ACTION (BOM) {
 //    FORM dialogDate MODAL;
 //    IF formResult() == FormResult.ok THEN {
-//        FORM technologicalCardBOMBy OBJECTS b = BOM, dt = chosenDate('d');
+//        FORM technologicalCardBOMBy OBJECTS b = BOM, dt = chosenDate('d') PRINT;
 //    }
 //} IMAGE 'print.png' IN printGroup;
 
-FORM actStudyOfCulinaryBOM 'Акт контрольной проработки' PRINT
+FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'
 
     OBJECTS dt=DATE FIXED PANEL
     PROPERTIES (dt) OBJVALUE
@@ -225,7 +225,7 @@ printActStudyOfCulinaryBOM 'Акт контрольной проработки' 
 
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
-            FORM actStudyOfCulinaryBOM  OBJECTS dt = chosenDate('d'), b = BOM MODAL;
+            FORM actStudyOfCulinaryBOM  OBJECTS dt = chosenDate('d'), b = BOM MODAL PRINT;
         }
 
 } IMAGE 'print.png' IN printGroup;
