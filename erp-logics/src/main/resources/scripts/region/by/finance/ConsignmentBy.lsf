@@ -450,11 +450,24 @@ DESIGN consignment FROM DEFAULT {
 
 editConsignment 'Заполнить атрибуты накладной' (consignment) = ACTION FORM consignment OBJECTS c = consignment DOCKEDMODAL IMAGE 'edit.png';
 
+printDoubleSidedConsignmentsVertical 'Печать ТТН-1 (двусторонняя)' (consignment) = ACTION (consignment){
+    IF countConsignmentDetailConsignment(consignment) <= countRowsVerticalAB () THEN {
+        printConsignmentVerticalAB(consignment);
+    } ELSE {
+        IF  countConsignmentDetailConsignment(consignment) <= countRowsVerticalA () THEN {
+                printConsignmentVerticalA(consignment);
+                printConsignmentVerticalB(consignment);
+        } ELSE {
+                printConsignmentVerticalAB(consignment);
+                printConsignmentAttach(consignment);    
+        } 
+    }        
+}
 
 FORM printConsignment 'Печать накладных'
     OBJECTS c=Consignment FIXED PANEL
 
-    PROPERTIES (c)  printConsignmentSimpleVertical, printConsignmentSimpleHorizontal, printConsignmentSimpleAttach,
+    PROPERTIES (c)  printDoubleSidedConsignmentsVertical, printConsignmentSimpleVertical, printConsignmentSimpleHorizontal, printConsignmentSimpleAttach,
                     printConsignmentVerticalA, printConsignmentVerticalAB, printConsignmentHorizontalA, printConsignmentVerticalB,
                     printConsignmentHorizontalB, printConsignmentAttach, editConsignment
 ;
@@ -485,6 +498,7 @@ DESIGN printConsignment FROM DEFAULT {
             caption = 'ТТН-1';
             NEW ttn1V {
                 childConstraints = TO THE BOTTOM;
+                ADD PROPERTY(printDoubleSidedConsignmentsVertical);
                 ADD PROPERTY(printConsignmentVerticalA);
                 ADD PROPERTY(printConsignmentVerticalB);
                 ADD PROPERTY(printConsignmentVerticalAB);
