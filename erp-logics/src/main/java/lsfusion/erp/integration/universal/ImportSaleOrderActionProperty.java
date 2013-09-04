@@ -66,6 +66,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 Integer startRow = (Integer) LM.findLCPByCompoundName("startRowImportType").read(context, importTypeObject);
                 startRow = startRow == null ? 1 : startRow;
 
+                ObjectValue operation = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
                 ObjectValue supplier = LM.findLCPByCompoundName("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
                 DataObject supplierObject = supplier instanceof NullValue ? null : (DataObject) supplier;
                 ObjectValue supplierStock = LM.findLCPByCompoundName("autoImportSupplierStockImportType").readClasses(context, (DataObject) importTypeObject);
@@ -86,8 +88,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                         for (byte[] file : fileList) {
 
-                            importOrders(context, orderObject, importColumns, file, fileExtension.trim(), startRow, csvSeparator, itemKeyType,
-                                    supplierObject, supplierStockObject, customerObject, customerStockObject);
+                            importOrders(context, orderObject, importColumns, file, fileExtension.trim(), startRow,
+                                    csvSeparator, itemKeyType, operationObject, supplierObject, supplierStockObject,
+                                    customerObject, customerStockObject);
 
                         }
                     }
@@ -108,7 +111,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
     public void importOrders(ExecutionContext context, DataObject orderObject, Map<String, String> importColumns,
                              byte[] file, String fileExtension, Integer startRow, String csvSeparator, String itemKeyType,
-                             DataObject supplierObject, DataObject supplierStockObject, DataObject customerObject, DataObject customerStockObject)
+                             DataObject operationObject, DataObject supplierObject, DataObject supplierStockObject,
+                             DataObject customerObject, DataObject customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
         List<SaleOrderDetail> orderDetailsList;
@@ -149,6 +153,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             fields.add(idUserOrderDetailField);
             for (int i = 0; i < orderDetailsList.size(); i++)
                 data.get(i).add(orderDetailsList.get(i).idOrderDetail);
+
+            if (operationObject != null)
+                props.add(new ImportProperty(operationObject, LM.findLCPByCompoundName("Sale.operationOrder").getMapping(orderObject)));
 
             if (supplierObject != null) {
                 props.add(new ImportProperty(supplierObject, LM.findLCPByCompoundName("Sale.supplierOrderDetail").getMapping(orderDetailKey)));

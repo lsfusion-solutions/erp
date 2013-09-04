@@ -67,6 +67,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 Integer startRow = (Integer) LM.findLCPByCompoundName("startRowImportType").read(context, importTypeObject);
                 startRow = startRow == null ? 1 : startRow;
 
+                ObjectValue operation = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
+
                 Map<String, String> importColumns = readImportColumns(context, importTypeObject);
 
                 if (importColumns != null && fileExtension != null) {
@@ -78,7 +81,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                         for (byte[] file : fileList) {
 
-                            importUserInvoices(context, userInvoiceObject, importColumns, file, fileExtension.trim(), startRow, csvSeparator, itemKeyType);
+                            importUserInvoices(context, userInvoiceObject, importColumns, file, fileExtension.trim(), startRow,
+                                    csvSeparator, itemKeyType, operationObject);
 
                         }
                     }
@@ -97,8 +101,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         }
     }
 
-    protected void importUserInvoices(ExecutionContext context, DataObject userInvoiceObject, Map<String, String> importColumns,
-                                      byte[] file, String fileExtension, Integer startRow, String csvSeparator, String itemKeyType)
+    public void importUserInvoices(ExecutionContext context, DataObject userInvoiceObject, Map<String, String> importColumns,
+                                   byte[] file, String fileExtension, Integer startRow, String csvSeparator, String itemKeyType,
+                                   DataObject operationObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
         List<PurchaseInvoiceDetail> userInvoiceDetailsList;
@@ -139,6 +144,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             fields.add(idUserInvoiceDetailField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idUserInvoiceDetail);
+
+            if (operationObject != null)
+                props.add(new ImportProperty(operationObject, LM.findLCPByCompoundName("Purchase.operationUserInvoice").getMapping(userInvoiceObject)));
 
             ImportField idBarcodeSkuField = new ImportField(LM.findLCPByCompoundName("idBarcodeSku"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Barcode"),

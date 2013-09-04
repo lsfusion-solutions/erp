@@ -68,6 +68,8 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                 String csvSeparator = (String) entryValue.get("separatorImportType").getValue();
                 String captionImportKeyTypeImportType = (String) entryValue.get("captionImportKeyTypeImportType").getValue();
 
+                ObjectValue operation = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
                 ObjectValue autoImportSupplier = entryValue.get("autoImportSupplierImportType");
                 DataObject autoImportSupplierObject = autoImportSupplier instanceof NullValue ? null : (DataObject) autoImportSupplier;
                 ObjectValue autoImportSupplierStock = entryValue.get("autoImportSupplierStockImportType");
@@ -107,7 +109,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                                 new ImportSaleOrderActionProperty(LM).importOrders(context, orderObject, importColumns,
                                         IOUtils.getFileBytes(f), fileExtension.trim(), startRow,
                                         csvSeparator==null ? null : csvSeparator.trim(), captionImportKeyTypeImportType,
-                                        autoImportSupplierObject, autoImportSupplierStockObject,
+                                        operationObject, autoImportSupplierObject, autoImportSupplierStockObject,
                                         autoImportCustomerObject, autoImportCustomerStockObject);
                             }
                         }
