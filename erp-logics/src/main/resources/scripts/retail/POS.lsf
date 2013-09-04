@@ -49,9 +49,9 @@ currentSumCashCurrentCashRegister 'Сумма наличных в кассе' ()
 
 createCurrentReceipt 'Создать новый чек' = ACTION () {
     FOR ADDOBJ r = Receipt DO {
-        EXEC seek(r);
-        ASSIGN zReportReceipt(r) <- currentZReport();
-        ASSIGN numberReceipt(r) <- maxNumberReceiptZReport(currentZReport()) (+) 1;
+        seek(r);
+        zReportReceipt(r) <- currentZReport();
+        numberReceipt(r) <- maxNumberReceiptZReport(currentZReport()) (+) 1;
     }
 }
 
@@ -114,75 +114,61 @@ DESIGN postReceiptPayment FROM DEFAULT {
 }
 
 postReceipt 'Смешанный платеж' = ACTION (receipt) {
-    ASSIGN zReportReceipt(receipt) <- currentZReport();
-    //FOR receiptPayment(payment) == receipt DO {
+    zReportReceipt(receipt) <- currentZReport();
     DELETE payment WHERE receiptPayment(payment) == receipt;
-    //}
     IF sumReceiptDetailReceipt(receipt) THEN {
-        ADDOBJ Payment;
-        FOR p == addedObject() DO {
-            ASSIGN receiptPayment(p) <- receipt;
-            ASSIGN paymentTypePayment(p) <- minCashPaymentType();
+        FOR ADDOBJ p = Payment DO {
+            receiptPayment(p) <- receipt;
+            paymentTypePayment(p) <- minCashPaymentType();
         }
-        ADDOBJ Payment;
-        FOR p == addedObject() DO {
-            ASSIGN receiptPayment(p) <- receipt;
-            ASSIGN paymentTypePayment(p) <- minCardPaymentType();
+        FOR ADDOBJ p = Payment DO {
+            receiptPayment(p) <- receipt;
+            paymentTypePayment(p) <- minCardPaymentType();
         }
         FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
         IF formResult() == FormResult.ok THEN {
-            EXEC postPrintReceipt(receipt);
+            postPrintReceipt(receipt);
         } ELSE {
-            //FOR receiptPayment(p) == receipt DO {
             DELETE p WHERE receiptPayment(p) == receipt;
-            //}
         }
     }
 } EDITKEY 'F9' IN receiptActionGroup;
 
 postCardReceipt 'Карточкой' = ACTION (receipt) {
-    ASSIGN zReportReceipt(receipt) <- currentZReport();
-    //FOR receiptPayment(payment) == receipt DO {
+    zReportReceipt(receipt) <- currentZReport();
     DELETE payment WHERE receiptPayment(payment) == receipt;
-    //}
     IF sumReceiptDetailReceipt(receipt) THEN {
-        ADDOBJ Payment;
-        FOR p == addedObject() DO {
+        FOR ADDOBJ p = Payment DO {
             ASSIGN receiptPayment(p) <- receipt;
             ASSIGN paymentTypePayment(p) <- minCardPaymentType();
             ASSIGN sumPayment(p) <- sumReceiptDetailReceipt(receipt);
         }
-        EXEC postPrintReceipt(receipt);
+        postPrintReceipt(receipt);
     }
 } EDITKEY 'F10' CONFIRM IN receiptActionGroup;
 
 postCashReceipt 'Наличными' = ACTION (receipt) {
-    ASSIGN zReportReceipt(receipt) <- currentZReport();
-    //FOR receiptPayment(payment) == receipt DO {
+    zReportReceipt(receipt) <- currentZReport();
     DELETE payment WHERE receiptPayment(payment) == receipt;
-    //}
     IF sumReceiptDetailReceipt(receipt) THEN {
-        ADDOBJ Payment;
-        FOR p == addedObject() DO {
-            ASSIGN receiptPayment(p) <- receipt;
-            ASSIGN paymentTypePayment(p) <- minCashPaymentType();
-            ASSIGN sumPayment(p) <- sumReceiptDetailReceipt(receipt);
+        FOR ADDOBJ p = Payment DO {
+            receiptPayment(p) <- receipt;
+            paymentTypePayment(p) <- minCashPaymentType();
+            sumPayment(p) <- sumReceiptDetailReceipt(receipt);
         }
         FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
         IF formResult() == FormResult.ok THEN {
-            EXEC postPrintReceipt(receipt);
+            postPrintReceipt(receipt);
         } ELSE {
-            //FOR receiptPayment(p) == receipt DO {
             DELETE p WHERE receiptPayment(p) == receipt;
-            //}
         }
     }
 } EDITKEY 'F11' IN receiptActionGroup;
 
 cancelReceipt 'Отменить чек' = ACTION (receipt) {
     IF sumReceiptDetailReceipt(receipt) THEN {
-        EXEC cancel();
-        EXEC createCurrentReceipt();
+        cancel();
+        createCurrentReceipt();
     }
     EXEC fiscalCancelReceipt();
 } EDITKEY 'shift F11' CONFIRM IN receiptActionGroup;
@@ -256,12 +242,13 @@ consumedChangeBarcodeSaleReceipt = DATA SESSION BOOLEAN();
 overChangeBarcodeSaleReceipt = ABSTRACT ACTION LIST (STRING[15], Receipt);
 
 changeBarcodeSaleReceipt = ACTION (receipt) {
+    zReportReceipt(receipt) <- currentZReport();
     REQUEST STRING[15] INPUT;
-    consumedChangeBarcodeSaleReceipt() <- TRUE;
+    consumedChangeBarcodeSaleReceipt() <- NULL;
     overChangeBarcodeSaleReceipt(requestedString(), receipt);
     IF NOT consumedChangeBarcodeSaleReceipt() THEN{
         LOCAL dialogBarcodeSku = Sku();
-        ASSIGN dialogBarcodeSku() <- skuBarcodeIdDate(requestedString(), currentDate());
+        dialogBarcodeSku() <- skuBarcodeIdDate(requestedString(), currentDate());
 
         IF dialogBarcodeSku() IS Sku THEN {
             EXEC createReceiptSaleDetailSku(receipt, dialogBarcodeSku(), requestedString());
@@ -312,7 +299,7 @@ DESIGN searchSkuSaleReceipt FROM DEFAULT {
 }
 
 searchSkuSaleReceipt 'Поиск' = ACTION (receipt) {
-    ASSIGN zReportReceipt(receipt) <- currentZReport();
+    zReportReceipt(receipt) <- currentZReport();
     FORM searchSkuSaleReceipt OBJECTS st = departmentStoreReceipt(receipt), r = receipt MODAL;
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptSaleDetailSku(receipt, chosenObject('s'), idBarcodeSku(chosenObject('s')));
@@ -361,7 +348,7 @@ DESIGN searchBatchSaleReceipt FROM DEFAULT {
 }
 
 searchBatchSaleReceipt 'Поиск' = ACTION (receipt) {
-    ASSIGN zReportReceipt(receipt) <- currentZReport();
+    zReportReceipt(receipt) <- currentZReport();
     FORM searchBatchSaleReceipt OBJECTS st = departmentStoreReceipt(receipt), r = receipt MODAL;
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptSaleDetailBatch(receipt, chosenObject('b'), idBarcodeSkuBatch(chosenObject('b')));
@@ -413,7 +400,7 @@ DESIGN scanBarcodeReturnReceipt FROM DEFAULT {
 }
 
 scanBarcodeReturnReceipt 'Ввести штрих-код' = ACTION (receipt) {
-    ASSIGN zReportReceipt(receipt) <- currentZReport();
+    zReportReceipt(receipt) <- currentZReport();
     FORM barcodeInput MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL dialogBarcodeSku = Sku();
@@ -448,7 +435,7 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
 ;
 
 searchSkuReturnReceipt 'Поиск' = ACTION (receipt) {
-    ASSIGN zReportReceipt(receipt) <- currentZReport();
+    zReportReceipt(receipt) <- currentZReport();
     FORM searchSkuReturnReceipt OBJECTS st = departmentStoreReceipt(receipt) MODAL;
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptReturnDetail(receipt, chosenObject('r'), idBarcodeSku(skuReceiptSaleDetail(chosenObject('r'))));
@@ -514,20 +501,20 @@ openCurrentZReport 'Открыть Z-отчет' = ACTION () {
 } CONFIRM IN receiptZReportGroup;
 
 closeCurrentZReport 'Закрыть Z-отчет' = ACTION () {
-    EXEC cancel();
-    ASSIGN timeZReport(z) <- currentTime() WHERE z == currentZReport();
-    ASSIGN dateZReport(z) <- currentDate() WHERE z == currentZReport();
+    cancel();
+    timeZReport(z) <- currentTime() WHERE z == currentZReport();
+    dateZReport(z) <- currentDate() WHERE z == currentZReport();
     IF curSumCashCashOperation(cashRegisterZReport(currentZReport())) THEN {
         FOR ADDOBJ o = OutcomeCashOperation DO {
-            ASSIGN dateOutcomeCashOperation(o) <- dateZReport(currentZReport());
-            ASSIGN timeOutcomeCashOperation(o) <- timeZReport(currentZReport());
-            ASSIGN departmentStoreOutcomeCashOperation(o) <- departmentStoreZReport(currentZReport());
-            ASSIGN cashRegisterOutcomeCashOperation(o) <- cashRegisterZReport(currentZReport());
-            ASSIGN sumCashOutcomeCashOperation(o) <- curSumCashCashOperation(cashRegisterZReport(currentZReport()));
+            dateOutcomeCashOperation(o) <- dateZReport(currentZReport());
+            timeOutcomeCashOperation(o) <- timeZReport(currentZReport());
+            departmentStoreOutcomeCashOperation(o) <- departmentStoreZReport(currentZReport());
+            cashRegisterOutcomeCashOperation(o) <- cashRegisterZReport(currentZReport());
+            sumCashOutcomeCashOperation(o) <- curSumCashCashOperation(cashRegisterZReport(currentZReport()));
         }
     }
-    ASSIGN zReportCashRegister(cashRegister) <- NULL WHERE cashRegister == currentCashRegister();
-    EXEC apply();
+    zReportCashRegister(cashRegister) <- NULL WHERE cashRegister == currentCashRegister();
+    apply();
 } CONFIRM IN receiptZReportGroup;
 
 // --------------------------------- Применение акций ----------------------------- //
@@ -681,6 +668,9 @@ prevCurrentBalanceBatchReceiptDetail 'Тек. остаток' (receiptDetail) = 
 
 closedCurrentZReportMessage '' = 'Не открыт Z-отчет';
 
+posExplicitBatchLedgerReceipt(r) = explicitBatchLedgerReceipt(r) AND currentZReport();
+posNotExplicitBatchLedgerReceipt(r) = notExplicitBatchLedgerReceipt(r) AND currentZReport();
+
 FORM POS
     PROPERTIES() READONLY hostnameCurrentComputer, currentDateTime, currentUserName
 
@@ -688,8 +678,8 @@ FORM POS
 
     OBJECTS r = Receipt FIXED PANEL
     PROPERTIES(r) SHOWIF currentZReport() discountSumReceiptDetailReceipt, sumReceiptDetailReceipt,
-                                          searchSkuSaleReceipt SHOWIF notExplicitBatchLedgerReceipt(r),
-                                          searchBatchSaleReceipt SHOWIF explicitBatchLedgerReceipt(r),
+                                          searchSkuSaleReceipt SHOWIF posNotExplicitBatchLedgerReceipt(r),
+                                          searchBatchSaleReceipt SHOWIF posExplicitBatchLedgerReceipt(r),
                                           searchSkuReturnReceipt, scanBarcodeReturnReceipt,
                                           postReceipt, postCardReceipt, postCashReceipt, cancelReceipt,
                                           numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt,
@@ -697,8 +687,8 @@ FORM POS
 
     OBJECTS d = ReceiptDetail FIXED GRID
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID indexReceiptDetail, typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail,
-                                                              prevCurrentBalanceSkuReceiptDetail SHOWIF notExplicitBatchLedgerReceipt(r),
-                                                              prevCurrentBalanceBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(r)
+                                                              prevCurrentBalanceSkuReceiptDetail SHOWIF posNotExplicitBatchLedgerReceipt(r),
+                                                              prevCurrentBalanceBatchReceiptDetail SHOWIF posExplicitBatchLedgerReceipt(r)
     PROPERTIES(d) SHOWIF currentZReport() FORCE GRID quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountPercentReceiptSaleDetail,
                                                      discountSumReceiptDetail, numberVATReceiptDetail, valueVATReceiptDetail, deleted=DELETESESSION
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE PANEL idBarcodePanel = idBarcodeReceiptDetail,
@@ -707,7 +697,7 @@ FORM POS
                                                                shortNameUOMSkuPanel = shortNameUOMSkuReceiptDetail,
                                                                pricePanel = priceReceiptDetail,
                                                                sumPanel = sumReceiptDetail
-    PROPERTIES(d) SHOWIF currentZReport() FORCE PANEL nameBatchPanel = nameBatchReceiptDetail ON CHANGE changeBatchReceiptDetail(d) SHOWIF explicitBatchLedgerReceipt(r)
+    PROPERTIES(d) SHOWIF currentZReport() FORCE PANEL nameBatchPanel = nameBatchReceiptDetail ON CHANGE changeBatchReceiptDetail(d) SHOWIF posExplicitBatchLedgerReceipt(r)
     FILTERS receiptReceiptDetail(d) == r
 
     OBJECTS bs = STRING[15] FIXED PANEL
