@@ -1,6 +1,6 @@
 MODULE Payment;
 
-REQUIRE Bank, Document, LegalEntity, Numerator, PaymentLedger;
+REQUIRE Bank, Document, LegalEntity, Numerator, PaymentLedger, PaymentOperation;
 
 CLASS Payment 'Платеж' : NumeratedObject, PaymentLedger;
 CLASS PaymentPosted 'Проведенный платеж' : Payment, PostedObject;
@@ -66,6 +66,16 @@ CONSTRAINT PaymentLedger.legalEntityAccount(accountToPayment(payment)) != benefi
 CONSTRAINT currencyAccountFromPayment(payment) != currencyAccountToPayment(payment)
     CHECKED BY accountFromPayment, accountToPayment MESSAGE 'Валюта счета(с) должна совпадать с валютой счета(на)';
 
+//Операции
+operationPayment = DATA PaymentOperation.Operation (Payment);
+nameOperationPayment 'Операция' = PaymentOperation.nameOperation(operationPayment(Payment));
+idOperationPayment 'ID операции' = PaymentOperation.idOperation(operationPayment(Payment));
+
+@defineDocumentOperationLegalEntity(payment, payer, 'Плательщик');
+@defineDocumentOperationLegalEntity(payment, beneficiary, 'Бенефициар');
+
+@defineDocumentOperationRole(payment);
+
 //-------------------------------------------- Форма платежей -------------------------------------------------------//
 
 backgroundPaymentDate 'Цвет' (payment, date) = RGB(255,160,160) IF datePayment(payment) > date;
@@ -80,7 +90,7 @@ FORM payment 'Платеж'
     OBJECTS p = Payment FIXED PANEL
     PROPERTIES(p) objectClassName, nameNumeratorObject, numberObject, seriesObject, datePayment, timePayment, textPayment,
                   notePayment, namePayerPayment, nameBeneficiaryPayment, nameAccountToPayment, nameAccountFromPayment, sumPayment,
-                  nameCurrencyAccountToPayment, nameCurrencyAccountFromPayment
+                  nameCurrencyAccountToPayment, nameCurrencyAccountFromPayment, nameOperationPayment
     EVENTS
         ON OK prePostPayment(p)
 
@@ -125,6 +135,7 @@ DESIGN payment FROM DEFAULT{
         NEW paramContainer {
             type = CONTAINERH;
             caption = 'Параметры документа';
+            ADD PROPERTY(nameOperationPayment);
             ADD PROPERTY(sumPayment);
             ADD PROPERTY(notePayment);
         }
@@ -151,7 +162,7 @@ FORM payments 'Платежи'
     OBJECTS p = Payment
     PROPERTIES(p) BACKGROUND backgroundPaymentDate(p, d) READONLY numberObject, seriesObject, datePayment, timePayment,
                   namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
-                  nameCurrencyAccountToPayment, sumPayment, notePayment, objectClassName
+                  nameCurrencyAccountToPayment, sumPayment, notePayment, objectClassName, nameOperationPayment 
 
     PROPERTIES(p) ADDFORM, EDITFORM, deletep=DELETE
 
