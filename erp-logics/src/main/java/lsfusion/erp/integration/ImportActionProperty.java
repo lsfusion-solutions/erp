@@ -808,7 +808,7 @@ public class ImportActionProperty {
                     data.get(i).add(dataUserInvoiceDetail.get(i).expiryDate);
 
 
-                ImportField dataRateExchangeUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("dataRateExchangeUserInvoiceDetail"));
+                ImportField dataRateExchangeUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("Purchase.dataRateExchangeUserInvoiceDetail"));
                 props.add(new ImportProperty(dataRateExchangeUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.dataRateExchangeUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
                 fields.add(dataRateExchangeUserInvoiceDetailField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
