@@ -138,13 +138,47 @@ calcBaseManufacturingPriceUserInvoiceDetail (detail) = IF addCostPriceToManufact
 
 baseManufacturingPriceUserInvoiceDetail (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(detail))/100;
 
-WHEN SESSION FORMS userInvoice, declaration
-    CHANGED(baseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d))) DO {
+updateManufacturingPriceUserInvoiceDetail = ACTION (d) {
     IF roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)) THEN
         manufacturingPriceUserInvoiceDetail(d) <- roundPriceRoundCondition(baseManufacturingPriceUserInvoiceDetail(d), roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))
     ELSE
         manufacturingPriceUserInvoiceDetail(d) <- baseManufacturingPriceUserInvoiceDetail(d);
 }
+
+WHEN SESSION FORMS userInvoice, declaration
+    CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d))) DO {
+        updateManufacturingPriceUserInvoiceDetail(d);
+    }    
+
+calcManufacturingMarkupUserInvoiceDetail(d) =     
+    (NUMERIC[10,4] (manufacturingPriceUserInvoiceDetail(d) / calcBaseManufacturingPriceUserInvoiceDetail(d)) * 100.0 - 100.0);
+
+
+changeManufacturingPriceUserInvoiceDetail = ACTION (d) {
+    REQUEST NUMERIC[14,2] INPUT;
+
+    IF requestedNumeric() THEN {
+        manufacturingPriceUserInvoiceDetail(d) <- requestedNumeric();       
+        manufacturingMarkupUserInvoiceDetail(d) <- calcManufacturingMarkupUserInvoiceDetail(d);
+    } ELSE {
+        manufacturingPriceUserInvoiceDetail(d) <- NULL;
+        manufacturingMarkupUserInvoiceDetail(d) <- calcManufacturingMarkupUserInvoiceDetail(d);     
+    }
+}
+
+
+changeManufacturingMarkupUserInvoiceDetail = ACTION (d) {
+    REQUEST NUMERIC[8,2] INPUT;
+
+    IF requestedNumeric() THEN {
+        manufacturingMarkupUserInvoiceDetail(d) <- requestedNumeric();
+        updateManufacturingPriceUserInvoiceDetail(d);
+    } ELSE {
+        manufacturingMarkupUserInvoiceDetail(d) <- NULL;
+        updateManufacturingPriceUserInvoiceDetail(d);
+    }
+}
+
 
 baseManufacturingMarkupSumUserInvoiceDetail 'Сумма (надбавка)' (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * quantityUserInvoiceDetail(detail) * manufacturingMarkupUserInvoiceDetail(detail)/100;
 @defineDocumentHeaderSumCustomPrefix(userInvoice, userInvoiceDetail, baseManufacturingMarkup, ' (надбавка) всего');
@@ -178,6 +212,7 @@ discountSumInvoiceDetail 'Скидка от цены изг. (сумма)' (deta
 @defineDocumentInterfaceHeaderItemSum (invoice, discount, discount);
 @defineDocumentInterfaceHeaderItemSum (invoice, manufacturing, manufacturing);
 
+
 showManufacturingPriceHomeCurrencyUserInvoice(invoice) = showManufacturingPriceUserInvoice(invoice) AND isHomeCurrencyUserInvoice(invoice);
 
 EXTEND FORM userInvoice
@@ -186,8 +221,8 @@ EXTEND FORM userInvoice
                   nameManufacturingCalcPriceListTypeUserInvoice
     PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) dateManufacturingRateExchangeUserInvoice, rateManufacturingExchangeUserInvoice
     PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) AFTER invoiceSumUserInvoiceDetail manufacturingSumUserInvoiceDetail,
-                  includeVATUserInvoiceDetail, manufacturingPriceUserInvoiceDetail, //ON CHANGE changeManufacturingPriceUserInvoiceDetail(d),
-                  manufacturingMarkupUserInvoiceDetail
+                  includeVATUserInvoiceDetail, manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d),
+                  manufacturingMarkupUserInvoiceDetail ON CHANGE changeManufacturingMarkupUserInvoiceDetail(d)
 //    PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
 //                  curManufacturingPriceUserInvoiceDetail ON CHANGE changeCurManufacturingPriceUserInvoiceDetail(d)
 ;
