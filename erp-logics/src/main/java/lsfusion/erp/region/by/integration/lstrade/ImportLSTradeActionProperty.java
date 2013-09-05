@@ -250,8 +250,8 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
             String idItem = getFieldValue(quantityImportFile, "K_GRMAT", "Cp1251", null);
             BigDecimal quantityPackItem = getBigDecimalFieldValue(quantityImportFile, "PACKSIZE", "Cp1251", null);
 
-            if (quantityPackItem.equals(new BigDecimal(0)))
-                quantityPackItem = new BigDecimal(1);
+            if (quantityPackItem.equals(BigDecimal.ZERO))
+                quantityPackItem = BigDecimal.ONE;
             if (!quantities.containsKey(idItem)) {
                 quantities.put(idItem, quantityPackItem);
             }
