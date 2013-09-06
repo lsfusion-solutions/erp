@@ -49,12 +49,13 @@ END
 @defineContractLedgerPrefix(' (управленческая)', );
 @defineContractLedgerPrefix(' (бухгалтерская)', a);
 
-META implementContractLedger(prefix, object, contractProp)
+META implementContractLedger(prefix, objectClass, contractProp)
+    EXTEND CLASS objectClass : Contract###prefix##Ledger;
 
-    isPostedContract###prefix##Ledger(contract###prefix##Ledger) += isPosted###object(contract###prefix##Ledger);
-    dateTimeContract###prefix##Ledger(contract###prefix##Ledger) += dateTime###object(contract###prefix##Ledger);
-    contractContract###prefix##Ledger(contract###prefix##Ledger) += contractProp###object(contract###prefix##Ledger);
-    descriptionContract###prefix##Ledger(contract###prefix##Ledger) += description###object(contract###prefix##Ledger);
+    isPostedContract###prefix##Ledger(contract###prefix##Ledger) += isPosted###objectClass(contract###prefix##Ledger);
+    dateTimeContract###prefix##Ledger(contract###prefix##Ledger) += dateTime###objectClass(contract###prefix##Ledger);
+    contractContract###prefix##Ledger(contract###prefix##Ledger) += contractProp###objectClass(contract###prefix##Ledger);
+    descriptionContract###prefix##Ledger(contract###prefix##Ledger) += description###objectClass(contract###prefix##Ledger);
 
 END
 
@@ -194,15 +195,24 @@ writeOutContractLedgerLIFO 'Расписать по LIFO' = ACTION (outContractL
     ASSIGN costOutContractLedgerInContractLedger(outContractLedger, inContractLedger) <- sumInLIFOOutContractLedgerInContractLedger(outContractLedger, inContractLedger);
 }
 
-META implementInOutContractLedgerPrefix(prefix, object, contractProp)
+META implementInOutContractLedgerPrefix(prefix, objectClass, contractProp)
 
-    isPosted###prefix##ContractLedger(prefix##ContractLedger) += isPosted###object(prefix##ContractLedger);
-    dateTime###prefix##ContractLedger(prefix##ContractLedger) += dateTime###object(prefix##ContractLedger);
-    contract###prefix##ContractLedger(prefix##ContractLedger) += contractProp###object(prefix##ContractLedger);
-    description###prefix##ContractLedger(prefix##ContractLedger) += description###object(prefix##ContractLedger);
+    isPosted###prefix##ContractLedger(prefix##ContractLedger) += isPosted###objectClass(prefix##ContractLedger);
+    dateTime###prefix##ContractLedger(prefix##ContractLedger) += dateTime###objectClass(prefix##ContractLedger);
+    contract###prefix##ContractLedger(prefix##ContractLedger) += contractProp###objectClass(prefix##ContractLedger);
+    description###prefix##ContractLedger(prefix##ContractLedger) += description###objectClass(prefix##ContractLedger);
 
 END
 
+META implementInContractLedger(objectClass, contractProp)
+    EXTEND CLASS objectClass : InContractLedger;
+    @implementInOutContractLedgerPrefix(in, objectClass, contractProp);
+END
+
+META implementOutContractLedger(objectClass, contractProp)
+    EXTEND CLASS objectClass : OutContractLedger;
+    @implementInOutContractLedgerPrefix(out, objectClass, contractProp);
+END
 //------------------------------------------- Платеж по договору -----------------------------------------------------//
 
 debtSumContractDate 'Долг по документам' (contract, date) = GROUP SUM debtInContractLedgerDate(inContractLedger, date) IF

@@ -2,7 +2,7 @@ MODULE ContractPayment;
 
 REQUIRE ContractLedger, Payment, CreditMemo;
 
-EXTEND CLASS Payment : ContractLedger, ContractALedger, OutContractLedger;
+EXTEND CLASS Payment;
 
 contractPayment 'Контракт' (payment) = DATA Contract (Payment);
 seriesNumberContractPayment 'Номер' (payment) = seriesNumberContract(contractPayment(payment));
@@ -42,13 +42,13 @@ CONSTRAINT partyAContract(contractPayment(payment)) != beneficiaryPayment(paymen
 CONSTRAINT partyBContract(contractPayment(payment)) != payerPayment(payment)
     CHECKED BY contractPayment MESSAGE 'Выбранный договор не действителен для плательщика';
 
-@implementContractLedger( ,payment, contract);
+@implementContractLedger( , Payment, contract);
 sumContractLedger(contractLedger) += -sumContractPayment(contractLedger);
 
-@implementContractLedger(a ,payment, contract);
+@implementContractLedger(a , Payment, contract);
 sumContractALedger(contractALedger) += -sumContractPayment(contractALedger);
 
-@implementInOutContractLedgerPrefix(out, payment, contract);
+@implementOutContractLedger(Payment, contract);
 sumOutContractLedger(outContractLedger) += sumContractPayment(outContractLedger);
 
 //------------------------------------------- Actions --------------------------------------------------------------//
