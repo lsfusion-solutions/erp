@@ -224,6 +224,19 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                     data.get(i).add(orderDetailsList.get(i).idManufacturer);
             }
 
+            if (showField(orderDetailsList, "idCustomerStock")) {
+                ImportField idCustomerStockField = new ImportField(LM.findLCPByCompoundName("idCustomerStock"));
+                ImportKey<?> customerStockKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("CustomerStock"),
+                        LM.findLCPByCompoundName("customerStockId").getMapping(idCustomerStockField));
+                keys.add(customerStockKey);
+                props.add(new ImportProperty(idCustomerStockField, LM.findLCPByCompoundName("idCustomerStock").getMapping(customerStockKey)));
+                props.add(new ImportProperty(idCustomerStockField, LM.findLCPByCompoundName("Purchase.customerStockOrder").getMapping(orderObject),
+                        LM.object(LM.findClassByCompoundName("Stock")).getMapping(customerStockKey)));
+                fields.add(idCustomerStockField);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).idCustomerStock);
+            }
+
             if (showField(orderDetailsList, "quantity")) {
                 ImportField quantityOrderDetailField = new ImportField(LM.findLCPByCompoundName("Sale.quantityOrderDetail"));
                 props.add(new ImportProperty(quantityOrderDetailField, LM.findLCPByCompoundName("Sale.quantityOrderDetail").getMapping(orderDetailKey)));
@@ -312,6 +325,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String idBatch = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("idBatch")), null);
             String idItem = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("idItem")), null);
             String manufacturerItem = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("manufacturerItem")), null);
+            String idCustomerStock = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("idCustomerStock")), null);
             BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, getColumnNumber(importColumns.get("quantity")), null);
             BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, getColumnNumber(importColumns.get("price")), null);
             BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, getColumnNumber(importColumns.get("sum")), null);
@@ -321,8 +335,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal manufacturingPrice = getXLSBigDecimalFieldValue(sheet, i, getColumnNumber(importColumns.get("manufacturingPrice")), null);
 
             saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
-                    manufacturerItem, quantity, price, sum, allowedVAT.contains(valueVAT) ? valueVAT : null, sumVAT,
-                    invoiceSum, manufacturingPrice));
+                    manufacturerItem, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum,
+                    manufacturingPrice));
         }
 
         return saleOrderDetailList;
@@ -352,6 +366,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 String idBatch = getCSVFieldValue(values, getColumnNumber(importColumns.get("idBatch")), null);
                 String idItem = getCSVFieldValue(values, getColumnNumber(importColumns.get("idItem")), null);
                 String manufacturerItem = getCSVFieldValue(values, getColumnNumber(importColumns.get("manufacturerItem")), null);
+                String idCustomerStock = getCSVFieldValue(values, getColumnNumber(importColumns.get("idCustomerStock")), null);
                 BigDecimal quantity = getCSVBigDecimalFieldValue(values, getColumnNumber(importColumns.get("quantity")), null);
                 BigDecimal price = getCSVBigDecimalFieldValue(values, getColumnNumber(importColumns.get("price")), null);
                 BigDecimal sum = getCSVBigDecimalFieldValue(values, getColumnNumber(importColumns.get("sum")), null);
@@ -361,7 +376,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, getColumnNumber(importColumns.get("manufacturingPrice")), null);
 
                 saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
-                        manufacturerItem, quantity, price, sum, allowedVAT.contains(valueVAT) ? valueVAT : null, sumVAT,
+                        manufacturerItem, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, 
                         invoiceSum, manufacturingPrice));
             }
         }
@@ -384,6 +399,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String idBatch = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("idBatch")), null);
             String idItem = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("idItem")), null);
             String manufacturerItem = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("manufacturerItem")), null);
+            String idCustomerStock = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("idCustomerStock")), null);
             BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, getColumnNumber(importColumns.get("quantity")), null);
             BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, getColumnNumber(importColumns.get("price")), null);
             BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, getColumnNumber(importColumns.get("sum")), null);
@@ -393,8 +409,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal manufacturingPrice = getXLSXBigDecimalFieldValue(sheet, i, getColumnNumber(importColumns.get("manufacturingPrice")), null);
 
             saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
-                    manufacturerItem, quantity, price, sum, allowedVAT.contains(valueVAT) ? valueVAT : null, sumVAT,
-                    invoiceSum, manufacturingPrice));
+                    manufacturerItem, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum,
+                    manufacturingPrice));
         }
 
         return saleOrderDetailList;
@@ -422,6 +438,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), "cp866", null);
             String idItem = getDBFFieldValue(file, importColumns.get("idItem"), "cp866", null);
             String manufacturerItem = getDBFFieldValue(file, importColumns.get("manufacturerItem"), "cp866", null);
+            String idCustomerStock = getDBFFieldValue(file, importColumns.get("idCustomerStock"), "cp866", null);
             BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns.get("quantity"), "cp866", null);
             BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns.get("price"), "cp866", null);
             BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), "cp866", null);
@@ -431,7 +448,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns.get("manufacturingPrice"), "cp866", null);
 
             saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
-                    manufacturerItem, quantity, price, sum, allowedVAT.contains(valueVAT) ? valueVAT : null, sumVAT,
+                    manufacturerItem, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT,
                     invoiceSum, manufacturingPrice));
         }
 

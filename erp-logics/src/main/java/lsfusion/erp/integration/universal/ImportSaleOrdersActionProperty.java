@@ -5,6 +5,7 @@ import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -65,6 +66,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                 String directory = (String) entryValue.get("autoImportDirectoryImportType").getValue();
                 String fileExtension = (String) entryValue.get("captionImportTypeFileExtensionImportType").getValue();
                 Integer startRow = (Integer) entryValue.get("startRowImportType").getValue();
+                startRow = startRow == null ? 1 : startRow;
                 String csvSeparator = (String) entryValue.get("separatorImportType").getValue();
                 String captionImportKeyTypeImportType = (String) entryValue.get("captionImportKeyTypeImportType").getValue();
 
@@ -98,7 +100,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                         importColumns.put(field[field.length - 1], index.trim());
                 }
 
-                if (directory != null && fileExtension!=null) {
+                if (directory != null && fileExtension != null) {
                     File dir = new File(directory.trim());
 
                     if (dir.exists()) {
@@ -108,10 +110,12 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                                 DataObject orderObject = context.addObject((ConcreteCustomClass) LM.findClassByCompoundName("Sale.UserOrder"));
                                 new ImportSaleOrderActionProperty(LM).importOrders(context, orderObject, importColumns,
                                         IOUtils.getFileBytes(f), fileExtension.trim(), startRow,
-                                        csvSeparator==null ? null : csvSeparator.trim(), captionImportKeyTypeImportType,
+                                        csvSeparator == null ? null : csvSeparator.trim(), captionImportKeyTypeImportType,
                                         operationObject, autoImportSupplierObject, autoImportSupplierStockObject,
                                         autoImportCustomerObject, autoImportCustomerStockObject);
                             }
+
+                            renameImportedFile(context, f.getAbsolutePath());
                         }
                     }
                 }
@@ -126,6 +130,15 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
             throw new RuntimeException(e);
         } catch (ParseException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    protected void renameImportedFile(ExecutionContext context, String oldPath) {
+        File importedFile = new File(oldPath);
+        if (importedFile.isFile()) {
+            File renamedFile = new File(oldPath + "0");
+            if (!importedFile.renameTo(renamedFile))
+                context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
         }
     }
 }

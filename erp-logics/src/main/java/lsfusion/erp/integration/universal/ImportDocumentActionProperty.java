@@ -67,8 +67,12 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         return importColumns.isEmpty() ? null : importColumns;
     }
 
-    List<BigDecimal> allowedVAT = Arrays.asList(BigDecimal.valueOf(0.0), BigDecimal.valueOf(9.09), BigDecimal.valueOf(16.67), BigDecimal.valueOf(10.0), BigDecimal.valueOf(20.0), BigDecimal.valueOf(24.0));
+    private List<BigDecimal> allowedVAT = Arrays.asList(BigDecimal.valueOf(0.0), BigDecimal.valueOf(9.09), BigDecimal.valueOf(16.67), BigDecimal.valueOf(10.0), BigDecimal.valueOf(20.0), BigDecimal.valueOf(24.0));
 
+    protected BigDecimal VATifAllowed(BigDecimal VAT) {
+      return allowedVAT.contains(VAT) ? VAT : null;  
+    } 
+    
     protected String getCSVFieldValue(String[] values, Integer index, String defaultValue) throws ParseException {
         if (index == null) return defaultValue;
         return values.length <= index ? defaultValue : values[index];
