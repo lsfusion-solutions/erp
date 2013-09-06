@@ -981,8 +981,8 @@ public class ImportActionProperty {
                         data.get(i).add(dataUserInvoiceDetail.get(i).toDateCompliance);
                 }
 
-                ImportField isHomeCurrencyUserInvoiceField = new ImportField(LM.findLCPByCompoundName("isHomeCurrencyUserInvoice"));
-                props.add(new ImportProperty(isHomeCurrencyUserInvoiceField, LM.findLCPByCompoundName("isHomeCurrencyUserInvoice").getMapping(userInvoiceKey)));
+                ImportField isHomeCurrencyUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.isHomeCurrencyUserInvoice"));
+                props.add(new ImportProperty(isHomeCurrencyUserInvoiceField, LM.findLCPByCompoundName("Purchase.isHomeCurrencyUserInvoice").getMapping(userInvoiceKey)));
                 fields.add(isHomeCurrencyUserInvoiceField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).isHomeCurrency);
