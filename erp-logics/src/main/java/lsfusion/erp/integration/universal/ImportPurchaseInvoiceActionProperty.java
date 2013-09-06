@@ -70,6 +70,15 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ObjectValue operation = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
                 DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
 
+                ObjectValue supplier = LM.findLCPByCompoundName("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject supplierObject = supplier instanceof NullValue ? null : (DataObject) supplier;
+                ObjectValue supplierStock = LM.findLCPByCompoundName("autoImportSupplierStockImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject supplierStockObject = supplierStock instanceof NullValue ? null : (DataObject) supplierStock;
+                ObjectValue customer = LM.findLCPByCompoundName("autoImportCustomerImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject customerObject = customer instanceof NullValue ? null : (DataObject) customer;
+                ObjectValue customerStock = LM.findLCPByCompoundName("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
+                DataObject customerStockObject = customerStock instanceof NullValue ? null : (DataObject) customerStock;
+
                 Map<String, String> importColumns = readImportColumns(context, importTypeObject);
 
                 if (importColumns != null && fileExtension != null) {
@@ -82,7 +91,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         for (byte[] file : fileList) {
 
                             importUserInvoices(context, userInvoiceObject, importColumns, file, fileExtension.trim(), startRow,
-                                    csvSeparator, itemKeyType, operationObject);
+                                    csvSeparator, itemKeyType, operationObject, supplierObject, supplierStockObject,
+                                    customerObject, customerStockObject);
 
                         }
                     }
@@ -103,7 +113,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
     public void importUserInvoices(ExecutionContext context, DataObject userInvoiceObject, Map<String, String> importColumns,
                                    byte[] file, String fileExtension, Integer startRow, String csvSeparator, String itemKeyType,
-                                   DataObject operationObject)
+                                   DataObject operationObject, DataObject supplierObject, DataObject supplierStockObject,
+                                   DataObject customerObject, DataObject customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
         List<PurchaseInvoiceDetail> userInvoiceDetailsList;
@@ -147,7 +158,27 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             if (operationObject != null)
                 props.add(new ImportProperty(operationObject, LM.findLCPByCompoundName("Purchase.operationUserInvoice").getMapping(userInvoiceObject)));
+            
+            if (supplierObject != null) {
+                props.add(new ImportProperty(supplierObject, LM.findLCPByCompoundName("Sale.supplierOrderDetail").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(supplierObject, LM.findLCPByCompoundName("Sale.supplierOrder").getMapping(userInvoiceObject)));
+            }
 
+            if (supplierStockObject != null) {
+                props.add(new ImportProperty(supplierStockObject, LM.findLCPByCompoundName("Sale.supplierStockOrderDetail").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(supplierStockObject, LM.findLCPByCompoundName("Sale.supplierStockOrder").getMapping(userInvoiceObject)));
+            }
+
+            if (customerObject != null) {
+                props.add(new ImportProperty(customerObject, LM.findLCPByCompoundName("Sale.customerOrderDetail").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(customerObject, LM.findLCPByCompoundName("Sale.customerOrder").getMapping(userInvoiceObject)));
+            }
+
+            if (customerStockObject != null) {
+                props.add(new ImportProperty(customerStockObject, LM.findLCPByCompoundName("Sale.customerStockOrderDetail").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(customerStockObject, LM.findLCPByCompoundName("Sale.customerStockOrder").getMapping(userInvoiceObject)));
+            }
+            
             ImportField idBarcodeSkuField = new ImportField(LM.findLCPByCompoundName("idBarcodeSku"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Barcode"),
                     LM.findLCPByCompoundName("extBarcodeId").getMapping(idBarcodeSkuField));
