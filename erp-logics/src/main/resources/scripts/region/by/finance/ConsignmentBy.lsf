@@ -318,35 +318,112 @@ END
 @defineConsignmentFormSimple(consignmentSimpleHorizontal, 'ТН-2, горизонтальная');
 @defineConsignmentFormSimple(consignmentSimpleAttach, 'Приложение к ТН-2');
 
-META defineConsignmentForm(form, caption)
+//META defineConsignmentForm(form, caption)
+//    FORM form caption
+//        OBJECTS c=Consignment FIXED PANEL
+//
+//        PROPERTIES (c) dateConsignment, UNPCustomerConsignment, UNPSupplierConsignment, addressSupplierConsignment, addressCustomerConsignment, fullNameSupplierConsignment,
+//                       fullNameCustomerConsignment, nameTruckConsignment, ownerTruckConsignment, trailerConsignment, nameDriverConsignment, overWaybillConsignment,
+//                       fullNamePayerConsignment, UNPPayerConsignment, addressPayerConsignment, shipmentBaseConsignment, addressSupplierStockConsignment, addressCustomerStockConsignment,
+//                       readdressingConsignment, nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment,
+//                       forwarderConsignment, warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
+//                       nameLoadingExecuterConsignment, nameWayOfLoadingConsignment, codeLoadingConsignment,
+//                       arrivalTimeConsignment, departureTimeConsignment, downtimeConsignment, raceQuantityConsignment,
+//                       quantityConsignmentDetailConsignment, overPackQuantityConsignmentDetailConsignment, grossWeightTonConsignmentDetailConsignment, grossWeightConsignmentDetailConsignment,
+//                       sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment, sumInvoiceConsignmentDetailConsignment,
+//                       countConsignmentDetailConsignment, supplierSumConsignmentDetailConsignment,
+//                       seriesObject, numberObject, isCustomsFlowConsignment, isCurrencyConsignment, shortNameCurrencyConsignment,
+//                       noteConsignment, documentNameCurrencyConsignment
+//        PROPERTIES()   TODRAW c countRowsVerticalA, countRowsVerticalAB, countRowsHorizontal
+//        OBJECTS d=ConsignmentDetail
+//
+//        PROPERTIES(d) nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
+//                      sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
+//                      packQuantityConsignmentDetail, grossWeightTonConsignmentDetail, noteConsignmentDetail, extraDescriptionConsignmentDetail
+//
+//
+//        FILTERS consignmentConsignmentDetail(d) == c
+//    ;
+//    print###form caption (consignment) = ACTION FORM form OBJECTS c = consignment PRINT IMAGE 'print.png' IN printGroup;
+//    print###form###Auto caption (consignment) = ACTION FORM form OBJECTS c = consignment PRINT AUTO IMAGE 'print.png' IN printGroup;
+//END
+
+
+META defineConsignmentForm(form, caption)  // объявляем форму
     FORM form caption
-        OBJECTS c=Consignment FIXED PANEL
-
-        PROPERTIES (c) dateConsignment, UNPCustomerConsignment, UNPSupplierConsignment, addressSupplierConsignment, addressCustomerConsignment, fullNameSupplierConsignment,
-                       fullNameCustomerConsignment, nameTruckConsignment, ownerTruckConsignment, trailerConsignment, nameDriverConsignment, overWaybillConsignment,
-                       fullNamePayerConsignment, UNPPayerConsignment, addressPayerConsignment, shipmentBaseConsignment, addressSupplierStockConsignment, addressCustomerStockConsignment,
-                       readdressingConsignment, nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment,
-                       forwarderConsignment, warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
-                       nameLoadingExecuterConsignment, nameWayOfLoadingConsignment, codeLoadingConsignment,
-                       arrivalTimeConsignment, departureTimeConsignment, downtimeConsignment, raceQuantityConsignment,
-                       quantityConsignmentDetailConsignment, overPackQuantityConsignmentDetailConsignment, grossWeightTonConsignmentDetailConsignment, grossWeightConsignmentDetailConsignment,
-                       sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment, sumInvoiceConsignmentDetailConsignment,
-                       countConsignmentDetailConsignment, supplierSumConsignmentDetailConsignment,
-                       seriesObject, numberObject, isCustomsFlowConsignment, isCurrencyConsignment, shortNameCurrencyConsignment,
-                       noteConsignment, documentNameCurrencyConsignment
-        PROPERTIES()   TODRAW c countRowsVerticalA, countRowsVerticalAB, countRowsHorizontal
-        OBJECTS d=ConsignmentDetail
-
-        PROPERTIES(d) nameSkuConsignmentDetail, shortNameUOMConsignmentDetail, quantityConsignmentDetail, priceConsignmentDetail,
-                      sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
-                      packQuantityConsignmentDetail, grossWeightTonConsignmentDetail, noteConsignmentDetail, extraDescriptionConsignmentDetail
-
-
-        FILTERS consignmentConsignmentDetail(d) == c
     ;
-    print###form caption (consignment) = ACTION FORM form OBJECTS c = consignment PRINT IMAGE 'print.png' IN printGroup;
-    print###form###Auto caption (consignment) = ACTION FORM form OBJECTS c = consignment PRINT AUTO IMAGE 'print.png' IN printGroup;
 END
+META defineConsignmentObject(form, prefix)  // добавляем объет на форму (по сторонам)
+    EXTEND FORM form 
+        OBJECTS prefix=Consignment FIXED PANEL
+    ;
+END
+META defineConsignmentObjectAll(form, prefix, report) // добавляем объет на форму (сквозная)
+    EXTEND FORM form 
+        OBJECTS prefix=Consignment REPORTFILE report() FIXED PANEL
+    ;
+END
+
+META defineExtendConsignmentForm(form, prefix) // добавляем свойства (по сторонам / сквозная)
+    EXTEND FORM form 
+        PROPERTIES (prefix) prefix##dateConsignment=dateConsignment, prefix##UNPCustomerConsignment=UNPCustomerConsignment, 
+                       prefix##UNPSupplierConsignment=UNPSupplierConsignment, prefix##addressSupplierConsignment=addressSupplierConsignment, 
+                       prefix##addressCustomerConsignment=addressCustomerConsignment, prefix##fullNameSupplierConsignment=fullNameSupplierConsignment,
+                       prefix##fullNameCustomerConsignment=fullNameCustomerConsignment, prefix##nameTruckConsignment=nameTruckConsignment, 
+                       prefix##ownerTruckConsignment=ownerTruckConsignment, prefix##trailerConsignment=trailerConsignment, 
+                       prefix##nameDriverConsignment=nameDriverConsignment, prefix##overWaybillConsignment=overWaybillConsignment,
+                       prefix##fullNamePayerConsignment=fullNamePayerConsignment, prefix##UNPPayerConsignment=UNPPayerConsignment, 
+                       prefix##addressPayerConsignment=addressPayerConsignment, 
+                       prefix##shipmentBaseConsignment=shipmentBaseConsignment, prefix##addressSupplierStockConsignment=addressSupplierStockConsignment, 
+                       prefix##addressCustomerStockConsignment=addressCustomerStockConsignment,
+                       prefix##readdressingConsignment=readdressingConsignment, prefix##nameIssuanceAllowedConsignment=nameIssuanceAllowedConsignment, 
+                       prefix##nameIssuanceExecutedConsignment=nameIssuanceExecutedConsignment,
+                       prefix##forwarderConsignment=forwarderConsignment, prefix##warrantConsignment=warrantConsignment, 
+                       prefix##warrantHolderConsignment=warrantHolderConsignment, prefix##goodsAcceptedConsignment=goodsAcceptedConsignment,
+                       prefix##nameLoadingExecuterConsignment=nameLoadingExecuterConsignment, prefix##nameWayOfLoadingConsignment=nameWayOfLoadingConsignment, 
+                       prefix##codeLoadingConsignment=codeLoadingConsignment,
+                       prefix##arrivalTimeConsignment=arrivalTimeConsignment, prefix##departureTimeConsignment=departureTimeConsignment, 
+                       prefix##downtimeConsignment=downtimeConsignment, prefix##raceQuantityConsignment=raceQuantityConsignment,
+                       prefix##quantityConsignmentDetailConsignment=quantityConsignmentDetailConsignment, 
+                       prefix##overPackQuantityConsignmentDetailConsignment=overPackQuantityConsignmentDetailConsignment, 
+                       prefix##grossWeightTonConsignmentDetailConsignment=grossWeightTonConsignmentDetailConsignment, 
+                       prefix##grossWeightConsignmentDetailConsignment=grossWeightConsignmentDetailConsignment,
+                       prefix##sumConsignmentDetailConsignment=sumConsignmentDetailConsignment, 
+                       prefix##sumVATConsignmentDetailConsignment=sumVATConsignmentDetailConsignment, 
+                       prefix##sumInvoiceConsignmentDetailConsignment=sumInvoiceConsignmentDetailConsignment,
+                       prefix##countConsignmentDetailConsignment=countConsignmentDetailConsignment, 
+                       prefix##supplierSumConsignmentDetailConsignment=supplierSumConsignmentDetailConsignment,
+                       prefix##seriesObject=seriesObject, prefix##numberObject=numberObject, prefix##isCustomsFlowConsignment=isCustomsFlowConsignment, 
+                       prefix##isCurrencyConsignment=isCurrencyConsignment, prefix##shortNameCurrencyConsignment=shortNameCurrencyConsignment,
+                       prefix##noteConsignment=noteConsignment, prefix##documentNameCurrencyConsignment=documentNameCurrencyConsignment    
+        PROPERTIES()   TODRAW prefix prefix##countRowsVerticalA=countRowsVerticalA, prefix##countRowsVerticalAB=countRowsVerticalAB, 
+                       prefix##countRowsHorizontal=countRowsHorizontal
+ 
+ 
+        OBJECTS prefix##d=ConsignmentDetail
+
+        PROPERTIES(prefix##d) prefix##nameSkuConsignmentDetail=nameSkuConsignmentDetail, prefix##shortNameUOMConsignmentDetail=shortNameUOMConsignmentDetail, 
+                      prefix##quantityConsignmentDetail=quantityConsignmentDetail, prefix##priceConsignmentDetail=priceConsignmentDetail,
+                      prefix##sumConsignmentDetail=sumConsignmentDetail, prefix##vatConsignmentDetail=vatConsignmentDetail, 
+                      prefix##sumVATConsignmentDetail=sumVATConsignmentDetail, prefix##sumInvoiceConsignmentDetail=sumInvoiceConsignmentDetail,
+                      prefix##packQuantityConsignmentDetail=packQuantityConsignmentDetail, prefix##grossWeightTonConsignmentDetail=grossWeightTonConsignmentDetail,
+                      prefix##noteConsignmentDetail=noteConsignmentDetail, prefix##extraDescriptionConsignmentDetail=extraDescriptionConsignmentDetail
+
+        FILTERS consignmentConsignmentDetail(prefix##d) == prefix
+    ;        
+          
+END 
+META definePrintConsignmentForm(form, caption, prefix)  //печать накладной по сторонам
+        print###form caption (consignment) = ACTION FORM form OBJECTS prefix = consignment PRINT IMAGE 'print.png' IN printGroup;
+        print###form###Auto caption (consignment) = ACTION FORM form OBJECTS prefix = consignment PRINT AUTO IMAGE 'print.png' IN printGroup; 
+END  
+  
+META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       //печать накладной сквозная
+        print###form caption (consignment) = ACTION FORM form OBJECTS prefixA = consignment, prefixB = consignment PRINT IMAGE 'print.png' IN printGroup;
+        print###form###Auto caption (consignment) = ACTION FORM form OBJECTS prefixA = consignment, prefixB = consignment PRINT AUTO IMAGE 'print.png' IN printGroup; 
+END   
+
+//-------------------  Создание накладной по сторонам ----------------------//
 
 @defineConsignmentForm(consignmentVerticalA, 'ТТН-1, вертикальная (сторона А)');
 @defineConsignmentForm(consignmentHorizontalA, 'ТТН-1, горизонтальная (сторона А)');
@@ -354,6 +431,48 @@ END
 @defineConsignmentForm(consignmentHorizontalB, 'ТТН-1, горизонтальная (сторона Б)');
 @defineConsignmentForm(consignmentAttach, 'Приложение к ТТН-1');
 @defineConsignmentForm(consignmentVerticalAB, 'ТТН-1, вертикальная (сторона А/Б)');
+
+@defineConsignmentObject(consignmentVerticalA, a);
+@defineConsignmentObject(consignmentHorizontalA, a);
+@defineConsignmentObject(consignmentVerticalB, b);
+@defineConsignmentObject(consignmentHorizontalB, b);
+@defineConsignmentObject(consignmentAttach, c);
+@defineConsignmentObject(consignmentVerticalAB, a);
+
+@defineExtendConsignmentForm(consignmentVerticalA, a);
+@defineExtendConsignmentForm(consignmentHorizontalA, a);
+@defineExtendConsignmentForm(consignmentVerticalB, b);
+@defineExtendConsignmentForm(consignmentHorizontalB, b);
+@defineExtendConsignmentForm(consignmentAttach, c);
+@defineExtendConsignmentForm(consignmentVerticalAB, a);
+
+@definePrintConsignmentForm(consignmentVerticalA, 'ТТН-1, вертикальная (сторона А)', a);
+@definePrintConsignmentForm(consignmentHorizontalA, 'ТТН-1, горизонтальная (сторона А)', a);
+@definePrintConsignmentForm(consignmentVerticalB, 'ТТН-1, вертикальная (сторона Б)', b);
+@definePrintConsignmentForm(consignmentHorizontalB, 'ТТН-1, горизонтальная (сторона Б)', b);
+@definePrintConsignmentForm(consignmentAttach, 'Приложение к ТТН-1', c);
+@definePrintConsignmentForm(consignmentVerticalAB, 'ТТН-1, вертикальная (сторона А/Б)', a);
+
+//-------------------  Создание сквозной накладной  ----------------------//
+
+@defineConsignmentForm(consignmentVertical, 'ТТН-1, вертикальная');
+reportFilePrintConsignmentVerticalA () = 'Consignment_consignmentVerticalA_a.jrxml';
+@defineConsignmentObjectAll(consignmentVertical, a, reportFilePrintConsignmentVerticalA);
+reportFilePrintConsignmentVerticalB () = 'Consignment_consignmentVerticalB_b.jrxml';
+@defineConsignmentObjectAll(consignmentVertical, b, reportFilePrintConsignmentVerticalB);
+@defineExtendConsignmentForm(consignmentVertical, a);
+@defineExtendConsignmentForm(consignmentVertical, b);
+@defineExtendPrintConsignmentFormAll(consignmentVertical, 'ТТН-1, вертикальная', a, b);
+
+
+@defineConsignmentForm(consignmentHorizontal, 'ТТН-1, горизонтальная');
+reportFilePrintConsignmentHorizontalA () = 'Consignment_consignmentHorizontalA_a.jrxml';
+@defineConsignmentObjectAll(consignmentHorizontal, a, reportFilePrintConsignmentHorizontalA);
+reportFilePrintConsignmentHorizontalB () = 'Consignment_consignmentHorizontalB_b.jrxml';
+@defineConsignmentObjectAll(consignmentHorizontal, b, reportFilePrintConsignmentHorizontalB);
+@defineExtendConsignmentForm(consignmentHorizontal, a);
+@defineExtendConsignmentForm(consignmentHorizontal, b);
+@defineExtendPrintConsignmentFormAll(consignmentHorizontal, 'ТТН-1, горизонтальная', a, b);
 
 FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment FIXED PANEL
@@ -489,7 +608,8 @@ FORM printConsignment 'Печать накладных'
 
     PROPERTIES (c)  printDoubleSidedConsignmentsVertical, printConsignmentSimpleVertical, printConsignmentSimpleHorizontal, printConsignmentSimpleAttach,
                     printConsignmentVerticalA, printConsignmentVerticalAB, printConsignmentHorizontalA, printConsignmentVerticalB,
-                    printConsignmentHorizontalB, printConsignmentAttach, editConsignment
+                    printConsignmentHorizontalB, printConsignmentAttach, editConsignment,
+                    printConsignmentVertical, printConsignmentHorizontal
 ;
 
 DESIGN printConsignment FROM DEFAULT {
@@ -521,7 +641,9 @@ DESIGN printConsignment FROM DEFAULT {
                 ADD PROPERTY(printDoubleSidedConsignmentsVertical);
                 ADD PROPERTY(printConsignmentVerticalA);
                 ADD PROPERTY(printConsignmentVerticalB);
-                ADD PROPERTY(printConsignmentVerticalAB);
+                ADD PROPERTY(printConsignmentVerticalAB);  
+                ADD PROPERTY(printConsignmentVertical);   
+                ADD PROPERTY(printConsignmentHorizontal);
             }
             NEW ttn1H {
                 childConstraints = TO THE BOTTOM;
