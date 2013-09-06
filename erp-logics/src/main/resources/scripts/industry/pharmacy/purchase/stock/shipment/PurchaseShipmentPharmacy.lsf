@@ -1,9 +1,10 @@
 MODULE PurchaseShipmentPharmacy;
 
-REQUIRE PurchaseShipment, PurchaseInvoicePharmacy, StockPharmacy;
+REQUIRE PurchaseShipment, PurchaseInvoicePharmacy, StockPharmacy, Country;
 
 NAMESPACE Purchase;
 
+// серия лекарства
 seriesPharmacyShipmentDetail 'Серия лекарственного средства' = ABSTRACT VARSTRING[20] (ShipmentDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
 
 seriesPharmacyUserShipmentDetail 'Серия лекарственного средства' = DATA VARSTRING[20] (UserShipmentDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
@@ -15,11 +16,26 @@ seriesPharmacyShipmentDetail(detail) += seriesPharmacyInvoiceShipmentDetail(deta
 
 seriesPharmacyBatch (batch) += seriesPharmacyShipmentDetail(shipmentDetailShipmentBatch(batch));
 
+// страна производства
+importCountryShipmentDetail 'Страна ввоза' = ABSTRACT Country (ShipmentDetail);
+nameImportCountryShipmentDetail 'Страна ввоза' = nameCountry(importCountryShipmentDetail(shipmentDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+
+importCountryUserShipmentDetail 'Страна ввоза' = DATA Country (UserShipmentDetail);
+nameImportCountryUserShipmentDetail 'Страна ввоза' = nameCountry(importCountryUserShipmentDetail(shipmentDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+
+@defineDocumentAggregationDetailProperty (invoice, invoiceShipment, importCountry, 'Страна производства');
+
+importCountryShipmentDetail(detail) += importCountryUserShipmentDetail(detail);
+importCountryShipmentDetail(detail) += importCountryInvoiceShipmentDetail(detail);
+
+importCountryBatch (batch) += importCountryShipmentDetail(shipmentDetailShipmentBatch(batch));
 
 EXTEND FORM userShipment
-    PROPERTIES(d) seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchUserShipmentDetail
+    PROPERTIES(d) seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchUserShipmentDetail, 
+                  nameImportCountryUserShipmentDetail SHOWIF showImportCountry() BEFORE nameBatchUserShipmentDetail
 ;
 
 EXTEND FORM shipments
-    PROPERTIES(d) READONLY seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchShipmentDetail
+    PROPERTIES(d) READONLY seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchShipmentDetail, 
+                           nameImportCountryShipmentDetail SHOWIF showImportCountry() BEFORE nameBatchShipmentDetail
 ;

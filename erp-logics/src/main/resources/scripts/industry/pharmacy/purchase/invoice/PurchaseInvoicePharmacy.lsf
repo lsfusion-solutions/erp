@@ -4,16 +4,28 @@ REQUIRE System, PurchaseInvoice, StockPharmacy;
 
 NAMESPACE Purchase;
 
+// серия лекарства
 seriesPharmacyInvoiceDetail 'Серия лекарственного средства' = ABSTRACT VARSTRING[20] (InvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
 seriesPharmacyUserInvoiceDetail 'Серия лекарственного средства' = DATA VARSTRING[20] (UserInvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
 seriesPharmacyInvoiceDetail(detail) += seriesPharmacyUserInvoiceDetail(detail);
 
+// страна производства
+importCountryInvoiceDetail 'Страна ввоза' = ABSTRACT Country (InvoiceDetail);
+nameImportCountryInvoiceDetail 'Страна ввоза' = nameCountry(importCountryInvoiceDetail(invoiceDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+
+importCountryUserInvoiceDetail 'Страна ввоза' = DATA Country (UserInvoiceDetail);
+nameImportCountryUserInvoiceDetail 'Страна ввоза' = nameCountry(importCountryUserInvoiceDetail(invoiceDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+
+importCountryInvoiceDetail(detail) += importCountryUserInvoiceDetail(detail);
+
 EXTEND FORM userInvoice
-    PROPERTIES(d) seriesPharmacyUserInvoiceDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchUserInvoiceDetail
+    PROPERTIES(d) seriesPharmacyUserInvoiceDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchUserInvoiceDetail, 
+                  nameImportCountryUserInvoiceDetail SHOWIF showImportCountry() BEFORE nameBatchUserInvoiceDetail 
 ;
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY seriesPharmacyInvoiceDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchInvoiceDetail
+    PROPERTIES(d) READONLY seriesPharmacyInvoiceDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchInvoiceDetail, 
+                           nameImportCountryInvoiceDetail SHOWIF showImportCountry() BEFORE nameBatchInvoiceDetail
 ;
 
 
