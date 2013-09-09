@@ -2,6 +2,7 @@ package lsfusion.erp.integration.universal;
 
 import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
+import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
@@ -428,7 +429,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
             String numberUserInvoice = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("numberDocument")), null);
             String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
-            String barcodeItem = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("barcodeItem")), null);
+            String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("barcodeItem")), null));
             String idBatch = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("idBatch")), null);
             String idItem = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("idItem")), null);
             String captionItem = getXLSFieldValue(sheet, i, getColumnNumber(importColumns.get("captionItem")), null);
@@ -482,7 +483,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 String numberUserInvoice = getCSVFieldValue(values, getColumnNumber(importColumns.get("numberDocument")), null);
                 String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + count;
-                String barcodeItem = getCSVFieldValue(values, getColumnNumber(importColumns.get("barcodeItem")), null);
+                String barcodeItem = BarcodeUtils.convertBarcode12To13(getCSVFieldValue(values, getColumnNumber(importColumns.get("barcodeItem")), null));
                 String idBatch = getCSVFieldValue(values, getColumnNumber(importColumns.get("idBatch")), null);
                 String idItem = getCSVFieldValue(values, getColumnNumber(importColumns.get("idItem")), null);
                 String captionItem = getCSVFieldValue(values, getColumnNumber(importColumns.get("captionItem")), null);
@@ -529,7 +530,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             String numberUserInvoice = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("numberDocument")), null);
             String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
-            String barcodeItem = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("barcodeItem")), null);
+            String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("barcodeItem")), null));
             String idBatch = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("idBatch")), null);
             String idItem = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("idItem")), null);
             String captionItem = getXLSXFieldValue(sheet, i, getColumnNumber(importColumns.get("captionItem")), null);
@@ -581,7 +582,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             String numberUserInvoice = getDBFFieldValue(file, importColumns.get("numberDocument"), "cp866", null);
             String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
-            String barcodeItem = getDBFFieldValue(file, importColumns.get("barcodeItem"), "cp866", null);
+            String barcodeItem = BarcodeUtils.convertBarcode12To13(getDBFFieldValue(file, importColumns.get("barcodeItem"), "cp866", null));
             String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), "cp866", null);
             String idItem = getDBFFieldValue(file, importColumns.get("idItem"), "cp866", null);
             String captionItem = getDBFFieldValue(file, importColumns.get("captionItem"), "cp866", null);

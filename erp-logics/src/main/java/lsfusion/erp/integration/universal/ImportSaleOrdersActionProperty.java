@@ -135,9 +135,11 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
 
     protected void renameImportedFile(ExecutionContext context, String oldPath, String extension) {
         File importedFile = new File(oldPath);
-        String newExtension = extension.substring(0, extension.length()-1) + "e";
-        if (importedFile.isFile() && oldPath.endsWith(extension)) {
-            File renamedFile = new File(oldPath.replace(extension, newExtension));
+        String newExtensionUpCase = extension.substring(0, extension.length() - 1) + "E";
+        String newExtensionLowCase = extension.toLowerCase().substring(0, extension.length() - 1) + "e";
+        if (importedFile.isFile()) {
+            File renamedFile = oldPath.endsWith(extension) ? new File(oldPath.replace(extension, newExtensionUpCase)) :
+                    (oldPath.endsWith(extension.toLowerCase()) ? new File(oldPath.replace(extension, newExtensionLowCase)) : new File(oldPath));
             if (!importedFile.renameTo(renamedFile))
                 context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
         }
