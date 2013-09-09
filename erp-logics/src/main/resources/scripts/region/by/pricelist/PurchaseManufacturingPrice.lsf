@@ -35,6 +35,13 @@ rateManufacturingExchangeInvoice 'Курс' = ABSTRACT NUMERIC[14,6](Invoice) PE
 rateManufacturingExchangeUserInvoice 'Курс' = DATA NUMERIC[14,6](UserInvoice);
 rateManufacturingExchangeInvoice(i) += rateManufacturingExchangeUserInvoice(i);
 
+rateManufacturingExchangeInvoiceDetail 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) PERSISTENT;
+
+dataRateManufacturingExchangeUserInvoiceDetail 'Курс' = DATA NUMERIC[14,6](UserInvoiceDetail);
+rateManufacturingExchangeUserInvoiceDetail 'Курс' (d) = OVERRIDE rateManufacturingExchangeUserInvoice(userInvoiceUserInvoiceDetail(d)),  dataRateManufacturingExchangeUserInvoiceDetail(d);
+rateManufacturingExchangeInvoiceDetail(d) += rateManufacturingExchangeUserInvoiceDetail(d);
+
+
 WHEN SESSION FORMS userInvoice CHANGED (dateManufacturingRateExchangeUserInvoice(i)) OR
                                CHANGED (typeExchangeUserInvoice(i)) OR
                                CHANGED (currencyUserInvoice(i)) DO {
@@ -45,12 +52,12 @@ WHEN SESSION FORMS userInvoice CHANGED (dateManufacturingRateExchangeUserInvoice
 
 homeManufacturingPriceInvoiceDetail 'Цена (конв.)' (detail) =
     roundPriceCurrency(priceInvoiceDetail(detail) *
-                       rateManufacturingExchangeInvoice(invoiceInvoiceDetail(detail)),
+                       rateManufacturingExchangeInvoiceDetail(detail),
                        homeCurrencyInvoice(invoiceInvoiceDetail(detail)));
 
 homeManufacturingPriceUserInvoiceDetail 'Цена (конв.)' (detail) =
     roundPriceCurrency(priceUserInvoiceDetail(detail) *
-                       rateManufacturingExchangeUserInvoice(userInvoiceUserInvoiceDetail(detail)),
+                       rateManufacturingExchangeUserInvoiceDetail(detail),
                        homeCurrencyUserInvoice(userInvoiceUserInvoiceDetail(detail)));
 
 incomeManufacturingPriceInvoiceDetail (detail) = IF isHomeCurrencyInvoice(invoiceInvoiceDetail(detail)) THEN
@@ -215,14 +222,18 @@ discountSumInvoiceDetail 'Скидка от цены изг. (сумма)' (deta
 
 showManufacturingPriceHomeCurrencyUserInvoice(invoice) = showManufacturingPriceUserInvoice(invoice) AND isHomeCurrencyUserInvoice(invoice);
 
+
+backgroundManufacturingInvoice 'Цвет' (invoice) = RGB(240, 240, 224) IF invoice IS Invoice;
 EXTEND FORM userInvoice
-    PROPERTIES(i) showManufacturingPriceUserInvoice
-    PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) addCostPriceToManufacturingPriceUserInvoice,
+    PROPERTIES(i) showManufacturingPriceUserInvoice BACKGROUND backgroundManufacturingInvoice(i)
+    PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) addCostPriceToManufacturingPriceUserInvoice,
                   nameManufacturingCalcPriceListTypeUserInvoice
-    PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) dateManufacturingRateExchangeUserInvoice, rateManufacturingExchangeUserInvoice
-    PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) AFTER invoiceSumUserInvoiceDetail manufacturingSumUserInvoiceDetail,
+    PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) dateManufacturingRateExchangeUserInvoice, rateManufacturingExchangeUserInvoice
+    PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) AFTER invoiceSumUserInvoiceDetail manufacturingSumUserInvoiceDetail,
                   includeVATUserInvoiceDetail, manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d),
-                  manufacturingMarkupUserInvoiceDetail ON CHANGE changeManufacturingMarkupUserInvoiceDetail(d)
+                  manufacturingMarkupUserInvoiceDetail ON CHANGE changeManufacturingMarkupUserInvoiceDetail(d), rateManufacturingExchangeUserInvoiceDetail
+             
+                  
 //    PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
 //                  curManufacturingPriceUserInvoiceDetail ON CHANGE changeCurManufacturingPriceUserInvoiceDetail(d)
 ;
@@ -242,10 +253,10 @@ EXTEND DESIGN userInvoice {
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLYIF isReadonly() showManufacturingPriceInvoice
-    PROPERTIES(d) READONLY SHOWIF showManufacturingPriceInvoice(i) AFTER invoiceSumInvoiceDetail
+    PROPERTIES(i) READONLYIF isReadonly() BACKGROUND backgroundManufacturingInvoice(i) showManufacturingPriceInvoice
+    PROPERTIES(d) READONLY BACKGROUND backgroundManufacturingInvoice(i) SHOWIF showManufacturingPriceInvoice(i) AFTER invoiceSumInvoiceDetail
                   manufacturingSumInvoiceDetail, includeVATInvoiceDetail, manufacturingPriceInvoiceDetail,
-                  manufacturingMarkupInvoiceDetail
+                  manufacturingMarkupInvoiceDetail, rateManufacturingExchangeInvoiceDetail
 ;
 //--
 //overPricingPricePricingDetail(detail) += manufacturingPriceInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
