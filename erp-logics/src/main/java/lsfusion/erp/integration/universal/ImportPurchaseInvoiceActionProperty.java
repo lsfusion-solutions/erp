@@ -612,6 +612,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     expiryDate, pharmacyPriceGroup, seriesPharmacy));
         }
 
+        file.close();
+
         return purchaseInvoiceDetailList;
     }
 

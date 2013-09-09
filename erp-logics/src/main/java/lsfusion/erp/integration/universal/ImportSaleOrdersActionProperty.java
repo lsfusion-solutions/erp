@@ -139,8 +139,8 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
         String newExtensionLowCase = extension.toLowerCase().substring(0, extension.length() - 1) + "e";
         if (importedFile.isFile()) {
             File renamedFile = oldPath.endsWith(extension) ? new File(oldPath.replace(extension, newExtensionUpCase)) :
-                    (oldPath.endsWith(extension.toLowerCase()) ? new File(oldPath.replace(extension, newExtensionLowCase)) : new File(oldPath));
-            if (!importedFile.renameTo(renamedFile))
+                    (oldPath.endsWith(extension.toLowerCase()) ? new File(oldPath.replace(extension.toLowerCase(), newExtensionLowCase)) : null);
+            if (renamedFile!=null && !importedFile.renameTo(renamedFile))
                 context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
         }
     }

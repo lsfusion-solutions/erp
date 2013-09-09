@@ -474,7 +474,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
                     manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT,
                     invoiceSum, manufacturingPrice));
-        }
+        }               
+        file.close();
 
         return saleOrderDetailList;
     }
