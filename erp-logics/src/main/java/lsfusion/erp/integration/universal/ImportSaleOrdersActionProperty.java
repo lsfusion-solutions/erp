@@ -106,16 +106,18 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                     if (dir.exists()) {
 
                         for (File f : dir.listFiles()) {
-                            if (f.getName().endsWith(fileExtension.trim().toLowerCase())) {
+                            if (f.getName().toLowerCase().endsWith(fileExtension.trim().toLowerCase())) {
                                 DataObject orderObject = context.addObject((ConcreteCustomClass) LM.findClassByCompoundName("Sale.UserOrder"));
                                 new ImportSaleOrderActionProperty(LM).importOrders(context, orderObject, importColumns,
                                         IOUtils.getFileBytes(f), fileExtension.trim(), startRow,
                                         csvSeparator == null ? null : csvSeparator.trim(), captionImportKeyTypeImportType,
                                         operationObject, autoImportSupplierObject, autoImportSupplierStockObject,
                                         autoImportCustomerObject, autoImportCustomerStockObject);
+
+                                renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());
                             }
 
-                            renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());
+
                         }
                     }
                 }

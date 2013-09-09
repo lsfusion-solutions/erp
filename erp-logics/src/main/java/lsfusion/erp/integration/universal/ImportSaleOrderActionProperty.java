@@ -242,7 +242,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 ImportKey<?> customerStockKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Stock"),
                         LM.findLCPByCompoundName("stockId").getMapping(idCustomerStockField));
                 keys.add(customerStockKey);
-                props.add(new ImportProperty(idCustomerStockField, LM.findLCPByCompoundName("Purchase.customerStockOrder").getMapping(orderObject),
+                props.add(new ImportProperty(idCustomerStockField, LM.findLCPByCompoundName("Sale.customerStockOrder").getMapping(orderObject),
                         LM.object(LM.findClassByCompoundName("Stock")).getMapping(customerStockKey)));
                 fields.add(idCustomerStockField);
                 for (int i = 0; i < orderDetailsList.size(); i++)

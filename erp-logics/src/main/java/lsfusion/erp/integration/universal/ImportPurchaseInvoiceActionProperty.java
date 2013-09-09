@@ -161,23 +161,23 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 props.add(new ImportProperty(operationObject, LM.findLCPByCompoundName("Purchase.operationUserInvoice").getMapping(userInvoiceObject)));
 
             if (supplierObject != null) {
-                props.add(new ImportProperty(supplierObject, LM.findLCPByCompoundName("Sale.supplierUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                props.add(new ImportProperty(supplierObject, LM.findLCPByCompoundName("Sale.supplierUserInvoice").getMapping(userInvoiceObject)));
+                props.add(new ImportProperty(supplierObject, LM.findLCPByCompoundName("Purchase.supplierUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(supplierObject, LM.findLCPByCompoundName("Purchase.supplierUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (supplierStockObject != null) {
-                props.add(new ImportProperty(supplierStockObject, LM.findLCPByCompoundName("Sale.supplierStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                props.add(new ImportProperty(supplierStockObject, LM.findLCPByCompoundName("Sale.supplierStockUserInvoice").getMapping(userInvoiceObject)));
+                props.add(new ImportProperty(supplierStockObject, LM.findLCPByCompoundName("Purchase.supplierStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(supplierStockObject, LM.findLCPByCompoundName("Purchase.supplierStockUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (customerObject != null) {
-                props.add(new ImportProperty(customerObject, LM.findLCPByCompoundName("Sale.customerUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                props.add(new ImportProperty(customerObject, LM.findLCPByCompoundName("Sale.customerUserInvoice").getMapping(userInvoiceObject)));
+                props.add(new ImportProperty(customerObject, LM.findLCPByCompoundName("Purchase.customerUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(customerObject, LM.findLCPByCompoundName("Purchase.customerUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (customerStockObject != null) {
-                props.add(new ImportProperty(customerStockObject, LM.findLCPByCompoundName("Sale.customerStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                props.add(new ImportProperty(customerStockObject, LM.findLCPByCompoundName("Sale.customerStockUserInvoice").getMapping(userInvoiceObject)));
+                props.add(new ImportProperty(customerStockObject, LM.findLCPByCompoundName("Purchase.customerStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(customerStockObject, LM.findLCPByCompoundName("Purchase.customerStockUserInvoice").getMapping(userInvoiceObject)));
             }
 
             ImportField idBarcodeSkuField = new ImportField(LM.findLCPByCompoundName("idBarcodeSku"));
