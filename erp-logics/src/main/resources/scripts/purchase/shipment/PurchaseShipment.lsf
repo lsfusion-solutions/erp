@@ -25,17 +25,18 @@ expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDet
 
 @defineInvoiceShipmentBatch();
 
-statusShippedInvoice 'Статус приемки' (invoice)= IF shippedInvoice(invoice) 
+statusShippedInvoice 'Статус приемки' (invoice)= IF shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice)) 
                                                     THEN 'Оприходована'
                                                     ELSE 'Не оприходована' IF invoice IS Invoice;
-backgroundShipInvoice 'Цвет' (invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT shippedInvoice(invoice);  
+                                                                                                                                                                                                                     
+backgroundShipInvoice 'Цвет' (invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT (shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice)));  
 
 EXTEND FORM invoices
-    PROPERTIES (i) READONLY statusShippedInvoice BACKGROUND backgroundShipInvoice(i) AFTER isCommissionInvoice(i) 
+    PROPERTIES (i) READONLY statusShippedInvoice BACKGROUND backgroundShipInvoice(i) AFTER isCommissionInvoice(i), quantityNotChargeInvoiceDetailInvoice 
     
     FILTERGROUP shipped 
-        FILTER 'Не оприходованы' 'F11' i IS Invoice AND NOT shippedInvoice(i)     
-        FILTER 'Оприходованы' 'F10' shippedInvoice(i) 
+        FILTER 'Не оприходованы' 'F11' i IS Invoice AND NOT (shippedInvoice(i) OR (isPostedInvoice(i) AND quantityNotChargeInvoiceDetailInvoice(i)==0.0) OR (isPostedInvoice(i) AND NOT quantityNotChargeInvoiceDetailInvoice(i)))
+        FILTER 'Оприходованы' 'F10' shippedInvoice(i) OR (isPostedInvoice(i) AND quantityNotChargeInvoiceDetailInvoice(i)==0.0) OR (isPostedInvoice(i) AND NOT quantityNotChargeInvoiceDetailInvoice(i))
 ;    
 
 //----------------------------------------------- Операции -----------------------------------------------------//

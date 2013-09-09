@@ -540,6 +540,39 @@ META defineDocumentHeaderSkuQuantity (object, skuProp)
     @defineDocumentHeaderSkuQuantity(object, object###detail, skuProp);
 END
 
+// -------------------------------------- Количество в документе по товару, таре, услугам ----------------------------- //
+META defineDocumentHeaderItemQuantityCustomPrefix (object, detail, prefixA, prefixB)
+    prefixB###quantityItem###detail###object 'Кол-во (всего), товар' (object) =
+        GROUP SUM prefixA###quantity###detail(idetail) IF isItemSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###quantityContainer###detail###object 'Кол-во (всего), тара' (object) =
+        GROUP SUM prefixA###quantity###detail(idetail) IF isContainerSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###quantityCharge###detail###object 'Кол-во (всего), услуги' (object) =
+        GROUP SUM prefixA###quantity###detail(idetail) IF isChargeSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###quantityNotCharge###detail###object 'Кол-во (всего), кроме услуг' (object) =
+        GROUP SUM prefixA###quantity###detail(idetail) IF isNotChargeSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###quantityNotItem###detail###object 'Кол-во (всего), кроме товара' (object) =
+        GROUP SUM prefixA###quantity###detail(idetail) IF isNotItemSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+    prefixB###quantityNotContainer###detail###object 'Кол-во (всего), кроме тары' (object) =
+        GROUP SUM prefixA###quantity###detail(idetail) IF isNotContainerSku(sku###detail(idetail))
+            BY object###detail(idetail) IN documentSumGroup;
+
+END 
+META defineDocumentHeaderItemQuantityPrefix (object, prefixA, prefixB)
+    @defineDocumentHeaderItemQuantityCustomPrefix(object, object##Detail, prefixA, prefixB);
+END
+META defineDocumentInterfaceHeaderItemQuantityPrefix (object, prefixA, prefixB)
+    @defineDocumentHeaderItemQuantityPrefix (object, prefixA, prefixB);
+    @defineDocumentHeaderItemQuantityPrefix (user###object, prefixA, prefixB);
+END 
+META defineDocumentInterfaceHeaderItemQuantity (object)
+    @defineDocumentInterfaceHeaderItemQuantityPrefix (object, , );    
+END 
+
 // -------------------------------------- Суммы по документам по товару, таре, услугам ----------------------------- //
 
 META defineDocumentHeaderItemSumCustom (object, detail, prefixA, prefixB)
