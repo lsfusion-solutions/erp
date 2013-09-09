@@ -310,6 +310,8 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
 
     @defineDocumentAggregationLegalEntityPrefix(invoice, invoiceCreditNote, customer, 'Покупатель', , );
     customerCreditNote(creditNote) += customerInvoiceCreditNote(creditNote);
+    
+    contractSkuCreditNote(creditNote) += contractSkuInvoice(invoiceInvoiceCreditNote(creditNote));
 
     @defineDocumentAggregationPosted(invoice, invoiceCreditNote);
     isPostedCreditNote(creditNote) += isPostedInvoiceCreditNote(creditNote);
@@ -379,5 +381,29 @@ META defineCreditNoteBatch(dumb)
 
     @defineDocumentAggregationDetailBatch (invoice, invoiceCreditNote);
     batchCreditNoteDetail (creditNoteDetail) += batchInvoiceCreditNoteDetail(creditNoteDetail);
+
+END
+
+META defineCreditNotePaymentCondition (sign)
+
+    paymentConditionCreditNote 'Условия оплаты' = ABSTRACT PaymentCondition (CreditNote) PERSISTENT;
+    paymentConditionUserCreditNote 'Условия оплаты' = DATA PaymentCondition (UserCreditNote);
+    paymentConditionCreditNote(prop) += paymentConditionUserCreditNote(prop);
+
+    descriptionPaymentConditionCreditNote 'Условия оплаты' (prop) = descriptionPaymentCondition(paymentConditionCreditNote(prop)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    descriptionPaymentConditionUserCreditNote 'Условия оплаты' (prop) = descriptionPaymentCondition(paymentConditionUserCreditNote(prop)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+    paymentConditionUserCreditNote(prop) <- paymentConditionContract(contractSkuUserCreditNote(prop))
+        WHEN CHANGED(contractSkuUserCreditNote(prop));
+
+    EXTEND FORM userCreditNote
+        PROPERTIES(c) descriptionPaymentConditionUserCreditNote
+    ;
+
+    EXTEND DESIGN userCreditNote{
+        c.documentPrmGroup{
+            ADD PROPERTY(descriptionPaymentConditionUserCreditNote);
+        }
+    }
 
 END

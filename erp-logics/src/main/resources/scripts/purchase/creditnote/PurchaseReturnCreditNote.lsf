@@ -1,12 +1,15 @@
 MODULE PurchaseReturnCreditNote;
 
-REQUIRE CreditNote, PurchaseReturnShipment, PurchaseCreditNote;
+REQUIRE CreditNote, PurchaseReturnShipment, PurchaseCreditNote, PurchaseReturnInvoiceContract;
+
+PRIORITY Purchase, Operation;
 
 NAMESPACE PurchaseReturn;
 
 //----------------------------------------------- Акт ---------------------------------------------------//
 
 @defineCreditNote(' (закупка-возврат)', customerStock);
+@defineCreditNotePaymentCondition(' (закупка-возврат)');
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, customerStock, company);
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, supplierStock, supplier);
 @extendFormFilterAccessLegalEntity(CreditNote, c, creditNotes, customer, company);
@@ -25,7 +28,22 @@ CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCompanyLegalEntity(c
 
 
 // -- Операция
+@defineDocumentOperation(creditNote ,c); 
+@defineDocumentOperationRole(userCreditNote);
 @deriveDocumentOperationProperty(UserInvoice, createCreditNote);
+
+operationCreditNote(creditNote) += operationInvoice(invoiceInvoiceCreditNote(creditNote));
+
+// ------------------- Проведение по регистру задолженностей ----------------------- //
+
+@implementContractLedger(, CreditNote, contractSku);
+sumContractLedger(contractLedger) += invoiceSumCreditNoteDetailCreditNote(contractLedger);
+
+@implementContractLedger(a, CreditNote, contractSku);
+sumContractALedger(contractALedger) += invoiceSumCreditNoteDetailCreditNote(contractALedger);
+
+@implementInContractLedger(CreditNote, contractSku);
+sumInContractLedger(inContractLedger) += invoiceSumCreditNoteDetailCreditNote(inContractLedger);
 
 NAVIGATOR {
     purchaseReturnNavigator {

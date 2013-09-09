@@ -1,13 +1,14 @@
 MODULE SaleCreditNote;
 
-REQUIRE CreditNote, SaleShipment;
+REQUIRE CreditNote, SaleShipment, SaleInvoiceContract;
 
 NAMESPACE Sale;
-
 
 //----------------------------------------------- Акт ---------------------------------------------------//
 
 @defineCreditNote(' (продажа)', supplierStock);
+@defineCreditNotePaymentCondition(' (продажа)');
+paymentConditionCreditNote(creditNote) += paymentConditionInvoice(invoiceInvoiceCreditNote(creditNote));
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, supplierStock, company);
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, customerStock, customer);
 @extendFormFilterAccessLegalEntity(CreditNote, c, creditNotes, supplier, company);
@@ -26,8 +27,23 @@ CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCustomerLegalEntity(
 @defineDocumentSupplierCustomerStockAccess(UserCreditNote, company, customer, userCreditNote);
 
 // -- Операция
+@defineDocumentOperation(creditNote ,c); 
+@defineDocumentOperationRole(userCreditNote);
 @defineOperationProperty(createCreditNote, 'Акт расхождения', saleContainer);
 @deriveDocumentOperationProperty(UserInvoice, createCreditNote);
+
+operationCreditNote(creditNote) += operationInvoice(invoiceInvoiceCreditNote(creditNote));
+
+// --------------------------- Проведение по регистру задолженностей ------------------------------------ //
+
+@implementContractLedger(, CreditNote, contractSku);
+sumContractLedger(contractLedger) += invoiceSumCreditNoteDetailCreditNote(contractLedger);
+
+@implementContractLedger(a, CreditNote, contractSku);
+sumContractALedger(contractALedger) += invoiceSumCreditNoteDetailCreditNote(contractALedger);
+
+@implementOutContractLedger(CreditNote, contractSku);
+sumOutContractLedger(outContractLedger) += invoiceSumCreditNoteDetailCreditNote(outContractLedger);
 
 NAVIGATOR {
     saleSaleNavigator {
