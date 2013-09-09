@@ -1,6 +1,6 @@
 MODULE PaymentRequest;
 
-REQUIRE Bank, ContractLedger;
+REQUIRE Bank, ContractLedger, PaymentOperation;
 
 NAMESPACE PaymentRequest;
 
@@ -97,6 +97,18 @@ writePaymentRequestLIFO 'Расписать по LIFO' = ACTION (paymentRequest)
     costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
 }
 
+
+//Операции
+operationPaymentRequest = DATA PaymentOperation.Operation (PaymentRequest);
+nameOperationPaymentRequest 'Операция' = PaymentOperation.nameOperation(operationPaymentRequest(PaymentRequest));
+idOperationPaymentRequest 'ID операции' = PaymentOperation.idOperation(operationPaymentRequest(PaymentRequest));
+
+@defineDocumentOperationLegalEntity(paymentRequest, payer, 'Плательщик');
+@defineDocumentOperationLegalEntity(paymentRequest, beneficiary, 'Бенефициар');
+
+@defineDocumentOperationRole(paymentRequest);
+
+
 partyA = DATA SESSION LegalEntity();
 namePartyA 'Организация (поставщик)' = nameLegalEntity(partyA());
 partyB = DATA SESSION LegalEntity();
@@ -109,7 +121,7 @@ FORM paymentRequest 'Платежное требование'
                   seriesNumberContractPaymentRequest, notePaymentRequest
     PROPERTIES(p) namePayerPaymentRequest, nameAccountFromPaymentRequest, nameCurrencyAccountFromPaymentRequest,
                   nameBeneficiaryPaymentRequest, nameAccountToPaymentRequest, nameCurrencyAccountToPaymentRequest
-    PROPERTIES(p) sumPaymentRequest
+    PROPERTIES(p) sumPaymentRequest, nameOperationPaymentRequest
 
     OBJECTS i = InContractLedger
     PROPERTIES(i) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, requestedInContractLedger
@@ -171,6 +183,7 @@ DESIGN paymentRequest FROM DEFAULT{
         NEW paramContainer {
             type = CONTAINERH;
             caption = 'Параметры документа';
+            ADD PROPERTY(nameOperationPaymentRequest);
             ADD PROPERTY(sumPaymentRequest);
             ADD PROPERTY(notePaymentRequest);
         }
@@ -277,7 +290,8 @@ FORM paymentRequests 'Платежные требования'
                             nameCurrencyAccountToPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            objectClassName BACKGROUND backgroundPaymentRequestDate(pr, d)
+                            objectClassName BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            nameOperationPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d)                            
     PROPERTIES(d) createPaymentRequests TODRAW pr TOOLBAR
     PROPERTIES(pr) ADDFORM, EDITFORM, DELETE
     ORDER BY datePaymentRequest, timePaymentRequest
