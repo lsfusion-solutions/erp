@@ -115,7 +115,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                                         autoImportCustomerObject, autoImportCustomerStockObject);
                             }
 
-                            renameImportedFile(context, f.getAbsolutePath());
+                            renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());
                         }
                     }
                 }
@@ -133,10 +133,11 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
         }
     }
 
-    protected void renameImportedFile(ExecutionContext context, String oldPath) {
+    protected void renameImportedFile(ExecutionContext context, String oldPath, String extension) {
         File importedFile = new File(oldPath);
-        if (importedFile.isFile()) {
-            File renamedFile = new File(oldPath + "0");
+        String newExtension = extension.substring(0, extension.length()-1) + "e";
+        if (importedFile.isFile() && oldPath.endsWith(extension)) {
+            File renamedFile = new File(oldPath.replace(extension, newExtension));
             if (!importedFile.renameTo(renamedFile))
                 context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
         }

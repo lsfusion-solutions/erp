@@ -10,6 +10,7 @@ public class SaleOrderDetail {
     public String idBatch;
     public String idItem;
     public String idManufacturer;
+    public String idCustomer;
     public String idCustomerStock;
     public BigDecimal quantity;
     public BigDecimal price;
@@ -20,8 +21,8 @@ public class SaleOrderDetail {
     public BigDecimal manufacturingPrice;
 
     public SaleOrderDetail(String numberOrder, String idOrderDetail, String idBarcodeSku, String idBatch,
-                           String idItem, String idManufacturer, String idCustomerStock, BigDecimal quantity, 
-                           BigDecimal price, BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, 
+                           String idItem, String idManufacturer, String idCustomer, String idCustomerStock, 
+                           BigDecimal quantity, BigDecimal price, BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, 
                            BigDecimal invoiceSum, BigDecimal manufacturingPrice) {
         this.numberOrder = numberOrder;
         this.idOrderDetail = idOrderDetail;
@@ -29,6 +30,7 @@ public class SaleOrderDetail {
         this.idBatch = idBatch;
         this.idItem = idItem;
         this.idManufacturer = idManufacturer;
+        this.idCustomer = idCustomer;
         this.idCustomerStock = idCustomerStock;
         this.quantity = quantity;
         this.price = price;
