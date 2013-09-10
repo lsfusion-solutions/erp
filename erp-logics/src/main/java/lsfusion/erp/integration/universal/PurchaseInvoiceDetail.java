@@ -14,6 +14,7 @@ public class PurchaseInvoiceDetail {
     public String idUOM;
     public String idManufacturer;
     public String nameCountry;
+    public String nameImportCountry;
     public String idCustomer;
     public String idCustomerStock;
     public BigDecimal quantity;
@@ -30,9 +31,10 @@ public class PurchaseInvoiceDetail {
     public String seriesPharmacy;
 
 
-    public PurchaseInvoiceDetail(String numberUserInvoice, String idUserInvoiceDetail, String idBarcodeSku, String idBatch,
-                                 String idItem, String captionItem, String idUOM, String idManufacturer, String nameCountry,
-                                 String idCustomer, String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
+    public PurchaseInvoiceDetail(String numberUserInvoice, String idUserInvoiceDetail, String idBarcodeSku,
+                                 String idBatch, String idItem, String captionItem, String idUOM, String idManufacturer,
+                                 String nameCountry, String nameImportCountry, String idCustomer, 
+                                 String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
                                  BigDecimal valueVAT, BigDecimal sumVAT, BigDecimal invoiceSum, 
                                  BigDecimal manufacturingPrice,  String numberCompliance, String numberDeclaration, 
                                  Date expiryDate, String idPharmacyPriceGroup, String seriesPharmacy) {
@@ -45,6 +47,7 @@ public class PurchaseInvoiceDetail {
         this.idUOM = idUOM;
         this.idManufacturer = idManufacturer;
         this.nameCountry = nameCountry;
+        this.nameImportCountry = nameImportCountry;
         this.idCustomer = idCustomer;
         this.idCustomerStock = idCustomerStock;
         this.quantity = quantity;
