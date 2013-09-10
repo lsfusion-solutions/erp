@@ -8,6 +8,7 @@ GROUP itemArticleGroup 'Артикул' : public;
 GROUP articleBaseGroup 'Базовые свойства' : base;
 GROUP articleSupplierGroup 'Информащия от поставщика' : base;
 GROUP articleDescriptionGroup 'Описание' : base;
+GROUP articleSeasonGroup 'Сезон' : base;
 
 // Артикул
 CLASS Article 'Артикул';
@@ -310,6 +311,81 @@ DESIGN sizeHeights FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @defineObjectItemAttribute(sizeHeight, SizeHeight, nameSizeHeight, 'Рост', itemArticleGroup);
 @defineObjectItemAttributeBatch (sizeHeight, nameSizeHeight, 'Рост');
 @implementItemAttribute(nameSizeHeightItem, 'Рост', String, itemSizeHeight);
+
+// Сезон
+CLASS Season 'Сезон';
+TABLE season (Season);
+@defineExternalizable(season, VARSTRING[100]);
+
+nameSeason 'Сезон' = DATA VARISTRING[50](Season);
+
+FORM season 'Сезон'
+    OBJECTS t=Season FIXED PANEL
+    PROPERTIES(t) nameSeason, idSeason SHOWIF showIDs()
+    EDIT Season OBJECT t
+;
+
+FORM seasons 'Сезоны'
+    OBJECTS t=Season
+    PROPERTIES(t) nameSeason READONLY, idSeason SHOWIF showIDs() READONLY, DELETE
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameSeason
+    DIALOG Season OBJECT t
+;
+DESIGN seasons FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+// Год
+CLASS SeasonYear 'Год';
+TABLE seasonYear (SeasonYear);
+@defineExternalizable(seasonYear, VARSTRING[100]);
+
+nameSeasonYear 'Год' = DATA VARISTRING[50](SeasonYear);
+
+FORM seasonYear 'Год'
+    OBJECTS t=SeasonYear FIXED PANEL
+    PROPERTIES(t) nameSeasonYear, idSeasonYear SHOWIF showIDs()
+    EDIT SeasonYear OBJECT t
+;
+
+FORM seasonYears 'Годы'
+    OBJECTS t=SeasonYear
+    PROPERTIES(t) nameSeasonYear READONLY, idSeasonYear SHOWIF showIDs() READONLY, DELETE
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameSeasonYear
+    DIALOG SeasonYear OBJECT t
+;
+DESIGN seasonYears FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+seasonArticle= DATA Season (Article);
+nameSeasonArticle 'Сезон' (a)= nameSeason(seasonArticle(a)) IN articleSeasonGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
+seasonYearArticle= DATA SeasonYear (Article);
+nameSeasonYearArticle 'Год' (a)= nameSeasonYear(seasonYearArticle(a)) IN articleSeasonGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+seasonItem (item)= seasonArticle(articleItem(item));
+nameSeasonItem 'Сезон' (i)= nameSeason(seasonItem(i)) IN itemArticleGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
+ 
+seasonYearItem (item)= seasonYearArticle(articleItem(item));
+nameSeasonYearItem 'Год' (i)= nameSeasonYear(seasonYearItem(i)) IN itemArticleGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+EXTEND FORM item
+    PROPERTIES(i)  nameSeasonYearItem, nameSeasonItem
+;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() AFTER nameSizeHeightItem(i) nameSeasonYearItem, nameSeasonItem;
+
+EXTEND FORM article
+    PROPERTIES(a)  nameSeasonYearArticle, nameSeasonArticle
+;
+EXTEND DESIGN article  {
+    articlePrimary {
+        ADD a.articleSeasonGroup AFTER a.articleDescriptionGroup{                     
+            childConstraints = TO THE RIGHT;
+        }
+    }
+}
+
+EXTEND FORM articles
+    PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  nameSeasonYearArticle, nameSeasonArticle
+;
 
 EXTEND FORM article
 
