@@ -43,10 +43,10 @@ META defineInvoiceShipment(sign, stockProp, filter)
     costShipmentDetailBatch = ABSTRACT NUMERIC[14,3] (ShipmentDetail, Batch) PERSISTENT;
 
     TABLE invoiceDetailBatch (InvoiceDetail, Batch);
-    costInvoiceDetailBatch (invoiceDetail, batch) = GROUP SUM costShipmentDetailBatch(shipmentDetail, batch) BY invoiceDetailShipmentDetail(shipmentDetail), batch PERSISTENT;
+    countShipmentDetailInvoiceDetailBatch (invoiceDetail, batch) = GROUP SUM 1 IF costShipmentDetailBatch(shipmentDetail, batch) BY invoiceDetailShipmentDetail(shipmentDetail), batch PERSISTENT;
 
-    countBatchInvoiceDetail 'Кол-во партий' (invoiceDetail) = GROUP SUM 1 IF costInvoiceDetailBatch(invoiceDetail, batch) BY invoiceDetail PERSISTENT;
-    maxBatchInvoiceDetail (invoiceDetail) = GROUP MAX batch IF costInvoiceDetailBatch(invoiceDetail, batch) BY invoiceDetail;
+    countBatchInvoiceDetail 'Кол-во партий' (invoiceDetail) = GROUP SUM 1 IF countShipmentDetailInvoiceDetailBatch(invoiceDetail, batch) BY invoiceDetail PERSISTENT;
+    maxBatchInvoiceDetail (invoiceDetail) = GROUP MAX batch IF countShipmentDetailInvoiceDetailBatch(invoiceDetail, batch) BY invoiceDetail;
 
     toShipInvoiceDetail 'Не поставлено' (invoiceDetail) = quantityInvoiceDetail (invoiceDetail) (-) shippedInvoiceDetail(invoiceDetail);
 

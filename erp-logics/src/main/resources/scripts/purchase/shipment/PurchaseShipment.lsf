@@ -157,12 +157,8 @@ numberBatch (ledger) += numberShipment(shipmentShipmentDetail(shipmentDetailShip
 supplierBatch (ledger) += supplierShipmentDetail(shipmentDetailShipmentBatch(ledger));
 supplierStockBatch (ledger) += supplierStockShipmentDetail(shipmentDetailShipmentBatch(ledger));
 
-ledgerBatchShipmentDetail (detail) = OVERRIDE shipmentBatchShipmentDetail(detail), batchShipmentDetail(detail) PERSISTENT;
-
-inInvoiceDetailBatch(detail, batch) = TRUE IF [GROUP SUM 1 BY invoiceDetailShipmentDetail(d), ledgerBatchShipmentDetail(d)](detail, batch); 
-
-inPriceListLedgerBatch (ledger, batch) += inInvoiceDetailBatch(ledger, batch); 
-inPriceListLedgerBatch (ledger, batch) += inInvoiceDetailBatch(invoiceDetailInvoicePriceListLedger(ledger), batch); 
+inPriceListLedgerBatch (ledger, batch) += TRUE IF countShipmentDetailInvoiceDetailBatch(ledger, batch); 
+inPriceListLedgerBatch (ledger, batch) += TRUE IF countShipmentDetailInvoiceDetailBatch(invoiceDetailInvoicePriceListLedger(ledger), batch); 
 
 nameBatch(batch) += CONCAT '', STRING[10](dateShipmentDetail(shipmentDetailShipmentBatch(batch))), '/ ' + seriesNumberShipment(shipmentShipmentDetail(shipmentDetailShipmentBatch(batch))),
                              '/ ' + nameSupplierShipmentDetail(shipmentDetailShipmentBatch(batch));
@@ -191,10 +187,8 @@ numberDataSkuLedger (ledger) += numberShipment(shipmentShipmentDetail(shipmentDe
 legalEntityDataSkuLedger (ledger) += supplierShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 legalEntityStockDataSkuLedger (ledger) += supplierStockShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 
-costShipmentDetailBatch(detail, batch) += IF createBatchShipmentDetail(detail) THEN
-                                             costSkuLedgerBatch(shipmentBatchShipmentDetail(detail), batch)
-                                          ELSE
-                                             costSkuLedgerBatch(shipmentSkuLedgerShipmentDetail(detail), batch);
+skuLedgerShipmentDetail (detail) = IF createBatchShipmentDetail(detail) THEN shipmentBatchShipmentDetail(detail) ELSE shipmentSkuLedgerShipmentDetail(detail); 
+costShipmentDetailBatch(detail, batch) += costSkuLedgerBatch(skuLedgerShipmentDetail(detail), batch);
 
 // ------------------------------- Проведение регистру учетных цен ------------------------ //
 
@@ -231,8 +225,6 @@ EXTEND FORM userShipment
 
     PROPERTIES(s) TODRAW d mergeBatchUserShipment
 ;
-ledgerBatchUserShipmentDetail (detail) = OVERRIDE shipmentBatchShipmentDetail(detail), batchUserShipmentDetail(detail);
-
 //
 invoiceDetailBatch 'Строка инвойса партии' = invoiceDetailShipmentDetail(shipmentDetailShipmentBatch(batch));
 descriptionInvoiceDetailInvoiceDetailBatch 'Строка инвойса партии' = descriptionInvoiceDetail(invoiceDetailBatch(batch));
