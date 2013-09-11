@@ -37,13 +37,14 @@ CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертифика�
 
 giftCardReceiptGiftCardSaleDetail = DATA GiftCard (ReceiptGiftCardSaleDetail);
 
+receiptReceiptGiftCardSaleDetail = DATA Receipt (ReceiptGiftCardSaleDetail);
+receiptReceiptDetail(detail) += receiptReceiptGiftCardSaleDetail(detail);
+
 soldGiftCard (giftCard) =
     GROUP AGGR detail
         BY giftCardReceiptGiftCardSaleDetail(detail) WHERE detail IS ReceiptGiftCardSaleDetail;
 isSoldGiftCard 'Продан' (giftCard) = TRUE IF soldGiftCard(giftCard);
-
-receiptReceiptGiftCardSaleDetail = DATA Receipt (ReceiptGiftCardSaleDetail);
-receiptReceiptDetail(detail) += receiptReceiptGiftCardSaleDetail(detail);
+dateSoldGiftCard 'Дата продажи' (giftCard) = toDate(dateTimeReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard))));
 
 typeReceiptDetail(detail) += 'Сертификат' IF detail IS ReceiptGiftCardSaleDetail;
 quantityReceiptDetail(detail) += 1.0 IF detail IS ReceiptGiftCardSaleDetail;
@@ -132,7 +133,7 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
 //формы
 FORM giftCard 'Подарочный сертификат'
     OBJECTS g = GiftCard FIXED PANEL
-    PROPERTIES(g) nameNumeratorObject, numberGiftCard, seriesGiftCard, priceGiftCard, dateGiftCard, expiryDaysGiftCard
+    PROPERTIES(g) nameNumeratorObject, numberGiftCard, seriesGiftCard, dateGiftCard, priceGiftCard, expiryDaysGiftCard
 
     EDIT GiftCard OBJECT g
 ;
@@ -143,25 +144,17 @@ DESIGN giftCard FROM DEFAULT {
         ADD PROPERTY(nameNumeratorObject);
         ADD PROPERTY(numberGiftCard);
         ADD PROPERTY(seriesGiftCard);
-        ADD PROPERTY(priceGiftCard);
         ADD PROPERTY(dateGiftCard);
         ADD PROPERTY(expiryDaysGiftCard);
+        ADD PROPERTY(priceGiftCard);        
     }
     ADD functions.box;
 }
 
-FORM dialogGiftCards 'Подарочные сертификаты'
-    OBJECTS g = GiftCard
-    PROPERTIES(g) READONLY seriesNumberGiftCard, priceGiftCard, dateGiftCard, expiryDaysGiftCard
-    FILTERS soldGiftCard(g)
-
-    DIALOG GiftCard OBJECT g
-;
-
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLY objectClassName, nameNumeratorObject, numberGiftCard, seriesGiftCard, priceGiftCard,
-                           dateGiftCard, expiryDaysGiftCard, isSoldGiftCard
+    PROPERTIES(g) READONLY objectClassName, nameNumeratorObject, numberGiftCard, seriesGiftCard, dateGiftCard, 
+                           dateSoldGiftCard, expiryDaysGiftCard, priceGiftCard
     PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE
 
@@ -200,13 +193,11 @@ usedGiftCard (giftCard) =
     GROUP AGGR payment
         BY giftCardPaymentGiftCard(payment) WHERE payment IS PaymentGiftCard;
 isUsedGiftCard 'Погашен' (giftCard) = TRUE IF usedGiftCard(giftCard);
-
-EXTEND FORM dialogGiftCards
-    FILTERS NOT isUsedGiftCard(g)
-;
+dateUsedGiftCard 'Дата использования' (giftCard) = toDate(dateTimeReceipt(receiptPayment(usedGiftCard(giftCard))));
+expireDateGiftCard 'Дата истечения' (giftCard) = sumDate(toDate(dateTimeReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard)))), expiryDaysGiftCard(giftCard));
 
 EXTEND FORM giftCards
-    PROPERTIES(g) READONLY isUsedGiftCard
+    PROPERTIES(g) READONLY AFTER dateSoldGiftCard(g) expireDateGiftCard, dateUsedGiftCard
 ;
 
 EXTEND CLASS PaymentMeans { paymentMeansGiftCard 'Подарочный сертификат'}
@@ -219,22 +210,24 @@ minGiftCardPaymentType() = GROUP MIN paymentType IF paymentMeansPaymentType(paym
 
 addPaymentGiftCard 'Оплатить сертификатом' = ACTION (receipt) {
     FOR ADDOBJ pg = PaymentGiftCard DO {
-        FORM dialogGiftCards MODAL;
-        LOCAL giftCard = GiftCard();
-        giftCard() <- chosenObject('g');
-        IF formResult() == FormResult.ok THEN {
+        FORM barcodeInput MODAL;
+        IF formResult() == FormResult.ok AND isSoldGiftCard(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS STRING[15] AND 
+           NOT expireDateGiftCard(giftCardSeriesNumber(barcodeInput())) < currentDate() THEN {
+            LOCAL giftCard = GiftCard();
+            giftCard() <- giftCardSeriesNumber(barcodeInput());
             giftCardPaymentGiftCard(pg) <- giftCard();
             receiptPayment(pg) <- receipt;
             paymentTypePayment(pg) <- minGiftCardPaymentType();
             sumPayment(pg) <- priceGiftCard(giftCard());
         } ELSE {
             DELETE pg;
+            MESSAGE 'Сертификат не найден или истек';
         }
     }
 }
 
 EXTEND FORM postReceiptPayment
-    PROPERTIES addPaymentGiftCard(r) TODRAW p FORCE PANEL
+    PROPERTIES addPaymentGiftCard(r) TODRAW p FORCE PANEL SHOWIF allowPaymentGiftCard()
 ;
 
 EXTEND DESIGN postReceiptPayment {

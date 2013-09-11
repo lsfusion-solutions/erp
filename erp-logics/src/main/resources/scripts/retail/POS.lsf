@@ -93,11 +93,12 @@ DESIGN postReceiptPayment FROM DEFAULT {
         REMOVE p.toolbar;
     }
     NEW south {
+        alignment = STRETCH;
         type = CONTAINERH;
         ADD PROPERTY(sumReceiptDetailReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 72'; }
         ADD PROPERTY(changePaymentReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'Tahoma bold 72'; }
         ADD rightControls {
-            alignment = STRETCH;
+            fill = 1;
             type = CONTAINERV;
             PROPERTY(formOk) {
                 fill = 1;
@@ -113,7 +114,10 @@ DESIGN postReceiptPayment FROM DEFAULT {
     REMOVE PROPERTY(formRefresh);
 }
 
+allowPaymentGiftCard = DATA SESSION BOOLEAN();
+
 postReceipt 'Смешанный платеж' = ACTION (receipt) {
+    allowPaymentGiftCard() <- TRUE;
     zReportReceipt(receipt) <- currentZReport();
     DELETE payment WHERE receiptPayment(payment) == receipt;
     IF sumReceiptDetailReceipt(receipt) THEN {
@@ -135,6 +139,7 @@ postReceipt 'Смешанный платеж' = ACTION (receipt) {
 } EDITKEY 'F9' IN receiptActionGroup;
 
 postCardReceipt 'Карточкой' = ACTION (receipt) {
+    allowPaymentGiftCard() <- NULL;
     zReportReceipt(receipt) <- currentZReport();
     DELETE payment WHERE receiptPayment(payment) == receipt;
     IF sumReceiptDetailReceipt(receipt) THEN {
@@ -148,6 +153,7 @@ postCardReceipt 'Карточкой' = ACTION (receipt) {
 } EDITKEY 'F10' CONFIRM IN receiptActionGroup;
 
 postCashReceipt 'Наличными' = ACTION (receipt) {
+    allowPaymentGiftCard() <- NULL;
     zReportReceipt(receipt) <- currentZReport();
     DELETE payment WHERE receiptPayment(payment) == receipt;
     IF sumReceiptDetailReceipt(receipt) THEN {
