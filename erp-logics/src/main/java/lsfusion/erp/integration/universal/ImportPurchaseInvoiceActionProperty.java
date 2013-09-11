@@ -263,19 +263,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     data.get(i).add(userInvoiceDetailsList.get(i).nameCountry);
             }
 
-            if (showField(userInvoiceDetailsList, "nameImportCountry")) {
-                ImportField nameImportCountryField = new ImportField(LM.findLCPByCompoundName("nameCountry"));
-                ImportKey<?> importCountryKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Country"),
-                        LM.findLCPByCompoundName("countryName").getMapping(nameImportCountryField));
-                keys.add(importCountryKey);
-                props.add(new ImportProperty(nameImportCountryField, LM.findLCPByCompoundName("nameCountry").getMapping(importCountryKey)));
-                props.add(new ImportProperty(nameImportCountryField, LM.findLCPByCompoundName("importCountryUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                        LM.object(LM.findClassByCompoundName("Country")).getMapping(importCountryKey)));
-                fields.add(nameImportCountryField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).nameImportCountry);
-            }
-
             if (showField(userInvoiceDetailsList, "idCustomer")) {
                 ImportField idCustomerField = new ImportField(LM.findLCPByCompoundName("idLegalEntity"));
                 ImportKey<?> customerKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
@@ -410,6 +397,19 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     data.get(i).add(userInvoiceDetailsList.get(i).idPharmacyPriceGroup);
             }
 
+            if (purchaseInvoicePharmacyLM != null && showField(userInvoiceDetailsList, "nameImportCountry")) {
+                ImportField nameImportCountryField = new ImportField(purchaseInvoicePharmacyLM.findLCPByCompoundName("nameCountry"));
+                ImportKey<?> importCountryKey = new ImportKey((ConcreteCustomClass) purchaseInvoicePharmacyLM.findClassByCompoundName("Country"),
+                        purchaseInvoicePharmacyLM.findLCPByCompoundName("countryName").getMapping(nameImportCountryField));
+                keys.add(importCountryKey);
+                props.add(new ImportProperty(nameImportCountryField, purchaseInvoicePharmacyLM.findLCPByCompoundName("nameCountry").getMapping(importCountryKey)));
+                props.add(new ImportProperty(nameImportCountryField, purchaseInvoicePharmacyLM.findLCPByCompoundName("importCountryUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                        LM.object(purchaseInvoicePharmacyLM.findClassByCompoundName("Country")).getMapping(importCountryKey)));
+                fields.add(nameImportCountryField);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).nameImportCountry);
+            }
+            
             if (purchaseInvoicePharmacyLM != null && showField(userInvoiceDetailsList, "seriesPharmacy")) {
                 ImportField seriesPharmacyUserInvoiceDetailField = new ImportField(purchaseInvoicePharmacyLM.findLCPByCompoundName("Purchase.seriesPharmacyUserInvoiceDetail"));
                 props.add(new ImportProperty(seriesPharmacyUserInvoiceDetailField, purchaseInvoicePharmacyLM.findLCPByCompoundName("Purchase.seriesPharmacyUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
