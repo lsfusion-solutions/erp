@@ -1,24 +1,19 @@
-MODULE ImportPurchaseInvoice;
+MODULE ImportSaleReturnInvoice;
 
 REQUIRE System,
         ImportDocument,
         Item,
-        PurchaseInvoice;
+        SaleReturnInvoice;
 
-importPurchaseInvoiceDataAction 'Импортировать инвойс' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportPurchaseInvoiceActionProperty';
-
-importTypeUserInvoice = DATA ImportType(UserInvoice);
-nameImportTypeUserInvoice 'Тип импорта' (userInvoice) = nameImportType(importTypeUserInvoice(userInvoice));
+NAMESPACE SaleReturn; 
 
 
-originalInvoice 'Файл оригинала инвойса'  = DATA CUSTOMFILE (Purchase.Invoice);
+originalInvoice 'Файл оригинала инвойса'  = DATA CUSTOMFILE (Invoice);
 
 saveOriginalInvoice 'Загрузить файл оригинала инвойса' (i) = ACTION LOADFILE originalInvoice(i);
 openOriginalInvoice 'Просмотреть оригинала инвойса' (i) = ACTION OPENFILE originalInvoice(i);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) importPurchaseInvoiceDataAction TODRAW d TOOLBAR
-    PROPERTIES(i) nameImportTypeUserInvoice
     PROPERTIES(i) saveOriginalInvoice, openOriginalInvoice 
 ;
 
@@ -27,11 +22,6 @@ EXTEND DESIGN userInvoice{
         NEW import {
             caption = 'Импорт';
             type = CONTAINERH;
-            NEW universalImport {
-                caption = 'Универсальный импорт';
-                ADD PROPERTY(nameImportTypeUserInvoice);
-                ADD PROPERTY(importPurchaseInvoiceDataAction);
-            }
             NEW origin {
                 caption = 'Оригинал инвойса';
                 ADD PROPERTY(saveOriginalInvoice);
