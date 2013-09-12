@@ -858,3 +858,34 @@ META implementConsignment(concrete, skuProp)
     @implementConsignmentHeader(concrete);
     @implementConsignmentDetail(concrete, skuProp);
 END
+
+// ------------------------------------- Отпуск товара --------------------------------- //
+
+GROUP invoiceConsignmentGroup 'Накладная' : base;
+
+issuanceAllowedStock = DATA Employee (Stock);
+nameIssuanceAllowedStock 'Отпуск разрешил' (stock) = nameContact(issuanceAllowedStock(stock)) IN invoiceConsignmentGroup;
+
+issuanceExecutedStock  = DATA Employee(Stock);
+nameIssuanceExecutedStock 'Отпуск произвел' (stock) = nameContact(issuanceExecutedStock(stock)) IN invoiceConsignmentGroup;
+
+loadingExecuterStock = DATA Employee(Stock);
+nameLoadingExecuterStock 'Исполнитель ПРР' (stock) = nameContact(loadingExecuterStock(stock)) IN invoiceConsignmentGroup;
+
+wayOfLoadingStock = DATA WayOfLoading(Stock);
+nameWayOfLoadingStock 'Способ ПРР' (stock) = nameWayOfLoading(wayOfLoadingStock(stock)) IN invoiceConsignmentGroup;
+
+codeLoadingStock 'Код ПРР' = DATA STRING[3] (Stock)IN invoiceConsignmentGroup;
+
+META deriveConsignmentProperty(objectClass, property, stockProp)
+    property###objectClass (o) <- property###stock(stockProp###objectClass(o))
+        WHEN CHANGED(stockProp###objectClass(o));
+END
+META deriveConsignmentPropertyALL(stockProp)
+    @deriveConsignmentProperty(userInvoice, issuanceAllowed, stockProp);
+    @deriveConsignmentProperty(userInvoice, issuanceExecuted, stockProp);
+    @deriveConsignmentProperty(userInvoice, loadingExecuter, stockProp);
+    @deriveConsignmentProperty(userInvoice, wayOfLoading, stockProp);
+    @deriveConsignmentProperty(userInvoice, codeLoading, stockProp);          
+END
+
