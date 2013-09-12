@@ -1,14 +1,13 @@
 package lsfusion.erp.region.by.integration.lstrade;
 
 import lsfusion.erp.integration.*;
+import lsfusion.server.logics.property.ClassPropertyInterface;
+import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
+import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.lang.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,7 +18,7 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
 
-public class ImportLSTradeActionProperty extends ScriptingActionProperty {
+public class ImportLSTradeActionProperty extends DefaultImportActionProperty {
 
     public ImportLSTradeActionProperty(ScriptingLogicsModule LM) {
         super(LM);
@@ -460,25 +459,6 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
         return data;
     }
 
-    String[][] ownershipsList = new String[][]{
-            {"ОАОТ", "Открытое акционерное общество торговое"},
-            {"ОАО", "Открытое акционерное общество"},
-            {"СООО", "Совместное общество с ограниченной ответственностью"},
-            {"ООО", "Общество с ограниченной ответственностью"},
-            {"ОДО", "Общество с дополнительной ответственностью"},
-            {"ЗАО", "Закрытое акционерное общество"},
-            {"ЧТУП", "Частное торговое унитарное предприятие"},
-            {"ЧУТП", "Частное унитарное торговое предприятие"},
-            {"ТЧУП", "Торговое частное унитарное предприятие"},
-            {"ЧУП", "Частное унитарное предприятие"},
-            {"РУП", "Республиканское унитарное предприятие"},
-            {"РДУП", "Республиканское дочернее унитарное предприятие"},
-            {"УП", "Унитарное предприятие"},
-            {"ИП", "Индивидуальный предприниматель"},
-            {"СПК", "Сельскохозяйственный производственный кооператив"},
-            {"СП", "Совместное предприятие"}};
-
-
     private List<LegalEntity> importLegalEntitiesFromDBF(String path, String prefixStore, Boolean importInactive, Boolean isStore) throws
             IOException, xBaseJException {
 
@@ -675,25 +655,6 @@ public class ImportLSTradeActionProperty extends ScriptingActionProperty {
             data.add(element);
             itemGroups.add(itemGroup);
         }
-    }
-
-    private void checkFileExistence(String filePath) {
-        if (!(new File(filePath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + filePath + " не найден");
-    }
-
-    private String[] getAndTrimOwnershipFromName(String name) {
-        name = name == null ? "" : name;
-        String ownershipName = "";
-        String ownershipShortName = "";
-        for (String[] ownership : ownershipsList) {
-            if (name.contains(ownership[0] + " ") || name.contains(" " + ownership[0])) {
-                ownershipName = ownership[1];
-                ownershipShortName = ownership[0];
-                name = name.replace(ownership[0], "");
-            }
-        }
-        return new String[]{ownershipShortName, ownershipName, name};
     }
 
     private BigDecimal getBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
