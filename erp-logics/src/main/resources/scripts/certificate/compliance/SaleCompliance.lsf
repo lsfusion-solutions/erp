@@ -4,6 +4,18 @@ REQUIRE Compliance, SaleCertificate;
 
 NAMESPACE Sale;
 
+CLASS ABSTRACT PrintPageCompliance;
+compliancePrintPageCompliance = ABSTRACT Compliance (PrintPageCompliance);
+imagePrintPageCompliance = ABSTRACT IMAGEFILE (PrintPageCompliance);
+
+EXTEND CLASS Compliance: PrintPageCompliance;
+compliancePrintPageCompliance(compliance) += compliance IF compliance IS Compliance;
+imagePrintPageCompliance(compliance) += imageCompliance(compliance);
+
+EXTEND CLASS AdditionComplianceDetail: PrintPageCompliance;
+compliancePrintPageCompliance(detail) += complianceAdditionComplianceDetail(detail);
+imagePrintPageCompliance(detail) += imageAdditionComplianceDetail(detail);
+
 @defineDocumentCertificateObject(compliance, invoice, i, 'Сертификат соответствия');
 @defineDocumentCertificateConstraint(compliance, invoice, 'Сертификат соответствия');
 @deriveDocumentCertificate(compliance, invoice, supplierStock, data);
@@ -20,11 +32,12 @@ FORM imageComplianceInvoice 'Файл сертификата'
     OBJECTS i = Invoice FIXED PANEL
 
     OBJECTS c = Compliance
-    PROPERTIES(c) imageCompliance
-
     FILTERS countComplianceInvoice(c, i)
+    
+    OBJECTS p = PrintPageCompliance
+    PROPERTIES(p) imagePrintPageCompliance
+    FILTERS compliancePrintPageCompliance(p) == c    
 ;
-
 printAllImageInvoice 'Печать сертификатов' = ACTION (invoice) {
     FORM imageComplianceInvoice OBJECTS i = invoice PRINT;
 }

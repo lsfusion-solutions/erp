@@ -45,10 +45,34 @@ imageCompliance 'Файл сертификата'  = DATA IMAGEFILE (Compliance)
 saveImageCompliance 'Загрузить сертификат' (compliance) = ACTION LOADFILE imageCompliance(compliance);
 openImageCompliance 'Просмотреть сертификат' (compliance) = ACTION OPENFILE imageCompliance(compliance);
 
+CLASS AdditionComplianceDetail 'Дополнительная страница сертификата';
+complianceAdditionComplianceDetail = DATA Compliance (AdditionComplianceDetail);
+imageAdditionComplianceDetail 'Файл сертификата'  = DATA IMAGEFILE (AdditionComplianceDetail);
+saveImageAdditionComplianceDetail 'Загрузить сертификат' (additionComplianceDetail) = ACTION LOADFILE imageAdditionComplianceDetail(additionComplianceDetail);
+openImageAdditionComplianceDetail 'Просмотреть сертификат' (additionComplianceDetail) = ACTION OPENFILE imageAdditionComplianceDetail(additionComplianceDetail);
+@defineDocumentDetailIndex(compliance, AdditionComplianceDetail, base);
+@defineDocumentDetailNote(AdditionComplianceDetail);
+
+addAdditionComplianceDetail 'Добавить' = ACTION (compliance){
+    FOR ADDOBJ d = AdditionComplianceDetail DO {
+        complianceAdditionComplianceDetail(d) <- compliance;
+        EXEC saveImageAdditionComplianceDetail(d);
+        EXEC apply();
+    }    
+}
+
 FORM compliance 'Сертификат соответствия'
     OBJECTS c = Compliance FIXED PANEL
     PROPERTIES(c) objectClassName, nameNumeratorObject, numberObject, seriesObject, dateCompliance, timeCompliance,
                   fromDateCompliance, toDateCompliance, nameLegalEntityCompliance, saveImageCompliance, openImageCompliance
+                      
+    OBJECTS d = AdditionComplianceDetail
+    PROPERTIES(d) indexAdditionComplianceDetail, noteAdditionComplianceDetail
+    PROPERTIES(c) addAdditionComplianceDetail TODRAW d FORCE PANEL TOOLBAR
+    PROPERTIES(d) openImageAdditionComplianceDetail TODRAW d FORCE PANEL TOOLBAR,
+                  saveImageAdditionComplianceDetail TODRAW d FORCE PANEL TOOLBAR,
+                  DELETE TODRAW d FORCE PANEL TOOLBAR
+    FILTERS complianceAdditionComplianceDetail(d) == c                   
 
     EDIT Compliance OBJECT c
 ;
@@ -88,7 +112,21 @@ DESIGN compliance FROM DEFAULT{
                 ADD PROPERTY(openImageCompliance);
                 ADD PROPERTY(saveImageCompliance);
             }
-        }
+            NEW tabContainer{
+                fill = 1;
+                type = TABBED;
+                NEW firstTab{
+                    caption = 'Дополнительная информация';
+                    fill = 1;
+                }
+                ADD d.box{
+                    caption = 'Дополнительные файлы сертификата';
+                    PROPERTY(indexAdditionComplianceDetail){
+                        caption = 'Номер файла';
+                    }
+                }
+            }
+        }    
         ADD functions.box;
     }
 }
