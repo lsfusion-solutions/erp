@@ -25,10 +25,19 @@ CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCompanyLegalEntity(c
 @defineDocumentSupplierCustomerStockAccess(UserCreditNote, supplier, company, userCreditNote);
 
 // -- Операция
-@defineDocumentOperation(creditNote ,c); 
+@defineDocumentOperationContainer(creditNote ,c); 
 @defineDocumentOperationRole(userCreditNote);
 @defineOperationProperty(createCreditNote, 'Акт расхождения', createContainer);
 @deriveDocumentOperationProperty(UserInvoice, createCreditNote);
+
+@defineDocumentOperationLegalEntity(userCreditNote, supplier, 'Поставщик');
+@deriveDocumentOperationLegalEntity(userCreditNote, supplier, userCreditNote);
+@defineDocumentOperationLegalEntity(userCreditNote, customer, 'Покупатель');
+@deriveDocumentOperationLegalEntity(userCreditNote, customer, userCreditNote);
+@defineDocumentOperationStock(userCreditNote, supplierStock, 'Склад поставщика');
+@deriveDocumentOperationStock(userCreditNote, supplierStock, userCreditNote);
+@defineDocumentOperationStock(userCreditNote, customerStock, 'Склад покупателя');
+@deriveDocumentOperationStock(userCreditNote, customerStock, userCreditNote);
 
 operationCreditNote(creditNote) += operationInvoice(invoiceInvoiceCreditNote(creditNote));
 

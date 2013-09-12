@@ -156,6 +156,37 @@ END
 META defineDocumentOperation(object, char)
     @defineDocumentOperation(object, char, nameCurrencyUser, nameCurrency);
 END
+
+META defineDocumentOperationContainer(object, char, afProp, befProperty, contProp)
+
+    operation###object = ABSTRACT Operation (###object) PERSISTENT;
+    name###operation###object 'Операция' = nameOperation(operation###object(object));
+    id###operation###object 'ID операции' = idOperation(operation###object(object));
+    operationUser###object = DATA Operation (User###object);
+    name###operationUser###object 'Операция' = nameOperation(operationUser###object(user###object));
+    id###operationUser###object 'ID операции' = idOperation(operationUser###object(user###object));
+    operation###object(object) += operationUser###object(object);
+
+    operation###object##Detail 'Операция' (object##Detail) = operation###object(object###object##Detail(object##Detail));
+    operationUser###object##Detail 'Операция' (user###object##Detail) = operationUser###object(user###object##User###object##Detail(user###object##Detail));
+
+    EXTEND FORM user###object
+        PROPERTIES(char) name###operationUser###object
+    ;
+
+    EXTEND DESIGN user###object{
+        contProp{
+            ADD PROPERTY(name###operationUser###object) AFTER PROPERTY(afProp);
+        }
+    }
+    EXTEND FORM object##s
+        PROPERTIES(char) READONLYIF isReadonly() name###operation###object BEFORE befProperty###object(char)
+    ;
+END
+
+META defineDocumentOperationContainer(object, char)
+    @defineDocumentOperationContainer(object, char, objectClassName, nameCurrency, first);
+END
 // -------------------------------------- Организации ---------------------------------- //
 
 META defineOperationLegalEntity(prop, object, tabcaption)
@@ -207,6 +238,10 @@ META defineOperationLegalEntity(prop, object, tabcaption)
             }
         }
     }
+    
+    // Подсчет органиизации по-умолчанию            
+    count###prop###operation (operation) = GROUP SUM 1 IF in###prop##Operation(legalEntity,operation) BY operation;
+    default###prop###operation (operation) = GROUP MIN legalEntity IF in###prop##Operation(legalEntity,operation) BY operation;                 
 
 END
 
@@ -215,6 +250,12 @@ META defineDocumentOperationLegalEntity(object, prop, caption)
                AND NOT in###prop##Operation(prop###object(object), operation###object(object))
         CHECKED BY prop###object
         MESSAGE caption##' должен совпадать с отмеченными в операции';
+END
+
+META deriveDocumentOperationLegalEntity(objectClass, prop, form)
+    WHEN SESSION FORMS form CHANGED(operation###objectClass(o)) DO
+        prop###objectClass(o) <- default###prop###operation(operation###objectClass(o))
+            IF count###prop###operation(operation###objectClass(o)) == 1;
 END
 
 //Склады
@@ -274,6 +315,9 @@ META defineOperationStock(prop, object, tabcaption)
             }
         }
     }
+    // Подсчет органиизации по-умолчанию            
+    count###prop###operation (operation) = GROUP SUM 1 IF in###prop##Operation(stock,operation) BY operation;
+    default###prop###operation (operation) = GROUP MIN stock IF in###prop##Operation(stock,operation) BY operation;         
 
 END
 
@@ -283,7 +327,11 @@ META defineDocumentOperationStock(object, prop, caption)
         CHECKED BY prop###object
         MESSAGE caption##' должен совпадать с отмеченными в операции';
 END
-
+META deriveDocumentOperationStock(objectClass, prop, form)
+    WHEN SESSION FORMS form CHANGED(operation###objectClass(o)) DO
+        prop###objectClass(o) <- default###prop###operation(operation###objectClass(o))
+            IF count###prop###operation(operation###objectClass(o)) == 1;
+END
 
 //Валюта
 
