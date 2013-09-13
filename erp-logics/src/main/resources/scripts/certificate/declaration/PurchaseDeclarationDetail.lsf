@@ -258,11 +258,11 @@ invoicesDeclaration 'Накладные' (declaration) =
 
 FORM declarationInvoices 'Выбрать накладные'
     OBJECTS d=Declaration FIXED PANEL
-    PROPERTIES(d) READONLY seriesNumberObject, nameLegalEntityDeclaration, nameCurrencyDeclaration, dateTimeDeclaration
+    PROPERTIES(d) READONLY seriesNumberDeclaration, nameLegalEntityDeclaration, nameCurrencyDeclaration, dateTimeDeclaration
 
     OBJECTS i=UserInvoice
     PROPERTIES (d, i) inDeclarationUserInvoice
-    PROPERTIES (i) READONLY numberObject, seriesObject, dateUserInvoice, timeUserInvoice, nameSupplierUserInvoice, nameCustomerUserInvoice
+    PROPERTIES (i) READONLY numberUserInvoice, seriesUserInvoice, dateUserInvoice, timeUserInvoice, nameSupplierUserInvoice, nameCustomerUserInvoice
     FILTERS inDeclarationUserInvoice(d, i) OR d IS Declaration AND NOT declarationUserInvoice(i)
 
     OBJECTS id=UserInvoiceDetail
@@ -308,7 +308,7 @@ EXTEND FORM declaration
     PROPERTIES(d) invoicesDeclaration
 
     OBJECTS id=UserInvoiceDetail
-    PROPERTIES(id) READONLY seriesNumberInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail,
+    PROPERTIES(id) READONLY seriesNumberUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail,
                    nameCustomsUserInvoiceDetail, nameCountrySkuUserInvoiceDetail, sumNetWeightUserInvoiceDetail, quantityUserInvoiceDetail, priceUserInvoiceDetail
     PROPERTIES(id) codeCustomsGroupUserInvoiceDetail, nameVATCustomsExceptionUserInvoiceDetail BACKGROUND backgroundVATCustomsExceptionUserInvoiceDetail(id)
     PROPERTIES(id) dutyPriceUserInvoiceDetail, registrationPriceUserInvoiceDetail
@@ -578,7 +578,7 @@ inUserInvoiceDetailDeclarationDetail 'Вкл.' (id, dd) = declarationDetailUserI
 inDeclarationDetailUserInvoice (d, i) = GROUP SUM 1 BY declarationDetailUserInvoiceDetail(d), userInvoiceUserInvoiceDetail(d);
 
 invoicesDeclarationDetail 'Накладные' (d) =
-    GROUP CONCAT seriesNumberObject(i) IF inDeclarationDetailUserInvoice(d, i), ','
+    GROUP CONCAT seriesNumberInvoice(i) IF inDeclarationDetailUserInvoice(d, i), ','
               BY d ORDER i MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
 
 // -------------------------------------- Создание позиций по строкам накладной -------------------------- //
@@ -650,7 +650,7 @@ EXTEND DESIGN declaration {
 }
 
 EXTEND FORM declarations
-    PROPERTIES(d) READONLY isPostedDeclaration FORCE GRID BEFORE numberObject(d)
+    PROPERTIES(d) READONLY isPostedDeclaration FORCE GRID BEFORE numberDeclaration(d)
     PROPERTIES(d) READONLY sumDeclarationDetailDeclaration, deliverySumDeclaration, chargeSumDeclaration,
                            homeSumDeclarationDetailDeclaration, dutySumDeclarationDetailDeclaration, VATSumDeclarationDetailDeclaration, registrationSumDeclaration
 

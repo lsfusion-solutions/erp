@@ -140,8 +140,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             List<List<Object>> data = initData(userInvoiceDetailsList.size());
 
             if (showField(userInvoiceDetailsList, "numberUserInvoice")) {
-                ImportField numberUserInvoiceField = new ImportField(LM.findLCPByCompoundName("numberObject"));
-                props.add(new ImportProperty(numberUserInvoiceField, LM.findLCPByCompoundName("numberObject").getMapping(userInvoiceObject)));
+                ImportField numberUserInvoiceField = new ImportField(LM.findLCPByCompoundName("numberUserInvoice"));
+                props.add(new ImportProperty(numberUserInvoiceField, LM.findLCPByCompoundName("numberUserInvoice").getMapping(userInvoiceObject)));
                 fields.add(numberUserInvoiceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).numberUserInvoice);
@@ -340,11 +340,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
 
             if (showField(userInvoiceDetailsList, "numberCompliance")) {
-                ImportField numberComplianceField = new ImportField(LM.findLCPByCompoundName("numberObject"));
+                ImportField numberComplianceField = new ImportField(LM.findLCPByCompoundName("numberCompliance"));
                 ImportKey<?> complianceKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Compliance"),
                         LM.findLCPByCompoundName("complianceId").getMapping(numberComplianceField));
                 keys.add(complianceKey);
-                props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("numberObject").getMapping(complianceKey)));
+                props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("numberCompliance").getMapping(complianceKey)));
                 props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("idCompliance").getMapping(complianceKey)));
                 props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundName("complianceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                         LM.object(LM.findClassByCompoundName("Compliance")).getMapping(complianceKey)));
@@ -354,11 +354,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
 
             if (showField(userInvoiceDetailsList, "numberDeclaration")) {
-                ImportField numberDeclarationField = new ImportField(LM.findLCPByCompoundName("numberObject"));
+                ImportField numberDeclarationField = new ImportField(LM.findLCPByCompoundName("numberDeclaration"));
                 ImportKey<?> declarationKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Declaration"),
                         LM.findLCPByCompoundName("declarationId").getMapping(numberDeclarationField));
                 keys.add(declarationKey);
-                props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("numberObject").getMapping(declarationKey)));
+                props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("numberDeclaration").getMapping(declarationKey)));
                 props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("idDeclaration").getMapping(declarationKey)));
                 props.add(new ImportProperty(numberDeclarationField, LM.findLCPByCompoundName("declarationUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                         LM.object(LM.findClassByCompoundName("Declaration")).getMapping(declarationKey)));

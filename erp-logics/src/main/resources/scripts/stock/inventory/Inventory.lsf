@@ -107,7 +107,10 @@ TABLE inventory (Inventory);
 
 @defineDocumentHeaderTime(Inventory);
 @deriveDocumentHeaderTimePrefix(Inventory, );
-    
+
+@defineDocumentHeaderNumber(Inventory);
+@defineNumeratedObjectDefault(Inventory, 'Нумератор для инвентаризаций', 'ИН');
+
 @defineDocumentHeaderNote(Inventory);
 
 isBatchInventory 'По партиям' (inventory) = DATA BOOLEAN (Inventory);
@@ -291,7 +294,7 @@ timeToCollationSheet 'Снятие остатков закончено' (collati
 nameHeadManCollationSheet  'Зав. складом' (collationSheet) = nameHeadManInventory(inventoryCollationSheet(collationSheet));
 
 nameCollationSheet 'Внутренний номер' (collationSheet) = [FORMULA VARSTRING[30] '$1 || \'-\' || CAST ($2 AS character(20))'](
-        seriesNumberObject(inventoryCollationSheet(collationSheet)),
+        seriesNumberInventory(inventoryCollationSheet(collationSheet)),
         indexCollationSheet(collationSheet));
 
 collationSheetStockInventory 'Сличительная ведомость по складу и инвентаризации' (stock, inventory) =
@@ -760,7 +763,7 @@ sumInSkuLedger (ledger) += sumInInventoryBatchDetail(ledger);
 
 FORM dialogStockInventory 'Выбор складов для инвентаризации'
     OBJECTS in=Inventory FIXED PANEL
-    PROPERTIES (in) READONLY seriesObject, numberObject, nameInventory, dateInventory
+    PROPERTIES (in) READONLY seriesInventory, numberInventory, nameInventory, dateInventory
 
     TREE stockTree sg = StockGroup PARENT parentStockGroup
     PROPERTIES READONLY sgTreeName = nameStockGroup(sg)
@@ -936,7 +939,7 @@ dumbPageInventory (p) = ' ' IF p IS PageInventory;
 
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory FIXED PANEL
-    PROPERTIES (in)  isBatchInventory, nameNumeratorObject, numberObject, seriesObject,
+    PROPERTIES (in)  isBatchInventory, nameNumeratorInventory, numberInventory, seriesInventory,
                      nameInventory, nameTypeOfAdditionInventory, dateInventory, timeInventory,
                      noteInventory, nameStockInventory ON CHANGE dialogStockInventory(in),
                      recalculatePriceInventory, recalculateBalanceInventory,
@@ -1031,9 +1034,9 @@ DESIGN inventory FROM DEFAULT {
         ADD in.documentHeaderGroup {
             type = CONTAINERH;
             ADD PROPERTY(nameStockInventory);
-            ADD PROPERTY(nameNumeratorObject);
-            ADD PROPERTY(numberObject);
-            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(nameNumeratorInventory);
+            ADD PROPERTY(numberInventory);
+            ADD PROPERTY(seriesInventory);
             ADD PROPERTY(dateInventory);
             ADD PROPERTY(timeInventory);
         }
@@ -1147,7 +1150,7 @@ DESIGN inventory FROM DEFAULT {
 
 FORM inventories 'Инвентаризации'
     OBJECTS in=Inventory
-    PROPERTIES(in) READONLY             isPostedInventory FORCE GRID, isBatchInventory, numberObject, seriesObject, dateInventory, timeInventory,
+    PROPERTIES(in) READONLY             isPostedInventory FORCE GRID, isBatchInventory, numberInventory, seriesInventory, dateInventory, timeInventory,
                                         nameStockInventory, nameInventory, noteInventory, objectClassName
     PROPERTIES(in) FORCE PANEL READONLY nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, nameUserClosed, timeClosed, hostnameComputerClosed
     PROPERTIES(in)                      ADDFORM, EDITFORM SHOWIF isDraftInventory(in), deletein=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftInventory(in),

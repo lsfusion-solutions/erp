@@ -7,6 +7,8 @@ CLASS PaymentPosted 'Проведенный платеж' : Payment, PostedObjec
 TABLE payment(Payment);
 
 @defineDocumentHeaderPosted(Payment);
+
+@defineNumberedObject(Payment);
 @defineNumeratedObjectDefault(Payment, 'Нумератор для платежей', 'ПЛ');
 
 datePayment 'Дата' (payment) = DATA DATE (Payment);
@@ -46,7 +48,7 @@ notePayment 'Примечание' (payment) = DATA VARSTRING[200] (Payment);
 
 descriptionPayment 'Название документа' =
     [FORMULA VARSTRING[200] '\'Платеж \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT) || \' \' || CAST($3 AS TEXT)'](
-    seriesNumberObject(payment), datePayment(payment), nameBeneficiaryPayment(payment)) PERSISTENT;
+    seriesNumberPayment(payment), datePayment(payment), nameBeneficiaryPayment(payment)) PERSISTENT;
 
 dateTimePaymentLedger(paymentLedger) += dateTimePayment(paymentLedger);
 legalEntityFromPaymentLedger(paymentLedger) += payerPayment(paymentLedger);
@@ -88,7 +90,7 @@ namePartyB 'Организация (покупатель)' = nameLegalEntity(par
 FORM payment 'Платеж'
 
     OBJECTS p = Payment FIXED PANEL
-    PROPERTIES(p) objectClassName, nameNumeratorObject, numberObject, seriesObject, datePayment, timePayment, textPayment,
+    PROPERTIES(p) objectClassName, nameNumeratorPayment, numberPayment, seriesPayment, datePayment, timePayment, textPayment,
                   notePayment, namePayerPayment, nameBeneficiaryPayment, nameAccountToPayment, nameAccountFromPayment, sumPayment,
                   nameCurrencyAccountToPayment, nameCurrencyAccountFromPayment, nameOperationPayment
     EVENTS
@@ -105,9 +107,9 @@ DESIGN payment FROM DEFAULT{
             caption = 'Шапка документа';
             type = CONTAINERH;
             ADD PROPERTY(objectClassName);
-            ADD PROPERTY(nameNumeratorObject);
-            ADD PROPERTY(numberObject);
-            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(nameNumeratorPayment);
+            ADD PROPERTY(numberPayment);
+            ADD PROPERTY(seriesPayment);
             ADD PROPERTY(datePayment);
             ADD PROPERTY(timePayment);
         }
@@ -160,7 +162,7 @@ FORM payments 'Платежи'
     PROPERTIES() namePartyA, namePartyB
 
     OBJECTS p = Payment
-    PROPERTIES(p) BACKGROUND backgroundPaymentDate(p, d) READONLY numberObject, seriesObject, datePayment, timePayment,
+    PROPERTIES(p) BACKGROUND backgroundPaymentDate(p, d) READONLY numberPayment, seriesPayment, datePayment, timePayment,
                   namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
                   nameCurrencyAccountToPayment, sumPayment, notePayment, objectClassName, nameOperationPayment 
 

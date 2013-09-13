@@ -30,6 +30,8 @@ CLASS ABSTRACT ConsignmentDetail 'Строка накладной';
 
 dateConsignment 'Дата' (consignment) = ABSTRACT DATE (Consignment);
 
+@defineNumberedObjectAbstract(Consignment);
+
 // ---------------------------------- Юридические лица ---------------------- //
 
 countRowsSimpleVertical 'Макс. кол-во строк в бланке (ТН-2 вер.)' = DATA INTEGER ();
@@ -299,7 +301,7 @@ META defineConsignmentFormSimple(form, caption)
                        quantityConsignmentDetailConsignment, sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment,
                        sumInvoiceConsignmentDetailConsignment,
                        UNPCustomerConsignment, UNPSupplierConsignment, addressSupplierConsignment, addressCustomerConsignment,
-                       fullNameSupplierConsignment, fullNameCustomerConsignment, numberObject, seriesObject, countConsignmentDetailConsignment,
+                       fullNameSupplierConsignment, fullNameCustomerConsignment, numberConsignment, seriesConsignment, countConsignmentDetailConsignment,
                        isWareConsignment, isCustomsFlowConsignment, isCurrencyConsignment, shortNameCurrencyConsignment,
                        noteConsignment, documentNameCurrencyConsignment
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
@@ -363,7 +365,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##sumInvoiceConsignmentDetailConsignment=sumInvoiceConsignmentDetailConsignment,
                        prefix##countConsignmentDetailConsignment=countConsignmentDetailConsignment, 
                        prefix##supplierSumConsignmentDetailConsignment=supplierSumConsignmentDetailConsignment,
-                       prefix##seriesObject=seriesObject, prefix##numberObject=numberObject, prefix##seriesNumberObject=seriesNumberObject, 
+                       prefix##seriesConsignment=seriesConsignment, prefix##numberConsignment=numberConsignment, prefix##seriesNumberConsignment=seriesNumberConsignment, 
                        prefix##isCustomsFlowConsignment=isCustomsFlowConsignment, 
                        prefix##isCurrencyConsignment=isCurrencyConsignment, prefix##shortNameCurrencyConsignment=shortNameCurrencyConsignment,
                        prefix##noteConsignment=noteConsignment, prefix##documentNameCurrencyConsignment=documentNameCurrencyConsignment    
@@ -448,7 +450,7 @@ reportFilePrintConsignmentHorizontalB () = 'Consignment_consignmentHorizontalB_b
 FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment FIXED PANEL
 
-    PROPERTIES (c) READONLY objectClassName, nameSupplierStockConsignment, seriesObject, numberObject
+    PROPERTIES (c) READONLY objectClassName, nameSupplierStockConsignment, numberConsignment, seriesConsignment
     PROPERTIES (c) dateConsignment, UNPCustomerConsignment, UNPSupplierConsignment, addressSupplierConsignment, addressCustomerConsignment, fullNameSupplierConsignment,
                    fullNameCustomerConsignment, nameTruckConsignment, ownerTruckConsignment, trailerConsignment, nameDriverConsignment, overWaybillConsignment,
                    fullNamePayerConsignment, UNPPayerConsignment, addressPayerConsignment, shipmentBaseConsignment, addressSupplierStockConsignment, addressCustomerStockConsignment,
@@ -479,8 +481,8 @@ DESIGN consignment FROM DEFAULT {
             type = CONTAINERH;
             ADD PROPERTY (objectClassName) { preferredCharWidth = 15; }
             ADD PROPERTY(nameSupplierStockConsignment);
-            ADD PROPERTY(numberObject);
-            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(numberConsignment);
+            ADD PROPERTY(seriesConsignment);
             ADD PROPERTY(dateConsignment);
         }
 
@@ -706,6 +708,8 @@ META implementConsignmentHeader (concrete)
     EXTEND CLASS concrete : Consignment;
 
     dateConsignment (consignment) += date###concrete(consignment);
+    numberConsignment (consignment) += number###concrete(consignment);
+    seriesConsignment (consignment) += series###concrete(consignment);
 
     payerConsignment (consignment) += payer###concrete (consignment);
 

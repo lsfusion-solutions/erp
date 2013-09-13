@@ -9,6 +9,9 @@ CLASS PaymentRequestPosted 'Проведенное платежное требо
 TABLE paymentRequest(PaymentRequest);
 
 @defineDocumentHeaderPosted(PaymentRequest);
+
+@defineNumberedObject(PaymentRequest);
+
 @defineNumeratedObjectDefault(PaymentRequest, 'Нумератор для платежных требований', 'ПТ');
 
 datePaymentRequest 'Дата' (paymentRequest) = DATA DATE (PaymentRequest);
@@ -53,7 +56,7 @@ sumPaymentRequest 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentReq
 
 descriptionPaymentRequest 'Название документа' =
     [FORMULA VARSTRING[200] '\'Платежное требование \' || CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT) || \' \' || CAST($3 AS TEXT)'](
-    seriesNumberObject(paymentRequest), datePaymentRequest(paymentRequest), nameBeneficiaryPaymentRequest(paymentRequest)) PERSISTENT;
+    seriesNumberPaymentRequest(paymentRequest), datePaymentRequest(paymentRequest), nameBeneficiaryPaymentRequest(paymentRequest)) PERSISTENT;
 
 TABLE paymentRequestInContractLedger (PaymentRequest, InContractLedger);
 costPaymentRequestInContractLedger 'Сумма требования' (paymentRequest, inContractLedger) = DATA NUMERIC[16,2] (PaymentRequest, InContractLedger) PERSISTENT;
@@ -117,7 +120,7 @@ namePartyB 'Организация (покупатель)' = nameLegalEntity(par
 FORM paymentRequest 'Платежное требование'
 
     OBJECTS p = PaymentRequest FIXED PANEL
-    PROPERTIES(p) objectClassName, nameNumeratorObject, numberObject, seriesObject, datePaymentRequest, timePaymentRequest,
+    PROPERTIES(p) objectClassName, nameNumeratorPaymentRequest, numberPaymentRequest, seriesPaymentRequest, datePaymentRequest, timePaymentRequest,
                   seriesNumberContractPaymentRequest, notePaymentRequest
     PROPERTIES(p) namePayerPaymentRequest, nameAccountFromPaymentRequest, nameCurrencyAccountFromPaymentRequest,
                   nameBeneficiaryPaymentRequest, nameAccountToPaymentRequest, nameCurrencyAccountToPaymentRequest
@@ -146,9 +149,9 @@ DESIGN paymentRequest FROM DEFAULT{
             caption = 'Шапка документа';
             type = CONTAINERH;
             ADD PROPERTY(objectClassName);
-            ADD PROPERTY(nameNumeratorObject);
-            ADD PROPERTY(numberObject);
-            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(nameNumeratorPaymentRequest);
+            ADD PROPERTY(numberPaymentRequest);
+            ADD PROPERTY(seriesPaymentRequest);
             ADD PROPERTY(datePaymentRequest);
             ADD PROPERTY(timePaymentRequest);
         }
@@ -233,8 +236,8 @@ backgroundPaymentRequestDate 'Цвет' (paymentRequest, date) = CASE WHEN dateP
 
 EXTEND FORM contractLedger
     OBJECTS pr = PaymentRequest
-    PROPERTIES(pr) READONLY numberObject BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            seriesObject BACKGROUND backgroundPaymentRequestDate(pr, d),
+    PROPERTIES(pr) READONLY numberPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            seriesPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
@@ -279,8 +282,8 @@ FORM paymentRequests 'Платежные требования'
     PROPERTIES() namePartyA, namePartyB
 
     OBJECTS pr = PaymentRequest
-    PROPERTIES(pr) READONLY numberObject BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            seriesObject BACKGROUND backgroundPaymentRequestDate(pr, d),
+    PROPERTIES(pr) READONLY numberPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
+                            seriesPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             nameBeneficiaryPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),

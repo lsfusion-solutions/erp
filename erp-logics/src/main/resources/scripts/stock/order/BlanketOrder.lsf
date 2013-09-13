@@ -32,6 +32,10 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
 
     @defineDocumentDataTimePrefix (blanketOrder, shipment, ' поставки');
 
+    @defineDocumentHeaderNumber(BlanketOrder);
+    
+    @defineNumeratedObjectDefault(BlanketOrder, 'Нумератор для множественных заказов'###sign, 'ЗМ');
+
     @defineDocumentDescription(blanketOrder, 'Множественный заказ'###sign);
 
     @defineDocumentCurrency (blanketOrder);
@@ -149,7 +153,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
         OBJECTS o = BlanketOrder FIXED PANEL
         PROPERTIES (o) objectClassName, nameSupplierBlanketOrder ON CHANGE changeSupplier###supplierFilter###blanketOrder(o),
                        nameSupplierStockBlanketOrder ON CHANGE changeSupplierStock###supplierFilter###blanketOrder(o),
-                       nameNumeratorObject, numberObject, seriesObject, dateBlanketOrder, timeBlanketOrder,
+                       nameNumeratorBlanketOrder, numberBlanketOrder, seriesBlanketOrder, dateBlanketOrder, timeBlanketOrder,
                        nameCurrencyBlanketOrder, noteBlanketOrder,
                        nameCustomerBlanketOrder ON CHANGE changeCustomer###customerFilter###blanketOrder(o), nameAgreementBlanketOrder,
                        countBlanketOrderDetailBlanketOrder, quantityBlanketOrderDetailBlanketOrder, sumBlanketOrderDetailBlanketOrder,
@@ -199,9 +203,9 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
                     ADD o.documentHeaderGroup {
                         type = CONTAINERH;
                         ADD PROPERTY(objectClassName) { preferredCharWidth = 10; }
-                        ADD PROPERTY(nameNumeratorObject);
-                        ADD PROPERTY(numberObject);
-                        ADD PROPERTY(seriesObject);
+                        ADD PROPERTY(nameNumeratorBlanketOrder);
+                        ADD PROPERTY(numberBlanketOrder);
+                        ADD PROPERTY(seriesBlanketOrder);
                         ADD PROPERTY(dateBlanketOrder);
                         ADD PROPERTY(timeBlanketOrder);
                     }
@@ -263,7 +267,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
     FORM blanketOrders 'Множественные заказы' TITLE 'Множественные заказы'###sign
         OBJECTS o = BlanketOrder
         PROPERTIES (o) READONLY isPostedBlanketOrder FORCE GRID
-        PROPERTIES (o) READONLYIF isReadonly() numberObject, seriesObject, dateBlanketOrder, timeBlanketOrder,
+        PROPERTIES (o) READONLYIF isReadonly() numberBlanketOrder, seriesBlanketOrder, dateBlanketOrder, timeBlanketOrder,
                                 nameSupplierBlanketOrder, nameSupplierStockBlanketOrder, nameCustomerBlanketOrder, nameCurrencyBlanketOrder
         PROPERTIES (o) READONLY countBlanketOrderDetailBlanketOrder, quantityBlanketOrderDetailBlanketOrder, sumBlanketOrderDetailBlanketOrder,
                                 VATSumBlanketOrderDetailBlanketOrder, invoiceSumBlanketOrderDetailBlanketOrder
@@ -383,7 +387,7 @@ META defineOrderBlanketOrder(sign)
     dateOrder(order) += dateBlanketOrderOrder(order);
     timeOrder(order) += timeBlanketOrderOrder(order);
 
-    @defineDocumentHeaderDescription(BlanketOrderOrder, seriesNumberBlanketOrderOrder, 'Заказ на основе множественного'###sign);
+    @defineDocumentHeaderDescription(BlanketOrderOrder, 'Заказ на основе множественного'###sign);
     descriptionOrder (order) += descriptionBlanketOrderOrder(order);
 
     @defineDocumentAggregationPosted(blanketOrder, blanketOrderOrder);

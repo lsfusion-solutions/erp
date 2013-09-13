@@ -22,14 +22,14 @@ toDateCertificate(certificate) += toDateCompliance(certificate);
 
 // ------ Номер ----------- //
 
-@defineNumeratedObjectDefault(Compliance, 'Нумератор для сертификатов', 'СС');
+@defineDocumentHeaderNumber(Compliance);
 
-seriesCertificate(compliance) += seriesObject(compliance) IF compliance IS Compliance;
-numberCertificate(compliance) += numberObject(compliance) IF compliance IS Compliance;
-numberToCompliance (number) = GROUP AGGR compliance BY numberCertificate(compliance) WHERE compliance IS Compliance;
+seriesCertificate(compliance) += seriesCompliance(compliance);
+numberCertificate(compliance) += numberCompliance(compliance);
+numberToCompliance (number) = GROUP AGGR compliance BY numberCompliance(compliance) WHERE compliance IS Compliance;
 
 // Описание
-descriptionCompliance 'Сертификат соответствия' (compliance) = CONCAT ' ', '№ ' + seriesNumberObject(compliance),
+descriptionCompliance 'Сертификат соответствия' (compliance) = CONCAT ' ', '№ ' + seriesNumberCompliance(compliance),
                                                  'от ' + fromDateCompliance(compliance), 'действует по ' + toDateCompliance(compliance);
 
 // Текст
@@ -63,7 +63,7 @@ addAdditionComplianceDetail 'Добавить' = ACTION (compliance){
 
 FORM compliance 'Сертификат соответствия'
     OBJECTS c = Compliance FIXED PANEL
-    PROPERTIES(c) objectClassName, nameNumeratorObject, numberObject, seriesObject, dateCompliance, timeCompliance,
+    PROPERTIES(c) objectClassName, numberCompliance, seriesCompliance, dateCompliance, timeCompliance,
                   fromDateCompliance, toDateCompliance, nameLegalEntityCompliance, saveImageCompliance, openImageCompliance
                       
     OBJECTS d = AdditionComplianceDetail
@@ -85,9 +85,8 @@ DESIGN compliance FROM DEFAULT{
                 caption = 'Шапка документа';
                 type = CONTAINERH;
                 ADD PROPERTY (objectClassName);
-                ADD PROPERTY (nameNumeratorObject);
-                ADD PROPERTY (numberObject);
-                ADD PROPERTY (seriesObject);
+                ADD PROPERTY (numberCompliance);
+                ADD PROPERTY (seriesCompliance);
                 ADD PROPERTY (dateCompliance);
                 ADD PROPERTY (timeCompliance);
 
@@ -133,7 +132,7 @@ DESIGN compliance FROM DEFAULT{
 
 FORM compliances 'Сертификаты соответствия'
     OBJECTS c = Compliance
-    PROPERTIES(c) READONLY numberObject, seriesObject, dateCompliance, timeCompliance, fromDateCompliance, toDateCompliance,
+    PROPERTIES(c) READONLY numberCompliance, seriesCompliance, dateCompliance, timeCompliance, fromDateCompliance, toDateCompliance,
                   nameLegalEntityCompliance, objectClassName
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE
 

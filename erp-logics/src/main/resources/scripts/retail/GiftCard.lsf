@@ -7,17 +7,18 @@ CLASS GiftCard 'Подарочный сертификат' : NumeratedObject;
 
 @defineExternalizable(giftCard, VARSTRING[100]);
 
-numberGiftCard 'Номер' (giftCard) = numberObject(giftCard) IF giftCard IS GiftCard;// PERSISTENT убран, чтобы проходил импорт
-seriesGiftCard 'Серия' = seriesObject(giftCard) IF giftCard IS GiftCard; // PERSISTENT убран, чтобы проходил импорт
-seriesNumberGiftCard 'Серия/Номер' (giftCard) = seriesNumberObject(giftCard) IF giftCard IS GiftCard;  // PERSISTENT убран, чтобы проходил импорт
-dateGiftCard 'Дата' = DATA DATE(GiftCard);
-expiryDaysGiftCard 'Срок действия (дней)' = DATA INTEGER(GiftCard);
+@defineNumberedObject(GiftCard);
 
+@defineNumeratedObjectDefault(GiftCard, 'Нумератор для подарочных сертификатов', 'ПС');
+
+// Уникальность
 giftCardSeriesNumber (string) =
     GROUP AGGR giftCard
         BY seriesNumberGiftCard(giftCard) WHERE giftCard IS GiftCard;
 
-@defineNumeratedObjectDefault(GiftCard, 'Нумератор для подарочных сертификатов', 'ПС');
+
+dateGiftCard 'Дата' = DATA DATE(GiftCard);
+expiryDaysGiftCard 'Срок действия (дней)' = DATA INTEGER(GiftCard);
 
 priceGiftCard 'Цена' = DATA NUMERIC[14,2] (GiftCard);
 
@@ -118,9 +119,9 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
         ASSIGN num() <- 0;
         WHILE num() < chosenInteger('quantityCards') DO {
             FOR ADDOBJ g = GiftCard DO {
-                numeratorObject(g) <- chosenObject('n');
-                numberObject(g) <- curStringValueNumerator(numeratorObject(g));
-                seriesObject(g) <- seriesNumerator(numeratorObject(g));
+                numeratorGiftCard(g) <- chosenObject('n');
+                numberGiftCard(g) <- curStringValueNumerator(numeratorObject(g));
+                seriesGiftCard(g) <- seriesNumerator(numeratorObject(g));
                 priceGiftCard(g) <- chosenNumeric('priceCards');
                 curValueNumerator(numerator) <- curValueNumerator(numerator) + 1 WHERE numerator == numeratorObject(g);
             }
@@ -133,7 +134,7 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
 //формы
 FORM giftCard 'Подарочный сертификат'
     OBJECTS g = GiftCard FIXED PANEL
-    PROPERTIES(g) nameNumeratorObject, numberGiftCard, seriesGiftCard, dateGiftCard, priceGiftCard, expiryDaysGiftCard
+    PROPERTIES(g) nameNumeratorGiftCard, numberGiftCard, seriesGiftCard, dateGiftCard, priceGiftCard, expiryDaysGiftCard
 
     EDIT GiftCard OBJECT g
 ;
@@ -141,7 +142,7 @@ FORM giftCard 'Подарочный сертификат'
 DESIGN giftCard FROM DEFAULT {
     NEW topContainer{
         caption = 'Подарочный сертификат';
-        ADD PROPERTY(nameNumeratorObject);
+        ADD PROPERTY(nameNumeratorGiftCard);
         ADD PROPERTY(numberGiftCard);
         ADD PROPERTY(seriesGiftCard);
         ADD PROPERTY(dateGiftCard);
@@ -153,7 +154,7 @@ DESIGN giftCard FROM DEFAULT {
 
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLY objectClassName, nameNumeratorObject, numberGiftCard, seriesGiftCard, dateGiftCard, 
+    PROPERTIES(g) READONLY objectClassName, nameNumeratorGiftCard, numberGiftCard, seriesGiftCard, dateGiftCard, 
                            dateSoldGiftCard, expiryDaysGiftCard, priceGiftCard
     PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE
@@ -176,7 +177,7 @@ CLASS PaymentGiftCard : Payment, GiftCardLedger;
 @defineExternalizable(paymentGiftCard, VARSTRING[100]);
 
 giftCardPaymentGiftCard = DATA GiftCard (PaymentGiftCard);
-seriesNumberGiftCardPaymentGiftCard 'Серия/номер' (payment) = seriesNumberObject(giftCardPaymentGiftCard(payment));
+seriesNumberGiftCardPaymentGiftCard 'Серия/номер' (payment) = seriesNumberGiftCard(giftCardPaymentGiftCard(payment));
 
 //имплемент в GiftCardLedger
 giftCardGiftCardLedger(payment) += giftCardPaymentGiftCard(payment);

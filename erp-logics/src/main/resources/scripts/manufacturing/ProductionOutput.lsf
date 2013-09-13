@@ -12,12 +12,12 @@ CLASS UserOutput 'Производство (польз.)': Output, Historizable,
 CLASS UserOutputDetail 'Строка производства (польз.)' : OutputDetail;
 CLASS UserOutputPosted 'Проведенное призводство (польз.)': UserOutput, PostedObject;
 
-@defineNumeratedObjectDefault(UserOutput, 'Нумератор для производства', 'НП');
-
 @defineDocumentInterface(output);
 @deriveDocumentHeaderTimePrefix(UserOutput, );
 
 @defineDocumentInterfaceNumber(output);
+@defineNumeratedObjectDefault(UserOutput, 'Нумератор для производства', 'НП');
+
 @defineDocumentInterfaceStock(output, stock, 'Склад', );
 @defineDocumentInterfacePosted(output);
 @defineDocumentInterfaceDescription(output, 'Производство');
@@ -123,7 +123,7 @@ FORM outputOrders 'Производственные заказы'
     OBJECTS s = Stock FIXED PANEL
 
     OBJECTS o = Order
-    PROPERTIES(o) READONLY isPostedOrder FORCE GRID, numberObject, seriesObject, dateOrder, timeOrder,
+    PROPERTIES(o) READONLY isPostedOrder FORCE GRID, numberOrder, seriesOrder, dateOrder, timeOrder,
                   nameComponentsStockOrder, nameProductsStockOrder, fromDateOrder, toDateOrder, quantityProductDetailOrder,
                   productsSumProductDetailOrder, quantityProductDetailOrder,
                   nameCalcPriceListTypeOrder, namePriceListTypeOrder, noteOrder, objectClassName
@@ -279,20 +279,20 @@ timeOutput(output) += timeOrderOutput(output);
 stockOutput(output) += productsStockOrder(orderOrderOutput(output));
 isPostedOutput(output) += isPostedOrder(orderOrderOutput(output));
 
-numberOrderOutput 'Номер документа' (orderOutput) = numberObject(orderOrderOutput(orderOutput));
+numberOrderOutput 'Номер документа' (orderOutput) = numberOrder(orderOrderOutput(orderOutput));
 numberOutput(output) += numberOrderOutput(output);
 
-seriesOrderOutput 'Серия документа' (orderOutput) = seriesObject(orderOrderOutput(orderOutput));
+seriesOrderOutput 'Серия документа' (orderOutput) = seriesOrder(orderOrderOutput(orderOutput));
 seriesOutput(output) += seriesOrderOutput(output);
 
-seriesNumberOrderOutput 'Серия/номер документа' (orderOutput) = seriesNumberObject(orderOrderOutput(orderOutput));
+seriesNumberOrderOutput 'Серия/номер документа' (orderOutput) = seriesNumberOrder(orderOrderOutput(orderOutput));
 
 noteOutput(output) += noteOrder(orderOrderOutput(output));
 currencyOutput (output) += currencyOrder(orderOrderOutput(output));
 
 priceListTypeOutput(output) += calcPriceListTypeOrder(orderOrderOutput(output));
 
-@defineDocumentDescription(orderOutput, OrderOutputDetail, seriesNumberOrderOutput, 'Производство на основе заказа');
+@defineDocumentDescription(orderOutput, OrderOutputDetail, 'Производство на основе заказа');
 descriptionOutput (output) += descriptionOrderOutput(output);
 
 
@@ -311,7 +311,7 @@ editOutput(output) += ACTION EXEC editOrder(orderOrderOutput(output));
 
 FORM userOutput 'Производство'
     OBJECTS o = UserOutput FIXED PANEL
-    PROPERTIES (o) objectClassName, nameStockUserOutput, nameNumeratorObject, numberObject, seriesObject, dateUserOutput, timeUserOutput,
+    PROPERTIES (o) objectClassName, nameStockUserOutput, nameNumeratorUserOutput, numberUserOutput, seriesUserOutput, dateUserOutput, timeUserOutput,
                    nameCurrencyUserOutput, namePriceListTypeUserOutput, noteUserOutput,
                    countUserOutputDetailUserOutput, quantityUserOutputDetailUserOutput, sumUserOutputDetailUserOutput,
                    fillOrderUserOutput, ordersOutput READONLY
@@ -355,9 +355,9 @@ DESIGN userOutput FROM DEFAULT{
                     childConstraints = TO THE RIGHTBOTTOM;
                     ADD PROPERTY(objectClassName) { preferredCharWidth = 10; }
                     ADD PROPERTY(nameStockUserOutput);
-                    ADD PROPERTY(nameNumeratorObject);
-                    ADD PROPERTY(numberObject);
-                    ADD PROPERTY(seriesObject);
+                    ADD PROPERTY(nameNumeratorUserOutput);
+                    ADD PROPERTY(numberUserOutput);
+                    ADD PROPERTY(seriesUserOutput);
                     ADD PROPERTY(dateUserOutput);
                     ADD PROPERTY(timeUserOutput);
                 }

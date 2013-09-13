@@ -56,7 +56,7 @@ CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 @defineDocumentAbstractDetailNote (InvoiceDetail);
 
 shortDescriptionInvoice (invoice) = [FORMULA VARSTRING[30] 'CAST($1 AS TEXT) ||  \' от \' || CAST($2 AS TEXT)'] (
-                                               seriesNumberObject(invoice), dateInvoice(invoice));
+                                               seriesNumberInvoice(invoice), dateInvoice(invoice));
 
 extraDescriptionInvoiceDetail 'Доп. наименование' (invoiceDetail) = ABSTRACT VARSTRING[1500] (InvoiceDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
 
@@ -91,6 +91,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     @defineDocumentInterfaceNumber(invoice);
     Invoice.numberInvoice (invoice) += numberInvoice(invoice);
     Invoice.seriesInvoice (invoice) += seriesInvoice(invoice);
+
+    @defineNumeratedObjectDefault(UserInvoice, 'Нумератор для поставок'###sign, 'ПС');
 
     @defineDocumentInterfaceLegalEntity (invoice, supplier, 'Поставщик');
     @defineDocumentInterfaceLegalEntity (invoice, customer, 'Покупатель');
@@ -239,7 +241,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                        nameSupplierStockUserInvoice ON CHANGE changeSupplierStock###supplierFilter###userInvoice(i),
                        nameCustomerUserInvoice ON CHANGE changeCustomer###customerFilter###userInvoice(i),
                        nameCustomerStockUserInvoice ON CHANGE changeCustomerStock###customerFilter###userInvoice(i),
-                       nameNumeratorObject, numberObject, seriesObject, dateUserInvoice, timeUserInvoice,
+                       nameNumeratorUserInvoice, numberUserInvoice, seriesUserInvoice, dateUserInvoice, timeUserInvoice,
                        nameCurrencyUserInvoice, nameAgreementUserInvoice, namePriceListTypeUserInvoice SHOWIF noAgreementUserInvoice(i), noteUserInvoice,
                        seriesNumberContractSkuUserInvoice, isCommissionUserInvoice
         PROPERTIES (i) countUserInvoiceDetailUserInvoice, quantityUserInvoiceDetailUserInvoice, sumUserInvoiceDetailUserInvoice,
@@ -286,9 +288,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                         }
                         NEW second { 
                             type = CONTAINERH;
-                            ADD PROPERTY(nameNumeratorObject);
-                            ADD PROPERTY(numberObject);
-                            ADD PROPERTY(seriesObject);
+                            ADD PROPERTY(nameNumeratorUserInvoice);
+                            ADD PROPERTY(numberUserInvoice);
+                            ADD PROPERTY(seriesUserInvoice);
                             ADD PROPERTY(dateUserInvoice);
                             ADD PROPERTY(timeUserInvoice);
                         }    
@@ -799,7 +801,7 @@ META defineInvoicePayment(dumb)
 
     EXTEND FORM userInvoice
         OBJECTS pm = Payment
-        PROPERTIES(pm) READONLY seriesNumberObject, dateTimePayment, namePayerPayment, nameBeneficiaryPayment,
+        PROPERTIES(pm) READONLY seriesNumberPayment, dateTimePayment, namePayerPayment, nameBeneficiaryPayment,
                                 notePayment, objectClassName
         ORDER BY dateTimePayment
         PROPERTIES(pm, i) costOutContractLedgerInContractLedger

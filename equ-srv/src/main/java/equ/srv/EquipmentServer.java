@@ -510,7 +510,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImportField sumPaymentField = new ImportField(equLM.findLCPByCompoundName("POS.sumPayment"));
             ImportField numberPaymentField = new ImportField(equLM.findLCPByCompoundName("POS.numberPayment"));
 
-            ImportField seriesNumberDiscountCardField = new ImportField(equLM.findLCPByCompoundName("seriesNumberObject"));
+            ImportField seriesNumberDiscountCardField = new ImportField(equLM.findLCPByCompoundName("seriesNumberDiscountCard"));
 
             List<ImportProperty<?>> saleProperties = new ArrayList<ImportProperty<?>>();
             List<ImportProperty<?>> returnProperties = new ArrayList<ImportProperty<?>>();
@@ -534,7 +534,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             saleProperties.add(new ImportProperty(discountSumSaleReceiptField, equLM.findLCPByCompoundName("discountSumSaleReceipt").getMapping(receiptKey)));
             saleProperties.add(new ImportProperty(zReportNumberField, equLM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));
-            saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("seriesNumberObject").getMapping(discountCardKey)));
+            saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
             saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
 
@@ -564,7 +564,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             returnProperties.add(new ImportProperty(discountSumReturnReceiptField, equLM.findLCPByCompoundName("discountSumReturnReceipt").getMapping(receiptKey)));
             returnProperties.add(new ImportProperty(zReportNumberField, equLM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));
-            returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("seriesNumberObject").getMapping(discountCardKey)));
+            returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
             returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
 

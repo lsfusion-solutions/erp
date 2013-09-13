@@ -75,13 +75,13 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
             KeyExpr userInvoiceExpr = new KeyExpr("UserInvoice");
             ImRevMap<Object, KeyExpr> userInvoiceKeys = MapFact.singletonRev((Object) "UserInvoice", userInvoiceExpr);
 
-            String[] userInvoiceProperties = new String[]{"seriesObject", "numberObject",
+            String[] userInvoiceProperties = new String[]{"seriesUserInvoice", "numberUserInvoice",
                     "Purchase.dateUserInvoice", "supplierUserInvoice", "Purchase.customerStockInvoice", "Purchase.supplierStockInvoice"};
             QueryBuilder<Object, Object> userInvoiceQuery = new QueryBuilder<Object, Object>(userInvoiceKeys);
             for (String uiProperty : userInvoiceProperties) {
                 userInvoiceQuery.addProperty(uiProperty, getLCP(uiProperty).getExpr(context.getModifier(), userInvoiceExpr));
             }
-            userInvoiceQuery.and(getLCP("numberObject").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
+            userInvoiceQuery.and(getLCP("numberUserInvoice").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
             userInvoiceQuery.and(getLCP("Purchase.dateUserInvoice").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceResult = userInvoiceQuery.execute(session.sql);
@@ -94,8 +94,8 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                 if ((dateFromObject == null || date.after((Date) dateFromObject.object)) && (dateToObject == null || date.before((Date) dateToObject.object))) {
                     ImMap<Object, Object> userInvoiceValue = userInvoiceResult.getValue(i);
 
-                    String seriesUserInvoice = (String) userInvoiceValue.get("seriesObject");
-                    String numberUserInvoice = (String) userInvoiceValue.get("numberObject");
+                    String seriesUserInvoice = (String) userInvoiceValue.get("seriesUserInvoice");
+                    String numberUserInvoice = (String) userInvoiceValue.get("numberUserInvoice");
                     String dateInvoice = date == null ? null : new SimpleDateFormat("dd.MM.yyyy").format(date);
 
                     Integer supplierID = (Integer) userInvoiceValue.get("supplierUserInvoice");

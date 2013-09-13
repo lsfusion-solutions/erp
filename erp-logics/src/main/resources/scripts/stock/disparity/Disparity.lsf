@@ -24,6 +24,9 @@ CLASS DisparityDetail 'Строка изменения сортности';
 @defineDocument(disparity);
 @deriveDocumentHeaderTimePrefix(Disparity, );
 
+@defineDocumentHeaderNumber(Disparity);
+@defineNumeratedObjectDefault(Disparity, 'Нумератор для изменения сортности', 'ИС');
+
 @defineDocumentDataStock (disparity, stock, 'Склад', );
 @defineDocumentPosted(disparity);
 @defineDocumentDescription (disparity, 'Изменение сортности');
@@ -68,8 +71,8 @@ inputPriceDisparityDetail(detail) <- priceDisparityDetail(detail) WHEN CHANGED(p
 quantityOutFIFOSkuLedger (ledger) += quantityDisparityDetail(ledger);
 @implementSkuLedgerOutFIFOBalance(disparityDetail, stock);
 sumOutSkuLedger (ledger) += sumDisparityDetail(ledger);
-seriesDataSkuLedger (ledger) += seriesObject(disparityDisparityDetail(ledger));
-numberDataSkuLedger (ledger) += numberObject(disparityDisparityDetail(ledger));
+seriesDataSkuLedger (ledger) += seriesDisparity(disparityDisparityDetail(ledger));
+numberDataSkuLedger (ledger) += numberDisparity(disparityDisparityDetail(ledger));
 
 //----------------------------  Изменение остатка пересорт --------------------------------------------//
 
@@ -97,11 +100,11 @@ expiryDateBatchInputDisparityDetail (inputDisparityDetail) = expiryDateBatchDisp
 quantityBatch (ledger) += quantityInputDisparityDetail(ledger);
 expiryDateBatch (ledger) += expiryDateBatchInputDisparityDetail(ledger);
 sumInSkuLedger (ledger) += sumInputDisparityDetail(ledger);
-seriesBatch (ledger) += seriesObject(disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger)));
-numberBatch (ledger) += numberObject(disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger)));
+seriesBatch (ledger) += seriesDisparity(disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger)));
+numberBatch (ledger) += numberDisparity(disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger)));
 
 nameBatch(batch) += CONCAT '', STRING[10](dateDisparityDetail(disparityDetailInputDisparityDetail(batch))),
-                             '/ ' + seriesNumberObject(disparityDisparityDetail(disparityDetailInputDisparityDetail(batch))),
+                             '/ ' + seriesNumberDisparity(disparityDisparityDetail(disparityDetailInputDisparityDetail(batch))),
                              '/ ' + nameLegalEntityStockDisparityDetail(disparityDetailInputDisparityDetail(batch));
 
 //------------------------------------------- Пересорт товара----------------------------------------------------//
@@ -112,7 +115,7 @@ FORM disparity 'Изменение сортности'
 
     OBJECTS dis=Disparity FIXED PANEL
 
-    PROPERTIES(dis) objectClassName, nameNumeratorObject, numberObject, seriesObject, nameStockDisparity, dateDisparity, timeDisparity,
+    PROPERTIES(dis) objectClassName, nameNumeratorDisparity, numberDisparity, seriesDisparity, nameStockDisparity, dateDisparity, timeDisparity,
                     quantityDisparityDetailDisparity, sumDisparityDetailDisparity,
                     inputQuantityDisparityDetailDisparity, inputSumDisparityDetailDisparity, noteDisparity
 
@@ -148,9 +151,9 @@ DESIGN disparity FROM DEFAULT {
                     type = CONTAINERH;
                     ADD PROPERTY(objectClassName) { preferredCharWidth = 10; }
                     ADD PROPERTY(nameStockDisparity);
-                    ADD PROPERTY(nameNumeratorObject);
-                    ADD PROPERTY(numberObject);
-                    ADD PROPERTY(seriesObject);
+                    ADD PROPERTY(nameNumeratorDisparity);
+                    ADD PROPERTY(numberDisparity);
+                    ADD PROPERTY(seriesDisparity);
                     ADD PROPERTY(dateDisparity);
                     ADD PROPERTY(timeDisparity);
                 }
@@ -205,7 +208,7 @@ DESIGN disparity FROM DEFAULT {
 FORM disparities 'Изменения сортности'
 
     OBJECTS dis=Disparity
-    PROPERTIES(dis)  READONLY isPostedDisparity FORCE GRID, numberObject, seriesObject, dateDisparity, timeDisparity, nameStockDisparity,
+    PROPERTIES(dis)  READONLY isPostedDisparity FORCE GRID, numberDisparity, seriesDisparity, dateDisparity, timeDisparity, nameStockDisparity,
                               countDisparityDetailDisparity, quantityDisparityDetailDisparity, sumDisparityDetailDisparity,
                               inputQuantityDisparityDetailDisparity, inputSumDisparityDetailDisparity, noteDisparity, objectClassName
 

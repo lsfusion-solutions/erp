@@ -213,11 +213,13 @@ TABLE BOM (BOM);
 nameBOM 'Наименование' = DATA VARISTRING[100](BOM);
 
 @defineDocumentHeaderNote(BOM);
+
+@defineNumberedObject(BOM);
 @defineNumeratedObjectDefault(BOM, 'Нумератор для спецификаций', 'СП');
 
 descriptionBOM 'Название спецификации' (BOM) =
     [FORMULA VARSTRING[200]  ' CAST($1 AS TEXT) || \' / \' || CAST($2 AS TEXT) || \' № \' || CAST($3 AS TEXT)'](
-    'Спецификация', nameBOM(BOM), seriesNumberObject(BOM)) IF BOM IS BOM MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    'Спецификация', nameBOM(BOM), seriesNumberBOM(BOM)) IF BOM IS BOM MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 // ------------- Изделия ----------- //
 CLASS Product 'Изделие' : Material;
@@ -381,7 +383,7 @@ FORM BOM 'Спецификация'
     OBJECTS b=BOM FIXED PANEL
 //    OBJECTS dt = DATE FIXED PANEL
 
-    PROPERTIES(b) nameBOM, nameNumeratorObject, numberObject, seriesObject, noteBOM, objectClassName
+    PROPERTIES(b) nameBOM, nameNumeratorBOM, numberBOM, seriesBOM, noteBOM, objectClassName
     PROPERTIES(b) READONLY quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM//, bruttoQuantityComponentBOM
     OBJECTS p = Product
     PROPERTIES(p) indexProduct, idBarcodeSkuProduct,nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
@@ -423,9 +425,9 @@ DESIGN BOM FROM DEFAULT{
                     type = CONTAINERH;
                     ADD PROPERTY(objectClassName) { preferredCharWidth = 10; }
                     ADD PROPERTY(nameBOM) { preferredCharWidth = 20; }
-                    ADD PROPERTY(nameNumeratorObject);
-                    ADD PROPERTY(numberObject);
-                    ADD PROPERTY(seriesObject);
+                    ADD PROPERTY(nameNumeratorBOM);
+                    ADD PROPERTY(numberBOM);
+                    ADD PROPERTY(seriesBOM);
                 }
                 ADD b.documentPrmGroup {
                     type = CONTAINERH;
@@ -470,7 +472,7 @@ FORM BOMs 'Спецификации'
 
     OBJECTS b=BOM
 
-    PROPERTIES(b) READONLY nameBOM, numberObject, seriesObject, quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM, noteBOM, objectClassName
+    PROPERTIES(b) READONLY nameBOM, numberBOM, seriesBOM, quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM, noteBOM, objectClassName
     PROPERTIES (b) ADDFORM, EDITFORM, copyBOM, deleteb=DELETE FORCE PANEL TOOLBAR
     PROPERTIES (b) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable
 

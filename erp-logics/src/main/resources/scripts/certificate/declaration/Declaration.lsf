@@ -9,9 +9,9 @@ TABLE declaration(Declaration);
 @defineExternalizable(declaration, VARSTRING[100]);
 
 // Номер
-@defineNumeratedObjectDefault(Declaration, 'Нумератор для деклараций', 'ДД');
-seriesCertificate(declaration) += seriesObject(declaration) IF declaration IS Declaration;
-numberCertificate(declaration) += numberObject(declaration) IF declaration IS Declaration;
+@defineNumberedObject(Declaration);
+seriesCertificate(declaration) += seriesDeclaration(declaration);
+numberCertificate(declaration) += numberDeclaration(declaration);
 
 // Валюта
 @defineDocumentHeaderTimePrefix(Declaration, ,' документа');
@@ -19,13 +19,13 @@ numberCertificate(declaration) += numberObject(declaration) IF declaration IS De
 dateCertificate(declaration) += dateDeclaration(declaration);
 timeCertificate(declaration) += timeDeclaration(declaration);
 
-descriptionDeclaration 'Таможенная декларация' (declaration) = CONCAT ' ', '№ ' + seriesNumberObject(declaration), 'от ' + dateDeclaration(declaration);
+descriptionDeclaration 'Таможенная декларация' (declaration) = CONCAT ' ', '№ ' + seriesNumberDeclaration(declaration), 'от ' + dateDeclaration(declaration);
 
 @defineCertificateObjectBatch(declaration, 'Таможенная декларация');
 
 FORM declaration 'Таможенная декларация'
     OBJECTS d = Declaration FIXED PANEL
-    PROPERTIES(d) objectClassName, nameNumeratorObject, numberObject, seriesObject, dateDeclaration, timeDeclaration
+    PROPERTIES(d) objectClassName, numberDeclaration, seriesDeclaration, dateDeclaration, timeDeclaration
     EDIT Declaration OBJECT d
 ;
 DESIGN declaration FROM DEFAULT {
@@ -34,9 +34,8 @@ DESIGN declaration FROM DEFAULT {
             type = CONTAINERH;
             caption = 'Шапка документа';
             ADD PROPERTY(objectClassName);
-            ADD PROPERTY(nameNumeratorObject);
-            ADD PROPERTY(numberObject);
-            ADD PROPERTY(seriesObject);
+            ADD PROPERTY(numberDeclaration);
+            ADD PROPERTY(seriesDeclaration);
             ADD PROPERTY(dateDeclaration);
             ADD PROPERTY(timeDeclaration);
         }
@@ -46,7 +45,7 @@ DESIGN declaration FROM DEFAULT {
 
 FORM declarations 'Таможенные декларации'
     OBJECTS d = Declaration
-    PROPERTIES(d) READONLY numberObject, seriesObject, dateDeclaration, timeDeclaration
+    PROPERTIES(d) READONLY numberDeclaration, seriesDeclaration, dateDeclaration, timeDeclaration
     PROPERTIES(d) ADDFORM, EDITFORM, DELETE
 
     DIALOG Declaration OBJECT d

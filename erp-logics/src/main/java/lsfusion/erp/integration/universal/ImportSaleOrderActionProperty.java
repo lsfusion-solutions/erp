@@ -138,8 +138,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             List<List<Object>> data = initData(orderDetailsList.size());
 
             if (showField(orderDetailsList, "numberOrder")) {
-                ImportField numberOrderField = new ImportField(LM.findLCPByCompoundName("numberObject"));
-                props.add(new ImportProperty(numberOrderField, LM.findLCPByCompoundName("numberObject").getMapping(orderObject)));
+                ImportField numberOrderField = new ImportField(LM.findLCPByCompoundName("numberOrder"));
+                props.add(new ImportProperty(numberOrderField, LM.findLCPByCompoundName("numberOrder").getMapping(orderObject)));
                 fields.add(numberOrderField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).numberOrder);

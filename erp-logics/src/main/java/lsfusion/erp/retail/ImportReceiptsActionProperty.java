@@ -163,7 +163,7 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 ImportField sumPaymentField = new ImportField(LM.findLCPByCompoundName("POS.sumPayment"));
                 ImportField numberPaymentField = new ImportField(LM.findLCPByCompoundName("POS.numberPayment"));
                 ImportField paymentMeansPaymentField = new ImportField(LM.baseLM.staticCaption);
-                ImportField seriesNumberDiscountCardField = new ImportField(LM.findLCPByCompoundName("seriesNumberObject"));
+                ImportField seriesNumberDiscountCardField = new ImportField(LM.findLCPByCompoundName("seriesNumberDiscountCard"));
 
                 List<ImportProperty<?>> saleProperties = new ArrayList<ImportProperty<?>>();
                 List<ImportProperty<?>> returnProperties = new ArrayList<ImportProperty<?>>();
@@ -187,7 +187,7 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 saleProperties.add(new ImportProperty(discountSumSaleReceiptField, LM.findLCPByCompoundName("discountSumSaleReceipt").getMapping(receiptKey)));
                 saleProperties.add(new ImportProperty(zReportNumberField, LM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("seriesNumberObject").getMapping(discountCardKey)));
+                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
                 saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
 
@@ -216,7 +216,7 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 returnProperties.add(new ImportProperty(discountSumReturnReceiptField, LM.findLCPByCompoundName("discountSumReturnReceipt").getMapping(receiptKey)));
                 returnProperties.add(new ImportProperty(zReportNumberField, LM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("seriesNumberObject").getMapping(discountCardKey)));
+                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
                 returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
 

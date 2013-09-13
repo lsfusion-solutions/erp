@@ -1,6 +1,6 @@
 MODULE ContractPayment;
 
-REQUIRE ContractLedger, Payment, CreditMemo;
+REQUIRE ContractLedger, Payment;
 
 EXTEND CLASS Payment;
 
@@ -167,19 +167,19 @@ payPaymentConditionInContractLedgerDate 'Оплатить c учетом бон�
             ASSIGN sumPayment(pm) <- bonusDebtSumInContractLedgerDate(inContractLedger, date) IF currencyContractPayment(pm) == currencyAccountFromPayment(pm);
             ASSIGN costOutContractLedgerInContractLedger(pm, inContractLedger) <- bonusDebtSumInContractLedgerDate(inContractLedger, date);
             FORM payment OBJECTS p = pm MODAL;
-            IF formResult() == FormResult.ok THEN {
-                ADDOBJ CreditMemoOut;
-                FOR cm == addedObject() DO {
-                    ASSIGN dateCreditMemoOut(cm) <- date;
-                    ASSIGN contractCreditMemoOut(cm) <- contractInContractLedger(inContractLedger);
-                    ASSIGN sumCreditMemoOut(cm) <- bonusSumInContractLedger(inContractLedger, date);
-                    ASSIGN costOutContractLedgerInContractLedger(cm, inContractLedger) <- bonusSumInContractLedger(inContractLedger, date);
-                    FORM creditMemo OBJECTS c = cm MODAL;
-                    IF formResult() == FormResult.ok THEN {
-                        EXEC apply();
-                    }
-                }
-            }
+//            IF formResult() == FormResult.ok THEN {
+//                ADDOBJ CreditMemoOut;
+//                FOR cm == addedObject() DO {
+//                    ASSIGN dateCreditMemoOut(cm) <- date;
+//                    ASSIGN contractCreditMemoOut(cm) <- contractInContractLedger(inContractLedger);
+//                    ASSIGN sumCreditMemoOut(cm) <- bonusSumInContractLedger(inContractLedger, date);
+//                    ASSIGN costOutContractLedgerInContractLedger(cm, inContractLedger) <- bonusSumInContractLedger(inContractLedger, date);
+//                    FORM creditMemo OBJECTS c = cm MODAL;
+//                    IF formResult() == FormResult.ok THEN {
+//                        EXEC apply();
+//                    }
+//                }
+//            }
         }
     }
     ELSE {MESSAGE 'По текущему договору не заданы условия бонуса';}
@@ -196,20 +196,20 @@ payPaymentConditionContractDate 'Оплатить c учетом бонусов 
             ASSIGN costOutContractLedgerInContractLedger(pm, inContractLedger) <- bonusDebtSumInContractLedgerDate(inContractLedger, date)
                 WHERE contractPayment(pm) == contractInContractLedger(inContractLedger);
             FORM payment OBJECTS p = pm MODAL;
-            IF formResult() == FormResult.ok THEN {
-                ADDOBJ CreditMemoOut;
-                FOR cm == addedObject() DO {
-                    ASSIGN dateCreditMemoOut(cm) <- date;
-                    ASSIGN contractCreditMemoOut(cm) <- contract;
-                    ASSIGN sumCreditMemoOut(cm) <- bonusSumContractDate(contract, date);
-                    ASSIGN costOutContractLedgerInContractLedger(cm, inContractLedger) <- bonusSumInContractLedger(inContractLedger, date)
-                        WHERE contractCreditMemo(cm) == contractInContractLedger(inContractLedger);
-                    FORM creditMemo OBJECTS c = cm MODAL;
-                    IF formResult() == FormResult.ok THEN {
-                        EXEC apply();
-                    }
-                }
-            }
+//            IF formResult() == FormResult.ok THEN {
+//                ADDOBJ CreditMemoOut;
+//                FOR cm == addedObject() DO {
+//                    ASSIGN dateCreditMemoOut(cm) <- date;
+//                    ASSIGN contractCreditMemoOut(cm) <- contract;
+//                    ASSIGN sumCreditMemoOut(cm) <- bonusSumContractDate(contract, date);
+//                    ASSIGN costOutContractLedgerInContractLedger(cm, inContractLedger) <- bonusSumInContractLedger(inContractLedger, date)
+//                        WHERE contractCreditMemo(cm) == contractInContractLedger(inContractLedger);
+//                    FORM creditMemo OBJECTS c = cm MODAL;
+//                    IF formResult() == FormResult.ok THEN {
+//                        EXEC apply();
+//                    }
+//                }
+//            }
         }
     }
     ELSE {MESSAGE 'По текущему договору не заданы условия бонуса';}
@@ -232,8 +232,8 @@ EXTEND FORM contractLedger
     PROPERTIES(ic, d) FORCE PANEL TOOLBAR payPaymentConditionInContractLedgerDate
 
     OBJECTS pm = Payment
-    PROPERTIES(pm) READONLY numberObject BACKGROUND backgroundOutContractLedgerDate(pm, d),
-                            seriesObject BACKGROUND backgroundOutContractLedgerDate(pm, d),
+    PROPERTIES(pm) READONLY numberPayment BACKGROUND backgroundOutContractLedgerDate(pm, d),
+                            seriesPayment BACKGROUND backgroundOutContractLedgerDate(pm, d),
                             datePayment BACKGROUND backgroundOutContractLedgerDate(pm, d),
                             timePayment BACKGROUND backgroundOutContractLedgerDate(pm, d),
                             namePayerPayment BACKGROUND backgroundOutContractLedgerDate(pm, d),

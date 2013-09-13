@@ -151,7 +151,7 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
                 ImRevMap<Object, KeyExpr> invoiceKeys = MapFact.singletonRev((Object)"invoice", invoiceExpr);
 
                 QueryBuilder<Object, Object> invoiceQuery = new QueryBuilder<Object, Object>(invoiceKeys);
-                invoiceQuery.addProperty("seriesNumberObject", getLCP("seriesNumberObject").getExpr(invoiceExpr));
+                invoiceQuery.addProperty("seriesNumberInvoice", getLCP("seriesNumberInvoice").getExpr(invoiceExpr));
                 invoiceQuery.addProperty("dateInvoice", getLCP("Purchase.dateInvoice").getExpr(invoiceExpr));
 
                 invoiceQuery.and(getLCP("inDeclarationDetailUserInvoice").getExpr(new DataObject(entry.getValue().get("declarationDetailID"), (ConcreteClass) getClass("declarationDetail")).getExpr(), invoiceExpr).getWhere());
@@ -162,7 +162,7 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
                 for (ImMap<Object, Object> invoiceValues : invoiceResult.valueIt()) {
                     row = "";
                     addStringCellToRow(entry.getKey(), ";");//numberDeclarationDetail
-                    addStringCellToRow(invoiceValues.get("seriesNumberObject"), ";");
+                    addStringCellToRow(invoiceValues.get("seriesNumberInvoice"), ";");
                     addStringCellToRow(invoiceValues.get("dateInvoice"), ";");
                     addStringCellToRow(null, ";");
                     addConstantStringCellToRow("04021", ";");

@@ -17,14 +17,16 @@ CLASS DiscountCard 'Дисконтная карта' : NumeratedObject;
 TABLE discountCard (DiscountCard);
 @defineExternalizable(discountCard, VARSTRING[100]);
 
+@defineNumberedObject(DiscountCard);
+
 @defineNumeratedObjectDefault(DiscountCard, 'Нумератор для дисконтных карт', 'ДС');
 
 CLASS ABSTRACT DiscountSkuGroup 'Дисконтная группа товаров';
 
 nameDiscountSkuGroup 'Наименование' = ABSTRACT VARISTRING[150](DiscountSkuGroup);
 
-discountCardSeriesNumber (discountCard) = GROUP AGGR discountCard BY seriesNumberObject (discountCard) WHERE discountCard IS DiscountCard;
-discountCardNumber (discountCard) = GROUP MAX discountCard BY numberObject(discountCard) IF discountCard IS DiscountCard;
+discountCardSeriesNumber (discountCard) = GROUP AGGR discountCard BY seriesDiscountCard (discountCard) WHERE discountCard IS DiscountCard;
+discountCardNumber (discountCard) = GROUP MAX discountCard BY numberDiscountCard(discountCard) IF discountCard IS DiscountCard;
 
 legalEntityDiscountCard (discountCard) = DATA LegalEntity(DiscountCard);
 nameLegalEntityDiscountCard 'Держатель дисконтной карты' (discountCard) = nameLegalEntity(legalEntityDiscountCard(discountCard)) IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 40;
@@ -66,10 +68,10 @@ generateDiscountCards 'Сгенерировать дисконтные карт�
             ADDOBJ DiscountCard;
             FOR d == addedObject() DO {
                 // todo : делается влоб, поскольку numerator сейчас не умеет генерировать сразу несколько объектов
-                ASSIGN numeratorObject(d) <- chosenObject('n');
-                ASSIGN numberObject(d) <- curStringValueNumerator(numeratorObject(d));
-                ASSIGN seriesObject(d) <- seriesNumerator(numeratorObject(d));
-                ASSIGN curValueNumerator(numerator) <- curValueNumerator(numerator) + 1 WHERE numerator == numeratorObject(d);
+                ASSIGN numeratorDiscountCard(d) <- chosenObject('n');
+                ASSIGN numberDiscountCard(d) <- curStringValueNumerator(numeratorDiscountCard(d));
+                ASSIGN seriesDiscountCard(d) <- seriesNumerator(numeratorDiscountCard(d));
+                ASSIGN curValueNumerator(numerator) <- curValueNumerator(numerator) + 1 WHERE numerator == numeratorDiscountCard(d);
                 ASSIGN num() <- num() + 1;
             }
         }
@@ -79,7 +81,7 @@ generateDiscountCards 'Сгенерировать дисконтные карт�
 FORM discountCard 'Дисконтная карта'
     OBJECTS d=DiscountCard FIXED PANEL
     PROPERTIES(d) nameLegalEntityDiscountCard, idDiscountCard SHOWIF showIDs(), initialSumDiscountCard,
-                  nameNumeratorObject, numberObject, seriesObject,
+                  nameNumeratorDiscountCard, numberDiscountCard, seriesDiscountCard,
                   dateDiscountCard, dateToDiscountCard
 
     EDIT DiscountCard OBJECT d
@@ -117,7 +119,7 @@ DESIGN discountCard FROM DEFAULT {
 FORM discountCardDialog 'Дисконтные карты'
 
     OBJECTS d = DiscountCard
-    PROPERTIES(d) READONLY numberObject, seriesObject, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, initialSumDiscountCard,
+    PROPERTIES(d) READONLY numberDiscountCard, seriesDiscountCard, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, initialSumDiscountCard,
                          dateDiscountCard, dateToDiscountCard
 
     DIALOG DiscountCard OBJECT d
@@ -125,11 +127,11 @@ FORM discountCardDialog 'Дисконтные карты'
 
 FORM discountCards 'Дисконтные карты'
     OBJECTS d=DiscountCard
-    PROPERTIES(d) READONLY numberObject, seriesObject, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, dateDiscountCard, dateToDiscountCard,
+    PROPERTIES(d) READONLY numberDiscountCard, seriesDiscountCard, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, dateDiscountCard, dateToDiscountCard,
                   initialSumDiscountCard
     PROPERTIES(d) ADDFORM, EDITFORM, DELETE
 
-    ORDER BY seriesObject, numberObject
+    ORDER BY seriesDiscountCard, numberDiscountCard
 
     PROPERTIES() generateDiscountCards TODRAW d
 ;
@@ -147,6 +149,8 @@ namePromotionGroup 'Наименование' = DATA VARISTRING[100](PromotionGr
 
 CLASS Promotion 'Акция' : Historizable, NumeratedObject;
 TABLE promotion (Promotion);
+
+@defineNumberedObject(Promotion);
 
 @defineNumeratedObjectDefault(Promotion, 'Нумератор для акций', 'АК');
 
@@ -276,7 +280,7 @@ inPromotionConditionSku 'В условии' (promotionCondition, sku) = OVERRIDE
 FORM promotion 'Акция'
     OBJECTS sh=Promotion   FIXED PANEL
     PROPERTIES(sh)     namePromotion, namePromotionGroupPromotion, userSetPromotion,
-                       nameNumeratorObject, numberObject, seriesObject,
+                       nameNumeratorPromotion, numberPromotion, seriesPromotion,
                        dateFromPromotion, dateToPromotion, timeOfFromPromotion, timeOfToPromotion,
                        minSumBillPromotion, maxSumBillPromotion
     PROPERTIES(sh)                                     hasDiscountCardPromotion
@@ -335,7 +339,7 @@ FORM promotion 'Акция'
         FILTER 'Только отмеченные' 'F9' inPromotionStore(sh, s)
 
     OBJECTS dis= DiscountCard
-    PROPERTIES(dis)    READONLY numberObject, seriesObject, nameLegalEntityDiscountCard
+    PROPERTIES(dis)    READONLY numberDiscountCard, seriesDiscountCard, nameLegalEntityDiscountCard
     PROPERTIES(sh, dis) inPromotionDiscountCard
     FILTERGROUP filterDiscountCard
         FILTER 'Только отмеченные' 'F8' inPromotionDiscountCard(sh, dis)
@@ -491,7 +495,7 @@ copyPromotion 'Копировать' = ACTION (promotion) NEWSESSION {
 
 FORM promotions 'Акции'
     OBJECTS sh=Promotion
-    PROPERTIES(sh)     READONLY namePromotion, numberObject, seriesObject, dateFromPromotion, dateToPromotion, storesPromotion,
+    PROPERTIES(sh)     READONLY namePromotion, numberPromotion, seriesPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
                                 timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
                                 hasDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
                                 useCurrentReceiptPromotion, allDiscountCardPromotion
@@ -507,7 +511,7 @@ FORM promotionGroup 'Группа акций'
 
     OBJECTS sh=Promotion
     PROPERTIES(sh)     userOrderPromotion
-    PROPERTIES(sh)     READONLY namePromotion, seriesObject, numberObject, dateFromPromotion, dateToPromotion, storesPromotion,
+    PROPERTIES(sh)     READONLY namePromotion, seriesPromotion, numberPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
                                 timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
                                 hasDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
                                 useCurrentReceiptPromotion, allDiscountCardPromotion
@@ -526,7 +530,7 @@ FORM promotionGroups 'Группы акций'
 
     OBJECTS sh=Promotion
     PROPERTIES(sh)     READONLY orderPromotion
-    PROPERTIES(sh)     READONLY namePromotion, seriesObject, numberObject, dateFromPromotion, dateToPromotion, storesPromotion,
+    PROPERTIES(sh)     READONLY namePromotion, seriesPromotion, numberPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
                                 timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
                                 hasDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
                                 useCurrentReceiptPromotion, allDiscountCardPromotion
@@ -541,7 +545,7 @@ FORM promotionGroups 'Группы акций'
 EXTEND FORM discountCard
     OBJECTS p=Promotion
     PROPERTIES(p, d) inPromotionDiscountCard
-    PROPERTIES(p) READONLY namePromotion, numberObject, seriesObject, dateFromPromotion, dateToPromotion, storesPromotion,
+    PROPERTIES(p) READONLY namePromotion, numberPromotion, seriesPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
                            timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
                            hasDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
                            useCurrentReceiptPromotion, allDiscountCardPromotion
