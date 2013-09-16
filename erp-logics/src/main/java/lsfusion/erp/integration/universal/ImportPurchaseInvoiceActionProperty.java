@@ -66,7 +66,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String csvSeparator = (String) LM.findLCPByCompoundName("separatorImportType").read(context, importTypeObject);
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator;
                 Integer startRow = (Integer) LM.findLCPByCompoundName("startRowImportType").read(context, importTypeObject);
-                startRow = startRow == null ? 1 : startRow;
+                startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
 
                 ObjectValue operation = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
                 DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
