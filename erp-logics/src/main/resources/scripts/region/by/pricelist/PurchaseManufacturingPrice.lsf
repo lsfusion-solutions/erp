@@ -186,6 +186,16 @@ changeManufacturingMarkupUserInvoiceDetail = ACTION (d) {
     }
 }
 
+toFillMarkupUserInvoiceDetail 'Проставить надбавку из вида цен' = ACTION (detail) {
+    manufacturingMarkupUserInvoiceDetail(detail) <- markupCalcPriceListTypeSku(manufacturingCalcPriceListTypeUserInvoiceDetail(detail), skuUserInvoiceDetail(detail));
+        EXEC updateManufacturingPriceUserInvoiceDetail(detail);
+} SHORTCUT manufacturingMarkupUserInvoiceDetail;
+
+toFillMarkupUserInvoiceDetails 'Проставить надбавку из вида цен для всех' = ACTION () {
+    FOR [FILTER userInvoice.d](detail) DO {
+        EXEC toFillMarkupUserInvoiceDetail(detail);
+    }
+} SHORTCUT manufacturingMarkupUserInvoiceDetail;
 
 baseManufacturingMarkupSumUserInvoiceDetail 'Сумма (надбавка)' (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * quantityUserInvoiceDetail(detail) * manufacturingMarkupUserInvoiceDetail(detail)/100;
 @defineDocumentHeaderSumCustomPrefix(userInvoice, userInvoiceDetail, baseManufacturingMarkup, ' (надбавка) всего');
