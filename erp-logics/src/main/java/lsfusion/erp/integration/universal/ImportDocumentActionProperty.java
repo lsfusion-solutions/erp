@@ -44,9 +44,9 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
     }
 
-    protected Map<String, String> readImportColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    protected Map<String, String[]> readImportColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
 
-        Map<String, String> importColumns = new HashMap<String, String>();
+        Map<String, String[]> importColumns = new HashMap<String, String[]>();
 
         LCP<?> isImportTypeDetail = LM.is(getClass("ImportTypeDetail"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isImportTypeDetail.getMapKeys();
@@ -60,9 +60,13 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         for (ImMap<Object, Object> entry : result.valueIt()) {
 
             String[] field = ((String) entry.get("staticName")).trim().split("\\.");
-            String index = (String) entry.get("indexImportTypeImportTypeDetail");
-            if (index != null)
-                importColumns.put(field[field.length - 1], index.trim());
+            String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
+            if (indexes != null) {
+                String[] splittedIndexes = indexes.split("\\+");
+                for(int i = 0; i<splittedIndexes.length;i++)
+                    splittedIndexes[i] = splittedIndexes[i].trim();
+                importColumns.put(field[field.length - 1], splittedIndexes);
+            }
         }
         return importColumns.isEmpty() ? null : importColumns;
     }
@@ -73,8 +77,18 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         return allowedVAT.contains(VAT) ? VAT : null;
     }
 
-    protected String getCSVFieldValue(String[] values, Integer index) throws ParseException {
-        return getCSVFieldValue(values, index, null);
+    protected String getCSVFieldValue(String[] values, Integer[] indexes) throws ParseException {
+        return getCSVFieldValue(values, indexes, null);
+    }
+
+    protected String getCSVFieldValue(String[] values, Integer[] indexes, String defaultValue) throws ParseException {
+        if (indexes == null) return defaultValue;
+        String result = "";
+        for (Integer index : indexes) {
+            String value = getCSVFieldValue(values, index, "");
+            result += ((result.isEmpty() || value.isEmpty()) ? "" : " ") + value;
+        }
+        return result.isEmpty() ? defaultValue : result;
     }
 
     protected String getCSVFieldValue(String[] values, Integer index, String defaultValue) throws ParseException {
@@ -82,26 +96,40 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         return values.length <= index ? defaultValue : values[index];
     }
 
-    protected BigDecimal getCSVBigDecimalFieldValue(String[] values, int index) throws ParseException {
-        return getCSVBigDecimalFieldValue(values, index, null);
+    //Пока разрешено склеивать несколько ячеек только как строки
+    protected BigDecimal getCSVBigDecimalFieldValue(String[] values, Integer[] indexes) throws ParseException {
+        if(indexes==null) return null;
+        return getCSVBigDecimalFieldValue(values, indexes[0], null);
     }
 
-    protected BigDecimal getCSVBigDecimalFieldValue(String[] values, int index, BigDecimal defaultValue) throws ParseException {
+    protected BigDecimal getCSVBigDecimalFieldValue(String[] values, Integer index, BigDecimal defaultValue) throws ParseException {
         String value = getCSVFieldValue(values, index, null);
         return value == null ? defaultValue : new BigDecimal(value);
     }
 
-    protected Date getCSVDateFieldValue(String[] values, int index) throws ParseException {
-        return getCSVDateFieldValue(values, index, null);
+    //Пока разрешено склеивать несколько ячеек только как строки
+    protected Date getCSVDateFieldValue(String[] values, Integer[] indexes) throws ParseException {
+        if(indexes==null) return null;
+        return getCSVDateFieldValue(values, indexes[0], null);
     }
 
-    protected Date getCSVDateFieldValue(String[] values, int index, Date defaultValue) throws ParseException {
+    protected Date getCSVDateFieldValue(String[] values, Integer index, Date defaultValue) throws ParseException {
         String value = getCSVFieldValue(values, index, null);
         return value == null ? defaultValue : new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy"}).getTime());
     }
 
-    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, Integer cell) throws ParseException {
-        return getXLSFieldValue(sheet, row, cell, null);
+    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
+        return getXLSFieldValue(sheet, row, cells, null);
+    }
+
+    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, Integer[] cells, String defaultValue) throws ParseException {
+        if (cells == null) return defaultValue;
+        String result = "";
+        for (Integer cell : cells) {
+            String value = getXLSFieldValue(sheet, row, cell, "");
+            result += ((result.isEmpty() || value.isEmpty()) ? "" : " ") + value;
+        }
+        return result.isEmpty() ? defaultValue : result;
     }
 
     protected String getXLSFieldValue(HSSFSheet sheet, Integer row, Integer cell, String defaultValue) throws ParseException {
@@ -121,8 +149,10 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         }
     }
 
-    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, Integer row, Integer cell) throws ParseException {
-        return getXLSBigDecimalFieldValue(sheet, row, cell, null);
+    //Пока разрешено склеивать несколько ячеек только как строки
+    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
+        if (cells == null) return null;
+        return getXLSBigDecimalFieldValue(sheet, row, cells[0], null);
     }
 
     protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, Integer row, Integer cell, BigDecimal defaultValue) throws ParseException {
@@ -130,11 +160,20 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         HSSFRow hssfRow = sheet.getRow(row);
         if (hssfRow == null) return defaultValue;
         HSSFCell hssfCell = hssfRow.getCell(cell);
-        return (hssfCell == null || hssfCell.getCellType() != Cell.CELL_TYPE_NUMERIC) ? defaultValue : BigDecimal.valueOf(hssfCell.getNumericCellValue());
+        if(hssfCell == null) return defaultValue;
+        switch (hssfCell.getCellType()) {
+            case Cell.CELL_TYPE_NUMERIC:
+                return BigDecimal.valueOf(hssfCell.getNumericCellValue());
+            case Cell.CELL_TYPE_STRING:
+            default:
+            return  new BigDecimal(hssfCell.getStringCellValue());    
+        }     
     }
 
-    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer cell) throws ParseException {
-        return getXLSDateFieldValue(sheet, row, cell, null);
+    //Пока разрешено склеивать несколько ячеек только как строки
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
+        if (cells == null) return null;
+        return getXLSDateFieldValue(sheet, row, cells[0], null);
     }
 
     protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {
@@ -145,8 +184,18 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         return hssfCell == null ? defaultValue : new Date(hssfCell.getDateCellValue().getTime());
     }
 
-    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
-        return getXLSXFieldValue(sheet, row, cell, null);
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
+        return getXLSXFieldValue(sheet, row, cells, null);
+    }
+
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer[] cells, String defaultValue) throws ParseException {
+        if (cells == null) return defaultValue;
+        String result = "";
+        for (Integer cell : cells) {
+            String value = getXLSXFieldValue(sheet, row, cell, "");
+            result += (result.isEmpty() || value.isEmpty()   ? "" : " ") + value;
+        }
+        return result.isEmpty() ? defaultValue : result;
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer cell, String defaultValue) throws ParseException {
@@ -165,8 +214,10 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         }
     }
 
-    protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
-        return getXLSXBigDecimalFieldValue(sheet, row, cell, null);
+    //Пока разрешено склеивать несколько ячеек только как строки
+    protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
+        if (cells == null) return null;
+        return getXLSXBigDecimalFieldValue(sheet, row, cells[0], null);
     }
 
     protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer cell, BigDecimal defaultValue) throws ParseException {
@@ -174,11 +225,20 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         XSSFRow xssfRow = sheet.getRow(row);
         if (xssfRow == null) return defaultValue;
         XSSFCell xssfCell = xssfRow.getCell(cell);
-        return (xssfCell == null || xssfCell.getCellType() != Cell.CELL_TYPE_NUMERIC) ? defaultValue : BigDecimal.valueOf(xssfCell.getNumericCellValue());
+        if(xssfCell==null) return defaultValue;
+        switch (xssfCell.getCellType()) {
+            case Cell.CELL_TYPE_NUMERIC:
+                return BigDecimal.valueOf(xssfCell.getNumericCellValue());
+            case Cell.CELL_TYPE_STRING:
+            default:
+                return  new BigDecimal(xssfCell.getStringCellValue());
+        }
     }
 
-    protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
-        return getXLSXDateFieldValue(sheet, row, cell, null);
+    //Пока разрешено склеивать несколько ячеек только как строки
+    protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
+        if (cells == null) return null;
+        return getXLSXDateFieldValue(sheet, row, cells[0], null);
     }
 
     protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {
@@ -189,41 +249,49 @@ public abstract class ImportDocumentActionProperty extends ScriptingActionProper
         return xssfCell == null ? defaultValue : new Date(xssfCell.getDateCellValue().getTime());
     }
 
-    protected String getDBFFieldValue(DBF importFile, String fieldName) throws UnsupportedEncodingException {
-        return getDBFFieldValue(importFile, fieldName, "cp866", null);
+    protected String getDBFFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException {
+        return getDBFFieldValue(importFile, fields, "cp866", null);
     }
 
-    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
+    protected String getDBFFieldValue(DBF importFile, String[] fields, String charset, String defaultValue) throws UnsupportedEncodingException {
         try {
-            if (fieldName == null)
-                return defaultValue;
-            String result = new String(importFile.getField(fieldName).getBytes(), charset).trim();
+            if (fields == null) return defaultValue;
+            String result = "";
+            for (String field : fields) {
+                String value = new String(importFile.getField(field).getBytes(), charset).trim();
+                result += ((result.isEmpty()||value.isEmpty()) ? "" : " ") + value;
+            }
             return result.isEmpty() ? defaultValue : result;
         } catch (xBaseJException e) {
             return defaultValue;
         }
     }
 
-    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName) throws UnsupportedEncodingException {
-        return getDBFBigDecimalFieldValue(importFile, fieldName, "cp866", null);
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException {
+        return getDBFBigDecimalFieldValue(importFile, fields, "cp866", null);
     }
 
-    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
-        String value = getDBFFieldValue(importFile, fieldName, charset, defaultValue);
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String[] fields, String charset, String defaultValue) throws UnsupportedEncodingException {
+        String value = getDBFFieldValue(importFile, fields, charset, defaultValue);
         return value == null ? null : new BigDecimal(value);
     }
 
-    protected Date getDBFDateFieldValue(DBF importFile, String fieldName) throws UnsupportedEncodingException, ParseException {
-        return getDBFDateFieldValue(importFile, fieldName, "cp866", null);
+    protected Date getDBFDateFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException, ParseException {
+        return getDBFDateFieldValue(importFile, fields, "cp866", null);
     }
 
-    protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset, Date defaultValue) throws UnsupportedEncodingException, ParseException {
-        String dateString = getDBFFieldValue(importFile, fieldName, charset, "");
+    protected Date getDBFDateFieldValue(DBF importFile, String[] fields, String charset, Date defaultValue) throws UnsupportedEncodingException, ParseException {
+        String dateString = getDBFFieldValue(importFile, fields, charset, "");
         return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd"}).getTime());
     }
 
-    protected Integer getColumnNumber(String importColumn) {
-        return importColumn == null ? null : (Integer.parseInt(importColumn) - 1);
+    protected Integer[] getColumnNumbers(String[] importColumns) {
+        if (importColumns == null || importColumns.length == 0)
+            return null;
+        Integer[] result = new Integer[importColumns.length];
+        for (int i = 0; i < importColumns.length; i++)
+            result[i] = Integer.parseInt(importColumns[i]) - 1;
+        return result;
     }
 }
 
