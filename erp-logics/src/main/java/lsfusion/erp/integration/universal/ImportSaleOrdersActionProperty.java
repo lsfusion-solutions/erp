@@ -81,7 +81,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                 ObjectValue autoImportCustomerStock = entryValue.get("autoImportCustomerStockImportType");
                 DataObject autoImportCustomerStockObject = autoImportCustomerStock instanceof NullValue ? null : (DataObject) autoImportCustomerStock;
 
-                Map<String, String> importColumns = new HashMap<String, String>();
+                Map<String, String[]> importColumns = new HashMap<String, String[]>();
 
                 LCP<?> isImportTypeDetail = LM.is(getClass("ImportTypeDetail"));
                 ImRevMap<Object, KeyExpr> importColumnsKeys = (ImRevMap<Object, KeyExpr>) isImportTypeDetail.getMapKeys();
@@ -92,12 +92,16 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                 importColumnsQuery.and(isImportTypeDetail.getExpr(importColumnsKey).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = importColumnsQuery.execute(context.getSession().sql);
 
-                for (ImMap<Object, Object> importColumnsEntry : result.valueIt()) {
+                for (ImMap<Object, Object> entry : result.valueIt()) {
 
-                    String[] field = ((String) importColumnsEntry.get("staticName")).trim().split("\\.");
-                    String index = (String) importColumnsEntry.get("indexImportTypeImportTypeDetail");
-                    if (index != null)
-                        importColumns.put(field[field.length - 1], index.trim());
+                    String[] field = ((String) entry.get("staticName")).trim().split("\\.");
+                    String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
+                    if (indexes != null) {
+                        String[] splittedIndexes = indexes.split("\\+");
+                        for(int j = 0; i<splittedIndexes.length;i++)
+                            splittedIndexes[j] = splittedIndexes[i].trim();
+                        importColumns.put(field[field.length - 1], splittedIndexes);
+                    }
                 }
 
                 if (directory != null && fileExtension != null) {
