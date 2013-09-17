@@ -112,7 +112,7 @@ receiptReceiptDetail(detail) += receiptReceiptSaleDetail(detail);
 zReportReceiptDetail (receiptDetail) = zReportReceipt(receiptReceiptDetail(receiptDetail));
 sidCashRegisterModelReceiptDetail 'Код модели' (receiptDetail) = sidCashRegisterModelReceipt(receiptReceiptDetail(receiptDetail));
 
-typeReceiptDetail 'Тип' = ABSTRACT STRING[10] (ReceiptDetail) PERSISTENT;
+typeReceiptDetail 'Тип' = ABSTRACT STRING[10] (ReceiptDetail) MINCHARWIDTH 10 PREFCHARWIDTH 12 PERSISTENT;
 typeReceiptDetail(detail) += 'Продажа' IF detail IS ReceiptSaleDetail;
 typeReceiptDetail(detail) += 'Возврат' IF detail IS ReceiptReturnDetail;
 
@@ -142,6 +142,14 @@ departmentStoreReceiptDetail (receiptDetail) = MULTI departmentStoreReceiptRetur
 skuReceiptDetail (receiptDetail) = OVERRIDE skuReceiptReturnDetail(receiptDetail), skuReceiptSaleDetail(receiptDetail);
 nameSkuReceiptDetail 'Товар' (receiptDetail) = nameSkuStock(skuReceiptDetail(receiptDetail), departmentStoreReceiptDetail(receiptDetail)) IN recognize;
 shortNameUOMSkuReceiptDetail 'Ед. изм.' (receiptDetail) = shortNameUOMSku(skuReceiptDetail(receiptDetail));
+
+changeDialogSkuReceiptDetail  = ACTION (detail) {
+    REQUEST OBJECT s
+    FORM skus MODAL;                                          
+    IF formResult() == FormResult.ok THEN {
+        skuReceiptDetail(detail) <- requestedObject();
+    }
+} TOOLBAR;
 
 //партии
 @defineDocumentAbstractDetailBatchCustom(receiptDetail, batch);
@@ -182,7 +190,7 @@ receiptSaleReceiptReturnDetail (returnDetail) = receiptReceiptSaleDetail(receipt
 
 descriptionSaleReceiptReturnDetail 'Чек продажи' (returnDetail) =
     [FORMULA VARSTRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) ||  \' позиция \' || CAST($3 AS TEXT)'](
-    numberReceipt(receiptSaleReceiptReturnDetail(returnDetail)), dateTimeReceipt(receiptSaleReceiptReturnDetail(returnDetail)), indexReceiptDetail(receiptSaleDetailReceiptReturnDetail(returnDetail)));
+    numberReceipt(receiptSaleReceiptReturnDetail(returnDetail)), dateTimeReceipt(receiptSaleReceiptReturnDetail(returnDetail)), indexReceiptDetail(receiptSaleDetailReceiptReturnDetail(returnDetail))) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 // Количества и суммы
 
@@ -291,7 +299,7 @@ CONSTRAINT taxRange(VATReceiptSaleDetail(detail)) != Tax.taxVAT OR
            CHECKED BY VATReceiptSaleDetail
            MESSAGE 'ошибка: Шкала должна соответствовать шкале НДС и стране магазина: продажа';
 
-VATSumSaleZReport 'Сумма НДС по продажам' (zReport) = DATA NUMERIC[16,2] (ZReport);
+VATSumSaleZReport 'Сумма НДС по продажам' (zReport) = DATA NUMERIC[16,2] (ZReport) IN documentSumGroup;
 
 VATReceiptReturnDetail = DATA Range (ReceiptReturnDetail);
 CONSTRAINT taxRange(VATReceiptReturnDetail(detail)) != Tax.taxVAT OR
@@ -299,7 +307,7 @@ CONSTRAINT taxRange(VATReceiptReturnDetail(detail)) != Tax.taxVAT OR
            CHECKED BY VATReceiptReturnDetail
            MESSAGE 'ошибка: Шкала должна соответствовать шкале НДС и стране магазина: возврат';
 
-VATSumReturnZReport 'Сумма НДС по возвратам' (zReport) = DATA NUMERIC[16,2] (ZReport);
+VATSumReturnZReport 'Сумма НДС по возвратам' (zReport) = DATA NUMERIC[16,2] (ZReport) IN documentSumGroup;
 
 VATReceiptDetail (receiptDetail) = MULTI VATReceiptReturnDetail(receiptDetail), VATReceiptSaleDetail(receiptDetail) PERSISTENT;
 numberVATReceiptDetail 'НДС, номер' (receiptDetail) = numberRange(VATReceiptDetail(receiptDetail));
@@ -478,10 +486,11 @@ FORM zReport 'Z-отчет'
     PROPERTIES(b) TODRAW d addDetailDialogSkuStockReceiptSaleDetailReceipt, addDetailDialogSkuStockReceiptReturnDetailReceipt
                            // todo : добавить операции возврата по штрих-коду
 
-    PROPERTIES(d) typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail, nameBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(b),
+    PROPERTIES(d) typeReceiptDetail READONLY, idBarcodeReceiptDetail, nameSkuReceiptDetail ON CHANGE changeDialogSkuReceiptDetail(d) FORCE GRID, nameBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(b),
+                  descriptionSaleReceiptReturnDetail FORCE GRID READONLY,
                   quantityReceiptDetail, quantityReturnedReceiptSaleDetail FORCE GRID, priceReceiptDetail,
-                  sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID, discountSumReceiptDetail,
-                  descriptionSaleReceiptReturnDetail, numberVATReceiptDetail, ADDOBJ, DELETESESSION
+                  sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID, discountSumReceiptDetail FORCE GRID,
+                  numberVATReceiptDetail FORCE GRID, ADDOBJ, DELETESESSION
 
     FILTERS receiptReceiptDetail(d)==b
 
@@ -496,37 +505,38 @@ FORM zReport 'Z-отчет'
 DESIGN zReport FROM DEFAULT{
 
     NEW pane {
+        type = CONTAINERH;      
+           
+        NEW first {
+            fill = 1;
+            type = CONTAINERV;
+            ADD z.documentHeaderGroup;
+            ADD z.documentPrmGroup;
+        }
+        ADD z.documentSumGroup { columns = 2;}    
+
+    }    
+    ADD b.box;
+    NEW secondCase{
         fill = 1;
-        type = SPLITV;
+        type = SPLITH;
 
-        NEW firstCase {
-            fill = 1;
-            type = SPLITV;
-
-            ADD z.box;
-            ADD b.box;
+        ADD d.box {
+            fill = 3;
+            caption = 'Строка чека';
         }
-
-        NEW secondCase{
-            fill = 1;
-            type = SPLITH;
-
-            ADD d.box {
-                fill = 3;
-                caption = 'Строка чека';
-            }
-            ADD p.box;
-        }
-    }
+        ADD p.box;
+    }           
 
     ADD functions.box;
 }
 
 FORM zReports 'Z-отчеты'
     OBJECTS z=ZReport
-    PROPERTIES (z) READONLY objectClassName, numberCashRegisterZReport, nameDepartmentStoreZReport, dateZReport, timeZReport,
-                            numberZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport, sumCashZReport,
-                            sumReceiptDetailZReport, discountSumReceiptDetailZReport, VATSumSaleZReport, VATSumReturnZReport
+    PROPERTIES (z) READONLY numberZReport, dateZReport, timeZReport, nameDepartmentStoreZReport, 
+                            numberCashRegisterZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport, sumCashZReport,
+                            sumReceiptDetailZReport, discountSumReceiptDetailZReport, VATSumSaleZReport, VATSumReturnZReport, 
+                            objectClassName
     PROPERTIES (z) ADDFORM, EDITFORM SHOWIF isDraftZReport(z), deletez=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftZReport(z),
                             exportReceiptsZReport FORCE PANEL TOOLBAR, importReceiptsZReport FORCE PANEL TOOLBAR,
                             postZReport SHOWIF isDraftZReport(z), unpostZReport SHOWIF isPostedZReport(z)
@@ -541,10 +551,11 @@ FORM zReports 'Z-отчеты'
     ORDER BY                numberReceipt
 
     OBJECTS d=ReceiptDetail
-    PROPERTIES(d) READONLY  typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail, nameBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(b),
+    PROPERTIES(d) READONLY  typeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail FORCE GRID, nameBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(b),
+                            descriptionSaleReceiptReturnDetail FORCE GRID,
                             quantityReceiptDetail, quantityReturnedReceiptSaleDetail FORCE GRID, priceReceiptDetail,
-                            costSumSkuLedger, sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID,
-                            discountSumReceiptDetail, descriptionSaleReceiptReturnDetail
+                            costSumSkuLedger FORCE GRID, sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID,
+                            discountSumReceiptDetail FORCE GRID
 
     FILTERS receiptReceiptDetail(d)==b
 
