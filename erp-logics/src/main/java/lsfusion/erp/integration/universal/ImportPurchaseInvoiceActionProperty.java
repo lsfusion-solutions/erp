@@ -428,6 +428,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             session.sql.popVolatileStats(null);
             session.close();
 
+            LM.findLAPByCompoundName("formRefresh").execute(context);
         }
     }
 

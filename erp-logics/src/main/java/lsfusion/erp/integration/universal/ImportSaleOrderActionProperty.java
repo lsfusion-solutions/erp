@@ -319,6 +319,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             session.sql.popVolatileStats(null);
             session.close();
 
+            LM.findLAPByCompoundName("formRefresh").execute(context);
+
         }
     }
 
