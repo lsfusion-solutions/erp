@@ -1355,7 +1355,7 @@ public class ImportActionProperty {
 
                 ImportField shortNameOwnershipField = new ImportField(LM.findLCPByCompoundName("shortNameOwnership"));
                 ImportKey<?> ownershipKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Ownership"),
-                        LM.findLCPByCompoundName("shortNameToOwnership").getMapping(shortNameOwnershipField));
+                        LM.findLCPByCompoundName("ownershipShortName").getMapping(shortNameOwnershipField));
                 keys.add(ownershipKey);
                 props.add(new ImportProperty(shortNameOwnershipField, LM.findLCPByCompoundName("shortNameOwnership").getMapping(ownershipKey)));
                 props.add(new ImportProperty(shortNameOwnershipField, LM.findLCPByCompoundName("ownershipLegalEntity").getMapping(legalEntityKey),

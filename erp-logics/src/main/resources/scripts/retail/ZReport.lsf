@@ -37,8 +37,8 @@ castBasisZReport =
 numberZReport 'Номер Z-отчета' (zReport) = DATA VARSTRING[21](ZReport) IN documentPrmGroup;
 cashRegisterZReport (zReport) = DATA CashRegister(ZReport);
 numberCashRegisterZReport 'Касса Z-отчета' (zReport) = numberCashRegister(cashRegisterZReport(zReport)) IN documentPrmGroup;
-numberNumberCashRegisterToZReport (numberZReport, numberCashRegister) = GROUP AGGR zReport BY numberZReport (zReport), numberCashRegisterZReport (zReport) WHERE zReport IS ZReport;
-numberNumberCashRegisterToZReportPosted (numberZReport, numberCashRegister) = GROUP AGGR zReportPosted BY numberZReport (zReportPosted), numberCashRegisterZReport (zReportPosted) WHERE zReportPosted IS ZReportPosted;
+zReportNumberCashRegister (numberZReport, numberCashRegister) = GROUP AGGR zReport BY numberZReport (zReport), numberCashRegisterZReport (zReport) WHERE zReport IS ZReport;
+
 maxNumberZReport(cashRegister) = GROUP MAX numberZReport(zReport)  BY cashRegisterZReport (zReport);
 basisZReport 'Основание' (zReport) = castBasisZReport(numberZReport(zReport), numberCashRegisterZReport(zReport), dateZReport(zReport)) IN documentPrmGroup;
 
@@ -166,7 +166,7 @@ numberReceiptReceiptDetail 'Номер чека' (receiptDetail) = numberReceipt
 
 maxNumberReceiptZReport 'Максимальный номер чека' (zReport) = GROUP MAX numberReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT;
 
-zReportReceiptToReceipt (zReport, receipt, cashRegister) = GROUP AGGR receipt BY numberZReport(zReportReceipt(receipt)), numberReceipt(receipt), numberCashRegister(cashRegisterZReport(zReportReceipt(receipt))) WHERE receipt IS Receipt;
+receiptZReportNumberCashRegister (zReport, receipt, cashRegister) = GROUP AGGR receipt BY numberZReport(zReportReceipt(receipt)), numberReceipt(receipt), numberCashRegister(cashRegisterZReport(zReportReceipt(receipt))) WHERE receipt IS Receipt;
 
 GROUP receiptDiscountGroup 'Дисконтная карта' : public;
 
@@ -315,7 +315,7 @@ valueVATReceiptDetail 'НДС, %' (receiptDetail) = valueRateRangeDate(VATReceip
 
 // используется только для приема реализации из внешних касс
 numberReceiptDetail 'Номер позиции чека' = DATA INTEGER (ReceiptDetail);
-zReportReceiptReceiptDetailToReceiptDetail (zReport, receipt, receiptDetail, cashRegister) = GROUP AGGR receiptDetail BY numberZReport(zReportReceiptDetail(receiptDetail)), numberReceipt(receiptReceiptDetail(receiptDetail)), numberReceiptDetail(receiptDetail), numberCashRegister(cashRegisterZReport(zReportReceiptDetail(receiptDetail))) WHERE receiptDetail IS ReceiptDetail;
+receiptDetailZReportReceiptNumberCashRegister (zReport, receipt, receiptDetail, cashRegister) = GROUP AGGR receiptDetail BY numberZReport(zReportReceiptDetail(receiptDetail)), numberReceipt(receiptReceiptDetail(receiptDetail)), numberReceiptDetail(receiptDetail), numberCashRegister(cashRegisterZReport(zReportReceiptDetail(receiptDetail))) WHERE receiptDetail IS ReceiptDetail;
 //
 
 descriptionReceipt 'Название документа' (receipt) = [FORMULA VARSTRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '](
@@ -378,7 +378,7 @@ paymentMeansPaymentType (paymentType) = DATA PaymentMeans (PaymentType);
 namePaymentMeansPaymentType 'Форма оплаты' (paymentType) = staticCaption(paymentMeansPaymentType(paymentType)) IN base;
 
 sidPaymentType 'Идентификатор' = DATA STRING[10] (PaymentType) IN base;
-sidToTypePayment (tp) = GROUP AGGR paymentType BY sidPaymentType(paymentType) WHERE paymentType IS PaymentType;
+typePaymentSID (tp) = GROUP AGGR paymentType BY sidPaymentType(paymentType) WHERE paymentType IS PaymentType;
 
 FORM paymentType 'Тип платежа'
     OBJECTS pt = PaymentType FIXED PANEL
@@ -410,7 +410,7 @@ paymentMeansPayment (payment) = paymentMeansPaymentType(paymentTypePayment(payme
 namePaymentMeansPayment 'Форма оплаты' (payment) = staticCaption(paymentMeansPayment(payment));
 
 numberPayment 'Номер платежа' (payment) = DATA INTEGER (Payment);
-zReportReceiptPaymentToPayment (zReport, receipt, number, cashRegister) = GROUP AGGR payment BY numberZReport(zReportReceipt(receiptPayment(payment))), numberReceipt(receiptPayment(payment)), numberPayment(payment), numberCashRegister(cashRegisterZReport(zReportReceipt(receiptPayment(payment)))) WHERE payment IS Payment;
+paymentZReportReceiptNumberCashRegister (zReport, receipt, number, cashRegister) = GROUP AGGR payment BY numberZReport(zReportReceipt(receiptPayment(payment))), numberReceipt(receiptPayment(payment)), numberPayment(payment), numberCashRegister(cashRegisterZReport(zReportReceipt(receiptPayment(payment)))) WHERE payment IS Payment;
 
 sumPayment 'Сумма платежа' (payment) = DATA NUMERIC[16,2] (Payment);
 

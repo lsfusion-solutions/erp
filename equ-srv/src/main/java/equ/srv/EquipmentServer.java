@@ -516,9 +516,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             List<ImportProperty<?>> returnProperties = new ArrayList<ImportProperty<?>>();
             List<ImportProperty<?>> paymentProperties = new ArrayList<ImportProperty<?>>();
 
-            ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ZReportPosted"), equLM.findLCPByCompoundName("numberNumberCashRegisterToZReportPosted").getMapping(zReportNumberField, cashRegisterField));
+            ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ZReportPosted"), equLM.findLCPByCompoundName("zReportNumberCashRegister").getMapping(zReportNumberField, cashRegisterField));
             ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("CashRegister"), equLM.findLCPByCompoundName("cashRegisterNumber").getMapping(cashRegisterField));
-            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("Receipt"), equLM.findLCPByCompoundName("zReportReceiptToReceipt").getMapping(zReportNumberField, numberReceiptField, cashRegisterField));
+            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("Receipt"), equLM.findLCPByCompoundName("receiptZReportNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, cashRegisterField));
             ImportKey<?> skuKey = new ImportKey((CustomClass) equLM.findClassByCompoundName("Sku"), equLM.findLCPByCompoundName("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateField));
             ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("DiscountCard"), equLM.findLCPByCompoundName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
 
@@ -538,7 +538,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
 
-            ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ReceiptSaleDetail"), equLM.findLCPByCompoundName("zReportReceiptReceiptDetailToReceiptDetail").getMapping(zReportNumberField, numberReceiptField, numberReceiptDetailField, cashRegisterField));
+            ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ReceiptSaleDetail"), equLM.findLCPByCompoundName("receiptDetailZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberReceiptDetailField, cashRegisterField));
             saleProperties.add(new ImportProperty(numberReceiptDetailField, equLM.findLCPByCompoundName("numberReceiptDetail").getMapping(receiptSaleDetailKey)));
             saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, equLM.findLCPByCompoundName("idBarcodeReceiptDetail").getMapping(receiptSaleDetailKey)));
             saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, equLM.findLCPByCompoundName("quantityReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
@@ -568,7 +568,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
 
-            ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ReceiptReturnDetail"), equLM.findLCPByCompoundName("zReportReceiptReceiptDetailToReceiptDetail").getMapping(zReportNumberField, numberReceiptField, numberReceiptDetailField, cashRegisterField));
+            ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ReceiptReturnDetail"), equLM.findLCPByCompoundName("receiptDetailZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberReceiptDetailField, cashRegisterField));
             returnProperties.add(new ImportProperty(numberReceiptDetailField, equLM.findLCPByCompoundName("numberReceiptDetail").getMapping(receiptReturnDetailKey)));
             returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, equLM.findLCPByCompoundName("idBarcodeReceiptDetail").getMapping(receiptReturnDetailKey)));
             returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, equLM.findLCPByCompoundName("quantityReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
@@ -619,8 +619,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, discountCardKey),
                     returnProperties).synchronize(true);
 
-            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("POS.Payment"), equLM.findLCPByCompoundName("zReportReceiptPaymentToPayment").getMapping(zReportNumberField, numberReceiptField, numberPaymentField, cashRegisterField));
-            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("PaymentType"), equLM.findLCPByCompoundName("sidToTypePayment").getMapping(sidTypePaymentField));
+            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("POS.Payment"), equLM.findLCPByCompoundName("paymentZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberPaymentField, cashRegisterField));
+            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("PaymentType"), equLM.findLCPByCompoundName("typePaymentSID").getMapping(sidTypePaymentField));
             paymentProperties.add(new ImportProperty(sumPaymentField, equLM.findLCPByCompoundName("POS.sumPayment").getMapping(paymentKey)));
             paymentProperties.add(new ImportProperty(numberPaymentField, equLM.findLCPByCompoundName("numberPayment").getMapping(paymentKey)));
             paymentProperties.add(new ImportProperty(sidTypePaymentField, equLM.findLCPByCompoundName("paymentTypePayment").getMapping(paymentKey),
