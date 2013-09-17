@@ -237,12 +237,7 @@ META defineOperationLegalEntity(prop, object, tabcaption)
                 }
             }
         }
-    }
-    
-    // Подсчет органиизации по-умолчанию            
-    count###prop###operation (operation) = GROUP SUM 1 IF in###prop##Operation(legalEntity,operation) BY operation;
-    default###prop###operation (operation) = GROUP MIN legalEntity IF in###prop##Operation(legalEntity,operation) BY operation;                 
-
+    }                 
 END
 
 META defineDocumentOperationLegalEntity(object, prop, caption)
@@ -252,10 +247,17 @@ META defineDocumentOperationLegalEntity(object, prop, caption)
         MESSAGE caption##' должен совпадать с отмеченными в операции';
 END
 
+META defineCountLegalEntityOperation(prop, filter)
+    // Подсчет органиизации по-умолчанию            
+    count###prop###operation (operation) = GROUP SUM 1 IF in###prop##Operation(legalEntity,operation) AND is###filter###legalEntity(legalEntity)  BY operation;
+    default###prop###operation (operation) = GROUP MIN legalEntity IF in###prop##Operation(legalEntity,operation) AND is###filter###legalEntity(legalEntity) BY operation;   
+END
+
 META deriveDocumentOperationLegalEntity(objectClass, prop, form)
-    WHEN SESSION FORMS form CHANGED(operation###objectClass(o)) DO
+    WHEN SESSION FORMS form CHANGED(operation###objectClass(o)) NOINLINE DO {
         prop###objectClass(o) <- default###prop###operation(operation###objectClass(o))
-            IF count###prop###operation(operation###objectClass(o)) == 1;
+            WHERE count###prop###operation(operation###objectClass(o)) == 1;
+    }        
 END
 
 //Склады
@@ -314,11 +316,7 @@ META defineOperationStock(prop, object, tabcaption)
                 }
             }
         }
-    }
-    // Подсчет органиизации по-умолчанию            
-    count###prop###operation (operation) = GROUP SUM 1 IF in###prop##Operation(stock,operation) BY operation;
-    default###prop###operation (operation) = GROUP MIN stock IF in###prop##Operation(stock,operation) BY operation;         
-
+    }    
 END
 
 META defineDocumentOperationStock(object, prop, caption)
@@ -327,10 +325,26 @@ META defineDocumentOperationStock(object, prop, caption)
         CHECKED BY prop###object
         MESSAGE caption##' должен совпадать с отмеченными в операции';
 END
+
+META defineCountStockOperation(prop, filter, filterEntity)
+    // Подсчет складов по-умолчанию            
+    count###prop###stock###operation (operation) = GROUP SUM 1 IF in###prop###stock##Operation(stock,operation)
+                                                        AND is###filter###stock(stock) 
+                                                        AND in###prop##Operation(legalEntityStock(stock),operation)
+                                                        AND is###filterEntity###legalEntity(legalEntityStock(stock))
+                                                            BY operation;
+    default###prop###stock###operation (operation) = GROUP MIN stock IF in###prop###stock##Operation(stock,operation) 
+                                                        AND is###filter###stock(stock) 
+                                                        AND in###prop##Operation(legalEntityStock(stock),operation)
+                                                        AND is###filterEntity###legalEntity(legalEntityStock(stock))
+                                                            BY operation;        
+END
+
 META deriveDocumentOperationStock(objectClass, prop, form)
-    WHEN SESSION FORMS form CHANGED(operation###objectClass(o)) DO
+    WHEN SESSION FORMS form CHANGED(operation###objectClass(o)) NOINLINE DO {
         prop###objectClass(o) <- default###prop###operation(operation###objectClass(o))
-            IF count###prop###operation(operation###objectClass(o)) == 1;
+            WHERE count###prop###operation(operation###objectClass(o)) == 1;
+    }
 END
 
 //Валюта
