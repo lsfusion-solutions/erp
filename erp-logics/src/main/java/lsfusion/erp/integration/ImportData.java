@@ -25,8 +25,8 @@ public class ImportData {
     private Integer numberOfUserInvoicesAtATime;
     private Boolean importInactive;
     private Boolean importUserInvoicesPosted;
-    private Boolean skipKeys;
-    private Boolean withoutRecalc;
+    private boolean skipKeys;
+    private boolean withoutRecalc;
 
     public ImportData() {
     }
@@ -203,19 +203,19 @@ public class ImportData {
         return importUserInvoicesPosted==null ? false : importUserInvoicesPosted;
     }
 
-    public Boolean getSkipKeys() {
-        return skipKeys==null ? false : skipKeys;
+    public boolean getSkipKeys() {
+        return skipKeys;
     }
 
-    public void setSkipKeys(Boolean skipKeys) {
+    public void setSkipKeys(boolean skipKeys) {
         this.skipKeys = skipKeys;
     }
 
-    public Boolean getWithoutRecalc() {
-        return withoutRecalc==null ? false : withoutRecalc;
+    public boolean getWithoutRecalc() {
+        return withoutRecalc;
     }
 
-    public void setWithoutRecalc(Boolean withoutRecalc) {
+    public void setWithoutRecalc(boolean withoutRecalc) {
         this.withoutRecalc = withoutRecalc;
     }
 

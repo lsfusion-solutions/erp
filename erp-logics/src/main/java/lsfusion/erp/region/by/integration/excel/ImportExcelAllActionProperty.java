@@ -36,9 +36,9 @@ public class ImportExcelAllActionProperty extends ScriptingActionProperty {
 
                     ImportData importData = new ImportData();
 
-                    importData.setSkipKeys((Boolean)getLCP("skipKeysExcel").read(context));
+                    importData.setSkipKeys(getLCP("skipKeysExcel").read(context) != null);
 
-                    importData.setWithoutRecalc((Boolean)getLCP("withoutRecalcExcel").read(context));
+                    importData.setWithoutRecalc(getLCP("withoutRecalcExcel").read(context) != null);
                     if (file.getKey().contains("importUOMs")) {
                         importData.setUOMsList(ImportExcelUOMsActionProperty.importUOMs(file.getValue()));
                     }

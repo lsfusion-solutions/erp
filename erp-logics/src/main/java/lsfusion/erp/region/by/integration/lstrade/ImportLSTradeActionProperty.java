@@ -46,8 +46,8 @@ public class ImportLSTradeActionProperty extends DefaultImportActionProperty {
 
                 Boolean importInactive = getLCP("importInactive").read(context) != null;
                 importData.setImportInactive(importInactive);
-                importData.setSkipKeys((Boolean) getLCP("skipKeysLSTrade").read(context));
-                importData.setWithoutRecalc((Boolean)getLCP("withoutRecalcLSTrade").read(context));
+                importData.setSkipKeys(getLCP("skipKeysLSTrade").read(context) != null);
+                importData.setWithoutRecalc(getLCP("withoutRecalcLSTrade").read(context) != null);
 
                 importData.setNumberOfItemsAtATime((Integer) getLCP("importNumberItemsAtATime").read(context));
                 importData.setNumberOfPriceListsAtATime((Integer) getLCP("importNumberPriceListsAtATime").read(context));
@@ -365,7 +365,7 @@ public class ImportLSTradeActionProperty extends DefaultImportActionProperty {
             BigDecimal retailPriceShipmentDetail = getBigDecimalFieldValue(importFile, "N_CENU", "Cp1251", null);
             BigDecimal retailMarkupShipmentDetail = getBigDecimalFieldValue(importFile, "N_TN", "Cp1251", null);
             String idContract = getFieldValue(importFile, "K_CONT", "Cp1251", null);
-            idContract = (idContract!=null && idSupplier.equals(contractSupplierMap.get(idContract))) ? idContract : null;
+            idContract = (idContract != null && idSupplier.equals(contractSupplierMap.get(idContract))) ? idContract : null;
 
             if ((seriesNumber.length != 1) && (idSupplier.startsWith("ПС")) && (!quantityShipmentDetail.equals(new BigDecimal(0))))
                 data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice, seriesUserInvoice, numberUserInvoice,
@@ -495,7 +495,7 @@ public class ImportLSTradeActionProperty extends DefaultImportActionProperty {
                         data.add(new Store(idLegalEntity, ownership[2], addressLegalEntity, companyStore, "Магазин", companyStore + "ТС"));
                 } else if (isCompany || isSupplier || isCustomer)
                     data.add(new LegalEntity(idLegalEntity, ownership[2], addressLegalEntity, unpLegalEntity,
-                            okpoLegalEntity, phoneLegalEntity, emailLegalEntity, ownership[1],ownership[0],
+                            okpoLegalEntity, phoneLegalEntity, emailLegalEntity, ownership[1], ownership[0],
                             numberAccount, isCompany ? (idLegalEntity + "ТС") : null, isCompany ? ownership[2] : null,
                             idBank, nameCountry, isSupplier ? true : null, isCompany ? true : null,
                             isCustomer ? true : null));
@@ -667,7 +667,7 @@ public class ImportLSTradeActionProperty extends DefaultImportActionProperty {
 
     }
 
-    private  Boolean getBooleanFieldValue(DBF importFile, String fieldName, String charset, Boolean defaultValue) throws UnsupportedEncodingException {
+    private Boolean getBooleanFieldValue(DBF importFile, String fieldName, String charset, Boolean defaultValue) throws UnsupportedEncodingException {
         return "T".equals(getFieldValue(importFile, fieldName, charset, String.valueOf(defaultValue)));
     }
 
