@@ -152,8 +152,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     @defineDocumentInterfaceDetailVAT(invoice, country###stockProp, , ); // объявляем шкалу
     overVATUserInvoiceDetail = ABSTRACT Range (UserInvoiceDetail); 
     WHEN SESSION
-        CHANGED(skuUserInvoiceDetail(detail)) OR CHANGED (supplierStockUserInvoiceDetail(detail)) OR 
-        CHANGED(dateUserInvoiceDetail(detail)) OR CHANGED(overVATUserInvoiceDetail(detail)) DO {
+        (CHANGED(skuUserInvoiceDetail(detail)) OR CHANGED (supplierStockUserInvoiceDetail(detail)) OR 
+         CHANGED(dateUserInvoiceDetail(detail)) OR CHANGED(overVATUserInvoiceDetail(detail))) AND NOT CHANGED(VATUserInvoiceDetail(detail)) DO {
             VATUserInvoiceDetail(detail) <- OVERRIDE VATSkuCountryDate (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail)), dateUserInvoiceDetail(detail)),
                                                      overVATUserInvoiceDetail(detail);
         } // записываем шкалу
