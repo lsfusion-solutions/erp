@@ -1,6 +1,6 @@
 MODULE SaleOrderArticle;
 
-REQUIRE SaleOrder, DocumentArticle;
+REQUIRE SaleOrder, DocumentArticle, SaleLedger;
 
 NAMESPACE Sale;
 
@@ -98,3 +98,27 @@ EXTEND DESIGN userOrder {
     }
 //    PROPERTY(priceBalanceArticleColorSizeStockUserOrder) { background = #FFEEEE; }
 }
+
+// Реализация по складу, артикулу, цвету, размеру за период
+quantitySoldArticleColorSizeStockDateFromTo 'Продано за интервал (кол-во)' (article, color, size, stock, dateFrom, dateTo) = GROUP SUM
+        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY articleItem(sku), colorItem(sku), sizeItem(sku),stock, dateFrom, dateTo;
+        
+quantitySoldArticleColorSizeUserOrderOneWeek 'Продано за последнюю неделю (кол-во)' (article, color, size, order)= quantitySoldArticleColorSizeStockDateFromTo(article, color, size, customerStockUserOrder(order), subtractDate(dateUserOrder(order),7), dateUserOrder(order));        
+quantitySoldArticleColorSizeUserOrderTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (article, color, size, order)= quantitySoldArticleColorSizeStockDateFromTo(article, color, size, customerStockUserOrder(order), subtractDate(dateUserOrder(order),14), subtractDate(dateUserOrder(order),7));        
+
+
+EXTEND CLASS RowType { selling7 'Реал-ия скл. пок-ля последняя нед.' }
+quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk, ty) += 
+    WHEN ty ==  RowType.selling7 AND stk IS Stock 
+        THEN NUMERIC[14,3](quantitySoldArticleColorSizeUserOrderOneWeek(ar,co,si,o))
+    ;     
+ 
+//-- 
+EXTEND CLASS RowType { selling14 'Реал-ия скл. пок-ля предпоследняя нед.' }
+quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk, ty) += 
+    WHEN ty ==  RowType.selling14 AND stk IS Stock 
+        THEN NUMERIC[14,3](quantitySoldArticleColorSizeUserOrderTwoWeek(ar,co,si,o))
+    ; 
+defaultOrderRowType(ty) += WHEN ty == RowType.selling7  THEN 5; 
+defaultOrderRowType(ty) += WHEN ty == RowType.selling14  THEN 6;
