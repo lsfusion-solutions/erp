@@ -616,7 +616,7 @@ public class ImportActionProperty {
                 List<List<Object>> data = initData(userInvoiceDetailsList.size());
 
                 ImportField idUserInvoiceField = new ImportField(LM.findLCPByCompoundName("Purchase.idUserInvoice"));
-                ImportKey<?> userInvoiceKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName(posted ? "Purchase.UserInvoicePosted" : "Purchase.UserInvoice"),
+                ImportKey<?> userInvoiceKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Purchase.UserInvoice"),
                         LM.findLCPByCompoundName("Purchase.userInvoiceId").getMapping(idUserInvoiceField));
                 keys.add(userInvoiceKey);
                 props.add(new ImportProperty(idUserInvoiceField, LM.findLCPByCompoundName("Purchase.idUserInvoice").getMapping(userInvoiceKey)));
@@ -630,7 +630,7 @@ public class ImportActionProperty {
                 keys.add(userInvoiceDetailKey);
                 props.add(new ImportProperty(idUserInvoiceDetailField, LM.findLCPByCompoundName("Purchase.idUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
                 props.add(new ImportProperty(idUserInvoiceField, LM.findLCPByCompoundName("Purchase.userInvoiceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                        LM.object(LM.findClassByCompoundName(posted ? "Purchase.UserInvoicePosted" : "Purchase.UserInvoice")).getMapping(userInvoiceKey)));
+                        LM.object(LM.findClassByCompoundName("Purchase.UserInvoice")).getMapping(userInvoiceKey)));
                 fields.add(idUserInvoiceDetailField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).idUserInvoiceDetail);

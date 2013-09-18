@@ -216,12 +216,13 @@ META definePickingOrderInvoiceAction (sign, stockProp)
 
     createPickingUserInvoiceOrder 'Создать накладную по комплектации' = ACTION (order) {
         IF order IS Order THEN {
-            ASSIGN  userInvoiceOrder(order) <- NULL;
-            FOR ADDOBJ i = UserInvoicePosted DO {
-                EXEC fillPickingUserInvoiceOrder(i, order);
-                ASSIGN  userInvoiceOrder(order) <- i;
-                ASSIGN packQuantityUserInvoice(i) <- packQuantityOrder(order);
-                ASSIGN createdUserInvoiceOrder(i, order) <- TRUE;
+            userInvoiceOrder(order) <- NULL;
+            FOR ADDOBJ i = UserInvoice DO {
+                isPostedUserInvoice(i) <- TRUE;
+                fillPickingUserInvoiceOrder(i, order);
+                userInvoiceOrder(order) <- i;
+                packQuantityUserInvoice(i) <- packQuantityOrder(order);
+                createdUserInvoiceOrder(i, order) <- TRUE;
             }
         }
     }

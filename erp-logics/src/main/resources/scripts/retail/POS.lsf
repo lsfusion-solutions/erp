@@ -496,13 +496,13 @@ clearDiscountCardReceipt 'Сбросить' = ACTION (receipt) {
 // Операции с Z-отчетами
 
 openCurrentZReport 'Открыть Z-отчет' = ACTION () {
-    ADDOBJ ZReportPosted;
-    FOR z == addedObject() DO {
-        ASSIGN numberZReport(z) <- STRING[255](z);
-        ASSIGN cashRegisterZReport(z) <- currentCashRegister();
-        ASSIGN departmentStoreZReport(z) <- departmentStoreCashRegister(currentCashRegister()); // todo : приходится ставить из-за того, что на ADDOBJ срабатывает resolveAdd
-        ASSIGN zReportCashRegister(cashRegister) <- z WHERE cashRegister == currentCashRegister();
-        EXEC apply();
+    FOR ADDOBJ z = ZReport DO {
+        isPostedZReport(z) <- TRUE;
+        numberZReport(z) <- STRING[255](z);
+        cashRegisterZReport(z) <- currentCashRegister();
+        departmentStoreZReport(z) <- departmentStoreCashRegister(currentCashRegister()); // todo : приходится ставить из-за того, что на ADDOBJ срабатывает resolveAdd
+        zReportCashRegister(cashRegister) <- z WHERE cashRegister == currentCashRegister();
+        apply();
     }
 } CONFIRM IN receiptZReportGroup;
 
@@ -917,7 +917,7 @@ EXTEND FORM operationCashRegister
     PROPERTIES() fiscalZReport SHOWIF currentZReportDepartmentStore()
     PROPERTIES() openCurrentZReport SHOWIF closedCurrentZReportDepartmentStore()
 
-    OBJECTS z = ZReportPosted
+    OBJECTS z = ZReport
     PROPERTIES(z) READONLY objectClassName, numberZReport, dateZReport, timeZReport, nameDepartmentStoreZReport,
                            numberCashRegisterZReport, sumCashZReport, sumReceiptDetailZReport, basisZReport
     ORDER BY dateZReport(z), timeZReport(z)

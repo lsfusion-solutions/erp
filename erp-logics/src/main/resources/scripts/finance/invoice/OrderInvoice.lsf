@@ -235,14 +235,16 @@ META defineOrderInvoice(sign, stockProp)
     createUserInvoicePostedOrder 'Создать проведенную накладную' = ACTION (order) {
         IF order IS Order THEN {
             IF differentStocksInDetailsStock(customerStockOrder(order)) THEN {
-                FOR ADDOBJ i = UserInvoicePosted DO {
-                    EXEC fillUserInvoiceOrder(i, order);
-                    ASSIGN createdUserInvoiceOrder(i, order) <- TRUE;
+                FOR ADDOBJ i = UserInvoice DO {
+                    isPostedUserInvoice(i) <- TRUE;
+                    fillUserInvoiceOrder(i, order);
+                    createdUserInvoiceOrder(i, order) <- TRUE;
                 }
             } ELSE {
-                FOR inOrderSupplierStock(order, stock) ADDOBJ i = UserInvoicePosted DO {
-                    EXEC fillSupplierStockUserInvoiceOrder(stock, i, order);
-                    ASSIGN createdUserInvoiceOrder(i, order) <- TRUE;
+                FOR inOrderSupplierStock(order, stock) ADDOBJ i = UserInvoice DO {
+                    isPostedUserInvoice(i) <- TRUE;
+                    fillSupplierStockUserInvoiceOrder(stock, i, order);
+                    createdUserInvoiceOrder(i, order) <- TRUE;
                 }
             }
         }
@@ -321,7 +323,6 @@ META defineOrderInvoice(sign, stockProp)
     ;
 
     CLASS OrderInvoice 'Накладная на основе заказа'###sign : Invoice;
-    CLASS OrderInvoicePosted 'Проведенная накладная на основе заказа'###sign : OrderInvoice, PostedObject;
     CLASS OrderInvoiceDetail 'Строка накладной на основе заказа'###sign : InvoiceDetail;
 
     @defineDocumentTables(orderInvoice);

@@ -516,7 +516,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             List<ImportProperty<?>> returnProperties = new ArrayList<ImportProperty<?>>();
             List<ImportProperty<?>> paymentProperties = new ArrayList<ImportProperty<?>>();
 
-            ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ZReportPosted"), equLM.findLCPByCompoundName("zReportNumberCashRegister").getMapping(zReportNumberField, cashRegisterField));
+            ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ZReport"), equLM.findLCPByCompoundName("zReportNumberCashRegister").getMapping(zReportNumberField, cashRegisterField));
             ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("CashRegister"), equLM.findLCPByCompoundName("cashRegisterNumber").getMapping(cashRegisterField));
             ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("Receipt"), equLM.findLCPByCompoundName("receiptZReportNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, cashRegisterField));
             ImportKey<?> skuKey = new ImportKey((CustomClass) equLM.findClassByCompoundName("Sku"), equLM.findLCPByCompoundName("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateField));

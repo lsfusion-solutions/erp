@@ -5,7 +5,6 @@ REQUIRE Bank, ContractLedger, PaymentOperation;
 NAMESPACE PaymentRequest;
 
 CLASS PaymentRequest 'Платежное требование';
-CLASS PaymentRequestPosted 'Проведенное платежное требование' : PaymentRequest, PostedObject;
 TABLE paymentRequest(PaymentRequest);
 
 @defineDocumentHeaderPosted(PaymentRequest);
@@ -259,7 +258,8 @@ createPaymentRequests 'Выставить платежные требовани�
     count() <- 0;
     FOR toRequestContractDate(contract, date) > 0 AND (partyAContract(contract) == partyA() OR (isCompanyLegalEntity(partyAContract(contract)) AND NOT partyA()))
                                                   AND (partyBContract(contract) == partyB() OR NOT partyB())
-        ADDOBJ pr = PaymentRequestPosted DO {
+        ADDOBJ pr = PaymentRequest DO {
+        isPostedPaymentRequest(pr) <- TRUE;
         datePaymentRequest(pr) <- date;
         payerPaymentRequest(pr) <- partyBContract(contract);
         beneficiaryPaymentRequest(pr) <- partyAContract(contract);
