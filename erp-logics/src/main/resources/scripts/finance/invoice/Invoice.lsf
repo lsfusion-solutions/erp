@@ -237,7 +237,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     editSkuUserInvoiceDetail 'Редактировать SKU' (d) = editSku(skuUserInvoiceDetail(d));
     FORM userInvoice 'Накладная'###sign
         OBJECTS i = UserInvoice FIXED PANEL
-        PROPERTIES (i) objectClassName, nameSupplierUserInvoice ON CHANGE changeSupplier###supplierFilter###userInvoice(i),
+        PROPERTIES (i) isPostedUserInvoice, nameSupplierUserInvoice ON CHANGE changeSupplier###supplierFilter###userInvoice(i),
                        nameSupplierStockUserInvoice ON CHANGE changeSupplierStock###supplierFilter###userInvoice(i),
                        nameCustomerUserInvoice ON CHANGE changeCustomer###customerFilter###userInvoice(i),
                        nameCustomerStockUserInvoice ON CHANGE changeCustomerStock###customerFilter###userInvoice(i),
@@ -284,7 +284,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                         type = CONTAINERV;
                         NEW first {
                             type = CONTAINERH;
-                            ADD PROPERTY(objectClassName) { preferredCharWidth = 40; }
+                            ADD PROPERTY(isPostedUserInvoice) { preferredCharWidth = 40; }
                         }
                         NEW second { 
                             type = CONTAINERH;
@@ -433,12 +433,13 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                                 seriesNumberContractSkuInvoice, isCommissionInvoice
         PROPERTIES (i) READONLY countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
                                 VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice
-        PROPERTIES (i) READONLYIF isReadonly() noteInvoice, objectClassName
-        PROPERTIES (i) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, nameUserClosed, timeClosed, hostnameComputerClosed
+        PROPERTIES (i) READONLYIF isReadonly() noteInvoice
+        PROPERTIES (i) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, 
+                                            postedNameUserUserInvoice, postedTimeUserInvoice, postedHostnameComputerUserInvoice 
 
         PROPERTIES ()  addUserInvoice TODRAW i
         PROPERTIES (i) editInvoice, copyInvoice
-        PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserInvoice(i)
+        PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserInvoice(i)  
 
         OBJECTS d = InvoiceDetail
         PROPERTIES (d) READONLY indexInvoiceDetail, idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail
@@ -802,7 +803,7 @@ META defineInvoicePayment(dumb)
     EXTEND FORM userInvoice
         OBJECTS pm = Payment
         PROPERTIES(pm) READONLY seriesNumberPayment, dateTimePayment, namePayerPayment, nameBeneficiaryPayment,
-                                notePayment, objectClassName
+                                notePayment, isPostedPayment
         ORDER BY dateTimePayment
         PROPERTIES(pm, i) costOutContractLedgerInContractLedger
         PROPERTIES TODRAW pm FORCE PANEL TOOLBAR addPaymentInvoice(i), editPaymentInvoice(pm, i)

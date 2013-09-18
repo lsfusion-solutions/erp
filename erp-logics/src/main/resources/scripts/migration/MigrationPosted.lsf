@@ -1,18 +1,100 @@
 MODULE MigrationPosted;
 
-//REQUIRE Inventory, PurchaseDeclarationDetail, PaymentRequest;
-//
-//META defineMigrationPosted(class)
-//    migratePosted##class = ACTION () {
-//        FOR o IS class##Posted DO {
-//            CHANGECLASS o TO class;
-//            isPosted##class(o) <- TRUE;
-//        }
-//    }
-//END
-//
-//@defineMigrationPosted(Inventory);
-//
-//@defineMigrationPosted(Declaration);
-//
-//@defineMigrationPosted(PaymentRequest);
+REQUIRE Inventory, PurchaseDeclarationDetail, PaymentRequest, PurchaseCreditNote, PurchaseReturnCreditNote, 
+        SaleCreditNote, SaleReturnCreditNote, GeneralLedger, PurchaseInvoice, PurchaseReturnInvoice, SaleInvoice,
+        SaleReturnInvoice, Payment, Menu, ProductionConsumption, ProductionOrder, ProductionOutput, PriceList,
+        SaleBlanketOrder, WriteOff, Revaluation, NaturalLoss, Disparity, StockAdjustment, ZReport, Pricing, Repricing;
+
+migratePosted 'Распровести все' = ABSTRACT ACTION LIST ();
+
+META defineMigrationPosted(class)
+    migratePosted##class = ACTION () {
+        FOR o IS class##Posted DO {
+            CHANGECLASS o TO class;
+            isPosted##class(o) <- TRUE;
+        }
+    }
+    migratePosted() += migratePosted##class();
+END
+
+META defineMigrationPostedNS(class, NS)
+    migrate##NS##Posted##class = ACTION () {
+        FOR o IS NS.class##Posted DO {
+            CHANGECLASS o TO NS.class;
+            NS.isPosted##class(o) <- TRUE;
+        }
+    }
+    migratePosted() += migrate##NS##Posted##class();
+END
+
+@defineMigrationPosted(ListInventory);
+
+@defineMigrationPosted(Inventory);
+
+@defineMigrationPosted(Declaration);
+
+@defineMigrationPosted(PaymentRequest);
+
+@defineMigrationPostedNS(UserCreditNote, Purchase);
+
+@defineMigrationPostedNS(UserCreditNote, PurchaseReturn);
+
+@defineMigrationPostedNS(UserCreditNote, Sale);
+
+@defineMigrationPostedNS(UserCreditNote, SaleReturn);
+
+@defineMigrationPosted(UserGeneralLedger);
+
+@defineMigrationPostedNS(UserInvoice, Purchase);
+
+@defineMigrationPostedNS(UserInvoice, PurchaseReturn);
+
+@defineMigrationPostedNS(UserInvoice, Sale);
+
+@defineMigrationPostedNS(UserInvoice, SaleReturn);
+
+@defineMigrationPostedNS(Payment, Payment);
+
+@defineMigrationPosted(UserMenu);
+
+@defineMigrationPostedNS(UserConsumption, Production);
+
+@defineMigrationPostedNS(Order, Production);
+
+@defineMigrationPostedNS(UserOutput, Production);
+
+@defineMigrationPosted(UserPriceList);
+
+@defineMigrationPostedNS(UserOrder, Purchase);
+
+@defineMigrationPostedNS(UserOrder, PurchaseReturn);
+
+@defineMigrationPostedNS(UserOrder, Sale);
+
+@defineMigrationPostedNS(UserOrder, SaleReturn);
+
+@defineMigrationPostedNS(UserShipment, Purchase);
+
+@defineMigrationPostedNS(UserShipment, PurchaseReturn);
+
+@defineMigrationPostedNS(UserShipment, Sale);
+
+@defineMigrationPostedNS(UserShipment, SaleReturn);
+
+@defineMigrationPosted(BlanketOrder);
+
+@defineMigrationPosted(UserWriteOff);
+
+@defineMigrationPosted(UserRevaluation);
+
+@defineMigrationPosted(NaturalLoss);
+
+@defineMigrationPosted(Disparity);
+
+@defineMigrationPosted(UserAdjustment);
+
+@defineMigrationPosted(ZReport);
+
+@defineMigrationPosted(UserPricing);
+
+@defineMigrationPosted(UserRepricing);
