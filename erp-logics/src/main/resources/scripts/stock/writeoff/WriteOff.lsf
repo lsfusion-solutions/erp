@@ -204,6 +204,13 @@ reasonWriteOff(writeOff) += reasonUserWriteOff(writeOff);
 nameReasonWriteOff 'Причина списания' (writeOff) = nameReason(reasonWriteOff (writeOff)) IN documentPrmGroup;
 nameReasonUserWriteOff 'Причина списания' (userWriteOff) = nameReason(reasonUserWriteOff (userWriteOff)) IN documentPrmGroup;
 
+// Контрагент
+contactWriteOff = ABSTRACT LegalEntity (WriteOff);
+contactUserWriteOff = DATA LegalEntity (UserWriteOff);
+contactWriteOff(writeOff) += contactUserWriteOff(writeOff);
+nameContactWriteOff 'Контрагент' (writeOff) = nameLegalEntity(contactWriteOff (writeOff)) IN documentPrmGroup;
+nameContactUserWriteOff 'Контрагент' (userWriteOff) = nameLegalEntity(contactUserWriteOff (userWriteOff)) IN documentPrmGroup;
+
 // Проводим по регистру
 @implementSkuLedgerOutFIFO(WriteOffDetail, sku, stock);
 quantityOutFIFOSkuLedger (ledger) += quantityWriteOffDetail(ledger);
@@ -232,7 +239,7 @@ FORM userWriteOff 'Списание'
     PROPERTIES (w) isPostedUserWriteOff, nameNumeratorUserWriteOff, numberUserWriteOff, seriesUserWriteOff, dateUserWriteOff, timeUserWriteOff,
                    nameStockUserWriteOff, nameCurrencyUserWriteOff, noteUserWriteOff,
                    countUserWriteOffDetailUserWriteOff, quantityUserWriteOffDetailUserWriteOff,
-                   sumUserWriteOffDetailUserWriteOff, nameReasonUserWriteOff, nameWriteOffCommitteeUserWriteOff
+                   sumUserWriteOffDetailUserWriteOff, nameReasonUserWriteOff, nameWriteOffCommitteeUserWriteOff, nameContactUserWriteOff
 
     OBJECTS d=UserWriteOffDetail
     PROPERTIES (d) indexUserWriteOffDetail, idBarcodeSkuUserWriteOffDetail, nameSkuUserWriteOffDetail, shortNameUOMSkuUserWriteOffDetail,
@@ -406,16 +413,19 @@ EXTEND FORM writeOffs
 reasonOperation = DATA Reason (WriteOff.Operation);
 nameReasonOperation 'Причина списания' (operation) = nameReason(reasonOperation(operation));
 
-reasonUserWriteOff (w) <- reasonOperation(operationUserWriteOff(w))
+contactOperation = DATA LegalEntity (WriteOff.Operation);
+nameContactOperation 'Контрагент' (operation) = nameLegalEntity(contactOperation(operation));
+
+contactUserWriteOff (w) <- contactOperation(operationUserWriteOff(w))
     WHEN CHANGED(operationUserWriteOff(w));
 
 EXTEND FORM WriteOff.operation
-    PROPERTIES(o) nameReasonOperation
+    PROPERTIES(o) nameContactOperation
 ;
 
 EXTEND DESIGN operation {
     showContainer {
-        ADD PROPERTY(nameReasonOperation);
+        ADD PROPERTY(nameContactOperation);
     }
 }
 
