@@ -38,7 +38,8 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
             MESSAGE 'Покупатель и склад покупателя для акта расхождений не имеют связи';
 
     @defineDocumentInterfacePosted(creditNote);
-
+    @defineDocumentInterfaceClosed(creditNote);
+    
     @defineDocumentInterfaceDescription(creditNote, 'Акт расхождения'###sign);
 
     @defineDocumentInterfaceCurrency(creditNote);
@@ -70,6 +71,8 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
         
 
 // --------------------------- Формы --------------------------------- //
+
+    editCreditNote 'Редактировать' = ABSTRACT ACTION LIST (CreditNote) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
     FORM userCreditNote 'Акт расхождений'###sign
         OBJECTS c = UserCreditNote FIXED PANEL
@@ -158,20 +161,27 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
 
     addUserCreditNote 'Добавить' = ACTION ADDFORM UserCreditNote;
     editUserCreditNote 'Редактировать' (userCreditNote) = ACTION EDITFORM UserCreditNote;
-
+    editCreditNote(c) += editUserCreditNote(c);
+    
+    isUserOpenedCreditNote(c)=  isOpenedCreditNote(c) AND isUserCreditNote(c);
+        
     FORM creditNotes 'Акты расхождений' TITLE 'Акты расхождений'###sign
         OBJECTS c = CreditNote
-        PROPERTIES (c) READONLY isPostedCreditNote FORCE GRID, numberCreditNote, seriesCreditNote, dateCreditNote, timeCreditNote,
-                                nameSupplierCreditNote, nameSupplierStockCreditNote, nameCustomerCreditNote, nameCustomerStockCreditNote,
-                                nameCurrencyCreditNote, seriesNumberContractSkuCreditNote, countCreditNoteDetailCreditNote, quantityCreditNoteDetailCreditNote, sumCreditNoteDetailCreditNote,
-                                VATSumCreditNoteDetailCreditNote, invoiceSumCreditNoteDetailCreditNote,
-                                noteCreditNote
+        PROPERTIES (c) READONLYIF isReadonly() isClosedCreditNote
+        PROPERTIES (c) READONLY isPostedCreditNote FORCE GRID
+        PROPERTIES (c) READONLYIF isReadonly() numberCreditNote, seriesCreditNote, dateCreditNote, timeCreditNote,
+                       nameSupplierCreditNote, nameSupplierStockCreditNote, nameCustomerCreditNote, nameCustomerStockCreditNote,
+                       nameCurrencyCreditNote, seriesNumberContractSkuCreditNote
+        PROPERTIES (c) READONLY countCreditNoteDetailCreditNote, quantityCreditNoteDetailCreditNote, sumCreditNoteDetailCreditNote,
+                       VATSumCreditNoteDetailCreditNote, invoiceSumCreditNoteDetailCreditNote
+        PROPERTIES (c) READONLYIF isReadonly() noteCreditNote
         PROPERTIES (c) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, 
-                                            postedNameUserUserCreditNote, postedTimeUserCreditNote, postedHostnameComputerUserCreditNote
+                       postedNameUserUserCreditNote, postedTimeUserCreditNote, postedHostnameComputerUserCreditNote                        
 
         PROPERTIES ()  addUserCreditNote TODRAW c
-        PROPERTIES (c) editUserCreditNote
-        PROPERTIES (c) deletec=DELETE FORCE PANEL TOOLBAR SHOWIF isUserCreditNote(c)
+        PROPERTIES (c) editCreditNote SHOWIF isOpenedCreditNote(c)
+        PROPERTIES (c) closeUserCreditNote SHOWIF isOpenedUserCreditNote(c), openUserCreditNote SHOWIF isClosedUserCreditNote(c)
+        PROPERTIES (c) deletec=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedCreditNote(c)
 
         OBJECTS d = CreditNoteDetail
         PROPERTIES (d) READONLY indexCreditNoteDetail, idBarcodeSkuCreditNoteDetail, nameSkuCreditNoteDetail, shortNameUOMSkuCreditNoteDetail,
@@ -217,7 +227,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
             }
         }
     }
-
+    @extendFormEditable(creditNotes);
 
 //--  Связь акта и накладной
     invoiceDetailCreditNoteDetail = ABSTRACT InvoiceDetail (CreditNoteDetail) PERSISTENT;
@@ -320,7 +330,10 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
 
     @defineDocumentAggregationPosted(invoice, invoiceCreditNote);
     isPostedCreditNote(creditNote) += isPostedInvoiceCreditNote(creditNote);
-
+    
+    @defineDocumentAggregationClosed(invoice, invoiceCreditNote);
+    isClosedCreditNote(creditNote) += isClosedInvoiceCreditNote(creditNote);
+    
     numberInvoiceCreditNote 'Номер документа' (invoiceCreditNote) = numberInvoice(invoiceInvoiceCreditNote(invoiceCreditNote));
     numberCreditNote(creditNote) += numberInvoiceCreditNote(creditNote);
 

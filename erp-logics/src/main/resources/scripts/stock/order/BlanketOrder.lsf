@@ -265,6 +265,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
 
     FORM blanketOrders 'Множественные заказы' TITLE 'Множественные заказы'###sign
         OBJECTS o = BlanketOrder
+        PROPERTIES (o) READONLYIF isReadonly() isClosedBlanketOrder
         PROPERTIES (o) READONLY isPostedBlanketOrder FORCE GRID
         PROPERTIES (o) READONLYIF isReadonly() numberBlanketOrder, seriesBlanketOrder, dateBlanketOrder, timeBlanketOrder,
                                 nameSupplierBlanketOrder, nameSupplierStockBlanketOrder, nameCustomerBlanketOrder, nameCurrencyBlanketOrder
@@ -275,8 +276,10 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
 
         PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserBlanketOrder, postedTimeBlanketOrder, postedHostnameComputerBlanketOrder
 
-        PROPERTIES (o) ADDFORM, EDITFORM, deleteo=DELETE FORCE PANEL TOOLBAR
-        PROPERTIES (o) closeBlanketOrder SHOWIF isOpenedBlanketOrder(o)
+        PROPERTIES (o) ADDFORM, EDITFORM SHOWIF isOpenedBlanketOrder(o)
+        PROPERTIES (o) closeBlanketOrder SHOWIF isOpenedBlanketOrder(o), openBlanketOrder SHOWIF isClosedBlanketOrder(o)
+        PROPERTIES (o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedBlanketOrder(o)
+        
 
 
         OBJECTS d=BlanketOrderDetail
@@ -385,7 +388,10 @@ META defineOrderBlanketOrder(sign)
 
     @defineDocumentAggregationPosted(blanketOrder, blanketOrderOrder);
     isPostedOrder(order) += isPostedBlanketOrderOrder(order);
-
+    
+    @defineDocumentAggregationClosed(blanketOrder, blanketOrderOrder);
+    isClosedOrder(order) += isClosedBlanketOrderOrder(order);
+    
     @defineDocumentAggregationDetailSku (blanketOrder, blanketOrderOrder, sku);
     skuOrderDetail(detail) +=  skuBlanketOrderOrderDetail(detail);
 

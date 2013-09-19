@@ -17,6 +17,8 @@ TABLE order(Order);
 @defineNumeratedObjectDefault(Order, 'Производственные заказы', 'ПЗ');
 
 @defineDocumentHeaderPosted (Order);
+@defineDocumentHeaderClosed (Order);
+
 @defineDocumentHeaderPriceListType (order, priceListType, , ' (потребность)');
 includeVATOrder 'Цена с НДС' = DATA BOOLEAN (Order);
 includeVATOrder(order) <- includeVATPriceListType(priceListTypeOrder(order)) WHEN CHANGED(priceListTypeOrder(order));
@@ -43,6 +45,7 @@ TABLE productDetail (ProductDetail);
 @defineDocumentDetailIndex (order, ProductDetail);
 @defineDocumentDetailActionsCustom (order, ProductDetail);
 @defineDocumentDetailPosted (order, ProductDetail);
+@defineDocumentDetailClosed (order, ProductDetail);
 
 @defineDocumentDetailTime (order, ProductDetail);
 @defineDocumentDetailDatePrefix (order, ProductDetail, from, ' действия с');
@@ -100,6 +103,7 @@ TABLE componentDetail (ComponentDetail);
 @defineDocumentDetailIndex (order, ComponentDetail);
 @defineDocumentDetailActionsCustom (order, ComponentDetail);
 @defineDocumentDetailPosted (order, ComponentDetail);
+@defineDocumentDetailClosed (order, ComponentDetail);
 
 @defineDocumentDetailTime (order, ComponentDetail);
 @defineDocumentDetailDatePrefix (order, ComponentDetail, from, ' действия с');
@@ -776,11 +780,16 @@ WHEN SESSION FORMS order CHANGED(calcPriceListTypeProductDetail(detail)) OR
 FORM orders 'Производственные заказы'
 
     OBJECTS o = Order
-    PROPERTIES(o) READONLY isPostedOrder FORCE GRID, numberOrder, seriesOrder, dateOrder, timeOrder, nameComponentsStockOrder, nameProductsStockOrder,
-                  fromDateOrder, toDateOrder, quantityProductDetailOrder, productsSumProductDetailOrder, quantityComponentDetailOrder,
-                  nameCalcPriceListTypeOrder, namePriceListTypeOrder, noteOrder
+    PROPERTIES(o) READONLYIF isReadonly() isClosedOrder
+    PROPERTIES(o) READONLY isPostedOrder FORCE GRID
+    PROPERTIES(o) READONLYIF isReadonly() numberOrder, seriesOrder, dateOrder, timeOrder, nameComponentsStockOrder, nameProductsStockOrder,
+                  fromDateOrder, toDateOrder
+    PROPERTIES(o) READONLY quantityProductDetailOrder, productsSumProductDetailOrder, quantityComponentDetailOrder
+    PROPERTIES(o) READONLYIF isReadonly() nameCalcPriceListTypeOrder, namePriceListTypeOrder, noteOrder, objectClassName
 
-    PROPERTIES(o) ADDFORM, EDITFORM, copyOrder, deleteo=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(o) addo=ADDFORM SHOWIF isOpenedOrder(o), EDITFORM, copyOrder
+    PROPERTIES(o) closeOrder SHOWIF isOpenedOrder(o), openOrder SHOWIF isClosedOrder(o)      
+    PROPERTIES(o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedOrder(o)
     PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserOrder, postedTimeOrder, postedHostnameComputerOrder
 
     OBJECTS pd=ProductDetail
@@ -842,6 +851,7 @@ DESIGN orders FROM DEFAULT {
         }
     }
 }
+@extendFormEditable(orders);
 
 NAVIGATOR {
     manufacturingDocuments {

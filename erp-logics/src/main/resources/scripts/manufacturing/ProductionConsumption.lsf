@@ -19,6 +19,7 @@ CLASS UserConsumptionDetail 'Строка списания сырья (поль�
 
 @defineDocumentInterfaceStock(consumption, stock, 'Склад', );
 @defineDocumentInterfacePosted(consumption);
+@defineDocumentInterfaceClosed(consumption);
 
 @defineDocumentInterfaceDescription(consumption, 'Списание сырья');
 
@@ -261,6 +262,7 @@ timeConsumption(consumption) += timeOrderConsumption(consumption);
 
 stockConsumption(consumption) += componentsStockOrder(orderOrderConsumption(consumption));
 isPostedConsumption(consumption) += isPostedOrder(orderOrderConsumption(consumption));
+isClosedConsumption(consumption) += isClosedOrder(orderOrderConsumption(consumption));
 
 numberOrderConsumption 'Номер документа' (orderConsumption) = numberOrder(orderOrderConsumption(orderConsumption));
 numberConsumption(consumption) += numberOrderConsumption(consumption);
@@ -416,20 +418,23 @@ createShipmentConsumption 'Создать поставку для Сырья' = 
 } TOOLBAR;
 
 
-
+isUserOpenedConsumption(o)=  isOpenedConsumption(o) AND isUserConsumption(o);
 FORM consumptions 'Списания сырья'
     OBJECTS o = Consumption
-    PROPERTIES (o) READONLY isPostedConsumption FORCE GRID, numberConsumption, seriesConsumption, dateConsumption, timeConsumption,
-                            nameStockConsumption, nameCurrencyConsumption, namePriceListTypeConsumption,
-                            countConsumptionDetailConsumption, quantityConsumptionDetailConsumption, sumConsumptionDetailConsumption, ordersConsumption,
-                            noteConsumption
+    PROPERTIES (o) READONLYIF isReadonly() isClosedConsumption
+    PROPERTIES (o) READONLY isPostedConsumption FORCE GRID
+    PROPERTIES (o) READONLYIF isReadonly() numberConsumption, seriesConsumption, dateConsumption, timeConsumption,
+                            nameStockConsumption, nameCurrencyConsumption, namePriceListTypeConsumption
+    PROPERTIES (o) READONLY countConsumptionDetailConsumption, quantityConsumptionDetailConsumption, sumConsumptionDetailConsumption, ordersConsumption
+    PROPERTIES (o) READONLYIF isReadonly() noteConsumption
     PROPERTIES (o) createShipmentConsumption
 
     PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserUserConsumption, postedTimeUserConsumption, postedHostnameComputerUserConsumption
 
     PROPERTIES ()  addUserConsumption TODRAW o
-    PROPERTIES (o) editConsumption, copyConsumption
-    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserConsumption(o)
+    PROPERTIES (o) editConsumption SHOWIF isOpenedConsumption(o), copyConsumption
+    PROPERTIES (o) closeUserConsumption SHOWIF isOpenedUserConsumption(o), openUserConsumption SHOWIF isClosedUserConsumption(o)       
+    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpenedConsumption(o)
 
     OBJECTS d=ConsumptionDetail
     PROPERTIES (d) READONLY indexConsumptionDetail, idBarcodeSkuConsumptionDetail, nameSkuConsumptionDetail, shortNameUOMSkuConsumptionDetail
@@ -474,6 +479,7 @@ DESIGN consumptions FROM DEFAULT {
         }
     }
 }
+@extendFormEditable(consumptions);
 NAVIGATOR {
     manufacturingDocuments {
         ADD consumptions;

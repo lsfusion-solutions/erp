@@ -28,6 +28,7 @@ CLASS DisparityDetail 'Строка изменения сортности';
 
 @defineDocumentDataStock (disparity, stock, 'Склад', );
 @defineDocumentPosted(disparity);
+@defineDocumentClosed(disparity);
 @defineDocumentDescription (disparity, 'Изменение сортности');
 @defineDocumentCurrency (disparity);
 @deriveDocumentCurrency(disparity, stock);
@@ -85,6 +86,7 @@ needToInputDisparityDetailDetail (disparityDetail) = inputQuantityDisparityDetai
 
 @defineDocumentAggregationDetailTime(disparity, inputDisparity);
 @defineDocumentAggregationDetailPosted(disparity, inputDisparity);
+@defineDocumentAggregationDetailClosed(disparity, inputDisparity);
 @defineDocumentAggregationDetailStock(disparity, inputDisparity, stock, 'Склад');
 @defineDocumentAggregationDetailSkuPrefix(disparity, inputDisparity, sku, input);
 quantityInputDisparityDetail(inputDisparityDetail) = inputQuantityDisparityDetail(disparityDetailInputDisparityDetail(inputDisparityDetail));
@@ -207,13 +209,19 @@ DESIGN disparity FROM DEFAULT {
 FORM disparities 'Изменения сортности'
 
     OBJECTS dis=Disparity
-    PROPERTIES(dis)  READONLY isPostedDisparity FORCE GRID, numberDisparity, seriesDisparity, dateDisparity, timeDisparity, nameStockDisparity,
-                              countDisparityDetailDisparity, quantityDisparityDetailDisparity, sumDisparityDetailDisparity,
-                              inputQuantityDisparityDetailDisparity, inputSumDisparityDetailDisparity, noteDisparity
+    PROPERTIES (dis) READONLYIF isReadonly() isClosedDisparity
+    PROPERTIES(dis)  READONLY isPostedDisparity FORCE GRID
+    PROPERTIES (dis) READONLYIF isReadonly() numberDisparity, seriesDisparity, dateDisparity, timeDisparity, nameStockDisparity
+    PROPERTIES(dis)  READONLY countDisparityDetailDisparity, quantityDisparityDetailDisparity, sumDisparityDetailDisparity,
+                              inputQuantityDisparityDetailDisparity, inputSumDisparityDetailDisparity
+    PROPERTIES (dis) READONLYIF isReadonly() noteDisparity
 
     PROPERTIES(dis)  READONLY FORCE PANEL timeCreatedHistorizable, nameUserCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserDisparity, postedTimeDisparity, postedHostnameComputerDisparity
 
-    PROPERTIES (dis) ADDFORM, EDITFORM, deleted=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES (dis) ADDFORM, EDITFORM SHOWIF isOpenedDisparity(dis)
+    PROPERTIES(dis)  closeDisparity SHOWIF isOpenedDisparity(dis), openDisparity SHOWIF isClosedDisparity(dis)     
+    
+    PROPERTIES (dis) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedDisparity(dis)
 
     OBJECTS d=DisparityDetail
     PROPERTIES(d)   READONLY indexDisparityDetail,
@@ -260,6 +268,7 @@ DESIGN disparities FROM DEFAULT {
         ADD functions.box;
     }
 }
+@extendFormEditable(disparities);
 
 NAVIGATOR {
     stockNavigator {

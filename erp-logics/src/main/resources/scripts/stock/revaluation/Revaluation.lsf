@@ -23,6 +23,7 @@ CLASS UserRevaluationDetail 'Строка переоценки (польз.)' : 
 
 @defineDocumentInterfaceDataStock(revaluation, stock, 'Склад');
 @defineDocumentInterfacePosted(revaluation);
+@defineDocumentInterfaceClosed(revaluation);
 
 @defineDocumentInterfaceDescription(revaluation, 'Переоценка');
 
@@ -243,18 +244,24 @@ addUserRevaluation 'Добавить' = ACTION ADDFORM UserRevaluation;
 editUserRevaluation 'Редактировать' (userRevaluation) = ACTION EDITFORM UserRevaluation;
 
 editRevaluation (revaluation) += editUserRevaluation(revaluation);
+isUserOpenedRevaluation(r)=  isOpenedRevaluation(r) AND isUserRevaluation(r);
 
 FORM revaluations 'Переоценки' TITLE 'Переоценки'
-    OBJECTS p = Revaluation
-    PROPERTIES (p) READONLY isPostedRevaluation FORCE GRID, numberRevaluation, seriesRevaluation, dateRevaluation, timeRevaluation, beforeDateRevaluation,
-               nameStockRevaluation, countRevaluationDetailRevaluation, diffSumRevaluationDetailRevaluation,
-               numberDisposalRevaluation, skipChangeLedgerRevaluation, noteRevaluation
+    OBJECTS p = Revaluation    
+    PROPERTIES (p) READONLYIF isReadonly() isClosedRevaluation
+    PROPERTIES (p) READONLY isPostedRevaluation FORCE GRID
+    PROPERTIES (p) READONLYIF isReadonly() numberRevaluation, seriesRevaluation, dateRevaluation, timeRevaluation, beforeDateRevaluation,
+               nameStockRevaluation
+    PROPERTIES (p) READONLY countRevaluationDetailRevaluation, diffSumRevaluationDetailRevaluation
+    PROPERTIES (p) READONLYIF isReadonly() numberDisposalRevaluation, skipChangeLedgerRevaluation, noteRevaluation
 
     PROPERTIES (p) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserUserRevaluation, postedTimeUserRevaluation, postedHostnameComputerUserRevaluation
 
     PROPERTIES ()  addUserRevaluation TODRAW p
-    PROPERTIES (p) editRevaluation
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserRevaluation(p)
+    PROPERTIES (p) editRevaluation SHOWIF isOpenedRevaluation(p)
+    PROPERTIES (p) closeUserRevaluation SHOWIF isOpenedUserRevaluation(p), openUserRevaluation SHOWIF isClosedUserRevaluation(p)
+
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRevaluation(p)      
     PROPERTIES (p) printRevaluation FORCE PANEL
 
 
@@ -309,7 +316,7 @@ DESIGN revaluations FROM DEFAULT {
 
     ADD functions.box;
 }
-
+@extendFormEditable(revaluations);
 //----------------------------------------------- Операции -----------------------------------------------------//
 
 @defineDocumentInterfaceOperation (revaluation, Revaluation, );

@@ -32,8 +32,9 @@ CLASS UserMenuDetail 'Строка меню (польз.)' : MenuDetail;
 @defineDocumentInterfaceDataStock(menu, stock, 'Склад', );
 
 @defineDocumentInterfacePosted(menu);
+@defineDocumentInterfaceClosed(menu);
 
-@defineDocumentClosed (menu);
+//@defineDocumentClosed (menu);
 
 @defineDocumentInterfaceDescription(menu, 'Меню');
 
@@ -207,6 +208,8 @@ addUserMenu 'Добавить' = ACTION ADDFORM UserMenu;
 editUserMenu 'Редактировать' (userMenu) = ACTION EDITFORM UserMenu;
 editMenu(menu) += editUserMenu(menu);
 
+isUserOpenedMenu(m)=  isOpenedMenu(m) AND isUserMenu(m);
+
 copyMenu 'Копировать' = ACTION (userMenu) NEWSESSION {
     FOR ADDOBJ m = UserMenu DO {
         ASSIGN stockUserMenu(m) <- stockUserMenu(userMenu);
@@ -241,16 +244,20 @@ copyMenu 'Копировать' = ACTION (userMenu) NEWSESSION {
 
 FORM menus 'Меню'
     OBJECTS m = Menu
-    PROPERTIES (m) READONLY isPostedMenu FORCE GRID, numberMenu, seriesMenu, dateMenu, timeMenu,
-                            nameStockMenu, nameCurrencyMenu, namePriceListTypeMenu, countMenuDetailMenu,
-                            noteMenu
+    PROPERTIES (m) READONLYIF isReadonly() isClosedMenu
+    PROPERTIES (m) READONLY isPostedMenu FORCE GRID
+    PROPERTIES (m) READONLYIF isReadonly() numberMenu, seriesMenu, dateMenu, timeMenu,
+                   nameStockMenu, nameCurrencyMenu, namePriceListTypeMenu
+    PROPERTIES (m) READONLY countMenuDetailMenu
+    PROPERTIES (m) READONLYIF isReadonly() noteMenu
 
     PROPERTIES (m) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, 
                                         postedNameUserUserMenu, postedTimeUserMenu, postedHostnameComputerUserMenu
 
     PROPERTIES ()  addUserMenu TODRAW m
-    PROPERTIES (m) editMenu, copyMenu
-    PROPERTIES     deletem=DELETE(m) FORCE PANEL TOOLBAR  SHOWIF isUserMenu(m)
+    PROPERTIES (m) editMenu SHOWIF isOpenedMenu(m), copyMenu
+    PROPERTIES (m) closeUserMenu SHOWIF isOpenedUserMenu(m), openUserMenu SHOWIF isClosedUserMenu(m)    
+    PROPERTIES     deletem=DELETE(m) FORCE PANEL TOOLBAR  SHOWIF isUserOpenedMenu(m)
     OBJECTS d=MenuDetail
     PROPERTIES (d) READONLY indexMenuDetail, idBarcodeSkuMenuDetail, nameSkuMenuDetail, shortNameUOMSkuMenuDetail
     PROPERTIES (d) READONLY namePriceListTypeMenuDetail, priceMenuDetail, compositionMenuDetail, productYieldMenuDetail
@@ -296,7 +303,7 @@ DESIGN menus FROM DEFAULT {
         }
     }
 }
-
+@extendFormEditable(menus);
 //----------------------------------------------- Операции -----------------------------------------------------//
 
 @defineDocumentOperationContainer(menu, m);

@@ -23,6 +23,7 @@ CLASS UserRepricingDetail 'Строка акта переоценки (поль�
 
 @defineDocumentInterfaceDataStock(repricing, departmentStore, 'Склад');
 @defineDocumentInterfacePosted(repricing);
+@defineDocumentInterfaceClosed(repricing);
 
 @defineDocumentInterfaceDescription(repricing, 'Акт переоценки');
 
@@ -342,6 +343,7 @@ FORM repricing 'Акт переоценки (печать)'
 printRepricing 'Акт переоценки' (repricing) = ACTION FORM repricing OBJECTS p = repricing PRINT  IMAGE 'print.png' IN printGroup;
 
 // --------------------------- Формы --------------------------------- //
+editRepricing 'Редактировать' = ABSTRACT ACTION LIST (Repricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM userRepricing 'Акт переоценки'
     OBJECTS p=UserRepricing FIXED PANEL
@@ -544,21 +546,29 @@ createManagementRepricing 'Создать управленческую пере�
 
 addUserRepricing 'Добавить' = ACTION ADDFORM UserRepricing;
 editUserRepricing 'Редактировать' (userRepricing) = ACTION EDITFORM UserRepricing;
+editRepricing(p) += editUserRepricing(p);
+
+isUserOpenedRepricing(p)=  isOpenedRepricing(p) AND isUserRepricing(p);
 
 FORM repricings 'Акты переоценки' TITLE 'Акты переоценки'
     OBJECTS p = Repricing
-    PROPERTIES (p) READONLY isPostedRepricing FORCE GRID, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
-               nameDepartmentStoreRepricing, countRepricingDetailRepricing,
-               diffSumRepricingDetailRepricing, diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
-               diffRetailSumRepricingDetailRepricing,
-               numberDisposalRepricing, skipChangeLedgerRepricing,
-               noteRepricing
+    PROPERTIES (p) READONLYIF isReadonly() isClosedRepricing
+    PROPERTIES (p) READONLY isPostedRepricing FORCE GRID
+    PROPERTIES (p) READONLYIF isReadonly() numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
+               nameDepartmentStoreRepricing
+    PROPERTIES (p) READONLY countRepricingDetailRepricing, diffSumRepricingDetailRepricing,
+                   diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
+                   diffRetailSumRepricingDetailRepricing
+    PROPERTIES (p) READONLYIF isReadonly() numberDisposalRepricing, skipChangeLedgerRepricing,
+                   noteRepricing
 
     PROPERTIES (p) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserUserRepricing, postedTimeUserRepricing, postedHostnameComputerUserRepricing
 
     PROPERTIES ()  addUserRepricing TODRAW p
-    PROPERTIES (p) editUserRepricing
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserRepricing(p)
+    PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p)
+    PROPERTIES(p)  closeUserRepricing SHOWIF isOpenedUserRepricing(p), openUserRepricing SHOWIF isClosedUserRepricing(p)     
+
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)
     PROPERTIES (p) printRepricing FORCE PANEL
     PROPERTIES ()  createManagementRepricing TODRAW p
 
@@ -623,6 +633,7 @@ DESIGN repricings FROM DEFAULT {
     }
     ADD functions.box;
 }
+@extendFormEditable(repricings);
 
 EXTEND FORM repricings
     PROPERTIES(p) READONLY nameOperationRepricing BEFORE countRepricingDetailRepricing

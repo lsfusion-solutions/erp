@@ -158,6 +158,7 @@ CLASS UserWriteOffDetail 'Строка списания (польз.)' : WriteOf
 
 
 @defineDocumentInterfacePosted(writeOff);
+@defineDocumentInterfaceClosed(writeOff);
 @defineDocumentInterfaceDescription (writeOff, 'Списание товара');
 
 @defineDocumentInterfaceCurrency(writeOff);
@@ -224,6 +225,7 @@ isStockSkuWriteOffDetail (writeOffDetail) = isStockSku(skuWriteOffDetail(writeOf
 isStockSkuUserWriteOffDetail (userWriteOffDetail) = isStockSku(skuUserWriteOffDetail(userWriteOffDetail));
 
 // --------------------------- Формы списания ---------------------------------
+editWriteOff 'Редактировать' = ABSTRACT ACTION LIST (WriteOff) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM userWriteOff 'Списание'
     OBJECTS w=UserWriteOff FIXED PANEL
@@ -320,16 +322,24 @@ DESIGN userWriteOff FROM DEFAULT{
 addUserWriteOff 'Добавить' = ACTION ADDFORM UserWriteOff;
 editUserWriteOff 'Редактировать'  = ACTION EDITFORM UserWriteOff;
 
+editWriteOff(w) += editUserWriteOff(w);
+isUserOpenedWriteOff(w)=  isOpenedWriteOff(w) AND isUserWriteOff(w);
+
 FORM writeOffs 'Списания'
     OBJECTS w=WriteOff
-    PROPERTIES (w) READONLY isPostedWriteOff FORCE GRID, numberWriteOff, seriesWriteOff, dateWriteOff, timeWriteOff, nameStockWriteOff,
-                            nameReasonWriteOff, quantityWriteOffDetailWriteOff, countWriteOffDetailWriteOff,
-                            sumWriteOffDetailWriteOff, noteWriteOff
+    PROPERTIES (w) READONLYIF isReadonly() isClosedWriteOff
+    PROPERTIES (w) READONLY isPostedWriteOff FORCE GRID
+    PROPERTIES (w) READONLYIF isReadonly() numberWriteOff, seriesWriteOff, dateWriteOff, timeWriteOff, nameStockWriteOff
+    PROPERTIES (w) READONLY nameReasonWriteOff, quantityWriteOffDetailWriteOff, countWriteOffDetailWriteOff,
+                            sumWriteOffDetailWriteOff
+    PROPERTIES (w) READONLYIF isReadonly() noteWriteOff
 
     PROPERTIES (w) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserUserWriteOff, postedTimeUserWriteOff, postedHostnameComputerUserWriteOff
     PROPERTIES ()  addUserWriteOff TODRAW w
-    PROPERTIES (w) editUserWriteOff
-    PROPERTIES (w) deletew=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserWriteOff(w)
+    PROPERTIES (w) editWriteOff SHOWIF isOpenedWriteOff(w)
+    PROPERTIES (w) closeUserWriteOff SHOWIF isOpenedUserWriteOff(w), openUserWriteOff SHOWIF isClosedUserWriteOff(w)
+    
+    PROPERTIES (w) deletew=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpenedWriteOff(w)
 
     OBJECTS d=WriteOffDetail
     PROPERTIES (d) READONLY indexWriteOffDetail, idBarcodeSkuWriteOffDetail, nameSkuWriteOffDetail, shortNameUOMSkuWriteOffDetail, nameBatchWriteOffDetail,
@@ -373,6 +383,7 @@ DESIGN writeOffs FROM DEFAULT {
 
     ADD functions.box;
 }
+@extendFormEditable(writeOffs);
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 @defineDocumentInterfaceOperation (writeOff, WriteOff, );

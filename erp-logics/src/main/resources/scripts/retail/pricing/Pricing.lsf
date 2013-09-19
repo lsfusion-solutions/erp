@@ -315,6 +315,7 @@ CLASS UserPricingDetail 'Строка акта расценки (польз.)' :
 
 @defineDocumentInterfaceDataStock(pricing, departmentStore, 'Склад');
 @defineDocumentInterfacePosted(pricing);
+@defineDocumentInterfaceClosed(pricing);
 
 @defineDocumentInterfaceDescription(pricing, 'Акт расценки');
 
@@ -493,6 +494,7 @@ FORM pricing 'Акт расценки (печать)'
 printPricing 'Акт расценки' (pricing) = ACTION FORM pricing OBJECTS p = pricing PRINT  IMAGE 'print.png' IN printGroup;
 
 // --------------------------- Формы --------------------------------- //
+editPricing 'Редактировать' = ABSTRACT ACTION LIST (Pricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 backgroundRetailPricing 'Цвет' (pricing) = RGB(224, 255, 255) IF pricing IS Pricing;
 FORM userPricing 'Акт расценки'
@@ -582,21 +584,28 @@ DESIGN userPricing FROM DEFAULT{
 
 addUserPricing 'Добавить' = ACTION ADDFORM UserPricing;
 editUserPricing 'Редактировать' (userPricing) = ACTION EDITFORM UserPricing;
+editPricing(p) += editUserPricing(p);
+
+isUserOpenedPricing(p)=  isOpenedPricing(p) AND isUserPricing(p);
 
 FORM pricings 'Акты расценки' TITLE 'Акты расценки'
     OBJECTS p = Pricing
-    PROPERTIES (p) READONLY isPostedPricing FORCE GRID, isReturnPricing, numberPricing, seriesPricing, datePricing, timePricing,
-                            nameDepartmentStorePricing, nameSupplierPricing, nameCurrencyPricing, nameCalcRetailPriceListTypePricing, nameCalcRetailCalcPriceListTypePricing,
-                            countPricingDetailPricing, quantityPricingDetailPricing, sumPricingDetailPricing,
-                            retailSumPricingDetailPricing BACKGROUND backgroundRetailPricing(p), skipChangeLedgerPricing,
-                            notePricing
+    PROPERTIES (p) READONLYIF isReadonly() isClosedPricing
+    PROPERTIES (p) READONLY isPostedPricing FORCE GRID
+    PROPERTIES (p) READONLYIF isReadonly() isReturnPricing, numberPricing, seriesPricing, datePricing, timePricing,
+                            nameDepartmentStorePricing, nameSupplierPricing, nameCurrencyPricing, nameCalcRetailPriceListTypePricing, nameCalcRetailCalcPriceListTypePricing                              
+    PROPERTIES (p) READONLY countPricingDetailPricing, quantityPricingDetailPricing, sumPricingDetailPricing,
+                            retailSumPricingDetailPricing BACKGROUND backgroundRetailPricing(p)
+    PROPERTIES (p) READONLYIF isReadonly() skipChangeLedgerPricing, notePricing
 
     PROPERTIES (p) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, 
                                         postedNameUserUserPricing, postedTimeUserPricing, postedHostnameComputerUserPricing
 
     PROPERTIES ()  addUserPricing TODRAW p
-    PROPERTIES (p) editUserPricing
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserPricing(p)
+    PROPERTIES (p) editPricing SHOWIF isOpenedPricing(p)
+    PROPERTIES(p)  closeUserPricing SHOWIF isOpenedUserPricing(p), openUserPricing SHOWIF isClosedUserPricing(p)     
+
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedPricing(p)
     PROPERTIES (p) printPricing FORCE PANEL
 
     OBJECTS d = PricingDetail
@@ -653,6 +662,7 @@ DESIGN pricings FROM DEFAULT {
     }
     ADD functions.box;
 }
+@extendFormEditable(pricings);
 
 NAVIGATOR {
     retailNavigator {

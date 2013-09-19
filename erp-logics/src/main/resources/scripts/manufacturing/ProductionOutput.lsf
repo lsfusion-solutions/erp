@@ -19,6 +19,7 @@ CLASS UserOutputDetail 'Строка производства (польз.)' : O
 
 @defineDocumentInterfaceStock(output, stock, 'Склад', );
 @defineDocumentInterfacePosted(output);
+@defineDocumentInterfaceClosed(output);
 @defineDocumentInterfaceDescription(output, 'Производство');
 
 @defineDocumentInterfaceCurrency(output);
@@ -276,6 +277,7 @@ timeOutput(output) += timeOrderOutput(output);
 
 stockOutput(output) += productsStockOrder(orderOrderOutput(output));
 isPostedOutput(output) += isPostedOrder(orderOrderOutput(output));
+isClosedOutput(output) += isClosedOrder(orderOrderOutput(output));
 
 numberOrderOutput 'Номер документа' (orderOutput) = numberOrder(orderOrderOutput(orderOutput));
 numberOutput(output) += numberOrderOutput(output);
@@ -433,18 +435,23 @@ createShipmentOutput 'Создать поставку для ГП' = ACTION (out
     }
 } TOOLBAR;
 
+isUserOpenedOutput(o)=  isOpenedOutput(o) AND isUserOutput(o);
 FORM outputs 'Производство'
     OBJECTS o = Output
-    PROPERTIES (o) READONLY isPostedOutput FORCE GRID, numberOutput, seriesOutput, dateOutput, timeOutput,
-                            nameStockOutput, nameCurrencyOutput, namePriceListTypeOutput, countOutputDetailOutput,
-                            quantityOutputDetailOutput, sumOutputDetailOutput, noteOutput
+    PROPERTIES (o) READONLYIF isReadonly() isClosedOutput
+    PROPERTIES (o) READONLY isPostedOutput FORCE GRID
+    PROPERTIES (o) READONLYIF isReadonly() numberOutput, seriesOutput, dateOutput, timeOutput,
+                            nameStockOutput, nameCurrencyOutput, namePriceListTypeOutput 
+    PROPERTIES (o) READONLY countOutputDetailOutput, quantityOutputDetailOutput, sumOutputDetailOutput
+    PROPERTIES (o) READONLYIF isReadonly() noteOutput
     PROPERTIES (o) createShipmentOutput
 
     PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserUserOutput, postedTimeUserOutput, postedHostnameComputerUserOutput
 
     PROPERTIES ()  addUserOutput TODRAW o
-    PROPERTIES (o) editOutput, copyOutput
-    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOutput(o)
+    PROPERTIES (o) editOutput SHOWIF isOpenedOutput(o), copyOutput
+    PROPERTIES(o)  closeUserOutput SHOWIF isOpenedUserOutput(o), openUserOutput SHOWIF isClosedUserOutput(o)     
+    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpenedOutput(o)
 
     OBJECTS d=OutputDetail
     PROPERTIES (d) READONLY indexOutputDetail, idBarcodeSkuOutputDetail, nameSkuOutputDetail, shortNameUOMSkuOutputDetail
@@ -489,6 +496,7 @@ DESIGN outputs FROM DEFAULT {
         }
     }
 }
+@extendFormEditable(outputs);
 NAVIGATOR {
     manufacturingDocuments {
         ADD outputs;

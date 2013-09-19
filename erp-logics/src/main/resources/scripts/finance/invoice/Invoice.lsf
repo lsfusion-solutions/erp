@@ -36,6 +36,7 @@ CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 @defineDocumentAbstractDataStock(invoice, stock, 'Склад (получатель)', to);
 
 @defineDocumentAbstractPosted(invoice);
+@defineDocumentAbstractClosed(invoice);
 
 @defineDocumentAbstractDetailSku(invoice, sku);
 
@@ -116,6 +117,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 
     @defineDocumentInterfacePosted(invoice);
     Invoice.isPostedInvoice (invoice) += isPostedInvoice(invoice);
+    
+    @defineDocumentInterfaceClosed(invoice);
+    Invoice.isClosedInvoice (invoice) += isClosedInvoice(invoice);    
 
     @defineDocumentInterfaceDescription(invoice, 'Накладная'###sign);
 
@@ -405,7 +409,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 //-- Копирование строк     
     overCopyInvoiceDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, UserInvoiceDetail);
 
-    copyInvoiceDetail 'Копировать строку' = ACTION (detail) {
+    copyInvoiceDetail 'Копировать' = ACTION (detail) {
         FOR ADDOBJ d = UserInvoiceDetail DO {          
 
             ASSIGN userInvoiceUserInvoiceDetail(d) <- userInvoiceUserInvoiceDetail(detail);
@@ -422,9 +426,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
         PROPERTIES(d) copyInvoiceDetail FORCE PANEL 
     ;
 
-
+    isUserOpenedInvoice(i)=  isOpenedInvoice(i) AND isUserInvoice(i);
     FORM invoices 'Накладные' TITLE 'Накладные'###sign
         OBJECTS i = Invoice
+        PROPERTIES (i) READONLYIF isReadonly() isClosedInvoice FORCE GRID
         PROPERTIES (i) READONLY isPostedInvoice FORCE GRID
         PROPERTIES (i) READONLYIF isReadonly() numberInvoice, seriesInvoice, dateInvoice, timeInvoice,
                                 nameSupplierInvoice, nameSupplierStockInvoice, nameCustomerInvoice, nameCustomerStockInvoice,
@@ -437,8 +442,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                                             postedNameUserUserInvoice, postedTimeUserInvoice, postedHostnameComputerUserInvoice 
 
         PROPERTIES ()  addUserInvoice TODRAW i
-        PROPERTIES (i) editInvoice, copyInvoice
-        PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserInvoice(i)  
+        PROPERTIES (i) editInvoice SHOWIF isOpenedInvoice(i), copyInvoice
+        PROPERTIES (i) closeUserInvoice SHOWIF isOpenedUserInvoice(i), openUserInvoice SHOWIF isClosedUserInvoice(i)
+        PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpenedInvoice(i)
 
         OBJECTS d = InvoiceDetail
         PROPERTIES (d) READONLY indexInvoiceDetail, idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail

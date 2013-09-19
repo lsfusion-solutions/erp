@@ -25,6 +25,7 @@ CLASS ZReport 'Z-отчет (открытый)' : IncomeCashOrder, Historizable,
 TABLE zReport (ZReport);
 
 @defineDocumentHeaderPosted(ZReport);
+@defineDocumentHeaderClosed(ZReport);
 @defineDocumentHeaderTime(ZReport);
 @deriveDocumentHeaderTimePrefix(ZReport, );
 @defineDocumentHeaderDepartmentStore(zReport);
@@ -93,6 +94,7 @@ userReceipt(receipt) <- currentUser() WHEN SET(receipt IS Receipt);
 
 @defineDocumentDetailDepartmentStoreCustom(zReport, receipt);
 @defineDocumentDetailPosted(zReport, Receipt);
+@defineDocumentDetailClosed(zReport, Receipt);
 
 @defineDocumentRelation(receipt, ReceiptSaleDetail);
 @defineDocumentRelation(receipt, ReceiptReturnDetail);
@@ -129,7 +131,12 @@ dateTimeReceiptDetail(detail) += dateTimeReceiptSaleDetail(detail);
 
 @defineDocumentDetailPosted(receipt, ReceiptSaleDetail);
 @defineDocumentDetailPosted(receipt, ReceiptReturnDetail);
+
+@defineDocumentDetailClosed(receipt, ReceiptSaleDetail);
+@defineDocumentDetailClosed(receipt, ReceiptReturnDetail);
+
 isPostedReceiptDetail 'Проведен' (receiptDetail) = MULTI isPostedReceiptReturnDetail(receiptDetail), isPostedReceiptSaleDetail(receiptDetail) PERSISTENT;
+isClosedReceiptDetail 'Проведен' (receiptDetail) = MULTI isClosedReceiptReturnDetail(receiptDetail), isClosedReceiptSaleDetail(receiptDetail) PERSISTENT;
 
 @defineDocumentDetailDepartmentStoreCustom(receipt, receiptSaleDetail);
 @defineDocumentDetailDepartmentStoreCustom(receipt, receiptReturnDetail);
@@ -530,15 +537,15 @@ DESIGN zReport FROM DEFAULT{
 
     ADD functions.box;
 }
-
+isPostedOpenedZReport (z)= isPostedZReport(z) AND isOpenedZReport(z);
 FORM zReports 'Z-отчеты'
     OBJECTS z=ZReport
-    PROPERTIES (z) READONLY isPostedZReport, numberZReport, dateZReport, timeZReport, nameDepartmentStoreZReport, 
+    PROPERTIES (z) READONLY isClosedZReport, isPostedZReport, numberZReport, dateZReport, timeZReport, nameDepartmentStoreZReport, 
                             numberCashRegisterZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport, sumCashZReport,
                             sumReceiptDetailZReport, discountSumReceiptDetailZReport, VATSumSaleZReport, VATSumReturnZReport 
     PROPERTIES (z) ADDFORM, EDITFORM SHOWIF isDraftZReport(z), deletez=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftZReport(z),
                             exportReceiptsZReport FORCE PANEL TOOLBAR, importReceiptsZReport FORCE PANEL TOOLBAR,
-                            postZReport SHOWIF isDraftZReport(z), unpostZReport SHOWIF isPostedZReport(z)
+                            postZReport SHOWIF isDraftZReport(z), unpostZReport SHOWIF isPostedOpenedZReport(z)
 
     OBJECTS b=Receipt
     PROPERTIES(b) READONLY  numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,

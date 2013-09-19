@@ -29,6 +29,7 @@ CLASS UserAdjustmentDetail 'Строка изменения остатков (п
 @defineDocumentInterfaceDataStock(adjustment, stock, 'Склад');
 
 @defineDocumentInterfacePosted(adjustment);
+@defineDocumentInterfaceClosed(adjustment);
 
 @defineDocumentInterfaceDescription(adjustment, 'Изменение остатков');
 
@@ -171,6 +172,8 @@ addUserAdjustment 'Добавить' = ACTION ADDFORM UserAdjustment;
 editUserAdjustment 'Редактировать' (userAdjustment) = ACTION EDITFORM UserAdjustment;
 editAdjustment (adjustment) += editUserAdjustment(adjustment);
 
+isUserOpenedAdjustment(a)=  isOpenedAdjustment(a) AND isUserAdjustment(a);
+
 actualBalanceSkuUserAdjustmentStock 'Остаток фактический' (sku, userAdjustment, stock)= currentBalanceSkuStock(sku, stock) (+) quantitySkuUserAdjustmentStock(sku, userAdjustment, stock);
 
 changeActualQuantitySkuUserAdjustmentStock = ACTION (sku, userAdjustment, stock) {
@@ -198,15 +201,21 @@ EXTEND FORM userAdjustment
 
 FORM adjustments 'Изменения остатков'
     OBJECTS i = Adjustment
-    PROPERTIES (i) READONLY isPostedAdjustment FORCE GRID, numberAdjustment, seriesAdjustment, dateAdjustment, timeAdjustment,
-                            nameStockAdjustment, nameCurrencyAdjustment, countAdjustmentDetailAdjustment, quantityAdjustmentDetailAdjustment,
-                            sumAdjustmentDetailAdjustment, noteAdjustment
+    PROPERTIES (i) READONLYIF isReadonly() isClosedAdjustment
+    PROPERTIES (i) READONLY isPostedAdjustment FORCE GRID
+    PROPERTIES (i) READONLYIF isReadonly() numberAdjustment, seriesAdjustment, dateAdjustment, timeAdjustment,
+                            nameStockAdjustment, nameCurrencyAdjustment
+    PROPERTIES (i) READONLY countAdjustmentDetailAdjustment, quantityAdjustmentDetailAdjustment,
+                            sumAdjustmentDetailAdjustment
+    PROPERTIES (i) READONLYIF isReadonly() noteAdjustment
 
     PROPERTIES (i) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserUserAdjustment, postedTimeUserAdjustment, postedHostnameComputerUserAdjustment
 
     PROPERTIES ()  addUserAdjustment TODRAW i
-    PROPERTIES (i) editAdjustment
-    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserAdjustment(i)
+    PROPERTIES (i) editAdjustment SHOWIF isOpenedAdjustment(i)
+    PROPERTIES(i)  closeUserAdjustment SHOWIF isOpenedUserAdjustment(i), openUserAdjustment SHOWIF isClosedUserAdjustment(i)     
+
+    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpenedAdjustment(i)
 
     OBJECTS d = AdjustmentDetail
     PROPERTIES (d) READONLY indexAdjustmentDetail, idBarcodeSkuAdjustmentDetail, nameSkuAdjustmentDetail, shortNameUOMSkuAdjustmentDetail,
@@ -251,7 +260,7 @@ DESIGN adjustments FROM DEFAULT {
         }
     }
 }
-
+@extendFormEditable(adjustments);
 NAVIGATOR {
     stockNavigator {
         NEW adjustmentNavigator 'Изменение остатков' BEFORE balanceSku {
@@ -286,6 +295,7 @@ adjustmentDetailAdjustmentSkuDetail(adjustmentSkuDetail) = MULTI adjustmentDetai
 
 @defineDocumentDetailTime(adjustmentDetail, AdjustmentSkuDetail);
 @defineDocumentDetailPosted(adjustmentDetail, AdjustmentSkuDetail);
+@defineDocumentDetailClosed(adjustmentDetail, AdjustmentSkuDetail);
 
 stockInAdjustmentSkuDetail(adjustmentSkuDetail) = stockAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(adjustmentSkuDetail));
 stockOutAdjustmentSkuDetail(adjustmentSkuDetail) = stockAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(adjustmentSkuDetail));

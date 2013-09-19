@@ -18,6 +18,7 @@ CLASS ABSTRACT ShipmentDetail 'Строка поставки' : DocumentDetail;
 @defineDocumentAbstractDataStock(shipment, stock, 'Склад (на)', to);
 
 @defineDocumentAbstractPosted(shipment);
+@defineDocumentAbstractClosed(shipment);
 
 @defineDocumentAbstractDetailSku(shipment, sku);
 
@@ -93,6 +94,9 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineDocumentInterfacePosted(shipment);
     Shipment.isPostedShipment (shipment) += isPostedShipment(shipment);
 
+    @defineDocumentInterfaceClosed(shipment);
+    Shipment.isClosedShipment (shipment) += isClosedShipment(shipment);
+    
     @defineDocumentInterfaceDescription(shipment, 'Поставка'###sign);
 
     @defineDocumentInterfaceCurrency(shipment);
@@ -365,7 +369,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 //-- Копирование строк     
     overCopyShipmentDetail = ABSTRACT ACTION LIST (UserShipmentDetail, UserShipmentDetail);
 
-    copyShipmentDetail 'Копировать строку' = ACTION (detail) {
+    copyShipmentDetail 'Копировать' = ACTION (detail) {
         FOR ADDOBJ d = UserShipmentDetail DO {          
 
             ASSIGN userShipmentUserShipmentDetail(d) <- userShipmentUserShipmentDetail(detail);
@@ -381,10 +385,12 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     
     EXTEND FORM userShipment 
         PROPERTIES(d) copyShipmentDetail FORCE PANEL 
-    ;    
-
+    ;   
+     
+    isUserOpenedShipment(s)=  isOpenedShipment(s) AND isUserShipment(s);
     FORM shipments captions TITLE captions###sign
         OBJECTS s = Shipment
+        PROPERTIES (s) READONLYIF isReadonly() isClosedShipment
         PROPERTIES (s) READONLY isPostedShipment FORCE GRID
         PROPERTIES (s) READONLYIF isReadonly() numberShipment, seriesShipment, dateShipment, timeShipment, nameSupplierShipment,
                                 nameSupplierStockShipment, nameCustomerShipment, nameCustomerStockShipment,
@@ -394,8 +400,10 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTIES (s) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserUserShipment, postedTimeUserShipment, postedHostnameComputerUserShipment
 
         PROPERTIES ()  addUserShipment TODRAW s
-        PROPERTIES (s) editShipment, copyShipment
-        PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF isUserShipment(s)
+        PROPERTIES (s) editShipment SHOWIF isOpenedShipment(s), copyShipment
+        PROPERTIES (s) closeUserShipment SHOWIF isOpenedUserShipment(s), openUserShipment SHOWIF isClosedUserShipment(s)
+
+        PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedShipment(s)
 
         OBJECTS d = ShipmentDetail
         PROPERTIES (d) READONLY indexShipmentDetail, idBarcodeSkuShipmentDetail, nameSkuShipmentDetail, shortNameUOMSkuShipmentDetail
