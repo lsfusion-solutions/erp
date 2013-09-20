@@ -24,6 +24,7 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.util.*;
@@ -68,12 +69,12 @@ public class GenerateZReport extends ScriptingActionProperty {
                     ImMap<Object, Object> resultKeys = result.getKey(i);
                     ImMap<Object, Object> resultValues = result.getValue(i);
                     DataObject itemObject = new DataObject(resultKeys.get("item"), (ConcreteClass) getClass("item"));
-                    Double currentBalanceSkuStock = (Double) resultValues.get("currentBalanceSkuStock");
-                    if (currentBalanceSkuStock > 0) {
+                    BigDecimal currentBalanceSkuStock = (BigDecimal) resultValues.get("currentBalanceSkuStock");
+                    if (currentBalanceSkuStock.doubleValue() > 0) {
                         Integer departmentStore = (Integer) resultKeys.get("departmentStore");
                         if ((departmentStore != null) && (!departmentStoreList.contains(departmentStore)))
                             departmentStoreList.add(departmentStore);
-                        Double priceSkuStock = (Double) resultValues.get("priceSkuStock");
+                        BigDecimal priceSkuStock = (BigDecimal) resultValues.get("priceSkuStock");
                         String barcodeItem = (String) getLCP("idBarcodeSku").read(session, itemObject);
                         Boolean isWeightItem = (Boolean) getLCP("isWeightItem").read(session, itemObject);
                         itemZReportInfoList.add(new ItemZReportInfo(barcodeItem, currentBalanceSkuStock, priceSkuStock, isWeightItem != null, departmentStore));
@@ -145,31 +146,31 @@ public class GenerateZReport extends ScriptingActionProperty {
                         for (int receiptNumber = 1; receiptNumber <= addDeviation(receiptCount, 0.25, r); receiptNumber++) {
 
                             Integer numberReceiptDetail = 0;
-                            Double sumReceipt = 0.0;
+                            BigDecimal sumReceipt = BigDecimal.ZERO;
                             List<SalesInfo> receiptSalesInfoList = new ArrayList<SalesInfo>();
 
                             Time time = new Time(r.nextLong() % date.getTime());
                             Integer currentReceiptDetailCount = addDeviation(receiptDetailCount, 0.25, r);
                             for (ItemZReportInfo itemZReportInfo : itemZReportInfoList) {
-                                Double currentBalanceSkuStock = itemZReportInfo.count;
-                                if ((currentBalanceSkuStock > 0) && (departmentStore.equals(itemZReportInfo.departmentStore))) {
-                                    Double quantityReceiptDetail;
+                                BigDecimal currentBalanceSkuStock = itemZReportInfo.count;
+                                if ((currentBalanceSkuStock.doubleValue() > 0) && (departmentStore.equals(itemZReportInfo.departmentStore))) {
+                                    BigDecimal quantityReceiptDetail;
                                     if (itemZReportInfo.isWeightItem)
-                                        quantityReceiptDetail = currentBalanceSkuStock <= 0.005 ? currentBalanceSkuStock : ((double) Math.round(r.nextDouble() * currentBalanceSkuStock / 5 * 1000) / 1000);
+                                        quantityReceiptDetail = currentBalanceSkuStock.doubleValue() <= 0.005 ? currentBalanceSkuStock : BigDecimal.valueOf((double) Math.round(r.nextDouble() * currentBalanceSkuStock.doubleValue() / 5 * 1000) / 1000);
                                     else
-                                        quantityReceiptDetail = Math.ceil(currentBalanceSkuStock / 5) == 1 ? 1.0 : r.nextInt((int) Math.ceil(currentBalanceSkuStock / 5));
-                                    if ((quantityReceiptDetail > 0) && (currentReceiptDetailCount >= numberReceiptDetail)) {
-                                        Double sumReceiptDetail = quantityReceiptDetail * (itemZReportInfo.price == null ? 0 : itemZReportInfo.price);
+                                        quantityReceiptDetail = BigDecimal.valueOf(Math.ceil(currentBalanceSkuStock.doubleValue() / 5) == 1 ? 1.0 : r.nextInt((int) Math.ceil(currentBalanceSkuStock.doubleValue() / 5)));
+                                    if ((quantityReceiptDetail.doubleValue() > 0) && (currentReceiptDetailCount >= numberReceiptDetail)) {
+                                        BigDecimal sumReceiptDetail = quantityReceiptDetail.multiply(itemZReportInfo.price == null ? BigDecimal.ZERO : itemZReportInfo.price);
                                         numberReceiptDetail++;
-                                        sumReceipt += sumReceiptDetail;
-                                        Double discountSumReceiptDetail = r.nextDouble() > 0.8 ? (sumReceiptDetail * r.nextInt(10) / 100) : 0;
+                                        sumReceipt = sumReceipt.add(sumReceiptDetail);
+                                        BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(r.nextDouble() > 0.8 ? (sumReceiptDetail.doubleValue() * r.nextInt(10) / 100) : 0);
                                         SalesInfo salesInfo = new SalesInfo(numberCashRegister, numberZReport,
-                                                receiptNumber, date, time, 0.0, 0.0, 0.0, itemZReportInfo.barcode == null ? null : itemZReportInfo.barcode.trim(),
+                                                receiptNumber, date, time, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode == null ? null : itemZReportInfo.barcode.trim(),
                                                 quantityReceiptDetail, itemZReportInfo.price, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, null);
                                         receiptSalesInfoList.add(salesInfo);
-                                        itemZReportInfo.count -= quantityReceiptDetail;
+                                        itemZReportInfo.count = itemZReportInfo.count.subtract(quantityReceiptDetail);
                                         receiptSalesInfoList.add(salesInfo);
-                                        itemZReportInfo.count -= quantityReceiptDetail;
+                                        itemZReportInfo.count = itemZReportInfo.count.subtract(quantityReceiptDetail);
                                     }
                                 }
                             }
@@ -202,12 +203,12 @@ public class GenerateZReport extends ScriptingActionProperty {
 
     private class ItemZReportInfo {
         String barcode;
-        Double count;
-        Double price;
+        BigDecimal count;
+        BigDecimal price;
         Boolean isWeightItem;
         Integer departmentStore;
 
-        public ItemZReportInfo(String barcode, Double count, Double price, Boolean isWeightItem, Integer departmentStore) {
+        public ItemZReportInfo(String barcode, BigDecimal count, BigDecimal price, Boolean isWeightItem, Integer departmentStore) {
             this.barcode = barcode;
             this.count = count;
             this.price = price;

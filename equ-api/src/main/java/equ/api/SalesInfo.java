@@ -1,37 +1,38 @@
 package equ.api;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 
 public class SalesInfo implements Serializable {
-    public String cashRegisterNumber;
-    public String zReportNumber;
-    public Integer receiptNumber;
-    public Date date;
-    public Time time;
-    public Double sumReceipt;
-    public Double sumCard;
-    public Double sumCash;
+    public String numberCashRegister;
+    public String numberZReport;
+    public Integer numberReceipt;
+    public Date dateReceipt;
+    public Time timeReceipt;
+    public BigDecimal sumReceipt;
+    public BigDecimal sumCard;
+    public BigDecimal sumCash;
     public String barcodeItem;
-    public Double quantityReceiptDetail;
-    public Double priceReceiptDetail;
-    public Double sumReceiptDetail;
-    public Double discountSumReceiptDetail;
-    public Double discountSumReceipt;
+    public BigDecimal quantityReceiptDetail;
+    public BigDecimal priceReceiptDetail;
+    public BigDecimal sumReceiptDetail;
+    public BigDecimal discountSumReceiptDetail;
+    public BigDecimal discountSumReceipt;
     public String seriesNumberDiscountCard;
     public Integer numberReceiptDetail;
     public String filename;
 
-    public SalesInfo(String cashRegisterNumber, String zReportNumber, Integer receiptNumber, Date date, Time time,
-                     Double sumReceipt, Double sumCard, Double sumCash, String barcodeItem, Double quantityReceiptDetail,
-                     Double priceReceiptDetail, Double sumReceiptDetail, Double discountSumReceiptDetail, Double discountSumReceipt,
+    public SalesInfo(String numberCashRegister, String numberZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt,
+                     BigDecimal sumReceipt, BigDecimal sumCard, BigDecimal sumCash, String barcodeItem, BigDecimal quantityReceiptDetail,
+                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail, BigDecimal discountSumReceipt,
                      String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename) {
-        this.cashRegisterNumber = cashRegisterNumber;
-        this.zReportNumber = zReportNumber;
-        this.receiptNumber = receiptNumber;
-        this.date = date;
-        this.time = time;
+        this.numberCashRegister = numberCashRegister;
+        this.numberZReport = numberZReport;
+        this.numberReceipt = numberReceipt;
+        this.dateReceipt = dateReceipt;
+        this.timeReceipt = timeReceipt;
         this.sumReceipt = sumReceipt;
         this.sumCard = sumCard;
         this.sumCash = sumCash;

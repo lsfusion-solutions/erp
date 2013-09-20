@@ -1,13 +1,14 @@
 package equ.api;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Date;
 
 public class ItemInfo implements Serializable {
     public String idBarcode;
     public String name;
-    public Double price;
-    public Double daysExpiry;
+    public BigDecimal price;
+    public BigDecimal daysExpiry;
     public Integer hoursExpiry;
     public Date expirationDate;
     public Integer labelFormat;
@@ -17,7 +18,7 @@ public class ItemInfo implements Serializable {
     public Integer numberGroupItem;
     public String nameGroupItem;
 
-    public ItemInfo(String idBarcode, String name, Double price, Double daysExpiry, Integer hoursExpiry, Date expirationDate,
+    public ItemInfo(String idBarcode, String name, BigDecimal price, BigDecimal daysExpiry, Integer hoursExpiry, Date expirationDate,
                     Integer labelFormat, String composition, Integer compositionNumber, boolean isWeightItem,
                     Integer numberGroupItem, String nameGroupItem) {
         this.idBarcode = idBarcode;

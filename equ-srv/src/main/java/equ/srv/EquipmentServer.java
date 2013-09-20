@@ -1,6 +1,7 @@
 package equ.srv;
 
 import equ.api.*;
+import lsfusion.server.context.ThreadLocalContext;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
@@ -27,6 +28,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -37,46 +39,51 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     public static final String EXPORT_NAME = "EquipmentServer";
 
-    private RMIManager rmiManager;
-
-    private BusinessLogics businessLogics;
-
-    private DBManager dbManager;
+    private LogicsInstance logicsInstance;
 
     private ScriptingLogicsModule equLM;
 
+    //Опциональные модули
+    private ScriptingLogicsModule scalesItemLM;
+
     private boolean started = false;
 
-    public void setRmiManager(RMIManager rmiManager) {
-        this.rmiManager = rmiManager;
+    public void setLogicsInstance(LogicsInstance logicsInstance) {
+        this.logicsInstance = logicsInstance;
     }
 
-    public void setBusinessLogics(BusinessLogics businessLogics) {
-        this.businessLogics = businessLogics;
+    public LogicsInstance getLogicsInstance() {
+        return logicsInstance;
     }
 
-    public void setDbManager(DBManager dbManager) {
-        this.dbManager = dbManager;
+    public RMIManager getRmiManager() {
+        return logicsInstance.getRmiManager();
+    }
+
+    public BusinessLogics getBusinessLogics() {
+        return logicsInstance.getBusinessLogics();
+    }
+
+    public DBManager getDbManager() {
+        return logicsInstance.getDbManager();
     }
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        Assert.notNull(rmiManager, "rmiManager must be specified");
-        Assert.notNull(businessLogics, "businessLogics must be specified");
-        Assert.notNull(dbManager, "dbManager must be specified");
     }
 
     @Override
     protected void onInit(LifecycleEvent event) {
-        equLM = (ScriptingLogicsModule) businessLogics.getModule("Equipment");
+        equLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Equipment");
         Assert.notNull(equLM, "can't find Equipment module");
+        scalesItemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ScalesItem");
     }
 
     @Override
     protected void onStarted(LifecycleEvent event) {
         logger.info("Binding Equipment Server.");
         try {
-            rmiManager.bindAndExport(EXPORT_NAME, this);
+            getRmiManager().bindAndExport(EXPORT_NAME, this);
             started = true;
         } catch (Exception e) {
             throw new RuntimeException("Error exporting Equipment Server: ", e);
@@ -88,7 +95,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         if (started) {
             logger.info("Stopping Equipment Server.");
             try {
-                rmiManager.unbindAndUnexport(EXPORT_NAME, this);
+                getRmiManager().unbindAndUnexport(EXPORT_NAME, this);
             } catch (Exception e) {
                 throw new RuntimeException("Error stopping Equipment Server: ", e);
             }
@@ -99,7 +106,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     public List<TransactionInfo> readTransactionInfo(String equServerID) throws RemoteException, SQLException {
         try {
 
-            DataSession session = dbManager.createSession();
+            DataSession session = getDbManager().createSession();
             List<TransactionInfo> transactionList = new ArrayList<TransactionInfo>();
 
             LCP isMachineryPriceTransaction = equLM.is(equLM.findClassByCompoundName("MachineryPriceTransaction"));
@@ -116,7 +123,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
             List<Object[]> transactionObjects = new ArrayList<Object[]>();
-            for (int i=0,size=result.size();i<size;i++) {
+            for (int i = 0, size = result.size(); i < size; i++) {
                 ImMap<Object, ObjectValue> value = result.getValue(i);
                 DataObject dateTimeMPT = (DataObject) value.get("dateTimeMPT");
                 DataObject groupMachineryMPT = (DataObject) value.get("groupMachineryMPT");
@@ -136,19 +143,21 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 skuTransactionList = new ArrayList<ItemInfo>();
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
-                ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev((Object)"barcode", barcodeExpr);
+                ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
 
                 QueryBuilder<Object, Object> skuQuery = new QueryBuilder<Object, Object>(skuKeys);
                 skuQuery.addProperty("idBarcode", equLM.findLCPByCompoundName("idBarcode").getExpr(barcodeExpr));
                 skuQuery.addProperty("name", equLM.findLCPByCompoundName("nameMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
                 skuQuery.addProperty("price", equLM.findLCPByCompoundName("priceMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
-                skuQuery.addProperty("daysExpiry", equLM.findLCPByCompoundName("daysExpiryMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
-                skuQuery.addProperty("hoursExpiry", equLM.findLCPByCompoundName("hoursExpiryMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
-                skuQuery.addProperty("expiryDate", equLM.findLCPByCompoundName("expiryDataMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
-                skuQuery.addProperty("labelFormat", equLM.findLCPByCompoundName("labelFormatMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
-                skuQuery.addProperty("composition", equLM.findLCPByCompoundName("compositionMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                skuQuery.addProperty("expiryDate", equLM.findLCPByCompoundName("expiryDateMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
                 skuQuery.addProperty("isWeight", equLM.findLCPByCompoundName("isWeightMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
                 skuQuery.addProperty("skuGroup", equLM.findLCPByCompoundName("skuGroupMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                if (scalesItemLM != null) {
+                    skuQuery.addProperty("daysExpiry", scalesItemLM.findLCPByCompoundName("daysExpiryMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                    skuQuery.addProperty("hoursExpiry", scalesItemLM.findLCPByCompoundName("hoursExpiryMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                    skuQuery.addProperty("labelFormat", scalesItemLM.findLCPByCompoundName("labelFormatMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                    skuQuery.addProperty("composition", scalesItemLM.findLCPByCompoundName("compositionMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                }
 
                 skuQuery.and(equLM.findLCPByCompoundName("inMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr).getWhere());
 
@@ -157,15 +166,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : skuResult.valueIt()) {
                     String barcode = (String) row.get("idBarcode");
                     String name = (String) row.get("name");
-                    Double price = (Double) row.get("price");
-                    Double daysExpiry = (Double) row.get("daysExpiry");
+                    BigDecimal price = (BigDecimal) row.get("price");
+                    BigDecimal daysExpiry = (BigDecimal) row.get("daysExpiry");
                     Integer hoursExpiry = (Integer) row.get("hoursExpiry");
                     Date expiryDate = (Date) row.get("expiryDate");
                     Integer labelFormat = (Integer) row.get("labelFormat");
                     String composition = (String) row.get("composition");
                     Boolean isWeight = row.get("isWeight") != null;
                     Integer numberSkuGroup = (Integer) row.get("skuGroup");
-                    String canonicalNameSkuGroup = numberSkuGroup == null ? "" : (String) equLM.findLCPByCompoundName("canonicalNameSkuGroup").read(session, new DataObject(numberSkuGroup, (ConcreteClass) equLM.findClassByCompoundName("SkuGroup")));
+                    String canonicalNameSkuGroup = numberSkuGroup == null ? "" : (String) equLM.findLCPByCompoundName("canonicalNameSkuGroup").read(session, new DataObject(numberSkuGroup, (ConcreteClass) equLM.findClassByCompoundName("ItemGroup")));
 
                     Integer cellScalesObject = composition == null ? null : (Integer) equLM.findLCPByCompoundName("cellScalesGroupScalesComposition").read(session, groupObject, new DataObject(composition, StringClass.text));
                     Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) equLM.findLCPByCompoundName("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) equLM.findClassByCompoundName("CellScales")));
@@ -190,8 +199,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
                     cashRegisterQuery.and(equLM.findLCPByCompoundName("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupObject, Compare.EQUALS));
-                    if (snapshotTransaction)
-                        cashRegisterQuery.and(equLM.findLCPByCompoundName("inMachineryPriceTransactionMachinery").getExpr(transactionObject.getExpr(), cashRegisterKey).getWhere());
+                    //if (snapshotTransaction)
+                    //    cashRegisterQuery.and(equLM.findLCPByCompoundName("inMachineryPriceTransactionMachinery").getExpr(transactionObject.getExpr(), cashRegisterKey).getWhere());
 
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session.sql);
 
@@ -202,7 +211,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String numberCashRegister = (String) row.get("numberCashRegister");
                         String nameModel = (String) row.get("nameModelMachinery");
                         String handlerModel = (String) row.get("handlerModelMachinery");
-                        cashRegisterInfoList.add(new CashRegisterInfo(nppMachinery, numberCashRegister, nameModel, handlerModel, portMachinery, directoryCashRegister, null));
+                        cashRegisterInfoList.add(new CashRegisterInfo(nppMachinery, numberCashRegister, nameModel, handlerModel, portMachinery, directoryCashRegister));
                     }
 
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
@@ -258,8 +267,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     checkQuery.and(isCheck.property.getExpr(checkKeys).getWhere());
                     checkQuery.and(equLM.findLCPByCompoundName("groupPriceCheckerPriceChecker").getExpr(checkKey).compare(groupObject, Compare.EQUALS));
 
-                    if (snapshotTransaction)
-                        checkQuery.and(equLM.findLCPByCompoundName("inMachineryPriceTransactionMachinery").getExpr(transactionObject.getExpr(), checkKey).getWhere());
+                    //if (snapshotTransaction)
+                    //    checkQuery.and(equLM.findLCPByCompoundName("inMachineryPriceTransactionMachinery").getExpr(transactionObject.getExpr(), checkKey).getWhere());
 
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> checkResult = checkQuery.execute(session.sql);
 
@@ -314,27 +323,23 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public List<CashRegisterInfo> readCashRegisterInfo(String equServerID) throws RemoteException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
+            DataSession session = getDbManager().createSession();
             List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<CashRegisterInfo>();
 
             LCP<PropertyInterface> isGroupMachinery = (LCP<PropertyInterface>) equLM.is(equLM.findClassByCompoundName("GroupMachinery"));
             ImRevMap<PropertyInterface, KeyExpr> keys = isGroupMachinery.getMapKeys();
             KeyExpr key = keys.singleValue();
             QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<PropertyInterface, Object>(keys);
-            query.addProperty("roundSalesGroupCashRegister", equLM.findLCPByCompoundName("roundSalesGroupCashRegister").getExpr(key));
             query.and(equLM.findLCPByCompoundName("sidEquipmentServerGroupMachinery").getExpr(key).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
 
             ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
-            List<Object[]> groupMachineryObjects = new ArrayList<Object[]>();
-            for (int i=0,size=result.size();i<size;i++) {
+            List<DataObject> groupMachineryObjects = new ArrayList<DataObject>();
+            for (int i = 0, size = result.size(); i < size; i++) {
                 DataObject groupMachineryObject = result.getKey(i).getValue(0);
-                Integer roundSalesGroupCashRegister = (Integer) result.getValue(i).get("roundSalesGroupCashRegister").getValue();
-                groupMachineryObjects.add(new Object[]{groupMachineryObject, roundSalesGroupCashRegister});
+                groupMachineryObjects.add(groupMachineryObject);
             }
 
-            for (Object[] groupMachinery : groupMachineryObjects) {
-                DataObject groupMachineryObject = (DataObject) groupMachinery[0];
-                Integer roundSalesGroupCashRegister = (Integer) groupMachinery[1];
+            for (DataObject groupMachineryObject : groupMachineryObjects) {
 
                 LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) equLM.is(equLM.findClassByCompoundName("CashRegister"));
 
@@ -361,7 +366,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String numberCashRegister = (String) row.get("numberCashRegister");
                     String nameModel = (String) row.get("nameModelMachinery");
                     String handlerModel = (String) row.get("handlerModelMachinery");
-                    cashRegisterInfoList.add(new CashRegisterInfo(nppMachinery, numberCashRegister, nameModel, handlerModel, portMachinery, directoryCashRegister, roundSalesGroupCashRegister));
+                    cashRegisterInfoList.add(new CashRegisterInfo(nppMachinery, numberCashRegister, nameModel, handlerModel, portMachinery, directoryCashRegister));
                 }
             }
             return cashRegisterInfoList;
@@ -373,7 +378,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public List<TerminalInfo> readTerminalInfo(String equServerID) throws RemoteException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
+            DataSession session = getDbManager().createSession();
             List<TerminalInfo> terminalInfoList = new ArrayList<TerminalInfo>();
 
             LCP<PropertyInterface> isGroupMachinery = (LCP<PropertyInterface>) equLM.is(equLM.findClassByCompoundName("GroupMachinery"));
@@ -427,7 +432,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public List<TerminalDocumentTypeInfo> readTerminalDocumentTypeInfo() throws RemoteException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
+            DataSession session = getDbManager().createSession();
 
             List<LegalEntityInfo> legalEntityInfoList = new ArrayList<LegalEntityInfo>();
 
@@ -440,7 +445,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             legalEntityQuery.addProperty("name", equLM.findLCPByCompoundName("nameLegalEntity").getExpr(legalEntityKey));
             legalEntityQuery.and(isLegalEntity.property.getExpr(legalEntityKeys).getWhere());
             ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session.sql);
-            for (int i=0,size=legalEntityResult.size();i<size;i++) {
+            for (int i = 0, size = legalEntityResult.size(); i < size; i++) {
                 String id = String.valueOf(legalEntityResult.getKey(i).getValue(0));
                 String name = (String) legalEntityResult.getValue(i).get("name");
                 DataObject terminalHandbookTypeObject = ((ConcreteCustomClass) equLM.findClassByCompoundName("TerminalHandbookType")).getDataObject("terminalHandbookTypeLegalEntity");
@@ -483,14 +488,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public String sendSalesInfo(List<SalesInfo> salesInfoList, String equipmentServer) throws IOException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
-            ImportField cashRegisterField = new ImportField(equLM.findLCPByCompoundName("numberCashRegister"));
-            ImportField zReportNumberField = new ImportField(equLM.findLCPByCompoundName("numberZReport"));
+            DataSession session = getDbManager().createSession();
+            ImportField numberCashRegisterField = new ImportField(equLM.findLCPByCompoundName("numberCashRegister"));
 
+            ImportField idZReportField = new ImportField(equLM.findLCPByCompoundName("idZReport"));
+            ImportField numberZReportField = new ImportField(equLM.findLCPByCompoundName("numberZReport"));
+
+            ImportField idReceiptField = new ImportField(equLM.findLCPByCompoundName("idReceipt"));
             ImportField numberReceiptField = new ImportField(equLM.findLCPByCompoundName("numberReceipt"));
-            ImportField dateField = new ImportField(equLM.findLCPByCompoundName("dateReceipt"));
-            ImportField timeField = new ImportField(equLM.findLCPByCompoundName("timeReceipt"));
+            ImportField dateReceiptField = new ImportField(equLM.findLCPByCompoundName("dateReceipt"));
+            ImportField timeReceiptField = new ImportField(equLM.findLCPByCompoundName("timeReceipt"));
+            ImportField isPostedZReportField = new ImportField(equLM.findLCPByCompoundName("isPostedZReport"));
 
+            ImportField idReceiptDetailField = new ImportField(equLM.findLCPByCompoundName("idReceiptDetail"));
             ImportField numberReceiptDetailField = new ImportField(equLM.findLCPByCompoundName("numberReceiptDetail"));
             ImportField idBarcodeReceiptDetailField = new ImportField(equLM.findLCPByCompoundName("idBarcodeReceiptDetail"));
 
@@ -506,9 +516,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImportField discountSumReceiptReturnDetailField = new ImportField(equLM.findLCPByCompoundName("discountSumReceiptReturnDetail"));
             ImportField discountSumReturnReceiptField = new ImportField(equLM.findLCPByCompoundName("discountSumReturnReceipt"));
 
+            ImportField idPaymentField = new ImportField(equLM.findLCPByCompoundName("idPayment"));
             ImportField sidTypePaymentField = new ImportField(equLM.findLCPByCompoundName("sidPaymentType"));
-            ImportField sumPaymentField = new ImportField(equLM.findLCPByCompoundName("POS.sumPayment"));
-            ImportField numberPaymentField = new ImportField(equLM.findLCPByCompoundName("POS.numberPayment"));
+            ImportField sumPaymentField = new ImportField(equLM.findLCPByCompoundName("sumPayment"));
+            ImportField numberPaymentField = new ImportField(equLM.findLCPByCompoundName("numberPayment"));
 
             ImportField seriesNumberDiscountCardField = new ImportField(equLM.findLCPByCompoundName("seriesNumberDiscountCard"));
 
@@ -516,66 +527,73 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             List<ImportProperty<?>> returnProperties = new ArrayList<ImportProperty<?>>();
             List<ImportProperty<?>> paymentProperties = new ArrayList<ImportProperty<?>>();
 
-            ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ZReport"), equLM.findLCPByCompoundName("zReportNumberCashRegister").getMapping(zReportNumberField, cashRegisterField));
-            ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("CashRegister"), equLM.findLCPByCompoundName("cashRegisterNumber").getMapping(cashRegisterField));
-            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("Receipt"), equLM.findLCPByCompoundName("receiptZReportNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, cashRegisterField));
-            ImportKey<?> skuKey = new ImportKey((CustomClass) equLM.findClassByCompoundName("Sku"), equLM.findLCPByCompoundName("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateField));
-            ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("DiscountCard"), equLM.findLCPByCompoundName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
+            ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ZReport"), equLM.findLCPByCompoundName("zReportId").getMapping(idZReportField));
+            ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("CashRegister"), equLM.findLCPByCompoundName("cashRegisterNumber").getMapping(numberCashRegisterField));
+            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("Receipt"), equLM.findLCPByCompoundName("receiptId").getMapping(idReceiptField));
+            ImportKey<?> skuKey = new ImportKey((CustomClass) equLM.findClassByCompoundName("Sku"), equLM.findLCPByCompoundName("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
+            ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("DiscountCard"), equLM.findLCPByCompoundName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateReceiptField));
 
-            saleProperties.add(new ImportProperty(zReportNumberField, equLM.findLCPByCompoundName("numberZReport").getMapping(zReportKey)));
-            saleProperties.add(new ImportProperty(cashRegisterField, equLM.findLCPByCompoundName("cashRegisterZReport").getMapping(zReportKey),
+            saleProperties.add(new ImportProperty(idZReportField, equLM.findLCPByCompoundName("idZReport").getMapping(zReportKey)));
+            saleProperties.add(new ImportProperty(numberZReportField, equLM.findLCPByCompoundName("numberZReport").getMapping(zReportKey)));
+            saleProperties.add(new ImportProperty(numberCashRegisterField, equLM.findLCPByCompoundName("cashRegisterZReport").getMapping(zReportKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
-            saleProperties.add(new ImportProperty(dateField, equLM.findLCPByCompoundName("dateZReport").getMapping(zReportKey)));
-            saleProperties.add(new ImportProperty(timeField, equLM.findLCPByCompoundName("timeZReport").getMapping(zReportKey)));
+            saleProperties.add(new ImportProperty(dateReceiptField, equLM.findLCPByCompoundName("dateZReport").getMapping(zReportKey)));
+            saleProperties.add(new ImportProperty(timeReceiptField, equLM.findLCPByCompoundName("timeZReport").getMapping(zReportKey)));
+            saleProperties.add(new ImportProperty(isPostedZReportField, equLM.findLCPByCompoundName("isPostedZReport").getMapping(zReportKey)));
 
+            saleProperties.add(new ImportProperty(idReceiptField, equLM.findLCPByCompoundName("idReceipt").getMapping(receiptKey)));
             saleProperties.add(new ImportProperty(numberReceiptField, equLM.findLCPByCompoundName("numberReceipt").getMapping(receiptKey)));
-            saleProperties.add(new ImportProperty(dateField, equLM.findLCPByCompoundName("dateReceipt").getMapping(receiptKey)));
-            saleProperties.add(new ImportProperty(timeField, equLM.findLCPByCompoundName("timeReceipt").getMapping(receiptKey)));
+            saleProperties.add(new ImportProperty(dateReceiptField, equLM.findLCPByCompoundName("dateReceipt").getMapping(receiptKey)));
+            saleProperties.add(new ImportProperty(timeReceiptField, equLM.findLCPByCompoundName("timeReceipt").getMapping(receiptKey)));
             saleProperties.add(new ImportProperty(discountSumSaleReceiptField, equLM.findLCPByCompoundName("discountSumSaleReceipt").getMapping(receiptKey)));
-            saleProperties.add(new ImportProperty(zReportNumberField, equLM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
+            saleProperties.add(new ImportProperty(idZReportField, equLM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));
             saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
             saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
 
-            ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ReceiptSaleDetail"), equLM.findLCPByCompoundName("receiptDetailZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberReceiptDetailField, cashRegisterField));
+            ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ReceiptSaleDetail"), equLM.findLCPByCompoundName("receiptDetailId").getMapping(idReceiptDetailField));
+            saleProperties.add(new ImportProperty(idReceiptDetailField, equLM.findLCPByCompoundName("idReceiptDetail").getMapping(receiptSaleDetailKey)));
             saleProperties.add(new ImportProperty(numberReceiptDetailField, equLM.findLCPByCompoundName("numberReceiptDetail").getMapping(receiptSaleDetailKey)));
             saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, equLM.findLCPByCompoundName("idBarcodeReceiptDetail").getMapping(receiptSaleDetailKey)));
             saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, equLM.findLCPByCompoundName("quantityReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
             saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, equLM.findLCPByCompoundName("priceReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
             saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, equLM.findLCPByCompoundName("sumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
             saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, equLM.findLCPByCompoundName("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
-            saleProperties.add(new ImportProperty(numberReceiptField, equLM.findLCPByCompoundName("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
+            saleProperties.add(new ImportProperty(idReceiptField, equLM.findLCPByCompoundName("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("Receipt")).getMapping(receiptKey)));
 
             saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, equLM.findLCPByCompoundName("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("Sku")).getMapping(skuKey)));
 
-
-            returnProperties.add(new ImportProperty(zReportNumberField, equLM.findLCPByCompoundName("numberZReport").getMapping(zReportKey)));
-            returnProperties.add(new ImportProperty(cashRegisterField, equLM.findLCPByCompoundName("cashRegisterZReport").getMapping(zReportKey),
+            returnProperties.add(new ImportProperty(idZReportField, equLM.findLCPByCompoundName("idZReport").getMapping(zReportKey)));
+            returnProperties.add(new ImportProperty(numberZReportField, equLM.findLCPByCompoundName("numberZReport").getMapping(zReportKey)));
+            returnProperties.add(new ImportProperty(numberCashRegisterField, equLM.findLCPByCompoundName("cashRegisterZReport").getMapping(zReportKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
-            returnProperties.add(new ImportProperty(dateField, equLM.findLCPByCompoundName("dateZReport").getMapping(zReportKey)));
-            returnProperties.add(new ImportProperty(timeField, equLM.findLCPByCompoundName("timeZReport").getMapping(zReportKey)));
+            returnProperties.add(new ImportProperty(dateReceiptField, equLM.findLCPByCompoundName("dateZReport").getMapping(zReportKey)));
+            returnProperties.add(new ImportProperty(timeReceiptField, equLM.findLCPByCompoundName("timeZReport").getMapping(zReportKey)));
+            returnProperties.add(new ImportProperty(isPostedZReportField, equLM.findLCPByCompoundName("isPostedZReport").getMapping(zReportKey)));
 
+            returnProperties.add(new ImportProperty(idReceiptField, equLM.findLCPByCompoundName("idReceipt").getMapping(receiptKey)));
             returnProperties.add(new ImportProperty(numberReceiptField, equLM.findLCPByCompoundName("numberReceipt").getMapping(receiptKey)));
-            returnProperties.add(new ImportProperty(dateField, equLM.findLCPByCompoundName("dateReceipt").getMapping(receiptKey)));
-            returnProperties.add(new ImportProperty(timeField, equLM.findLCPByCompoundName("timeReceipt").getMapping(receiptKey)));
+            returnProperties.add(new ImportProperty(dateReceiptField, equLM.findLCPByCompoundName("dateReceipt").getMapping(receiptKey)));
+            returnProperties.add(new ImportProperty(timeReceiptField, equLM.findLCPByCompoundName("timeReceipt").getMapping(receiptKey)));
             returnProperties.add(new ImportProperty(discountSumReturnReceiptField, equLM.findLCPByCompoundName("discountSumReturnReceipt").getMapping(receiptKey)));
-            returnProperties.add(new ImportProperty(zReportNumberField, equLM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
+            returnProperties.add(new ImportProperty(idZReportField, equLM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));
             returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
             returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
 
-            ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ReceiptReturnDetail"), equLM.findLCPByCompoundName("receiptDetailZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberReceiptDetailField, cashRegisterField));
+            ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ReceiptReturnDetail"), equLM.findLCPByCompoundName("receiptDetailId").getMapping(idReceiptDetailField));
+            returnProperties.add(new ImportProperty(idReceiptDetailField, equLM.findLCPByCompoundName("idReceiptDetail").getMapping(receiptReturnDetailKey)));
             returnProperties.add(new ImportProperty(numberReceiptDetailField, equLM.findLCPByCompoundName("numberReceiptDetail").getMapping(receiptReturnDetailKey)));
             returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, equLM.findLCPByCompoundName("idBarcodeReceiptDetail").getMapping(receiptReturnDetailKey)));
             returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, equLM.findLCPByCompoundName("quantityReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
             returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, equLM.findLCPByCompoundName("priceReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
             returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, equLM.findLCPByCompoundName("sumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
             returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, equLM.findLCPByCompoundName("discountSumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
-            returnProperties.add(new ImportProperty(numberReceiptField, equLM.findLCPByCompoundName("receiptReceiptDetail").getMapping(receiptReturnDetailKey),
+            returnProperties.add(new ImportProperty(idReceiptField, equLM.findLCPByCompoundName("receiptReceiptDetail").getMapping(receiptReturnDetailKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("Receipt")).getMapping(receiptKey)));
 
             returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, equLM.findLCPByCompoundName("skuReceiptReturnDetail").getMapping(receiptReturnDetailKey),
@@ -585,50 +603,64 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             List<List<Object>> dataReturn = new ArrayList<List<Object>>();
 
             List<List<Object>> dataPayment = new ArrayList<List<Object>>();
-
+            
             if (salesInfoList != null)
                 for (SalesInfo sale : salesInfoList) {
-                    if (sale.quantityReceiptDetail < 0)
-                        dataReturn.add(Arrays.<Object>asList(sale.cashRegisterNumber, sale.zReportNumber, sale.date, sale.time, sale.receiptNumber,
-                                sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail, sale.priceReceiptDetail, sale.sumReceiptDetail,
-                                sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.seriesNumberDiscountCard));
+                    String idReceipt = sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberCashRegister;
+                    String idZReport = sale.numberZReport + "_" + sale.numberCashRegister;
+                    String idReceiptDetail = sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberReceiptDetail + "_" + sale.numberCashRegister;
+                    if (sale.quantityReceiptDetail.doubleValue() < 0)
+                        dataReturn.add(Arrays.<Object>asList(sale.numberCashRegister, idZReport, sale.numberZReport,
+                                sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
+                                idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail,
+                                sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail,
+                                sale.discountSumReceipt, sale.seriesNumberDiscountCard));
                     else
-                        dataSale.add(Arrays.<Object>asList(sale.cashRegisterNumber, sale.zReportNumber, sale.date, sale.time, sale.receiptNumber,
-                                sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail, sale.priceReceiptDetail, sale.sumReceiptDetail,
-                                sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.seriesNumberDiscountCard));
-                    if (sale.sumCash != 0)
-                        dataPayment.add(Arrays.<Object>asList(sale.zReportNumber, sale.receiptNumber, sale.cashRegisterNumber, "cash", sale.sumCash, 1));
-                    if (sale.sumCard != 0)
-                        dataPayment.add(Arrays.<Object>asList(sale.zReportNumber, sale.receiptNumber, sale.cashRegisterNumber, "card", sale.sumCard, 2));
+                        dataSale.add(Arrays.<Object>asList(sale.numberCashRegister, idZReport, sale.numberZReport,
+                                sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
+                                idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail,
+                                sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail,
+                                sale.discountSumReceipt, sale.seriesNumberDiscountCard));
+                    if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
+                            dataPayment.add(Arrays.<Object>asList(idReceipt + "1", idReceipt, sale.numberCashRegister, "cash", sale.sumCash, 1));
+                    }
+                    if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
+                            dataPayment.add(Arrays.<Object>asList(idReceipt + "2", idReceipt, sale.numberCashRegister, "card", sale.sumCard, 2));
+                    }
                 }
 
-            List<ImportField> saleImportFields = Arrays.asList(cashRegisterField, zReportNumberField, dateField, timeField,
-                    numberReceiptField, numberReceiptDetailField, idBarcodeReceiptDetailField, quantityReceiptSaleDetailField,
-                    priceReceiptSaleDetailField, sumReceiptSaleDetailField, discountSumReceiptSaleDetailField,
-                    discountSumSaleReceiptField, seriesNumberDiscountCardField);
+            List<ImportField> saleImportFields = Arrays.asList(numberCashRegisterField, idZReportField,
+                    numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
+                    numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
+                    quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
+                    discountSumReceiptSaleDetailField, discountSumSaleReceiptField, seriesNumberDiscountCardField);
 
-            List<ImportField> returnImportFields = Arrays.asList(cashRegisterField, zReportNumberField, dateField, timeField,
-                    numberReceiptField, numberReceiptDetailField, idBarcodeReceiptDetailField, quantityReceiptReturnDetailField,
-                    priceReceiptReturnDetailField, retailSumReceiptReturnDetailField, discountSumReceiptReturnDetailField,
-                    discountSumReturnReceiptField, seriesNumberDiscountCardField);
+            List<ImportField> returnImportFields = Arrays.asList(numberCashRegisterField, idZReportField,
+                    numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
+                    numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
+                    quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
+                    discountSumReceiptReturnDetailField, discountSumReturnReceiptField, seriesNumberDiscountCardField);
 
 
-            new IntegrationService(session, new ImportTable(saleImportFields, dataSale), Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey, discountCardKey),
+            new IntegrationService(session, new ImportTable(saleImportFields, dataSale), Arrays.asList(zReportKey,
+                    cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey, discountCardKey),
                     saleProperties).synchronize(true);
 
-            new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, discountCardKey),
+            new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), Arrays.asList(zReportKey,
+                    cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, discountCardKey),
                     returnProperties).synchronize(true);
 
-            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("POS.Payment"), equLM.findLCPByCompoundName("paymentZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberPaymentField, cashRegisterField));
+            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("Payment"), equLM.findLCPByCompoundName("paymentId").getMapping(idPaymentField));
             ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("PaymentType"), equLM.findLCPByCompoundName("typePaymentSID").getMapping(sidTypePaymentField));
-            paymentProperties.add(new ImportProperty(sumPaymentField, equLM.findLCPByCompoundName("POS.sumPayment").getMapping(paymentKey)));
+            paymentProperties.add(new ImportProperty(idPaymentField, equLM.findLCPByCompoundName("idPayment").getMapping(paymentKey)));
+            paymentProperties.add(new ImportProperty(sumPaymentField, equLM.findLCPByCompoundName("sumPayment").getMapping(paymentKey)));
             paymentProperties.add(new ImportProperty(numberPaymentField, equLM.findLCPByCompoundName("numberPayment").getMapping(paymentKey)));
             paymentProperties.add(new ImportProperty(sidTypePaymentField, equLM.findLCPByCompoundName("paymentTypePayment").getMapping(paymentKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("PaymentType")).getMapping(paymentTypeKey)));
-            paymentProperties.add(new ImportProperty(numberReceiptField, equLM.findLCPByCompoundName("receiptPayment").getMapping(paymentKey),
+            paymentProperties.add(new ImportProperty(idReceiptField, equLM.findLCPByCompoundName("receiptPayment").getMapping(paymentKey),
                     equLM.baseLM.object(equLM.findClassByCompoundName("Receipt")).getMapping(receiptKey)));
 
-            List<ImportField> paymentImportFields = Arrays.asList(zReportNumberField, numberReceiptField, cashRegisterField, sidTypePaymentField,
+            List<ImportField> paymentImportFields = Arrays.asList(idPaymentField, idReceiptField, numberCashRegisterField, sidTypePaymentField,
                     sumPaymentField, numberPaymentField);
 
             if (salesInfoList != null && salesInfoList.size() != 0) {
@@ -636,8 +668,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 List<String> cashRegisterNumbers = new ArrayList<String>();
                 List<String> fileNames = new ArrayList<String>();
                 for (SalesInfo salesInfo : salesInfoList) {
-                    if (!cashRegisterNumbers.contains(salesInfo.cashRegisterNumber.trim()))
-                        cashRegisterNumbers.add(salesInfo.cashRegisterNumber.trim());
+                    if (!cashRegisterNumbers.contains(salesInfo.numberCashRegister.trim()))
+                        cashRegisterNumbers.add(salesInfo.numberCashRegister.trim());
                     if ((salesInfo.filename != null) && (!fileNames.contains(salesInfo.filename.trim())))
                         fileNames.add(salesInfo.filename.trim());
                 }
@@ -661,8 +693,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             new IntegrationService(session, new ImportTable(paymentImportFields, dataPayment), Arrays.asList(paymentKey, paymentTypeKey, receiptKey, cashRegisterKey),
                     paymentProperties).synchronize(true);
 
-            return session.applyMessage(businessLogics);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            return session.applyMessage(getBusinessLogics());
+        } catch (Exception e) {
             throw new RuntimeException(e.toString());
         }
     }
@@ -670,7 +702,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public String sendTerminalDocumentInfo(List<TerminalDocumentInfo> terminalDocumentInfoList, String equServerID) throws IOException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
+            DataSession session = getDbManager().createSession();
             ImportField idTerminalDocumentField = new ImportField(equLM.findLCPByCompoundName("idTerminalDocument"));
             ImportField typeTerminalDocumentField = new ImportField(equLM.findLCPByCompoundName("idTerminalDocumentTypeTerminalDocument"));
             ImportField idTerminalHandbookType1TerminalDocumentField = new ImportField(equLM.findLCPByCompoundName("idTerminalHandbookType1TerminalDocument"));
@@ -759,7 +791,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 equLM.findLCPByCompoundName("dateEquipmentServerLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
             }
 
-            return session.applyMessage(businessLogics);
+            return session.applyMessage(getBusinessLogics());
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e.toString());
         }
@@ -768,10 +800,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public void succeedTransaction(Integer transactionID) throws RemoteException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
+            DataSession session = getDbManager().createSession();
             equLM.findLCPByCompoundName("succeededMachineryPriceTransaction").change(true, session,
                     session.getDataObject(equLM.findClassByCompoundName("MachineryPriceTransaction"), transactionID));
-            session.apply(businessLogics);
+            session.apply(getBusinessLogics());
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e.toString());
         }
@@ -780,7 +812,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public List<byte[][]> readLabelFormats(List<String> scalesModelsList) throws RemoteException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
+            DataSession session = getDbManager().createSession();
 
             List<byte[][]> fileLabelFormats = new ArrayList<byte[][]>();
 
@@ -816,7 +848,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public void errorTransactionReport(Integer transactionID, Exception e) throws RemoteException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
+            DataSession session = getDbManager().createSession();
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClassByCompoundName("MachineryPriceTransactionError"));
             equLM.findLCPByCompoundName("machineryPriceTransactionMachineryPriceTransactionError").change(transactionID, session, errorObject);
             equLM.findLCPByCompoundName("dataMachineryPriceTransactionError").change(e.toString(), session, errorObject);
@@ -825,7 +857,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             e.printStackTrace(new PrintStream(os));
             equLM.findLCPByCompoundName("errorTraceMachineryPriceTransactionError").change(os.toString(), session, errorObject);
 
-            session.apply(businessLogics);
+            session.apply(getBusinessLogics());
         } catch (ScriptingErrorLog.SemanticErrorException e2) {
             throw new RuntimeException(e2.toString());
         }
@@ -835,7 +867,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     public void errorEquipmentServerReport(String equipmentServer, Throwable exception) throws
             RemoteException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
+            DataSession session = getDbManager().createSession();
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClassByCompoundName("EquipmentServerError"));
             Object equipmentServerObject = equLM.findLCPByCompoundName("sidToEquipmentServer").read(session, new DataObject(equipmentServer, StringClass.get(20)));
             equLM.findLCPByCompoundName("equipmentServerEquipmentServerError").change(equipmentServerObject, session, errorObject);
@@ -846,7 +878,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             equLM.findLCPByCompoundName("dateEquipmentServerError").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, errorObject);
 
-            session.apply(businessLogics);
+            session.apply(getBusinessLogics());
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e.toString());
         }
@@ -855,9 +887,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException, SQLException {
         try {
-            DataSession session = dbManager.createSession();
+            ThreadLocalContext.set(logicsInstance.getContext());
+            DataSession session = getDbManager().createSession();
             Integer equipmentServerID = (Integer) equLM.findLCPByCompoundName("sidToEquipmentServer").read(session, new DataObject(equipmentServer, StringClass.get(20)));
-            Integer delay = (Integer) equLM.findLCPByCompoundName("delayEquipmentServer").read(session, new DataObject(equipmentServerID, (ConcreteClass) equLM.findClassByCompoundName("equipmentServer")));
+            Integer delay = (Integer) equLM.findLCPByCompoundName("delayEquipmentServer").read(session, new DataObject(equipmentServerID, (ConcreteClass) equLM.findClassByCompoundName("EquipmentServer")));
             return new EquipmentServerSettings(delay);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e.toString());

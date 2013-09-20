@@ -83,7 +83,7 @@ public class ImportActionProperty {
 
             importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime(), importData.getWithoutRecalc());
 
-            importUserInvoices(importData.getUserInvoicesList(), importData.getImportUserInvoicesPosted(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys(), importData.getWithoutRecalc());
+            importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys(), importData.getWithoutRecalc());
 
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
@@ -595,7 +595,7 @@ public class ImportActionProperty {
         session.close();
     }
 
-    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Boolean posted, Integer numberAtATime, boolean skipKeys, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (userInvoiceDetailsList != null) {
 

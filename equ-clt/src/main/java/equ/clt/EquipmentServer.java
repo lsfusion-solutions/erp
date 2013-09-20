@@ -125,14 +125,17 @@ public class EquipmentServer {
             if (entry.getKey() != null) {
 
                 try {
-                    Object clsHandler = getHandler(entry.getValue().get(0).handlerModel.trim(), remote);
-                    SalesBatch salesBatch = ((CashRegisterHandler) clsHandler).readSalesInfo(cashRegisterInfoList);
-                    if (salesBatch != null) {
-                        String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID);
-                        if (result != null)
-                            remote.errorEquipmentServerReport(equServerID, new Throwable(result));
-                        else
-                            ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
+                    String handlerModel = entry.getValue().get(0).handlerModel;
+                    if (handlerModel != null) {
+                        Object clsHandler = getHandler(handlerModel, remote);
+                        SalesBatch salesBatch = ((CashRegisterHandler) clsHandler).readSalesInfo(cashRegisterInfoList);
+                        if (salesBatch != null) {
+                            String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID);
+                            if (result != null)
+                                remote.errorEquipmentServerReport(equServerID, new Throwable(result));
+                            else
+                                ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
+                        }
                     }
                 } catch (Exception e) {
                     remote.errorEquipmentServerReport(equServerID, e.fillInStackTrace());

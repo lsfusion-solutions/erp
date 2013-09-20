@@ -7,6 +7,7 @@ import org.xBaseJ.fields.*;
 import org.xBaseJ.xBaseJException;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.sql.Time;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -87,7 +88,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                 for (ItemInfo item : transactionInfo.itemsList) {
                     PLUCODE.put(item.idBarcode);
                     NAME.put(item.name);
-                    PRICE1.put(item.price);
+                    PRICE1.put(item.price.doubleValue());
                     file.write();
                     file.file.setLength(file.file.length() - 1);
                 }
@@ -108,14 +109,11 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<String, String> cashRegisterDirectories = new HashMap<String, String>();
-        Map<String, Integer> cashRegisterRoundSales = new HashMap<String, Integer>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if ((cashRegister.directory != null) && (!cashRegisterDirectories.containsValue(cashRegister.directory)))
                 cashRegisterDirectories.put(cashRegister.cashRegisterNumber, cashRegister.directory);
             if ((cashRegister.port != null) && (!cashRegisterDirectories.containsValue(cashRegister.port)))
                 cashRegisterDirectories.put(cashRegister.cashRegisterNumber, cashRegister.port);
-            if (cashRegister.roundSales != null)
-                cashRegisterRoundSales.put(cashRegister.cashRegisterNumber, cashRegister.roundSales);
         }
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
         List<String> readFiles = new ArrayList<String>();
@@ -141,18 +139,18 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                                     java.sql.Date date = new java.sql.Date(new SimpleDateFormat("yyyymmdd").parse(new String(importFile.getField("JFDATE").getBytes(), "Cp1251").trim()).getTime());
                                     String timeString = new String(importFile.getField("JFTIME").getBytes(), "Cp1251").trim();
                                     Time time = Time.valueOf(timeString.substring(0, 2) + ":" + timeString.substring(2, 4) + ":" + timeString.substring(4, 6));
-                                    Double sumReceipt = new Double(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim());
+                                    BigDecimal sumReceipt = new BigDecimal(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim());
                                     String barcodeReceiptDetail = new String(importFile.getField("JFPLUCODE").getBytes(), "Cp1251").trim().replace("E", "");
-                                    Double quantityReceiptDetail = new Double(new String(importFile.getField("JFQUANT").getBytes(), "Cp1251").trim());
-                                    Double priceReceiptDetail = new Double(new String(importFile.getField("JFPRICE").getBytes(), "Cp1251").trim());
-                                    Double discountSumReceiptDetail = new Double(new String(importFile.getField("JFDISCSUM").getBytes(), "Cp1251").trim());
-                                    Double sumReceiptDetail = roundSales(priceReceiptDetail * quantityReceiptDetail - discountSumReceiptDetail, cashRegisterRoundSales.get(entry.getKey()));
+                                    BigDecimal quantityReceiptDetail = new BigDecimal(new String(importFile.getField("JFQUANT").getBytes(), "Cp1251").trim());
+                                    BigDecimal priceReceiptDetail = new BigDecimal(new String(importFile.getField("JFPRICE").getBytes(), "Cp1251").trim());
+                                    BigDecimal discountSumReceiptDetail = new BigDecimal(new String(importFile.getField("JFDISCSUM").getBytes(), "Cp1251").trim());
+                                    BigDecimal sumReceiptDetail = roundSales(safeSubtract(safeMultiply(priceReceiptDetail, quantityReceiptDetail), discountSumReceiptDetail), 10);
 
                                     if (!oldReceiptNumber.equals(receiptNumber)) {
                                         numberReceiptDetail = 1;
                                         oldReceiptNumber = receiptNumber;
                                     }
-                                    salesInfoList.add(new SalesInfo(entry.getKey(), zReportNumber, receiptNumber, date, time, sumReceipt, 0.0, sumReceipt, barcodeReceiptDetail,
+                                    salesInfoList.add(new SalesInfo(entry.getKey(), zReportNumber, receiptNumber, date, time, sumReceipt, BigDecimal.ZERO, sumReceipt, barcodeReceiptDetail,
                                             quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, fileName));
                                     numberReceiptDetail++;
                                 }
@@ -188,8 +186,21 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
         }
     }
 
-    private Double roundSales(Double value, Integer roundSales) {
+    private BigDecimal roundSales(BigDecimal value, Integer roundSales) {
         Integer round = roundSales != null ? roundSales : 50;
-        return (double) Math.round(value / round) * round;
+        return BigDecimal.valueOf(Math.round(value.doubleValue() / round) * round);
+    }
+
+    protected BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
+            return null;
+        else return operand1.multiply(operand2);
+    }
+
+    protected BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else
+            return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
     }
 }

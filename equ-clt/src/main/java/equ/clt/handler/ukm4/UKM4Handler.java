@@ -12,6 +12,7 @@ import org.xBaseJ.xBaseJException;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -99,7 +100,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 fileClassif.addField(new Field[]{GROOP1, GROOP2, GROOP3, GROOP4, GROOP5, NAME});
 
                 for (ItemInfo item : transactionInfo.itemsList) {
-                    NAME.put(item.name);
+                    NAME.put(item.name.substring(0, Math.min(item.name.length(), 50)));
                     //А группы откуда брать?
                     fileClassif.write();
                     fileClassif.file.setLength(fileClassif.file.length() - 1);
@@ -114,7 +115,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
                 for (ItemInfo item : transactionInfo.itemsList) {
                     ARTICUL.put(item.idBarcode);
-                    NAME.put(item.name);
+                    NAME.put(item.name.substring(0, Math.min(item.name.length(), 50)));
                     MESURIMENT.put(item.isWeightItem ? "кг" : "1");
                     MESPRESISI.put(item.isWeightItem ? 0.001 : 1.000);
                     SCALE.put("NOSIZE");
@@ -123,7 +124,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     GROOP3.put(0);
                     GROOP4.put(0);
                     GROOP5.put(1);
-                    PRICERUB.put(item.price);
+                    PRICERUB.put(item.price.doubleValue());
                     CLIENTINDE.put(0);
                     DELETED.put(1);
                     MODDATE.put(new GregorianCalendar(transactionInfo.date.getYear() + 1900, transactionInfo.date.getMonth() + 1, transactionInfo.date.getDay()));/*transactionInfo.date*/
@@ -172,7 +173,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
             DBF importSailFile = null;
             DBF importDiscFile = null;
             DBF importCardFile = null;
-            Map<String, Double> discountMap = new HashMap<String, Double>();
+            Map<String, BigDecimal> discountMap = new HashMap<String, BigDecimal>();
             Map<String, String> discountCardMap = new HashMap<String, String>();
             try {
                 if (entry.getValue() != null) {
@@ -190,12 +191,12 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                             Integer receiptNumber = new Integer(new String(importDiscFile.getField("CHECKNUMBE").getBytes(), "Cp1251").trim());
                             Integer numberReceiptDetail = new Integer(new String(importDiscFile.getField("ID").getBytes(), "Cp1251").trim());
                             Integer type = new Integer(new String(importDiscFile.getField("DISCOUNTIN").getBytes(), "Cp1251").trim());
-                            Double discountSum = new Double(new String(importDiscFile.getField("DISCOUNTRU").getBytes(), "Cp1251").trim());
+                            BigDecimal discountSum = new BigDecimal(new String(importDiscFile.getField("DISCOUNTRU").getBytes(), "Cp1251").trim());
 
                             String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail;
                             if (type.equals(4)) {
-                                Double tempSum = discountMap.get(sid);
-                                discountMap.put(sid, discountSum + (tempSum == null ? 0 : tempSum));
+                                BigDecimal tempSum = discountMap.get(sid);
+                                discountMap.put(sid, safeAdd(discountSum, tempSum));
                             }
                         }
                         importDiscFile.close();
@@ -226,7 +227,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                         importSailFile = new DBF(fileSailPath);
                         readFiles.add(fileSailPath);
                         int recordSailCount = importSailFile.getRecordCount();
-                        Map<Integer, Double[]> receiptNumberSumReceipt = new HashMap<Integer, Double[]>();
+                        Map<Integer, BigDecimal[]> receiptNumberSumReceipt = new HashMap<Integer, BigDecimal[]>();
 
                         for (int i = 0; i < /*recordSailCount*/87; i++) {
                             importSailFile.read();
@@ -243,24 +244,29 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                             timeString = timeString.length() == 3 ? ("0" + timeString) : timeString;
                             java.sql.Time time = new java.sql.Time(DateUtils.parseDate(timeString, new String[]{"hhmm"}).getTime());
                             String barcodeReceiptDetail = new String(importSailFile.getField("CARDARTICU").getBytes(), "Cp1251").trim();
-                            Double quantityReceiptDetail = new Double(new String(importSailFile.getField("QUANTITY").getBytes(), "Cp1251").trim());
-                            Double priceReceiptDetail = new Double(new String(importSailFile.getField("PRICERUB").getBytes(), "Cp1251").trim());
-                            Double sumReceiptDetail = new Double(new String(importSailFile.getField("TOTALRUB").getBytes(), "Cp1251").trim());
-                            Double discountSumReceiptDetail = discountMap.get(cashRegisterNumber + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail);
+                            BigDecimal quantityReceiptDetail = new BigDecimal(new String(importSailFile.getField("QUANTITY").getBytes(), "Cp1251").trim());
+                            BigDecimal priceReceiptDetail = new BigDecimal(new String(importSailFile.getField("PRICERUB").getBytes(), "Cp1251").trim());
+                            BigDecimal sumReceiptDetail = new BigDecimal(new String(importSailFile.getField("TOTALRUB").getBytes(), "Cp1251").trim());
+                            BigDecimal discountSumReceiptDetail = discountMap.get(cashRegisterNumber + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail);
                             String discountCardNumber = discountCardMap.get(cashRegisterNumber + "_" + zNumber + "_" + receiptNumber);
-                            
-                            Double[] tempSumReceipt = receiptNumberSumReceipt.get(receiptNumber);
-                            receiptNumberSumReceipt.put(receiptNumber, new Double[]{(tempSumReceipt != null ? tempSumReceipt[0] : 0) + (operation <= 1 ? sumReceiptDetail : 0),
-                                    (tempSumReceipt != null ? tempSumReceipt[1] : 0) + (operation > 1 ? sumReceiptDetail : 0)});
 
-                            salesInfoList.add(new SalesInfo(cashRegisterNumber, zNumber, receiptNumber, date, time, 0.0, 0.0, 0.0,
-                                    barcodeReceiptDetail, quantityReceiptDetail * (operation % 2 == 1 ? 1 : -1), priceReceiptDetail, sumReceiptDetail * (operation % 2 == 1 ? 1 : -1),
+                            BigDecimal[] tempSumReceipt = receiptNumberSumReceipt.get(receiptNumber);
+                            BigDecimal tempSum1 = tempSumReceipt != null ? tempSumReceipt[0] : null;
+                            BigDecimal tempSum2 = tempSumReceipt != null ? tempSumReceipt[1] : null;
+                            receiptNumberSumReceipt.put(receiptNumber, new BigDecimal[]{safeAdd(tempSum1,(operation <= 1 ? sumReceiptDetail : null)),
+                                    safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
+
+                            salesInfoList.add(new SalesInfo(cashRegisterNumber, zNumber, receiptNumber, date, time,
+                                    BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail, 
+                                    operation % 2 == 1 ? quantityReceiptDetail : (quantityReceiptDetail==null ? null : quantityReceiptDetail.negate()),
+                                    priceReceiptDetail, 
+                                    operation % 2 == 1 ? sumReceiptDetail : (sumReceiptDetail==null ? null : sumReceiptDetail.negate()),
                                     discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null));
                         }
                         for (SalesInfo salesInfo : salesInfoList) {
-                            salesInfo.sumCash = receiptNumberSumReceipt.get(salesInfo.receiptNumber)[0];
-                            salesInfo.sumCard = receiptNumberSumReceipt.get(salesInfo.receiptNumber)[1];
-                            salesInfo.sumReceipt = salesInfo.sumCash + salesInfo.sumCard;
+                            salesInfo.sumCash = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[0];
+                            salesInfo.sumCard = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[1];
+                            salesInfo.sumReceipt = safeAdd(salesInfo.sumCash, salesInfo.sumCard);
                         }
                     }
                 }
@@ -285,5 +291,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
             if (!f.delete())
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
         }
+    }
+
+    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 }
