@@ -6,7 +6,7 @@ PRIORITY Sale;
 
 //----------------------------------------------------------------------------//
 
-GROUP shipmentGroup 'Информация о поставке' : base;
+GROUP shipment 'Информация о поставке' : base;
 
 createPurchaseShipment 'Создать поставку (закупка)' = ABSTRACT BOOLEAN (Shipment) PERSISTENT;
 createPurchaseUserShipment 'Создать поставку (закупка)' = DATA BOOLEAN (UserShipment) PERSISTENT;
@@ -72,7 +72,7 @@ quantityShipmentDetailShipmentShipment (sale, purchase) = GROUP SUM Purchase.qua
 
 saleShipmentsShipment 'Поставки (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](descriptionShipment(sale)) IF quantityShipmentDetailShipmentShipment(sale, purchase) , ', '
                                                         BY purchase
-                                                        ORDER sale IN shipmentGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                        ORDER sale IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 relationPurchaseShipment 'Связь' (purchase) = GROUP SUM quantityShipmentDetailShipmentShipment (sale, purchase) BY purchase PERSISTENT;
 
@@ -243,13 +243,13 @@ fillShipmentUserShipment 'Заполнить на основе поставки'
             ASSIGN Purchase.packQuantityUserShipmentDetail(d) <- packQuantityShipmentDetail(shipmentDetail);
         }
     }
-} IN shipmentGroup;
+} IN shipment;
 
 EXTEND FORM Purchase.userShipment
     PROPERTIES(s) fillShipmentUserShipment, saleShipmentsShipment READONLY
     PROPERTIES(d) descriptionIndexShipmentDetailUserShipmentDetail BEFORE deletesd
 ;
-EXTEND DESIGN Purchase.userShipment { headerCreateDetail{ ADD s.shipmentGroup { type = CONTAINERV; }}}
+EXTEND DESIGN Purchase.userShipment { headerCreateDetail{ ADD s.shipment { type = CONTAINERV; }}}
 
 EXTEND FORM Purchase.shipments
 //    PROPERTIES(s) READONLY saleShipmentsShipment

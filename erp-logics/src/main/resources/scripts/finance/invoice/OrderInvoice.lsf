@@ -34,16 +34,16 @@ META defineOrderInvoice(sign, stockProp)
         CHECKED BY orderUserInvoiceDetail
             MESSAGE 'Поставщик и покупатель в заказе и накладной должны соответствовать друг другу';
 
-    GROUP orderGroup 'Информация о заказе' : public;
+    GROUP order 'Информация о заказе' : public;
 
-    descriptionOrderInvoiceDetail 'Заказ' (invoiceDetail) = descriptionOrder(orderInvoiceDetail(invoiceDetail)) IN orderGroup;
-    descriptionOrderUserInvoiceDetail 'Заказ' (userInvoiceDetail) = descriptionOrder(orderUserInvoiceDetail(userInvoiceDetail)) IN orderGroup;
+    descriptionOrderInvoiceDetail 'Заказ' (invoiceDetail) = descriptionOrder(orderInvoiceDetail(invoiceDetail)) IN order;
+    descriptionOrderUserInvoiceDetail 'Заказ' (userInvoiceDetail) = descriptionOrder(orderUserInvoiceDetail(userInvoiceDetail)) IN order;
 
     quantityInvoiceDetailOrderInvoice (order, invoice) = GROUP SUM quantityInvoiceDetail(invoiceDetail) BY orderInvoiceDetail(invoiceDetail), invoiceInvoiceDetail(invoiceDetail);
     ordersInvoice 'Заказы' (invoice) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF quantityInvoiceDetailOrderInvoice(order, invoice) , ', '
                                              BY invoice
                                              ORDER order
-                                             IN orderGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                             IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
     invoicedInvoiceDetailOrderSku 'Выписано накладных' (order, sku) = GROUP SUM quantityInvoiceDetail(invoiceDetail) IF isPostedInvoiceDetail(invoiceDetail)
                                                                BY orderInvoiceDetail(invoiceDetail), skuInvoiceDetail(invoiceDetail);
@@ -263,7 +263,7 @@ META defineOrderInvoice(sign, stockProp)
         IF formResult() == FormResult.ok THEN {
             EXEC fillUserInvoiceOrder(userInvoice, chosenObject('o'));
         }
-    } IN orderGroup;
+    } IN order;
 
     EXTEND FORM userInvoice
         PROPERTIES (i)  fillOrderUserInvoice, ordersInvoice READONLY
@@ -272,7 +272,7 @@ META defineOrderInvoice(sign, stockProp)
 
     EXTEND DESIGN userInvoice {
         headerCreateDetail {
-            ADD i.orderGroup {type = CONTAINERH;}
+            ADD i.order {type = CONTAINERH;}
         }
     }
     EXTEND FORM invoices

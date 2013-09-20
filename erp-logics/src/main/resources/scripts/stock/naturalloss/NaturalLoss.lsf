@@ -2,7 +2,7 @@ MODULE NaturalLoss;
 
 REQUIRE Document, PriceListType, SaleLedger, Integration, PriceListLedger;
 
-GROUP rateGroup 'Нормы' : public;
+GROUP rate 'Нормы' : public;
 
 // ----------------------------------- Справочник норм естественной убыли -------------------------------------------- //
 
@@ -62,9 +62,9 @@ inSubNaturalLossGroup (subNaturalLossGroup, subNaturalLossGroupDetail) =
  subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalLossGroupDetail) ==  subNaturalLossGroup;
 
 subNaturalLossGroupCountrySku 'Группа естественной убыли товара(ИД)' = ABSTRACT SubNaturalLossGroup (Country, Sku);
-nameSubNaturalLossGroupCountrySku 'Группа естественной убыли товара' (country, sku) = nameSubNaturalLossGroup(subNaturalLossGroupCountrySku(country, sku)) IN rateGroup;
+nameSubNaturalLossGroupCountrySku 'Группа естественной убыли товара' (country, sku) = nameSubNaturalLossGroup(subNaturalLossGroupCountrySku(country, sku)) IN rate;
 rateSubNaturalLossGroupCountrySku 'Норма естественной убыли, %' (country, sku) =
- concatSubNaturalLossGroupDetail(subNaturalLossGroupCountrySku(country, sku)) IN rateGroup;
+ concatSubNaturalLossGroupDetail(subNaturalLossGroupCountrySku(country, sku)) IN rate;
 
 inParentNaturalLossGroup(naturalLossGroup, subNaturalLossGroup) =
  parentNaturalLossGroup(subNaturalLossGroup ) == naturalLossGroup;
@@ -209,9 +209,9 @@ CLASS NaturalLossDetail 'Строка ведомости естественно�
 //countryNaturalLoss(naturalLoss) = countryLegalEntity(legalEntityStore(storeDepartmentStore(departmentStoreNaturalLoss(naturalLoss))));
 countryNaturalLossDetail(naturalLossDetail) = countryNaturalLoss(naturalLossNaturalLossDetail(naturalLossDetail));
 
-GROUP fillNaturalLossGroup 'Автоматическое заполнение' : public;
-dateFromNaturalLoss 'Дата с' = DATA DATE (NaturalLoss) IN fillNaturalLossGroup;
-dateToNaturalLoss 'Дата по' = DATA DATE (NaturalLoss) IN fillNaturalLossGroup;
+GROUP fillNaturalLoss 'Автоматическое заполнение' : public;
+dateFromNaturalLoss 'Дата с' = DATA DATE (NaturalLoss) IN fillNaturalLoss;
+dateToNaturalLoss 'Дата по' = DATA DATE (NaturalLoss) IN fillNaturalLoss;
 
 dateFromNaturalLossDetail 'Дата с' (naturalLossDetail) = dateFromNaturalLoss(naturalLossNaturalLossDetail(naturalLossDetail));
 dateToNaturalLossDetail 'Дата по' (naturalLossDetail) = dateToNaturalLoss(naturalLossNaturalLossDetail(naturalLossDetail));
@@ -263,7 +263,7 @@ sumNaturalLossDetail (naturalLossDetail) <- priceNaturalLossDetail(naturalLossDe
          CHANGED(quantityNaturalLossDetail(naturalLossDetail));
 
 sumNaturalLoss 'Сумма' (naturalLoss) = GROUP SUM sumNaturalLossDetail(naturalLossDetail)
-    BY naturalLossNaturalLossDetail(naturalLossDetail) IN documentSumGroup;
+    BY naturalLossNaturalLossDetail(naturalLossDetail) IN documentSum;
 
 toFillNaturalLossDetail 'Заполнить на основе продаж' = ACTION (naturalLoss) {
     FOR quantitySoldSkuDepartmentNaturalLoss( sku,
@@ -288,7 +288,7 @@ toFillNaturalLossDetail 'Заполнить на основе продаж' = AC
             ASSIGN sumNaturalLossDetail (d) <- priceNaturalLossDetail(d) * quantityNaturalLossDetail(d);
         };
     };
-} IN fillNaturalLossGroup CONFIRM;
+} IN fillNaturalLoss CONFIRM;
 
 FORM naturalLoss 'Ведомость естественной убыли'
     OBJECTS s=NaturalLoss FIXED PANEL
@@ -321,7 +321,7 @@ DESIGN naturalLoss FROM DEFAULT{
                 fill = 1;
                 type = CONTAINERV;
 
-                ADD s.documentHeaderGroup {
+                ADD s.documentHeader {
                     type = CONTAINERH;
                     ADD PROPERTY(isPostedNaturalLoss);
                     ADD PROPERTY(nameStockNaturalLoss);
@@ -332,15 +332,15 @@ DESIGN naturalLoss FROM DEFAULT{
                     ADD PROPERTY(timeNaturalLoss);
                 }
 
-                ADD s.documentPrmGroup {
+                ADD s.documentPrm {
                     columns = 2;
                 }
-                ADD s.fillNaturalLossGroup {
+                ADD s.fillNaturalLoss {
                     columns = 3;
                 }
             }
 
-            ADD s.documentSumGroup {
+            ADD s.documentSum {
                 columns = 1;
             }
         }
@@ -401,8 +401,8 @@ DESIGN naturalLosses FROM DEFAULT {
             NEW documentHistory {
                 caption = 'История';
 
-                ADD s.createdGroup;
-                ADD s.postedGroup;
+                ADD s.created;
+                ADD s.posted;
             }
             NEW printTab {
                 caption = 'Печатные формы';
@@ -453,6 +453,6 @@ loadDefaultSubNaturalLossGroup 'Добавить нормы естественн
     }
 }
 
-loadDefaultNaturalLossGroups 'Загрузить стандартные группы естественной убыли' = ABSTRACT ACTION LIST () IN loadDefaultGroup;
+loadDefaultNaturalLossGroups 'Загрузить стандартные группы естественной убыли' = ABSTRACT ACTION LIST () IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultNaturalLossGroups);

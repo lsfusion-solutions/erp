@@ -51,7 +51,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
     quantityBlanketOrderDetailBlanketOrderCustomerStock 'Кол-во (всего)' (blanketOrder, customerStock) = 
         GROUP SUM quantityBlanketOrderDetail(idetail) 
               BY blanketOrderBlanketOrderDetail(idetail), customerStockBlanketOrderDetail(idetail) 
-              IN documentSumGroup;
+              IN documentSum;
               
     @defineDocumentHeaderQuantity(blanketOrder);
 
@@ -73,7 +73,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
     @defineDocumentInterfaceHeaderAgreement (BlanketOrder, Stock, supplier, customer);
 
     priceListTypeBlanketOrderStock (blanketOrder, stock) = DATA PriceListType (BlanketOrder, Stock);
-    namePriceListTypeBlanketOrderStock 'Вид цены' (blanketOrder, stock) = namePriceListType(priceListTypeBlanketOrderStock (blanketOrder, stock)) IN documentPrmGroup MINCHARWIDTH 5 PREFCHARWIDTH 10;
+    namePriceListTypeBlanketOrderStock 'Вид цены' (blanketOrder, stock) = namePriceListType(priceListTypeBlanketOrderStock (blanketOrder, stock)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
     backgroundPriceListTypeBlanketOrderStock (blanketOrder, stock) = RGB(200,200,200) IF agreementBlanketOrderStock (blanketOrder, stock);
 
     @defineDocumentDetailPrice(blanketOrder); // объявляем цену без НДС
@@ -119,12 +119,12 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
         GROUP SUM sumBlanketOrderDetail(idetail) 
               BY blanketOrderBlanketOrderDetail(idetail), 
                  customerStockBlanketOrderDetail(idetail)  
-              IN documentSumGroup;
+              IN documentSum;
 
     @defineDocumentHeaderSum (blanketOrder);
 
     countBlanketOrderDetailBlanketOrderCustomerStock 'Количество строк в документе' (order, stock) =
-        GROUP SUM 1 BY blanketOrderBlanketOrderDetail(d), customerStockBlanketOrderDetail(d) PERSISTENT IN documentSumGroup;
+        GROUP SUM 1 BY blanketOrderBlanketOrderDetail(d), customerStockBlanketOrderDetail(d) PERSISTENT IN documentSum;
 
     CONSTRAINT customerStockBlanketOrderDetail(blanketOrderDetail) AND NOT inBlanketOrderStock(blanketOrderBlanketOrderDetail(blanketOrderDetail), customerStockBlanketOrderDetail(blanketOrderDetail))
         CHECKED BY customerStockBlanketOrderDetail
@@ -199,7 +199,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
                     fill = 1;
                     type = CONTAINERV;
 
-                    ADD o.documentHeaderGroup {
+                    ADD o.documentHeader {
                         type = CONTAINERH;
                         ADD PROPERTY(isPostedBlanketOrder) { preferredCharWidth = 10; }
                         ADD PROPERTY(nameNumeratorBlanketOrder);
@@ -224,7 +224,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
                     }
                     NEW headerRow12 {
                         type = CONTAINERH;
-                        ADD o.documentPrmGroup {
+                        ADD o.documentPrm {
                             columns = 2;
                         }
                         NEW documentShipmentGroup {
@@ -236,7 +236,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
                         }
                     }
                 }
-                ADD o.documentSumGroup {
+                ADD o.documentSum {
                     columns = 1;
                 }
             }
@@ -311,8 +311,8 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
                 NEW documentHistory {
                     caption = 'История';
 
-                    ADD o.createdGroup;
-                    ADD o.postedGroup;
+                    ADD o.created;
+                    ADD o.posted;
                 }
                 NEW printTab {
                     caption = 'Печатные формы';

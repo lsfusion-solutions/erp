@@ -214,7 +214,7 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
     }
 
     private void writeBottom(PrintWriter writer) {
-        writer.println("} IN loadDefaultGroup;\n" +
+        writer.println("} IN loadDefault;\n" +
                 "\n" +
                 "EXTEND FORM defaultData\n" +
                 "    PROPERTIES() loadDefaultCustomsGroups\n" +

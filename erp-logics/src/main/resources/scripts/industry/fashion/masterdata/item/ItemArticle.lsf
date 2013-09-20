@@ -4,18 +4,18 @@ REQUIRE System, Item, ComplianceGroup, ComplianceGroupItem, CustomsGroupItem, Cu
 
 NAMESPACE Item;
 
-GROUP itemArticleGroup 'Артикул' : public;
-GROUP articleBaseGroup 'Базовые свойства' : base;
-GROUP articleSupplierGroup 'Информащия от поставщика' : base;
-GROUP articleDescriptionGroup 'Описание' : base;
-GROUP articleSeasonGroup 'Сезон' : base;
+GROUP itemArticle 'Артикул' : public;
+GROUP articleBase 'Базовые свойства' : base;
+GROUP articleSupplier 'Информащия от поставщика' : base;
+GROUP articleDescription 'Описание' : base;
+GROUP articleSeason 'Сезон' : base;
 
 // Артикул
 CLASS Article 'Артикул';
 TABLE article(Article);
 
 @defineExternalizable(article, VARSTRING[100]);
-captionArticle 'Название' = DATA VARISTRING[100](Article) IN articleBaseGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
+captionArticle 'Название' = DATA VARISTRING[100](Article) IN articleBase MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 itemGroupArticle  = DATA ItemGroup(Article);
 nameItemGroupArticle 'Товарная группа' (Article) = nameItemGroup(itemGroupArticle(Article));
@@ -50,7 +50,7 @@ DESIGN article FROM DEFAULT {
                 type = CONTAINERV;
                 type = CONTAINERV;
                 caption = 'Основные данные';
-                ADD a.articleBaseGroup {
+                ADD a.articleBase {
                     type = CONTAINERH;
                 }
             }
@@ -110,7 +110,7 @@ DESIGN articles FROM DEFAULT {
 }
 @extendFormEditable(articles);
 
-@defineObjectItemAttribute(article, Article, idArticle, 'Артикул', itemArticleGroup);
+@defineObjectItemAttribute(article, Article, idArticle, 'Артикул', itemArticle);
 @defineObjectItemAttributeBatch (article, idArticle, 'Артикул');
 @implementItemAttribute(idArticleItem, 'Артикул', String, itemArticle);
 captionArticleItem 'Название артикула' (item) = captionArticle(articleItem(item));
@@ -137,7 +137,7 @@ FORM colors 'Цвета товара'
 ;
 DESIGN colors FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(color, Color, nameColor, 'Цвет', itemArticleGroup);
+@defineObjectItemAttribute(color, Color, nameColor, 'Цвет', itemArticle);
 @defineObjectItemAttributeBatch (color, nameColor, 'Цвет');
 @implementItemAttribute(nameColorItem, 'Цвет', String, itemColor);
 
@@ -145,22 +145,22 @@ TABLE colorArticle(Color, Article);
 countColorArticle 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY colorItem(item), articleItem(item) PERSISTENT;
 
 colorArticle  = DATA Color(Article);
-nameColorArticle 'Цвет' (Article) = nameColor(colorArticle(Article)) IN articleDescriptionGroup;
+nameColorArticle 'Цвет' (Article) = nameColor(colorArticle(Article)) IN articleDescription;
 
 EXTEND FORM article PROPERTIES(a) nameColorArticle;
 EXTEND DESIGN article  {
     articlePrimary {
-        ADD a.articleDescriptionGroup {type = CONTAINERH;}
+        ADD a.articleDescription {type = CONTAINERH;}
     }
 }
 EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameColorArticle;
 
 //  Ед. изм.
 UOMArticle  = DATA UOM (Article);
-nameUOMArticle 'Единица измерения' (article) = nameUOM(UOMArticle(article)) IN articleBaseGroup MINCHARWIDTH 10 PREFCHARWIDTH 10;
+nameUOMArticle 'Единица измерения' (article) = nameUOM(UOMArticle(article)) IN articleBase MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
 //  Состав
-compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN articleBaseGroup MINCHARWIDTH 30 PREFCHARWIDTH 40;
+compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN articleBase MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
 EXTEND FORM article PROPERTIES(a) compositionArticle, nameUOMArticle;
 EXTEND FORM articles PROPERTIES(a) BEFORE nameColorArticle(a) READONLYIF isReadonly() nameUOMArticle, compositionArticle;
@@ -188,7 +188,7 @@ FORM collections 'Цвета товара'
 DESIGN collections FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 collectionArticle  = DATA Collection(Article);
-nameCollectionArticle 'Коллекция' (Article) = nameCollection(collectionArticle(Article)) IN articleDescriptionGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameCollectionArticle 'Коллекция' (Article) = nameCollection(collectionArticle(Article)) IN articleDescription MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 EXTEND FORM article PROPERTIES(a)  nameCollectionArticle;
 EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameCollectionArticle;
@@ -196,9 +196,9 @@ EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameC
 //-- ТН ВЭД
 TABLE countryArticle(Country, Article);
 customsGroupCountryArticle = DATA CustomsGroup(Country, Article);
-codeCustomsGroupCountryArticle 'ТН ВЭД' (country, article) = codeCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplierGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
-nameCustomsGroupCountryArticle 'Позиция ТН ВЭД' (country, article) = nameCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplierGroup MINCHARWIDTH 30 PREFCHARWIDTH 40;
-codeCustomsGroupDefaultCountryArticle 'ТН ВЭД' (article) = codeCustomsGroup(customsGroupCountryArticle(defaultCountry(), article)) IN articleSupplierGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
+codeCustomsGroupCountryArticle 'ТН ВЭД' (country, article) = codeCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplier MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameCustomsGroupCountryArticle 'Позиция ТН ВЭД' (country, article) = nameCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplier MINCHARWIDTH 30 PREFCHARWIDTH 40;
+codeCustomsGroupDefaultCountryArticle 'ТН ВЭД' (article) = codeCustomsGroup(customsGroupCountryArticle(defaultCountry(), article)) IN articleSupplier MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 changeCustomsGroupDefaultCountryArticle = ACTION (article) {
     REQUEST OBJECT cg
@@ -216,8 +216,8 @@ CONSTRAINT customsZoneCustomsGroup(customsGroupCountryArticle(country, article))
 
 //-- Группа сертификации
 complianceGroupCountryArticle = DATA ComplianceGroup(Country, Article);
-nameComplianceGroupCountryArticle 'Группа сертификации' (country, article) = nameComplianceGroup(complianceGroupCountryArticle(country, article)) IN articleSupplierGroup MINCHARWIDTH 30 PREFCHARWIDTH 40;
-nameComplianceGroupDefaultCountryArticle 'Группа сертификации' (article) = nameComplianceGroup(complianceGroupCountryArticle(defaultCountry(), article)) IN articleSupplierGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameComplianceGroupCountryArticle 'Группа сертификации' (country, article) = nameComplianceGroup(complianceGroupCountryArticle(country, article)) IN articleSupplier MINCHARWIDTH 30 PREFCHARWIDTH 40;
+nameComplianceGroupDefaultCountryArticle 'Группа сертификации' (article) = nameComplianceGroup(complianceGroupCountryArticle(defaultCountry(), article)) IN articleSupplier MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 changeComplianceGroupDefaultCountryArticle = ACTION (article) {
     REQUEST OBJECT cg
@@ -243,7 +243,7 @@ EXTEND FORM article
 ;
 EXTEND DESIGN article  {
     articlePrimary {
-        NEW regionPrm AFTER a.articleBaseGroup{
+        NEW regionPrm AFTER a.articleBase{
             caption = 'Региональные свойства';
             type = CONTAINERH;
             ADD PROPERTY(codeCustomsGroupDefaultCountryArticle);
@@ -279,7 +279,7 @@ FORM sizes 'Размеры товара'
 ;
 DESIGN sizes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(size, Size, nameSize, 'Размер', itemArticleGroup);
+@defineObjectItemAttribute(size, Size, nameSize, 'Размер', itemArticle);
 @defineObjectItemAttributeBatch (size, nameSize, 'Размер');
 @implementItemAttribute(nameSizeItem, 'Размер', String, itemSize);
 
@@ -308,7 +308,7 @@ FORM sizeHeights 'Роста товара'
 ;
 DESIGN sizeHeights FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(sizeHeight, SizeHeight, nameSizeHeight, 'Рост', itemArticleGroup);
+@defineObjectItemAttribute(sizeHeight, SizeHeight, nameSizeHeight, 'Рост', itemArticle);
 @defineObjectItemAttributeBatch (sizeHeight, nameSizeHeight, 'Рост');
 @implementItemAttribute(nameSizeHeightItem, 'Рост', String, itemSizeHeight);
 
@@ -357,15 +357,15 @@ FORM seasonYears 'Годы'
 DESIGN seasonYears FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 seasonArticle= DATA Season (Article);
-nameSeasonArticle 'Сезон' (a)= nameSeason(seasonArticle(a)) IN articleSeasonGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameSeasonArticle 'Сезон' (a)= nameSeason(seasonArticle(a)) IN articleSeason MINCHARWIDTH 20 PREFCHARWIDTH 30;
 seasonYearArticle= DATA SeasonYear (Article);
-nameSeasonYearArticle 'Год' (a)= nameSeasonYear(seasonYearArticle(a)) IN articleSeasonGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameSeasonYearArticle 'Год' (a)= nameSeasonYear(seasonYearArticle(a)) IN articleSeason MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 seasonItem (item)= seasonArticle(articleItem(item));
-nameSeasonItem 'Сезон' (i)= nameSeason(seasonItem(i)) IN itemArticleGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameSeasonItem 'Сезон' (i)= nameSeason(seasonItem(i)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
  
 seasonYearItem (item)= seasonYearArticle(articleItem(item));
-nameSeasonYearItem 'Год' (i)= nameSeasonYear(seasonYearItem(i)) IN itemArticleGroup MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameSeasonYearItem 'Год' (i)= nameSeasonYear(seasonYearItem(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 EXTEND FORM item
     PROPERTIES(i)  nameSeasonYearItem, nameSeasonItem
@@ -377,7 +377,7 @@ EXTEND FORM article
 ;
 EXTEND DESIGN article  {
     articlePrimary {
-        ADD a.articleSeasonGroup AFTER a.articleDescriptionGroup{                     
+        ADD a.articleSeason AFTER a.articleDescription{                     
             type = CONTAINERH;
         }
     }
@@ -465,7 +465,7 @@ overCopyItem(s, d) += ACTION (s, d) {
 
 EXTEND DESIGN item {
     itemPrimaryColumn2 {
-        ADD i.itemArticleGroup {
+        ADD i.itemArticle {
             columns = 2;
         }
     }
@@ -474,7 +474,7 @@ EXTEND DESIGN item {
 
 EXTEND DESIGN itemGroup {
     itemGroupDetail {
-        ADD g.itemArticleGroup {
+        ADD g.itemArticle {
             columns = 6;
         }
     }

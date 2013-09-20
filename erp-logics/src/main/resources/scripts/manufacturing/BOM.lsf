@@ -262,7 +262,7 @@ pricePercentProduct 'Удельный вес цены,%' = DATA NUMERIC[8,3] (Pr
 pricePercentProduct(product) <- 100.000 WHEN SET (product IS Product);
 priceCoeffProduct (product) = pricePercentProduct(product) / 100 PERSISTENT;
 
-pricePercentBOM 'Удельный вес цен, %' = GROUP SUM pricePercentProduct(product) BY BOMProduct(product) PERSISTENT IN documentSumGroup;
+pricePercentBOM 'Удельный вес цен, %' = GROUP SUM pricePercentProduct(product) BY BOMProduct(product) PERSISTENT IN documentSum;
 
 nameMaterial(material) += [FORMULA VARSTRING[255]  ' CAST($1 AS TEXT) || \' / \' ||  CAST($2 AS TEXT)'](
                                       nameBOM(BOMProduct(material)),
@@ -428,7 +428,7 @@ DESIGN BOM FROM DEFAULT{
                     ADD PROPERTY(numberBOM);
                     ADD PROPERTY(seriesBOM);
                 }
-                ADD b.documentPrmGroup {
+                ADD b.documentPrm {
                     type = CONTAINERH;
                 }
                 NEW kitchen {
@@ -437,7 +437,7 @@ DESIGN BOM FROM DEFAULT{
                 }
 
             }
-            ADD b.documentSumGroup {
+            ADD b.documentSum {
                 columns = 1;
             }
         }
@@ -512,7 +512,7 @@ DESIGN BOMs FROM DEFAULT {
                 NEW documentHistory {
                     caption = 'История';
 
-                    ADD b.createdGroup;
+                    ADD b.created;
                 }
                 NEW printTab {
                     caption = 'Печатные формы';
@@ -592,7 +592,7 @@ FORM actStudyOfCulinaryCommittees 'Комиссии для акта контро
 // ----------------- Акт контрольной проработки-------------------- //
 
 actStudyOfCulinaryCommitteeBOM (BOM) = DATA ActStudyOfCulinaryCommittee(BOM);
-nameActStudyOfCulinaryCommitteeBOM 'Комиссия для акта контрольной проработки продукции' (BOM) = nameActStudyOfCulinaryCommittee(actStudyOfCulinaryCommitteeBOM (BOM)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameActStudyOfCulinaryCommitteeBOM 'Комиссия для акта контрольной проработки продукции' (BOM) = nameActStudyOfCulinaryCommittee(actStudyOfCulinaryCommitteeBOM (BOM)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 nameEmployeeCommitteeBOM 'Члены комиссии' (BOM)= nameEmployeeCommittee(actStudyOfCulinaryCommitteeBOM(BOM));
 
 inCommitteeBOMEmployee (BOM, employee) = inCommitteeEmployee(actStudyOfCulinaryCommitteeBOM (BOM), employee);

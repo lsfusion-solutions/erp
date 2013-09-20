@@ -8,7 +8,7 @@ CLASS ABSTRACT Contract 'Договор';
 TABLE contract (Contract);
 TABLE contractDate (Contract, DATE);
 
-GROUP contractGroup 'Реквизиты' : recognize;
+GROUP contract 'Реквизиты' : recognize;
 
 @defineDocumentAbstractHeaderNumber(Contract);
 
@@ -17,9 +17,9 @@ saveWordContract 'Загрузить файл договора' (contract) = ACT
 openWordContract 'Просмотреть файл договора' (contract) = ACTION OPENFILE wordContract(contract);
 
 
-//numberContract 'Номер договора' = DATA STRING[30] (Contract) IN contractGroup;
-dateFromContract 'Действует (с)' = DATA DATE (Contract) IN contractGroup;
-dateToContract 'Действует (по)' = DATA DATE (Contract) IN contractGroup;
+//numberContract 'Номер договора' = DATA STRING[30] (Contract) IN contract;
+dateFromContract 'Действует (с)' = DATA DATE (Contract) IN contract;
+dateToContract 'Действует (по)' = DATA DATE (Contract) IN contract;
 activeContract 'Действуюший' (contract, date) =
     dateFromContract(contract) <= date AND NOT dateToContract(contract) < date;
 
@@ -27,27 +27,27 @@ activeContract 'Действуюший' (contract, date) =
 //                                                 string2SP('от ', dateFromContract(contract)),
 //                                                 string2SP('по ', dateToContract(contract)));
 
-GROUP partyGroup 'Контрагенты' : recognize;
+GROUP party 'Контрагенты' : recognize;
 
 partyAContract = ABSTRACT LegalEntity (Contract) PERSISTENT INDEXED;
-namePartyAContract 'Организация (поставщик)' (contract) = nameLegalEntity(partyAContract(contract)) IN partyGroup;
+namePartyAContract 'Организация (поставщик)' (contract) = nameLegalEntity(partyAContract(contract)) IN party;
 
 partyBContract = ABSTRACT LegalEntity (Contract) PERSISTENT INDEXED;
-namePartyBContract 'Организация (покупатель)' (contract) = nameLegalEntity(partyBContract(contract)) IN partyGroup;
+namePartyBContract 'Организация (покупатель)' (contract) = nameLegalEntity(partyBContract(contract)) IN party;
 
 countContractPartyAPartyB 'Кол-во договоров' (partyA, partyB) =
     GROUP SUM 1 IF partyAContract(contract) == partyA AND partyBContract(contract) == partyB BY partyA, partyB;
 
-GROUP paymentGroup 'Оплата' : public;
+GROUP payment 'Оплата' : public;
 
 // Валюты
 currencyContract = DATA Currency (Contract);
-nameCurrencyContract 'Валюта взаиморасчетов' (contract) = nameCurrency(currencyContract(contract)) IN paymentGroup;
-shortNameCurrencyContract 'Валюта взаиморасчетов' (contract) = shortNameCurrency(currencyContract(contract)) IN paymentGroup;
-symbolCurrencyContract 'Символ' (contract) = symbolCurrency(currencyContract(contract)) IN paymentGroup;
+nameCurrencyContract 'Валюта взаиморасчетов' (contract) = nameCurrency(currencyContract(contract)) IN payment;
+shortNameCurrencyContract 'Валюта взаиморасчетов' (contract) = shortNameCurrency(currencyContract(contract)) IN payment;
+symbolCurrencyContract 'Символ' (contract) = symbolCurrency(currencyContract(contract)) IN payment;
 
 typeExchangeContract (contract) = DATA TypeExchange (Contract);
-nameTypeExchangeContract 'Тип обмена' (contract) = nameTypeExchange(typeExchangeContract(contract)) IN paymentGroup;
+nameTypeExchangeContract 'Тип обмена' (contract) = nameTypeExchange(typeExchangeContract(contract)) IN payment;
 
 CONSTRAINT currencyContract(contract) != currencyTypeExchange(typeExchangeContract(contract))
     CHECKED BY typeExchangeContract MESSAGE 'Валюта типа обмена должна соответствовать валюте договора';
@@ -55,7 +55,7 @@ CONSTRAINT currencyContract(contract) != currencyTypeExchange(typeExchangeContra
 // Условия оплаты
 paymentConditionContract 'Условия оплаты' =  DATA PaymentCondition (Contract);
 typePaymentContract 'Тип оплаты' (contract) = typePaymentCondition(paymentConditionContract(contract));
-descriptionPaymentConditionContract 'Условия оплаты' (contract) = descriptionPaymentCondition(paymentConditionContract(contract)) IN paymentGroup;
+descriptionPaymentConditionContract 'Условия оплаты' (contract) = descriptionPaymentCondition(paymentConditionContract(contract)) IN payment;
 
 noteContract 'Примечание' = DATA TEXT (Contract) MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
@@ -110,13 +110,13 @@ END
 
 META defineDocumentContract (objectClass, contractType, contractTypeClass, prefixA, prefixB, singleContractProp, partyAMessage, partyBMessage)
     contractType##objectClass = DATA contractTypeClass (objectClass);
-    number###contractType##objectClass 'Договор (номер)' (o) = numberContract(contractType##objectClass(o)) IN documentPrmGroup;
-    seriesNumber###contractType##objectClass 'Договор (серия/номер)' (o) = seriesNumberContract(contractType##objectClass(o)) IN documentPrmGroup;
-    dateFrom###contractType##objectClass 'Дата договора' (o) = dateFromContract(contractType##objectClass(o)) IN documentPrmGroup;
+    number###contractType##objectClass 'Договор (номер)' (o) = numberContract(contractType##objectClass(o)) IN documentPrm;
+    seriesNumber###contractType##objectClass 'Договор (серия/номер)' (o) = seriesNumberContract(contractType##objectClass(o)) IN documentPrm;
+    dateFrom###contractType##objectClass 'Дата договора' (o) = dateFromContract(contractType##objectClass(o)) IN documentPrm;
 
     description###contractType##objectClass 'Описание договора' (o)= CONCAT ' ', seriesNumber###contractType##objectClass(o), ' от ' + dateFrom###contractType##objectClass(o);
 
-    isCommission###objectClass 'Продажа на комиссию' = DATA BOOLEAN (objectClass) IN documentPrmGroup;
+    isCommission###objectClass 'Продажа на комиссию' = DATA BOOLEAN (objectClass) IN documentPrm;
     isCommission###objectClass(o) <- typeContractSku(contractType###objectClass(o)) == ContractSkuType.commission
         WHEN CHANGED(contractType##objectClass(o));
 
@@ -137,12 +137,12 @@ END
 
 META defineDocumentAbstractContract (objectClass, contractType, contractTypeClass)
     contractType##objectClass = ABSTRACT contractTypeClass (objectClass) PERSISTENT;
-    seriesNumber###contractType##objectClass 'Номер договора' (o) = seriesNumberContract(contractType##objectClass(o)) IN documentPrmGroup;
-    dateFrom###contractType##objectClass 'Дата договора' (o) = dateFromContract(contractType##objectClass(o)) IN documentPrmGroup;
+    seriesNumber###contractType##objectClass 'Номер договора' (o) = seriesNumberContract(contractType##objectClass(o)) IN documentPrm;
+    dateFrom###contractType##objectClass 'Дата договора' (o) = dateFromContract(contractType##objectClass(o)) IN documentPrm;
     
     description###contractType##objectClass 'Описание договора' (o)= CONCAT ' ', seriesNumber###contractType##objectClass(o), ' от ' + dateFrom###contractType##objectClass(o);
 
-    isCommission##objectClass 'Продажа на комиссию' = ABSTRACT BOOLEAN (objectClass) PERSISTENT IN documentPrmGroup;
+    isCommission##objectClass 'Продажа на комиссию' = ABSTRACT BOOLEAN (objectClass) PERSISTENT IN documentPrm;
 END
 META defineDocumentInterfaceContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage)
     @defineDocumentAbstractContract(objectClass, contractType);

@@ -32,10 +32,10 @@ zReportCashRegister = DATA ZReport (CashRegister);
 
 currentCashRegister () = cashRegisterComputer(currentComputer());
 
-GROUP receiptZReportGroup 'Z-отчет' : public;
+GROUP receiptZReport 'Z-отчет' : public;
 
 currentZReport() = zReportCashRegister(currentCashRegister());
-numberCurrentZReport 'Номер текущего Z-отчета' () = numberZReport(currentZReport()) IN receiptZReportGroup;
+numberCurrentZReport 'Номер текущего Z-отчета' () = numberZReport(currentZReport()) IN receiptZReport;
 sumCashCurrentZReport() = sumCashZReport(currentZReport());
 
 closedCurrentZReport() = NOT currentZReport();
@@ -61,7 +61,7 @@ fiscalDisplayTextReceiptDetail 'Вывести текст на дисплей'(r
 
 // Проведение чека
 
-GROUP receiptActionGroup 'Оплата' : public;
+GROUP receiptAction 'Оплата' : public;
 
 postPrintReceipt 'Напечатать фискальный чек' = ABSTRACT ACTION LIST (Receipt);
 noFiscalPostPrintReceipt 'Создать чек (без фискального регистратора)' = ACTION (receipt) {
@@ -136,7 +136,7 @@ postReceipt 'Смешанный платеж' = ACTION (receipt) {
             DELETE p WHERE receiptPayment(p) == receipt;
         }
     }
-} EDITKEY 'F9' IN receiptActionGroup;
+} EDITKEY 'F9' IN receiptAction;
 
 postCardReceipt 'Карточкой' = ACTION (receipt) {
     allowPaymentGiftCard() <- NULL;
@@ -150,7 +150,7 @@ postCardReceipt 'Карточкой' = ACTION (receipt) {
         }
         postPrintReceipt(receipt);
     }
-} EDITKEY 'F10' CONFIRM IN receiptActionGroup;
+} EDITKEY 'F10' CONFIRM IN receiptAction;
 
 postCashReceipt 'Наличными' = ACTION (receipt) {
     allowPaymentGiftCard() <- NULL;
@@ -169,7 +169,7 @@ postCashReceipt 'Наличными' = ACTION (receipt) {
             DELETE p WHERE receiptPayment(p) == receipt;
         }
     }
-} EDITKEY 'F11' IN receiptActionGroup;
+} EDITKEY 'F11' IN receiptAction;
 
 cancelReceipt 'Отменить чек' = ACTION (receipt) {
     IF sumReceiptDetailReceipt(receipt) THEN {
@@ -177,7 +177,7 @@ cancelReceipt 'Отменить чек' = ACTION (receipt) {
         createCurrentReceipt();
     }
     EXEC fiscalCancelReceipt();
-} EDITKEY 'shift F11' CONFIRM IN receiptActionGroup;
+} EDITKEY 'shift F11' CONFIRM IN receiptAction;
 
 // Операции по добавлению строк в чек
 
@@ -241,7 +241,7 @@ createReceiptSaleDetailSku 'Добавить строку продажи' = ACTI
     }
 }
 
-GROUP receiptSaleActionGroup 'Продажа' : public;
+GROUP receiptSaleAction 'Продажа' : public;
 
 // По штрих-коду
 consumedChangeBarcodeSaleReceipt = DATA SESSION BOOLEAN();
@@ -310,7 +310,7 @@ searchSkuSaleReceipt 'Поиск' = ACTION (receipt) {
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptSaleDetailSku(receipt, chosenObject('s'), idBarcodeSku(chosenObject('s')));
     }
-} EDITKEY 'F3' IN receiptSaleActionGroup;
+} EDITKEY 'F3' IN receiptSaleAction;
 
 // Поиск подбором Batch
 FORM searchBatchSaleReceipt 'Поиск партии'
@@ -359,7 +359,7 @@ searchBatchSaleReceipt 'Поиск' = ACTION (receipt) {
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptSaleDetailBatch(receipt, chosenObject('b'), idBarcodeSkuBatch(chosenObject('b')));
     }
-} EDITKEY 'F3' IN receiptSaleActionGroup;
+} EDITKEY 'F3' IN receiptSaleAction;
 
 
 // Возвраты
@@ -378,7 +378,7 @@ createReceiptReturnDetail 'Добавить строку возврата' = ACT
     }
 }
 
-GROUP receiptReturnActionGroup 'Возврат' : public;
+GROUP receiptReturnAction 'Возврат' : public;
 
 // По штрих-коду
 FORM scanBarcodeReturnReceipt 'Выбор строки возврата'
@@ -420,7 +420,7 @@ scanBarcodeReturnReceipt 'Ввести штрих-код' = ACTION (receipt) {
         } ELSE
             MESSAGE 'Не найден штрих-код';
     }
-} EDITKEY 'F7' IN receiptReturnActionGroup;
+} EDITKEY 'F7' IN receiptReturnAction;
 
 // Поиск
 
@@ -446,7 +446,7 @@ searchSkuReturnReceipt 'Поиск' = ACTION (receipt) {
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptReturnDetail(receipt, chosenObject('r'), idBarcodeSku(skuReceiptSaleDetail(chosenObject('r'))));
     }
-} EDITKEY 'F6' IN receiptReturnActionGroup;
+} EDITKEY 'F6' IN receiptReturnAction;
 
 // Дисконтные карты
 
@@ -487,11 +487,11 @@ inputDiscountCardNumberReceipt 'Ввести номер' = ACTION (receipt) {
                 MESSAGE 'Дисконтная карта с таким номером не найдена';
         }
     }
-} IN receiptDiscountGroup EDITKEY 'F5';
+} IN receiptDiscount EDITKEY 'F5';
 
 clearDiscountCardReceipt 'Сбросить' = ACTION (receipt) {
     ASSIGN discountCardReceipt(receipt) <- NULL;
-} IN receiptDiscountGroup EDITKEY 'shift F5';
+} IN receiptDiscount EDITKEY 'shift F5';
 
 // Операции с Z-отчетами
 
@@ -504,7 +504,7 @@ openCurrentZReport 'Открыть Z-отчет' = ACTION () {
         zReportCashRegister(cashRegister) <- z WHERE cashRegister == currentCashRegister();
         apply();
     }
-} CONFIRM IN receiptZReportGroup;
+} CONFIRM IN receiptZReport;
 
 closeCurrentZReport 'Закрыть Z-отчет' = ACTION () {
     cancel();
@@ -521,7 +521,7 @@ closeCurrentZReport 'Закрыть Z-отчет' = ACTION () {
     }
     zReportCashRegister(cashRegister) <- NULL WHERE cashRegister == currentCashRegister();
     apply();
-} CONFIRM IN receiptZReportGroup;
+} CONFIRM IN receiptZReport;
 
 // --------------------------------- Применение акций ----------------------------- //
 
@@ -732,20 +732,20 @@ DESIGN POS FROM DEFAULT {
         type = CONTAINERH;
         alignment = STRETCH;
 
-        ADD r.receiptSaleActionGroup {
+        ADD r.receiptSaleAction {
             type = CONTAINERV;
             alignment = STRETCH;
             ADD PROPERTY(searchSkuSaleReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 22';}   
             ADD PROPERTY(searchBatchSaleReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
             ADD PROPERTY(barcodeSale) { caption = 'Ввести штрих-код'; panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 22'; editKey = 'F4'; }
         }
-        ADD r.receiptReturnActionGroup {
+        ADD r.receiptReturnAction {
             type = CONTAINERV;
             alignment = STRETCH;
             ADD PROPERTY(searchSkuReturnReceipt) { fill = 1; focusable = FALSE; font = 'bold 22'; }
             ADD PROPERTY(scanBarcodeReturnReceipt) { fill = 1; focusable = FALSE; font = 'bold 22'; }
         }
-        ADD r.receiptDiscountGroup {
+        ADD r.receiptDiscount {
             fill = 1;
             type = CONTAINERV;
             ADD PROPERTY(nameLegalEntityDiscountCardReceipt) { alignment = STRETCH; caption = 'Держатель'; focusable = FALSE; font = 'bold 22'; }
@@ -869,7 +869,7 @@ DESIGN POS FROM DEFAULT {
         }
         NEW east {
             alignment = STRETCH;
-            ADD r.receiptActionGroup {
+            ADD r.receiptAction {
                 type = CONTAINERV;
                 alignment = STRETCH;
                 ADD PROPERTY(postReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }

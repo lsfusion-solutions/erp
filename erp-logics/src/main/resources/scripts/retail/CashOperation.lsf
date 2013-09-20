@@ -7,28 +7,28 @@ REQUIRE CashRegister, Numerator, Document, Bank;
 CLASS ABSTRACT CashDocument 'Кассовый документ' : PaymentLedger;
 TABLE cashDocument (CashDocument);
 
-dateCashDocument 'Дата документа' = ABSTRACT DATE (CashDocument) IN documentHeaderGroup;
-timeCashDocument 'Время документа' = ABSTRACT TIME (CashDocument) IN documentHeaderGroup;
-dateTimeCashDocument 'Дата/время документа' (cashDocument) = dateTimeToDateTime(dateCashDocument(cashDocument), timeCashDocument(cashDocument)) IN documentHeaderGroup;
+dateCashDocument 'Дата документа' = ABSTRACT DATE (CashDocument) IN documentHeader;
+timeCashDocument 'Время документа' = ABSTRACT TIME (CashDocument) IN documentHeader;
+dateTimeCashDocument 'Дата/время документа' (cashDocument) = dateTimeToDateTime(dateCashDocument(cashDocument), timeCashDocument(cashDocument)) IN documentHeader;
 
-numberCashDocument 'Номер' (cashDocument) = ABSTRACT STRING[200] (CashDocument) IN documentPrmGroup; ///
+numberCashDocument 'Номер' (cashDocument) = ABSTRACT STRING[200] (CashDocument) IN documentPrm; ///
 
 departmentStoreCashDocument (cashDocument) = ABSTRACT DepartmentStore (CashDocument);
 nameDepartmentStoreCashDocument 'Подразделение' (cashDocument) =
-    nameDepartmentStore(departmentStoreCashDocument(cashDocument)) IN documentHeaderGroup;
-nameLegalEntityCashDocument 'Компания' (cashDocument) = nameLegalEntityDepartmentStore(departmentStoreCashDocument(cashDocument)) IN documentHeaderGroup;
+    nameDepartmentStore(departmentStoreCashDocument(cashDocument)) IN documentHeader;
+nameLegalEntityCashDocument 'Компания' (cashDocument) = nameLegalEntityDepartmentStore(departmentStoreCashDocument(cashDocument)) IN documentHeader;
 
-basisCashDocument 'Основание' = ABSTRACT VARSTRING[100] (CashDocument) IN documentPrmGroup;
+basisCashDocument 'Основание' = ABSTRACT VARSTRING[100] (CashDocument) IN documentPrm;
 
 cashRegisterCashDocument = ABSTRACT CashRegister(CashDocument);
-numberCashRegisterCashDocument 'Касса' (cashDocument) = numberCashRegister(cashRegisterCashDocument(cashDocument)) IN documentPrmGroup;
+numberCashRegisterCashDocument 'Касса' (cashDocument) = numberCashRegister(cashRegisterCashDocument(cashDocument)) IN documentPrm;
 
 isPostedCashDocument 'Закрыт' = ABSTRACT BOOLEAN (CashDocument);
 
 CLASS ABSTRACT IncomeCashOrder 'ПКО': CashDocument;
 CLASS ABSTRACT OutcomeCashOrder 'РКО': CashDocument;
 
-sumCashIncomeCashOrder 'Сумма' = ABSTRACT NUMERIC[16,2] (IncomeCashOrder) IN documentSumGroup;
+sumCashIncomeCashOrder 'Сумма' = ABSTRACT NUMERIC[16,2] (IncomeCashOrder) IN documentSum;
 isPrintedIncomeCashOrder 'Напечатан' = DATA BOOLEAN (IncomeCashOrder);
 isNotPrintedIncomeCashOrder 'Не распечатан' (incomeCashOrder) =
     incomeCashOrder IS IncomeCashOrder  AND NOT isPrintedIncomeCashOrder(incomeCashOrder);
@@ -50,7 +50,7 @@ sumIncomeCashOrderDateTime 'Сумма ПКО на дату/время' (departm
     curSumIncomeCashOrder(departmentStore) (-)
     sumAIncomeCashOrderDateTime(departmentStore, date);
 
-sumCashOutcomeCashOrder 'Сумма' = ABSTRACT NUMERIC[16,2] (OutcomeCashOrder) IN documentSumGroup;
+sumCashOutcomeCashOrder 'Сумма' = ABSTRACT NUMERIC[16,2] (OutcomeCashOrder) IN documentSum;
 
 curSumOutcomeCashOrder 'Текущая сумма РКО' (departmentStore) =
     GROUP SUM sumCashOutcomeCashOrder(outcomeCashOrder) IF isPostedCashDocument(outcomeCashOrder)
@@ -111,11 +111,11 @@ bankAccountCollection = DATA Bank.Account (Collection);
 bankAccountCollection(collection) <- bankAccountStore(storeDepartmentStore(departmentStoreCollection(collection)))
     WHEN SET(departmentStoreCollection(collection));
 
-sumCashCollection 'Сумма инкассации' = DATA NUMERIC[16,2] (Collection) IN documentSumGroup;
+sumCashCollection 'Сумма инкассации' = DATA NUMERIC[16,2] (Collection) IN documentSum;
 castBasisCollection =
     FORMULA VARSTRING[100] '\'Инкассация №\' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT)';
 basisCollection 'Основание' (collection) =
-    castBasisCollection(seriesNumberCollection(collection), dateCollection(collection)) IN documentPrmGroup;
+    castBasisCollection(seriesNumberCollection(collection), dateCollection(collection)) IN documentPrm;
 
 dateCashDocument(collection) += dateCollection(collection);
 timeCashDocument(collection) += timeCollection(collection);
@@ -213,18 +213,18 @@ editCollection 'Редактировать' (collection) = ACTION EDITFORM Colle
 
 CLASS ABSTRACT CashOperation 'Операция с наличными';
 
-dateCashOperation 'Дата документа' = ABSTRACT DATE (CashOperation) IN documentHeaderGroup;
-timeCashOperation 'Время документа' = ABSTRACT TIME (CashOperation) IN documentHeaderGroup;
-dateTimeCashOperation 'Дата/время документа'(cashOperation) = dateTimeToDateTime(dateCashOperation(cashOperation), timeCashOperation(cashOperation)) IN documentHeaderGroup;
+dateCashOperation 'Дата документа' = ABSTRACT DATE (CashOperation) IN documentHeader;
+timeCashOperation 'Время документа' = ABSTRACT TIME (CashOperation) IN documentHeader;
+dateTimeCashOperation 'Дата/время документа'(cashOperation) = dateTimeToDateTime(dateCashOperation(cashOperation), timeCashOperation(cashOperation)) IN documentHeader;
 
-numberCashOperation 'Номер' (cashOperation) = ABSTRACT STRING[20] (CashOperation) IN documentPrmGroup;
+numberCashOperation 'Номер' (cashOperation) = ABSTRACT STRING[20] (CashOperation) IN documentPrm;
 
-basisCashOperation 'Основание' = ABSTRACT VARSTRING[100] (CashOperation) IN documentPrmGroup;
+basisCashOperation 'Основание' = ABSTRACT VARSTRING[100] (CashOperation) IN documentPrm;
 
 cashRegisterCashOperation = ABSTRACT CashRegister(CashOperation);
 cashRegisterModelCashOperation (cashOperation) = cashRegisterModelCashRegister(cashRegisterCashOperation(cashOperation));
 sidCashRegisterModelCashOperation 'Код модели' (cashOperation) = sidModel(cashRegisterModelCashOperation (cashOperation));
-numberCashRegisterCashOperation 'Касса' (cashOperation) = numberCashRegister(cashRegisterCashOperation(cashOperation)) IN documentPrmGroup;
+numberCashRegisterCashOperation 'Касса' (cashOperation) = numberCashRegister(cashRegisterCashOperation(cashOperation)) IN documentPrm;
 
 fiscalServiceCashOperation 'Движение денег в фискальном регистраторе' (cashOperation) = ABSTRACT ACTION LIST (CashOperation) CONFIRM;
 fiscalServiceCashRegisterCashOperation 'Движение денег в фискальном регистраторе' (cashOperation) = ACTION IF cashRegisterCashOperation(cashOperation) == currentCashRegister() THEN fiscalServiceCashOperation(cashOperation);
@@ -250,12 +250,12 @@ isIncomeCashOperation (cashOperation) = cashOperation IS IncomeCashOperation;
 @defineDocumentHeaderDepartmentStore(incomeCashOperation);
 
 cashRegisterIncomeCashOperation (incomeCashOperation) = DATA CashRegister (IncomeCashOperation);
-numberCashRegisterIncomeCashOperation 'Касса внесения денег' (incomeCashOperation) = numberCashRegister(cashRegisterIncomeCashOperation(incomeCashOperation)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
-sumCashIncomeCashOperation 'Сумма внесения' = DATA NUMERIC[16,2] (IncomeCashOperation) IN documentSumGroup;
+numberCashRegisterIncomeCashOperation 'Касса внесения денег' (incomeCashOperation) = numberCashRegister(cashRegisterIncomeCashOperation(incomeCashOperation)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+sumCashIncomeCashOperation 'Сумма внесения' = DATA NUMERIC[16,2] (IncomeCashOperation) IN documentSum;
 castBasisIncomeCashOperation =
     FORMULA VARSTRING[100] '\'Внесение денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
 basisIncomeCashOperation 'Основание' (incomeCashOperation) =
-    castBasisIncomeCashOperation(seriesNumberIncomeCashOperation(incomeCashOperation), numberCashRegisterIncomeCashOperation(incomeCashOperation), dateIncomeCashOperation(incomeCashOperation)) IN documentPrmGroup;
+    castBasisIncomeCashOperation(seriesNumberIncomeCashOperation(incomeCashOperation), numberCashRegisterIncomeCashOperation(incomeCashOperation), dateIncomeCashOperation(incomeCashOperation)) IN documentPrm;
 
 curSumIncomeCashOperation 'Текущая сумма внесенных денег' (cashRegister) =
     GROUP SUM sumCashIncomeCashOperation(incomeCashOperation)
@@ -302,12 +302,12 @@ isOutcomeCashOperation (cashOperation) = cashOperation IS OutcomeCashOperation;
 @defineDocumentHeaderDepartmentStore(outcomeCashOperation);
 
 cashRegisterOutcomeCashOperation (outcomeCashOperation) = DATA CashRegister (OutcomeCashOperation);
-numberCashRegisterOutcomeCashOperation 'Касса изъятия денег' (outcomeCashOperation) = numberCashRegister(cashRegisterOutcomeCashOperation(outcomeCashOperation)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
-sumCashOutcomeCashOperation 'Сумма изъятия' = DATA NUMERIC[16,2] (OutcomeCashOperation) IN documentSumGroup;
+numberCashRegisterOutcomeCashOperation 'Касса изъятия денег' (outcomeCashOperation) = numberCashRegister(cashRegisterOutcomeCashOperation(outcomeCashOperation)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+sumCashOutcomeCashOperation 'Сумма изъятия' = DATA NUMERIC[16,2] (OutcomeCashOperation) IN documentSum;
 castBasisOutcomeCashOperation =
     FORMULA VARSTRING[100] '\'Изъятие денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
 basisOutcomeCashOperation 'Основание' (outcomeCashOperation) =
-    castBasisOutcomeCashOperation(seriesNumberOutcomeCashOperation(outcomeCashOperation), numberCashRegisterOutcomeCashOperation(outcomeCashOperation), dateOutcomeCashOperation(outcomeCashOperation)) IN documentPrmGroup;
+    castBasisOutcomeCashOperation(seriesNumberOutcomeCashOperation(outcomeCashOperation), numberCashRegisterOutcomeCashOperation(outcomeCashOperation), dateOutcomeCashOperation(outcomeCashOperation)) IN documentPrm;
 
 curSumOutcomeCashOperation 'Текущая сумма изъятых денег' (cashRegister) =
     GROUP SUM sumCashOutcomeCashOperation(outcomeCashOperation)

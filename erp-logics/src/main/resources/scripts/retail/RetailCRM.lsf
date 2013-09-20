@@ -31,11 +31,11 @@ discountCardNumber (discountCard) = GROUP MAX discountCard BY numberDiscountCard
 legalEntityDiscountCard (discountCard) = DATA LegalEntity(DiscountCard);
 nameLegalEntityDiscountCard 'Держатель дисконтной карты' (discountCard) = nameLegalEntity(legalEntityDiscountCard(discountCard)) IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
-GROUP discountCardDateGroup 'Срок действия' : base;
-dateDiscountCard 'Дата выдачи' (discountCard) = DATA DATE (DiscountCard) IN discountCardDateGroup;
+GROUP discountCardDate 'Срок действия' : base;
+dateDiscountCard 'Дата выдачи' (discountCard) = DATA DATE (DiscountCard) IN discountCardDate;
 dateDiscountCard (discountCard) <- currentDate() WHEN SET(discountCard IS DiscountCard);
 
-dateToDiscountCard 'Дата окончания действия' (discountCard) = DATA DATE (DiscountCard) IN discountCardDateGroup;
+dateToDiscountCard 'Дата окончания действия' (discountCard) = DATA DATE (DiscountCard) IN discountCardDate;
 
 TABLE discountSkuGroupSku(DiscountSkuGroup, Sku);
 inDiscountSkuGroupSku 'Вкл' = ABSTRACT BOOLEAN (DiscountSkuGroup, Sku) PERSISTENT;
@@ -108,8 +108,8 @@ DESIGN discountCard FROM DEFAULT {
                         caption = 'Код';
                         ADD PROPERTY(idDiscountCard);
                     }
-                    ADD d.numberedGroup;
-                    ADD d.discountCardDateGroup;
+                    ADD d.numbered;
+                    ADD d.discountCardDate;
                 }
             }
         }
@@ -169,15 +169,15 @@ userSetPromotion 'Задается кассиром' (promotion) = DATA BOOLEAN 
 CLASS PromotionCondition 'Условие акции';
 TABLE promotionCondition (PromotionCondition);
 
-GROUP retailCRMGroup 'Реквизиты' : recognize;
+GROUP retailCRM 'Реквизиты' : recognize;
 
 namePromotionCondition 'Наименование' = DATA VARISTRING[200](PromotionCondition);
 
-dateFromPromotion 'ДАТА ОТ:' = DATA DATE (Promotion) IN retailCRMGroup NOT NULL;
-dateToPromotion 'ДАТА ДО:' = DATA DATE (Promotion) IN retailCRMGroup NOT NULL;
+dateFromPromotion 'ДАТА ОТ:' = DATA DATE (Promotion) IN retailCRM NOT NULL;
+dateToPromotion 'ДАТА ДО:' = DATA DATE (Promotion) IN retailCRM NOT NULL;
 
-timeOfFromPromotion 'ВРЕМЯ ОТ:' =  DATA TIME (Promotion) IN retailCRMGroup;
-timeOfToPromotion 'ВРЕМЯ ДО:' =  DATA TIME (Promotion) IN retailCRMGroup;
+timeOfFromPromotion 'ВРЕМЯ ОТ:' =  DATA TIME (Promotion) IN retailCRM;
+timeOfToPromotion 'ВРЕМЯ ДО:' =  DATA TIME (Promotion) IN retailCRM;
 
 TABLE promotionDOW (Promotion, DOW);
 skipPromotionDOW 'Исключить' = DATA BOOLEAN (Promotion, DOW);
@@ -365,7 +365,7 @@ DESIGN promotion FROM DEFAULT {
                 ADD PROPERTY(namePromotionGroupPromotion(sh));
                 ADD PROPERTY(userSetPromotion(sh));
             }
-            ADD sh.numberedGroup {
+            ADD sh.numbered {
                 type = COLUMNS;
                 columns = 1;
             }

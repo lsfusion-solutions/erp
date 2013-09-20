@@ -4,7 +4,7 @@ REQUIRE Invoice, Shipment;
 
 NAMESPACE Shipment;
 
-GROUP invoicesGroup 'Приемка по накладным' : base;
+GROUP invoices 'Приемка по накладным' : base;
 
 META defineInvoiceShipment(sign, stockProp, filter)
 
@@ -31,7 +31,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
 
     invoicesShipment 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF quantityShipmentDetailInvoiceShipment(invoice, shipment) , ', '
                                                     BY shipment
-                                                    ORDER invoice IN invoiceGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                    ORDER invoice IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
     shippedInvoiceDetail 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantityShipmentDetail(shipmentDetail) IF isPostedShipmentDetail(shipmentDetail)
                                                                        BY invoiceDetailShipmentDetail(shipmentDetail) PERSISTENT;
@@ -127,7 +127,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
                     EXEC overFillInvoiceUserShipmentDetailInvoiceDetail(d, invoiceDetail);
             }
         }
-    } IN invoiceGroup;
+    } IN invoice;
 
 // Создание поставки на основе нескольких инвойсов //
 
@@ -135,7 +135,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
     includeInvoiceUserShipment 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) MINCHARWIDTH 10 PREFCHARWIDTH 15;
     includeInvoicesUserShipment 'Накладные в приемке' (userShipment) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF includeInvoiceUserShipment(invoice, userShipment) , ', '
                                                         BY userShipment
-                                                        ORDER invoice IN invoicesGroup MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;
+                                                        ORDER invoice IN invoices MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;
     FORM includeInvoicesUserShipment 'Накладные'
         OBJECTS s = UserShipment FIXED PANEL
 
@@ -156,7 +156,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
         PROPERTIES(i,s) BACKGROUND backgroundShippedInvoice(i) includeInvoiceUserShipment BEFORE isPostedInvoice(i)
     ;
 
-    dialogIncludeInvoicesUserShipment 'Включить накладные в поставку' (userShipment) = ACTION FORM includeInvoicesUserShipment OBJECTS s = userShipment MODAL IN invoicesGroup;
+    dialogIncludeInvoicesUserShipment 'Включить накладные в поставку' (userShipment) = ACTION FORM includeInvoicesUserShipment OBJECTS s = userShipment MODAL IN invoices;
 
     shipmentDimensionInvoiceDetail = ABSTRACT ShipmentDimension (InvoiceDetail);
     nameShipmentDimensionInvoiceDetail 'Регистр хранения' (detail) = nameShipmentDimension(shipmentDimensionInvoiceDetail(detail));
@@ -179,8 +179,8 @@ META defineInvoiceShipment(sign, stockProp, filter)
         FOR userShipmentUserShipmentDetail(detail) == userShipment DO {
             EXEC fillInvoiceDetailUserShipmentDetailDimension(detail, dimension);
         }
-    } IN invoicesGroup;
-    fillInvoiceDetailUserShipment 'Привязать поставку к накладным' (userShipment) = fillInvoiceDetailUserShipmentDimension(userShipment, shipmentDimensionUserShipment(userShipment)) IN invoicesGroup;
+    } IN invoices;
+    fillInvoiceDetailUserShipment 'Привязать поставку к накладным' (userShipment) = fillInvoiceDetailUserShipmentDimension(userShipment, shipmentDimensionUserShipment(userShipment)) IN invoices;
 
     WHEN SESSION FORMS userShipment
         (CHANGED(shipmentDimensionUserShipmentDetail(detail)) OR CHANGED(skuUserShipmentDetail(detail))) AND NOT invoiceDetailUserShipmentDetail(detail) AND s==shipmentDimensionUserShipmentDetail(detail)
@@ -193,10 +193,10 @@ META defineInvoiceShipment(sign, stockProp, filter)
     ;
     EXTEND DESIGN userShipment {
         headerCreateDetail {
-            ADD s.invoiceGroup {
+            ADD s.invoice {
                 type = CONTAINERV;
             }
-            ADD s.invoicesGroup {
+            ADD s.invoices {
                 type = CONTAINERV;
             }
         }

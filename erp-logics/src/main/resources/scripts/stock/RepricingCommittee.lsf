@@ -10,7 +10,7 @@ nameRepricingCommittee 'Наименование' = DATA VARISTRING[150](Reprici
 nameCommittee(committee) += nameRepricingCommittee(committee) IF committee IS RepricingCommittee;
 
 repricingCommitteeStock 'Комиссия для переоценки' = DATA RepricingCommittee (Stock);
-nameRepricingCommitteeStock 'Комиссия для переоценки' (stock) = nameRepricingCommittee(repricingCommitteeStock(stock)) IN committeeGroup;
+nameRepricingCommitteeStock 'Комиссия для переоценки' (stock) = nameRepricingCommittee(repricingCommitteeStock(stock)) IN committee;
 isRepricingCommitteeStock 'По умолчанию' (repricingCommittee, stock) = repricingCommitteeStock(stock) == repricingCommittee;
 CONSTRAINT repricingCommitteeStock(stock) AND NOT inCommitteeStock(repricingCommitteeStock(stock), stock)
     CHECKED BY repricingCommitteeStock MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
@@ -77,10 +77,10 @@ FORM repricingCommitteeDialog 'Комиссии для переоценки'
 // ----------------------------------- Макрос для задания комиссии для документов ------------------------------------------ //
 
 META defineDocumentHeaderRepricingCommittee(object, stockProp)
-    numberDisposal###object '№ распоряжения на переоценку' (object) = DATA VARSTRING[30] (###object) IN documentPrmGroup;
+    numberDisposal###object '№ распоряжения на переоценку' (object) = DATA VARSTRING[30] (###object) IN documentPrm;
 
     repricingCommittee###object (object) = DATA RepricingCommittee(###object);
-    nameRepricingCommittee###object 'Комиссия для переоценки' (object) = nameRepricingCommittee(repricingCommittee###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    nameRepricingCommittee###object 'Комиссия для переоценки' (object) = nameRepricingCommittee(repricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
     repricingCommittee###object (object) <- repricingCommitteeStock(stockProp###object(object))
         WHEN CHANGED(stockProp###object(object));
 
@@ -93,10 +93,10 @@ META defineDocumentHeaderRepricingCommittee(object, stockProp)
     namePositionChairman###object 'Должность' (object) = namePositionChairmanCommittee(repricingCommittee###object(object));
 END
 META defineDocumentHeaderAbstractRepricingCommittee(object)
-    numberDisposal###object '№ распоряжения на переоценку' (object) = ABSTRACT VARSTRING[30] (###object) IN documentPrmGroup;
+    numberDisposal###object '№ распоряжения на переоценку' (object) = ABSTRACT VARSTRING[30] (###object) IN documentPrm;
 
     repricingCommittee###object (object) = ABSTRACT RepricingCommittee(###object);
-    nameRepricingCommittee###object 'Комиссия для переоценки' (object) = nameRepricingCommittee(repricingCommittee###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    nameRepricingCommittee###object 'Комиссия для переоценки' (object) = nameRepricingCommittee(repricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
     inCommittee###object##Employee (object, employee) = inCommitteeEmployee(repricingCommittee###object (object), employee);
     nameEmployeeCommittee###object 'Члены комиссии' (object) = namePositionEmployeeCommittee(repricingCommittee###object (object));

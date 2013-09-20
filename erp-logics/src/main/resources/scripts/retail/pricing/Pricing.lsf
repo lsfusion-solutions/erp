@@ -4,7 +4,7 @@ REQUIRE EmployeeStock, PriceRoundStore, Machinery, PricingOperation, PriceListCa
 
 // ----------------------------------- Создавать акт расценки по умолчанию для отдела ------------------------------------------ //
 
-costLedgerDepartmentStore 'Учет по себестоимости' = DATA BOOLEAN (DepartmentStore) IN bookkeepingGroup;
+costLedgerDepartmentStore 'Учет по себестоимости' = DATA BOOLEAN (DepartmentStore) IN bookkeeping;
 EXTEND FORM departmentStore PROPERTIES(d) costLedgerDepartmentStore;
 EXTEND DESIGN departmentStore {
     headerExtraParams {
@@ -31,7 +31,7 @@ nameCommittee(committee) += namePricingCommittee(committee) IF committee IS Pric
 // ----------------------------------- Комиссия по умолчанию для отдела ------------------------------------------ //
 
 pricingCommitteeDepartmentStore 'Комиссия для акта расценки (ИД)' = DATA PricingCommittee (DepartmentStore);
-namePricingCommitteeDepartmentStore 'Комиссия для акта расценки' (departmentStore) = namePricingCommittee(pricingCommitteeDepartmentStore(departmentStore)) IN committeeGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
+namePricingCommitteeDepartmentStore 'Комиссия для акта расценки' (departmentStore) = namePricingCommittee(pricingCommitteeDepartmentStore(departmentStore)) IN committee MINCHARWIDTH 20 PREFCHARWIDTH 30;
 isDefaultPricingCommitteeDepartmentStore 'По умолчанию' (pricingCommittee, departmentStore) = pricingCommitteeDepartmentStore(departmentStore) == pricingCommittee;
 CONSTRAINT pricingCommitteeDepartmentStore(departmentStore) AND NOT inCommitteeStock(pricingCommitteeDepartmentStore(departmentStore), departmentStore)
     CHECKED BY pricingCommitteeDepartmentStore MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
@@ -103,35 +103,35 @@ FORM pricingCommitteeDialog 'Комиссии для акта расценки'
 
 // ----------------------------------- Макрос для задания комиссии для документов ------------------------------------------ //
 
-GROUP pricingCommitteeGroup 'Комиссия' : public;
+GROUP pricingCommittee 'Комиссия' : public;
 
 META defineDocumentHeaderPricingCommittee(object, stockClass, prefix)
     prefix###pricingCommittee###object (object) = DATA PricingCommittee(###object);
 
-    name###prefix###pricingCommittee###object 'Комиссия для акта расценки' (object) = namePricingCommittee(prefix###pricingCommittee###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    name###prefix###pricingCommittee###object 'Комиссия для акта расценки' (object) = namePricingCommittee(prefix###pricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
     prefix###pricingCommittee###object (object) <- pricingCommitteeDepartmentStore(stockClass###object(object))
         WHEN CHANGED(stockClass###object(object));
 
     CONSTRAINT prefix###pricingCommittee###object (object) AND NOT inCommitteeStock(prefix###pricingCommittee###object(object), stockClass###object(object))
         CHECKED BY prefix###pricingCommittee###object MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
 
-    name###prefix###FormedMan###object 'Цены сформировал' (object) = nameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
-    name###prefix###CheckedMan###object 'Реестр проверил' (object) = nameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
-    name###prefix###LabeledMan###object 'Товар промаркировал' (object) = nameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
-    name###prefix###AccountantMan###object 'Бухгалтер' (object) = nameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
-    name###prefix###HeadMan###object 'Зав. магазином' (object) = nameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
+    name###prefix###FormedMan###object 'Цены сформировал' (object) = nameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    name###prefix###CheckedMan###object 'Реестр проверил' (object) = nameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    name###prefix###LabeledMan###object 'Товар промаркировал' (object) = nameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    name###prefix###AccountantMan###object 'Бухгалтер' (object) = nameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    name###prefix###HeadMan###object 'Зав. магазином' (object) = nameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
 
 END
 META defineDocumentHeaderAbstractPricingCommittee(object, stockClass, prefix)
     prefix###pricingCommittee###object (object) = ABSTRACT PricingCommittee(###object) PERSISTENT;
 
-    name###prefix###pricingCommittee###object 'Комиссия для акта расценки' (object) = namePricingCommittee(prefix###pricingCommittee###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    name###prefix###pricingCommittee###object 'Комиссия для акта расценки' (object) = namePricingCommittee(prefix###pricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-    name###prefix###FormedMan###object 'Цены сформировал' (object) = nameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
-    name###prefix###CheckedMan###object 'Реестр проверил' (object) = nameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
-    name###prefix###LabeledMan###object 'Товар промаркировал' (object) = nameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
-    name###prefix###AccountantMan###object 'Бухгалтер' (object) = nameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
-    name###prefix###HeadMan###object 'Зав. магазином' (object) = nameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommitteeGroup;
+    name###prefix###FormedMan###object 'Цены сформировал' (object) = nameFormedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    name###prefix###CheckedMan###object 'Реестр проверил' (object) = nameCheckedManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    name###prefix###LabeledMan###object 'Товар промаркировал' (object) = nameLabeledManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    name###prefix###AccountantMan###object 'Бухгалтер' (object) = nameAccountantManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
+    name###prefix###HeadMan###object 'Зав. магазином' (object) = nameHeadManPricingCommittee(prefix###pricingCommittee###object(object)) IN pricingCommittee;
 
 END
 
@@ -491,7 +491,7 @@ FORM pricing 'Акт расценки (печать)'
     FILTERS pricingPricingDetail(d) == p
 ;
 
-printPricing 'Акт расценки' (pricing) = ACTION FORM pricing OBJECTS p = pricing PRINT  IMAGE 'print.png' IN printGroup;
+printPricing 'Акт расценки' (pricing) = ACTION FORM pricing OBJECTS p = pricing PRINT  IMAGE 'print.png' IN print;
 
 // --------------------------- Формы --------------------------------- //
 editPricing 'Редактировать' = ABSTRACT ACTION LIST (Pricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -535,7 +535,7 @@ DESIGN userPricing FROM DEFAULT{
             NEW headerRow1 {
                 fill = 1;
 
-                ADD p.documentHeaderGroup {
+                ADD p.documentHeader {
                     type = CONTAINERH;
                     ADD PROPERTY(isPostedUserPricing) { preferredCharWidth = 10; }
                     ADD PROPERTY(nameDepartmentStoreUserPricing);
@@ -547,16 +547,16 @@ DESIGN userPricing FROM DEFAULT{
                 }
 
                 NEW params {
-                    ADD p.documentPrmGroup {
+                    ADD p.documentPrm {
                         columns = 2;
                     }
                 }
-                ADD p.pricingCommitteeGroup {
+                ADD p.pricingCommittee {
                     columns = 2;
                 }
             }
 
-            ADD p.documentSumGroup {
+            ADD p.documentSum {
                 columns = 1;
             }
         }
@@ -639,12 +639,12 @@ DESIGN pricings FROM DEFAULT {
             NEW documentHistory {
                 caption = 'История';
 
-                ADD p.createdGroup;
-                ADD p.postedGroup;
+                ADD p.created;
+                ADD p.posted;
             }
             NEW printTab {
                 caption = 'Печатные формы';
-                ADD p.printGroup;
+                ADD p.print;
             }
             NEW actionContainer {
                 caption = 'Действия';
@@ -742,7 +742,7 @@ EXTEND FORM userPricing
 //    PROPERTIES (d) overLimitPriceUserPricingDetail, overPricingPriceUserPricingDetail, pricingPriceUserPricingDetail, minRetailPriceUserPricingDetail
 ;
 EXTEND DESIGN userPricing{
-    p.documentPrmGroup{
+    p.documentPrm{
         ADD PROPERTY (nameOperationUserPricing) BEFORE PROPERTY(nameCurrencyUserPricing);
     }
 }

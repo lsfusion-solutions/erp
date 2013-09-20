@@ -60,7 +60,7 @@ supplierStockDocument(consumption) += stockConsumption(consumption);
 
 //--  Связь накладной и поставки
 
-//GROUP orderGroup 'Информация о заказе' : public;
+//GROUP order 'Информация о заказе' : public;
 
 componentDetailConsumptionDetail = ABSTRACT ComponentDetail (ConsumptionDetail) PERSISTENT;
 componentDetailUserConsumptionDetail = DATA ComponentDetail (UserConsumptionDetail);
@@ -79,7 +79,7 @@ quantityConsumptionDetailOrderConsumption (order, consumption) = GROUP SUM quant
 
 ordersConsumption 'Заказы' (consumption) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF quantityConsumptionDetailOrderConsumption(order, consumption) , ', '
                                                 BY consumption
-                                                ORDER order IN orderGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 consumedComponentDetail 'Кол-во (списано)' (componentDetail) = GROUP SUM quantityConsumptionDetail(consumptionDetail) IF isPostedConsumptionDetail(consumptionDetail)
                                                                    BY componentDetailConsumptionDetail(consumptionDetail) PERSISTENT;
@@ -200,7 +200,7 @@ fillOrderUserConsumption 'Заполнить на основе производ�
             ASSIGN quantityUserConsumptionDetail (d) <- toConsumeComponentDetail(componentDetail);              // возможно надо quantityComponentDetail   ?
         }
     }
-} IN orderGroup;
+} IN order;
 
 
 // Проводим по регистру
@@ -334,7 +334,7 @@ DESIGN userConsumption FROM DEFAULT{
             NEW headerRow1 {
                 type = CONTAINERV;
 
-                ADD o.documentHeaderGroup {
+                ADD o.documentHeader {
                     type = CONTAINERH;
                     ADD PROPERTY(isPostedUserConsumption) { preferredCharWidth = 10; }
                     ADD PROPERTY(nameStockUserConsumption);
@@ -346,16 +346,16 @@ DESIGN userConsumption FROM DEFAULT{
                 }
                 NEW headerRow12 {
                     type = CONTAINERV;
-                    ADD o.documentPrmGroup {
+                    ADD o.documentPrm {
                         type = CONTAINERH;
                     }
-                    ADD o.orderGroup{
+                    ADD o.order{
                         type = CONTAINERH;
                     }
                 }
             }
 
-            ADD o.documentSumGroup {
+            ADD o.documentSum {
                 columns = 1;
             }
         }
@@ -465,8 +465,8 @@ DESIGN consumptions FROM DEFAULT {
             NEW documentHistory {
                 caption = 'История';
 
-                ADD o.createdGroup;
-                ADD o.postedGroup;
+                ADD o.created;
+                ADD o.posted;
             }
             NEW printTab {
                 caption = 'Печатные формы';

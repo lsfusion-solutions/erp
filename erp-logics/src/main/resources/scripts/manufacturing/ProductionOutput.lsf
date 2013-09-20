@@ -65,7 +65,7 @@ supplierStockDocument(output) += stockOutput(output);
 
 //--  Связь заказа и акта производства
 
-GROUP orderGroup 'Информация о заказе' : public;
+GROUP order 'Информация о заказе' : public;
 
 productDetailOutputDetail = ABSTRACT ProductDetail (OutputDetail) PERSISTENT;
 productDetailUserOutputDetail = DATA ProductDetail (UserOutputDetail);
@@ -84,7 +84,7 @@ quantityOutputDetailOrderOutput (order, output) = GROUP SUM quantityOutputDetail
 
 ordersOutput 'Заказы' (output) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF quantityOutputDetailOrderOutput(order, output) , ', '
                                                 BY output
-                                                ORDER order IN orderGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 outputProductDetail 'Кол-во (произведено)' (productDetail) = GROUP SUM quantityOutputDetail(outputDetail) IF isPostedOutputDetail(outputDetail)
                                                                    BY productDetailOutputDetail(outputDetail) PERSISTENT;
@@ -185,7 +185,7 @@ fillOrderUserOutput 'Заполнить на основе производств
             ASSIGN quantityUserOutputDetail (d) <- toOutputProductDetail(productDetail);              // возможно надо quantityProductDetail   ?
         }
     }
-} IN orderGroup;
+} IN order;
 
 
 // Проводим по регистру
@@ -222,7 +222,7 @@ outputProductsSumProductDetail(productDetail) <-
          CHANGED (productsPriceProductDetail(productDetail)) OR
          CHANGED(currencyProductDetail(productDetail));
 
-outputProductsSumProductDetailOrder 'Сумма произведенного изделия'(order) = GROUP SUM outputProductsSumProductDetail(detail) BY orderProductDetail(detail) IN documentSumGroup;
+outputProductsSumProductDetailOrder 'Сумма произведенного изделия'(order) = GROUP SUM outputProductsSumProductDetail(detail) BY orderProductDetail(detail) IN documentSum;
 
 backgroundOutputOrder 'Цвет' (order) = RGB(255, 224, 255) IF order IS Order;
 showOutputOrder (order) =  order IS Order AND NOT createOutputOrder(order);
@@ -351,7 +351,7 @@ DESIGN userOutput FROM DEFAULT{
             NEW headerRow1 {
                 type = CONTAINERV;
 
-                ADD o.documentHeaderGroup {
+                ADD o.documentHeader {
                     type = CONTAINERH;
                     ADD PROPERTY(isPostedUserOutput) { preferredCharWidth = 10; }
                     ADD PROPERTY(nameStockUserOutput);
@@ -365,17 +365,17 @@ DESIGN userOutput FROM DEFAULT{
                     type = CONTAINERV;
                     NEW headerRow122 {
                         type = CONTAINERV;
-                        ADD o.documentPrmGroup {
+                        ADD o.documentPrm {
                             type = CONTAINERH;
                         }
-                        ADD o.orderGroup{
+                        ADD o.order{
                             type = CONTAINERH;
                         }
                     }
                 }
             }
 
-            ADD o.documentSumGroup {
+            ADD o.documentSum {
                 columns = 1;
             }
         }
@@ -482,8 +482,8 @@ DESIGN outputs FROM DEFAULT {
             NEW documentHistory {
                 caption = 'История';
 
-                ADD o.createdGroup;
-                ADD o.postedGroup;
+                ADD o.created;
+                ADD o.posted;
             }
             NEW printTab {
                 caption = 'Печатные формы';

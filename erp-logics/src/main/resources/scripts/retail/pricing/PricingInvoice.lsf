@@ -116,11 +116,11 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     @defineDocumentAggregation(invoice, concrete###pricing, needToPricingInvoice);
 
 
-    printPricingInvoice 'Акт расценки' (invoice) = printPricing(concrete###pricingInvoice(invoice)) IMAGE 'print.png' IN printGroup;
+    printPricingInvoice 'Акт расценки' (invoice) = printPricing(concrete###pricingInvoice(invoice)) IMAGE 'print.png' IN print;
     EXTEND FORM invoices
         PROPERTIES(i) FORCE PANEL printPricingInvoice SHOWIF createPricingInvoice(i)
     ;
-    EXTEND DESIGN invoices { printTab { ADD i.printGroup { align=LEADING; } } }
+    EXTEND DESIGN invoices { printTab { ADD i.print { align=LEADING; } } }
 
     pricingPricingDetail(detail) += concrete###pricing###concrete###pricingDetail(detail);
     @defineDocumentDetailIndex(concrete###pricing);
@@ -217,7 +217,7 @@ META defineInvoicePricingRelation(sign, stockProp)
 
     invoicesPricing 'Накладные' (pricing) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF quantityPricingDetailInvoicePricing(invoice, pricing) , ', '
                                                     BY pricing
-                                                    ORDER invoice IN invoiceGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                    ORDER invoice IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
     pricingInvoiceDetail 'Кол-во (расценено)' (invoiceDetail) = GROUP SUM quantityPricingDetail(pricingDetail) IF isPostedPricingDetail(pricingDetail)
                                                                        BY invoiceDetailPricingDetail(pricingDetail) PERSISTENT;
@@ -315,13 +315,13 @@ META defineInvoicePricingRelation(sign, stockProp)
                 ASSIGN batchUserPricingDetail(d) <- batchInvoiceDetail(invoiceDetail);
             }
         }
-    } IN invoiceGroup;
+    } IN invoice;
 
     EXTEND FORM userPricing
         PROPERTIES(p) fillInvoiceUserPricing, invoicesPricing READONLY
         PROPERTIES(d) descriptionIndexInvoiceDetailUserPricingDetail BEFORE deletepd
     ;
-    EXTEND DESIGN userPricing { params { ADD p.invoiceGroup; } }
+    EXTEND DESIGN userPricing { params { ADD p.invoice; } }
 
     EXTEND FORM pricings
         PROPERTIES(p) READONLY invoicesPricing, descriptionDocumentPricing

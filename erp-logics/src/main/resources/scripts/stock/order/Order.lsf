@@ -32,7 +32,7 @@ CLASS ABSTRACT OrderDetail 'Строка заказа' : DocumentDetail;
 @defineDocumentAbstractLegalEntity(order, supplier, 'Поставщик');
 @defineDocumentAbstractLegalEntity(order, customer, 'Покупатель');
 
-closeDateOrder 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrmGroup PERSISTENT;
+closeDateOrder 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm PERSISTENT;
 
 @defineDocumentAbstractDataStock(order, stock, 'Склад поставщика', supplier);
 @defineDocumentAbstractDataStock(order, stock, 'Склад покупателя', customer);
@@ -127,12 +127,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceDataTimePrefix(order, shipment, ' поставки');
     @deriveDocumentHeaderTimePrefix(UserOrder, shipment);
 
-    closeDateOrder 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrmGroup;
-    closeDateUserOrder 'Дата автоматического закрытия' = DATA DATE (UserOrder) IN documentPrmGroup;
+    closeDateOrder 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm;
+    closeDateUserOrder 'Дата автоматического закрытия' = DATA DATE (UserOrder) IN documentPrm;
     closeDateOrder(order) += closeDateUserOrder(order);
     Order.closeDateOrder (order) += closeDateOrder(order);
-    closeDataDateOrderDetail 'Дата автоматического закрытия' = ABSTRACT DATE (OrderDetail) IN documentPrmGroup;
-    closeDataDateUserOrderDetail 'Дата автоматического закрытия' = DATA DATE (UserOrderDetail) IN documentPrmGroup;
+    closeDataDateOrderDetail 'Дата автоматического закрытия' = ABSTRACT DATE (OrderDetail) IN documentPrm;
+    closeDataDateUserOrderDetail 'Дата автоматического закрытия' = DATA DATE (UserOrderDetail) IN documentPrm;
     closeDataDateOrderDetail(detail) += closeDataDateUserOrderDetail(detail);
 
     closeDateOrderDetail 'Дата автоматического закрытия' (detail) = OVERRIDE closeDateOrder(orderOrderDetail(detail)), closeDataDateOrderDetail(detail) PERSISTENT;
@@ -317,7 +317,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                     fill = 1;
                     type = CONTAINERV;
 
-                    ADD o.documentHeaderGroup {
+                    ADD o.documentHeader {
                         type = CONTAINERV;
                         NEW first {
                             type = CONTAINERH;
@@ -354,7 +354,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                         NEW headerMainParams {
                             caption = 'Основные параметры';
                             type = CONTAINERV;
-                            ADD o.documentPrmGroup {
+                            ADD o.documentPrm {
                                 columns = 2;
                             }
                         }
@@ -393,7 +393,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                     }
                 }
 
-                ADD o.documentSumGroup {
+                ADD o.documentSum {
                     columns = 1;
                 }
             }
@@ -507,8 +507,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                     caption = 'История';
                     type = CONTAINERV;
 
-                    ADD o.createdGroup;
-                    ADD o.postedGroup;
+                    ADD o.created;
+                    ADD o.posted;
                 }
                 NEW printTab {
                     caption = 'Печатные формы';

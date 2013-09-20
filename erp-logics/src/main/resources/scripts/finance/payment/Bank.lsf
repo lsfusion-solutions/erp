@@ -66,21 +66,21 @@ TABLE account (Account);
 
 bankAccount = DATA Bank (Account);
 
-GROUP accountGroup 'Банковская информация' : base;
+GROUP account 'Банковская информация' : base;
 
 currencyAccount = DATA Currency (Account) NOT NULL;
 currencyAccount(account) <- currencyLegalEntity(legalEntityAccount(account))
     WHEN SET(legalEntityAccount(account));
-nameCurrencyAccount 'Валюта счета' = nameCurrency(currencyAccount(account)) IN accountGroup;
+nameCurrencyAccount 'Валюта счета' = nameCurrency(currencyAccount(account)) IN account;
 
-numberAccount 'Номер расчетного счета'  = DATA VARSTRING[20] (Account) IN accountGroup FIXEDCHARWIDTH 13;
+numberAccount 'Номер расчетного счета'  = DATA VARSTRING[20] (Account) IN account FIXEDCHARWIDTH 13;
 
-nameBankAccount 'Наименование банка' (account) = nameBank(bankAccount(account)) IN accountGroup;
-addressBankAccount 'Адрес банка' (account) = addressBank(bankAccount(account)) IN accountGroup;
-MFOBankAccount 'Код МФО банка' (account) = MFOBank(bankAccount(account)) IN accountGroup;
-departmentBankAccount 'Отдел банка' (account) = departmentBank(bankAccount(account)) IN accountGroup;
-CBUBankAccount 'ЦБУ банка' (account) = CBUBank(bankAccount(account)) IN accountGroup;
-noteAccount 'Примечание'  = DATA VARSTRING[50] (Account) IN accountGroup;
+nameBankAccount 'Наименование банка' (account) = nameBank(bankAccount(account)) IN account;
+addressBankAccount 'Адрес банка' (account) = addressBank(bankAccount(account)) IN account;
+MFOBankAccount 'Код МФО банка' (account) = MFOBank(bankAccount(account)) IN account;
+departmentBankAccount 'Отдел банка' (account) = departmentBank(bankAccount(account)) IN account;
+CBUBankAccount 'ЦБУ банка' (account) = CBUBank(bankAccount(account)) IN account;
+noteAccount 'Примечание'  = DATA VARSTRING[50] (Account) IN account;
 
 EXTEND CLASS Account : PaymentLedger.Account;
 nameAccount(account) += numberAccount(account);
@@ -139,7 +139,7 @@ userAccountLegalEntity = DATA Account (LegalEntity);
 CONSTRAINT legalEntityAccount(userAccountLegalEntity(legalEntity)) != legalEntity CHECKED MESSAGE 'ошибка: Р/сч. по умолчанию должен соответствовать р/сч. Ю.Л.';
 
 accountLegalEntity (legalEntity) =  OVERRIDE defaultAccountLegalEntity(legalEntity), userAccountLegalEntity(legalEntity);
-numberAccountLegalEntity 'Основной р/сч.' (legalEntity) = numberAccount(accountLegalEntity(legalEntity)) IN lawGroup;
+numberAccountLegalEntity 'Основной р/сч.' (legalEntity) = numberAccount(accountLegalEntity(legalEntity)) IN law;
 
 equalsLegalEntityAccount 'Основной' (legalEntity, account) = userAccountLegalEntity(legalEntity) == account;
 
@@ -165,10 +165,10 @@ EXTEND DESIGN legalEntity {
 // ------------------------ Макросы ------------------------ //
 
 META defineDocumentAccount(object, contact, caption)
-    numberAccount###contact###object 'Расчетный счет'###caption (object) = numberAccountLegalEntity(contact###object(object)) IN documentPrmGroup;
-    nameBank###contact###object 'Банк'###caption (object) = nameBankAccount(accountLegalEntity(contact###object(object))) IN documentPrmGroup;
-    addressBank###contact###object 'Адрес банка'###caption (object) = addressBankAccount(accountLegalEntity(contact###object(object))) IN documentPrmGroup;
-    departmentBank###contact###object 'Отдел банка'###caption (object) = departmentBankAccount(accountLegalEntity(contact###object(object))) IN documentPrmGroup;
-    CBUBank###contact###object 'ЦБУ банка'###caption (object) = CBUBankAccount(accountLegalEntity(contact###object(object))) IN documentPrmGroup;
-    MFOBank###contact###object 'Код МФО банка'###caption (object) = MFOBankAccount(accountLegalEntity(contact###object(object))) IN documentPrmGroup;
+    numberAccount###contact###object 'Расчетный счет'###caption (object) = numberAccountLegalEntity(contact###object(object)) IN documentPrm;
+    nameBank###contact###object 'Банк'###caption (object) = nameBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
+    addressBank###contact###object 'Адрес банка'###caption (object) = addressBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
+    departmentBank###contact###object 'Отдел банка'###caption (object) = departmentBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
+    CBUBank###contact###object 'ЦБУ банка'###caption (object) = CBUBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
+    MFOBank###contact###object 'Код МФО банка'###caption (object) = MFOBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
 END

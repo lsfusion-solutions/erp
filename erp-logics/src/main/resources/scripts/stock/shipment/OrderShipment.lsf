@@ -19,15 +19,15 @@ META defineOrderShipment(sign, stockProp)
         CHECKED BY orderUserShipmentDetail
             MESSAGE 'Поставщик и покупатель в заказе и поставке должны соответствовать друг другу';
 
-    descriptionOrderShipmentDetail 'Заказ' (shipmentDetail) = descriptionOrder(orderShipmentDetail(shipmentDetail)) IN orderGroup;
-    descriptionOrderUserShipmentDetail 'Заказ' (userShipmentDetail) = descriptionOrder(orderUserShipmentDetail(userShipmentDetail)) IN orderGroup;
+    descriptionOrderShipmentDetail 'Заказ' (shipmentDetail) = descriptionOrder(orderShipmentDetail(shipmentDetail)) IN order;
+    descriptionOrderUserShipmentDetail 'Заказ' (userShipmentDetail) = descriptionOrder(orderUserShipmentDetail(userShipmentDetail)) IN order;
 
     quantityShipmentDetailOrderShipment (order, shipment) = GROUP SUM quantityShipmentDetail(shipmentDetail) BY orderShipmentDetail(shipmentDetail), shipmentShipmentDetail(shipmentDetail);
     Shipment.quantityShipmentDetailOrderShipment (order, shipment) += quantityShipmentDetailOrderShipment (order, shipment);
 
     ordersShipment 'Заказы' (shipment) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF quantityShipmentDetailOrderShipment(order, shipment) , ', '
                                                BY shipment
-                                               ORDER order IN orderGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                               ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 //-- Подсчет поставленного к-ва по заказу
 
@@ -43,7 +43,7 @@ META defineOrderShipment(sign, stockProp)
     toShipOrderDetailStockOrder 'Не поставлено по складу' (stock, order) = GROUP SUM toShipOrderDetail(orderDetail) IF toShipOrderDetail(orderDetail) > 0
                                                                                      BY stockProp###orderDetail(orderDetail), orderOrderDetail(orderDetail);
 
-    shippedOrderDetailOrder 'Кол-во (поставлено)' (order) = GROUP SUM shippedOrderDetail(orderDetail) BY orderOrderDetail(orderDetail) IN documentSumGroup PERSISTENT;
+    shippedOrderDetailOrder 'Кол-во (поставлено)' (order) = GROUP SUM shippedOrderDetail(orderDetail) BY orderOrderDetail(orderDetail) IN documentSum PERSISTENT;
 
     // Создание поставки на основе заказа //
     FORM shipmentOrders 'Заказы'###sign
@@ -122,7 +122,7 @@ META defineOrderShipment(sign, stockProp)
                     EXEC overFillOrderUserShipmentDetailOrderDetail(d, orderDetail);
             }
         }
-    } IN orderGroup;
+    } IN order;
 
     EXTEND FORM userOrder
         PROPERTIES(o) READONLY shippedOrderDetailOrder
@@ -138,7 +138,7 @@ META defineOrderShipment(sign, stockProp)
         PROPERTIES(s) fillOrderUserShipment, ordersShipment READONLY
         PROPERTIES(d) descriptionOrderUserShipmentDetail BEFORE deletesd
     ;
-    EXTEND DESIGN userShipment { headerCreateDetail { ADD s.orderGroup { type = CONTAINERV; }}}
+    EXTEND DESIGN userShipment { headerCreateDetail { ADD s.order { type = CONTAINERV; }}}
 
 
     EXTEND FORM shipments

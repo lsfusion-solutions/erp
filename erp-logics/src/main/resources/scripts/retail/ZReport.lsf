@@ -36,13 +36,13 @@ TABLE zReport (ZReport);
 castBasisZReport =
     FORMULA VARSTRING[100] '\'Z-отчет №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
 
-numberZReport 'Номер Z-отчета' (zReport) = DATA VARSTRING[21](ZReport) IN documentPrmGroup;
+numberZReport 'Номер Z-отчета' (zReport) = DATA VARSTRING[21](ZReport) IN documentPrm;
 cashRegisterZReport (zReport) = DATA CashRegister(ZReport);
-numberCashRegisterZReport 'Касса Z-отчета' (zReport) = numberCashRegister(cashRegisterZReport(zReport)) IN documentPrmGroup;
+numberCashRegisterZReport 'Касса Z-отчета' (zReport) = numberCashRegister(cashRegisterZReport(zReport)) IN documentPrm;
 zReportNumberCashRegister (numberZReport, numberCashRegister) = GROUP AGGR zReport BY numberZReport (zReport), numberCashRegisterZReport (zReport) WHERE zReport IS ZReport;
 
 maxNumberZReport(cashRegister) = GROUP MAX numberZReport(zReport)  BY cashRegisterZReport (zReport);
-basisZReport 'Основание' (zReport) = castBasisZReport(numberZReport(zReport), numberCashRegisterZReport(zReport), dateZReport(zReport)) IN documentPrmGroup;
+basisZReport 'Основание' (zReport) = castBasisZReport(numberZReport(zReport), numberCashRegisterZReport(zReport), dateZReport(zReport)) IN documentPrm;
 
 dateCashDocument(zReport) += dateZReport(zReport);
 timeCashDocument(zReport) += timeZReport(zReport);
@@ -172,21 +172,21 @@ batchReceiptDetail(detail) += batchReceiptReturnDetail(detail);
 explicitBatchLedgerReceipt(receipt) = explicitBatchLedgerDepartmentStore(departmentStoreZReport(zReportReceipt(receipt)));
 notExplicitBatchLedgerReceipt(receipt) = departmentStoreZReport(zReportReceipt(receipt)) AND NOT explicitBatchLedgerReceipt(receipt);
 
-numberReceipt 'Номер чека' (receipt) = DATA INTEGER (Receipt) IN documentHeaderGroup;
+numberReceipt 'Номер чека' (receipt) = DATA INTEGER (Receipt) IN documentHeader;
 numberReceiptReceiptDetail 'Номер чека' (receiptDetail) = numberReceipt(receiptReceiptDetail(receiptDetail));
 
 maxNumberReceiptZReport 'Максимальный номер чека' (zReport) = GROUP MAX numberReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT;
 
 receiptZReportNumberCashRegister (zReport, receipt, cashRegister) = GROUP AGGR receipt BY numberZReport(zReportReceipt(receipt)), numberReceipt(receipt), numberCashRegister(cashRegisterZReport(zReportReceipt(receipt))) WHERE receipt IS Receipt;
 
-GROUP receiptDiscountGroup 'Дисконтная карта' : public;
+GROUP receiptDiscount 'Дисконтная карта' : public;
 
 discountCardReceipt (receipt) = DATA DiscountCard (Receipt);
 
 CONSTRAINT dateToDiscountCard(discountCardReceipt(receipt)) < dateReceipt(receipt) CHECKED BY discountCardReceipt MESSAGE 'Закончился срок действия карты';
 
-numberDiscountCardReceipt 'Номер дисконтной карты' (receipt) = seriesNumberDiscountCard(discountCardReceipt(receipt)) IN receiptDiscountGroup;
-nameLegalEntityDiscountCardReceipt 'Держатель дисконтной карты' (receipt) = nameLegalEntityDiscountCard(discountCardReceipt(receipt)) IN receiptDiscountGroup MINCHARWIDTH 30 PREFCHARWIDTH 40;
+numberDiscountCardReceipt 'Номер дисконтной карты' (receipt) = seriesNumberDiscountCard(discountCardReceipt(receipt)) IN receiptDiscount;
+nameLegalEntityDiscountCardReceipt 'Держатель дисконтной карты' (receipt) = nameLegalEntityDiscountCard(discountCardReceipt(receipt)) IN receiptDiscount MINCHARWIDTH 30 PREFCHARWIDTH 40;
 numberDiscountCardReceiptDetail 'Номер дисконтной карты' (receiptDetail) = numberDiscountCardReceipt(receiptReceiptDetail(receiptDetail));
 nameLegalEntityDiscountCardReceiptDetail 'Держатель дисконтной карты' (receiptDetail) = nameLegalEntityDiscountCardReceipt(receiptReceiptDetail(receiptDetail)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
@@ -265,10 +265,10 @@ sumReceiptDetail(detail) += sumReceiptSaleDetail(detail);
 discountSumReceiptDetail 'Сумма скидки' (receiptDetail) = MULTI discountSumReceiptReturnDetail(receiptDetail), discountSumReceiptSaleDetail(receiptDetail) PERSISTENT;
 
 sumReceiptSaleDetailReceipt 'Сумма продажи' (receipt) = GROUP SUM sumReceiptSaleDetail(receiptDetail)
-    BY receiptReceiptSaleDetail (receiptDetail) IN documentSumGroup PERSISTENT;
+    BY receiptReceiptSaleDetail (receiptDetail) IN documentSum PERSISTENT;
 
 sumReceiptReturnDetailReceipt 'Сумма возврата' (receipt) = GROUP SUM sumReceiptReturnDetail(receiptDetail)
-    BY receiptReceiptReturnDetail (receiptDetail) IN documentSumGroup PERSISTENT;
+    BY receiptReceiptReturnDetail (receiptDetail) IN documentSum PERSISTENT;
 
 signedSumReceiptDetail = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT;
 signedSumReceiptDetail(detail) += -sumReceiptReturnDetail(detail);
@@ -281,11 +281,11 @@ sumReceiptDetailReceipt 'Сумма чека' (receipt) = GROUP SUM signedSumRec
 sumReceiptDetailReceiptDetail 'Сумма чека' (receiptDetail) = sumReceiptDetailReceipt(receiptReceiptDetail(receiptDetail)) PERSISTENT;
 
 discountSumSaleReceiptDetailSaleReceipt 'Сумма скидки (продажи)' (receipt) = GROUP SUM discountSumReceiptSaleDetail(receiptDetail)
-    BY receiptReceiptSaleDetail (receiptDetail) IN documentSumGroup;
+    BY receiptReceiptSaleDetail (receiptDetail) IN documentSum;
 discountSumSaleReceipt 'Сумма скидки (продажи) по чеку' (receipt) = DATA NUMERIC[16,2] (Receipt);
 
 discountSumReturnReceiptDetailReturnReceipt 'Сумма скидки (возврат)' (receipt) = GROUP SUM discountSumReceiptReturnDetail(receiptDetail)
-    BY receiptReceiptReturnDetail (receiptDetail) IN documentSumGroup;
+    BY receiptReceiptReturnDetail (receiptDetail) IN documentSum;
 discountSumReturnReceipt 'Сумма скидки (возврат) по чеку' (receipt) = DATA NUMERIC[16,2] (Receipt);
 
 calcDiscountSumReceiptDetailReceipt (receipt) = discountSumSaleReceiptDetailSaleReceipt(receipt) (-) discountSumReturnReceiptDetailReturnReceipt(receipt) PERSISTENT;
@@ -310,7 +310,7 @@ CONSTRAINT taxRange(VATReceiptSaleDetail(detail)) != Tax.taxVAT OR
            CHECKED BY VATReceiptSaleDetail
            MESSAGE 'ошибка: Шкала должна соответствовать шкале НДС и стране магазина: продажа';
 
-VATSumSaleZReport 'Сумма НДС по продажам' (zReport) = DATA NUMERIC[16,2] (ZReport) IN documentSumGroup;
+VATSumSaleZReport 'Сумма НДС по продажам' (zReport) = DATA NUMERIC[16,2] (ZReport) IN documentSum;
 
 VATReceiptReturnDetail = DATA Range (ReceiptReturnDetail);
 CONSTRAINT taxRange(VATReceiptReturnDetail(detail)) != Tax.taxVAT OR
@@ -318,7 +318,7 @@ CONSTRAINT taxRange(VATReceiptReturnDetail(detail)) != Tax.taxVAT OR
            CHECKED BY VATReceiptReturnDetail
            MESSAGE 'ошибка: Шкала должна соответствовать шкале НДС и стране магазина: возврат';
 
-VATSumReturnZReport 'Сумма НДС по возвратам' (zReport) = DATA NUMERIC[16,2] (ZReport) IN documentSumGroup;
+VATSumReturnZReport 'Сумма НДС по возвратам' (zReport) = DATA NUMERIC[16,2] (ZReport) IN documentSum;
 
 VATReceiptDetail (receiptDetail) = MULTI VATReceiptReturnDetail(receiptDetail), VATReceiptSaleDetail(receiptDetail) PERSISTENT;
 numberVATReceiptDetail 'НДС, номер' (receiptDetail) = numberRange(VATReceiptDetail(receiptDetail));
@@ -444,12 +444,12 @@ CONSTRAINT sumReceiptDetailReceipt(receipt) < sumCardPaymentReceipt(receipt) MES
 
 @defineDocumentHeaderQuantityCustom(zReport, receiptDetail);
 
-sumCashZReport 'Сумма наличных Z-отчета' (zReport) = GROUP SUM sumCashPaymentReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSumGroup;
+sumCashZReport 'Сумма наличных Z-отчета' (zReport) = GROUP SUM sumCashPaymentReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
 sumCashIncomeCashOrder(zReport) += sumCashZReport(zReport);
-sumReceiptDetailZReport 'Сумма Z-отчета' (zReport) = GROUP SUM sumReceiptDetailReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSumGroup;
+sumReceiptDetailZReport 'Сумма Z-отчета' (zReport) = GROUP SUM sumReceiptDetailReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
 sumMeansCardZReport 'Сумма по карточкам Z-отчета' (zReport) = sumReceiptDetailZReport(zReport) (-) sumCashZReport(zReport);
-discountSumReceiptDetailZReport 'Сумма скидок Z-отчета' (zReport) = GROUP SUM discountSumReceiptDetailReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSumGroup;
-discountSumReceiptZReport 'Сумма скидок по чекам Z-отчета' (zReport) = GROUP SUM discountSumReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSumGroup;
+discountSumReceiptDetailZReport 'Сумма скидок Z-отчета' (zReport) = GROUP SUM discountSumReceiptDetailReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
+discountSumReceiptZReport 'Сумма скидок по чекам Z-отчета' (zReport) = GROUP SUM discountSumReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
 discountSumZReport 'Сумма скидок Z-отчета' (zReport) = discountSumReceiptDetailZReport(zReport) (+) discountSumReceiptZReport(zReport);
 
 sumCardDepartmentStoreDateFromTo 'Продано с использованием банк. карточек' (departmentStore, dateFrom, dateTo) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment)==PaymentMeans.paymentMeansCard
@@ -523,10 +523,10 @@ DESIGN zReport FROM DEFAULT{
         NEW first {
             fill = 1;
             type = CONTAINERV;
-            ADD z.documentHeaderGroup;
-            ADD z.documentPrmGroup;
+            ADD z.documentHeader;
+            ADD z.documentPrm;
         }
-        ADD z.documentSumGroup { columns = 2;}    
+        ADD z.documentSum { columns = 2;}    
 
     }    
     ADD b.box;
@@ -627,7 +627,7 @@ loadDefaultPaymentTypes 'Загрузить стандартные типы оп
     loadDefaultPaymentType('Наличные', PaymentMeans.paymentMeansCash, 'cash');
     loadDefaultPaymentType('Карточка', PaymentMeans.paymentMeansCard, 'card');
     overLoadDefaultPaymentTypes();
-} IN loadDefaultGroup;
+} IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultPaymentTypes);
 

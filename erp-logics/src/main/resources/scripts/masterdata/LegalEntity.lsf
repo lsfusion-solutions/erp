@@ -53,35 +53,35 @@ languageLegalEntity = DATA Language(LegalEntity);
 nameLanguageLegalEntity 'Язык' (legalEntity) = nameLanguage(languageLegalEntity(legalEntity)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 15;
 languageLegalEntity(legalEntity) <- languageCountry(countryLegalEntity(legalEntity)) WHEN CHANGED(countryLegalEntity(legalEntity));
 
-GROUP lawGroup 'Реквизиты' : public;
+GROUP law 'Реквизиты' : public;
 
 ownershipLegalEntity = DATA Ownership (LegalEntity);
-nameOwnershipLegalEntity 'Форма собственности' = nameOwnership(ownershipLegalEntity(legalEntity)) IN lawGroup;
-shortNameOwnershipLegalEntity 'Форма собственности (сокр.)' = shortNameOwnership(ownershipLegalEntity(legalEntity)) IN lawGroup;
+nameOwnershipLegalEntity 'Форма собственности' = nameOwnership(ownershipLegalEntity(legalEntity)) IN law;
+shortNameOwnershipLegalEntity 'Форма собственности (сокр.)' = shortNameOwnership(ownershipLegalEntity(legalEntity)) IN law;
 
 CONSTRAINT countryOwnership(ownershipLegalEntity(legalEntity)) != countryLegalEntity(legalEntity)
     CHECKED BY ownershipLegalEntity MESSAGE 'Страна формы собственности должна совпадать со страной организации';
 
-fullNameLegalEntity 'Полное наименование' = DATA VARSTRING[200] (LegalEntity) IN lawGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
+fullNameLegalEntity 'Полное наименование' = DATA VARSTRING[200] (LegalEntity) IN law MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
-@defineHistorizable(addressLegalEntity, 'Юридический адрес', VARSTRING[150], legalEntity, nameLegalEntity, lawGroup);
-@defineHistorizable(postAddressLegalEntity, 'Почтовый адрес', VARSTRING[150], legalEntity, nameLegalEntity, lawGroup);
+@defineHistorizable(addressLegalEntity, 'Юридический адрес', VARSTRING[150], legalEntity, nameLegalEntity, law);
+@defineHistorizable(postAddressLegalEntity, 'Почтовый адрес', VARSTRING[150], legalEntity, nameLegalEntity, law);
 
-GROUP contactGroup 'Контактная информация' : public;
+GROUP contact 'Контактная информация' : public;
 
-@defineHistorizable(phoneLegalEntity, 'Телефон/факс', VARSTRING[100], legalEntity, nameLegalEntity, contactGroup);
-emailLegalEntity 'E-mail' = DATA VARSTRING[100] (LegalEntity) IN contactGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
-siteLegalEntity 'Сайт' = DATA VARSTRING[100] (LegalEntity) IN contactGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
-contactsLegalEntity 'Дополнительная информация' = DATA VARSTRING[300] (LegalEntity) IN contactGroup MINCHARWIDTH 50 PREFCHARWIDTH 50;
+@defineHistorizable(phoneLegalEntity, 'Телефон/факс', VARSTRING[100], legalEntity, nameLegalEntity, contact);
+emailLegalEntity 'E-mail' = DATA VARSTRING[100] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
+siteLegalEntity 'Сайт' = DATA VARSTRING[100] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
+contactsLegalEntity 'Дополнительная информация' = DATA VARSTRING[300] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
-GROUP managementGroup 'Управление' : public;
+GROUP management 'Управление' : public;
 
-@defineHistorizable(managerLegalEntity, 'Руководитель', VARSTRING[100], legalEntity, nameLegalEntity, managementGroup);
-@defineHistorizable(accountantLegalEntity, 'Главный бухгалтер', VARSTRING[100], legalEntity, nameLegalEntity, managementGroup);
+@defineHistorizable(managerLegalEntity, 'Руководитель', VARSTRING[100], legalEntity, nameLegalEntity, management);
+@defineHistorizable(accountantLegalEntity, 'Главный бухгалтер', VARSTRING[100], legalEntity, nameLegalEntity, management);
 
-GROUP docGroup 'Для договора' : public;
+GROUP doc 'Для договора' : public;
 
-GROUP orderGroup 'Для заказов' : public;
+GROUP order 'Для заказов' : public;
 
 // ----------------------------------- Группы юридический лиц ---------------------------- //
 
@@ -113,13 +113,13 @@ FORM legalEntityGroups 'Группы организаций'
 ;
 
 // ----------------------------------- Лицензия ------------------------------------------ //
-GROUP licenseGroup 'Лицензионная информация' : base;
+GROUP license 'Лицензионная информация' : base;
 CLASS License 'Лицензия';
 TABLE license (License);
 
-numberLicense 'Номер лицензии' = DATA VARSTRING[100] (License) IN licenseGroup;
-dateFromLicense 'Действует с ' = DATA DATE (License) IN licenseGroup;
-dateToLicense 'Действует по ' = DATA DATE (License) IN licenseGroup;
+numberLicense 'Номер лицензии' = DATA VARSTRING[100] (License) IN license;
+dateFromLicense 'Действует с ' = DATA DATE (License) IN license;
+dateToLicense 'Действует по ' = DATA DATE (License) IN license;
 
 countryLicense = DATA Country (License);
 nameCountryLicense 'Страна' = nameCountry(countryLicense(license));
@@ -129,21 +129,21 @@ legalEntityLicense 'ЮЛ (ИД)' = DATA LegalEntity (License);
 licenseLegalEntityDate 'Действующая на дату' (legalEntity, date) = GROUP MAX license IF dateFromLicense(license) <= date AND NOT dateToLicense(license) < date
                                                                          BY legalEntityLicense(license), date;
 currentLicenseLegalEntity 'Действующая' (legalEntity) = licenseLegalEntityDate(legalEntity, currentDate());
-numberCurrentLicenseLegalEntity 'Действующая лицензия' (legalEntity) = numberLicense(currentLicenseLegalEntity(legalEntity)) IN lawGroup;
+numberCurrentLicenseLegalEntity 'Действующая лицензия' (legalEntity) = numberLicense(currentLicenseLegalEntity(legalEntity)) IN law;
 
 CONSTRAINT countryLegalEntity(legalEntityLicense(license)) != countryLicense(license)
     CHECKED BY legalEntityLicense MESSAGE 'Страна лицензии должна совпадать со страной организации';
 
 // ------------------------------------ Собственные компании ----------------------------- //
-GROUP filterEntityGroup 'Фильтры' : public;
+GROUP filterEntity 'Фильтры' : public;
 
-isSupplierLegalEntity 'Явл. поставщиком' = DATA BOOLEAN (LegalEntity) IN filterEntityGroup;
-isCompanyLegalEntity 'Явл. компанией' = DATA BOOLEAN (LegalEntity) IN filterEntityGroup;
-isCustomerLegalEntity 'Явл. покупателем' = DATA BOOLEAN (LegalEntity) IN filterEntityGroup;
+isSupplierLegalEntity 'Явл. поставщиком' = DATA BOOLEAN (LegalEntity) IN filterEntity;
+isCompanyLegalEntity 'Явл. компанией' = DATA BOOLEAN (LegalEntity) IN filterEntity;
+isCustomerLegalEntity 'Явл. покупателем' = DATA BOOLEAN (LegalEntity) IN filterEntity;
 isSellerLegalEntity 'Поставщик или компания' (legalEntity) = isSupplierLegalEntity(legalEntity) OR isCompanyLegalEntity(legalEntity);
 isBuyerLegalEntity 'Покупатель или компания' (legalEntity) = isCustomerLegalEntity(legalEntity) OR isCompanyLegalEntity(legalEntity);
 
-differentStocksInDetailsLegalEntity 'Разные склады в строках' = DATA BOOLEAN (LegalEntity) IN filterEntityGroup;
+differentStocksInDetailsLegalEntity 'Разные склады в строках' = DATA BOOLEAN (LegalEntity) IN filterEntity;
 
 // ------------------------------------ Доступные организации для пользователей -------------------------- //
 
@@ -201,10 +201,10 @@ DESIGN legalEntity FROM DEFAULT {
                 NEW row12 {
                     type = COLUMNS;
                     columns = 2;
-                    ADD l.lawGroup {
+                    ADD l.law {
                         columns = 1;
                     }
-                    ADD l.filterEntityGroup {
+                    ADD l.filterEntity {
                         columns = 1;
                     }
                 }
@@ -213,10 +213,10 @@ DESIGN legalEntity FROM DEFAULT {
             NEW column2 {
                 type = CONTAINERV;
 
-                ADD l.contactGroup {
+                ADD l.contact {
                     columns = 1;
                 }
-                ADD l.managementGroup {
+                ADD l.management {
                     columns = 1;
                 }
             }
@@ -431,16 +431,16 @@ NAVIGATOR {
 // -------------------------------------------- Макросы --------------------------------------------- //
 META defineDocumentHeaderLegalEntity (object, contact, contactCaption)
     contact###object (object) = DATA LegalEntity (###object);
-    name###contact###object contactCaption (object)= nameLegalEntity(contact###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    fullName###contact###object contactCaption###' (полное наименование)' (object)= nameLegalEntity(contact###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    address###contact###object contactCaption###' (адрес)' (object)= addressLegalEntity(contact###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    name###contact###object contactCaption (object)= nameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
+    fullName###contact###object contactCaption###' (полное наименование)' (object)= nameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    address###contact###object contactCaption###' (адрес)' (object)= addressLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
      
 END
 META defineDocumentAbstractHeaderLegalEntity (object, contact, contactCaption)
     contact###object (object) = ABSTRACT LegalEntity (###object) PERSISTENT;
-    name###contact###object contactCaption (object)= nameLegalEntity(contact###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    fullName###contact###object contactCaption###' (полное наименование)' (object)= nameLegalEntity(contact###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    address###contact###object contactCaption###' (адрес)' (object)= addressLegalEntity(contact###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    name###contact###object contactCaption (object)= nameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
+    fullName###contact###object contactCaption###' (полное наименование)' (object)= nameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    address###contact###object contactCaption###' (адрес)' (object)= addressLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
 
 END
 META defineDocumentInterfaceHeaderLegalEntity (object, contact, contactCaption)
@@ -524,7 +524,7 @@ META defineDocumentInterfaceLegalEntity (object, contact, contactCaption)
 END
 
 META defineDocumentPhone(object, contact, caption)
-    phone###contact###object 'Телефон'###caption (object) = phoneLegalEntity(contact###object(object)) IN documentPrmGroup;
+    phone###contact###object 'Телефон'###caption (object) = phoneLegalEntity(contact###object(object)) IN documentPrm;
 END
 
 // Агрегации
@@ -570,6 +570,6 @@ loadDefaultOwnership 'Добавить Формы собственности' = 
 
 overLoadDefaultOwnerships () = ABSTRACT ACTION LIST ();
 
-loadDefaultOwnerships 'Загрузить стандарные формы собственности' () = ABSTRACT ACTION LIST () IN loadDefaultGroup;
+loadDefaultOwnerships 'Загрузить стандарные формы собственности' () = ABSTRACT ACTION LIST () IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultOwnerships);

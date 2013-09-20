@@ -67,8 +67,8 @@ writeOffOperationUserInvoice (i) <- writeOffOperationOperation(operationUserInvo
 reasonInvoice 'Причина списания (ИД)' = ABSTRACT Reason (Invoice);
 reasonUserInvoice 'Причина списания (ИД)' = DATA Reason (UserInvoice);
 reasonInvoice(invoice) += reasonUserInvoice(invoice);
-nameReasonInvoice 'Причина списания' (invoice) = nameReason(reasonInvoice(invoice)) IN documentPrmGroup;
-nameReasonUserInvoice 'Причина списания' (userInvoice) = nameReason(reasonUserInvoice (userInvoice)) IN documentPrmGroup;
+nameReasonInvoice 'Причина списания' (invoice) = nameReason(reasonInvoice(invoice)) IN documentPrm;
+nameReasonUserInvoice 'Причина списания' (userInvoice) = nameReason(reasonUserInvoice (userInvoice)) IN documentPrm;
 reasonUserInvoice (i) <- reasonOperation(writeOffOperationUserInvoice(i))
     WHEN CHANGED(writeOffOperationUserInvoice(i));
 
@@ -125,7 +125,7 @@ EXTEND FORM invoices
 
 //---------------------------------- Extend Shipment ------------------------------------//
 
-GROUP shipmentGroup 'Информация о поставке' : base;
+GROUP shipment 'Информация о поставке' : base;
 
 @defineDocumentInterfaceProperty (shipment, createPurchaseWriteOff, 'Создать акт списания');
 @deriveDocumentOperationProperty(UserShipment, createPurchaseWriteOff);
@@ -153,8 +153,8 @@ writeOffOperationUserShipment(s) <- writeOffOperationOperation(operationUserShip
 reasonShipment 'Причина списания (ИД)' = ABSTRACT Reason (Shipment);
 reasonUserShipment 'Причина списания (ИД)' = DATA Reason (UserShipment);
 reasonShipment(shipment) += reasonUserShipment(shipment);
-nameReasonShipment 'Причина списания' (shipment) = nameReason(reasonShipment (shipment)) IN documentPrmGroup;
-nameReasonUserShipment 'Причина списания' (userShipment) = nameReason(reasonUserShipment (userShipment)) IN documentPrmGroup;
+nameReasonShipment 'Причина списания' (shipment) = nameReason(reasonShipment (shipment)) IN documentPrm;
+nameReasonUserShipment 'Причина списания' (userShipment) = nameReason(reasonUserShipment (userShipment)) IN documentPrm;
 reasonUserShipment(s) <- reasonOperation(writeOffOperationUserShipment(s))
     WHEN CHANGED(writeOffOperationUserShipment(s));
 
@@ -213,7 +213,7 @@ quantityWriteOffDetailShipmentWriteOff (shipment, writeOff) = GROUP SUM quantity
 
 shipmentsWriteOff 'Поставки' (writeOff) = GROUP CONCAT VARSTRING[255](descriptionShipment(shipment)) IF quantityWriteOffDetailShipmentWriteOff(shipment, writeOff) , ', '
                                                 BY writeOff
-                                                ORDER writeOff IN shipmentGroup MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                                ORDER writeOff IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 writtenOffShipmentDetail 'Кол-во (списания)' (shipmentDetail) = GROUP SUM quantityWriteOffDetail(writeOffDetail) IF isPostedWriteOffDetail(writeOffDetail)
                                                                    BY shipmentDetailWriteOffDetail(writeOffDetail) PERSISTENT;
@@ -338,13 +338,13 @@ fillShipmentUserWriteOff 'Заполнить на основе поставки'
 //                ASSIGN sumUserWriteOffDetail(d) <- calcSumWriteOffShipmentDetail(shipmentDetail);
         }
     }
-} IN shipmentGroup;
+} IN shipment;
 
 EXTEND FORM userWriteOff
     PROPERTIES(w) fillShipmentUserWriteOff, shipmentsWriteOff READONLY
     PROPERTIES(d) READONLY descriptionIndexShipmentDetailUserWriteOffDetail BEFORE deletewd
 ;
-EXTEND DESIGN userWriteOff { headerCreateDetail{ ADD w.shipmentGroup {type = CONTAINERH;}}}
+EXTEND DESIGN userWriteOff { headerCreateDetail{ ADD w.shipment {type = CONTAINERH;}}}
 
 EXTEND FORM writeOffs
     PROPERTIES(w) READONLY shipmentsWriteOff
@@ -467,6 +467,6 @@ loadDefaultWriteOffRate 'Добавить нормы отходов' = ACTION (i
     }
 };
 
-loadDefaultWriteOffRates 'Загрузить стандартные нормы отходов' = ABSTRACT ACTION LIST () IN loadDefaultGroup;
+loadDefaultWriteOffRates 'Загрузить стандартные нормы отходов' = ABSTRACT ACTION LIST () IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultWriteOffRates);

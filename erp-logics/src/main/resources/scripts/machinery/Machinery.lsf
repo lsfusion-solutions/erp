@@ -291,7 +291,7 @@ nppsMachineryPriceTransaction 'Номера устройств' (transaction) =
 // перезагрузка прайса целиком
 selectedMachinery 'Вкл' = DATA SESSION BOOLEAN (Machinery);
 
-GROUP snapshotMachineryPriceGroup 'Перезагрузка прайса' : public;
+GROUP snapshotMachineryPrice 'Перезагрузка прайса' : public;
 
 FORM groupMachineryInput 'Выбор оборудования для перезагрузки прайса'
 
@@ -420,10 +420,10 @@ snapshotGroupMachineryDepartmentStore 'Перезагрузить прайс' = 
         }
         EXEC apply();
     }
-} CONFIRM IN snapshotMachineryPriceGroup;
+} CONFIRM IN snapshotMachineryPrice;
 
 // Инкрементная загрузка
-GROUP incrementMachineryPriceGroup 'Инкрементная загрузка' : public;
+GROUP incrementMachineryPrice 'Инкрементная загрузка' : public;
 
 // ------------------------------- Определение цены, по которой загружать ------------------------------- //
 
@@ -497,13 +497,13 @@ createBalanceMachineryPriceTransaction 'Остатки' = ACTION (stock) NEWSESS
     ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF currentBalanceSkuStock(sku, stock);
     ASSIGN createMachineryPriceTransactionComment() <- 'Инкрементная загрузка остатков';
     EXEC createMachineryPriceTransaction(stock);
-} CONFIRM IN incrementMachineryPriceGroup;
+} CONFIRM IN incrementMachineryPrice;
 
 createPriceMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION AUTOAPPLY {
     ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE;
     ASSIGN createMachineryPriceTransactionComment() <- 'Инкрементная загрузка товаров';
     EXEC createMachineryPriceTransaction(stock);
-} CONFIRM IN incrementMachineryPriceGroup;
+} CONFIRM IN incrementMachineryPrice;
 
 EXTEND FORM machineryPriceTransactions
     PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, snapshotGroupMachineryDepartmentStore

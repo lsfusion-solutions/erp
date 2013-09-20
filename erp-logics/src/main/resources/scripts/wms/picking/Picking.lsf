@@ -110,7 +110,7 @@ DESIGN userPicking FROM DEFAULT{
             NEW headerRow1 {
                 fill = 1;
 
-                ADD o.documentHeaderGroup {
+                ADD o.documentHeader {
                     type = CONTAINERH;
                     ADD PROPERTY(nameStockUserPicking);
                     ADD PROPERTY(nameNumeratorUserPicking);
@@ -119,10 +119,10 @@ DESIGN userPicking FROM DEFAULT{
                     ADD PROPERTY(dateUserPicking);
                     ADD PROPERTY(timeUserPicking);
                 }
-                ADD o.documentPrmGroup;
+                ADD o.documentPrm;
             }
                 NEW sumContainer {
-                    ADD o.documentSumGroup {
+                    ADD o.documentSum {
                         columns = 1;
                     }
                     NEW seatContainer {
@@ -207,7 +207,7 @@ DESIGN pickings FROM DEFAULT {
             NEW documentHistory {
                 fill = 1;
                 caption = 'История';
-                ADD o.createdGroup;
+                ADD o.created;
 
             }
             NEW printTab {
@@ -251,12 +251,12 @@ relationPickingOrderPicking 'Количество комплектаций' (pic
 pickingsPickingOrder 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255](descriptionPicking(picking)) IF relationPickingOrderPicking(pickingOrder, picking) , ', '
                                          BY pickingOrder
                                          ORDER picking
-//                                         IN orderGroup
+//                                         IN order
                                          MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 pickingOrdersPicking 'Заказы на комплектацию' (picking) = GROUP CONCAT VARSTRING[255](descriptionPickingOrder(pickingOrder)) IF relationPickingOrderPicking(pickingOrder, picking) , ', '
                                          BY picking
                                          ORDER pickingOrder
-                                         IN pickingOrdersGroup
+                                         IN pickingOrders
                                          MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 moveUserPickingPickingOrder 'Комплектация' = ACTION (pickingOrder) NEWSESSION {
@@ -318,7 +318,7 @@ fillUserPickingOrderPicking 'Заполнить на основании зака
             binUserPickingDetail(d) <- binPickingOrderDetail(detail);
         }
     }
-} IN pickingOrdersGroup;
+} IN pickingOrders;
 
 
 EXTEND FORM userPicking
@@ -329,7 +329,7 @@ EXTEND DESIGN userPicking {
         NEW baseContainer {
             type = CONTAINERH;
             caption = 'Основание' ;
-            ADD o.pickingOrdersGroup;
+            ADD o.pickingOrders;
         }
     }
 }
@@ -495,14 +495,14 @@ FORM printPickingOrder 'Заказ на комплектацию'
     FILTERS pickingOrderPickingOrderDetail(d) == o
 ;
 
-printPickingOrder 'Заказ на комплектацию' (order) = ACTION FORM printPickingOrder OBJECTS o = order PRINT IMAGE 'print.png' IN printGroup;
+printPickingOrder 'Заказ на комплектацию' (order) = ACTION FORM printPickingOrder OBJECTS o = order PRINT IMAGE 'print.png' IN print;
 
 EXTEND FORM pickingOrders
     PROPERTIES(o) FORCE PANEL printPickingOrder
 ;
 EXTEND DESIGN pickingOrders {
     printTab {
-        ADD o.printGroup;
+        ADD o.print;
     }
 }
 

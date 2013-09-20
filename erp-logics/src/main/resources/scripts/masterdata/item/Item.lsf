@@ -444,7 +444,7 @@ END
 
 // ---------------------------- Конкретные свойства -------------------------------- //
 
-GROUP itemBaseGroup 'Базовые свойства' : base;
+GROUP itemBase 'Базовые свойства' : base;
 
 // Неактивный
 inactiveItemGroup 'Неактивная' = DATA BOOLEAN (ItemGroup);
@@ -467,15 +467,15 @@ EXTEND FORM dialogItemGroups
 // ------ Базовые свойства товара ------ //
 
 // Название
-@defineStringItemAttribute(caption, VARSTRING[100], 'Название', itemBaseGroup);
+@defineStringItemAttribute(caption, VARSTRING[100], 'Название', itemBase);
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(captionItem, 'Название', String, itemCaption);
 
 // Единица измерения
-@defineObjectItemAttribute(UOM, UOM, nameUOM, 'Единица измерения', itemBaseGroup);
+@defineObjectItemAttribute(UOM, UOM, nameUOM, 'Единица измерения', itemBase);
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения');
 
-shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMItem(item)) IN itemBaseGroup;
+shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMItem(item)) IN itemBase;
 UOMSku(item) += UOMItem(item);
 
 //@implementObjectShortItemAttribute(UOM, 'Единица измерения (сокр.)');
@@ -504,16 +504,16 @@ FORM brands 'Бренды'
 ;
 DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(brand, Brand, nameBrand, 'Бренд', itemBaseGroup);
+@defineObjectItemAttribute(brand, Brand, nameBrand, 'Бренд', itemBase);
 @defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
 @implementItemAttribute(nameBrandItem, 'Бренд', String, itemBrand);
 
 // Страна
-@defineObjectItemAttribute(country, Country, nameCountry, 'Страна', itemBaseGroup);
+@defineObjectItemAttribute(country, Country, nameCountry, 'Страна', itemBase);
 @defineObjectItemAttributeBatch (country, nameCountry, 'Страна');
 @implementItemAttribute(nameCountryItem, 'Страна', String, itemCountry);
 
-residentItem 'Отечественное производство' (item) = residentCountry(countryItem(item)) IN itemBaseGroup;
+residentItem 'Отечественное производство' (item) = residentCountry(countryItem(item)) IN itemBase;
 countrySku(sku) += countryItem(sku);
 
 // Производитель
@@ -539,12 +539,12 @@ FORM manufacturers 'Производители товара'
 ;
 DESIGN manufacturers FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(manufacturer, Manufacturer, nameManufacturer, 'Производитель', itemBaseGroup);
+@defineObjectItemAttribute(manufacturer, Manufacturer, nameManufacturer, 'Производитель', itemBase);
 @defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
 @implementItemAttribute(nameManufacturerItem, 'Производитель', String, itemManufacturer);
 
 //  Состав
-@defineStringItemAttribute(composition, VARSTRING[255], 'Состав', itemBaseGroup);
+@defineStringItemAttribute(composition, VARSTRING[255], 'Состав', itemBase);
 @defineItemAttributeBatch (composition, 'Состав');
 compositionSku (sku) += compositionItem(sku);
 
@@ -554,21 +554,21 @@ skuTypeSku (sku) += skuTypeItem(sku);
 
 skuTypeItem(item) <- SkuType.skuTypeItem WHEN SET(item IS Item);
 
-nameSkuTypeItem 'Тип' (item) = staticCaption(skuTypeItem(item)) IN itemBaseGroup;
+nameSkuTypeItem 'Тип' (item) = staticCaption(skuTypeItem(item)) IN itemBase;
 EXTEND FORM item PROPERTIES(i) nameSkuTypeItem;
 
 // Весовой
-isWeightItem 'Весовой товар' = DATA BOOLEAN (Item) IN itemBaseGroup;
+isWeightItem 'Весовой товар' = DATA BOOLEAN (Item) IN itemBase;
 isWeightSku(sku) += isWeightItem(sku);
 EXTEND FORM item PROPERTIES(i) isWeightItem;
 
 // Фиксированная цена
-fixedPriceItem 'Товар с фиксированной ценой' = DATA BOOLEAN (Item) IN itemBaseGroup;
+fixedPriceItem 'Товар с фиксированной ценой' = DATA BOOLEAN (Item) IN itemBase;
 fixedPriceSku(sku) += fixedPriceItem(sku);
 EXTEND FORM item PROPERTIES(i) fixedPriceItem;
 
 // Неактивный
-inactiveItem 'Неактивный' = DATA BOOLEAN (Item) IN itemBaseGroup;
+inactiveItem 'Неактивный' = DATA BOOLEAN (Item) IN itemBase;
 activeItem 'Активный' (item) = item IS Item AND NOT inactiveItem(item);
 inactiveSku(sku) += inactiveItem(sku);
 EXTEND FORM item PROPERTIES(i) inactiveItem;
@@ -576,7 +576,7 @@ EXTEND FORM items FILTERGROUP inactive FILTER 'Активные' 'F10' activeIte
 
 EXTEND DESIGN item {
     itemPrimaryColumn1 {
-        ADD i.itemBaseGroup {
+        ADD i.itemBase {
             columns = 2;
             PROPERTY(compositionItem) {
                 minimumCharWidth = 20;
@@ -587,7 +587,7 @@ EXTEND DESIGN item {
 }
 EXTEND DESIGN item {
     itemPrimaryColumn1 {
-        NEW regionPrm AFTER i.itemBaseGroup {
+        NEW regionPrm AFTER i.itemBase {
             type = COLUMNS;
             columns = 2;
             caption = 'Региональные свойства';
@@ -597,28 +597,28 @@ EXTEND DESIGN item {
 
 // ------ Габариты товара ------ //
 
-GROUP itemSizeGroup 'Габариты товара' : public;
+GROUP itemSize 'Габариты товара' : public;
 
 // Вес нетто
-@defineDoubleItemAttribute(netWeight, NUMERIC[9,3], 'Вес нетто, кг', itemSizeGroup);
+@defineDoubleItemAttribute(netWeight, NUMERIC[9,3], 'Вес нетто, кг', itemSize);
 @defineItemAttributeBatch (netWeight, 'Вес нетто, кг');
 @implementItemAttribute(netWeightItem, 'Вес нетто, кг', Double, itemNetWeight);
 netWeightSku(sku) += netWeightItem(sku);
 
 // Вес брутто
-@defineDoubleItemAttribute(grossWeight, NUMERIC[9,3], 'Вес брутто, кг', itemSizeGroup);
+@defineDoubleItemAttribute(grossWeight, NUMERIC[9,3], 'Вес брутто, кг', itemSize);
 @defineItemAttributeBatch (grossWeight, 'Вес брутто, кг');
 grossWeightSku(sku) += grossWeightItem(sku);
 
 grossWeightItem(sku) <- netWeightItem(sku) WHEN CHANGED(netWeightItem(sku));
 // Кол-во в грузовом месте
 // todo : здесь скорее всего надо будет рефакторить на более сложную логику
-//@defineDoubleItemAttribute(packQuantity, NUMERIC[9,3], 'Количество в грузовом месте', itemSizeGroup);
+//@defineDoubleItemAttribute(packQuantity, NUMERIC[9,3], 'Количество в грузовом месте', itemSize);
 //packQuantitySku(sku) += packQuantityItem(sku);
 
 EXTEND DESIGN item {
     itemPrimaryColumn2 {
-        ADD i.itemSizeGroup {
+        ADD i.itemSize {
             columns = 2;
         }
     }
@@ -721,11 +721,11 @@ DESIGN itemGroup FROM DEFAULT{
         }
 
         NEW itemGroupDetail BEFORE functions.box {
-            ADD g.itemBaseGroup {
+            ADD g.itemBase {
                 columns = 6;
             }
 
-            ADD g.itemSizeGroup {
+            ADD g.itemSize {
                 columns = 6;
             }
         }

@@ -7,19 +7,19 @@ REQUIRE System,
 
 //---------------------------------------------- Импорт курсов ЦБРФ -----------------------------------------------------//
 
-GROUP cbrfGroup 'Курсы ЦБРФ' : public;
+GROUP cbrf 'Курсы ЦБРФ' : public;
 
-importCBRFExchangeRateDateFrom 'Дата с' = DATA DATE () IN cbrfGroup;
-importCBRFExchangeRateDateTo 'Дата по' = DATA DATE () IN cbrfGroup;
+importCBRFExchangeRateDateFrom 'Дата с' = DATA DATE () IN cbrf;
+importCBRFExchangeRateDateTo 'Дата по' = DATA DATE () IN cbrf;
 
-importCBRFExchangeRateAction 'Импортировать курс ЦБРФ' = ACTION CUSTOM 'lsfusion.erp.region.ru.masterdata.ImportCBRFExchangeRateActionProperty' IN cbrfGroup;
+importCBRFExchangeRateAction 'Импортировать курс ЦБРФ' = ACTION CUSTOM 'lsfusion.erp.region.ru.masterdata.ImportCBRFExchangeRateActionProperty' IN cbrf;
 
 importCBRFExchangeRate 'Импортировать курсы ЦБРФ' = ACTION () {
     FOR c IS Currency DO {
         EXEC importCBRFExchangeRateAction(c);
     }
     EXEC apply();
-} IN cbrfGroup;
+} IN cbrf;
 
 EXTEND FORM typeExchangeCurrencyDate
     PROPERTIES() importCBRFExchangeRateDateFrom, importCBRFExchangeRateDateTo, importCBRFExchangeRate
@@ -27,6 +27,6 @@ EXTEND FORM typeExchangeCurrencyDate
 
 EXTEND DESIGN typeExchangeCurrencyDate {
     importExchangeRates {
-        ADD NOGROUP.cbrfGroup;
+        ADD NOGROUP.cbrf;
     }
 }

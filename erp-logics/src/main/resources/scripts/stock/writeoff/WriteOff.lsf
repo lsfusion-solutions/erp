@@ -26,7 +26,7 @@ nameCommittee(committee) += nameWriteOffCommittee(committee) IF committee IS Wri
 @defineCommitteeEmployeePrefix(writeOffCommittee, chairman, 'Председатель');
 
 writeOffCommitteeStock 'Комиссия для списания товаров (ИД)' = DATA WriteOffCommittee (Stock);
-nameWriteOffCommitteeStock 'Комиссия для списания товаров' (stock) = nameWriteOffCommittee(writeOffCommitteeStock(stock)) IN committeeGroup MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameWriteOffCommitteeStock 'Комиссия для списания товаров' (stock) = nameWriteOffCommittee(writeOffCommitteeStock(stock)) IN committee MINCHARWIDTH 20 PREFCHARWIDTH 30;
 isWriteOffCommitteeStock 'По умолчанию' (writeOffCommittee, stock) = writeOffCommitteeStock(stock) == writeOffCommittee;
 CONSTRAINT writeOffCommitteeStock(stock) AND NOT inCommitteeStock(writeOffCommitteeStock(stock), stock)
     CHECKED BY writeOffCommitteeStock MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
@@ -98,7 +98,7 @@ DESIGN writeOffCommittees FROM DEFAULT {
 META defineDocumentHeaderWriteOffCommittee(object, stockProp)
 
     writeOffCommittee###object (object) = DATA WriteOffCommittee(###object);
-    nameWriteOffCommittee###object 'Комиссия для списания товаров' (object) = nameWriteOffCommittee(writeOffCommittee###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    nameWriteOffCommittee###object 'Комиссия для списания товаров' (object) = nameWriteOffCommittee(writeOffCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
     writeOffCommittee###object (object) <- writeOffCommitteeStock(stockProp###object(object))
         WHEN CHANGED(stockProp###object(object));
 
@@ -110,7 +110,7 @@ META defineDocumentHeaderWriteOffCommittee(object, stockProp)
 END
 META defineDocumentHeaderAbstractWriteOffCommittee(object)
     writeOffCommittee###object (object) = ABSTRACT WriteOffCommittee(###object);
-    nameWriteOffCommittee###object 'Комиссия для списания товаров' (object) = nameWriteOffCommittee(writeOffCommittee###object(object)) IN documentPrmGroup MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    nameWriteOffCommittee###object 'Комиссия для списания товаров' (object) = nameWriteOffCommittee(writeOffCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
     inWriteOffCommittee###object##Employee (object, employee) = inCommitteeEmployee(writeOffCommittee###object (object), employee);
     nameEmployeeWriteOffCommittee###object 'Члены комиссии' (object) = namePositionEmployeeCommittee(writeOffCommittee###object (object));
@@ -211,8 +211,8 @@ priceUserWriteOffDetail (detail)  <- IF batchUserWriteOffDetail(detail)
 reasonWriteOff 'Причина списания (ИД)' = ABSTRACT Reason (WriteOff);
 reasonUserWriteOff 'Причина списания (ИД)' = DATA Reason (UserWriteOff);
 reasonWriteOff(writeOff) += reasonUserWriteOff(writeOff);
-nameReasonWriteOff 'Причина списания' (writeOff) = nameReason(reasonWriteOff (writeOff)) IN documentPrmGroup;
-nameReasonUserWriteOff 'Причина списания' (userWriteOff) = nameReason(reasonUserWriteOff (userWriteOff)) IN documentPrmGroup;
+nameReasonWriteOff 'Причина списания' (writeOff) = nameReason(reasonWriteOff (writeOff)) IN documentPrm;
+nameReasonUserWriteOff 'Причина списания' (userWriteOff) = nameReason(reasonUserWriteOff (userWriteOff)) IN documentPrm;
 
 @defineDocumentInterfaceLegalEntity (writeOff, contact, 'Контрагент');
 
@@ -272,7 +272,7 @@ DESIGN userWriteOff FROM DEFAULT{
             NEW headerRow1 {
                 fill = 1;
 
-                ADD w.documentHeaderGroup {
+                ADD w.documentHeader {
                     type = CONTAINERH;
                     ADD PROPERTY(isPostedUserWriteOff);
                     ADD PROPERTY(nameStockUserWriteOff);
@@ -288,7 +288,7 @@ DESIGN userWriteOff FROM DEFAULT{
                     type = TABBED;
                     NEW headerMainParams {
                         caption = 'Основные параметры';
-                        ADD w.documentPrmGroup {
+                        ADD w.documentPrm {
                             columns = 2;
                         }
                     }
@@ -304,7 +304,7 @@ DESIGN userWriteOff FROM DEFAULT{
                 }
             }
 
-            ADD w.documentSumGroup {
+            ADD w.documentSum {
                 columns = 1;
             }
         }
@@ -395,8 +395,8 @@ DESIGN writeOffs FROM DEFAULT {
             NEW documentHistory {
                 caption = 'История';
 
-                ADD w.createdGroup;
-                ADD w.postedGroup;
+                ADD w.created;
+                ADD w.posted;
             }
             NEW printTab {
                 caption = 'Печатные формы';
@@ -430,7 +430,7 @@ EXTEND FORM userWriteOff
     PROPERTIES(w) nameOperationUserWriteOff
 ;
 EXTEND DESIGN userWriteOff{
-    w.documentPrmGroup{
+    w.documentPrm{
         ADD PROPERTY (nameOperationUserWriteOff) BEFORE PROPERTY(nameCurrencyUserWriteOff);
     }
 }
