@@ -44,18 +44,23 @@ imageCompliance 'Файл сертификата'  = DATA IMAGEFILE (Compliance)
 saveImageCompliance 'Загрузить сертификат' (compliance) = ACTION LOADFILE imageCompliance(compliance);
 openImageCompliance 'Просмотреть сертификат' (compliance) = ACTION OPENFILE imageCompliance(compliance);
 
-CLASS AdditionComplianceDetail 'Дополнительная страница сертификата';
-complianceAdditionComplianceDetail = DATA Compliance (AdditionComplianceDetail);
-imageAdditionComplianceDetail 'Файл сертификата'  = DATA IMAGEFILE (AdditionComplianceDetail);
-saveImageAdditionComplianceDetail 'Загрузить сертификат' (additionComplianceDetail) = ACTION LOADFILE imageAdditionComplianceDetail(additionComplianceDetail);
-openImageAdditionComplianceDetail 'Просмотреть сертификат' (additionComplianceDetail) = ACTION OPENFILE imageAdditionComplianceDetail(additionComplianceDetail);
-@defineDocumentDetailIndex(compliance, AdditionComplianceDetail, base);
-@defineDocumentDetailNote(AdditionComplianceDetail);
+CLASS ExtraPageComplianceDetail 'Дополнительная страница сертификата';
+TABLE extraPageComplianceDetail (ExtraPageComplianceDetail);
 
-addAdditionComplianceDetail 'Добавить' = ACTION (compliance){
-    FOR ADDOBJ d = AdditionComplianceDetail DO {
-        complianceAdditionComplianceDetail(d) <- compliance;
-        EXEC saveImageAdditionComplianceDetail(d);
+complianceExtraPageComplianceDetail = DATA Compliance (ExtraPageComplianceDetail);
+
+imageExtraPageComplianceDetail 'Файл сертификата'  = DATA IMAGEFILE (ExtraPageComplianceDetail);
+saveImageExtraPageComplianceDetail 'Загрузить сертификат' (extraPageComplianceDetail) = ACTION LOADFILE imageExtraPageComplianceDetail(extraPageComplianceDetail);
+openImageExtraPageComplianceDetail 'Просмотреть сертификат' (extraPageComplianceDetail) = ACTION OPENFILE imageExtraPageComplianceDetail(extraPageComplianceDetail);
+
+@defineDocumentDetailIndex(compliance, ExtraPageComplianceDetail, base);
+
+@defineDocumentDetailNote(ExtraPageComplianceDetail);
+
+addExtraPageComplianceDetail 'Добавить' = ACTION (compliance){
+    FOR ADDOBJ d = ExtraPageComplianceDetail DO {
+        complianceExtraPageComplianceDetail(d) <- compliance;
+        EXEC saveImageExtraPageComplianceDetail(d);
         EXEC apply();
     }    
 }
@@ -65,13 +70,13 @@ FORM compliance 'Сертификат соответствия'
     PROPERTIES(c) objectClassName, numberCompliance, seriesCompliance, dateCompliance, timeCompliance,
                   fromDateCompliance, toDateCompliance, nameLegalEntityCompliance, saveImageCompliance, openImageCompliance
                       
-    OBJECTS d = AdditionComplianceDetail
-    PROPERTIES(d) indexAdditionComplianceDetail, noteAdditionComplianceDetail
-    PROPERTIES(c) addAdditionComplianceDetail TODRAW d FORCE PANEL TOOLBAR
-    PROPERTIES(d) openImageAdditionComplianceDetail TODRAW d FORCE PANEL TOOLBAR,
-                  saveImageAdditionComplianceDetail TODRAW d FORCE PANEL TOOLBAR,
+    OBJECTS d = ExtraPageComplianceDetail
+    PROPERTIES(d) indexExtraPageComplianceDetail, noteExtraPageComplianceDetail
+    PROPERTIES(c) addExtraPageComplianceDetail TODRAW d FORCE PANEL TOOLBAR
+    PROPERTIES(d) openImageExtraPageComplianceDetail TODRAW d FORCE PANEL TOOLBAR,
+                  saveImageExtraPageComplianceDetail TODRAW d FORCE PANEL TOOLBAR,
                   DELETE TODRAW d FORCE PANEL TOOLBAR
-    FILTERS complianceAdditionComplianceDetail(d) == c                   
+    FILTERS complianceExtraPageComplianceDetail(d) == c                   
 
     EDIT Compliance OBJECT c
 ;
@@ -119,7 +124,7 @@ DESIGN compliance FROM DEFAULT{
                 }
                 ADD d.box{
                     caption = 'Дополнительные файлы сертификата';
-                    PROPERTY(indexAdditionComplianceDetail){
+                    PROPERTY(indexExtraPageComplianceDetail){
                         caption = 'Номер файла';
                     }
                 }

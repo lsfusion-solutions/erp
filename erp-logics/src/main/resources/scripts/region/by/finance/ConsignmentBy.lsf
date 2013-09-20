@@ -30,7 +30,12 @@ CLASS ABSTRACT ConsignmentDetail 'Строка накладной';
 
 dateConsignment 'Дата' (consignment) = ABSTRACT DATE (Consignment);
 
-@defineNumberedObjectAbstract(Consignment);
+numberConsignment 'Номер' = ABSTRACT STRING[18] (Consignment) IN numberedGroup MINCHARWIDTH 7;
+seriesConsignment 'Серия' = ABSTRACT STRING[2] (Consignment) IN numberedGroup FIXEDCHARWIDTH 3; 
+
+seriesNumberConsignment 'Серия/Номер' (o) = 
+    CONCAT '', seriesConsignment(o), numberConsignment(o) 
+    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
 
 // ---------------------------------- Юридические лица ---------------------- //
 
@@ -260,22 +265,22 @@ supplierSumConsignmentDetailConsignment 'Сумма поставщика без 
 //wareSupplierSumConsignmentDetail 'Сумма посуды без НДС' (consignmentDetail) =  ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
 //
 //sumIaWConsignmentDetail 'Сумма с посудой без НДС' (consignmentDetail) = sumConsignmentDetail(consignmentDetail) (+) wareSupplierSumConsignmentDetail(consignmentDetail);
-overSumIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail) PERSISTENT;
-sumIaWConsignmentDetail (detail) = OVERRIDE sumConsignmentDetail(detail), overSumIaWConsignmentDetail(detail) PERSISTENT;
+overSumIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+sumIaWConsignmentDetail (detail) = OVERRIDE sumConsignmentDetail(detail), overSumIaWConsignmentDetail(detail);
 
 sumConsignmentDetailConsignment 'Сумма с посудой без НДС (всего)' (consignment) = GROUP SUM sumIaWConsignmentDetail(consignmentDetail)
                                                             BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignmentGroup;
 //
 //sumVATIaWConsignmentDetail 'Сумма НДС' (consignmentDetail) = sumVATConsignmentDetail(consignmentDetail) (+) wareVATSumConsignmentDetail(consignmentDetail);
-overSumVATIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail) PERSISTENT;
-sumVATIaWConsignmentDetail (detail) = OVERRIDE sumVATConsignmentDetail(detail), overSumVATIaWConsignmentDetail(detail) PERSISTENT;
+overSumVATIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+sumVATIaWConsignmentDetail (detail) = OVERRIDE sumVATConsignmentDetail(detail), overSumVATIaWConsignmentDetail(detail);
 
 sumVATConsignmentDetailConsignment 'Сумма НДС (всего)' (consignment) = GROUP SUM sumVATIaWConsignmentDetail(consignmentDetail)
                                                             BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignmentGroup;
 //
 //sumInvoiceIaWConsignmentDetail 'Сумма с НДС' (consignmentDetail) = sumInvoiceConsignmentDetail(consignmentDetail) (+) wareSumConsignmentDetail(consignmentDetail);
-overSumInvoiceIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail) PERSISTENT;
-sumInvoiceIaWConsignmentDetail (detail) = OVERRIDE sumInvoiceConsignmentDetail(detail), overSumInvoiceIaWConsignmentDetail(detail) PERSISTENT;
+overSumInvoiceIaWConsignmentDetail = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+sumInvoiceIaWConsignmentDetail (detail) = OVERRIDE sumInvoiceConsignmentDetail(detail), overSumInvoiceIaWConsignmentDetail(detail);
 
 sumInvoiceConsignmentDetailConsignment 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumInvoiceIaWConsignmentDetail(consignmentDetail)
                                                             BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignmentGroup;
