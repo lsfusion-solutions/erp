@@ -65,7 +65,7 @@ EXTEND FORM priceListTypes
 CLASS ABSTRACT PriceList 'Прайс' : Document;
 CLASS ABSTRACT PriceListDetail 'Строка прайса' : DocumentDetail;
 
-CLASS UserPriceList 'Прайс (польз.)' : PriceList, Historizable;
+CLASS UserPriceList 'Прайс (польз.)' : PriceList;
 CLASS UserPriceListDetail 'Строка прайса (польз.)' : PriceListDetail;
 
 @defineDocumentInterface(priceList);
@@ -193,18 +193,12 @@ inPriceListStock 'Отм' (priceList, stock) =
 stocksPriceList 'Склады' (priceList) = GROUP CONCAT nameStock(stock) IF inPriceListStock(priceList, stock) , ', '
                                        BY priceList
                                        ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
-
 // История
-timeCreatedPriceListDetail 'Время создания'= ABSTRACT DATETIME (PriceListDetail) IN historyGroup;
-timeCreatedPriceListDetail (d) += timeCreatedHistorizable(userPriceListUserPriceListDetail(d));
+@defineCreatedAbstract(PriceListDetail);
 
-userCreatedPriceListDetail = ABSTRACT CustomUser (PriceListDetail);
-nameUserCreatedPriceListDetail 'Пользователь' (historizable) = nameContact (userCreatedPriceListDetail(historizable)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN historyGroup;
-userCreatedPriceListDetail (d) += userCreatedHistorizable(userPriceListUserPriceListDetail(d));
-
-computerCreatedPriceListDetail = ABSTRACT Computer (PriceListDetail);
-hostnameComputerCreatedPriceListDetail 'Компьютер' (historizable) = hostnameComputer (computerCreatedPriceListDetail(historizable)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN historyGroup;
-computerCreatedPriceListDetail (d) += computerCreatedHistorizable(userPriceListUserPriceListDetail(d));
+createdTimePriceListDetail (d) += createdTimeUserPriceList(userPriceListUserPriceListDetail(d));
+createdUserPriceListDetail (d) += createdUserUserPriceList(userPriceListUserPriceListDetail(d));
+createdComputerPriceListDetail (d) += createdComputerUserPriceList(userPriceListUserPriceListDetail(d));
 
 // Партии
 @defineDocumentInterfaceDetailBatch(priceList, batch);
@@ -247,9 +241,9 @@ inPriceListLedgerLedgerPriceListType (ledger, type) += inPriceListDetailDataPric
 pricePriceListLedgerLedgerPriceListType (ledger, type) += pricePriceListDetailDataPriceListType(ledger, type);
 inPriceListLedgerStock (ledger, stock) += inPriceListStock(priceListPriceListDetail(ledger), stock);
 
-timeCreatedPriceListLedger (d) += timeCreatedPriceListDetail(d);
-userCreatedPriceListLedger (d) += userCreatedPriceListDetail(d);
-computerCreatedPriceListLedger (d) += computerCreatedPriceListDetail(d);
+createdTimePriceListLedger (d) += createdTimePriceListDetail(d);
+createdUserPriceListLedger (d) += createdUserPriceListDetail(d);
+createdComputerPriceListLedger (d) += createdComputerPriceListDetail(d);
 
 // -------------- Текущая действующая цена --------------- //
 

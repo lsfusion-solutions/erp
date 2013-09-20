@@ -4,7 +4,7 @@ REQUIRE Substitute, PriceListType, PriceListCalc, StockTax;
 NAMESPACE Production;
 
 // ----------------  Заказ ------------------- //
-CLASS Order 'Производственный заказ' : Historizable;
+CLASS Order 'Производственный заказ';
 TABLE order(Order);
 
 @defineDocumentHeaderTime(Order);
@@ -16,8 +16,9 @@ TABLE order(Order);
 
 @defineNumeratedObjectDefault(Order, 'Производственные заказы', 'ПЗ');
 
-@defineDocumentHeaderPosted (Order);
-@defineDocumentHeaderClosed (Order);
+@defineDocumentHeaderCreated(Order);
+@defineDocumentHeaderPosted(Order);
+@defineDocumentHeaderClosed(Order);
 
 @defineDocumentHeaderPriceListType (order, priceListType, , ' (потребность)');
 includeVATOrder 'Цена с НДС' = DATA BOOLEAN (Order);
@@ -790,7 +791,8 @@ FORM orders 'Производственные заказы'
     PROPERTIES(o) addo=ADDFORM SHOWIF isOpenedOrder(o), EDITFORM, copyOrder
     PROPERTIES(o) closeOrder SHOWIF isOpenedOrder(o), openOrder SHOWIF isClosedOrder(o)      
     PROPERTIES(o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedOrder(o)
-    PROPERTIES (o) READONLY FORCE PANEL nameUserCreatedHistorizable, timeCreatedHistorizable, hostnameComputerCreatedHistorizable, postedNameUserOrder, postedTimeOrder, postedHostnameComputerOrder
+    PROPERTIES (o) READONLY FORCE PANEL createdNameUserOrder, createdTimeOrder, createdHostnameComputerOrder, 
+                                        postedNameUserOrder, postedTimeOrder, postedHostnameComputerOrder
 
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) READONLY indexProductDetail, nameSkuProductDetail, nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
@@ -838,7 +840,7 @@ DESIGN orders FROM DEFAULT {
             NEW documentHistory {
                 caption = 'История';
 
-                ADD o.historyGroup;
+                ADD o.createdGroup;
                 ADD o.postedGroup;
             }
             NEW printTab {
