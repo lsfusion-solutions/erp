@@ -239,7 +239,7 @@ public class FiscalVMK {
         Integer lastError = vmkDLL.vmk.vmk_lasterror();
         if (lastError != 0) {
             if (throwException)
-                throw new RuntimeException("Datecs Exception: " + lastError);
+                throw new RuntimeException("VMK Exception: " + lastError);
         }
         return lastError;
     }
