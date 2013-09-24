@@ -3,6 +3,7 @@ package lsfusion.erp.integration.universal;
 import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
 import lsfusion.erp.stock.BarcodeUtils;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
@@ -320,6 +321,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             session.close();
 
             LM.findLAPByCompoundName("formRefresh").execute(context);
+
+            if (result != null)
+                context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
 
             return result == null;
         }
