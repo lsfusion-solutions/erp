@@ -98,7 +98,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                     String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
                     if (indexes != null) {
                         String[] splittedIndexes = indexes.split("\\+");
-                        for(int j = 0; i<splittedIndexes.length;i++)
+                        for (int j = 0; i < splittedIndexes.length; i++)
                             splittedIndexes[j] = splittedIndexes[i].trim();
                         importColumns.put(field[field.length - 1], splittedIndexes);
                     }
@@ -112,29 +112,26 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
                         for (File f : dir.listFiles()) {
                             if (f.getName().toLowerCase().endsWith(fileExtension.trim().toLowerCase())) {
                                 DataObject orderObject = context.addObject((ConcreteCustomClass) LM.findClassByCompoundName("Sale.UserOrder"));
-                                new ImportSaleOrderActionProperty(LM).importOrders(context, orderObject, importColumns,
-                                        IOUtils.getFileBytes(f), fileExtension.trim(), startRow,
-                                        csvSeparator == null ? null : csvSeparator.trim(), captionImportKeyTypeImportType,
-                                        operationObject, autoImportSupplierObject, autoImportSupplierStockObject,
-                                        autoImportCustomerObject, autoImportCustomerStockObject);
 
-                                renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());
+                                try {
+
+                                    boolean importResult = new ImportSaleOrderActionProperty(LM).importOrders(context, orderObject, importColumns,
+                                            IOUtils.getFileBytes(f), fileExtension.trim(), startRow,
+                                            csvSeparator == null ? null : csvSeparator.trim(), captionImportKeyTypeImportType,
+                                            operationObject, autoImportSupplierObject, autoImportSupplierStockObject,
+                                            autoImportCustomerObject, autoImportCustomerStockObject);
+
+                                    if (importResult)
+                                        renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());
+
+                                } catch (Exception ignored) {
+                                }
                             }
-
-
                         }
                     }
                 }
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
             throw new RuntimeException(e);
         }
     }
@@ -146,7 +143,7 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
         if (importedFile.isFile()) {
             File renamedFile = oldPath.endsWith(extension) ? new File(oldPath.replace(extension, newExtensionUpCase)) :
                     (oldPath.endsWith(extension.toLowerCase()) ? new File(oldPath.replace(extension.toLowerCase(), newExtensionLowCase)) : null);
-            if (renamedFile!=null && !importedFile.renameTo(renamedFile))
+            if (renamedFile != null && !importedFile.renameTo(renamedFile))
                 context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
         }
     }

@@ -110,10 +110,10 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         }
     }
 
-    public void importOrders(ExecutionContext context, DataObject orderObject, Map<String, String[]> importColumns,
-                             byte[] file, String fileExtension, Integer startRow, String csvSeparator, String itemKeyType,
-                             DataObject operationObject, DataObject supplierObject, DataObject supplierStockObject,
-                             DataObject customerObject, DataObject customerStockObject)
+    public boolean importOrders(ExecutionContext context, DataObject orderObject, Map<String, String[]> importColumns,
+                                byte[] file, String fileExtension, Integer startRow, String csvSeparator, String itemKeyType,
+                                DataObject operationObject, DataObject supplierObject, DataObject supplierStockObject,
+                                DataObject customerObject, DataObject customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
         List<SaleOrderDetail> orderDetailsList;
@@ -315,13 +315,15 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             session.sql.pushVolatileStats(null);
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
-            session.apply(context.getBL());
+            String result = session.applyMessage(context.getBL());
             session.sql.popVolatileStats(null);
             session.close();
 
             LM.findLAPByCompoundName("formRefresh").execute(context);
 
+            return result == null;
         }
+        return false;
     }
 
     private List<SaleOrderDetail> importOrdersFromXLS(ExecutionContext context, byte[] importFile, Map<String, String[]> importColumns, Integer startRow, Integer orderObject) throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
@@ -476,7 +478,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
                     manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT,
                     invoiceSum, manufacturingPrice));
-        }               
+        }
         file.close();
 
         return saleOrderDetailList;
