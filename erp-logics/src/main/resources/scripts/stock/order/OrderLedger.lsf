@@ -313,6 +313,7 @@ END
 
 // ----------------------- Расширение формы текущих остатков --------------------- //
 
+//--Sku
 EXTEND FORM currentBalanceSkuStock
     PROPERTIES(s, st) currentReserveSkuStock READONLY AFTER currentBalanceSkuStock(s,st)
 
@@ -343,8 +344,43 @@ EXTEND DESIGN currentBalanceSkuStock {
     }
 }
 
+//--Batch
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES(bt, st) currentReserveBatchStock READONLY AFTER currentBalanceBatchStock(bt,st)
+
+    OBJECTS l = OrderLedger
+    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+                  quantityOrderLedger, toShipQuantityOrderLedger
+
+    FILTERS stockOrderLedger(l)==st,
+            batchOrderLedger(l)==bt
+
+    FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
+
+    OBJECTS ll = OrderLedger
+    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+                   quantityOrderLedger, toShipQuantityOrderLedger
+
+    FILTERS stockOrderLedger(ll)==st,
+            batchOrderLedger(ll)==bt
+
+    FILTERS isPostedOrderLedger(ll) AND NOT isClosedOrderLedger(ll) AND NOT isPurchaseOrderLedger(ll)
+
+;
+EXTEND DESIGN currentBalanceBatchStock {
+
+    ledger.box {
+        ADD l.box {caption = 'Резерв (закупки)';}
+        ADD ll.box {caption = 'Резерв (продажи)';}
+    }
+}
+
+
+
+
 // ----------------------- Расширение формы текущих остатков на дату --------------------- //
 
+//-- Sku
 EXTEND FORM balanceSkuStock
     PROPERTIES(s, st, t) reserveASkuStockDateTime READONLY AFTER balanceASkuStockDateTime(s,st,t)
 
@@ -370,6 +406,39 @@ EXTEND FORM balanceSkuStock
 
 ;
 EXTEND DESIGN balanceSkuStock {
+
+    ledger.box {
+        ADD l.box {caption = 'Резерв (закупки)';}
+        ADD ll.box {caption = 'Резерв (продажи)';}
+    }
+}
+
+//-- Batch
+EXTEND FORM balanceBatchStock
+    PROPERTIES(bt, st, t) reserveABatchStockDateTime READONLY AFTER balanceBBatchStockDateTime(bt,st,t)
+
+    OBJECTS l = OrderLedger
+    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+                  quantityOrderLedger, toShipQuantityOrderLedger
+
+    FILTERS stockOrderLedger(l)==st,
+            batchOrderLedger(l)==bt,
+            dateTimeOrderLedger(l) <= t
+
+    FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
+
+    OBJECTS ll = OrderLedger
+    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+                   quantityOrderLedger, toShipQuantityOrderLedger
+
+    FILTERS stockOrderLedger(ll)==st,
+            batchOrderLedger(ll)==bt,
+            dateTimeOrderLedger(l) <= t
+
+    FILTERS isPostedOrderLedger(ll) AND NOT isClosedOrderLedger(ll) AND NOT isPurchaseOrderLedger(ll)
+
+;
+EXTEND DESIGN balanceBatchStock {
 
     ledger.box {
         ADD l.box {caption = 'Резерв (закупки)';}
