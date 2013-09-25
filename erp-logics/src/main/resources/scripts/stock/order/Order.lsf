@@ -409,7 +409,11 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
             PROPERTY(formOk) {
                 caption = 'Провести';
-            }
+            }                        
+            PROPERTY(sumUserOrderDetailUserOrder) { preferredCharWidth = 13;}
+            PROPERTY(VATSumUserOrderDetailUserOrder) { preferredCharWidth = 13;}
+            PROPERTY(invoiceSumUserOrderDetailUserOrder) { preferredCharWidth = 13;}
+            
         }
     }
 
@@ -453,6 +457,30 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
             FORM userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
         }
     } TOOLBAR;
+    
+//-- Копирование строк     
+    overCopyOrderDetail = ABSTRACT ACTION LIST (UserOrderDetail, UserOrderDetail);
+
+    copyOrderDetail 'Копировать' = ACTION (detail) {
+        FOR ADDOBJ d = UserOrderDetail DO {          
+
+            userOrderUserOrderDetail(d) <- userOrderUserOrderDetail(detail);
+            skuUserOrderDetail(d) <- skuUserOrderDetail(detail);
+            quantityUserOrderDetail(d) <- quantityUserOrderDetail(detail);
+            priceUserOrderDetail(d) <- priceUserOrderDetail(detail);
+            data###stockProp###userOrderDetail(d) <- data###stockProp###userOrderDetail(detail);
+            priceListType###userOrderDetail(d) <- priceListType###userOrderDetail(detail);      
+            shipmentDataDate###userOrderDetail(d) <- shipmentDataDate###userOrderDetail(detail);         
+            shipmentDataTime###userOrderDetail(d) <- shipmentDataTime###userOrderDetail(detail);        
+            closeDataDate###userOrderDetail(d) <- closeDataDate###userOrderDetail(detail);  
+            
+            EXEC overCopyOrderDetail(d, detail);                              
+        }
+    } TOOLBAR;
+    
+    EXTEND FORM userOrder 
+        PROPERTIES(d) copyOrderDetail FORCE PANEL 
+    ;    
 
 
     FORM orders 'Заказы' TITLE 'Заказы'###sign
@@ -544,6 +572,9 @@ END
 // Партии приход
 META defineOrderBatch(legalEntityProp, stockProp)
     @defineDocumentInterfaceDetailBatch(order, batch);
+    overCopyOrderDetail(d, detail) += ACTION (d, detail) {      
+        batchUserOrderDetail(d) <- batchUserOrderDetail(detail);
+    } 
 
     // Пишем в цену заказа из вида цен в зависимости от партии
     @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp, userOrder);
