@@ -6,36 +6,63 @@ NAMESPACE Order;
 
 //--  Связь с заказом
 
-orderPickingOrder = ABSTRACT Order.Order (PickingOrder);
+orderPickingOrder = ABSTRACT Order (PickingOrder) PERSISTENT;
+orderUserPickingOrder = DATA Order (UserPickingOrder);
+orderPickingOrder(pickingOrder) += orderUserPickingOrder(pickingOrder);
+
+CONSTRAINT stockUserPickingOrder(pickingOrder) != fromOrder(orderUserPickingOrder(pickingOrder))
+    CHECKED BY orderUserPickingOrder
+        MESSAGE 'Склад в заказе на комплектацию и в заказе должны соответствовать друг другу';
+
+inOrderPickingOrder (order, pickingOrder) = GROUP SUM 1 BY orderPickingOrder(pickingOrder), pickingOrder;
+ordersPickingOrder 'Заказы' (pickingOrder) = GROUP CONCAT VARSTRING[255](seriesNumberOrder(order)) IF inOrderPickingOrder(order, pickingOrder) , ', '
+                                         BY pickingOrder
+                                         ORDER order
+                                         IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+
+EXTEND FORM pickingOrders
+    PROPERTIES (o) READONLY ordersPickingOrder
+;
+
+// ------------------- Свойства для заказа на комплектацию ------------------------------- //
+ 
+numberOrderPickingOrder 'Номер заказа' (pickingOrder) = numberOrder(orderPickingOrder(pickingOrder));
+seriesOrderPickingOrder 'Серия заказа' (pickingOrder) = seriesOrder(orderPickingOrder(pickingOrder));
+
+toPickingOrder = customerOrder(orderPickingOrder(pickingOrder));
+nameToPickingOrder 'Получатель' = nameLegalEntity(toPickingOrder(pickingOrder));
+
+toStockPickingOrder = customerStockOrder(orderPickingOrder(pickingOrder));
+nameToStockPickingOrder 'Склад получателя' = nameStock(toStockPickingOrder(pickingOrder));
+
+addressToStockPickingOrder 'Пункт разгрузки' = addressStock(toStockPickingOrder(pickingOrder));
+
+// ------------------------------ Свойства для комплектации ---------------------------- //
+
+toPicking = toPickingOrder(pickingOrderPicking(picking));
+nameToPicking 'Получатель' = nameLegalEntity(toPicking(picking));
+
+toStockPicking = toStockPickingOrder(pickingOrderPicking(picking));
+nameToStockPicking 'Склад получателя' = nameStock(toStockPicking(picking));
+
+addressToStockPicking 'Пункт разгрузки' = addressStock(toStockPicking(picking));
+
+// ------------------------------------ Кол-во по заказам -------------------------------------- //
+
+pickingPickingDetailOrderSku 'Скомплектовано' (order, sku) = GROUP SUM quantityPickingDetail(pickingDetail)
+                                                           BY orderPickingOrder(pickingOrderPicking(pickingPickingDetail(pickingDetail))), skuPickingDetail(pickingDetail);
+pickingQuantityOrderDetail 'Кол-во (скомплектовано)' (orderDetail) = PARTITION UNGROUP pickingPickingDetailOrderSku
+                                                          LIMIT STRICT quantityOrderDetail (orderDetail)
+                                                          BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
+                                                          ORDER orderDetail;
+
+//-- Количество излишне подобранных товаров, которых нет в заказе
+quantityPickingPickingDetailOrderSku (order, sku)= GROUP SUM pickingQuantityOrderDetail(detail) BY orderOrderDetail(detail), skuOrderDetail(detail);
+
+excessQuantityPickingPickingDetailOrderSku (order, sku) = pickingPickingDetailOrderSku(order, sku) (-) quantityPickingPickingDetailOrderSku (order, sku);
+excessQuantityPickingPickingDetailOrder( order) = GROUP SUM 1 IF excessQuantityPickingPickingDetailOrderSku (order, sku) > 0 BY order;
 
 META defineOrderPickingOrder(sign, stockProp)
-
-    orderPickingOrder = ABSTRACT Order (PickingOrder) PERSISTENT;
-    Order.orderPickingOrder (pickingOrder) += orderPickingOrder(pickingOrder);
-
-    orderUserPickingOrder = DATA Order(UserPickingOrder);
-    orderPickingOrder(pickingOrder) += orderUserPickingOrder(pickingOrder);
-
-    CONSTRAINT stockUserPickingOrder(pickingOrder) != stockProp###order(orderUserPickingOrder(pickingOrder))
-        CHECKED BY orderUserPickingOrder
-            MESSAGE 'Склад в заказе на комплектацию и в заказе должны соответствовать друг другу';
-
-//    GROUP order 'Информация о заказе' : public;
-
-//    descriptionOrderPickingOrder 'Заказ' (pickingOrder) = descriptionOrder(orderPickingOrder(pickingOrder)) IN order;
-//    descriptionOrderUserPickingOrder 'Заказ' (pickingOrder) = descriptionOrder(orderUserPickingOrder(pickingOrder)) IN order;
-
-    relationOrderPickingOrder (order, pickingOrder) = GROUP SUM 1 BY orderPickingOrder(pickingOrder), pickingOrder;
-    ordersPickingOrder 'Заказы' (pickingOrder) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF relationOrderPickingOrder(order, pickingOrder) , ', '
-                                             BY pickingOrder
-                                             ORDER order
-                                             IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
-
-
-    EXTEND FORM pickingOrders
-        PROPERTIES (o) READONLY ordersPickingOrder
-    ;
-//-- аггр.объект
 
     @defineDocumentInterfaceProperty (order, createPickingOrder, 'Создать заказ на комплектацию');
 
@@ -53,7 +80,6 @@ META defineOrderPickingOrder(sign, stockProp)
         }
     }
     //-------------------- Ячейки -----------------------//
-
 
     @defineDocumentInterfaceDetailBin(order);
     @extendFormInterfaceDetailBin(order, o, , quantity);
@@ -104,22 +130,23 @@ META defineOrderPickingOrder(sign, stockProp)
     @defineOperationProperty(createPickingOrder, 'Заказ на комплектацию', createContainer);
     @deriveDocumentOperationProperty(UserOrder, createPickingOrder);
 
-    calcPartOrder 'Частично собран' (order) = calcPartPickingOrder(orderPickingOrderOrder(order));
-    calcFullOrder 'Полностью собран' (order) = calcFullPickingOrder(orderPickingOrderOrder(order));
     acceptedOrder 'Принят в работу' (order) = acceptedPickingOrder(orderPickingOrderOrder(order));
     namePerformerOrder 'Комплектовщик' (order) = namePerformerPickingOrder(orderPickingOrderOrder(order));
 
+    calcPartOrder 'Частично собран' (order) = calcPartPickingOrder(orderPickingOrderOrder(order));
+    calcFullOrder 'Полностью собран' (order) = calcFullPickingOrder(orderPickingOrderOrder(order));
+    calcPartOrFullOrder 'Собран' (order) = calcPartOrder(order) OR calcFullOrder(order);
+    
     startDateTimeOrder 'Начало комплектации' (order) = startDateTimePickingOrder(orderPickingOrderOrder(order));
     finishDateTimeOrder 'Завершение комплектации' (order) = finishDateTimePickingOrder(orderPickingOrderOrder(order));
+    
     statusPickingOrder 'Статус комплектации' (order) = CASE
         WHEN orderPickingOrderOrder(order) THEN statusPickingPickingOrder(orderPickingOrderOrder(order))
-        WHEN  order IS Order THEN 'Без комплектации';
+        WHEN order IS Order THEN 'Без комплектации';
     backgroundStatusPickingOrder 'Цвет' (order) = CASE
         WHEN orderPickingOrderOrder(order) THEN backgroundStatusPickingPickingOrder(orderPickingOrderOrder(order))
-        WHEN  order IS Order THEN RGB(224, 224, 255);
+        WHEN order IS Order THEN RGB(224, 224, 255);
     packQuantityOrder 'Кол-во собранных мест' (order) = packQuantityPickingOrder(orderPickingOrderOrder(order));
-
-    calcPartOrFullOrder 'Собран' (order) = calcPartOrder(order) OR calcFullOrder(order);
 
     EXTEND FORM orders
         PROPERTIES(o) READONLY FORCE PANEL namePerformerOrder, startDateTimeOrder, finishDateTimeOrder,
@@ -139,119 +166,3 @@ META defineOrderPickingOrder(sign, stockProp)
         }
     }
 END
-
-//-- Действие
-
-META definePickingOrderInvoiceAction (sign, stockProp)
-
-    pickingPickingDetailOrderSku 'Скомплектовано' (order, sku) = GROUP SUM quantityPickingDetail(pickingDetail)
-                                                               BY orderPickingOrder(pickingOrderPicking(pickingPickingDetail(pickingDetail))), skuPickingDetail(pickingDetail);
-    pickingOrderDetail 'Кол-во (скомплектовано)' (orderDetail) = PARTITION UNGROUP pickingPickingDetailOrderSku
-                                                              LIMIT STRICT quantityOrderDetail (orderDetail)
-                                                              BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
-                                                              ORDER orderDetail;
-    //-- Количество излишне подобранных товаров, которых нет в заказе
-    quantityPickingPickingDetailOrderSku (order, sku)= GROUP SUM pickingOrderDetail(detail) BY orderOrderDetail(detail), skuOrderDetail(detail);
-
-    excessQuantityPickingPickingDetailOrderSku (order, sku) = pickingPickingDetailOrderSku(order, sku) (-) quantityPickingPickingDetailOrderSku (order, sku);
-    excessQuantityPickingPickingDetailOrder( order) = GROUP SUM 1 IF excessQuantityPickingPickingDetailOrderSku (order, sku) >0 BY order;
-
-    overCreatePickingDetailUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
-    createPickingExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION LIST (UserInvoice, Order);
-
-    createPickingDetailUserInvoiceOrder = ACTION (userInvoice, order) {
-        IF useExplicitBatchDetailUserInvoiceOrder(userInvoice, order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
-            EXEC createPickingExplicitBatchDetailUserInvoiceOrder(userInvoice, order);
-        } ELSE
-            FOR orderOrderDetail(orderDetail) == order AND
-                pickingOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
-                AND inOrderDetailUserInvoice(orderDetail, userInvoice)
-                ADDOBJ d = UserInvoiceDetail DO {
-                    userInvoiceUserInvoiceDetail(d) <- userInvoice;
-                    orderUserInvoiceDetail(d) <- order;
-                    skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-                    batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
-                    quantityUserInvoiceDetail (d) <- pickingOrderDetail(orderDetail);
-                    VATUserInvoiceDetail (d) <- VATOrderDetail(orderDetail);
-                    valueVATUserInvoiceDetail (d) <- valueVATOrderDetail(orderDetail);
-                    priceListTypeUserInvoiceDetail (d) <- priceListTypeOrderDetail(orderDetail);
-                    priceUserInvoiceDetail (d) <- priceOrderDetail(orderDetail);
-                    invoicePriceUserInvoiceDetail (d) <- invoicePriceOrderDetail(orderDetail);
-                    data###stockProp###userInvoiceDetail (d) <- data###stockProp###orderDetail(orderDetail);
-
-                    EXEC overCreatePickingDetailUserInvoiceDetailOrderDetail(d, orderDetail);
-            }
-
-        FOR excessQuantityPickingPickingDetailOrderSku(order, sku) > 0 ADDOBJ d = UserInvoiceDetail DO {
-            userInvoiceUserInvoiceDetail(d) <- userInvoice;
-            orderUserInvoiceDetail(d) <- order;
-            skuUserInvoiceDetail(d) <- sku;
-            quantityUserInvoiceDetail (d) <- excessQuantityPickingPickingDetailOrderSku(order, sku);
-//            data###stockProp###userInvoiceDetail (d) <- data###stockProp###orderDetail(orderDetail);
-        }
-    }
-
-    fillPickingUserInvoiceOrder = ACTION (userInvoice, order) {
-        ASSIGN supplierUserInvoice(userInvoice) <- supplierOrder(order) WHERE supplierOrder(order);
-        ASSIGN supplierStockUserInvoice(userInvoice) <- supplierStockOrder(order) WHERE supplierStockOrder(order);
-
-        ASSIGN customerUserInvoice(userInvoice) <- customerOrder(order) WHERE customerOrder(order);
-        ASSIGN customerStockUserInvoice(userInvoice) <- customerStockOrder(order) WHERE customerStockOrder(order);
-
-        ASSIGN currencyUserInvoice(userInvoice) <- currencyOrder(order) WHERE currencyOrder(order);
-        ASSIGN agreementUserInvoice(userInvoice) <- agreementOrder(order) WHERE agreementOrder(order);
-        ASSIGN priceListTypeUserInvoice(userInvoice) <- priceListTypeOrder(order) WHERE priceListTypeOrder(order);
-//        ASSIGN contractSkuUserInvoice(userInvoice) <- contractSkuOrder(order) WHERE contractSkuOrder(order);
-//        ASSIGN isCommissionUserInvoice(userInvoice) <- isCommissionOrder(order) WHERE isCommissionOrder(order);
-
-        ASSIGN operationUserInvoice(userInvoice) <- operationOrder(order) WHERE operationOrder(order);
-
-        ASSIGN noteUserInvoice(userInvoice) <- noteOrder(order) WHERE noteOrder(order);
-
-        EXEC createPickingDetailUserInvoiceOrder(userInvoice, order);
-    }
-    packQuantityInvoice 'Общее количество грузовых мест' = ABSTRACT NUMERIC[8,2] (Invoice);
-    packQuantityUserInvoice 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (UserInvoice);
-    packQuantityInvoice(invoice) += packQuantityUserInvoice(invoice);
-
-    createPickingUserInvoiceOrder 'Создать накладную по комплектации' = ACTION (order) {
-        IF order IS Order THEN {
-            userInvoiceOrder(order) <- NULL;
-            FOR ADDOBJ i = UserInvoice DO {
-                isPostedUserInvoice(i) <- TRUE;
-                fillPickingUserInvoiceOrder(i, order);
-                userInvoiceOrder(order) <- i;
-                packQuantityUserInvoice(i) <- packQuantityOrder(order);
-                createdUserInvoiceOrder(i, order) <- TRUE;
-            }
-        }
-    }
-
-    movePickingUserInvoiceOrder 'Накладная по комплектации'###sign =  ACTION (order) NEWSESSION{
-        EXEC createPickingUserInvoiceOrder(order);
-        IF excessQuantityPickingPickingDetailOrder(order) THEN {
-            MESSAGE 'В накладной присутствуют товары, не указанные в заказе';
-        }
-        FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
-    } TOOLBAR;
-
-    EXTEND FORM orders
-        PROPERTIES(o) SHOWIF calcPartOrFullOrder(o) movePickingUserInvoiceOrder
-    ;
-    EXTEND DESIGN orders {
-        createdContainer{
-            ADD PROPERTY(movePickingUserInvoiceOrder);
-        }
-    }
-
-    overCreatePickingDetailUserInvoiceDetailOrderDetail(i, o) += ACTION (i, o) {
-        ASSIGN barcodePackUserInvoiceDetail(i) <- barcodePackOrderDetail(o);
-        ASSIGN amountPackUserInvoiceDetail(i) <- amountPackOrderDetail(o);
-        ASSIGN packQuantityUserInvoiceDetail (i) <- pickingOrderDetail(o)/amountPackOrderDetail(o);
-    }
-END
-
-
-
-
-

@@ -359,8 +359,13 @@ finishDatePickingOrder 'Дата окончания' = DATA DATE (PickingOrder);
 finishTimePickingOrder 'Время окончания' = DATA TIME (PickingOrder);
 finishDateTimePickingOrder 'Дата/время окончания' (o) = dateTimeToDateTime(finishDatePickingOrder(o), finishTimePickingOrder(o)) PERSISTENT;
 
+finishDateTimePicking 'Дата/время окончания' (picking) =  finishDateTimePickingOrder(pickingOrderPicking(picking));
+
 performerPickingOrder  = DATA CustomUser (PickingOrder);
 namePerformerPickingOrder 'Комплектовщик' (pickingOrder) = nameContact(performerPickingOrder(pickingOrder));
+
+performerPicking = performerPickingOrder(pickingOrderPicking(picking));
+namePerformerPicking 'Комплектовщик' (picking) = nameContact(performerPicking(picking));
 
 statusPickingPickingOrder 'Статус комплектации' (order) = CASE
                                           WHEN calcPartPickingOrder(order) THEN 'Частично собран'
@@ -375,6 +380,9 @@ backgroundStatusPickingPickingOrder 'Цвет' (order) =  CASE
                                           WHEN acceptedPickingOrder(order) THEN RGB(255,238,165)
                                           WHEN order IS PickingOrder AND NOT acceptedPickingOrder(order) THEN RGB(255,200,216)
                                       ;
+
+statusPicking 'Статус' = statusPickingPickingOrder(pickingOrderPicking(picking));
+backgroundStatusPicking = backgroundStatusPickingPickingOrder(pickingOrderPicking(picking));
 
 toAcceptedPickingOrder 'Принять' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY{
     acceptedPickingOrder(pickingOrder) <- TRUE;

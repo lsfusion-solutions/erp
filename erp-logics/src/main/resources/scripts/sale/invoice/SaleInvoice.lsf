@@ -40,7 +40,6 @@ NAMESPACE Sale;
 // ---------------------------------------------- Создание инвойса по заказу ---------------------------------- //
 
 @defineOrderInvoice(' (продажа)', supplierStock);
-@defineOrderInvoiceAction (' (продажа)');
 
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
@@ -93,39 +92,25 @@ toInvoiceBatchOrderDetail (batch, orderDetail) = PARTITION UNGROUP toInvoicedOrd
 createExplicitBatchDetailUserInvoiceOrder (userInvoice, order) += ACTION (userInvoice, order) {
     FOR orderOrderDetail(orderDetail) == order AND toInvoiceBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail)
         ADDOBJ d = UserInvoiceDetail DO {
-            ASSIGN userInvoiceUserInvoiceDetail(d) <- userInvoice;
-            ASSIGN orderUserInvoiceDetail(d) <- order;
-            ASSIGN skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-            ASSIGN batchUserInvoiceDetail(d) <- batch;
-            ASSIGN quantityUserInvoiceDetail (d) <- toInvoiceBatchOrderDetail(batch, orderDetail);
-       // todo: решить какие цены задавать: из заказа или из партии
-            ASSIGN barcodePackUserInvoiceDetail(d) <- barcodePackOrderDetail(orderDetail);
-            ASSIGN amountPackUserInvoiceDetail(d) <- amountPackOrderDetail(orderDetail);
-            ASSIGN packQuantityUserInvoiceDetail (d) <- toInvoiceBatchOrderDetail(batch, orderDetail)/amountPackOrderDetail(orderDetail);
-            ASSIGN VATUserInvoiceDetail (d) <- VATOrderDetail(orderDetail);
-            ASSIGN valueVATUserInvoiceDetail (d) <- valueVATOrderDetail(orderDetail);
-            ASSIGN priceListTypeUserInvoiceDetail (d) <- priceListTypeOrderDetail(orderDetail);
-            ASSIGN priceUserInvoiceDetail (d) <- priceOrderDetail(orderDetail);
-            ASSIGN invoicePriceUserInvoiceDetail (d) <- invoicePriceOrderDetail(orderDetail);
-            ASSIGN dataSupplierStockUserInvoiceDetail (d) <- dataSupplierStockOrderDetail(orderDetail);
+            userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            orderUserInvoiceDetail(d) <- order;
+            skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+            batchUserInvoiceDetail(d) <- batch;
+            quantityUserInvoiceDetail (d) <- toInvoiceBatchOrderDetail(batch, orderDetail);
+
+            fillUserInvoiceDetailOrderDetail(d, orderDetail);
+            overFillUserInvoiceDetailOrderDetail(d, orderDetail);
         }
     FOR orderOrderDetail(orderDetail) == order AND PREV(toInvoicedOrderDetail(orderDetail)) AND batchOrderDetail(orderDetail)
         ADDOBJ d = UserInvoiceDetail DO {
-            ASSIGN userInvoiceUserInvoiceDetail(d) <- userInvoice;
-            ASSIGN orderUserInvoiceDetail(d) <- order;
-            ASSIGN skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-            ASSIGN batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
-            ASSIGN quantityUserInvoiceDetail (d) <- PREV(toInvoicedOrderDetail(orderDetail));
-       // todo: решить какие цены задавать: из заказа или из партии
-            ASSIGN barcodePackUserInvoiceDetail(d) <- barcodePackOrderDetail(orderDetail);
-            ASSIGN amountPackUserInvoiceDetail(d) <- amountPackOrderDetail(orderDetail);
-            ASSIGN packQuantityUserInvoiceDetail (d) <- toInvoicedOrderDetail(orderDetail)/amountPackOrderDetail(orderDetail);
-            ASSIGN VATUserInvoiceDetail (d) <- VATOrderDetail(orderDetail);
-            ASSIGN valueVATUserInvoiceDetail (d) <- valueVATOrderDetail(orderDetail);
-            ASSIGN priceListTypeUserInvoiceDetail (d) <- priceListTypeOrderDetail(orderDetail);
-            ASSIGN priceUserInvoiceDetail (d) <- priceOrderDetail(orderDetail);
-            ASSIGN invoicePriceUserInvoiceDetail (d) <- invoicePriceOrderDetail(orderDetail);
-            ASSIGN dataSupplierStockUserInvoiceDetail (d) <- dataSupplierStockOrderDetail(orderDetail);
+            userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            orderUserInvoiceDetail(d) <- order;
+            skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+            batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
+            quantityUserInvoiceDetail (d) <- PREV(toInvoicedOrderDetail(orderDetail));
+
+            fillUserInvoiceDetailOrderDetail(d, orderDetail);
+            overFillUserInvoiceDetailOrderDetail(d, orderDetail);
         }
 }
 

@@ -32,13 +32,16 @@ CLASS ABSTRACT OrderDetail 'Строка заказа' : DocumentDetail;
 @defineDocumentAbstractLegalEntity(order, supplier, 'Поставщик');
 @defineDocumentAbstractLegalEntity(order, customer, 'Покупатель');
 
+@defineDocumentAbstractLegalEntity(order, from, 'Отправитель');
+@defineDocumentAbstractLegalEntity(order, to, 'Получатель');
+
 closeDateOrder 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm PERSISTENT;
 
 @defineDocumentAbstractDataStock(order, stock, 'Склад поставщика', supplier);
 @defineDocumentAbstractDataStock(order, stock, 'Склад покупателя', customer);
 
-@defineDocumentAbstractDataStock(order, stock, 'Склад (отправитель)', from);
-@defineDocumentAbstractDataStock(order, stock, 'Склад (получатель)', to);
+@defineDocumentAbstractDataStock(order, stock, 'Склад отправителя', from);
+@defineDocumentAbstractDataStock(order, stock, 'Склад получателя', to);
 
 @defineDocumentAbstractPosted(order);
 @defineDocumentAbstractClosed(order);
@@ -562,11 +565,13 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @extendFormEditable(orders);
 END
 
-META defineOrderStockDestination(fromStock, toStock)
-    Order.fromStockOrder(order) += fromStock##Order(order);
-    Order.toStockOrder(order) += toStock##Order(order);
-    Order.dataFromStockOrderDetail(detail) += data###fromStock##OrderDetail(detail);
-    Order.dataToStockOrderDetail(detail) += data###toStock##OrderDetail(detail);
+META implementOrderDestination(from, to)
+    Order.fromOrder(order) += from##Order(order);
+    Order.toOrder(order) += to##Order(order);
+    Order.fromStockOrder(order) += from##StockOrder(order);
+    Order.toStockOrder(order) += to##StockOrder(order);
+    Order.dataFromStockOrderDetail(detail) += data###from##StockOrderDetail(detail);
+    Order.dataToStockOrderDetail(detail) += data###to##StockOrderDetail(detail);
 END
 
 // Партии приход

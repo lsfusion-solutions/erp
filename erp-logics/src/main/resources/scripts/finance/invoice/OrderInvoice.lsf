@@ -56,12 +56,135 @@ META defineOrderInvoice(sign, stockProp)
     toInvoicedOrder (order) = GROUP SUM toInvoicedOrderDetail(orderDetail) IF orderOrderDetail(orderDetail) == order BY orderOrderDetail(orderDetail);
 
 
-    // Создание заказа на основе инвойса //
+    // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
+
     inOrderSupplierStock (order, supplierStock) = GROUP SUM 1 IF supplierStockOrderDetail(orderDetail) == supplierStock BY orderOrderDetail(orderDetail), supplierStock;
     inOrderSupplier (order, supplier) = GROUP SUM 1 IF legalEntityStock(supplierStockOrderDetail(orderDetail)) == supplier BY orderOrderDetail(orderDetail), supplier;
 
     inOrderCustomerStock (order, customerStock) = GROUP SUM 1 IF customerStockOrderDetail(orderDetail) == customerStock BY orderOrderDetail(orderDetail), customerStock;
     inOrderCustomer (order, customer) = GROUP SUM 1 IF legalEntityStock(customerStockOrderDetail(orderDetail)) == customer BY orderOrderDetail(orderDetail), customer;
+
+    createExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION LIST (UserInvoice, Order);
+    useExplicitBatchDetailUserInvoiceOrder = ABSTRACT BOOLEAN (UserInvoice, Order);
+
+    differentStocksInDetailsStock (stock) = differentStocksInDetailsLegalEntity(legalEntityStock(stock)) PERSISTENT;
+
+    inOrderDetailUserInvoice (orderDetail, userInvoice) = (orderDetail IS OrderDetail AND userInvoice IS UserInvoice AND NOT supplierStockUserInvoice(userInvoice)) OR
+                                                           supplierStockOrderDetail(orderDetail)==supplierStockUserInvoice(userInvoice);
+
+    overFillUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
+    
+    fillUserInvoiceDetailOrderDetail = ACTION (id, od) {    
+        VATUserInvoiceDetail(id) <- VATOrderDetail(od);
+        valueVATUserInvoiceDetail(id) <- valueVATOrderDetail(od);
+        priceListTypeUserInvoiceDetail(id) <- priceListTypeOrderDetail(od);
+        priceUserInvoiceDetail(id) <- priceOrderDetail(od);
+        invoicePriceUserInvoiceDetail(id) <- invoicePriceOrderDetail(od);
+        data###stockProp###userInvoiceDetail(id) <- data###stockProp###orderDetail(od);
+    }
+    
+    createDetailUserInvoiceOrder = ACTION (userInvoice, order) {
+        IF useExplicitBatchDetailUserInvoiceOrder(userInvoice, order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
+            createExplicitBatchDetailUserInvoiceOrder(userInvoice, order);
+        } ELSE
+            FOR orderOrderDetail(orderDetail) == order AND
+                toInvoicedOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
+                AND inOrderDetailUserInvoice(orderDetail, userInvoice)
+                ADDOBJ d = UserInvoiceDetail DO {
+                    userInvoiceUserInvoiceDetail(d) <- userInvoice;
+                    orderUserInvoiceDetail(d) <- order;
+                    skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+                    batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
+                    quantityUserInvoiceDetail (d) <- toInvoicedOrderDetail(orderDetail);
+
+                    fillUserInvoiceDetailOrderDetail(d, orderDetail);
+                    overFillUserInvoiceDetailOrderDetail(d, orderDetail);
+            }
+    }
+    
+    fillHeaderUserInvoiceOrder = ACTION (userInvoice, order) {
+        supplierUserInvoice(userInvoice) <- supplierOrder(order) WHERE supplierOrder(order);
+        supplierStockUserInvoice(userInvoice) <- supplierStockOrder(order) WHERE supplierStockOrder(order);
+
+        customerUserInvoice(userInvoice) <- customerOrder(order) WHERE customerOrder(order);
+        customerStockUserInvoice(userInvoice) <- customerStockOrder(order) WHERE customerStockOrder(order);
+
+        currencyUserInvoice(userInvoice) <- currencyOrder(order) WHERE currencyOrder(order);
+        agreementUserInvoice(userInvoice) <- agreementOrder(order) WHERE agreementOrder(order);
+        priceListTypeUserInvoice(userInvoice) <- priceListTypeOrder(order) WHERE priceListTypeOrder(order);
+//        ASSIGN contractSkuUserInvoice(userInvoice) <- contractSkuOrder(order) WHERE contractSkuOrder(order);
+//        ASSIGN isCommissionUserInvoice(userInvoice) <- isCommissionOrder(order) WHERE isCommissionOrder(order);
+
+        operationUserInvoice(userInvoice) <- operationOrder(order) WHERE operationOrder(order);
+
+        noteUserInvoice(userInvoice) <- noteOrder(order) WHERE noteOrder(order);
+    }
+    
+    fillUserInvoiceOrder = ACTION (userInvoice, order) {
+        fillHeaderUserInvoiceOrder(userInvoice, order);
+        
+        createDetailUserInvoiceOrder(userInvoice, order);
+    }
+
+    fillSupplierStockUserInvoiceOrder = ACTION (supplierStock, userInvoice, order) {
+        supplierUserInvoice(userInvoice) <- legalEntityStock(supplierStock);
+        supplierStockUserInvoice(userInvoice) <- supplierStock;
+
+        customerUserInvoice(userInvoice) <- customerOrder(order);
+        customerStockUserInvoice(userInvoice) <- customerStockOrder(order);
+
+        currencyUserInvoice(userInvoice) <- currencyOrder(order);
+        agreementUserInvoice(userInvoice) <- agreementOrder(order);
+        priceListTypeUserInvoice(userInvoice) <- priceListTypeOrder(order);
+
+        operationUserInvoice(userInvoice) <- operationOrder(order) WHERE operationOrder(order);
+        noteUserInvoice(userInvoice) <- noteOrder(order);
+
+        createDetailUserInvoiceOrder(userInvoice, order);
+    }
+
+    userInvoiceOrder = DATA SESSION UserInvoice (Order);
+    createUserInvoiceOrder 'Создать накладную' = ACTION (order) {
+        userInvoiceOrder(order) <- NULL;
+        FOR ADDOBJ i = UserInvoice DO {
+            fillUserInvoiceOrder(i, order);
+            userInvoiceOrder(order) <- i;
+        }
+    }
+    Invoice.createUserInvoiceOrder (order) += createUserInvoiceOrder(order);
+
+    createUserInvoicePostedOrder 'Создать проведенную накладную' = ACTION (order) {
+        IF differentStocksInDetailsStock(customerStockOrder(order)) THEN {
+            FOR ADDOBJ i = UserInvoice DO {
+                isPostedUserInvoice(i) <- TRUE;
+                fillUserInvoiceOrder(i, order);
+                createdUserInvoiceOrder(i, order) <- TRUE;
+            }
+        } ELSE {
+            FOR inOrderSupplierStock(order, stock) ADDOBJ i = UserInvoice DO {
+                isPostedUserInvoice(i) <- TRUE;
+                fillSupplierStockUserInvoiceOrder(stock, i, order);
+                createdUserInvoiceOrder(i, order) <- TRUE;
+            }
+        }
+    }
+    Invoice.createUserInvoicePostedOrder (order) += createUserInvoicePostedOrder(order);
+
+    addUserInvoiceOrder 'Накладная'###sign =  ACTION (order) NEWSESSION {
+        createUserInvoiceOrder(order);
+        FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
+    } TOOLBAR;
+
+    EXTEND FORM orders
+        PROPERTIES(o) addUserInvoiceOrder
+    ;
+    EXTEND DESIGN orders {
+        createdContainer{
+            ADD PROPERTY(addUserInvoiceOrder);
+        }
+    }
+
+    // ---------------------------- Заполнение на основе заказа --------------------------- //
 
     supplierInvoiceOrder = DATA SESSION LegalEntity ();
     nameSupplierInvoiceOrder 'Поставщик' = nameLegalEntity(supplierInvoiceOrder());
@@ -148,110 +271,6 @@ META defineOrderInvoice(sign, stockProp)
         }
     }
 
-    createExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION LIST (UserInvoice, Order);
-    useExplicitBatchDetailUserInvoiceOrder = ABSTRACT BOOLEAN (UserInvoice, Order);
-
-    differentStocksInDetailsStock (stock) = differentStocksInDetailsLegalEntity(legalEntityStock(stock)) PERSISTENT;
-
-    inOrderDetailUserInvoice (orderDetail, userInvoice) = (orderDetail IS OrderDetail AND userInvoice IS UserInvoice AND NOT supplierStockUserInvoice(userInvoice)) OR
-                                                           supplierStockOrderDetail(orderDetail)==supplierStockUserInvoice(userInvoice);
-
-    overCreateDetailUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
-    createDetailUserInvoiceOrder = ACTION (userInvoice, order) {
-        IF useExplicitBatchDetailUserInvoiceOrder(userInvoice, order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
-            EXEC createExplicitBatchDetailUserInvoiceOrder(userInvoice, order);
-        } ELSE
-            FOR orderOrderDetail(orderDetail) == order AND
-                toInvoicedOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
-                AND inOrderDetailUserInvoice(orderDetail, userInvoice)
-                ADDOBJ d = UserInvoiceDetail DO {
-                    userInvoiceUserInvoiceDetail(d) <- userInvoice;
-                    orderUserInvoiceDetail(d) <- order;
-                    skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-                    batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
-                    quantityUserInvoiceDetail (d) <- toInvoicedOrderDetail(orderDetail);
-                    VATUserInvoiceDetail (d) <- VATOrderDetail(orderDetail);
-                    valueVATUserInvoiceDetail (d) <- valueVATOrderDetail(orderDetail);
-                    priceListTypeUserInvoiceDetail (d) <- priceListTypeOrderDetail(orderDetail);
-                    priceUserInvoiceDetail (d) <- priceOrderDetail(orderDetail);
-                    invoicePriceUserInvoiceDetail (d) <- invoicePriceOrderDetail(orderDetail);
-                    data###stockProp###userInvoiceDetail (d) <- data###stockProp###orderDetail(orderDetail);
-
-                    EXEC overCreateDetailUserInvoiceDetailOrderDetail(d, orderDetail);
-            }
-    }
-
-    fillUserInvoiceOrder = ACTION (userInvoice, order) {
-        ASSIGN supplierUserInvoice(userInvoice) <- supplierOrder(order) WHERE supplierOrder(order);
-        ASSIGN supplierStockUserInvoice(userInvoice) <- supplierStockOrder(order) WHERE supplierStockOrder(order);
-
-        ASSIGN customerUserInvoice(userInvoice) <- customerOrder(order) WHERE customerOrder(order);
-        ASSIGN customerStockUserInvoice(userInvoice) <- customerStockOrder(order) WHERE customerStockOrder(order);
-
-        ASSIGN currencyUserInvoice(userInvoice) <- currencyOrder(order) WHERE currencyOrder(order);
-        ASSIGN agreementUserInvoice(userInvoice) <- agreementOrder(order) WHERE agreementOrder(order);
-        ASSIGN priceListTypeUserInvoice(userInvoice) <- priceListTypeOrder(order) WHERE priceListTypeOrder(order);
-//        ASSIGN contractSkuUserInvoice(userInvoice) <- contractSkuOrder(order) WHERE contractSkuOrder(order);
-//        ASSIGN isCommissionUserInvoice(userInvoice) <- isCommissionOrder(order) WHERE isCommissionOrder(order);
-
-        ASSIGN operationUserInvoice(userInvoice) <- operationOrder(order) WHERE operationOrder(order);
-
-        ASSIGN noteUserInvoice(userInvoice) <- noteOrder(order) WHERE noteOrder(order);
-
-        EXEC createDetailUserInvoiceOrder(userInvoice, order);
-    }
-
-    fillSupplierStockUserInvoiceOrder = ACTION (supplierStock, userInvoice, order) {
-        ASSIGN supplierUserInvoice(userInvoice) <- legalEntityStock(supplierStock);
-        ASSIGN supplierStockUserInvoice(userInvoice) <- supplierStock;
-
-        ASSIGN customerUserInvoice(userInvoice) <- customerOrder(order);
-        ASSIGN customerStockUserInvoice(userInvoice) <- customerStockOrder(order);
-
-        ASSIGN currencyUserInvoice(userInvoice) <- currencyOrder(order);
-        ASSIGN agreementUserInvoice(userInvoice) <- agreementOrder(order);
-        ASSIGN priceListTypeUserInvoice(userInvoice) <- priceListTypeOrder(order);
-
-        ASSIGN operationUserInvoice(userInvoice) <- operationOrder(order) WHERE operationOrder(order);
-        ASSIGN noteUserInvoice(userInvoice) <- noteOrder(order);
-
-        EXEC createDetailUserInvoiceOrder(userInvoice, order);
-    }
-
-    userInvoiceOrder = DATA SESSION UserInvoice (Order);
-    createUserInvoiceOrder 'Создать накладную' = ACTION (order) {
-        IF order IS Order THEN {
-            ASSIGN  userInvoiceOrder(order) <- NULL;
-            FOR ADDOBJ i = UserInvoice DO {
-                EXEC fillUserInvoiceOrder(i, order);
-                ASSIGN  userInvoiceOrder(order) <- i;
-            }
-        }
-    }
-    Invoice.createUserInvoiceOrder (order) += createUserInvoiceOrder(order);
-
-    //Invoice.createdUserInvoiceOrder(userInvoice, order) += createdUserInvoiceOrder(userInvoice, order);
-
-    createUserInvoicePostedOrder 'Создать проведенную накладную' = ACTION (order) {
-        IF order IS Order THEN {
-            IF differentStocksInDetailsStock(customerStockOrder(order)) THEN {
-                FOR ADDOBJ i = UserInvoice DO {
-                    isPostedUserInvoice(i) <- TRUE;
-                    fillUserInvoiceOrder(i, order);
-                    createdUserInvoiceOrder(i, order) <- TRUE;
-                }
-            } ELSE {
-                FOR inOrderSupplierStock(order, stock) ADDOBJ i = UserInvoice DO {
-                    isPostedUserInvoice(i) <- TRUE;
-                    fillSupplierStockUserInvoiceOrder(stock, i, order);
-                    createdUserInvoiceOrder(i, order) <- TRUE;
-                }
-            }
-        }
-    }
-    Invoice.createUserInvoicePostedOrder (order) += createUserInvoicePostedOrder(order);
-
-
     fillOrderUserInvoice 'Заполнить на основе заказа' =  ACTION (userInvoice) {
         supplierInvoiceOrder() <- supplierUserInvoice(userInvoice) WHERE supplierUserInvoice(userInvoice);
         supplierStockInvoiceOrder() <- supplierStockUserInvoice(userInvoice) WHERE supplierStockUserInvoice(userInvoice);
@@ -261,7 +280,7 @@ META defineOrderInvoice(sign, stockProp)
 
         FORM invoiceOrders MODAL;
         IF formResult() == FormResult.ok THEN {
-            EXEC fillUserInvoiceOrder(userInvoice, chosenObject('o'));
+            fillUserInvoiceOrder(userInvoice, chosenObject('o'));
         }
     } IN order;
 
@@ -405,10 +424,12 @@ META defineOrderInvoicePack (showPackage)
                        amountPackOrderDetail, packQuantityOrderDetail
     ;
 
-    overCreateDetailUserInvoiceDetailOrderDetail(i, o) += ACTION (i, o) {
-        ASSIGN barcodePackUserInvoiceDetail(i) <- barcodePackOrderDetail(o);
-        ASSIGN amountPackUserInvoiceDetail(i) <- amountPackOrderDetail(o);
-        ASSIGN packQuantityUserInvoiceDetail (i) <- toInvoicedOrderDetail(o)/amountPackOrderDetail(o);
+    overFillUserInvoiceDetailOrderDetail(i, o) += ACTION (i, o) {
+        IF o IS OrderDetail THEN { // иначе не может определить тип o
+            barcodePackUserInvoiceDetail(i) <- barcodePackOrderDetail(o);
+            amountPackUserInvoiceDetail(i) <- amountPackOrderDetail(o);
+            packQuantityUserInvoiceDetail (i) <- quantityUserInvoiceDetail(i) / amountPackUserInvoiceDetail(i);
+        }
     }
 
     showPackInvoice(invoice) += showPackOrder(orderOrderInvoice(invoice));
@@ -417,23 +438,3 @@ META defineOrderInvoicePack (showPackage)
     packQuantityInvoiceDetail(invoiceDetail) +=  packQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
 
 END
-
-//-- Действие
-
-META defineOrderInvoiceAction (sign)
-    moveUserInvoiceOrder 'Накладная'###sign =  ACTION (order) NEWSESSION{
-        EXEC createUserInvoiceOrder(order);
-        FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
-    } TOOLBAR;
-
-    EXTEND FORM orders
-        PROPERTIES(o) moveUserInvoiceOrder
-    ;
-    EXTEND DESIGN orders {
-        createdContainer{
-            ADD PROPERTY(moveUserInvoiceOrder);
-        }
-    }
-END
-
-

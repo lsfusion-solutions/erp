@@ -1,0 +1,87 @@
+MODULE OrderInvoicePickingOrder;
+
+NAMESPACE Picking;
+
+META defineOrderInvoicePickingOrder (sign, stockProp)
+
+    createPickingExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION LIST (UserInvoice, Order);
+
+    createPickingDetailUserInvoiceOrder = ACTION (userInvoice, order) {
+        IF useExplicitBatchDetailUserInvoiceOrder(userInvoice, order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
+            createPickingExplicitBatchDetailUserInvoiceOrder(userInvoice, order);
+        } ELSE {
+            FOR orderOrderDetail(orderDetail) == order AND
+                pickingQuantityOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
+                AND inOrderDetailUserInvoice(orderDetail, userInvoice)
+                ADDOBJ d = UserInvoiceDetail DO {
+                    userInvoiceUserInvoiceDetail(d) <- userInvoice;
+                    orderUserInvoiceDetail(d) <- order;
+                    skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+                    batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
+                    quantityUserInvoiceDetail (d) <- pickingQuantityOrderDetail(orderDetail);
+
+                    fillUserInvoiceDetailOrderDetail(d, orderDetail);
+                    overFillUserInvoiceDetailOrderDetail(d, orderDetail);                    
+            }
+        }
+
+        FOR excessQuantityPickingPickingDetailOrderSku(order, sku) > 0 ADDOBJ d = UserInvoiceDetail DO {
+            userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            orderUserInvoiceDetail(d) <- order;
+            skuUserInvoiceDetail(d) <- sku;
+            quantityUserInvoiceDetail (d) <- excessQuantityPickingPickingDetailOrderSku(order, sku);
+        }
+    }
+
+    fillPickingUserInvoiceOrder = ACTION (userInvoice, order) {
+        fillHeaderUserInvoiceOrder(userInvoice, order);
+        createPickingDetailUserInvoiceOrder(userInvoice, order);
+    }
+
+    packQuantityInvoice 'Общее количество грузовых мест' = ABSTRACT NUMERIC[8,2] (Invoice);
+    packQuantityUserInvoice 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (UserInvoice);
+    packQuantityInvoice(invoice) += packQuantityUserInvoice(invoice);
+
+    createPickingUserInvoiceOrder 'Создать накладную по комплектации' = ACTION (order) {
+        IF order IS Order THEN {
+            userInvoiceOrder(order) <- NULL;
+            FOR ADDOBJ i = UserInvoice DO {
+                fillPickingUserInvoiceOrder(i, order);
+                userInvoiceOrder(order) <- i;
+                packQuantityUserInvoice(i) <- packQuantityOrder(order);
+                createdUserInvoiceOrder(i, order) <- TRUE;
+            }
+        }
+    }
+
+    createPickingUserInvoicePostedOrder 'Создать проведенную накладную по комплектации' = ACTION (order) {
+        IF order IS Order THEN {
+            userInvoiceOrder(order) <- NULL;
+            FOR ADDOBJ i = UserInvoice DO {
+                isPostedUserInvoice(i) <- TRUE;
+                fillPickingUserInvoiceOrder(i, order);
+                userInvoiceOrder(order) <- i;
+                packQuantityUserInvoice(i) <- packQuantityOrder(order);
+                createdUserInvoiceOrder(i, order) <- TRUE;
+            }
+        }
+    }
+
+    addPickingUserInvoiceOrder 'Накладная по комплектации'###sign =  ACTION (order) NEWSESSION{
+        createPickingUserInvoiceOrder(order);
+        IF excessQuantityPickingPickingDetailOrder(order) THEN {
+            MESSAGE 'В накладной присутствуют товары, не указанные в заказе';
+        }
+        FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
+    } TOOLBAR;
+
+    EXTEND FORM orders
+        PROPERTIES(o) SHOWIF calcPartOrFullOrder(o) addPickingUserInvoiceOrder
+    ;
+    EXTEND DESIGN orders {
+        createdContainer{
+            ADD PROPERTY(addPickingUserInvoiceOrder);
+        }
+    }
+
+END
