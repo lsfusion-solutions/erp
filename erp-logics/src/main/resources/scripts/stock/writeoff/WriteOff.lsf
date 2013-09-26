@@ -447,8 +447,14 @@ nameReasonOperation 'Причина списания' (operation) = nameReason(r
 @defineOperationLegalEntity(contact, con, 'Контрагенты');
 
 @defineCountLegalEntityOperation(contact, customer);
-@defineDocumentOperationLegalEntity(writeOff, contact, 'Контрагент');
-@deriveDocumentOperationLegalEntity(writeOff, contact, userWriteOff);
+
+CONSTRAINT operationUserWriteOff(writeOff) AND contactUserWriteOff(writeOff)
+           AND NOT inContactOperation(contactUserWriteOff(writeOff), operationUserWriteOff(writeOff))
+    CHECKED BY contactUserWriteOff
+    MESSAGE 'Контрагент должен совпадать с отмеченными в операции';
+        
+@deriveDocumentOperationLegalEntity(userWriteOff, contact, userWriteOff);
+
 NAVIGATOR {
     stockNavigator {
         NEW writeOffNavigator 'Списания' BEFORE balanceSku {

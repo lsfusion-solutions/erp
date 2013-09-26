@@ -294,8 +294,6 @@ EXTEND FORM writeOffs
     PROPERTIES(w) READONLY nameOperationWriteOff BEFORE nameReasonWriteOff
 ;
 
-@defineDocumentOperationLegalEntity(writeOff, contact, 'Контрагент');
-@deriveDocumentOperationLegalEntity(writeOff, contact, userWriteOff);
     
 // Основание    
     
@@ -350,10 +348,14 @@ CONSTRAINT batchUserWriteOffDetail(detail) AND writeOffDetailUserWriteOffDetail(
            NOT costSkuLedgerBatch(writeOffDetailUserWriteOffDetail(detail), batchUserWriteOffDetail(detail))
            CHECKED BY batchUserWriteOffDetail, writeOffDetailUserWriteOffDetail
            MESSAGE 'Выбрана партия, которая не была списана в соответствующей строке списания';    
+ 
+CONSTRAINT operationUserWriteOff(writeOff) AND contactUserWriteOff(writeOff)
+           AND NOT inContactOperation(contactUserWriteOff(writeOff), operationUserWriteOff(writeOff))
+    CHECKED BY contactUserWriteOff
+    MESSAGE 'Контрагент должен совпадать с отмеченными в операции';
 
-@defineDocumentOperationLegalEntity(writeOff, contact, 'Контрагент');
-@deriveDocumentOperationLegalEntity(writeOff, contact, userWriteOff);    
-
+@deriveDocumentOperationLegalEntity(userWriteOff, contact, userWriteOff);   
+  
 NAVIGATOR {
     stockNavigator {
         writeOffNavigator {
