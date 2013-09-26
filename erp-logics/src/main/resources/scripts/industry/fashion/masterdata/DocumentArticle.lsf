@@ -5,7 +5,7 @@ REQUIRE ItemArticle;
 //----------- Изменение кол-ва для строки при изменении кол-ва для товара (несколько складов)---------------//
 
 currentBalanceArticleColorSizeStock 'Текущий остаток' (article, color, size, stock)= GROUP SUM currentBalanceSkuStock(sku, stock)
-    BY articleItem(sku), colorItem(sku), sizeItem(sku), stock;
+    BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), stock;
 prevCurrentBalanceArticleColorSizeStock 'Текущий остаток' (article, color, size, stock)= PREV(currentBalanceArticleColorSizeStock(article, color, size, stock));
 
 currentBalanceSkuGroupStock 'Текущий остаток' (skuGroup, stock)= GROUP SUM currentBalanceSkuStock(sku,stock) BY skuGroupSku(sku), stock;
@@ -16,7 +16,7 @@ currentBalanceArticleStock 'Текущий остаток' (article, stock)= GRO
 prevCurrentBalanceArticleStock 'Текущий остаток' (article, stock) = PREV(currentBalanceArticleStock(article, stock));
 
 defaultSkuColorSizeStock (article, color, size)= GROUP MAX sku
-    BY articleItem(sku), colorItem(sku), sizeItem(sku);
+    BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku);
 
 nameBalanceSize (size) = CONCAT ' ', nameSize(size), ' (остаток/цена)';
 nameQuantitySize (size) = CONCAT ' ', nameSize(size), ' (кол-во)';
@@ -26,10 +26,10 @@ nameQuantitySize (size) = CONCAT ' ', nameSize(size), ' (кол-во)';
 
 META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
     detail###ArticleColorSize###object###stockProp (article, color, size, object, stock) =  GROUP MAX detail###Sku###object###stockProp (sku, object, stock)
-        BY articleItem(sku), colorItem(sku), sizeItem(sku), object, stock;
+        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object, stock;
 
     quantityArticleColorSize###object###stockProp 'Кол-во товара в документе' (article, color, size, object, stock) = GROUP SUM quantitySku###object###stockProp(sku, object, stock)
-        BY articleItem(sku), colorItem(sku), sizeItem(sku), object, stock;
+        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object, stock;
 
     quantityArticle###object###stockProp 'Кол-во товара в документе' (article, object, stock) = GROUP SUM quantitySku###object###stockProp(sku, object, stock)
         BY articleItem(sku), object, stock;        
@@ -129,10 +129,10 @@ END
 
 META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
     detail###ArticleColorSize###object (article, color, size, object) =  GROUP MAX detail###Sku###object (sku, object)
-        BY articleItem(sku), colorItem(sku), sizeItem(sku), object;
+        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object;
 
     quantityArticleColorSize###object 'Кол-во товара в документе' (article, color, size, object) = GROUP SUM quantity###detail###skuProp###object(sku, object)
-        BY articleItem(sku), colorItem(sku), sizeItem(sku), object;
+        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object;
 
     quantityArticle###object 'Кол-во товара в документе' (article, object) = GROUP SUM quantity###detail###skuProp###object(sku, object)
         BY articleItem(sku), object;

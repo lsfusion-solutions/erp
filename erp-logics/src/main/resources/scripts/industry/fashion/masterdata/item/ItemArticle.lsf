@@ -142,7 +142,11 @@ DESIGN colors FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @implementItemAttribute(nameColorItem, 'Цвет', String, itemColor);
 
 TABLE colorArticle(Color, Article);
-countColorArticle 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY colorItem(item), articleItem(item) PERSISTENT;
+EXTEND CLASS Color  {
+    none 'None'
+}
+calcColorItem (item)= OVERRIDE (Color.none IF item IS Item), colorItem(item);
+countColorArticle 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY calcColorItem(item), articleItem(item) PERSISTENT;
 
 colorArticle  = DATA Color(Article);
 nameColorArticle 'Цвет' (Article) = nameColor(colorArticle(Article)) IN articleDescription;
@@ -284,7 +288,11 @@ DESIGN sizes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @implementItemAttribute(nameSizeItem, 'Размер', String, itemSize);
 
 TABLE sizeArticle(Size, Article);
-countSizeArticle 'Кол-во размеров для артикля' (size,article) = GROUP SUM 1 BY sizeItem(item), articleItem(item) PERSISTENT;
+EXTEND CLASS Size  {
+    none 'None'
+}
+calcSizeItem (item)= OVERRIDE (Size.none IF item IS Item), sizeItem(item);
+countSizeArticle 'Кол-во размеров для артикля' (size,article) = GROUP SUM 1 BY calcSizeItem(item), articleItem(item) PERSISTENT;
 
 // Рост
 CLASS SizeHeight 'Рост товара';

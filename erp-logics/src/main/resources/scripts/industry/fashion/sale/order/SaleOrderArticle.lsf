@@ -65,7 +65,6 @@ EXTEND FORM userOrder
                       stk == supplierStockUserOrder(o) AND NOT sg AND NOT ts
     FILTERGROUP stockFilters
         FILTER 'Собственные склады' 'F6' legalEntityStock(stk) == supplierUserOrder(o) DEFAULT
-    FILTERS           captionArticle(ar), nameStock(stk)
     ORDER BY          idArticle, stockName
 
     OBJECTS si=Size
@@ -81,7 +80,6 @@ EXTEND FORM userOrder
                                       COLUMNS (si) HEADER nameQuantitySize(si) BACKGROUND backgroundQuantityArticleColorSizeUserOrderStockRowType(ar,co,si,o,stk,ty)
 
     PROPERTIES(ty)  orderRowType
-    FILTERS nameColor(co), nameSize(si)
     ORDER BY nameColor, nameSize, orderRowType
 ;
 
@@ -102,7 +100,7 @@ EXTEND DESIGN userOrder {
 // Реализация по складу, артикулу, цвету, размеру за период
 quantitySoldArticleColorSizeStockDateFromTo 'Продано за интервал (кол-во)' (article, color, size, stock, dateFrom, dateTo) = GROUP SUM
         quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
-        BY articleItem(sku), colorItem(sku), sizeItem(sku),stock, dateFrom, dateTo;
+        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku),stock, dateFrom, dateTo;
         
 quantitySoldArticleColorSizeUserOrderOneWeek 'Продано за последнюю неделю (кол-во)' (article, color, size, order)= quantitySoldArticleColorSizeStockDateFromTo(article, color, size, customerStockUserOrder(order), subtractDate(dateUserOrder(order),7), dateUserOrder(order));        
 quantitySoldArticleColorSizeUserOrderTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (article, color, size, order)= quantitySoldArticleColorSizeStockDateFromTo(article, color, size, customerStockUserOrder(order), subtractDate(dateUserOrder(order),14), subtractDate(dateUserOrder(order),7));        
