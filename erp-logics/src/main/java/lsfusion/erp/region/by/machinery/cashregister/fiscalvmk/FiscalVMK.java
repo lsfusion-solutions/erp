@@ -101,20 +101,20 @@ public class FiscalVMK {
         return Native.toString(lastErrorText, "cp1251");
     }
 
-    public static void openPort(int comPort, int baudRate) throws RuntimeException {
+    public static void openPort(int comPort, int baudRate) {
         if (!vmkDLL.vmk.vmk_open("COM" + comPort, baudRate))
             checkErrors(true);
     }
 
-    public static void closePort() throws RuntimeException {
+    public static void closePort() {
         vmkDLL.vmk.vmk_close();
     }
 
-    public static boolean openReceipt(int type) throws RuntimeException {    //0 - продажа, 1 - возврат
+    public static boolean openReceipt(int type) {    //0 - продажа, 1 - возврат
         return vmkDLL.vmk.vmk_opencheck(type);
     }
 
-    public static boolean cancelReceipt() throws RuntimeException {
+    public static boolean cancelReceipt() {
         return vmkDLL.vmk.vmk_cancel();
     }
 
@@ -129,38 +129,38 @@ public class FiscalVMK {
         return true;
     }
 
-    public static boolean printFiscalText(String msg) throws RuntimeException {
+    public static boolean printFiscalText(String msg) {
         return vmkDLL.vmk.vmk_prnch(msg);
     }
 
-    public static boolean totalCash(BigDecimal sum) throws RuntimeException {
+    public static boolean totalCash(BigDecimal sum) {
         if (sum == null)
             return true;
         return vmkDLL.vmk.vmk_oplat(0, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
-    public static boolean totalCard(BigDecimal sum) throws RuntimeException {
+    public static boolean totalCard(BigDecimal sum) {
         if (sum == null)
             return true;
         return vmkDLL.vmk.vmk_oplat(1, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
-    public static void xReport() throws RuntimeException {
+    public static void xReport() {
         if (!vmkDLL.vmk.vmk_xotch())
             checkErrors(true);
     }
 
-    public static void zReport() throws RuntimeException {
+    public static void zReport() {
         if (!vmkDLL.vmk.vmk_zotch())
             checkErrors(true);
     }
 
-    public static void advancePaper(int lines) throws RuntimeException {
+    public static void advancePaper(int lines) {
         if (!vmkDLL.vmk.vmk_feed(1, lines, 1))
             checkErrors(true);
     }
 
-    public static boolean inOut(Long sum) throws RuntimeException {
+    public static boolean inOut(Long sum) {
 
         if (sum > 0) {
             if (!vmkDLL.vmk.vmk_vnes(sum))
@@ -172,11 +172,11 @@ public class FiscalVMK {
         return true;
     }
 
-    public static boolean openDrawer() throws RuntimeException {
+    public static boolean openDrawer() {
         return vmkDLL.vmk.vmk_opendrawer(0);
     }
 
-    public static void displayText(ReceiptItem item) throws RuntimeException {
+    public static void displayText(ReceiptItem item) {
         try {
             String firstLine = " " + toStr(item.quantity) + "x" + toStr(BigDecimal.valueOf(item.price));
             firstLine = item.name.substring(0, 16 - Math.min(16, firstLine.length())) + firstLine;
@@ -191,7 +191,7 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean registerItem(ReceiptItem item) throws RuntimeException {
+    public static boolean registerItem(ReceiptItem item) {
         try {
             return vmkDLL.vmk.vmk_sale(item.barCode, (item.name + "\0").getBytes("cp1251"), Math.abs(item.price.intValue()), 1 /*отдел*/, item.quantity.doubleValue(), 0);
         } catch (UnsupportedEncodingException e) {
@@ -199,7 +199,7 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean discountItem(ReceiptItem item) throws RuntimeException {
+    public static boolean discountItem(ReceiptItem item) {
         if (item.articleDiscSum == null)
             return true;
         boolean discount = item.articleDiscSum.doubleValue() < 0;
@@ -210,13 +210,13 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean subtotal() throws RuntimeException {
+    public static boolean subtotal() {
         if (!vmkDLL.vmk.vmk_subtotal())
             return false;
         return true;
     }
 
-    public static void opensmIfClose() throws RuntimeException {
+    public static void opensmIfClose() {
         IntByReference rej = new IntByReference();
         IntByReference stat = new IntByReference();
         if (!vmkDLL.vmk.vmk_ksastat(rej, stat))
@@ -235,7 +235,7 @@ public class FiscalVMK {
         }
     }
 
-    public static int checkErrors(Boolean throwException) throws RuntimeException {
+    public static int checkErrors(Boolean throwException) {
         Integer lastError = vmkDLL.vmk.vmk_lasterror();
         if (lastError != 0) {
             if (throwException)
