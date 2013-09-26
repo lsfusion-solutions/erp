@@ -1,0 +1,91 @@
+MODULE PickingDashboard;
+
+REQUIRE Dashboard, OrderPickingOrder;
+
+NAMESPACE Picking;
+
+skipPickingOrder 'Пропустить печать' = ABSTRACT BOOLEAN (PickingOrder);
+overPrintPickingOrder 'Печать' = ABSTRACT ACTION LIST (PickingOrder);
+
+acceptPrintPickingOrder 'Принять' (pickingOrder) = ACTION (pickingOrder) {
+    acceptPickingOrder(pickingOrder);       
+    overPrintPickingOrder(pickingOrder);
+    IF NOT skipPickingOrder(pickingOrder) THEN {
+        printPickingOrder(pickingOrder);
+    }
+} TOOLBAR EDITKEY 'SPACE';
+
+FORM pickingDashboard 'Комплектация' AUTOREFRESH 60
+
+    OBJECTS d = DATE FIXED PANEL
+    PROPERTIES(d) date = OBJVALUE
+
+    OBJECTS po=PickingOrder FIXED GRID
+    PROPERTIES (po) READONLY BACKGROUND backgroundStatusPickingPickingOrder(po) statusPickingPickingOrder, namePerformerPickingOrder,
+                    startDateTimePickingOrder, numberOrderPickingOrder, datePickingOrder, nameToStockPickingOrder, addressToStockPickingOrder,
+                    countPickingOrderDetailPickingOrder, quantityPickingOrderDetailPickingOrder, notePickingOrder
+
+    PROPERTIES (po) acceptPrintPickingOrder SHOWIF notAcceptedPickingOrder(po),
+                    unacceptPickingOrder SHOWIF acceptedPickingOrder(po), fullyAssembledPickingOrder SHOWIF acceptedPickingOrder(po),
+                    partiallyAssembledPickingOrder SHOWIF acceptedPickingOrder(po)
+                    
+    FILTERS isPostedPickingOrder(po) AND NOT (calcPartPickingOrder(po) OR calcFullPickingOrder(po))
+
+    OBJECTS pd=PickingOrderDetail FIXED GRID
+    PROPERTIES (pd) READONLY nameSkuPickingOrderDetail, shortNameUOMSkuPickingOrderDetail,
+                    nameBinPickingOrderDetail, quantityPickingOrderDetail
+
+    FILTERS pickingOrderPickingOrderDetail(pd)==po
+
+    OBJECTS p = Picking FIXED GRID
+    PROPERTIES (p) READONLY BACKGROUND backgroundStatusPicking(p) statusPicking, namePerformerPicking, numberPicking, finishDateTimePicking,
+                   nameToStockPicking, addressToStockPicking, packQuantityPicking, quantityPickingDetailPicking
+
+    PROPERTIES (p) editPicking
+    PROPERTIES     deleteo=DELETE(p) FORCE PANEL TOOLBAR  SHOWIF isUserPicking(p)
+
+    FILTERGROUP filters FILTER 'Заказы на дату' 'F5' datePickingOrder(po)<=d DEFAULT
+    FILTERGROUP filters1 FILTER 'Комплектации на дату' 'F5' datePicking(p)==d DEFAULT
+
+    DIALOG Picking OBJECT p
+;
+
+DESIGN pickingDashboard FROM DEFAULT {
+    main{
+
+        NEW dash BEFORE functions.box{
+            fill = 1;
+            type = SPLITV;
+            NEW header {
+                fill = 1;                         
+                ADD po.box;
+
+            }
+            NEW pickings {
+                fill = 1;
+                type = TABBED;
+                ADD p.box{
+                    PROPERTY(numberPicking){
+                        caption = 'Номер комплектации';
+                    }
+                };
+                ADD pd.box {
+                    caption = 'Детализация заказа';
+                }
+            }
+        }          
+        NEW secondContainer BEFORE dash {
+            type = CONTAINERH;
+            caption = 'Шапка';
+            ADD PROPERTY(date);
+        }
+    }
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        ADD pickingDashboard;
+    }
+}
+
+

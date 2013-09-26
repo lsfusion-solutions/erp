@@ -351,6 +351,8 @@ calcPartPickingOrder 'Частично собран' (pickingOrder) = quantityPi
 packQuantityPickingOrder 'Кол-во собранных мест' (pickingOrder) = GROUP SUM packQuantityPicking(picking) BY pickingOrderPicking(picking);
 
 acceptedPickingOrder 'Принят в работу' = DATA BOOLEAN (PickingOrder);
+notAcceptedPickingOrder(o) = NOT acceptedPickingOrder(o);
+
 startDatePickingOrder 'Дата начала' = DATA DATE (PickingOrder);
 startTimePickingOrder 'Время начала' = DATA TIME (PickingOrder);
 startDateTimePickingOrder 'Начало комплектации' (o) = dateTimeToDateTime(startDatePickingOrder(o), startTimePickingOrder(o)) PERSISTENT;
@@ -384,14 +386,14 @@ backgroundStatusPickingPickingOrder 'Цвет' (order) =  CASE
 statusPicking 'Статус' = statusPickingPickingOrder(pickingOrderPicking(picking));
 backgroundStatusPicking = backgroundStatusPickingPickingOrder(pickingOrderPicking(picking));
 
-toAcceptedPickingOrder 'Принять' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY{
+acceptPickingOrder 'Принять' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY{
     acceptedPickingOrder(pickingOrder) <- TRUE;
     performerPickingOrder(pickingOrder) <- currentUser();
     startDatePickingOrder(pickingOrder) <- currentDate();
     startTimePickingOrder(pickingOrder) <- currentTime();
 
 } TOOLBAR EDITKEY 'ctrl ENTER';
-unacceptedPickingOrder 'Отменить' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY {
+unacceptPickingOrder 'Отменить' = ACTION (pickingOrder) NEWSESSION AUTOAPPLY {
     acceptedPickingOrder(pickingOrder) <- NULL;
     performerPickingOrder(pickingOrder) <- NULL;
     startDatePickingOrder(pickingOrder) <- NULL;
@@ -463,7 +465,7 @@ EXTEND FORM pickingOrders
     PROPERTIES(o) READONLY statusPickingPickingOrder BACKGROUND backgroundStatusPickingPickingOrder(o)
     PROPERTIES(o) READONLYIF isReadonly() finishDatePickingOrder, finishTimePickingOrder
     PROPERTIES(o) READONLY packQuantityPickingOrder
-    PROPERTIES(o) toAcceptedPickingOrder, unacceptedPickingOrder, fullyAssembledPickingOrder, partiallyAssembledPickingOrder
+    PROPERTIES(o) acceptPickingOrder, unacceptPickingOrder, fullyAssembledPickingOrder, partiallyAssembledPickingOrder
 
 ;
 
@@ -474,8 +476,8 @@ EXTEND DESIGN pickingOrders {
             type = CONTAINERV;
             NEW pickingContainer1 {
                 type = CONTAINERH;
-                ADD PROPERTY(toAcceptedPickingOrder);
-                ADD PROPERTY(unacceptedPickingOrder);
+                ADD PROPERTY(acceptPickingOrder);
+                ADD PROPERTY(unacceptPickingOrder);
             }
             NEW pickingContainer2 {
                 type = CONTAINERH;

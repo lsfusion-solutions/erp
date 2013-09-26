@@ -33,6 +33,9 @@ CLASS UserPickingOrderDetail 'Строка заказа на комплекта�
 
 @defineDocumentInterfaceStock(pickingOrder, stock, 'Склад ');
 
+@defineDocumentInterfacePosted(pickingOrder);    
+@defineDocumentInterfaceClosed(pickingOrder);
+
 @defineDocumentInterfaceDescription(pickingOrder, 'Заказ на комплектацию');
 
 @defineDocumentInterfaceDetailSku(pickingOrder, sku);
@@ -85,7 +88,7 @@ editPickingOrder 'Редактировать' = ABSTRACT ACTION LIST (PickingOrd
 editSkuUserPickingOrderDetail 'Редактировать SKU' (d) = editSku(skuUserPickingOrderDetail(d));
 FORM userPickingOrder 'Заказ на комплектацию'
     OBJECTS o = UserPickingOrder FIXED PANEL
-    PROPERTIES (o) nameStockUserPickingOrder,// ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
+    PROPERTIES (o) isPostedUserPickingOrder, nameStockUserPickingOrder,// ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
                    nameNumeratorUserPickingOrder, numberUserPickingOrder, seriesUserPickingOrder, dateUserPickingOrder, timeUserPickingOrder,
                    noteUserPickingOrder, countUserPickingOrderDetailUserPickingOrder, quantityUserPickingOrderDetailUserPickingOrder
 
@@ -119,13 +122,21 @@ DESIGN userPickingOrder FROM DEFAULT{
 
             NEW headerRow1 {
                 ADD o.documentHeader {
-                    type = CONTAINERH;
-                    ADD PROPERTY(nameStockUserPickingOrder);
-                    ADD PROPERTY(nameNumeratorUserPickingOrder);
-                    ADD PROPERTY(numberUserPickingOrder);
-                    ADD PROPERTY(seriesUserPickingOrder);
-                    ADD PROPERTY(dateUserPickingOrder);
-                    ADD PROPERTY(timeUserPickingOrder);
+                    type = CONTAINERV;
+                    NEW row1 {
+                        type = CONTAINERH;
+                        ADD PROPERTY(isPostedUserPickingOrder);
+                        ADD PROPERTY(nameStockUserPickingOrder);
+                    }
+                    NEW row2 {
+                        type = CONTAINERH;
+                        ADD PROPERTY(nameNumeratorUserPickingOrder);
+                        ADD PROPERTY(numberUserPickingOrder);
+                        ADD PROPERTY(seriesUserPickingOrder);
+                        ADD PROPERTY(dateUserPickingOrder);
+                        ADD PROPERTY(timeUserPickingOrder);                        
+                    }
+
                 }
                 ADD o.documentPrm {type = CONTAINERH;}
             }
@@ -168,8 +179,8 @@ copyPickingOrder 'Копировать' = ACTION (order) NEWSESSION {
 
 FORM pickingOrders 'Заказы на комплектацию'
     OBJECTS o = PickingOrder
-    PROPERTIES (o) READONLYIF isReadonly() numberPickingOrder, seriesPickingOrder, datePickingOrder, timePickingOrder,
-                   nameStockPickingOrder
+    PROPERTIES (o) READONLYIF isReadonly() isClosedPickingOrder, isPostedPickingOrder, numberPickingOrder, seriesPickingOrder, 
+                   datePickingOrder, timePickingOrder, nameStockPickingOrder
 
     PROPERTIES (o) READONLY countPickingOrderDetailPickingOrder, quantityPickingOrderDetailPickingOrder
 
@@ -227,7 +238,7 @@ DESIGN pickingOrders FROM DEFAULT {
     }
 }
 @extendFormEditable(pickingOrders);
-
+@defineFilterIsOpened (pickingOrder, pickingOrders, o); 
 //----------------------------------------------- Комплектация ---------------------------------------------------//
 
 NAVIGATOR {
