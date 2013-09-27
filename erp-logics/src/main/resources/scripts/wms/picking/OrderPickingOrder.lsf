@@ -1,6 +1,6 @@
 MODULE OrderPickingOrder;
 
-REQUIRE Picking, Order, Bin, OrderInvoice;
+REQUIRE Picking, Order, Bin;
 
 NAMESPACE Order;
 
@@ -29,10 +29,10 @@ EXTEND FORM pickingOrders
 numberOrderPickingOrder 'Номер заказа' (pickingOrder) = numberOrder(orderPickingOrder(pickingOrder));
 seriesOrderPickingOrder 'Серия заказа' (pickingOrder) = seriesOrder(orderPickingOrder(pickingOrder));
 
-toPickingOrder = customerOrder(orderPickingOrder(pickingOrder));
+toPickingOrder = toOrder(orderPickingOrder(pickingOrder));
 nameToPickingOrder 'Получатель' = nameLegalEntity(toPickingOrder(pickingOrder));
 
-toStockPickingOrder = customerStockOrder(orderPickingOrder(pickingOrder));
+toStockPickingOrder = toStockOrder(orderPickingOrder(pickingOrder));
 nameToStockPickingOrder 'Склад получателя' = nameStock(toStockPickingOrder(pickingOrder));
 
 addressToStockPickingOrder 'Пункт разгрузки' = addressStock(toStockPickingOrder(pickingOrder));
@@ -62,9 +62,73 @@ quantityPickingPickingDetailOrderSku (order, sku)= GROUP SUM pickingQuantityOrde
 excessQuantityPickingPickingDetailOrderSku (order, sku) = pickingPickingDetailOrderSku(order, sku) (-) quantityPickingPickingDetailOrderSku (order, sku);
 excessQuantityPickingPickingDetailOrder( order) = GROUP SUM 1 IF excessQuantityPickingPickingDetailOrderSku (order, sku) > 0 BY order;
 
+// ------------------------------------ Создание комплектации по заказу -------------------------------- //
+
+@defineDocumentAbstractProperty(order, createPickingOrder, 'Создать заказ на комплектацию');
+
+CLASS OrderPickingOrder 'Заказ на комплектацию на основе заказа' : PickingOrder;
+CLASS OrderPickingOrderDetail 'Строка заказа на комплектацию на основе заказа' : PickingOrderDetail;
+
+@defineDocumentTables(orderPickingOrder);
+
+@defineDocumentAggregation(order, orderPickingOrder, createPickingOrderOrder);
+
+isPostedPickingOrder(order) += isPostedOrder(orderOrderPickingOrder(order));
+isClosedPickingOrder(order) += isClosedOrder(orderOrderPickingOrder(order)); 
+
+pickingOrderPickingOrderDetail(detail) += orderPickingOrderOrderPickingOrderDetail(detail);
+
+@defineDocumentDetailIndex(orderPickingOrder);
+
+datePickingOrder(order) += dateOrderPickingOrder(order);
+timePickingOrder(order) += timeOrderPickingOrder(order);
+
+stockPickingOrder(order) += fromStockOrder(orderOrderPickingOrder(order));
+numberPickingOrder(order) += numberOrder(orderOrderPickingOrder(order));
+seriesPickingOrder(order) += seriesOrder(orderOrderPickingOrder(order));
+
+seriesNumberOrderPickingOrder 'Серия/номер документа' (order) = seriesNumberOrder(orderOrderPickingOrder(order));
+
+notePickingOrder(order) += noteOrder(orderOrderPickingOrder(order));
+
+@defineDocumentDescription(orderPickingOrder, OrderPickingOrderDetail, 'Заказ на комплектацию на основе заказа');
+descriptionPickingOrder (order) += descriptionOrderPickingOrder(order);
+
+@defineDocumentAggregationDetailSku(order, orderPickingOrder, sku);
+skuPickingOrderDetail(detail) += skuOrderPickingOrderDetail(detail);
+
+quantityPickingOrderDetail(detail) += quantityOrderDetail(orderDetailOrderPickingOrderDetail(detail));
+batchPickingOrderDetail(detail) += batchOrderDetail(orderDetailOrderPickingOrderDetail(detail));
+
+@defineDocumentAbstractDetailBin(order);
+binPickingOrderDetail(detail) += binOrderDetail(orderDetailOrderPickingOrderDetail(detail));
+
+orderPickingOrder(pickingOrder) += orderOrderPickingOrder(pickingOrder);
+editPickingOrder(pickingOrder) += ACTION EXEC editOrder(orderOrderPickingOrder(pickingOrder));
+
+acceptedOrder 'Принят в работу' (order) = acceptedPickingOrder(orderPickingOrderOrder(order));
+namePerformerOrder 'Комплектовщик' (order) = namePerformerPickingOrder(orderPickingOrderOrder(order));
+
+calcPartOrder 'Частично собран' (order) = calcPartPickingOrder(orderPickingOrderOrder(order));
+calcFullOrder 'Полностью собран' (order) = calcFullPickingOrder(orderPickingOrderOrder(order));
+calcPartOrFullOrder 'Собран' (order) = calcPartOrder(order) OR calcFullOrder(order);
+
+startDateTimeOrder 'Начало комплектации' (order) = startDateTimePickingOrder(orderPickingOrderOrder(order));
+finishDateTimeOrder 'Завершение комплектации' (order) = finishDateTimePickingOrder(orderPickingOrderOrder(order));
+
+statusPickingOrder 'Статус комплектации' (order) = CASE
+    WHEN orderPickingOrderOrder(order) THEN statusPickingPickingOrder(orderPickingOrderOrder(order))
+    WHEN order IS Order THEN 'Без комплектации';
+backgroundStatusPickingOrder 'Цвет' (order) = CASE
+    WHEN orderPickingOrderOrder(order) THEN backgroundStatusPickingPickingOrder(orderPickingOrderOrder(order))
+    WHEN order IS Order THEN RGB(224, 224, 255);
+packQuantityOrder 'Кол-во собранных мест' (order) = packQuantityPickingOrder(orderPickingOrderOrder(order));
+
+
 META defineOrderPickingOrder(sign, stockProp)
 
     @defineDocumentInterfaceProperty (order, createPickingOrder, 'Создать заказ на комплектацию');
+    Order.createPickingOrderOrder(o) += createPickingOrderOrder(o); 
 
     EXTEND FORM userOrder
         PROPERTIES(o)  createPickingOrderOrder
@@ -82,73 +146,13 @@ META defineOrderPickingOrder(sign, stockProp)
     //-------------------- Ячейки -----------------------//
 
     @defineDocumentInterfaceDetailBin(order);
+    Order.binOrderDetail(d) += binOrderDetail(d);
+    
     @extendFormInterfaceDetailBin(order, o, , quantity);
 
     @deriveDocumentOperationProperty(UserOrder, showBin);
 
-//    binUserOrderDetail(detail) <- binStockSku(customerStockUserShipmentDetail(detail), skuUserShipmentDetail(detail))
-//        WHEN CHANGED(customerStockUserShipmentDetail(detail)) OR
-//             CHANGED(skuUserShipmentDetail(detail));
-
-    CLASS OrderPickingOrder 'Заказ на комплектацию на основе заказа'###sign : PickingOrder;
-    CLASS OrderPickingOrderDetail 'Строка заказа на комплектацию на основе заказа'###sign : PickingOrderDetail;
-
-    @defineDocumentTables(orderPickingOrder);
-
-    @defineDocumentAggregation(order, orderPickingOrder, createPickingOrderOrder);
-
-    pickingOrderPickingOrderDetail(detail) += orderPickingOrderOrderPickingOrderDetail(detail);
-
-    @defineDocumentDetailIndex(orderPickingOrder);
-    isPostedPickingOrder(order) = isPostedOrder(orderOrderPickingOrder(order));
-    isClosedPickingOrder(order) += isClosedOrder(orderOrderPickingOrder(order)); 
-    
-    datePickingOrder(order) += dateOrderPickingOrder(order);
-    timePickingOrder(order) += timeOrderPickingOrder(order);
-
-    stockPickingOrder(order) += stockProp###order(orderOrderPickingOrder(order));
-    numberPickingOrder(order) += numberOrder(orderOrderPickingOrder(order));
-    seriesPickingOrder(order) += seriesOrder(orderOrderPickingOrder(order));
-
-    seriesNumberOrderPickingOrder 'Серия/номер документа' (order) = seriesNumberOrder(orderOrderPickingOrder(order));
-
-    notePickingOrder(order) += noteOrder(orderOrderPickingOrder(order));
-
-    @defineDocumentDescription(orderPickingOrder, OrderPickingOrderDetail, 'Заказ на комплектацию на основе заказа'###sign);
-    descriptionPickingOrder (order) += descriptionOrderPickingOrder(order);
-
-    @defineDocumentAggregationDetailSku(order, orderPickingOrder, sku);
-    skuPickingOrderDetail(detail) +=  skuOrderPickingOrderDetail(detail);
-
-    quantityPickingOrderDetail(detail) += quantityOrderDetail(orderDetailOrderPickingOrderDetail(detail));
-    batchPickingOrderDetail(detail) += batchOrderDetail(orderDetailOrderPickingOrderDetail(detail));
-    binPickingOrderDetail(detail) += binOrderDetail(orderDetailOrderPickingOrderDetail(detail));
-
-    orderPickingOrder(pickingOrder) += orderOrderPickingOrder(pickingOrder);
-    editPickingOrder(pickingOrder) += ACTION EXEC editOrder(orderOrderPickingOrder(pickingOrder));
-
     //-------------------- Расширяем операции свойством по созданию заказа на комплектацию -----------------------//
-
-    @defineOperationProperty(createPickingOrder, 'Заказ на комплектацию', createContainer);
-    @deriveDocumentOperationProperty(UserOrder, createPickingOrder);
-
-    acceptedOrder 'Принят в работу' (order) = acceptedPickingOrder(orderPickingOrderOrder(order));
-    namePerformerOrder 'Комплектовщик' (order) = namePerformerPickingOrder(orderPickingOrderOrder(order));
-
-    calcPartOrder 'Частично собран' (order) = calcPartPickingOrder(orderPickingOrderOrder(order));
-    calcFullOrder 'Полностью собран' (order) = calcFullPickingOrder(orderPickingOrderOrder(order));
-    calcPartOrFullOrder 'Собран' (order) = calcPartOrder(order) OR calcFullOrder(order);
-    
-    startDateTimeOrder 'Начало комплектации' (order) = startDateTimePickingOrder(orderPickingOrderOrder(order));
-    finishDateTimeOrder 'Завершение комплектации' (order) = finishDateTimePickingOrder(orderPickingOrderOrder(order));
-    
-    statusPickingOrder 'Статус комплектации' (order) = CASE
-        WHEN orderPickingOrderOrder(order) THEN statusPickingPickingOrder(orderPickingOrderOrder(order))
-        WHEN order IS Order THEN 'Без комплектации';
-    backgroundStatusPickingOrder 'Цвет' (order) = CASE
-        WHEN orderPickingOrderOrder(order) THEN backgroundStatusPickingPickingOrder(orderPickingOrderOrder(order))
-        WHEN order IS Order THEN RGB(224, 224, 255);
-    packQuantityOrder 'Кол-во собранных мест' (order) = packQuantityPickingOrder(orderPickingOrderOrder(order));
 
     EXTEND FORM orders
         PROPERTIES(o) READONLY FORCE PANEL namePerformerOrder, startDateTimeOrder, finishDateTimeOrder,

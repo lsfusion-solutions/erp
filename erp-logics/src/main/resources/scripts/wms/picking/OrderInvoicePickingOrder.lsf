@@ -1,14 +1,42 @@
 MODULE OrderInvoicePickingOrder;
 
-NAMESPACE Picking;
+REQUIRE OrderPickingOrder, Invoice;
 
-META defineOrderInvoicePickingOrder (sign, stockProp)
+NAMESPACE Invoice;
 
-    createPickingExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION LIST (UserInvoice, Order);
+createPickingUserInvoicePostedOrder 'Создать проведенную накладную' = ABSTRACT ACTION LIST (Order);
+
+META defineOrderInvoicePickingOrder (sign)
+
+    pickingBatchOrderDetail (batch, orderDetail) = PARTITION UNGROUP pickingQuantityOrderDetail
+                                                               LIMIT STRICT currentBalanceBatchStock(batch, supplierStockOrderDetail(orderDetail)) IF skuBatch(batch) == skuOrderDetail(orderDetail)
+                                                               BY orderDetail
+                                                               ORDER orderBatch(batch);
 
     createPickingDetailUserInvoiceOrder = ACTION (userInvoice, order) {
-        IF useExplicitBatchDetailUserInvoiceOrder(userInvoice, order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
-            createPickingExplicitBatchDetailUserInvoiceOrder(userInvoice, order);
+        IF useExplicitBatchDetailUserInvoiceOrder(order) AND explicitBatchLedgerStock(fromStockOrder(order)) THEN {
+            FOR orderOrderDetail(orderDetail) == order AND pickingBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail)
+                ADDOBJ d = UserInvoiceDetail DO {
+                userInvoiceUserInvoiceDetail(d) <- userInvoice;
+                orderUserInvoiceDetail(d) <- order;
+                skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+                batchUserInvoiceDetail(d) <- batch;
+                quantityUserInvoiceDetail (d) <- pickingBatchOrderDetail(batch, orderDetail);
+                
+                fillUserInvoiceDetailOrderDetail(d, orderDetail);
+                overFillUserInvoiceDetailOrderDetail(d, orderDetail);
+            }
+            FOR orderOrderDetail(orderDetail) == order AND PREV(pickingQuantityOrderDetail(orderDetail)) AND batchOrderDetail(orderDetail)
+                ADDOBJ d = UserInvoiceDetail DO {
+                userInvoiceUserInvoiceDetail(d) <- userInvoice;
+                orderUserInvoiceDetail(d) <- order;
+                skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+                batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
+                quantityUserInvoiceDetail (d) <- PREV(pickingQuantityOrderDetail(orderDetail));
+    
+                fillUserInvoiceDetailOrderDetail(d, orderDetail);
+                overFillUserInvoiceDetailOrderDetail(d, orderDetail);
+            }
         } ELSE {
             FOR orderOrderDetail(orderDetail) == order AND
                 pickingQuantityOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
@@ -66,6 +94,7 @@ META defineOrderInvoicePickingOrder (sign, stockProp)
             }
         }
     }
+    Invoice.createPickingUserInvoicePostedOrder(o) += createPickingUserInvoicePostedOrder(o); 
 
     addPickingUserInvoiceOrder 'Накладная по комплектации'###sign =  ACTION (order) NEWSESSION{
         createPickingUserInvoiceOrder(order);

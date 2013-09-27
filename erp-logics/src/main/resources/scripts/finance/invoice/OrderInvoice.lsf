@@ -9,7 +9,17 @@ createdUserInvoiceOrder = DATA SESSION BOOLEAN (Invoice, Order);
 createUserInvoiceOrder 'Создать накладную' = ABSTRACT ACTION LIST (Order);
 createUserInvoicePostedOrder 'Создать проведенную накладную' = ABSTRACT ACTION LIST (Order);
 
-orderInvoiceDetail = ABSTRACT Order(InvoiceDetail);
+orderInvoiceDetail = ABSTRACT Order (InvoiceDetail);
+
+invoicedInvoiceDetailOrderSku 'Выписано накладных' (order, sku) = GROUP SUM quantityInvoiceDetail(invoiceDetail) IF isPostedInvoiceDetail(invoiceDetail)
+                                                           BY orderInvoiceDetail(invoiceDetail), skuInvoiceDetail(invoiceDetail);
+invoicedOrderDetail 'Кол-во (выписано)' (orderDetail) = PARTITION UNGROUP invoicedInvoiceDetailOrderSku
+                                                          LIMIT STRICT quantityOrderDetail (orderDetail)
+                                                          BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
+                                                          ORDER orderDetail;
+
+toInvoiceOrderDetail 'Не выписано' (orderDetail) = quantityOrderDetail (orderDetail) (-) invoicedOrderDetail(orderDetail);
+toInvoiceOrder (order) = GROUP SUM toInvoiceOrderDetail(orderDetail) IF orderOrderDetail(orderDetail) == order BY orderOrderDetail(orderDetail);
 
 quantityOrderInvoice (order, invoice) = GROUP SUM quantityInvoiceDetail(invoiceDetail)
                                                BY orderInvoiceDetail(invoiceDetail),
@@ -52,8 +62,8 @@ META defineOrderInvoice(sign, stockProp)
                                                               BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
                                                               ORDER orderDetail;
 
-    toInvoicedOrderDetail 'Не выписано' (orderDetail) = quantityOrderDetail (orderDetail) (-) invoicedOrderDetail(orderDetail);
-    toInvoicedOrder (order) = GROUP SUM toInvoicedOrderDetail(orderDetail) IF orderOrderDetail(orderDetail) == order BY orderOrderDetail(orderDetail);
+    toInvoiceOrderDetail 'Не выписано' (orderDetail) = quantityOrderDetail (orderDetail) (-) invoicedOrderDetail(orderDetail);
+    toInvoiceOrder (order) = GROUP SUM toInvoiceOrderDetail(orderDetail) IF orderOrderDetail(orderDetail) == order BY orderOrderDetail(orderDetail);
 
 
     // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
@@ -64,8 +74,7 @@ META defineOrderInvoice(sign, stockProp)
     inOrderCustomerStock (order, customerStock) = GROUP SUM 1 IF customerStockOrderDetail(orderDetail) == customerStock BY orderOrderDetail(orderDetail), customerStock;
     inOrderCustomer (order, customer) = GROUP SUM 1 IF legalEntityStock(customerStockOrderDetail(orderDetail)) == customer BY orderOrderDetail(orderDetail), customer;
 
-    createExplicitBatchDetailUserInvoiceOrder = ABSTRACT ACTION LIST (UserInvoice, Order);
-    useExplicitBatchDetailUserInvoiceOrder = ABSTRACT BOOLEAN (UserInvoice, Order);
+    useExplicitBatchDetailUserInvoiceOrder = ABSTRACT BOOLEAN (Order);
 
     differentStocksInDetailsStock (stock) = differentStocksInDetailsLegalEntity(legalEntityStock(stock)) PERSISTENT;
 
@@ -82,20 +91,48 @@ META defineOrderInvoice(sign, stockProp)
         invoicePriceUserInvoiceDetail(id) <- invoicePriceOrderDetail(od);
         data###stockProp###userInvoiceDetail(id) <- data###stockProp###orderDetail(od);
     }
-    
+
+    toInvoiceBatchOrderDetail (batch, orderDetail) = PARTITION UNGROUP toInvoiceOrderDetail
+                                                               LIMIT STRICT currentBalanceBatchStock(batch, supplierStockOrderDetail(orderDetail)) IF skuBatch(batch) == skuOrderDetail(orderDetail)
+                                                               BY orderDetail
+                                                               ORDER orderBatch(batch);
+
     createDetailUserInvoiceOrder = ACTION (userInvoice, order) {
-        IF useExplicitBatchDetailUserInvoiceOrder(userInvoice, order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
-            createExplicitBatchDetailUserInvoiceOrder(userInvoice, order);
+        IF useExplicitBatchDetailUserInvoiceOrder(order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
+            // проходим по строкам, для которых не задана партия
+            FOR orderOrderDetail(orderDetail) == order AND toInvoiceBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail)
+                ADDOBJ d = UserInvoiceDetail DO {
+                    userInvoiceUserInvoiceDetail(d) <- userInvoice;
+                    orderUserInvoiceDetail(d) <- order;
+                    skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+                    batchUserInvoiceDetail(d) <- batch;
+                    quantityUserInvoiceDetail (d) <- toInvoiceBatchOrderDetail(batch, orderDetail);
+        
+                    fillUserInvoiceDetailOrderDetail(d, orderDetail);
+                    overFillUserInvoiceDetailOrderDetail(d, orderDetail);
+            }
+            // проходим по строкам, для которых задана партия
+            FOR orderOrderDetail(orderDetail) == order AND PREV(toInvoiceOrderDetail(orderDetail)) AND batchOrderDetail(orderDetail)
+                ADDOBJ d = UserInvoiceDetail DO {
+                    userInvoiceUserInvoiceDetail(d) <- userInvoice;
+                    orderUserInvoiceDetail(d) <- order;
+                    skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
+                    batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
+                    quantityUserInvoiceDetail (d) <- PREV(toInvoiceOrderDetail(orderDetail));
+        
+                    fillUserInvoiceDetailOrderDetail(d, orderDetail);
+                    overFillUserInvoiceDetailOrderDetail(d, orderDetail);
+            }
         } ELSE
             FOR orderOrderDetail(orderDetail) == order AND
-                toInvoicedOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
+                toInvoiceOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
                 AND inOrderDetailUserInvoice(orderDetail, userInvoice)
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoiceUserInvoiceDetail(d) <- userInvoice;
                     orderUserInvoiceDetail(d) <- order;
                     skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
                     batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
-                    quantityUserInvoiceDetail (d) <- toInvoicedOrderDetail(orderDetail);
+                    quantityUserInvoiceDetail (d) <- toInvoiceOrderDetail(orderDetail);
 
                     fillUserInvoiceDetailOrderDetail(d, orderDetail);
                     overFillUserInvoiceDetailOrderDetail(d, orderDetail);
@@ -227,10 +264,10 @@ META defineOrderInvoice(sign, stockProp)
         PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
         PROPERTIES (d) READONLY quantityOrderDetail, invoicedOrderDetail, priceOrderDetail, sumOrderDetail,
                         numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
-                        name###stockProp###orderDetail, toInvoicedOrderDetail
+                        name###stockProp###orderDetail, toInvoiceOrderDetail
         FILTERS orderOrderDetail(d) == o
 //        FILTERGROUP orderDetail
-//            FILTER 'Строки с невыписанными товарами со склада' 'F10' stockProp###orderDetail(d) == stockProp###invoiceOrder() AND toInvoicedOrderDetail(d) > 0 DEFAULT
+//            FILTER 'Строки с невыписанными товарами со склада' 'F10' stockProp###orderDetail(d) == stockProp###invoiceOrder() AND toInvoiceOrderDetail(d) > 0 DEFAULT
 //            FILTER 'Строки со склада' 'F9' stockProp###orderDetail(d) == stockProp###invoiceOrder()
     ;
 
@@ -267,7 +304,7 @@ META defineOrderInvoice(sign, stockProp)
                 ADD PROPERTY(nameOperationInvoiceOrder());
 
             }
-            PROPERTY(toInvoicedOrderDetail) { background = #FFFFCC; }
+            PROPERTY(toInvoiceOrderDetail) { background = #FFFFCC; }
         }
     }
 
@@ -338,7 +375,7 @@ META defineOrderInvoice(sign, stockProp)
         PROPERTIES(d) invoiceQuantityOrderDetail AFTER quantityOrderDetail SHOWIF createInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
     ;
     EXTEND FORM invoiceOrders
-        PROPERTIES (d) READONLY BACKGROUND backgroundInvoiceOrder(o)  toInvoicedOrderDetail
+        PROPERTIES (d) READONLY BACKGROUND backgroundInvoiceOrder(o)  toInvoiceOrderDetail
     ;
 
     CLASS OrderInvoice 'Накладная на основе заказа'###sign : Invoice;

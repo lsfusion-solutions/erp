@@ -82,37 +82,7 @@ overChangeQuantityValueBatchUserInvoiceDetail(detail) += ACTION (detail) {
 
 // ---------------- Проставление партий в инвойсе с использование партий заказа -------- //
 
-useExplicitBatchDetailUserInvoiceOrder (userInvoice, order) += userInvoice IS Sale.UserInvoice AND order IS Sale.Order;
-
-toInvoiceBatchOrderDetail (batch, orderDetail) = PARTITION UNGROUP toInvoicedOrderDetail
-                                                           LIMIT STRICT currentBalanceBatchStock(batch, supplierStockOrderDetail(orderDetail)) IF skuBatch(batch) == skuOrderDetail(orderDetail)
-                                                           BY orderDetail
-                                                           ORDER orderBatch(batch);
-
-createExplicitBatchDetailUserInvoiceOrder (userInvoice, order) += ACTION (userInvoice, order) {
-    FOR orderOrderDetail(orderDetail) == order AND toInvoiceBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail)
-        ADDOBJ d = UserInvoiceDetail DO {
-            userInvoiceUserInvoiceDetail(d) <- userInvoice;
-            orderUserInvoiceDetail(d) <- order;
-            skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-            batchUserInvoiceDetail(d) <- batch;
-            quantityUserInvoiceDetail (d) <- toInvoiceBatchOrderDetail(batch, orderDetail);
-
-            fillUserInvoiceDetailOrderDetail(d, orderDetail);
-            overFillUserInvoiceDetailOrderDetail(d, orderDetail);
-        }
-    FOR orderOrderDetail(orderDetail) == order AND PREV(toInvoicedOrderDetail(orderDetail)) AND batchOrderDetail(orderDetail)
-        ADDOBJ d = UserInvoiceDetail DO {
-            userInvoiceUserInvoiceDetail(d) <- userInvoice;
-            orderUserInvoiceDetail(d) <- order;
-            skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-            batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
-            quantityUserInvoiceDetail (d) <- PREV(toInvoicedOrderDetail(orderDetail));
-
-            fillUserInvoiceDetailOrderDetail(d, orderDetail);
-            overFillUserInvoiceDetailOrderDetail(d, orderDetail);
-        }
-}
+useExplicitBatchDetailUserInvoiceOrder (order) += order IS Sale.Order;
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 

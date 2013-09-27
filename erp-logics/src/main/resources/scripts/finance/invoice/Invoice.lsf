@@ -26,14 +26,14 @@ CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 @defineDocumentAbstractLegalEntity(invoice, supplier, 'Поставщик');
 @defineDocumentAbstractLegalEntity(invoice, customer, 'Покупатель');
 
-@defineDocumentAbstractLegalEntity(invoice, fromLegalEntity, 'Отправитель');
-@defineDocumentAbstractLegalEntity(invoice, toLegalEntity, 'Получатель');
+@defineDocumentAbstractLegalEntity(invoice, from, 'Отправитель');
+@defineDocumentAbstractLegalEntity(invoice, to, 'Получатель');
 
 @defineDocumentAbstractDataStock(invoice, stock, 'Склад поставщика', supplier);
 @defineDocumentAbstractDataStock(invoice, stock, 'Склад покупателя', customer);
 
-@defineDocumentAbstractDataStock(invoice, stock, 'Склад (отправитель)', from);
-@defineDocumentAbstractDataStock(invoice, stock, 'Склад (получатель)', to);
+@defineDocumentAbstractDataStock(invoice, stock, 'Склад отправителя', from);
+@defineDocumentAbstractDataStock(invoice, stock, 'Склад получателя', to);
 
 @defineDocumentAbstractPosted(invoice);
 @defineDocumentAbstractClosed(invoice);
@@ -43,6 +43,9 @@ CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 @defineDocumentAbstractDetailQuantity(invoice);
 @defineDocumentDetailGrossWeight(invoice, sku);
 @defineDocumentAbstractDetailQuantityPrefix(invoice, pack, ' (упаковок)');
+
+
+@defineDocumentHeaderQuantity(invoice);
 @defineDocumentHeaderSkuQuantity(invoice, sku);
 
 @defineDocumentHeaderGrossWeight(invoice);
@@ -51,8 +54,12 @@ CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 
 @defineDocumentAbstractDetailPrice(invoice);
 @defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, , );
+@defineDocumentHeaderSum(invoice);
+
 @defineDocumentAbstractDetailVAT(invoice, , );
 @defineDocumentAbstractDetailVATDataSumCustom (invoiceDetail, invoice);
+
+@defineDocumentHeaderVATSum(invoice, invoice);
 
 @defineDocumentAbstractDetailNote (InvoiceDetail);
 
@@ -188,7 +195,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     Invoice.VATSumInvoiceDetail(detail) += VATSumInvoiceDetail(detail);
     Invoice.invoiceSumInvoiceDetail(detail) += invoiceSumInvoiceDetail(detail);
 
-    @defineDocumentInterfaceHeaderVATSum(invoice);
+    @defineDocumentInterfaceHeaderVATSum(invoice, invoice);
 
     @defineDocumentInterfaceHeaderQuantity(invoice);
     @defineDocumentInterfaceHeaderItemQuantity(invoice);
@@ -671,8 +678,8 @@ META defineInvoiceReturn(NS, NSR, stockProp)
 END
 
 META defineInvoiceDestination(fromLegalEntity, toLegalEntity)
-    Invoice.fromLegalEntityInvoice(invoice) += fromLegalEntity##Invoice(invoice);
-    Invoice.toLegalEntityInvoice(invoice) += toLegalEntity##Invoice(invoice);
+    Invoice.fromInvoice(invoice) += fromLegalEntity##Invoice(invoice);
+    Invoice.toInvoice(invoice) += toLegalEntity##Invoice(invoice);
     //Invoice.dataFromLegalEntityInvoiceDetail(detail) += data###fromLegalEntity##InvoiceDetail(detail);
     //Invoice.dataToLegalEntityInvoiceDetail(detail) += data###toLegalEntity##InvoiceDetail(detail);
 END
