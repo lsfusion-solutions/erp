@@ -37,6 +37,11 @@ CLASS ABSTRACT OrderDetail 'Строка заказа' : DocumentDetail;
 
 closeDateOrder 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm PERSISTENT;
 
+@defineDocumentAbstractHeaderTimePrefix(Order, shipment, ' поставки');
+shipmentDateOrderDetail 'Дата поставки' = ABSTRACT DATE (OrderDetail) IN documentHeader PERSISTENT;
+shipmentTimeOrderDetail 'Время поставки' = ABSTRACT TIME (OrderDetail) IN documentHeader PERSISTENT;
+shipmentDateTimeOrderDetail 'Дата/время поставки' (d) = dateTimeToDateTime(shipmentDateOrderDetail(d), shipmentTimeOrderDetail(d)) PERSISTENT;
+
 @defineDocumentAbstractDataStock(order, stock, 'Склад поставщика', supplier);
 @defineDocumentAbstractDataStock(order, stock, 'Склад покупателя', customer);
 
@@ -130,6 +135,10 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     Order.isClosedOrder (order) += isClosedOrder(order);
     
     @defineDocumentInterfaceDataTimePrefix(order, shipment, ' поставки');
+    Order.shipmentTimeOrder(order) += shipmentTimeOrder(order);
+    Order.shipmentDateOrder(order) += shipmentDateOrder(order);    
+    Order.shipmentTimeOrderDetail(d) += shipmentTimeOrderDetail(d);
+    Order.shipmentDateOrderDetail(d) += shipmentDateOrderDetail(d);
     @deriveDocumentHeaderTimePrefix(UserOrder, shipment);
 
     closeDateOrder 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm;

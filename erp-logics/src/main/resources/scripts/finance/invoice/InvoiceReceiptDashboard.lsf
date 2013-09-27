@@ -1,0 +1,76 @@
+MODULE InvoiceReceiptDashboard;
+
+REQUIRE Dashboard, OrderInvoice;
+
+
+FORM receiptDashboard 'Приемка' AUTOREFRESH 60
+
+    OBJECTS d = DATE FIXED PANEL
+    PROPERTIES(d) date = OBJVALUE
+    
+    OBJECTS o=Order FIXED GRID
+    PROPERTIES (o) selectedOrder
+    PROPERTIES (o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, nameFromOrder, nameFromStockOrder, nameToStockOrder, nameToOrder,
+                   nameOperationOrder, quantityOrderDetailOrder, sumOrderDetailOrder, VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, noteOrder,
+                   shipmentDateOrder, shipmentTimeOrder, objectClassName    
+    FILTERS toInvoiceOrder(o)
+    
+    OBJECTS od=OrderDetail FIXED GRID
+    PROPERTIES (od) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
+    PROPERTIES (od) READONLY quantityOrderDetail, priceOrderDetail, sumOrderDetail,
+                   valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
+                   nameSupplierStockOrderDetail, shipmentDateOrderDetail, shipmentTimeOrderDetail  
+    FILTERS orderOrderDetail(od)==o
+    
+    OBJECTS i=Invoice FIXED GRID
+    PROPERTIES (i) READONLY isPostedInvoice, numberInvoice, seriesInvoice, dateInvoice, timeInvoice,                                 
+                   nameFromInvoice, nameFromStockInvoice, nameToInvoice, nameToStockInvoice,
+                   nameCurrencyInvoice, countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
+                   VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice
+
+    PROPERTIES (i) editInvoice
+    PROPERTIES     deletei=DELETE(i) FORCE PANEL TOOLBAR  
+
+    FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=d DEFAULT
+    FILTERGROUP filters1 FILTER 'Накладные на дату' 'F5' dateInvoice(i)==d DEFAULT
+    PROPERTIES() createMultiUserInvoice TODRAW o SHOWIF countSelectedOrder()
+;
+
+DESIGN receiptDashboard FROM DEFAULT {
+    main{
+
+        NEW dash BEFORE functions.box{
+            fill = 1;
+            type = SPLITV;
+            NEW header {
+                fill = 1;                         
+                ADD o.box;
+
+            }
+            NEW pickings {
+                fill = 1;
+                type = TABBED;
+                ADD i.box;
+                ADD od.box {
+                    caption = 'Детализация заказа';
+                }
+            }
+        }          
+        NEW secondContainer BEFORE dash {
+            type = CONTAINERH;
+            caption = 'Шапка';
+            ADD PROPERTY(date);
+        }
+    }
+}
+ 
+@defineFilterIsOpened (order, receiptDashboard, o); 
+@defineFilterIsOpened (invoice, receiptDashboard, i);
+
+NAVIGATOR {
+    dashboardNavigator {
+        ADD receiptDashboard;
+    }
+}
+
+

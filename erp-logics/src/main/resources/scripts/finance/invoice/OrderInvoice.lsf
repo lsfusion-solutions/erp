@@ -19,11 +19,39 @@ invoicedOrderDetail 'Кол-во (выписано)' (orderDetail) = PARTITION U
                                                           ORDER orderDetail;
 
 toInvoiceOrderDetail 'Не выписано' (orderDetail) = quantityOrderDetail (orderDetail) (-) invoicedOrderDetail(orderDetail);
-toInvoiceOrder (order) = GROUP SUM toInvoiceOrderDetail(orderDetail) IF orderOrderDetail(orderDetail) == order BY orderOrderDetail(orderDetail);
+toInvoiceOrder (order) = GROUP SUM toInvoiceOrderDetail(orderDetail) IF toInvoiceOrderDetail(orderDetail) >0 BY orderOrderDetail(orderDetail);
 
 quantityOrderInvoice (order, invoice) = GROUP SUM quantityInvoiceDetail(invoiceDetail)
                                                BY orderInvoiceDetail(invoiceDetail),
                                                   invoiceInvoiceDetail(invoiceDetail);
+
+GROUP orders 'Приемка по накладным' : base;
+
+// -------------- Создание накладной на основе заказа (для абстрактного заказа) ------------------------ // 
+
+selectedOrder 'Отм.' = DATA SESSION BOOLEAN (Order); 
+minSelectedOrder = GROUP MIN o IF selectedOrder(o); 
+
+createMultiUserInvoiceOrder = ABSTRACT ACTION LIST (Order);
+
+countSelectedOrder 'Кол-во отм.' = GROUP SUM 1 IF selectedOrder(order);
+countSelectedClass 'Кол-во классов' = GROUP SUM 1 IF [GROUP SUM 1 IF selectedOrder(order) BY objectClassName(order)](name);
+countSelectedFromClass 'Кол-во отправителей' = GROUP SUM 1 IF [GROUP SUM 1 IF selectedOrder(order) BY fromOrder(order)](order);
+countSelectedToClass 'Кол-во получателей' = GROUP SUM 1 IF [GROUP SUM 1 IF selectedOrder(order) BY toOrder(order)](order);
+countSelectedFromStockClass 'Кол-во складов отправителей' = GROUP SUM 1 IF [GROUP SUM 1 IF selectedOrder(order) BY fromOrder(order)](order);
+countSelectedToStockClass 'Кол-во складов получателей' = GROUP SUM 1 IF [GROUP SUM 1 IF selectedOrder(order) BY toOrder(order)](order);
+
+createMultiUserInvoice 'Создать накладную' = ACTION () {
+    IF countSelectedFromClass()!=1 OR countSelectedToClass() != 1 OR countSelectedFromStockClass()!=1 OR countSelectedToStockClass()!=1 THEN {
+        MESSAGE 'Выбраны заказы с разными покупателями, поставщиками или их складами';               
+    } ELSE {
+        IF countSelectedClass()==1 THEN {
+            createMultiUserInvoiceOrder(minSelectedOrder());
+        } ELSE {
+            MESSAGE 'Выбраны заказы с разными классами';
+        }        
+    }
+} TOOLBAR;
 
 //--  Связь с заказом
 
@@ -63,8 +91,9 @@ META defineOrderInvoice(sign, stockProp)
                                                               ORDER orderDetail;
 
     toInvoiceOrderDetail 'Не выписано' (orderDetail) = quantityOrderDetail (orderDetail) (-) invoicedOrderDetail(orderDetail);
-    toInvoiceOrder (order) = GROUP SUM toInvoiceOrderDetail(orderDetail) IF orderOrderDetail(orderDetail) == order BY orderOrderDetail(orderDetail);
+    toInvoiceOrder (order) = GROUP SUM toInvoiceOrderDetail(orderDetail) IF toInvoiceOrderDetail(orderDetail) >0 BY orderOrderDetail(orderDetail);
 
+    backgroundInvoiceOrder 'Цвет' (order) = RGB(175, 255, 175) IF order IS Order;
 
     // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
@@ -328,13 +357,93 @@ META defineOrderInvoice(sign, stockProp)
 
     EXTEND DESIGN userInvoice {
         headerCreateDetail {
-            ADD i.order {type = CONTAINERH;}
+            ADD i.order {type = CONTAINERV;}
         }
     }
     EXTEND FORM invoices
         PROPERTIES (i)  READONLY ordersInvoice AFTER invoiceSumInvoiceDetailInvoice(i)
         PROPERTIES (d)  READONLY descriptionOrderInvoiceDetail AFTER invoiceSumInvoiceDetail(d)
     ;
+    
+// Создание инвойса на основе нескольких заказов //
+
+    TABLE orderUserInvoice (Order, UserInvoice);
+    includeOrderUserInvoice 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    includeOrdersUserInvoice 'Заказы в накладной' (userInvoice) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF includeOrderUserInvoice(order, userInvoice) , ', '
+                                                        BY userInvoice
+                                                        ORDER order IN orders MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;
+    FORM includeOrdersUserInvoice 'Заказы'
+        OBJECTS i = UserInvoice FIXED PANEL
+
+        OBJECTS o = Order
+        PROPERTIES (o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
+                                nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder, nameCurrencyOrder,
+                                countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder, VATSumOrderDetailOrder, invoiceSumOrderDetailOrder,
+                                noteOrder
+
+        FILTERS supplierOrder(o) == supplierUserInvoice(i),
+                customerOrder(o) == customerUserInvoice(i),
+                supplierStockOrder(o) == supplierStockUserInvoice(i),
+                customerStockOrder(o) == customerStockUserInvoice(i),
+                isPostedOrder(o),
+                toInvoiceOrder(o)
+        PROPERTIES(o,i) BACKGROUND backgroundInvoiceOrder(o) includeOrderUserInvoice BEFORE isPostedOrder(o)
+    ;
+
+    dialogIncludeOrdersUserInvoice 'Включить заказы в накладную' (userInvoice) = ACTION FORM includeOrdersUserInvoice OBJECTS i = userInvoice MODAL IN orders;
+
+    defaultOrderSkuUserInvoice (sku, userInvoice) = GROUP MAX order IF includeOrderUserInvoice(order, userInvoice) 
+        AND orderOrderDetail(detail)==order
+        BY skuOrderDetail(detail), userInvoice;
+
+    connectOrderUserInvoiceDetail 'Привязать накладную к заказам' = ACTION (detail) {
+        orderUserInvoiceDetail(detail) <- defaultOrderSkuUserInvoice(skuUserInvoiceDetail(detail), userInvoiceUserInvoiceDetail(detail)) 
+                                                    WHERE defaultOrderSkuUserInvoice(skuUserInvoiceDetail(detail), userInvoiceUserInvoiceDetail(detail));
+    };
+
+    connectOrderUserInvoice 'Привязать накладную к заказам' = ACTION (userInvoice) {
+        FOR userInvoiceUserInvoiceDetail(detail) == userInvoice DO {
+            EXEC connectOrderUserInvoiceDetail(detail);
+        }
+    } IN orders;
+
+    WHEN SESSION FORMS userInvoice
+        CHANGED(skuUserInvoiceDetail(detail)) AND NOT orderUserInvoiceDetail(detail)       
+            DO EXEC connectOrderUserInvoiceDetail(detail);
+
+    EXTEND FORM userInvoice
+        PROPERTIES(i) dialogIncludeOrdersUserInvoice, includeOrdersUserInvoice READONLY, connectOrderUserInvoice
+    ;
+    EXTEND DESIGN userInvoice {
+        headerCreateDetail {
+            ADD i.orders {
+                type = CONTAINERV;
+            }
+        }
+    }
+//-- 
+    
+    createMultiUserInvoiceOrder = ACTION (order) {
+        IF order IS Order THEN {
+            FOR ADDOBJ i = UserInvoice DO {
+                FOR selectedOrder(o) DO {
+                    fillUserInvoiceOrder(i, o);   
+                    includeOrderUserInvoice(o,i)<- TRUE;             
+                }     
+                              
+                FORM userInvoice OBJECTS i = i DOCKEDMODAL;
+                IF formResult() == FormResult.ok THEN {
+                    apply();
+                } ELSE {
+                    FOR userInvoiceUserInvoiceDetail(d)==i DO {
+                        DELETE d;   
+                    }
+                    DELETE i;
+                }
+            }
+        }
+    }
+    Invoice.createMultiUserInvoiceOrder(o)+= createMultiUserInvoiceOrder(o);
 
 //-- аггр.объект
 
@@ -347,8 +456,7 @@ META defineOrderInvoice(sign, stockProp)
                                      'Организация (покупатель) договора заказа не соответствует организация (покупатель) заказа');
 
     showInvoiceOrder (order) =  order IS Order AND NOT createInvoiceOrder(order);
-
-    backgroundInvoiceOrder 'Цвет' (order) = RGB(175, 255, 175) IF order IS Order;
+    
     EXTEND FORM userOrder
         PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) createInvoiceUserOrder
         PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) SHOWIF createInvoiceUserOrder(o) seriesNumberContractSkuUserOrder, isCommissionUserOrder

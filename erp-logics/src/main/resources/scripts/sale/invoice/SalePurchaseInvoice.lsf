@@ -113,18 +113,6 @@ fillInvoiceUserInvoice 'Заполнить на основе накладной'
     }
 } IN Purchase.invoice;
 
-EXTEND FORM Purchase.userInvoice
-    PROPERTIES(i) fillInvoiceUserInvoice
-;
-EXTEND DESIGN Purchase.userInvoice {
-    headerCreateDetail {
-        NEW headerCreateSale {
-            caption = 'Накладная (продажа)';
-            ADD PROPERTY(fillInvoiceUserInvoice);
-        }
-    }
-}
-
 //----------------------------------------------------------------------------//
 
 GROUP invoice 'Информация о накладной' : base;
@@ -170,7 +158,7 @@ descriptionIndexInvoiceDetailUserInvoiceDetail 'Строка накладной 
 
 quantityInvoiceDetailInvoiceInvoice (sale, purchase) = GROUP SUM Purchase.quantityInvoiceDetail(detail) BY invoiceInvoiceDetail(invoiceDetailInvoiceDetail(detail)), Purchase.invoiceInvoiceDetail(detail);
 
-saleInvoicesInvoice 'Поставки (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](descriptionInvoice(sale)) IF quantityInvoiceDetailInvoiceInvoice(sale, purchase) , ', '
+saleInvoicesInvoice 'Накладные (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](descriptionInvoice(sale)) IF quantityInvoiceDetailInvoiceInvoice(sale, purchase) , ', '
                                                         BY purchase
                                                         ORDER sale IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
@@ -180,6 +168,13 @@ invoicedInvoiceDetail 'Кол-во (выписано)' (invoiceDetail) = GROUP S
                                                                    BY invoiceDetailInvoiceDetail(detail) PERSISTENT;
 
 toInvoicedInvoiceDetail 'Не выписано' (invoiceDetail) = quantityInvoiceDetail (invoiceDetail) (-) invoicedInvoiceDetail(invoiceDetail);
+
+EXTEND FORM Purchase.userInvoice
+    PROPERTIES(i) fillInvoiceUserInvoice, saleInvoicesInvoice READONLY
+;
+EXTEND DESIGN Purchase.userInvoice { headerCreateDetail{ ADD i.invoice { type = CONTAINERV; }}}
+
+
 
 CLASS PurchaseInvoice 'Накладная на основе накладной': Purchase.Invoice;
 CLASS PurchaseInvoiceDetail 'Строка накладной на основе накладной' : Purchase.InvoiceDetail;
