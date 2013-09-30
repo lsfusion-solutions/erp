@@ -8,11 +8,6 @@ inCreatingTripOrder 'Отметить' = DATA SESSION BOOLEAN (Order);
 
 countInCreatingTripOrder = GROUP SUM 1 IF inCreatingTripOrder(order);
 
-tripStatusOrder 'Статус' (order) =  CASE
-    WHEN TRUE AND NOT toInvoiceOrder(order) THEN 'Вывезен'
-    WHEN tripOrder(order) THEN 'Отгружен'
-    WHEN order IS Order THEN statusPickingOrder(order)
-MINCHARWIDTH 22 PREFCHARWIDTH 30;
 
 FORM optionTrip 'Настройки рейса'
     OBJECTS t = Trip FIXED PANEL
@@ -55,14 +50,14 @@ FORM tripDashboard 'Загрузка транспорта' AUTOREFRESH 60
 
     OBJECTS o = Order FIXED GRID
     PROPERTIES(o) inCreatingTripOrder READONLYIF tripOrder(o)
-    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingOrder(o) tripStatusOrder, nameDriverTripOrder, numberOrder, dateOrder,
+    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingOrder(o) nameDriverTripOrder, numberOrder, dateOrder,
                             nameToStockOrder, addressToStockOrder, packQuantityOrder, quantityOrderDetailOrder,
                             startDateTimeOrder, finishDateTimeOrder
     PROPERTIES() createTripOrder SHOWIF countInCreatingTripOrder() TODRAW o
     FILTERS (calcFullOrder(o) OR calcPartOrder(o)) AND NOT tripOrder(o)
 
     OBJECTS to = Order FIXED GRID
-    PROPERTIES(to) READONLY tripStatusOrder, nameDriverTripOrder, dateTripOrder, numberTripOrder,
+    PROPERTIES(to) READONLY nameDriverTripOrder, dateTripOrder, numberTripOrder,
                             numberOrder, dateOrder, finishDateTimeOrder,
                             nameToStockOrder, addressToStockOrder, packQuantityOrder, quantityOrderDetailOrder
                             
