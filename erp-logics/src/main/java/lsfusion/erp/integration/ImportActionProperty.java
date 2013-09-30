@@ -1393,6 +1393,8 @@ public class ImportActionProperty {
                 ImportKey<?> bankKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank"),
                         LM.findLCPByCompoundName("bankId").getMapping(idBankField));
                 keys.add(bankKey);
+                props.add(new ImportProperty(idBankField, LM.findLCPByCompoundName("idBank").getMapping(bankKey)));
+                props.add(new ImportProperty(idBankField, LM.findLCPByCompoundName("nameBank").getMapping(bankKey)));
                 props.add(new ImportProperty(idBankField, LM.findLCPByCompoundName("Bank.bankAccount").getMapping(accountKey),
                         LM.object(LM.findClassByCompoundName("Bank")).getMapping(bankKey)));
                 fields.add(idBankField);
