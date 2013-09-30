@@ -1,0 +1,138 @@
+MODULE TripDashboard;
+
+REQUIRE Dashboard, OrderInvoice, Trip, OrderPickingOrder;
+
+NAMESPACE Trip;
+
+inCreatingTripOrder 'Отметить' = DATA SESSION BOOLEAN (Order);
+
+countInCreatingTripOrder = GROUP SUM 1 IF inCreatingTripOrder(order);
+
+tripStatusOrder 'Статус' (order) =  CASE
+    WHEN TRUE AND NOT toInvoiceOrder(order) THEN 'Вывезен'
+    WHEN tripOrder(order) THEN 'Отгружен'
+    WHEN order IS Order THEN statusPickingOrder(order)
+MINCHARWIDTH 22 PREFCHARWIDTH 30;
+
+FORM optionTrip 'Настройки рейса'
+    OBJECTS t = Trip FIXED PANEL
+    PROPERTIES(t) dateTrip, timeTrip, nameDriverTrip, nameTruckTrip    
+;
+DESIGN optionTrip FROM DEFAULT {
+    t.panel.props {
+        columns = 2;
+    }
+}
+
+overPrintTrip = ABSTRACT ACTION LIST (Trip);
+overCreateTripOrder = ABSTRACT ACTION LIST (Trip);
+createTripOrder 'Взять в рейс' = ACTION () {
+    FOR ADDOBJ t = Trip DO {
+        dateTrip(t) <- currentDate();
+        timeTrip(t) <- currentTime();
+        overCreateTripOrder(t);
+        FORM optionTrip OBJECTS t = t MODAL;
+
+        FOR inCreatingTripOrder(order) 
+                AND NOT tripOrder(order) DO {
+            tripOrder(order) <- t;
+        }
+        overPrintTrip(t);
+    }
+    EXEC apply();
+} TOOLBAR EDITKEY 'ctrl ENTER';
+
+cancelTripOrder 'Отменить' = ACTION (order) {
+    ASSIGN tripOrder (order) <- NULL;
+    EXEC apply();
+} TOOLBAR EDITKEY 'ctrl DELETE';
+
+
+FORM tripDashboard 'Загрузка транспорта' AUTOREFRESH 60
+
+    OBJECTS d = DATE FIXED PANEL
+    PROPERTIES(d) date = OBJVALUE
+
+    OBJECTS o = Order FIXED GRID
+    PROPERTIES(o) inCreatingTripOrder READONLYIF tripOrder(o)
+    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingOrder(o) tripStatusOrder, nameDriverTripOrder, numberOrder, dateOrder,
+                            nameToStockOrder, addressToStockOrder, packQuantityOrder, quantityOrderDetailOrder,
+                            startDateTimeOrder, finishDateTimeOrder
+    PROPERTIES() createTripOrder SHOWIF countInCreatingTripOrder() TODRAW o
+    FILTERS (calcFullOrder(o) OR calcPartOrder(o)) AND NOT tripOrder(o)
+
+    OBJECTS to = Order FIXED GRID
+    PROPERTIES(to) READONLY tripStatusOrder, nameDriverTripOrder, dateTripOrder, numberTripOrder,
+                            numberOrder, dateOrder, finishDateTimeOrder,
+                            nameToStockOrder, addressToStockOrder, packQuantityOrder, quantityOrderDetailOrder
+                            
+    PROPERTIES(to) cancelTripOrder
+    FILTERS tripOrder(to)
+    FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=d DEFAULT
+    FILTERGROUP filters1 FILTER 'Рейсы на дату' 'F5' dateTripOrder(to)==d DEFAULT
+
+;
+
+DESIGN tripDashboard FROM DEFAULT {
+    main{
+    NEW baseContainer {
+        fill = 1;
+        type = SPLITV;
+        NEW firstContainer {
+            fill = 1;
+            ADD to.box{
+                caption = 'Вывезенные заказы';
+                PROPERTY(addressToStockOrder(to)){
+                    caption = 'Пункт разгрузки';
+                    minimumCharWidth = 40;
+                }
+                PROPERTY(nameToStockOrder(to)){
+                    minimumCharWidth = 45;
+                }
+                PROPERTY(numberOrder(to)) {
+                    caption = 'Номер заказа';
+                }
+                PROPERTY(dateOrder(to)) {
+                    caption = 'Дата заказа';
+                }
+            }
+        }
+        NEW secondContainer BEFORE firstContainer {
+            fill = 1;
+            ADD o.box{
+                caption = 'Заказы к вывозу';
+                PROPERTY(addressToStockOrder(o)){
+                    caption = 'Пункт разгрузки';
+                    minimumCharWidth = 40;
+                }
+                PROPERTY(nameToStockOrder(o)){
+                    minimumCharWidth = 45;
+                }
+                PROPERTY(numberOrder(o)) {
+                    caption = 'Номер заказа';
+                }
+                PROPERTY(dateOrder(o)) {
+                    caption = 'Дата заказа';
+                    }
+                PROPERTY(inCreatingTripOrder) {
+                    editKey = 'SPACE';
+                    }
+                }
+            }
+    }
+    NEW thirdContainer BEFORE baseContainer {
+        type = CONTAINERH;
+        caption = 'Шапка';
+        ADD PROPERTY(date);
+
+    }
+
+    ADD functions.box;
+    }
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        ADD tripDashboard;
+    }
+}

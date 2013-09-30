@@ -1,0 +1,162 @@
+MODULE ConsignmentDashboard;
+
+REQUIRE Dashboard, ConsignmentBy, OrderInvoice, TripInvoice,  TripDashboard, OrderInvoicePickingOrder; 
+
+NAMESPACE Order;
+
+inConsignmentPrintOrder 'Отметить' = DATA SESSION BOOLEAN (Order);
+
+countInConsignmentPrintOrder = GROUP SUM 1 IF inConsignmentPrintOrder(order);
+
+hidePrintAction = TRUE AND NOT countInConsignmentPrintOrder();
+
+toInvoicedPickedOrderDetail 'Не выписано' (orderDetail) = pickingQuantityOrderDetail(orderDetail) (-) invoicedOrderDetail(orderDetail);
+toInvoicedPickedOrder (order) = GROUP SUM toInvoicedPickedOrderDetail(orderDetail) IF toInvoicedPickedOrderDetail(orderDetail) >0  BY orderOrderDetail(orderDetail);
+
+countOrderConsignmentPrintTrip = GROUP SUM 1 IF inConsignmentPrintOrder(order) BY tripOrder(order);
+
+countInConsignmentPrintTrip = GROUP SUM 1 IF countOrderConsignmentPrintTrip(trip);
+
+inConsignmentPrintTrip = GROUP MAX trip IF countOrderConsignmentPrintTrip(trip);
+
+printConsignmentOrder 'Создать накладные' = ACTION () {
+    IF countInConsignmentPrintTrip() > 1 THEN {
+        MESSAGE 'Выберите заказы одного рейса';
+    } ELSE {
+            FOR inConsignmentPrintOrder(order) DO {
+                createPickingUserInvoicePostedOrder(order);
+                FOR createdUserInvoiceOrder(i, order) DO {
+                    tripInvoice(i) <- tripOrder(order);
+                }
+            }
+            apply();
+    }
+} TOOLBAR EDITKEY 'ctrl ENTER';
+
+
+
+backgroundStatusPickingPickingOrder 'Цвет' (order) =  CASE
+      WHEN tripOrder(order) THEN RGB(212,255,212)
+      WHEN calcPartPickingOrder(orderPickingOrderOrder(order)) THEN RGB(255,200,216)
+      WHEN calcFullPickingOrder(orderPickingOrderOrder(order)) THEN RGB(255,238,165)
+; 
+
+FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
+
+    OBJECTS d = DATE FIXED PANEL
+    PROPERTIES(d) date = OBJVALUE
+
+    OBJECTS o=Order FIXED GRID
+    PROPERTIES(o) inConsignmentPrintOrder
+    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPickingOrder(o) tripStatusOrder, nameDriverTripOrder, dateTripOrder, numberTripOrder, 
+                  numberOrder, dateOrder,
+                  nameToOrder, nameToStockOrder, packQuantityOrder, quantityOrderDetailOrder,
+                  startDateTimeOrder, finishDateTimeOrder
+    PROPERTIES() printConsignmentOrder READONLYIF hidePrintAction() TODRAW o
+    FILTERS orderPickingOrderOrder (o) AND toInvoicedPickedOrder(o)
+
+    OBJECTS i = Invoice FIXED GRID
+    PROPERTIES (i) READONLY isPostedInvoice 
+    PROPERTIES (i) numberInvoice, seriesInvoice
+    PROPERTIES (i) READONLY dateInvoice, timeInvoice, nameToInvoice, nameToStockInvoice, countInvoiceDetailInvoice, 
+                   quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
+                   VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice, noteInvoice
+    PROPERTIES (i) editInvoice
+    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR
+
+    PROPERTIES (i)  FORCE PANEL printConsignmentVerticalA, printConsignmentVerticalAB, printConsignmentHorizontalA,
+                                printConsignmentVerticalB, printConsignmentHorizontalB,
+                                printConsignmentAttach, printConsignmentSimpleHorizontal, editConsignment,
+                                printConsignmentSimpleVertical, printConsignmentSimpleAttach
+                                
+        FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=d DEFAULT
+        FILTERGROUP filters1 FILTER 'Накладные на дату' 'F5' dateInvoice(i)==d DEFAULT
+;
+
+DESIGN consignmentDashboard FROM DEFAULT {
+    main{
+        NEW base1Container {
+            fill = 1;
+
+             NEW base2Container {
+                fill = 4;
+                type = SPLITV;
+                    NEW firstContainer {
+                        fill = 1;
+                        ADD i.box{
+                            caption = 'Накладные';
+                            PROPERTY(nameToInvoice){
+                                minimumCharWidth = 40;
+                            }
+                            PROPERTY(nameToStockInvoice){
+                                minimumCharWidth = 45;
+                            }
+                        }
+                    }
+                    NEW secondContainer BEFORE firstContainer {
+                        fill = 1;
+                        ADD o.box{
+                            caption = 'Скомплектованные заказы';
+                                PROPERTY(nameToOrder){
+                                    minimumCharWidth = 40;
+                                }
+                                PROPERTY(nameToStockOrder){
+                                    minimumCharWidth = 45;
+                                }
+                                PROPERTY(dateOrder){
+                                    caption = 'Дата заказа';
+                                }
+                                PROPERTY(numberOrder){
+                                    caption = 'Номер заказа';
+                                }
+                                PROPERTY(inConsignmentPrintOrder){
+                                    editKey = 'SPACE';
+                                }
+                            }
+                        }
+                    }
+                    NEW printContainer {
+                        NEW consignmentRow1 {
+                            align = LEADING;
+                            type = CONTAINERH;
+
+                            NEW contOne {
+                                caption = 'Накладная';
+                                ADD PROPERTY(editConsignment);
+                            }
+                            NEW tn{
+                                type = CONTAINERH;
+                                caption = 'ТН-2';
+                                ADD PROPERTY(printConsignmentSimpleVertical);
+                                ADD PROPERTY(printConsignmentSimpleHorizontal);
+                                ADD PROPERTY(printConsignmentSimpleAttach);
+                                ADD PROPERTY(printConsignmentSimpleAttach);
+                            }
+                        }
+                        NEW consignmentRow2 {
+                            type = COLUMNS;
+                            columns = 4;
+                            caption = 'ТТН-1';
+                            ADD PROPERTY(printConsignmentVerticalA);
+                            ADD PROPERTY(printConsignmentVerticalAB);
+                            ADD PROPERTY(printConsignmentHorizontalA);
+                            ADD PROPERTY(printConsignmentVerticalB);
+                            ADD PROPERTY(printConsignmentHorizontalB);
+                            ADD PROPERTY(printConsignmentAttach);
+                        }
+                    }
+                }
+                NEW thirdContainer BEFORE base1Container {
+                    type = CONTAINERH;
+                    ADD PROPERTY(date);
+                    caption = 'Шапка';
+                }
+        ADD functions.box;
+    }
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        ADD consignmentDashboard;
+    }
+}
