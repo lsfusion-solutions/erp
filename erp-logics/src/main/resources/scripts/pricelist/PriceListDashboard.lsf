@@ -1,8 +1,9 @@
-MODULE PriceListManage;
+MODULE PriceListDashboard;
 
-REQUIRE PriceList;
+REQUIRE PriceList,
+        Dashboard;
 
-FORM priceListManage 'Управление ценами'
+FORM priceListDashboard 'Управление ценами'
     OBJECTS dt = DATETIME FIXED PANEL
     PROPERTIES(dt) objValue = OBJVALUE
 
@@ -21,12 +22,12 @@ EXTEND DESIGN options {
     }
 }
 
-seekDefaultPriceListType = ACTION SEEK priceListManage.pt defaultPriceListType();
-EXTEND FORM priceListManage
+seekDefaultPriceListType = ACTION SEEK priceListDashboard.pt defaultPriceListType();
+EXTEND FORM priceListDashboard
     EVENTS ON INIT seekDefaultPriceListType()
 ;
 
-DESIGN priceListManage FROM DEFAULT {
+DESIGN priceListDashboard FROM DEFAULT {
     NEW params {
         type = CONTAINERH;
         ADD dt.box;
@@ -42,8 +43,10 @@ DESIGN priceListManage FROM DEFAULT {
 }
 
 NAVIGATOR {
-    priceListDocuments {
-        ADD priceListManage FIRST;
+    dashboardNavigator {
+        NEW priceListDashboardNavigator 'Цены' {
+            ADD priceListDashboard;        
+        }    
     }
 }
 
@@ -55,7 +58,7 @@ inSkuCustomUser = DATA BOOLEAN (Sku, CustomUser);
 // ---------------------------- По организациям ----------------------- //
 // c
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     OBJECTS c = LegalEntity FIXED PANEL
     PROPERTIES(c) nameLegalEntity SELECTOR
 
@@ -91,7 +94,7 @@ EXTEND FORM priceListManage
             companyPriceListLedger(cpl) == c
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     detail {
         NEW c {
             caption = 'По организациям';
@@ -204,13 +207,13 @@ excludeDateTimeDataPriceListTypeCompany 'Исключить' = ACTION (dateTime,
     excludeSessionDateTimeDataPriceListTypeCompany(dateTime, dataPriceListType, company);
 }
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     PROPERTIES TODRAW csk FORCE PANEL includeDateTimeDataPriceListTypeCompany(dt, pt, c),
                                       modifyDateTimeDataPriceListTypeCompany(dt, pt, c),
                                       excludeDateTimeDataPriceListTypeCompany(dt, pt, c)
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     companyActionsContainer {
         NEW primaryCompanyActions {
             type = CONTAINERH;
@@ -225,7 +228,7 @@ EXTEND DESIGN priceListManage {
 // ---------------------------- По складам ---------------------------- //
 // s
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     OBJECTS s = Stock FIXED PANEL
     PROPERTIES(s) nameStock SELECTOR
     FILTERS isCompanyStock(s)
@@ -266,7 +269,7 @@ EXTEND FORM priceListManage
             inPriceListLedgerStock(spl, s)
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     detail {
         NEW s {
             caption = 'По складам';
@@ -369,12 +372,12 @@ excludeDateTimeDataPriceListTypeStock 'Исключить' = ACTION (dateTime, d
     excludeSessionDateTimeDataPriceListTypeStock(dateTime, dataPriceListType, stock);
 }
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     PROPERTIES TODRAW ssk FORCE PANEL modifyDateTimeDataPriceListTypeStock(dt, pt, s),
                                       excludeDateTimeDataPriceListTypeStock(dt, pt, s)
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     stockActionsContainer {
         NEW primaryStockActions {
             type = CONTAINERH;
@@ -388,7 +391,7 @@ EXTEND DESIGN priceListManage {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     PROPERTIES(c) pNameCompany = nameLegalEntity SELECTOR
 
     OBJECTS p = UserPriceList
@@ -401,7 +404,7 @@ EXTEND FORM priceListManage
     FILTERS inPriceListDataPriceListType(p, pt),
             companyUserPriceList(p) == c
 ;
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     detail {
         NEW p {
             caption = 'Прайсы';

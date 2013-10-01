@@ -1,6 +1,6 @@
-MODULE PriceListManageStore;
+MODULE PriceListDashboardStore;
 
-REQUIRE PriceListManage, StoreSkuLedger;
+REQUIRE PriceListDashboard, StoreSkuLedger;
 
 // -------------------- В ассортименте ----------------- //
 
@@ -48,7 +48,7 @@ countStoreASkuChainStoresDateTime 'В наличии' (sku, chainStores, dateTim
     GROUP SUM 1 IF balanceASkuStoreDateTime(sku, store, dateTime)
     BY sku, chainStoresStore(store), dateTime;
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     // --- По организациям
     PROPERTIES READONLY countStoreALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) AFTER idBarcodeSku(csk)
 
@@ -72,7 +72,7 @@ EXTEND FORM priceListManage
     FILTERS countStoreALedgerPriceListTypeSkuStoreTypeDateTime(pt, ssk, stp, dt)
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     c.stocks {
         ADD ccs.box BEFORE cst.box;
         ADD ctp.box BEFORE cst.box;
@@ -100,7 +100,7 @@ markupALedgerPriceListTypePriceListTypeSkuStockDateTime 'Надбавка, %' (r
     - 100.0;
 
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     OBJECTS rt = DataPriceListType FIXED PANEL
     PROPERTIES(rt) SELECTOR namePriceListType
 
@@ -119,7 +119,7 @@ EXTEND FORM priceListManage
     PROPERTIES TODRAW spl READONLY SHOWIF showRetailPrice(pt, rt) pricePriceListLedgerLedgerPriceListType(spl, rt)
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     params {
         ADD rt.box {
             caption = 'Розничный вид цены';
@@ -150,8 +150,8 @@ EXTEND DESIGN options {
     }
 }
 
-seekDefaultRetailPriceListType = ACTION SEEK priceListManage.rt defaultRetailPriceListType();
-EXTEND FORM priceListManage
+seekDefaultRetailPriceListType = ACTION SEEK priceListDashboard.rt defaultRetailPriceListType();
+EXTEND FORM priceListDashboard
     EVENTS ON INIT seekDefaultRetailPriceListType()
 ;
 
@@ -231,14 +231,14 @@ excludeDateTimeDataPriceListTypePriceListTypeCompany 'Исключить' = ACTI
     excludeSessionDateTimeDataPriceListTypePriceListTypeCompany(dateTime, dataPriceListType, retailPriceListType, company);
 }
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     PROPERTIES TODRAW csk FORCE PANEL SHOWIF showRetailPrice(pt, rt)
                                       includeDateTimeDataPriceListTypePriceListTypeCompany(dt, pt, rt, c),
                                       modifyDateTimeDataPriceListTypePriceListTypeCompany(dt, pt, rt, c),
                                       excludeDateTimeDataPriceListTypePriceListTypeCompany(dt, pt, rt, c)
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     companyActionsContainer {
         NEW primaryRetailCompanyActions {
             type = CONTAINERH;
@@ -276,12 +276,12 @@ modifyDateTimeRetailDataPriceListTypePriceListTypeCompany 'Изменить' = A
     modifySessionDateTimeRetailDataPriceListTypePriceListTypeCompany(dateTime, dataPriceListType, retailPriceListType, company);
 }
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     PROPERTIES TODRAW csk FORCE PANEL SHOWIF showRetailPrice(pt, rt)
                                       modifyDateTimeRetailDataPriceListTypePriceListTypeCompany(dt, pt, rt, c)
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     companyActionsContainer {
         NEW retailCompanyActions {
             type = CONTAINERH;
@@ -346,12 +346,12 @@ excludeDateTimeDataPriceListTypePriceListTypeStock 'Исключить' = ACTION
     excludeSessionDateTimeDataPriceListTypePriceListTypeStock(dateTime, dataPriceListType, retailPriceListType, stock);
 }
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     PROPERTIES TODRAW ssk FORCE PANEL modifyDateTimeDataPriceListTypePriceListTypeStock(dt, pt, rt, s),
                                       excludeDateTimeDataPriceListTypePriceListTypeStock(dt, pt, rt, s)
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     stockActionsContainer {
         NEW primaryRetailStockActions {
             caption = 'Согласованные и розничные цены';
@@ -392,12 +392,12 @@ modifyDateTimeRetailDataPriceListTypePriceListTypeStock 'Изменить' = ACT
     modifySessionDateTimeRetailDataPriceListTypePriceListTypeStock(dateTime, dataPriceListType, retailPriceListType, stock);
 }
 
-EXTEND FORM priceListManage
+EXTEND FORM priceListDashboard
     PROPERTIES TODRAW csk FORCE PANEL SHOWIF showRetailPrice(pt, rt)
                                       modifyDateTimeRetailDataPriceListTypePriceListTypeStock(dt, pt, rt, s)
 ;
 
-EXTEND DESIGN priceListManage {
+EXTEND DESIGN priceListDashboard {
     stockActionsContainer {
         NEW retailStockActions {
             caption = 'Розничные цены';
