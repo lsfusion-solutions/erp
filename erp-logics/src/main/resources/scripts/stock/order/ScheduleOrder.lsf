@@ -404,7 +404,28 @@ META defineScheduleOrder(sign, stockProp)
                 customerStockScheduleOrderDetail(sd) == customerStock() OR (sd IS ScheduleOrderDetail AND NOT customerStock())
 
         FILTERGROUP dateFilter
-            FILTER 'На дату' 'F10' dateOrderScheduleOrderDetail(sd) == d DEFAULT
+            FILTER 'Заказы по графику без заказов' 'F9' sd IS ScheduleOrderDetail  AND NOT quantityOrdersScheduleOrderDetail(sd) DEFAULT
+        FILTERGROUP countFilter
+            FILTER 'Заказы по графику на дату' 'F10' dateOrderScheduleOrderDetail(sd) <= d DEFAULT            
+                              
+            
+        OBJECTS o = Order
+        PROPERTIES (o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
+                                nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder,
+                                countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
+                                VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, shipmentDateOrder, shipmentTimeOrder, 
+                                closeDateOrder, noteOrder            
+        PROPERTIES ()  addUserOrder TODRAW o
+        PROPERTIES (o) editOrder SHOWIF isOpenedOrder(o)
+        PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpenedOrder(o)
+            
+        FILTERS supplierOrder(o) == supplier() OR (o IS Order AND NOT supplier()),
+                supplierStockOrder(o) == supplierStock() OR (o IS Order AND NOT supplierStock()),
+                customerOrder(o) == customer() OR (o IS Order AND NOT customer()),
+                customerStockOrder(o) == customerStock() OR (o IS Order AND NOT customerStock())            
+        
+        FILTERGROUP dateFilter
+            FILTER 'Заказы на дату' 'F10' dateOrder(o) == d DEFAULT                       
     ;
 
     DESIGN scheduleOrderDetails FROM DEFAULT{
@@ -417,6 +438,7 @@ META defineScheduleOrder(sign, stockProp)
             ADD PROPERTY(nameCustomerStock);
         }
         ADD sd.box;
+        ADD o.box;
         ADD functions.box;
     }
 

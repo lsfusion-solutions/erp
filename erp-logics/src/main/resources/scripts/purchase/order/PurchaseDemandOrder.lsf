@@ -84,28 +84,55 @@ FORM demandOrder 'Заказы по потребностям'
     FILTERS companyALedgerPriceListTypeSkuStockDateTime(p, s, st, dt) == l
 
     FILTERGROUP filterdiff
-        FILTER 'С потребностью ' 'F11' diffStockReserveStockSkuDateTime(st, s, dt) > 0
+        FILTER 'С потребностью ' 'F11' diffStockReserveStockSkuDateTime(st, s, dt) > 0            
+        
+    OBJECTS o = Order
+    PROPERTIES (o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
+                            nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder,
+                            countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
+                            VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, shipmentDateOrder, shipmentTimeOrder, 
+                            closeDateOrder, noteOrder            
+    PROPERTIES ()  addUserOrder TODRAW o
+    PROPERTIES (o) editOrder SHOWIF isOpenedOrder(o)
+    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpenedOrder(o)            
+    FILTERS  customerStockOrder(o) ==st
+//             supplierOrder(o) == l
+             
+    FILTERGROUP dateFilter
+        FILTER 'Заказы на дату' 'F9' dateOrder(o) == toDate(dt) DEFAULT                 
 ;
 
 DESIGN demandOrder FROM DEFAULT {
     main {
         NEW mainPane {
             fill = 1;
-            type = SPLITH;
-            NEW column1 {
+            type = SPLITV;
+            NEW header {
                 fill = 1;
-                type = CONTAINERV;
-                ADD dt.box;
-                ADD st.box;
-                ADD p.box;
-                ADD skuTree.tree.box;
-            }
-            NEW column2 {
-                fill = 3;
-                type = CONTAINERV;
-                ADD l.box;
-                ADD s.box { fill = 3; }
-            }
+                type = SPLITH;
+                
+                NEW left {
+                    fill = 1;
+                    type = CONTAINERV;
+                    ADD dt.box;
+                    ADD st.box;
+                    ADD p.box;
+                }                   
+                ADD l.box{fill = 2;}
+            }            
+            
+            NEW colum {
+                fill = 2;
+                type = TABBED;
+                NEW column1 {
+                    caption = 'Товары';                   
+                    
+                    type = CONTAINERH;
+                    ADD skuTree.tree.box;
+                    ADD s.box { fill = 3; }
+                }
+                ADD o.box;
+            }            
         }
         ADD functions.box;
     }
