@@ -522,47 +522,42 @@ DESIGN managementRepricing FROM DEFAULT {
 
 overManagementRepricing = ABSTRACT ACTION LIST (RepricingDetail,Sku,Stock,DATETIME);
 
-prevPriceBPriceListCalcListSkuStockDateTime (priceList, calcList, sku, department, time) =
-    IF prevPriceBPriceListTypeSkuStockDateTime(priceList, sku, department, time)
-        THEN prevPriceBPriceListTypeSkuStockDateTime(priceList, sku, department, time)
-        ELSE prevPriceBPriceListTypeSkuStockDateTime(calcList, sku, department, time);
+prevPriceAPriceListCalcListSkuStockDateTime (priceList, calcList, sku, department, time) =
+    IF prevPriceAPriceListTypeSkuStockDateTime(priceList, sku, department, time)
+        THEN prevPriceAPriceListTypeSkuStockDateTime(priceList, sku, department, time)
+        ELSE prevPriceAPriceListTypeSkuStockDateTime(calcList, sku, department, time);
+        
+filterQuantityOperationSkuStockDateTime(operation,sku,department,time) = currentBalanceSkuStock(sku, department) AND
+            prevPriceAPriceListCalcListSkuStockDateTime(priceListTypeOperation(operation), calcPriceListTypeOperation(operation), sku, department, time) != 
+            prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time);
+filterQuantityOperationStockDateTime(operation,department,time)= GROUP SUM 1 IF filterQuantityOperationSkuStockDateTime(operation,sku,department,time) BY operation,department,time; 
 
+overCreateManagementRepricingOperationStockDateTime 'Создать управленческую переоценку' (operation, department, time) = ACTION (operation, department, time) {
+    FOR ADDOBJ r = UserRepricing DO {
+        departmentStoreUserRepricing(r) <-  department;
+        operationUserRepricing(r) <- operation;
+        dateUserRepricing(r) <-  toDate(time);
+        timeUserRepricing(r) <- toTime(time);               
+
+        FOR filterQuantityOperationSkuStockDateTime(operation,sku,department,time) ADDOBJ rd = UserRepricingDetail DO {
+            userRepricingUserRepricingDetail(rd) <- r;
+            skuUserRepricingDetail(rd) <- sku;
+            quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, department);
+            retailPriceUserRepricingDetail(rd) <- prevPriceAPriceListCalcListSkuStockDateTime(priceListTypeOperation(operation), calcPriceListTypeOperation(operation), sku, department, time);
+            curRetailPriceUserRepricingDetail(rd) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time);
+            priceUserRepricingDetail(rd) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, department, time);
+            overManagementRepricing(rd, sku, department, time);
+        }
+        FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;
+    }
+}
 
 
 createManagementRepricing 'Создать управленческую переоценку' = ACTION () NEWSESSION {
 
     FORM managementRepricing  MODAL;
     IF formResult() == FormResult.ok THEN {
-        LOCAL department = DepartmentStore();
-        LOCAL priceList = PriceListType();
-        LOCAL calcList = CalcPriceListType();
-        LOCAL time =  DATETIME();
-        LOCAL oper = Repricing.Operation();
-
-        ASSIGN department() <- chosenObject('d');
-        ASSIGN priceList() <- priceListTypeOperation(chosenObject('o'));
-        ASSIGN calcList() <- calcPriceListTypeOperation(chosenObject('o'));
-        ASSIGN time() <- chosenDateTime('t');
-        ASSIGN oper() <- chosenObject('o');
-
-        FOR ADDOBJ r = UserRepricing DO {
-            ASSIGN departmentStoreUserRepricing(r) <-  department();
-            ASSIGN operationUserRepricing(r) <- oper();
-
-            FOR currentBalanceSkuStock(sku, department()) AND
-                prevPriceBPriceListCalcListSkuStockDateTime(priceList(), calcList(), sku, department(), time()) != prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department(), time())
-                ADDOBJ rd = UserRepricingDetail DO {
-                ASSIGN userRepricingUserRepricingDetail(rd) <- r;
-                ASSIGN skuUserRepricingDetail(rd) <- sku;
-                ASSIGN quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, department());
-                ASSIGN retailPriceUserRepricingDetail(rd) <- prevPriceBPriceListCalcListSkuStockDateTime(priceList(), calcList(), sku, department(), time());
-                ASSIGN curRetailPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department(), time());
-                ASSIGN priceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, department(), time());
-                EXEC overManagementRepricing(rd, sku, department(), time());
-            }
-            FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;
-
-        }
+        overCreateManagementRepricingOperationStockDateTime(chosenObject('o'), chosenObject('d'), chosenDateTime('t'));
     }
 } TOOLBAR;
 

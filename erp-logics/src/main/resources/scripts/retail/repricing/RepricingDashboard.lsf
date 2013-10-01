@@ -1,0 +1,72 @@
+MODULE RepricingDashboard;
+
+REQUIRE Dashboard, LabelRepricing;
+
+NAMESPACE Repricing;
+
+//------------------------ Управленческая переоценка ----------------------------//
+
+
+createManagementRepricingOperationStockDateTime 'Создать управленческую переоценку' (oper, department, time) = ACTION (oper, department, time) NEWSESSION { 
+    overCreateManagementRepricingOperationStockDateTime(oper, department, time);
+}
+                                                                                               
+FORM repricingManagement 'Управленческая переоценка'
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES (d) SELECTOR nameDepartmentStore
+    FILTERS isCompanyStock(d)
+        
+    OBJECTS o = Repricing.Operation FIXED PANEL
+    PROPERTIES (o) SELECTOR Repricing.nameOperation
+    FILTERS inUserOperation(currentUser(), o)
+
+    OBJECTS t=DATETIME FIXED PANEL
+    PROPERTIES(t) OBJVALUE
+    
+    OBJECTS sk=Sku
+    PROPERTIES(sk) READONLY idBarcodeSku, nameSku, shortNameUOMSku     
+    PROPERTIES     READONLY currentBalanceSkuStock(sk,d)
+    PROPERTIES (o,d,t)  createManagementRepricingOperationStockDateTime TODRAW sk FORCE PANEL SHOWIF filterQuantityOperationStockDateTime(o,d,t)
+    FILTERS filterQuantityOperationSkuStockDateTime(o,sk,d,t) 
+
+    OBJECTS p = Repricing
+    PROPERTIES (p) READONLY isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
+                   nameDepartmentStoreRepricing, countRepricingDetailRepricing, diffSumRepricingDetailRepricing,
+                   diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
+                   diffRetailSumRepricingDetailRepricing, numberDisposalRepricing, skipChangeLedgerRepricing,
+                   statusLabelPriceTransactionDocument BACKGROUND backgroundPrintLabelTransactionRepricing(p),
+                   statusMachineryPriceTransactionDocument ON SHORTCUT createSnapshotRepricingMachineryPriceTransaction(p) BACKGROUND backgroundCreateMachineryPriceTransactionRepricing(p), 
+                   noteRepricing                      
+               
+    PROPERTIES (p) createRepricingLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransactionRepricing(p), 
+                   createSnapshotRepricingLabelTransaction FORCE PANEL
+                   
+    PROPERTIES(p)  createRepricingMachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransactionRepricing(p)
+                                              
+    PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p)
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)    
+                       
+    FILTERGROUP filters FILTER 'Переоценки на дату' 'F5' dateRepricing(p)==toDate(t) DEFAULT                         
+
+;
+DESIGN repricingManagement FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+
+        NEW topContainer {
+            type = CONTAINERH;
+            ADD d.box;
+            ADD o.box;
+            ADD t.box;
+        }
+        ADD sk.box {caption = 'Товары, для которых необходима переоценка';}        
+        ADD p.box;
+        ADD functions.box;
+    }
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        ADD repricingManagement;
+    }
+}
