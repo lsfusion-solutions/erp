@@ -102,6 +102,23 @@ FORM demandOrder 'Заказы по потребностям'
         FILTER 'Заказы на дату' 'F9' dateOrder(o) == toDate(dt) DEFAULT                 
 ;
 
+// Проставляем вид цены по умолчанию
+defaultDemandOrderPriceListType = DATA PriceListType();
+nameDefaultDemandOrderPriceListType 'Вид цены для заказов по потребностям' = namePriceListType(defaultDemandOrderPriceListType());
+EXTEND FORM options
+    PROPERTIES() nameDefaultDemandOrderPriceListType
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(nameDefaultDemandOrderPriceListType);
+    }
+}
+
+seekDefaultDemandOrderPriceListType = ACTION SEEK demandOrder.p defaultDemandOrderPriceListType();
+EXTEND FORM demandOrder
+    EVENTS ON INIT seekDefaultDemandOrderPriceListType()
+;
+
 DESIGN demandOrder FROM DEFAULT {
     main {
         NEW mainPane {

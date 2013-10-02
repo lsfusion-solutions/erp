@@ -40,6 +40,18 @@ fillStockReserveDateDateFromTo 'Проставить кол-во исходя и
 filterPriceListTypeStock = DATA SESSION PriceListType ();
 nameFilterPriceListTypeStock 'Вид цены' () = namePriceListType(filterPriceListTypeStock());
 
+defaultStockReservePriceListType = DATA PriceListType();
+nameDefaultStockReservePriceListType 'Вид цены для страховых запасов' = namePriceListType(defaultStockReservePriceListType());
+EXTEND FORM options
+    PROPERTIES() nameDefaultStockReservePriceListType
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(nameDefaultStockReservePriceListType);
+    }
+}
+setDefaultPriceListType = ACTION () filterPriceListTypeStock() <- defaultStockReservePriceListType();
+
 filterPriceListTypeSkuStockDateTime (sku, stock, date, time) =
     priceBPriceListTypeSkuStockDateTime (filterPriceListTypeStock(), sku, stock, dateTimeToDateTime(date, time)) OR
     (sku IS Sku AND stock IS Stock AND date IS DATE AND time IS TIME AND NOT filterPriceListTypeStock());
@@ -74,7 +86,9 @@ FORM stockReserve 'Страховые запасы'
 
     FILTERGROUP soldFilter
         FILTER 'Только с реализацией' 'F10' quantitySoldSkuStockDateFromTo(s,st,dFrom,dTo)
-
+    
+    EVENTS ON INIT 
+        setDefaultPriceListType();
 ;
 
 @extendFormFilterStockAccess(Stock, st, stockReserve);
