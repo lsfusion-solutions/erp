@@ -32,7 +32,15 @@ typeScheduleOrder 'Тип генерации графика' = ABSTRACT GenType 
 nameTypeScheduleOrder 'Тип генерации графика' (scheduleOrder) = staticCaption(typeScheduleOrder(scheduleOrder)) IN base;
 
 supplierScheduleOrder = ABSTRACT LegalEntity(ScheduleOrder);
+nameSupplierScheduleOrder 'Поставщик' (scheduleOrder) = nameLegalEntity(supplierScheduleOrder(scheduleOrder)) IN base;
 customerScheduleOrder = ABSTRACT LegalEntity(ScheduleOrder);
+nameCustomerScheduleOrder 'Покупатель' (scheduleOrder) = nameLegalEntity(customerScheduleOrder(scheduleOrder)) IN base;
+
+supplierStockScheduleOrder = ABSTRACT Stock(ScheduleOrder);
+nameSupplierStockScheduleOrder 'Склад поставщика' (scheduleOrder) = nameStock(supplierStockScheduleOrder(scheduleOrder));
+customerStockScheduleOrder = ABSTRACT Stock(ScheduleOrder);
+nameCustomerStockScheduleOrder 'Склад покупателя' (scheduleOrder) = nameStock(customerStockScheduleOrder(scheduleOrder));
+
 
 addScheduleOrderSupplierCustomer 'Добавить' = ABSTRACT ACTION LIST (LegalEntity, LegalEntity) IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 editScheduleOrder 'Редактировать' = ABSTRACT ACTION LIST (ScheduleOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -62,6 +70,9 @@ META defineScheduleOrder(sign, stockProp)
     customerStockScheduleOrder = DATA Stock(ScheduleOrder);
     nameCustomerStockScheduleOrder 'Склад покупателя' (scheduleOrder) = nameStock(customerStockScheduleOrder(scheduleOrder));
 
+    ScheduleOrder.supplierStockScheduleOrder(scheduleOrder) += supplierStockScheduleOrder(scheduleOrder);
+    ScheduleOrder.customerStockScheduleOrder(scheduleOrder) += customerStockScheduleOrder(scheduleOrder);
+    
     CONSTRAINT supplierScheduleOrder(scheduleOrder) AND supplierStockScheduleOrder(scheduleOrder) AND NOT
     inLegalEntityStock(supplierScheduleOrder(scheduleOrder), supplierStockScheduleOrder(scheduleOrder))
         CHECKED BY supplierScheduleOrder, supplierStockScheduleOrder
@@ -501,14 +512,14 @@ filterCompanyCustomer(legalEntity, customer) = (isCompanyLegalEntity(legalEntity
 EXTEND FORM legalEntity
 
     OBJECTS ss=ScheduleOrder
-    PROPERTIES(ss) READONLY startDateScheduleOrder, endDateScheduleOrder, nameTypeScheduleOrder
+    PROPERTIES(ss) READONLY startDateScheduleOrder, endDateScheduleOrder, nameSupplierStockScheduleOrder, nameCustomerStockScheduleOrder, nameTypeScheduleOrder
     PROPERTIES(ss) DELETE, editScheduleOrder
 
     FILTERS filterCompanySupplier(l, s)
     FILTERS supplierScheduleOrder(ss) == s, customerScheduleOrder(ss) == l
 
     OBJECTS sc=ScheduleOrder
-    PROPERTIES(sc) READONLY startDateScheduleOrder, endDateScheduleOrder, nameTypeScheduleOrder
+    PROPERTIES(sc) READONLY startDateScheduleOrder, endDateScheduleOrder, nameSupplierStockScheduleOrder, nameCustomerStockScheduleOrder, nameTypeScheduleOrder
     PROPERTIES(sc) DELETE, editScheduleOrder
 
     FILTERS filterCompanyCustomer(l, c)
@@ -528,4 +539,71 @@ EXTEND DESIGN legalEntity {
         }
     }
 }
+
+META defineScheduleOrderDashboard(sign)
+
+countRemainingScheduleOrderDate 'Кол-во оставшихся заказов'##sign (scheduleOrder,date) = GROUP SUM 1 IF dateSupplyScheduleOrderDetail(d) >= (date AS DATE) 
+                                                                                        BY scheduleOrderScheduleOrderDetail(d), date; 
+lastScheduleOrderSupplierStockCustomerStock (s,ss,c,cs) = 
+    GROUP LAST scheduleOrder IF endDateScheduleOrder(scheduleOrder)
+           BY supplierScheduleOrder(scheduleOrder), supplierStockScheduleOrder(scheduleOrder), customerScheduleOrder(scheduleOrder), customerStockScheduleOrder(scheduleOrder)
+           ORDER endDateScheduleOrder(scheduleOrder)
+           WHERE scheduleOrder IS ScheduleOrder;  
+                                                                                                                                                                                       
+isLastScheduleOrder 'Последний график' (s)= 
+    lastScheduleOrderSupplierStockCustomerStock(supplierScheduleOrder(s),supplierStockScheduleOrder(s),customerScheduleOrder(s),customerStockScheduleOrder(s)) ==s;
+                                                                                                                                                                            
+    FORM scheduleOrderDashboard 'Графики заказов' TITLE 'Графики заказов'###sign
+
+        OBJECTS d=DATE FIXED PANEL
+        PROPERTIES dv=OBJVALUE(d)
+        PROPERTIES () nameSupplier, nameCustomer, nameSupplierStock, nameCustomerStock
+        
+        OBJECTS s=ScheduleOrder
+        PROPERTIES(s) READONLY startDateScheduleOrder, endDateScheduleOrder, nameSupplierScheduleOrder, nameSupplierStockScheduleOrder,
+                      nameCustomerScheduleOrder, nameCustomerStockScheduleOrder, nameTypeScheduleOrder
+        PROPERTIES(s,d) READONLY countRemainingScheduleOrderDate
+        PROPERTIES(s) ADDFORM, EDITFORM, DELETE TOOLBAR
+        ORDER BY endDateScheduleOrder
+
+        FILTERS supplierScheduleOrder(s) == supplier() OR (s IS ScheduleOrder AND NOT supplier()),
+                supplierStockScheduleOrder(s) == supplierStock() OR (s IS ScheduleOrder AND NOT supplierStock()),
+                customerScheduleOrder(s) == customer() OR (s IS ScheduleOrder AND NOT customer()),
+                customerStockScheduleOrder(s) == customerStock() OR (s IS ScheduleOrder AND NOT customerStock())
+
+        FILTERGROUP countFilter
+            FILTER 'Последний график' 'F11' isLastScheduleOrder(s)             
+            FILTER 'Заканчивается в течение 3 дн.' 'F10' isLastScheduleOrder(s)  AND endDateScheduleOrder(s) <= sumDate(d,2) AND endDateScheduleOrder(s) >= d DEFAULT
+            FILTER 'Заканчивается в течение 5 дн.' 'F9' isLastScheduleOrder(s)  AND endDateScheduleOrder(s) <= sumDate(d,4) AND endDateScheduleOrder(s) >= d 
+                              
+        OBJECTS ss=ScheduleOrder
+        PROPERTIES(ss) READONLY startDateScheduleOrder, endDateScheduleOrder, nameSupplierScheduleOrder, nameSupplierStockScheduleOrder,
+                      nameCustomerScheduleOrder, nameCustomerStockScheduleOrder, nameTypeScheduleOrder     
+        PROPERTIES(ss) ADDFORM, EDITFORM, DELETE TOOLBAR              
+        ORDER BY startDateScheduleOrder
+              
+        FILTERS supplierScheduleOrder(ss) == supplier() OR (ss IS ScheduleOrder AND NOT supplier()),
+                supplierStockScheduleOrder(ss) == supplierStock() OR (ss IS ScheduleOrder AND NOT supplierStock()),
+                customerScheduleOrder(ss) == customer() OR (ss IS ScheduleOrder AND NOT customer()),
+                customerStockScheduleOrder(ss) == customerStock() OR (ss IS ScheduleOrder AND NOT customerStock())
+                                                       
+        FILTERGROUP countFilter
+            FILTER 'Будущие графики' 'F8' startDateScheduleOrder(ss) >= d DEFAULT                                           
+    ;
+
+    DESIGN scheduleOrderDashboard FROM DEFAULT{
+        NEW header {
+            type = CONTAINERH;
+            ADD PROPERTY(dv);
+            ADD PROPERTY(nameSupplier);
+            ADD PROPERTY(nameSupplierStock);
+            ADD PROPERTY(nameCustomer);
+            ADD PROPERTY(nameCustomerStock);
+        }
+        ADD s.box;
+        ADD ss.box;
+        ADD functions.box;
+    }
+    
+END
 
