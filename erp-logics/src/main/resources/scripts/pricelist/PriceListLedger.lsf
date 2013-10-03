@@ -310,7 +310,7 @@ accountSumASkuGroupBatchStockDate 'Учетная сумма на конец д�
     BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, date;
 accountSumRecASkuGroupBatchStockDate 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
     GROUP SUM accountSumABatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
-    BY group, stock, date;
+    BY group, stock, date;   
 
 //--
 currentAccountPriceBatchStock 'Цена учетная' (batch, stock) =
@@ -320,8 +320,20 @@ currentAccountSumBatchStock 'Сумма учетная' (batch, stock) =
 
 accountPriceBatchStockDateTime 'Цена учетная' (batch, stock, dateTime) =
     prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);
+
+    
+//--Дата/время    
+accountPriceBBatchStockDateTime 'Учетная цена товара в партии' (batch, stock, dateTime) =
+    prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);    
 accountSumBBatchStockDateTime 'Сумма учетная' (batch, stock, dateTime) =
-    balanceBBatchStockDateTime(batch, stock, dateTime) * accountPriceBatchStockDateTime(batch, stock, dateTime);
+    balanceBBatchStockDateTime(batch, stock, dateTime) * accountPriceBBatchStockDateTime(batch, stock, dateTime);
+    
+accountSumBSkuGroupBatchStockDateTime 'Учетная сумма на начало дня(по партиям)' (group, stock, dateTime) =
+    GROUP SUM accountSumBBatchStockDateTime(batch, stock, dateTime)
+    BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, dateTime;
+accountSumRecBSkuGroupBatchStockDateTime 'Учетная сумма (по партиям)' (group, stock, dateTime) =
+    GROUP SUM accountSumBBatchStockDateTime(batch, stock, dateTime) IF isParentGroupBatch(group, batch)
+    BY group, stock, dateTime;
 
 EXTEND FORM currentBalanceBatchStock
     PROPERTIES(bt,st) READONLY BEFORE dateTimeBatch(bt) currentAccountPriceBatchStock, currentAccountSumBatchStock

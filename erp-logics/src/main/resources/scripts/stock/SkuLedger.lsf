@@ -446,8 +446,12 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     sumB##postfix##SkuGroupStockDateTime 'Учетная сумма группы товаров (до)' (group, stock, dateTime) =
         GROUP SUM sumB##postfix##SkuStockDateTime (sku, stock, dateTime) IF isParentGroupSku(group, sku)
+        BY groupGroupTypeSku(groupType, sku), stock, dateTime;
+        
+    sumRecB##postfix##SkuGroupStockDateTime 'Учетная сумма (всего)' (group, stock, dateTime) =
+        GROUP SUM sumB##postfix##SkuStockDateTime (sku, stock, dateTime) IF isParentGroupSku(group, sku)
         BY group, stock, dateTime;
-
+        
     // с учетом текущей даты/времени
     sumA##postfix##SkuStockDateTime 'Сумма (после)'###caption (sku, stock, dateTime) = currentSum##postfix##SkuStock(sku, stock)
                                                                      (-) [GROUP SUM signedSum##postfix##SkuStockDateTime (sku, stock, dateIn) IF dateIn > dateTime

@@ -233,9 +233,19 @@ currentPurchaseInvoiceStockSumBatchStock 'Сумма поставщика' (batc
 
 purchaseInvoiceStockPriceBatchStockDateTime 'Цена поставщика' (batch, stock, dateTime) =
     prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, dateTime);
+    
+purchaseInvoiceStockPriceBBatchStockDateTime 'Цена поставщика' (batch, stock, dateTime) =
+    prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType, batch, stock, dateTime);    
 purchaseInvoiceStockSumBBatchStockDateTime 'Сумма поставщика' (batch, stock, dateTime) =
-    balanceBBatchStockDateTime(batch, stock, dateTime) * purchaseInvoiceStockPriceBatchStockDateTime(batch, stock, dateTime);
+    balanceBBatchStockDateTime(batch, stock, dateTime) * purchaseInvoiceStockPriceBBatchStockDateTime(batch, stock, dateTime);
 
+purchaseInvoiceStockSumBSkuGroupBatchStockDateTime 'Сумма поставщика (на утро)' (group, stock, dateTime) =
+    GROUP SUM purchaseInvoiceStockSumBBatchStockDateTime(batch, stock, dateTime)
+    BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, dateTime;
+purchaseInvoiceStockSumRecBSkuGroupBatchStockDateTime 'Сумма поставщика (на утро)' (group, stock, dateTime) =
+    GROUP SUM purchaseInvoiceStockSumBBatchStockDateTime(batch, stock, dateTime) IF isParentGroupBatch(group, batch)
+    BY group, stock, dateTime;
+    
 // Создаем вид цен по всем складам компании
 CLASS InvoicePriceListLedger : PriceListLedger;
 
