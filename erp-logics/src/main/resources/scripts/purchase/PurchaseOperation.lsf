@@ -8,16 +8,21 @@ NAMESPACE Purchase;
 
 @defineOperationPriceListType();
 
-TABLE stockOperation(Stock, Operation);
-TABLE stockGroupOperation(StockGroup, Operation);
 TABLE legalEntityOperation(LegalEntity, Operation);
 TABLE legalEntityGroupOperation(LegalEntityGroup, Operation);
+
 @defineOperationLegalEntity(supplier, s, 'Поставщики');
 @defineCountLegalEntityOperation(supplier, seller);
-@defineOperationStock(supplierStock, sts, 'Склады поставщика');
-@defineCountStockOperation(supplier, supplier, seller);
+
 @defineOperationLegalEntity(customer, c, 'Покупатели');
 @defineCountLegalEntityOperation(customer, company);
+
+TABLE stockOperation(Stock, Operation);
+TABLE stockGroupOperation(StockGroup, Operation);
+
+@defineOperationStock(supplierStock, sts, 'Склады поставщика');
+@defineCountStockOperation(supplier, supplier, seller);
+
 @defineOperationStock(customerStock, stc, 'Склады покупателя');
 @defineCountStockOperation(customer, company, buyer);
 
@@ -35,6 +40,17 @@ EXTEND FORM operation
 @defineOperationRole();
 @extendFormFilterRole(o, dialogOperations);
 //@extendFormFilterRole(o, operations);     //-- пока не нужен
+
+countOperationSupplierCustomerSupplierStockCustomerStockUser 'Кол-во операций' (s, c, ss, cs, u) = 
+    GROUP SUM 1 IF inSupplierOperation(s, o) AND inSupplierStockOperation(ss, o)
+               AND inCustomerOperation(c, o) AND inCustomerStockOperation(cs, o) 
+               AND inUserOperation(u, o) BY s, c, ss, cs, u COMPLEX;   
+
+defaultOperationSupplierCustomerSupplierStockCustomerStockUser 'Операция по умолчанию' (s, c, ss, cs, u) = 
+    GROUP MAX o IF inSupplierOperation(s, o) AND inSupplierStockOperation(ss, o)
+               AND inCustomerOperation(c, o) AND inCustomerStockOperation(cs, o) 
+               AND inUserOperation(u, o) BY s, c, ss, cs, u COMPLEX;   
+
 
 EXTEND FORM operation
     FILTERS isSellerLegalEntity(s),

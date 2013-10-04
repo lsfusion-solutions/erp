@@ -25,21 +25,26 @@ numberSkuStockReserveSupplierStockPriceListTypeDateTime 'Кол-во товар�
 
 createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, priceListType, dateTime) NEWSESSION {
     FOR ADDOBJ o = Purchase.UserOrder DO {
-        ASSIGN dateUserOrder(o) <- toDate(dateTime);
-        ASSIGN timeUserOrder(o) <- toTime(dateTime);
-        ASSIGN supplierUserOrder(o) <- supplier;
-        ASSIGN supplierStockUserOrder(o) <- defaultSupplierStockEmployeeLegalEntity(currentUser(), supplier)
+        dateUserOrder(o) <- toDate(dateTime);
+        timeUserOrder(o) <- toTime(dateTime);
+
+        supplierUserOrder(o) <- supplier;
+        supplierStockUserOrder(o) <- defaultSupplierStockEmployeeLegalEntity(currentUser(), supplier)
             IF countAccessSupplierStockEmployeeLegalEntity (currentUser(), supplier) == 1;
-        ASSIGN customerUserOrder(o) <- legalEntityStock(stock);
-        ASSIGN customerStockUserOrder(o) <- stock;
-        ASSIGN priceListTypeUserOrder(o) <- priceListType;
+        customerUserOrder(o) <- legalEntityStock(stock);
+        customerStockUserOrder(o) <- stock;
+
+//        IF countOperationSupplierCustomerSupplierStockCustomerStockUser(supplierUserOrder(o), customerUserOrder(o), supplierStockUserOrder(o), customerStockUserOrder(o), currentUser()) == 1 THEN 
+//            operationUserOrder(o) <- defaultOperationSupplierCustomerSupplierStockCustomerStockUser(supplierUserOrder(o), customerUserOrder(o), supplierStockUserOrder(o), customerStockUserOrder(o), currentUser());
+        
+        priceListTypeUserOrder(o) <- priceListType;
 
         FOR priceALedgerPriceListTypeSkuStockCompanyDateTime(priceListType, sku, stock, supplier, dateTime)
             AND recommendedQuantitySkuStockUserOrder (sku, stock, o)
             ADDOBJ d = UserOrderDetail DO {
-                ASSIGN userOrderUserOrderDetail(d) <- o;
-                ASSIGN skuUserOrderDetail(d) <- sku;
-                ASSIGN quantityUserOrderDetail (d) <- recommendedQuantitySkuStockUserOrder (sku, stock, o);
+                userOrderUserOrderDetail(d) <- o;
+                skuUserOrderDetail(d) <- sku;
+                quantityUserOrderDetail (d) <- recommendedQuantitySkuStockUserOrder (sku, stock, o);
         }
 
         FORM userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
