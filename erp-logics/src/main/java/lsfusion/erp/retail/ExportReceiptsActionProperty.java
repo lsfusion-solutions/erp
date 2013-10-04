@@ -75,7 +75,7 @@ public class ExportReceiptsActionProperty extends ScriptingActionProperty {
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptResult = receiptQuery.execute(session.sql);
 
             for (int i=0,size=receiptResult.size();i<size;i++) {
-                DataObject receiptObject = new DataObject(receiptResult.getKey(i).get("receipt"), (ConcreteClass) LM.findClassByCompoundName("receipt"));
+                DataObject receiptObject = new DataObject(receiptResult.getKey(i).get("receipt"), (ConcreteClass) LM.findClassByCompoundName("Receipt"));
                 LM.findLCPByCompoundName("exportReceipt").change((Object)null, context.getSession(), receiptObject);
 
                 Element receipt = doc.createElement("receipt");

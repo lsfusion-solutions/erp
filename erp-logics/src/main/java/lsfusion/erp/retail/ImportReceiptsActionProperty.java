@@ -31,6 +31,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
@@ -93,7 +94,7 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                             Element receiptElement = (Element) receipt;
 
                             receiptNumber++;
-                            Double discountSumReceipt = (Double) getTagValue("discountSumReceipt", receiptElement, 2);
+                            BigDecimal discountSumReceipt = (BigDecimal) getTagValue("discountSumReceipt", receiptElement, 2);
                             String seriesNumberDiscountCard = (String) getTagValue("numberDiscountCardReceipt", receiptElement, 0);
 
                             Long dateTimeValue = (Long) getTagValue("dateTimeReceipt", receiptElement, 3);
@@ -105,7 +106,7 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                                 Node payment = paymentList.item(paymentIndex);
                                 if (payment.getNodeType() == Node.ELEMENT_NODE) {
                                     Element paymentElement = (Element) payment;
-                                    Double sumPayment = (Double) getTagValue("sumPayment", paymentElement, 2);
+                                    BigDecimal sumPayment = (BigDecimal) getTagValue("sumPayment", paymentElement, 2);
                                     String namePaymentMeansPayment = (String) getTagValue("namePaymentMeansPayment", paymentElement, 0);
                                     String sidPaymentTypePayment = (String) getTagValue("sidPaymentTypePayment", paymentElement, 0);
                                     dataPayment.add(Arrays.<Object>asList(numberZReport, receiptNumber, numberCashRegisterZReport,
@@ -117,12 +118,12 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                                 Node receiptDetail = receiptDetailList.item(receiptDetailIndex);
                                 if (receiptDetail.getNodeType() == Node.ELEMENT_NODE) {
                                     Element receiptDetailElement = (Element) receiptDetail;
-                                    Double priceReceiptDetail = (Double) getTagValue("priceReceiptDetail", receiptDetailElement, 2);
-                                    Double quantityReceiptSaleDetail = (Double) getTagValue("quantityReceiptSaleDetail", receiptDetailElement, 2);
-                                    Double quantityReceiptReturnDetail = (Double) getTagValue("quantityReceiptReturnDetail", receiptDetailElement, 2);
+                                    BigDecimal priceReceiptDetail = (BigDecimal) getTagValue("priceReceiptDetail", receiptDetailElement, 2);
+                                    BigDecimal quantityReceiptSaleDetail = (BigDecimal) getTagValue("quantityReceiptSaleDetail", receiptDetailElement, 2);
+                                    BigDecimal quantityReceiptReturnDetail = (BigDecimal) getTagValue("quantityReceiptReturnDetail", receiptDetailElement, 2);
                                     String idBarcodeReceiptDetail = (String) getTagValue("idBarcodeReceiptDetail", receiptDetailElement, 0);
-                                    Double sumReceiptDetail = (Double) getTagValue("sumReceiptDetail", receiptDetailElement, 2);
-                                    Double discountSumReceiptDetail = (Double) getTagValue("discountSumReceiptDetail", receiptDetailElement, 2);
+                                    BigDecimal sumReceiptDetail = (BigDecimal) getTagValue("sumReceiptDetail", receiptDetailElement, 2);
+                                    BigDecimal discountSumReceiptDetail = (BigDecimal) getTagValue("discountSumReceiptDetail", receiptDetailElement, 2);
                                     Integer numberReceiptDetail = (Integer) getTagValue("numberReceiptDetail", receiptDetailElement, 1);
 
                                     if (quantityReceiptReturnDetail != null)
@@ -160,8 +161,8 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 ImportField discountSumReturnReceiptField = new ImportField(LM.findLCPByCompoundName("discountSumReturnReceipt"));
 
                 ImportField sidTypePaymentField = new ImportField(LM.findLCPByCompoundName("sidPaymentType"));
-                ImportField sumPaymentField = new ImportField(LM.findLCPByCompoundName("POS.sumPayment"));
-                ImportField numberPaymentField = new ImportField(LM.findLCPByCompoundName("POS.numberPayment"));
+                ImportField sumPaymentField = new ImportField(LM.findLCPByCompoundName("sumPayment"));
+                ImportField numberPaymentField = new ImportField(LM.findLCPByCompoundName("numberPayment"));
                 ImportField paymentMeansPaymentField = new ImportField(LM.baseLM.staticCaption);
                 ImportField seriesNumberDiscountCardField = new ImportField(LM.findLCPByCompoundName("seriesNumberDiscountCard"));
 
@@ -249,13 +250,13 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, discountCardKey),
                         returnProperties).synchronize(true);
 
-                ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("POS.Payment"), LM.findLCPByCompoundName("paymentZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberPaymentField, cashRegisterField));
+                ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Payment"), LM.findLCPByCompoundName("paymentZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberPaymentField, cashRegisterField));
                 ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("PaymentType"), LM.findLCPByCompoundName("typePaymentSID").getMapping(sidTypePaymentField));
-                paymentProperties.add(new ImportProperty(sumPaymentField, LM.findLCPByCompoundName("POS.sumPayment").getMapping(paymentKey)));
+                paymentProperties.add(new ImportProperty(sumPaymentField, LM.findLCPByCompoundName("sumPayment").getMapping(paymentKey)));
                 paymentProperties.add(new ImportProperty(numberPaymentField, LM.findLCPByCompoundName("numberPayment").getMapping(paymentKey)));
                 paymentProperties.add(new ImportProperty(sidTypePaymentField, LM.findLCPByCompoundName("paymentTypePayment").getMapping(paymentKey),
                         LM.baseLM.object(LM.findClassByCompoundName("PaymentType")).getMapping(paymentTypeKey)));
-                paymentProperties.add(new ImportProperty(paymentMeansPaymentField, LM.findLCPByCompoundName("POS.paymentMeansPayment").getMapping(paymentKey)));
+                paymentProperties.add(new ImportProperty(paymentMeansPaymentField, LM.findLCPByCompoundName("paymentMeansPayment").getMapping(paymentKey)));
                 paymentProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundName("receiptPayment").getMapping(paymentKey),
                         LM.baseLM.object(LM.findClassByCompoundName("Receipt")).getMapping(receiptKey)));
 
@@ -292,7 +293,7 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 case 1:
                     return Integer.parseInt(value);
                 case 2:
-                    return Double.parseDouble(value);
+                    return new BigDecimal(value);
                 case 3:
                     return Long.parseLong(value);
                 default:
