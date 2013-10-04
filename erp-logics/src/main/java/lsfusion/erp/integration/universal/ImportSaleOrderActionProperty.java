@@ -79,7 +79,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 ObjectValue customerStock = LM.findLCPByCompoundName("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
                 DataObject customerStockObject = customerStock instanceof NullValue ? null : (DataObject) customerStock;
 
-                Map<String, String[]> importColumns = readImportColumns(context, importTypeObject);
+                Map<String, String[]> importColumns = readImportColumns(context, LM, importTypeObject);
 
                 if (importColumns != null && fileExtension != null) {
 
@@ -486,14 +486,6 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         file.close();
 
         return saleOrderDetailList;
-    }
-
-    private List<List<Object>> initData(int size) {
-        List<List<Object>> data = new ArrayList<List<Object>>();
-        for (int i = 0; i < size; i++) {
-            data.add(new ArrayList<Object>());
-        }
-        return data;
     }
 
     private Boolean showField(List<SaleOrderDetail> data, String fieldName) {

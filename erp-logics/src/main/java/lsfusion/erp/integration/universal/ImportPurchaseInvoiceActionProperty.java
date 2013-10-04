@@ -80,7 +80,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ObjectValue customerStock = LM.findLCPByCompoundName("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
                 DataObject customerStockObject = customerStock instanceof NullValue ? null : (DataObject) customerStock;
 
-                Map<String, String[]> importColumns = readImportColumns(context, importTypeObject);
+                Map<String, String[]> importColumns = readImportColumns(context, LM, importTypeObject);
 
                 if (importColumns != null && fileExtension != null) {
 
@@ -634,14 +634,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         file.close();
 
         return purchaseInvoiceDetailList;
-    }
-
-    private List<List<Object>> initData(int size) {
-        List<List<Object>> data = new ArrayList<List<Object>>();
-        for (int i = 0; i < size; i++) {
-            data.add(new ArrayList<Object>());
-        }
-        return data;
     }
 
     private Boolean showField(List<PurchaseInvoiceDetail> data, String fieldName) {

@@ -1,0 +1,168 @@
+MODULE ImportUserPriceList;
+
+REQUIRE System, Import;
+
+CLASS ImportUserPriceListTypeFileExtension 'Тип файла (импорт прайс-листов)' {
+    xls 'XLS',
+    xlsx 'XLSX',
+    csv 'CSV',
+    dbf 'DBF'
+}
+
+CLASS ImportUserPriceListKeyType 'Ключ товара (импорт прайс-листов)' {
+    barcode 'Штрихкод',
+    item    'Код товара'
+}
+
+CLASS ImportUserPriceListTypeDetail 'Свойство (импорт прайс-листов)' {
+    idUserPriceList 'Код прайс-листа',
+    idItem 'Код товара',
+    barcodeItem 'Штрихкод товара',
+    articleItem 'Артикул товара',
+    captionItem 'Название товара',
+    idUOMItem 'Единица измерения'
+}
+
+CLASS ImportUserPriceListType 'Тип импорта (импорт прайс-листов)';
+
+importUserPriceListAction 'Импортировать прайс-лист' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportUserPriceListActionProperty';
+importUserPriceListsAction 'Импортировать прайс-листы' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportUserPriceListsActionProperty';
+
+userPriceListDetailIdSkuIdUserPriceList (sku, userPriceList) = GROUP AGGR userPriceListDetail BY idItem(skuUserPriceListDetail(userPriceListDetail)), idUserPriceList(userPriceListUserPriceListDetail(userPriceListDetail)) WHERE userPriceListDetail IS UserPriceListDetail;
+idUserPriceListDetail = DATA VARSTRING[100] (UserPriceListDetail);
+userPriceListDetailIdUserPriceList (id, userPriceList) = GROUP AGGR userPriceListDetail BY idUserPriceListDetail(userPriceListDetail), userPriceListUserPriceListDetail(userPriceListDetail) WHERE userPriceListDetail IS UserPriceListDetail;
+
+autoImportImportUserPriceListType 'Автоматический импорт' = DATA BOOLEAN(ImportUserPriceListType);
+autoImportDirectoryImportUserPriceListType 'Папка' =  DATA VARSTRING[100](ImportUserPriceListType);
+
+companyImportUserPriceListType =  DATA LegalEntity(ImportUserPriceListType);
+nameCompanyImportUserPriceListType 'Организация' (importUserPriceListType) =  nameLegalEntity(companyImportUserPriceListType(importUserPriceListType));
+
+nameImportUserPriceListType 'Имя' =  DATA VARSTRING[100](ImportUserPriceListType);
+importUserPriceListTypeUserPriceList = DATA ImportUserPriceListType(UserPriceList);
+nameImportUserPriceListTypeUserPriceList 'Тип импорта' (userPriceList) = nameImportUserPriceListType(importUserPriceListTypeUserPriceList(userPriceList));
+
+startRowImportUserPriceListType 'Начинать со строки' = DATA INTEGER(ImportUserPriceListType);
+separatorImportUserPriceListType 'Разделитель' = DATA INTEGER(ImportUserPriceListType);
+dateRowImportUserPriceListType 'Ряд даты' = DATA VARSTRING[5] (ImportUserPriceListType);
+dateColumnImportUserPriceListType 'Колонка даты' = DATA VARSTRING[5] (ImportUserPriceListType);
+importUserPriceListKeyTypeImportUserPriceListType 'Тип ключа' = DATA ImportUserPriceListKeyType(ImportUserPriceListType);
+captionImportUserPriceListKeyTypeImportUserPriceListType 'Тип ключа' (importUserPriceListType) = staticCaption(importUserPriceListKeyTypeImportUserPriceListType(importUserPriceListType));
+nameImportUserPriceListKeyTypeImportUserPriceListType 'Тип ключа' (importUserPriceListType) = staticName(importUserPriceListKeyTypeImportUserPriceListType(importUserPriceListType));
+
+indexImportUserPriceListTypeImportUserPriceListTypeDetail 'Поле' = DATA VARSTRING[50] (ImportUserPriceListType, ImportUserPriceListTypeDetail);
+
+importUserPriceListTypeFileExtensionImportUserPriceListType  = DATA ImportUserPriceListTypeFileExtension(ImportUserPriceListType);
+captionImportUserPriceListTypeFileExtensionImportUserPriceListType 'Тип файла' (importUserPriceListType) = staticCaption(importUserPriceListTypeFileExtensionImportUserPriceListType(importUserPriceListType));
+
+indexImportUserPriceListTypeDataPriceListType 'Поле' = DATA VARSTRING[50] (ImportUserPriceListType, DataPriceListType);
+
+FORM importUserPriceListTypeDetails
+    OBJECTS itd = ImportUserPriceListTypeDetail
+    PROPERTIES(itd) staticCaption
+    DIALOG ImportUserPriceListTypeDetail OBJECT itd
+;
+
+FORM importUserPriceListTypeFileExtensions 'Типы файлов'
+    OBJECTS f=ImportUserPriceListTypeFileExtension
+    PROPERTIES(f) READONLY staticCaption
+    DIALOG ImportUserPriceListTypeFileExtension OBJECT f
+;
+
+FORM importUserPriceListKeyTypes 'Типы ключа'
+    OBJECTS k=ImportUserPriceListKeyType
+    PROPERTIES(k) READONLY staticCaption
+    DIALOG ImportUserPriceListKeyType OBJECT k
+;
+
+showSeparator (importUserPriceListType) = importUserPriceListType==ImportUserPriceListTypeFileExtension.csv;
+showDateCell (importUserPriceListType) = importUserPriceListType!=ImportUserPriceListTypeFileExtension.dbf;
+
+FORM importUserPriceListType 'Тип импорта'
+    OBJECTS i=ImportUserPriceListType FIXED PANEL
+    PROPERTIES(i) nameImportUserPriceListType, captionImportUserPriceListTypeFileExtensionImportUserPriceListType, startRowImportUserPriceListType,
+                  separatorImportUserPriceListType SHOWIF showSeparator(i), dateRowImportUserPriceListType SHOWIF showDateCell(i),
+                  dateColumnImportUserPriceListType SHOWIF showDateCell(i), captionImportUserPriceListKeyTypeImportUserPriceListType
+    PROPERTIES(i) FORCE PANEL nameCompanyImportUserPriceListType 
+    PROPERTIES(i) autoImportImportUserPriceListType, autoImportDirectoryImportUserPriceListType FORCE PANEL SHOWIF autoImportImportUserPriceListType(i)
+                   
+    OBJECTS d = ImportUserPriceListTypeDetail
+    PROPERTIES(d) staticCaption
+    PROPERTIES(i,d) indexImportUserPriceListTypeImportUserPriceListTypeDetail 
+                      
+    OBJECTS p = DataPriceListType
+    PROPERTIES(p) nameDataPriceListType
+    PROPERTIES(i, p) indexImportUserPriceListTypeDataPriceListType                  
+                      
+    EDIT ImportUserPriceListType OBJECT i
+;
+
+EXTEND DESIGN importUserPriceListType {
+    ADD i.box;
+    NEW tabbedContainer {
+        fill = 1;
+        type = TABBED;
+        NEW columnsContainer {
+            caption = 'Колонки';
+            ADD d.box;
+        }
+        NEW invoiceParamsContainer {
+            caption = 'Параметры прайс-листа';
+            ADD PROPERTY(nameCompanyImportUserPriceListType);
+            NEW dateContainer {
+                type = CONTAINERH;
+                ADD PROPERTY(dateRowImportUserPriceListType);
+                ADD PROPERTY(dateColumnImportUserPriceListType);
+            }
+            ADD p.box;
+        }
+    }
+    ADD functions.box;
+}
+
+FORM importUserPriceListTypes 'Типы импорта'
+    OBJECTS i=ImportUserPriceListType
+    PROPERTIES(i) READONLY nameImportUserPriceListType, captionImportUserPriceListTypeFileExtensionImportUserPriceListType, startRowImportUserPriceListType,
+                   separatorImportUserPriceListType SHOWIF showSeparator(i), captionImportUserPriceListKeyTypeImportUserPriceListType
+    PROPERTIES(i) READONLY autoImportImportUserPriceListType, autoImportDirectoryImportUserPriceListType SHOWIF autoImportImportUserPriceListType(i)               
+    PROPERTIES(i) ADDFORM, EDITFORM, DELETE
+    DIALOG ImportUserPriceListType OBJECT i
+;
+
+EXTEND FORM integrationData
+    OBJECTS ip=ImportUserPriceListType
+    PROPERTIES(ip) READONLY nameImportUserPriceListType, captionImportUserPriceListTypeFileExtensionImportUserPriceListType, startRowImportUserPriceListType,
+                   separatorImportUserPriceListType SHOWIF showSeparator(i), captionImportUserPriceListKeyTypeImportUserPriceListType
+    PROPERTIES(ip) ADDFORM, EDITFORM, DELETE
+    PROPERTIES() importUserPriceListsAction TOOLBAR
+;
+
+EXTEND DESIGN integrationData {
+    pane {
+        NEW importUserPriceListType {
+            caption = 'Универсальный импорт (Прайс-лист)';
+            ADD ip.box;
+            ADD PROPERTY(importUserPriceListsAction);
+        }
+    }
+}
+
+EXTEND FORM userPriceList
+    PROPERTIES(p) importUserPriceListAction TODRAW d TOOLBAR
+    PROPERTIES(p) nameImportUserPriceListTypeUserPriceList
+;
+
+EXTEND DESIGN userPriceList{
+    detailContainer {
+        NEW import {
+            caption = 'Импорт';
+            type = CONTAINERH;
+            NEW universalImport {
+                caption = 'Универсальный импорт';
+                ADD PROPERTY(nameImportUserPriceListTypeUserPriceList);
+                ADD PROPERTY(importUserPriceListAction);
+            }
+        }
+    }
+}
+
