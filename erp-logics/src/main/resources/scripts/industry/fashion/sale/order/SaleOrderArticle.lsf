@@ -59,7 +59,7 @@ backgroundRowType 'Цвет' (type) = RGB(204,255,204) IF  type == RowType.inDoc
 EXTEND FORM userOrder
 
     OBJECTS sta=(stk=Stock, ar=Article)
-    PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar), stockName = nameStock(stk) SHOWIF notSupplierStockUserOrder(o)
+    PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar), stockName = nameStock(stk) SHOWIF notSupplierStockUserOrder(o), imageArticle(ar) FORCE PANEL 
     FILTERS           isParentGroupArticle(sk, ar),
                       (stk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockUserOrder(o) OR
                       stk == supplierStockUserOrder(o) AND NOT sg AND NOT ts
@@ -89,7 +89,19 @@ EXTEND DESIGN userOrder {
         NEW articleContainer {
             caption = 'Артикулы';
             type = CONTAINERV;
-            ADD sta.box {caption = 'Артикул';};
+            NEW topArticle {
+                fill = 1;
+                type = SPLITH;
+                ADD sta.box {caption = 'Артикул';fill = 3;}
+                NEW imageBox {
+                    fill = 2;
+                    caption = 'Изображение';                     
+                    ADD PROPERTY(imageArticle) {                           
+                        caption = '';
+                        fill = 1;
+                    }
+                } 
+            }    
             ADD cor.box;
             REMOVE si.box;
         }
