@@ -11,21 +11,43 @@ GROUP nbrb 'Курсы НБРБ' : public;
 importNBRBExchangeRateDateFrom 'Дата с' = DATA DATE () IN nbrb;
 importNBRBExchangeRateDateTo 'Дата по' = DATA DATE () IN nbrb;
 
-importNBRBExchangeRateAction 'Импортировать курс НБРБ' = ACTION CUSTOM 'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateActionProperty' IN nbrb;
+importNBRBExchangeRateDaysCount 'Кол-во дней' = DATA INTEGER() IN nbrb;
 
-importNBRBExchangeRate 'Импортировать курсы НБРБ' = ACTION () {
+importNBRBExchangeRateDateFromDateToAction 'Импортировать курсы НБРБ' = ACTION CUSTOM 'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateDateFromDateToActionProperty' IN nbrb;
+importNBRBExchangeRateLastDaysAction 'Импортировать последние курсы НБРБ' = ACTION CUSTOM 'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateLastDaysActionProperty' IN nbrb;
+
+importNBRBExchangeRateDateFromDateTo 'Импортировать курсы НБРБ' = ACTION () {
     FOR c IS Currency DO {
-        EXEC importNBRBExchangeRateAction(c);
+        EXEC importNBRBExchangeRateDateFromDateToAction(c);
+    }
+    EXEC apply();
+} IN nbrb;
+
+importNBRBExchangeRateLastDays 'Импортировать последние курсы НБРБ' = ACTION () {
+    FOR c IS Currency DO {
+        EXEC importNBRBExchangeRateLastDaysAction(c);
     }
     EXEC apply();
 } IN nbrb;
 
 EXTEND FORM typeExchangeCurrencyDate
-    PROPERTIES() importNBRBExchangeRateDateFrom, importNBRBExchangeRateDateTo, importNBRBExchangeRate
+    PROPERTIES() importNBRBExchangeRateDateFrom, importNBRBExchangeRateDateTo, importNBRBExchangeRateDateFromDateTo
+    PROPERTIES() importNBRBExchangeRateDaysCount, importNBRBExchangeRateLastDays
 ;
 
 EXTEND DESIGN typeExchangeCurrencyDate {
     importExchangeRates {
-        ADD NOGROUP.nbrb;
+        NEW dateFromDateToContainer {
+            type = CONTAINERH;
+            ADD PROPERTY(importNBRBExchangeRateDateFrom);
+            ADD PROPERTY(importNBRBExchangeRateDateTo);
+            ADD PROPERTY(importNBRBExchangeRateDateFromDateTo);
+        }
+        NEW lastDaysContainer {
+            type = CONTAINERH;
+            ADD PROPERTY(importNBRBExchangeRateDaysCount);
+            ADD PROPERTY(importNBRBExchangeRateLastDays);
+        }
+        
     }
 }

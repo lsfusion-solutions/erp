@@ -1,22 +1,21 @@
 package lsfusion.erp.region.by.masterdata;
 
 
-import org.apache.commons.lang.time.DateUtils;
-import org.jdom.Document;
-import org.jdom.Element;
-import org.jdom.JDOMException;
-import org.jdom.input.SAXBuilder;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.integration.*;
-import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
+import org.apache.commons.lang.time.DateUtils;
+import org.jdom.Document;
+import org.jdom.Element;
+import org.jdom.JDOMException;
+import org.jdom.input.SAXBuilder;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -27,46 +26,19 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 
 public class ImportNBRBExchangeRateActionProperty extends ScriptingActionProperty {
-    private final ClassPropertyInterface currencyInterface;
 
-    public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("Currency")});
-
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
-        currencyInterface = i.next();
+    public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, new ValueClass[]{valueClass});
     }
 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
-
-        try {
-
-            DataObject currencyObject = context.getDataKeyValue(currencyInterface);
-
-            String shortNameCurrency = (String) LM.findLCPByCompoundName("shortNameCurrency").read(context, currencyObject);
-            Date nbrbDateFrom = (Date) LM.findLCPByCompoundName("importNBRBExchangeRateDateFrom").read(context);
-            Date nbrbDateTo = (Date) LM.findLCPByCompoundName("importNBRBExchangeRateDateTo").read(context);
-
-            if (nbrbDateFrom != null && nbrbDateTo != null && shortNameCurrency != null)
-                importExchanges(nbrbDateFrom, nbrbDateTo, shortNameCurrency, context);
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (JDOMException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
-        }
-
     }
 
-    private void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException {
+    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException {
 
 
         List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, shortNameCurrency);
