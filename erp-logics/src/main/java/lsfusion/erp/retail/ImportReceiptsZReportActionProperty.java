@@ -40,10 +40,10 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-public class ImportReceiptsActionProperty extends ScriptingActionProperty {
+public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface zReportInterface;
 
-    public ImportReceiptsActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportReceiptsZReportActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, new ValueClass[]{LM.findClassByCompoundName("ZReport")});
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -118,13 +118,20 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                                 Node receiptDetail = receiptDetailList.item(receiptDetailIndex);
                                 if (receiptDetail.getNodeType() == Node.ELEMENT_NODE) {
                                     Element receiptDetailElement = (Element) receiptDetail;
+                                    String typeReceiptDetail = (String) getTagValue("typeReceiptDetail", receiptDetailElement, 0);
+                                    boolean isReturn = typeReceiptDetail.trim().equals("Возврат");
                                     BigDecimal priceReceiptDetail = (BigDecimal) getTagValue("priceReceiptDetail", receiptDetailElement, 2);
-                                    BigDecimal quantityReceiptSaleDetail = (BigDecimal) getTagValue("quantityReceiptSaleDetail", receiptDetailElement, 2);
-                                    BigDecimal quantityReceiptReturnDetail = (BigDecimal) getTagValue("quantityReceiptReturnDetail", receiptDetailElement, 2);
+                                    BigDecimal quantityReceiptSaleDetail = isReturn ? null : (BigDecimal) getTagValue("quantityReceiptDetail", receiptDetailElement, 2);
+                                    BigDecimal quantityReceiptReturnDetail = isReturn ? (BigDecimal) getTagValue("quantityReceiptDetail", receiptDetailElement, 2) : null;
                                     String idBarcodeReceiptDetail = (String) getTagValue("idBarcodeReceiptDetail", receiptDetailElement, 0);
                                     BigDecimal sumReceiptDetail = (BigDecimal) getTagValue("sumReceiptDetail", receiptDetailElement, 2);
                                     BigDecimal discountSumReceiptDetail = (BigDecimal) getTagValue("discountSumReceiptDetail", receiptDetailElement, 2);
+                                    BigDecimal discountPercentReceiptSaleDetail = (BigDecimal) getTagValue("discountPercentReceiptDetail", receiptDetailElement, 2);
                                     Integer numberReceiptDetail = (Integer) getTagValue("numberReceiptDetail", receiptDetailElement, 1);
+                                    
+                                    String idPromotionCondition = (String) getTagValue("idPromotionCondition", receiptDetailElement, 0);
+                                    BigDecimal quantityReceiptSaleDetailPromotionCondition = (BigDecimal) getTagValue("quantityReceiptDetailPromotionCondition", receiptDetailElement, 2);
+                                    BigDecimal promotionSumReceiptSaleDetailPromotionCondition = (BigDecimal) getTagValue("promotionSumReceiptDetailPromotionCondition", receiptDetailElement, 2);
 
                                     if (quantityReceiptReturnDetail != null)
                                         dataReturn.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
@@ -133,7 +140,8 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                                     else
                                         dataSale.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
                                                 numberReceiptDetail, idBarcodeReceiptDetail, quantityReceiptSaleDetail, priceReceiptDetail, sumReceiptDetail,
-                                                discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard));
+                                                discountSumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceipt, seriesNumberDiscountCard,
+                                                idPromotionCondition, quantityReceiptSaleDetailPromotionCondition, promotionSumReceiptSaleDetailPromotionCondition));
                                 }
                             }
                         }
@@ -152,6 +160,7 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 ImportField priceReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundName("priceReceiptSaleDetail"));
                 ImportField sumReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundName("sumReceiptSaleDetail"));
                 ImportField discountSumReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundName("discountSumReceiptSaleDetail"));
+                ImportField discountPercentReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundName("discountPercentReceiptSaleDetail"));
                 ImportField discountSumSaleReceiptField = new ImportField(LM.findLCPByCompoundName("discountSumSaleReceipt"));
 
                 ImportField quantityReceiptReturnDetailField = new ImportField(LM.findLCPByCompoundName("quantityReceiptReturnDetail"));
@@ -165,6 +174,10 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 ImportField numberPaymentField = new ImportField(LM.findLCPByCompoundName("numberPayment"));
                 ImportField paymentMeansPaymentField = new ImportField(LM.baseLM.staticCaption);
                 ImportField seriesNumberDiscountCardField = new ImportField(LM.findLCPByCompoundName("seriesNumberDiscountCard"));
+
+                ImportField idPromotionConditionField = new ImportField(LM.findLCPByCompoundName("idPromotionCondition"));
+                ImportField quantityReceiptSaleDetailPromotionConditionField = new ImportField(LM.findLCPByCompoundName("quantityReceiptSaleDetailPromotionCondition"));
+                ImportField promotionSumReceiptSaleDetailPromotionConditionField = new ImportField(LM.findLCPByCompoundName("promotionSumReceiptSaleDetailPromotionCondition"));
 
                 List<ImportProperty<?>> saleProperties = new ArrayList<ImportProperty<?>>();
                 List<ImportProperty<?>> returnProperties = new ArrayList<ImportProperty<?>>();
@@ -199,12 +212,18 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, LM.findLCPByCompoundName("priceReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, LM.findLCPByCompoundName("sumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, LM.findLCPByCompoundName("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(discountPercentReceiptSaleDetailField, LM.findLCPByCompoundName("discountPercentReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundName("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
                         LM.baseLM.object(LM.findClassByCompoundName("Receipt")).getMapping(receiptKey)));
 
                 saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, LM.findLCPByCompoundName("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
                         LM.baseLM.object(LM.findClassByCompoundName("Sku")).getMapping(skuKey)));
 
+                ImportKey<?> promotionConditionKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("PromotionCondition"),
+                        LM.findLCPByCompoundName("promotionConditionId").getMapping(idPromotionConditionField));
+                saleProperties.add(new ImportProperty(quantityReceiptSaleDetailPromotionConditionField, LM.findLCPByCompoundName("quantityReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
+                saleProperties.add(new ImportProperty(promotionSumReceiptSaleDetailPromotionConditionField, LM.findLCPByCompoundName("promotionSumReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
+                
                 returnProperties.add(new ImportProperty(zReportNumberField, LM.findLCPByCompoundName("numberZReport").getMapping(zReportKey)));
                 returnProperties.add(new ImportProperty(cashRegisterField, LM.findLCPByCompoundName("cashRegisterZReport").getMapping(zReportKey),
                         LM.baseLM.object(LM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
@@ -227,7 +246,7 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, LM.findLCPByCompoundName("quantityReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, LM.findLCPByCompoundName("priceReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, LM.findLCPByCompoundName("sumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
-                returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, LM.findLCPByCompoundName("discountSumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, LM.findLCPByCompoundName("discountSumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));               
                 returnProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundName("receiptReceiptDetail").getMapping(receiptReturnDetailKey),
                         LM.baseLM.object(LM.findClassByCompoundName("Receipt")).getMapping(receiptKey)));
 
@@ -237,17 +256,20 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                 List<ImportField> saleImportFields = Arrays.asList(cashRegisterField, zReportNumberField, dateField, timeField,
                         numberReceiptField, numberReceiptDetailField, idBarcodeReceiptDetailField, quantityReceiptSaleDetailField,
                         priceReceiptSaleDetailField, sumReceiptSaleDetailField, discountSumReceiptSaleDetailField,
-                        discountSumSaleReceiptField, seriesNumberDiscountCardField);
+                        discountPercentReceiptSaleDetailField, discountSumSaleReceiptField, seriesNumberDiscountCardField, 
+                        idPromotionConditionField, quantityReceiptSaleDetailPromotionConditionField, promotionSumReceiptSaleDetailPromotionConditionField);
 
                 List<ImportField> returnImportFields = Arrays.asList(cashRegisterField, zReportNumberField, dateField, timeField,
                         numberReceiptField, numberReceiptDetailField, idBarcodeReceiptDetailField, quantityReceiptReturnDetailField,
                         priceReceiptReturnDetailField, retailSumReceiptReturnDetailField, discountSumReceiptReturnDetailField,
                         discountSumReturnReceiptField, seriesNumberDiscountCardField);
 
-                new IntegrationService(session, new ImportTable(saleImportFields, dataSale), Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey, discountCardKey),
+                new IntegrationService(session, new ImportTable(saleImportFields, dataSale), Arrays.asList(zReportKey, 
+                        cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey, discountCardKey, promotionConditionKey),
                         saleProperties).synchronize(true);
 
-                new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, discountCardKey),
+                new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), Arrays.asList(zReportKey,
+                        cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, discountCardKey),
                         returnProperties).synchronize(true);
 
                 ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Payment"), LM.findLCPByCompoundName("paymentZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberPaymentField, cashRegisterField));
@@ -267,15 +289,15 @@ public class ImportReceiptsActionProperty extends ScriptingActionProperty {
                         paymentProperties).synchronize(true);
             }
         } catch (ParserConfigurationException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (SAXException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 

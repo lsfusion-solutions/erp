@@ -59,9 +59,6 @@ descriptionZReport (zReport) =
     [FORMULA VARSTRING[200] '\'Продажа по кассе \' || CAST($1 AS TEXT) || \' отдела \' || CAST($2 AS TEXT) ||  \' от \' || CAST($3 AS TEXT)'](
     numberCashRegisterZReport(zReport), nameDepartmentStoreZReport(zReport), dateZReport(zReport));
 
-exportReceiptsZReport 'Экспортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsActionProperty';
-importReceiptsZReport 'Импортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ImportReceiptsActionProperty';
-
 //----------------------------------------------- Чеки ---------------------------------------------------//
 
 CLASS Receipt 'Чек';
@@ -192,8 +189,6 @@ nameLegalEntityDiscountCardReceiptDetail 'Держатель дисконтно�
 
 idBarcodeReceiptDetail 'Штрих-код' (receiptDetail) = DATA STRING[15] (ReceiptDetail) FIXEDCHARWIDTH 14 INDEXED;
 
-exportReceipt 'Экспортировать' (receipt) = DATA SESSION BOOLEAN (Receipt);
-
 // Возвраты
 
 receiptSaleDetailReceiptReturnDetail = DATA ReceiptSaleDetail (ReceiptReturnDetail);
@@ -297,6 +292,39 @@ discountSumReceipt 'Сумма скидки по чеку' (receipt) = discountS
 @defineDocumentHeaderQuantity(receipt);
 @defineDocumentHeaderSkuQuantity(receipt, sku);
 @defineDocumentHeaderSkuQuantity(receipt, receiptSaleDetail, sku);
+
+// импорт-экспорт чеков
+
+exportReceiptsZReportCustomAction 'Экспортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportCustomActionProperty';
+exportReceiptsZReportFolderAction 'Экспортировать чеки (в папку)' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportFolderActionProperty';
+importReceiptsZReportAction 'Импортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ImportReceiptsZReportActionProperty';
+
+exportReceipt 'Экспортировать' (receipt) = DATA SESSION BOOLEAN (Receipt);
+exportedIncrementReceipt 'Экспортировано (инкрементно)' (receipt) = DATA BOOLEAN (Receipt);
+pathExportReceipts 'Путь' = DATA VARSTRING[100] ();
+
+exportIncrementReceipts 'Экспортировать (инкрементно) чеки' = ACTION() {
+    FOR z IS ZReport DO {
+        FOR NOT(exportedIncrementReceipt(r)) AND zReportReceipt(r)==z  DO {
+            exportReceipt(r) <- TRUE;    
+        }
+        exportReceiptsZReportFolderAction(z);
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() exportIncrementReceipts, pathExportReceipts
+;
+
+EXTEND DESIGN integrationData {
+    pane {
+        NEW exportReceiptsPane {
+            caption = 'Экспорт чеков';
+            ADD PROPERTY(exportIncrementReceipts);
+            ADD PROPERTY(pathExportReceipts);
+        }
+    }
+}
 
 // -------------------------------------------------- НДС ------------------------------------------------ //
 
@@ -482,6 +510,12 @@ sumOutStockDocumentLedger (ledger) += sumReceiptDetailZReport(ledger);
 sumItemOutStockDocumentLedger (ledger) += sumReceiptDetailZReport(ledger);
 sumContainerOutStockDocumentLedger (ledger) += 0.0 IF ledger IS ZReport;
 
+// ----------------------------------- Расчет сумм скидок ------------------------------------- // 
+TABLE receiptSaleDetailPromotionCondition(ReceiptSaleDetail, PromotionCondition);
+quantityReceiptSaleDetailPromotionCondition 'Кол-во по акции' = DATA NUMERIC[14,3] (ReceiptSaleDetail, PromotionCondition) INDEXED;
+promotionSumReceiptSaleDetailPromotionCondition 'Сумма скидки' = DATA NUMERIC[16,2] (ReceiptSaleDetail, PromotionCondition);
+setUserPromotionReceiptSaleDetailPromotionCondition 'Применить скидку' = DATA BOOLEAN (ReceiptSaleDetail, PromotionCondition);
+
 //----------------------------------- Формы -------------------------------------------------//
 
 FORM zReport 'Z-отчет'
@@ -493,7 +527,8 @@ FORM zReport 'Z-отчет'
     OBJECTS b=Receipt, d=ReceiptDetail
     PROPERTIES(b) numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
                   numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt, sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
-                  discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt, exportReceipt, ADDOBJ, DELETESESSION
+                  discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt, exportReceipt, exportedIncrementReceipt, 
+                  ADDOBJ, DELETESESSION
     FILTERS zReportReceipt(b)==z
 
     PROPERTIES(b) TODRAW d addDetailDialogSkuStockReceiptSaleDetailReceipt, addDetailDialogSkuStockReceiptReturnDetailReceipt
@@ -554,14 +589,14 @@ FORM zReports 'Z-отчеты'
     PROPERTIES (z) closeZReport SHOWIF isOpenedZReport(z), openZReport SHOWIF isClosedZReport(z)
 
     PROPERTIES (z) deletez=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftOpenedZReport(z),
-                            exportReceiptsZReport FORCE PANEL TOOLBAR, importReceiptsZReport FORCE PANEL TOOLBAR,
+                            exportReceiptsZReportCustomAction FORCE PANEL TOOLBAR, importReceiptsZReportAction FORCE PANEL TOOLBAR,
                             postZReport SHOWIF isDraftOpenedZReport(z), unpostZReport SHOWIF isPostedOpenedZReport(z)
 
     OBJECTS b=Receipt
     PROPERTIES(b) READONLY  numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
                             numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt, sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
                             discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt
-    PROPERTIES(b)           exportReceipt
+    PROPERTIES(b)           exportReceipt, exportedIncrementReceipt
 
     FILTERS zReportReceipt(b)==z
     ORDER BY                numberReceipt
