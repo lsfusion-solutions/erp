@@ -521,15 +521,12 @@ addOutcomeCashOperationForm 'Изъятие денег' () = ACTION () NEWSESSIO
     ASSIGN sessionDepartmentStore() <- departmentStoreCashRegister(currentCashRegister());
     FORM addOutcomeCashOperation OBJECTS d = sessionDepartmentStore() MODAL;
     IF formResult() == FormResult.ok THEN {
-        FOR sumCashForOutcomeCashOperation(cashRegister) DO {
-            ADDOBJ OutcomeCashOperation;
-            FOR c == addedObject() DO {
-                cashRegisterOutcomeCashOperation(c) <- cashRegister;
-                departmentStoreOutcomeCashOperation(c) <- departmentStoreCashRegister(cashRegister);
-                sumCashOutcomeCashOperation(c) <- sumCashForOutcomeCashOperation(cashRegister);
-                generateSeriesNumberOutcomeCashOperation(c);
-                fiscalServiceCashRegisterCashOperation(c);
-            }
+        FOR sumCashForOutcomeCashOperation(cashRegister) ADDOBJ c = OutcomeCashOperation DO {
+            cashRegisterOutcomeCashOperation(c) <- cashRegister;
+            departmentStoreOutcomeCashOperation(c) <- departmentStoreCashRegister(cashRegister);
+            sumCashOutcomeCashOperation(c) <- sumCashForOutcomeCashOperation(cashRegister);
+            generateSeriesNumberOutcomeCashOperation(c);
+            fiscalServiceCashRegisterCashOperation(c);
         }
         EXEC apply();
     }

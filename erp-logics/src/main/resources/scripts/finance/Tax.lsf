@@ -30,10 +30,11 @@ countRangeTaxCountry 'Кол-во шкал' (tax, country) = GROUP SUM 1 IF rang
 
 maxDataRangeTax(tax, country) = OVERRIDE 0 IF tax IS Tax AND country IS Country, [GROUP MAX numberRange(range) BY taxRange(range), countryRange(range)](tax, country);
 addNewRange 'Добавить шкалу' = ACTION (tax, country) {
-    ADDOBJ Range;
-    ASSIGN numberRange(r) <- maxDataRangeTax(tax, country) + 1 WHERE r == addedObject();
-    ASSIGN countryRange(r) <- country WHERE r == addedObject();
-    ASSIGN taxRange(r) <- tax WHERE r == addedObject();
+    FOR ADDOBJ r = Range DO {
+        ASSIGN numberRange(r) <- maxDataRangeTax(tax, country) + 1;
+        ASSIGN countryRange(r) <- country;
+        ASSIGN taxRange(r) <- tax;
+    }
 } TOOLBAR IMAGE 'add.png';
 
 CLASS RangeType 'Для каких подразделений действует шкала' {
@@ -563,14 +564,12 @@ END
 // ------------------------------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultVAT 'Добавить значение НДС' = ACTION (idCountry, number, value) {
-    ADDOBJ Range;
-    FOR rn == addedObject() DO {
+    FOR ADDOBJ rn = Range DO {
        ASSIGN rangeTypeRange(rn) <- RangeType.common;
        ASSIGN taxRange(rn) <- Tax.taxVAT;
        ASSIGN countryRange(rn) <- countrySID(idCountry);
        ASSIGN numberRange(rn) <- number;
-       ADDOBJ Rate;
-       FOR ra == addedObject() DO {
+       FOR ADDOBJ ra = Rate DO {
           ASSIGN rangeRate(ra) <- rn;
           ASSIGN valueRate(ra) <- value;
           ASSIGN dateFromRate(ra) <- 2001_01_01;
