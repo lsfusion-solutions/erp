@@ -16,9 +16,8 @@ REQUIRE System,
         PriceRoundStore,
         PriceListType,
         PaymentLedger,
-        StockSkuDocument,
-        StockDocument; // todo : эту зависимость надо будет убить, но сейчас не получается из-за того что нельзя донаследовать классы
-
+        StockSkuDocument;
+        
 // ------------------------------------- Объявление Z-отчета ---------------------------------------- //
 
 CLASS ZReport 'Z-отчет (открытый)' : IncomeCashOrder, PaymentLedger;
@@ -502,13 +501,6 @@ descriptionPaymentLedger(zReportCard) += basisZReport(zReportZReportCard(zReport
 accountToPaymentLedger(zReportCard) += accountLegalEntity(legalEntityCashRegister(cashRegisterZReport(zReportZReportCard(zReportCard))));
 legalEntityToPaymentLedger(zReportCard) += legalEntityCashRegister(cashRegisterZReport(zReportZReportCard(zReportCard)));
 sumPaymentLedger(zReportCard) += sumMeansCardZReport(zReportZReportCard(zReportCard));
-
-// ----------------------------------- Проведение по товарному отчету -------------------------- //
-
-@implementStockDocumentLedgerOut(ZReport, departmentStore);
-sumOutStockDocumentLedger (ledger) += sumReceiptDetailZReport(ledger);
-sumItemOutStockDocumentLedger (ledger) += sumReceiptDetailZReport(ledger);
-sumContainerOutStockDocumentLedger (ledger) += 0.0 IF ledger IS ZReport;
 
 // ----------------------------------- Расчет сумм скидок ------------------------------------- // 
 TABLE receiptSaleDetailPromotionCondition(ReceiptSaleDetail, PromotionCondition);
