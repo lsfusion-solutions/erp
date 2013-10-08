@@ -36,7 +36,7 @@ public class ImportNBRBExchangeRateLastDaysActionProperty extends ImportNBRBExch
             long currentTime = Calendar.getInstance().getTimeInMillis();
             Integer days = (Integer) LM.findLCPByCompoundName("importNBRBExchangeRateDaysCount").read(context);
             if (shortNameCurrency != null && days != null && days > 0) {
-                importExchanges(new Date(currentTime - days * 24 * 3600 * 1000), new Date(currentTime),
+                importExchanges(new Date(currentTime - (long) days * 24 * 3600 * 1000), new Date(currentTime),
                         shortNameCurrency, context);
             }
 
