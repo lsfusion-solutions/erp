@@ -41,16 +41,22 @@ countSelectedToClass 'Кол-во получателей' = GROUP SUM 1 IF [GROU
 countSelectedFromStockClass 'Кол-во складов отправителей' = GROUP SUM 1 IF [GROUP SUM 1 IF selectedOrder(order) BY fromOrder(order)](order);
 countSelectedToStockClass 'Кол-во складов получателей' = GROUP SUM 1 IF [GROUP SUM 1 IF selectedOrder(order) BY toOrder(order)](order);
 
-createMultiUserInvoice 'Создать накладную' = ACTION () {
-    IF countSelectedFromClass()!=1 OR countSelectedToClass() != 1 OR countSelectedFromStockClass()!=1 OR countSelectedToStockClass()!=1 THEN {
-        MESSAGE 'Выбраны заказы с разными покупателями, поставщиками или их складами';               
-    } ELSE {
-        IF countSelectedClass()==1 THEN {
-            createMultiUserInvoiceOrder(minSelectedOrder());
+addUserInvoiceOrder = ABSTRACT ACTION LIST (Order);
+
+createMultiUserInvoice 'Создать накладную' = ACTION (order) {
+    IF countSelectedOrder() THEN {
+        IF countSelectedFromClass()!=1 OR countSelectedToClass() != 1 OR countSelectedFromStockClass()!=1 OR countSelectedToStockClass()!=1 THEN {
+            MESSAGE 'Выбраны заказы с разными покупателями, поставщиками или их складами';               
         } ELSE {
-            MESSAGE 'Выбраны заказы с разными классами';
-        }        
-    }
+            IF countSelectedClass()==1 THEN {
+                createMultiUserInvoiceOrder(minSelectedOrder());
+            } ELSE {
+                MESSAGE 'Выбраны заказы с разными классами';
+            }        
+        }
+    } ELSE {
+        addUserInvoiceOrder(order);            
+    }    
 } TOOLBAR;
 
 //--  Связь с заказом
@@ -240,6 +246,7 @@ META defineOrderInvoice(sign, stockProp)
         createUserInvoiceOrder(order);
         FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
     } TOOLBAR;
+    Invoice.addUserInvoiceOrder (order) += addUserInvoiceOrder(order);
 
     EXTEND FORM orders
         PROPERTIES(o) addUserInvoiceOrder
