@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class FiscalShtrih {
 
-    static String password = "30";
+    static String password = "30000";
     static ActiveXComponent shtrihActiveXComponent;
     static Dispatch shtrihDispatch;
 
