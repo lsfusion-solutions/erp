@@ -28,6 +28,10 @@ purchaseExpiryDateUserInvoiceDetail(detail) <- prevExpiryDateBatch(batchUserInvo
 Purchase.expiryDateInvoiceDetail(detail) += purchaseExpiryDateUserInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
 
 @defineDocumentInterfaceHeaderTimePrefix(Invoice, purchaseShipment, ' поставки (закупка)');
+WHEN SESSION SET(createPurchaseShipmentUserInvoice(i)) DO {
+    purchaseShipmentDateUserInvoice(i) <- shipmentDateUserInvoice(i);    
+    purchaseShipmentTimeUserInvoice(i) <- shipmentTimeUserInvoice(i);    
+}
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, purchaseShipment, ' учетная (закупка)');
 @deriveDocumentDetailSumPrefix(userInvoice, purchaseShipment, currency, purchaseShipmentQuantity);
@@ -42,12 +46,17 @@ Purchase.shipmentQuantityInvoiceDetail(detail) += purchaseShipmentQuantityInvoic
 Purchase.shipmentPriceInvoiceDetail(detail) += purchaseShipmentPriceInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
 Purchase.shipmentSumInvoiceDetail (detail) += purchaseShipmentSumInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
 
+showPurchaseShipmentUserInvoice(i) = createPurchaseShipmentUserInvoice(i) OR createPurchaseInvoiceUserInvoice(i); 
+showPurchaseShipmentUserInvoiceDetail(d) = showPurchaseShipmentUserInvoice(userInvoiceUserInvoiceDetail(d)); 
+
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundPurchaseShipmentInvoice(i) SHOWIF createPurchaseInvoiceUserInvoice(i) createPurchaseShipmentUserInvoice
     PROPERTIES(i) BACKGROUND backgroundPurchaseShipmentInvoice(i) SHOWIF createPurchaseShipmentUserInvoice(i) purchaseShipmentSumUserInvoiceDetailUserInvoice,
                   purchaseShipmentDateUserInvoice, purchaseShipmentTimeUserInvoice
     PROPERTIES(d) BEFORE deleteid SHOWIF createPurchaseShipmentInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i)
-                  purchaseExpiryDateUserInvoiceDetail, nameCustomerStockUserInvoiceDetail, purchaseShipmentPriceUserInvoiceDetail, purchaseShipmentSumUserInvoiceDetail
+                  purchaseExpiryDateUserInvoiceDetail, nameCustomerStockUserInvoiceDetail, purchaseShipmentSumUserInvoiceDetail
+    PROPERTIES(d) BEFORE purchaseShipmentSumUserInvoiceDetail SHOWIF showPurchaseShipmentUserInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i) 
+                  purchaseShipmentPriceUserInvoiceDetail  
     PROPERTIES(d) purchaseShipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF createPurchaseShipmentInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i)
 ;
 EXTEND DESIGN userInvoice {
@@ -80,16 +89,5 @@ extraPurchaseShipmentPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoic
 purchaseShipmentPriceUserInvoiceDetail(detail) <- calcPurchaseShipmentPriceUserInvoiceDetail(detail) (+) extraPurchaseShipmentPriceUserInvoiceDetail(detail) WHEN
     (CHANGED(calcPurchaseShipmentPriceUserInvoiceDetail(detail)) OR
      CHANGED(extraPurchaseShipmentPriceUserInvoiceDetail(detail)) OR
-     CHANGED(createPurchaseShipmentUserInvoiceDetail(detail)))
-        AND createPurchaseShipmentUserInvoiceDetail(detail);
-
-
-
-
-
-
-
-
-
-
-
+     CHANGED(showPurchaseShipmentUserInvoiceDetail(detail)))
+        AND showPurchaseShipmentUserInvoiceDetail(detail);

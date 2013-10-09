@@ -38,7 +38,7 @@ CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(purchaseRe
            CHECKED BY purchaseRetailPriceListTypeUserInvoiceDetail
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
-WHEN SESSION FORMS userInvoice // цены берем на начало сессии, а не этого event'а
+WHEN SESSION // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail)) OR
     CHANGED(calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
     CHANGED(skuUserInvoiceDetail(detail)) OR
@@ -52,12 +52,13 @@ WHEN SESSION FORMS userInvoice // цены берем на начало сесс
                                                             ELSE calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
 // если не задана управленческая цена
-WHEN SESSION FORMS userInvoice // цены берем на начало сессии, а не этого event'а
+WHEN SESSION // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail)) OR
     CHANGED(calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
     CHANGED(skuUserInvoiceDetail(detail)) OR
     CHANGED(customerStockUserInvoiceDetail(detail)) OR
-    CHANGED(dateTimeUserInvoiceDetail(detail))) AND NOT calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail) DO
+    CHANGED(dateTimeUserInvoiceDetail(detail))) 
+    AND calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail) AND NOT calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail) DO
     purchaseRetailPriceListTypeUserInvoiceDetail(detail) <- calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
 
