@@ -19,17 +19,25 @@ countInConsignmentPrintTrip = GROUP SUM 1 IF countOrderConsignmentPrintTrip(trip
 
 inConsignmentPrintTrip = GROUP MAX trip IF countOrderConsignmentPrintTrip(trip);
 
-printConsignmentOrder 'Создать накладные' = ACTION () {
-    IF countInConsignmentPrintTrip() > 1 THEN {
-        MESSAGE 'Выберите заказы одного рейса';
-    } ELSE {
-            FOR inConsignmentPrintOrder(order) DO {
-                createPickingUserInvoicePostedOrder(order);
-                FOR createdUserInvoiceOrder(i, order) DO {
-                    tripInvoice(i) <- tripOrder(order);
+printConsignmentOrder 'Создать накладные' = ACTION (order) {
+    IF countInConsignmentPrintOrder() THEN {
+        IF countInConsignmentPrintTrip() > 1 THEN {
+            MESSAGE 'Выберите заказы одного рейса';
+        } ELSE {
+                FOR inConsignmentPrintOrder(o) DO {
+                    createPickingUserInvoicePostedOrder(o);
+                    FOR createdUserInvoiceOrder(i, o) DO {
+                        tripInvoice(i) <- tripOrder(o);
+                    }
                 }
-            }
-            apply();
+                apply();
+        }
+    } ELSE {
+        createPickingUserInvoicePostedOrder(order);  
+        FOR createdUserInvoiceOrder(i, order) DO {
+            tripInvoice(i) <- tripOrder(order);
+        }
+        apply();
     }
 } TOOLBAR EDITKEY 'ctrl ENTER';
 
@@ -52,8 +60,9 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
                   numberOrder, dateOrder,
                   nameToOrder, nameToStockOrder, packQuantityOrder, quantityOrderDetailOrder,
                   startDateTimeOrder, finishDateTimeOrder
-    PROPERTIES() printConsignmentOrder READONLYIF hidePrintAction() TODRAW o
+    PROPERTIES(o) printConsignmentOrder FORCE PANEL TOOLBAR
     FILTERS orderPickingOrderOrder (o) AND toInvoicedPickedOrder(o)
+    FILTERS outOrder (o)
 
     OBJECTS i = Invoice FIXED GRID
     PROPERTIES (i) READONLY isPostedInvoice 
@@ -68,9 +77,9 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
                                 printConsignmentVerticalB, printConsignmentHorizontalB,
                                 printConsignmentAttach, printConsignmentSimpleHorizontal, editConsignment,
                                 printConsignmentSimpleVertical, printConsignmentSimpleAttach
-                                
-        FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=d DEFAULT
-        FILTERGROUP filters1 FILTER 'Накладные на дату' 'F5' dateInvoice(i)==d DEFAULT
+    FILTERS outInvoice (i)                            
+    FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=d DEFAULT
+    FILTERGROUP filters1 FILTER 'Накладные на дату' 'F5' dateInvoice(i)==d DEFAULT
 ;
 
 DESIGN consignmentDashboard FROM DEFAULT {
