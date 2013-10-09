@@ -665,7 +665,8 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
 
     nameQuantity###stockExtra (stock)= [FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(кол-во)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
     namePrice###stockExtra (stock)= [FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(цена)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
-
+    
+    not###stockProp###object (o) = NOT stockProp###object(o);
     EXTEND FORM form
 
         TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
@@ -682,7 +683,7 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
         OBJECTS cc = Stock FIXED GRID
 
         OBJECTS           sts=(st=Stock, ks=Sku)
-        PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks), stockName = nameStock(st)
+        PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks), stockName = nameStock(st) SHOWIF not###stockProp###object(concrete) 
         PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
         FILTERS           isParentSkuGroupSku(sk, ks),
                           (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
@@ -710,8 +711,8 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
 
     EXTEND DESIGN form {
         specification.box {
+            type = TABBED;
             NEW itemBox {
-                fill = 1;
                 caption = 'Подбор';
                 type = SPLITH;
 
@@ -722,17 +723,128 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
                     ADD skuTree.tree.box { caption = 'Группы SKU'; }
                 }
                 NEW skuMainPane {
-                    fill = 3;
+                    fill = 2.5;
                     type = CONTAINERV;
                     NEW skuSelectPane {
                         fill = 1;
                         type = CONTAINERV;
-                        ADD sts.box;
+                        ADD sts.box {
+                            caption = 'Товары';
+                        }
                     }
                 }
             }
         }
         PROPERTY(prevCurrentBalanceSkuStock) { background = #FFEEEE; }
+    }    
+    
+END
+
+// ----------- Подбор (партия / несколько складов / несколько складов покупателей)---------------//
+
+META defineDocumentBatchStockExtraPriceListTypeAgreement(object, stockProp, stockExtra)
+    @defineDocumentBatchStockExtra(object, batch, sku, stockProp, stockExtra);
+        
+    priceListType###object###stock###batch 'Вид цен для склада пок-ля' (object, stockExtra, batch) = priceListType###object###stock###sku(object, stockExtra, skuBatch(batch));
+
+    ledgerPriceBatchStock###object###stockExtra 'Цена (базовая)' (batch, stockProp, object, stockExtra) = prevPriceBPriceListTypeBatchStockDateTime(priceListType###object###stock###batch(object, stockExtra, batch), batch, stockProp, dateTime###object(object));
+
+    viewPriceBatchStock###object###stockExtra 'Цена' (batch, stockProp, object, stockExtra) = DATA SESSION NUMERIC[14,2] (Batch, Stock, ###object, Stock);
+
+    priceBatchStock###object###stockExtra 'Цена' (batch, stockProp, object, stockExtra) = viewPriceBatchStock###object###stockExtra(batch, stockProp, object, stockExtra);
+
+    updateViewPriceBatchStock###object###stockExtra (batch, stockProp, object, stockExtra) = ACTION {
+        FOR pt == priceListType###object###stock###batch(object, stockExtra, batch) AND stockProp IS Stock NOINLINE (pt) DO
+            viewPriceBatchStock###object###stockExtra(batch, stockProp, object, stockExtra) <- prevPriceBPriceListTypeBatchStockDateTime(pt, batch, stockProp, dateTime###object(object));
+    }
+END
+META defineDocumentBatchStockExtraPriceListTypeSystemLedger(object, priceListTypeProp, stockProp, stockExtra)
+    @defineDocumentBatchStockExtra(object, batch, sku, stockProp, stockExtra);
+    priceBatchStock###object###stockExtra 'Цена' (batch, stockProp, object, stockExtra) = prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp, dateTime###object(object)) AND stockExtra IS Stock;
+END
+
+META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp, stockExtra)
+
+    detail###Batch###object###stockProp###stockExtra (sku, object, stockProp, stockExtra) =  GROUP MAX detail
+        BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
+
+    quantityBatch###object###stockProp###stockExtra 'Кол-во товара в документе' (sku, object, stockProp, stockExtra) = GROUP SUM quantity###detail(detail)
+        BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
+
+    quantityBatch###object###stockProp 'Итого' (sku, object, stockProp) = GROUP SUM quantity###detail(detail)
+        BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail);
+
+    backgroundQuantityBatch###object###Stock 'Цвет' (batch, object, stock) = RGB(255,128,128) IF quantityBatch###object###stockProp(batch, object, stock) AND NOT
+        (quantityBatch###object###stockProp(batch, object, stock) <= currentBalanceBatchStock(batch, stock));
+
+    changeQuantityBatch###object###Stock###stockExtra = ACTION (batch, object, stockProp, stockExtra) {
+        REQUEST NUMERIC[14,3] INPUT;
+        IF detail###Batch###object###stockProp###stockExtra(batch, object, stockProp, stockExtra) THEN {
+            IF requestedNumeric() THEN {
+                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Batch###object###stockProp###stockExtra(batch, object, stockProp, stockExtra);
+            } ELSE {
+                DELETE detail WHERE detail == detail###Batch###object###stockProp###stockExtra(batch, object, stockProp, stockExtra);
+            }
+        } ELSE {
+            IF requestedNumeric() THEN {
+                FOR ADDOBJ d = ###detail DO {
+                   object###detail(d) <- object;
+                   data###stockProp###detail (d) <- stockProp;
+                   skuProp###detail(d) <- skuBatch(batch);
+                   batchProp###detail(d) <- batch;
+                   stockExtra###detail(d) <- stockExtra;
+                   quantity###detail (d) <- requestedNumeric();
+                   shipmentDataDate###detail (d) <- shipmentDate###object(object);
+                   shipmentDataTime###detail (d) <- shipmentTime###object(object);
+                }
+            }
+        }
+    }
+END
+META defineDocumentBatchStockExtra(object, batchProp, skuProp, stockProp, stockExtra)
+    @defineDocumentBatchStockExtra(object, object##Detail, batchProp, skuProp, stockProp, stockExtra);
+END
+
+META extendFormDocumentBatchStockExtraCustom(object, form, concrete, legalEntityProp, stockProp, stockExtra)
+
+    EXTEND FORM form
+        OBJECTS ccc = Stock FIXED GRID
+
+        OBJECTS           stb=(sto=Stock, b=Batch)
+        PROPERTIES(b) READONLY   nameSkuBatch, idBarcodeSkuBatch, shortNameUOMBatch, nameBatch
+        PROPERTIES(sto) READONLY stockName = nameStock SHOWIF not###stockProp###object(concrete)
+
+        FILTERS           isParentSkuGroupBatch(sk, b),
+                          (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
+                          sto == stockProp###object(concrete) AND NOT sg AND NOT ts
+
+        FILTERGROUP stockFilters
+            FILTER 'Собственные склады' 'F6' legalEntityStock(sto) == legalEntityProp###object(concrete) DEFAULT
+        FILTERS           nameSkuBatch(b), nameStock(sto)
+        ORDER BY          nameSkuBatch
+
+        PROPERTIES quantityBatch###object###stockProp(b, concrete, sto) READONLY BACKGROUND backgroundQuantitySku###object###Stock(ks, concrete, sto)
+        PROPERTIES quantityBatch###object###stockProp###stockExtra(b, concrete, sto, ccc)  COLUMNS (ccc) HEADER nameQuantity###stockExtra(ccc) ON CHANGE changeQuantityBatch###object###Stock###stockExtra(b, concrete, sto, ccc)
+        PROPERTIES READONLY prevCurrentBalanceBatchStock(b,sto)
+        PROPERTIES READONLY  priceBatchStock###object###stockExtra(b, sto, concrete, ccc)  COLUMNS (ccc) HEADER namePrice###stockExtra(ccc)
+
+        FILTERS in###object###stock(concrete,ccc)
+
+        FILTERGROUP filtr2
+            FILTER 'С остатком' 'F10' prevCurrentBalanceBatchStock(b, sto) DEFAULT
+            FILTER 'В заказе' 'F9' quantityBatch###object###stockProp(b, concrete, sto)
+
+
+    ;
+
+    EXTEND DESIGN form {
+        skuSelectPane {
+            type = TABBED;
+            ADD stb.box {
+                caption = 'Партии';
+            }
+        }
+        PROPERTY(prevCurrentBalanceBatchStock) { background = #FFEEEE; }
     }
 END
 

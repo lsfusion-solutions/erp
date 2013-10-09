@@ -11,6 +11,9 @@ NAMESPACE Sale;
 @extendFormFilterAccessLegalEntity(BlanketOrder, o, blanketOrders, supplier, company);
 @extendFormFilterAccessLegalEntity(BlanketOrder, o, blanketOrders, customer, customer);
 
+@defineBlanketOrderBatch(supplier, supplierStock, customerStock);
+@defineBlanketOrderBatchDialogStock(supplierStock);
+
 @defineOrderBlanketOrder(' (продажа)');
 
 numeratorBlanketOrderStock(order, stock) <- defaultNumeratorUserOrder() WHEN SET(inBlanketOrderStock(order, stock));
@@ -67,13 +70,14 @@ CONSTRAINT customerBlanketOrder(blanketOrder) AND NOT isCustomerLegalEntity(cust
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 
 @defineDocumentLegalEntityStockAccess(BlanketOrder, supplier, company, blanketOrder);
+@deriveDocumentOperationStock(blanketOrder, supplierStock, blanketOrder);
 
 //------------------------------ Расширение формы -----------------------------//
-
 // Резервы
 @extendFormDocumentSkuStockOrderLedger(blanketOrder, blanketOrder, o);
-
-//@extendFormDocumentBatchStockOrderLedger(blanketOrder, blanketOrder, o);
+@extendFormDocumentBatchStockOrderLedger(blanketOrder, blanketOrder, o);
+// Фильтр в подборе (поставщик)
+@defineDocumentBatchStockSupplier(blanketOrder, blanketOrder, o);
 
 NAVIGATOR {
     saleSaleNavigator {

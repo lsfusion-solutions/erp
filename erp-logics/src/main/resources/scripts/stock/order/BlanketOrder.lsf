@@ -104,7 +104,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
         ELSE priceListTypeBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail))
      WHEN CHANGED(agreementBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail))) OR
           CHANGED(priceListTypeBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail)));
-    @deriveDocumentDetailPricePriceListTypeVAT (blanketOrder, supplierStock); // записываем цены с НДС и без НДС на основе priceListType
+//    @deriveDocumentDetailPricePriceListTypeVAT (blanketOrder, supplierStock); // записываем цены с НДС и без НДС на основе priceListType
 
     @defineDocumentDetailDataSum (blanketOrder); // объявляем сумму без НДС
     @deriveDocumentDetailSum(blanketOrder, quantity);
@@ -419,5 +419,63 @@ META defineOrderBlanketOrder(sign)
 
     editOrder(order) += ACTION EXEC editBlanketOrder(blanketOrderBlanketOrderOrder(order));
 
+END
+
+// Партии приход
+META defineBlanketOrderBatch(legalEntityProp, stockProp, stockExtra)
+    @defineDocumentDetailBatch(blanketOrder, batch);
+
+//    overCopyOrderDetail(d, detail) += ACTION (d, detail) {      
+//        batchUserOrderDetail(d) <- batchUserOrderDetail(detail);
+//    } 
+
+    // Пишем в цену заказа из вида цен в зависимости от партии
+    @deriveDocumentDetailPricePriceListTypeVATBatch(blanketOrder, stockProp, blanketOrder);
+
+    // История по правой кнопке
+    @defineBalancesBatch(blanketOrderDetail); //-- показываем по нажатию правой клавиши остатки партии
+    @defineMovementBatch(blanketOrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
+
+
+    // Подбор
+    @defineDocumentBatchStockExtraPriceListTypeAgreement(blanketOrder, stockProp, stockExtra);      
+    @extendFormDocumentBatchStockExtraCustom(blanketOrder, blanketOrder, o, legalEntityProp, stockProp, stockExtra);
+END
+
+META defineBlanketOrderBatchDialog(dumb)
+    changeBatchBlanketOrderDetail = ACTION (detail) {
+        FORM dialogBatch OBJECTS sk = skuBlanketOrderDetail(detail) MODAL SHOWDROP;
+
+        IF formResult() == FormResult.ok THEN {
+            ASSIGN batchBlanketOrderDetail(detail) <- chosenObject('bt');
+        } ELSE IF formResult() == FormResult.drop THEN {
+            ASSIGN batchBlanketOrderDetail(detail) <- NULL;
+        }
+    }
+
+    EXTEND FORM blanketOrder
+        PROPERTIES (d) nameBatchBlanketOrderDetail ON CHANGE changeBatchBlanketOrderDetail(d) AFTER shortNameUOMSkuBlanketOrderDetail
+    ;
+    EXTEND FORM blanketOrders PROPERTIES (d) READONLY nameBatchBlanketOrderDetail AFTER shortNameUOMSkuBlanketOrderDetail;
+END
+
+META defineBlanketOrderBatchDialogStock(stockProp)
+    changeBatchBlanketOrderDetail = ACTION (blanketOrderDetail) {
+        FORM dialogBatchStock OBJECTS st = stockProp###blanketOrderDetail(blanketOrderDetail),
+                                      t = dateTimeBlanketOrderDetail(blanketOrderDetail),
+                                      sk = skuBlanketOrderDetail(blanketOrderDetail) MODAL SHOWDROP;
+
+        IF formResult() == FormResult.ok THEN {
+            ASSIGN batchBlanketOrderDetail(blanketOrderDetail) <- chosenObject('bt');
+        } ELSE IF formResult() == FormResult.drop THEN {
+            ASSIGN batchBlanketOrderDetail(blanketOrderDetail) <- NULL;
+        }
+
+    };
+
+    EXTEND FORM blanketOrder
+        PROPERTIES (d) nameBatchBlanketOrderDetail ON CHANGE changeBatchBlanketOrderDetail(d) AFTER shortNameUOMSkuBlanketOrderDetail
+    ;
+    EXTEND FORM blanketOrders PROPERTIES (d) READONLY nameBatchBlanketOrderDetail AFTER shortNameUOMSkuBlanketOrderDetail;
 END
 
