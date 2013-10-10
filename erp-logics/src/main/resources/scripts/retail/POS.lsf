@@ -11,7 +11,7 @@ EXTEND FORM groupCashRegister
 
 // ----------------------------- Кассовый модуль ---------------- //
 
-POSPriceListTypeReceipt (receipt) = priceListTypeGroupMachinery(groupCashRegisterReceipt(receipt));
+POSPriceListTypeReceipt (receipt) = OVERRIDE priceListTypeGroupMachinery(groupCashRegisterReceipt(receipt)), priceListTypeDiscountCard(discountCardReceipt(receipt));
 
 POSPriceSkuReceiptDateTime 'Цена в кассе' (sku, receipt, dateTime) =
     IF usePriceListGroupCashRegister(groupCashRegisterReceipt(receipt)) THEN
@@ -883,8 +883,18 @@ DESIGN POS FROM DEFAULT {
     REMOVE functions.box CASCADE;
 }
 
+recalculatedPriceReceipt 'Пересчитать цены чека' = ACTION (receipt){
+    FOR receiptReceiptSaleDetail(detail) == receipt DO {
+        IF posNotExplicitBatchLedgerReceipt(receipt) THEN 
+            priceReceiptSaleDetail(detail) <- currentPOSPriceSkuReceipt(skuReceiptSaleDetail(detail), receipt)
+        ELSE 
+            priceReceiptSaleDetail(detail) <- currentPOSPriceBatchReceipt(batchReceiptSaleDetail(detail), receipt);        
+    }
+}
+
 WHEN SESSION FORMS POS CHANGED(quantityReceiptDetailReceipt(receipt)) OR CHANGED(discountCardReceipt(receipt)) OR CHANGED(setUserPromotionReceipt(receipt)) OR CHANGED(discountPercentReceipt(receipt)) DO EXEC calculatePromotionsReceipt(receipt);
 WHEN SESSION FORMS POS CHANGED(quantityReceiptDetail(receiptDetail)) OR CHANGED(sumReceiptDetail(receiptDetail)) DO EXEC fiscalDisplayTextReceiptDetail(receiptDetail);
+WHEN SESSION FORMS POS CHANGED(discountCardReceipt(receipt)) DO EXEC recalculatedPriceReceipt(receipt);
 
 NAVIGATOR {
     retailNavigator {

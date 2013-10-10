@@ -8,7 +8,8 @@ REQUIRE System,
         Store,
         Numerator,
         LegalEntity,
-        Document;
+        Document,
+        PriceListType;
 
 PRIORITY Stock;
 
@@ -41,6 +42,9 @@ TABLE discountSkuGroupSku(DiscountSkuGroup, Sku);
 inDiscountSkuGroupSku 'Вкл' = ABSTRACT BOOLEAN (DiscountSkuGroup, Sku) PERSISTENT;
 
 initialSumDiscountCard 'Начальная сумма' (discountCard) = DATA NUMERIC[16,2] (DiscountCard);
+
+priceListTypeDiscountCard = DATA PriceListType (DiscountCard);
+namePriceListTypeDiscountCard 'Вид цен для дисконтных карт' (DiscountCard) = namePriceListType(priceListTypeDiscountCard(DiscountCard));
 
 // накопительная сумма  : потом посчитать ее по карте
 
@@ -81,7 +85,7 @@ FORM discountCard 'Дисконтная карта'
     OBJECTS d=DiscountCard FIXED PANEL
     PROPERTIES(d) nameLegalEntityDiscountCard, idDiscountCard SHOWIF showIDs(), initialSumDiscountCard,
                   nameNumeratorDiscountCard, numberDiscountCard, seriesDiscountCard,
-                  dateDiscountCard, dateToDiscountCard
+                  dateDiscountCard, dateToDiscountCard, namePriceListTypeDiscountCard
 
     EDIT DiscountCard OBJECT d
 ;
@@ -98,6 +102,9 @@ DESIGN discountCard FROM DEFAULT {
                         font = '24';
                     }
                     ADD PROPERTY(initialSumDiscountCard) {
+                        font = '24';
+                    }                    
+                    ADD PROPERTY(namePriceListTypeDiscountCard) {
                         font = '24';
                     }
                 }
@@ -119,15 +126,15 @@ FORM discountCardDialog 'Дисконтные карты'
 
     OBJECTS d = DiscountCard
     PROPERTIES(d) READONLY numberDiscountCard, seriesDiscountCard, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, initialSumDiscountCard,
-                         dateDiscountCard, dateToDiscountCard
+                         namePriceListTypeDiscountCard, dateDiscountCard, dateToDiscountCard
 
     DIALOG DiscountCard OBJECT d
 ;
 
 FORM discountCards 'Дисконтные карты'
     OBJECTS d=DiscountCard
-    PROPERTIES(d) READONLY numberDiscountCard, seriesDiscountCard, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, dateDiscountCard, dateToDiscountCard,
-                  initialSumDiscountCard
+    PROPERTIES(d) READONLY numberDiscountCard, seriesDiscountCard, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, 
+                           namePriceListTypeDiscountCard, dateDiscountCard, dateToDiscountCard, initialSumDiscountCard
     PROPERTIES(d) ADDFORM, EDITFORM, DELETE
 
     ORDER BY seriesDiscountCard, numberDiscountCard
