@@ -9,20 +9,23 @@ import java.io.IOException;
 public class FiscalShtrihCustomOperationClientAction implements ClientAction {
 
     int type;
-    int baudRate;
+    int password;
     int comPort;
+    int baudRate;
 
-    public FiscalShtrihCustomOperationClientAction(int type, Integer baudRate, Integer comPort) {
+    public FiscalShtrihCustomOperationClientAction(int type, int password, Integer comPort, Integer baudRate) {
         this.type = type;
-        this.baudRate = baudRate == null ? 0 : baudRate;
+        this.password = password;
         this.comPort = comPort == null ? 0 : comPort;
+        this.baudRate = baudRate == null ? 0 : baudRate;
+
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
         try {
             FiscalShtrih.init();
-            FiscalShtrih.openPort(comPort, baudRate);
+            FiscalShtrih.openPort(password, comPort, baudRate);
             switch (type) {
                 case 1:
                     FiscalShtrih.xReport();
@@ -31,13 +34,13 @@ public class FiscalShtrihCustomOperationClientAction implements ClientAction {
                     FiscalShtrih.zReport();
                     break;
                 case 3:
-                    FiscalShtrih.advancePaper();
+                    FiscalShtrih.advancePaper(password);
                     break;
                 case 4:
-                    FiscalShtrih.cancelReceipt(true);
+                    FiscalShtrih.cancelReceipt(password, true);
                     break;
                 case 5:
-                    FiscalShtrih.cutReceipt();
+                    FiscalShtrih.cutReceipt(password);
                     break;
                 default:
                     break;

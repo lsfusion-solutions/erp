@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class FiscalShtrih {
 
-    static String password = "30000";
+    static int systemPassword = 30000;
     static ActiveXComponent shtrihActiveXComponent;
     static Dispatch shtrihDispatch;
 
@@ -34,7 +34,7 @@ public class FiscalShtrih {
         }
     };
 
-    public static void openPort(int comPort, int baudRate) throws RuntimeException {
+    public static void openPort(int password, int comPort, int baudRate) throws RuntimeException {
 
         closePort();
 
@@ -53,7 +53,7 @@ public class FiscalShtrih {
         Dispatch.call(shtrihDispatch, "Disconnect");
     }
 
-    public static void openReceipt(boolean sale) throws RuntimeException {
+    public static void openReceipt(int password, boolean sale) throws RuntimeException {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
         shtrihActiveXComponent.setProperty("CheckType", new Variant(sale ? 0 : 2));
 
@@ -61,21 +61,21 @@ public class FiscalShtrih {
         checkErrors(result, true);
     }
 
-    public static boolean cancelReceipt(boolean throwException) throws RuntimeException {
+    public static boolean cancelReceipt(int password, boolean throwException) throws RuntimeException {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
 
         Variant result = Dispatch.call(shtrihDispatch, "CancelCheck");
         return checkErrors(result, throwException);
     }
 
-    public static boolean cutReceipt() throws RuntimeException {
+    public static boolean cutReceipt(int password) throws RuntimeException {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
 
         Variant result = Dispatch.call(shtrihDispatch, "CutCheck");
         return checkErrors(result, true);
     }
 
-    public static boolean printFiscalText(String msg) throws RuntimeException {
+    public static boolean printFiscalText(int password, String msg) throws RuntimeException {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
         shtrihActiveXComponent.setProperty("UseReceiptRibbon", new Variant(true));
         shtrihActiveXComponent.setProperty("UseJournalRibbon", new Variant(true));
@@ -88,20 +88,20 @@ public class FiscalShtrih {
     }
 
     public static void zReport() throws RuntimeException {
-        shtrihActiveXComponent.setProperty("Password", new Variant(password));
+        shtrihActiveXComponent.setProperty("Password", new Variant(systemPassword));
 
         Variant result = Dispatch.call(shtrihDispatch, "PrintReportWithCleaning");
         checkErrors(result, true);
     }
 
     public static void xReport() throws RuntimeException {
-        shtrihActiveXComponent.setProperty("Password", new Variant(password));
+        shtrihActiveXComponent.setProperty("Password", new Variant(systemPassword));
 
         Variant result = Dispatch.call(shtrihDispatch, "PrintReportWithoutCleaning");
         checkErrors(result, true);
     }
 
-    public static void advancePaper() throws RuntimeException {
+    public static void advancePaper(int password) throws RuntimeException {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
         shtrihActiveXComponent.setProperty("StringQuantity", new Variant(3));
         shtrihActiveXComponent.setProperty("UseSlipDocument", new Variant(true));
@@ -112,7 +112,7 @@ public class FiscalShtrih {
         checkErrors(result, true);
     }
 
-    public static boolean inOut(Long sum) throws RuntimeException {
+    public static boolean inOut(int password, Long sum) throws RuntimeException {
 
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
         shtrihActiveXComponent.setProperty("Summ1", new Variant(Math.abs(sum)));
@@ -122,7 +122,7 @@ public class FiscalShtrih {
     }
 
 
-    public static boolean openDrawer() throws RuntimeException {
+    public static boolean openDrawer(int password) throws RuntimeException {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
         shtrihActiveXComponent.setProperty("DrawerNumber", new Variant(0));
 
@@ -130,9 +130,9 @@ public class FiscalShtrih {
         return checkErrors(result, true);
     }
 
-    public static void registerItem(boolean sale, ReceiptItem item) throws RuntimeException {
+    public static void registerItem(int password, boolean sale, ReceiptItem item) throws RuntimeException {
 
-        printFiscalText(item.name.substring(0, Math.min(item.name.length(), 40)));
+        printFiscalText(password, item.name.substring(0, Math.min(item.name.length(), 40)));
 
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
         shtrihActiveXComponent.setProperty("Quantity", new Variant(item.quantity.doubleValue()));
@@ -144,7 +144,7 @@ public class FiscalShtrih {
 
     }
 
-    public static void discountItem(ReceiptItem item, Boolean isReturn) throws RuntimeException {
+    public static void discountItem(int password, ReceiptItem item, Boolean isReturn) throws RuntimeException {
         if (item.discount != null) {
             shtrihActiveXComponent.setProperty("Password", new Variant(password));
             shtrihActiveXComponent.setProperty("Summ1", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
@@ -154,7 +154,7 @@ public class FiscalShtrih {
         }
     }
 
-    public static void closeReceipt(ReceiptInstance receipt) throws RuntimeException {
+    public static void closeReceipt(int password, ReceiptInstance receipt) throws RuntimeException {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
         shtrihActiveXComponent.setProperty("Summ1", new Variant(receipt.sumCash));
         shtrihActiveXComponent.setProperty("Summ2", new Variant(receipt.sumCard));
@@ -164,14 +164,14 @@ public class FiscalShtrih {
         checkErrors(result, true);
     }
 
-    public static void beep() throws RuntimeException {
+    public static void beep(int password) throws RuntimeException {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
 
         Variant result = Dispatch.call(shtrihDispatch, "Beep");
         checkErrors(result, true);
     }
 
-    public static void continuePrint() throws RuntimeException {
+    public static void continuePrint(int password) throws RuntimeException {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
 
         Variant result = Dispatch.call(shtrihDispatch, "ContinuePrint");
@@ -184,10 +184,10 @@ public class FiscalShtrih {
             if (throwException)
                 throw new RuntimeException(resultCodeDescription);
             else return false;
-        } else return checkRibbonState();
+        } else return checkRibbonState(systemPassword);
     }
 
-    public static boolean checkRibbonState() {
+    public static boolean checkRibbonState(int password) {
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
         int result = 1;
         while (result != 0) {
@@ -198,22 +198,45 @@ public class FiscalShtrih {
             Dispatch.call(shtrihDispatch, "GetShortECRStatus");
             result = shtrihActiveXComponent.getPropertyAsInt("ECRAdvancedMode");
             if (result == 3)
-                continuePrint();
+                continuePrint(password);
         }
 
         return true;
     }
 
-    public static void printReceipt(ReceiptInstance receipt, boolean sale) {
+    public static void printReceipt(int password, ReceiptInstance receipt, boolean sale) {
 
-        openReceipt(sale);
+        openReceipt(password, sale);
 
         for (ReceiptItem item : (receipt.receiptList)) {
-            registerItem(sale, item);
-            discountItem(item, !sale);
+            registerItem(password, sale, item);
+            discountItem(password, item, !sale);
         }
 
-        closeReceipt(receipt);
+        closeReceipt(password, receipt);
+    }
+
+    public static void resetOperatorTable() {
+        shtrihActiveXComponent.setProperty("Password", systemPassword);
+        shtrihActiveXComponent.setProperty("TableNumber", new Variant(2));
+        Variant result = Dispatch.call(shtrihDispatch, "InitTable");
+        checkErrors(result, true);
+    }
+    
+    public static void setOperatorName(UpdateDataOperator operator, int operatorNumber) {
+
+        shtrihActiveXComponent.setProperty("Password", new Variant(systemPassword));
+        shtrihActiveXComponent.setProperty("TableNumber", new Variant(2));
+        shtrihActiveXComponent.setProperty("RowNumber", new Variant(operatorNumber));
+        shtrihActiveXComponent.setProperty("FieldNumber", new Variant(2));  //Имя кассира
+        shtrihActiveXComponent.setProperty("ValueOfFieldString", new Variant(operator.operatorName));
+        Variant result = Dispatch.call(shtrihDispatch, "WriteTable");
+        checkErrors(result, true);
+
+        shtrihActiveXComponent.setProperty("FieldNumber", new Variant(1));  //Пароль кассира
+        shtrihActiveXComponent.setProperty("ValueOfFieldInteger", new Variant(operator.operatorPassword));
+        result = Dispatch.call(shtrihDispatch, "WriteTable");
+        checkErrors(result, true);
     }
 }
 

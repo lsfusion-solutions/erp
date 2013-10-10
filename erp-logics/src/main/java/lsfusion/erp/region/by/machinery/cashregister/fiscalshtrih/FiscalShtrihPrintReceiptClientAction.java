@@ -7,14 +7,16 @@ import java.io.IOException;
 
 
 public class FiscalShtrihPrintReceiptClientAction implements ClientAction {
-    int baudRate;
+    int password;
     int comPort;
+    int baudRate;
     Boolean isReturn;
     ReceiptInstance receipt;
     
-    public FiscalShtrihPrintReceiptClientAction(Integer baudRate, Integer comPort, Boolean isReturn, ReceiptInstance receipt) {
-        this.baudRate = baudRate == null ? 0 : baudRate;
+    public FiscalShtrihPrintReceiptClientAction(int password, Integer comPort, Integer baudRate, Boolean isReturn, ReceiptInstance receipt) {
+        this.password = password;
         this.comPort = comPort == null ? 0 : comPort;
+        this.baudRate = baudRate == null ? 0 : baudRate;
         this.isReturn = isReturn;
         this.receipt = receipt;
     }
@@ -25,12 +27,12 @@ public class FiscalShtrihPrintReceiptClientAction implements ClientAction {
         try {
             FiscalShtrih.init();
 
-            FiscalShtrih.openPort(comPort, baudRate);
-            FiscalShtrih.printReceipt(receipt, !isReturn);
+            FiscalShtrih.openPort(password, comPort, baudRate);
+            FiscalShtrih.printReceipt(password, receipt, !isReturn);
             FiscalShtrih.closePort();
 
         } catch (RuntimeException e) {
-            FiscalShtrih.cancelReceipt(false);
+            FiscalShtrih.cancelReceipt(password, false);
             FiscalShtrih.closePort();
             return e.getMessage();
         }

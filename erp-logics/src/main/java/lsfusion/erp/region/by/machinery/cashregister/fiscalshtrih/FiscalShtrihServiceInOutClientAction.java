@@ -9,13 +9,15 @@ import java.math.BigDecimal;
 
 public class FiscalShtrihServiceInOutClientAction implements ClientAction {
 
-    int baudRate;
+    int password;
     int comPort;
+    int baudRate;
     BigDecimal sum;
 
-    public FiscalShtrihServiceInOutClientAction(Integer baudRate, Integer comPort, BigDecimal sum) {
-        this.baudRate = baudRate == null ? 0 : baudRate;
+    public FiscalShtrihServiceInOutClientAction(int password, Integer comPort, Integer baudRate, BigDecimal sum) {
+        this.password = password;
         this.comPort = comPort == null ? 0 : comPort;
+        this.baudRate = baudRate == null ? 0 : baudRate;
         this.sum = sum;
     }
 
@@ -25,9 +27,9 @@ public class FiscalShtrihServiceInOutClientAction implements ClientAction {
         try {
             FiscalShtrih.init();
 
-            FiscalShtrih.openPort(comPort, baudRate);
-            FiscalShtrih.inOut(sum.longValue());
-            FiscalShtrih.openDrawer();
+            FiscalShtrih.openPort(password, comPort, baudRate);
+            FiscalShtrih.inOut(password, sum.longValue());
+            FiscalShtrih.openDrawer(password);
             FiscalShtrih.closePort();
 
         } catch (RuntimeException e) {

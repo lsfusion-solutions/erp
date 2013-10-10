@@ -20,8 +20,10 @@ public class FiscalShtrihXReportActionProperty extends ScriptingActionProperty {
         try {
             Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
             Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
-
-            String result = (String) context.requestUserInteraction(new FiscalShtrihCustomOperationClientAction(1, baudRate, comPort));
+            Integer pass = (Integer) LM.findLCPByCompoundName("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+            int password = pass==null ? 30000 : pass * 1000;
+            
+            String result = (String) context.requestUserInteraction(new FiscalShtrihCustomOperationClientAction(1, password, comPort, baudRate));
             if (result == null) {
                 context.apply();
             }

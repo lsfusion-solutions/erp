@@ -29,11 +29,14 @@ public class FiscalShtrihServiceInOutActionProperty extends ScriptingActionPrope
 
             Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
             Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
+            Integer pass = (Integer) LM.findLCPByCompoundName("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+            int password = pass==null ? 30000 : pass * 1000;
+            
             Boolean isDone = LM.findLCPByCompoundName("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
             BigDecimal sum = (BigDecimal) LM.findLCPByCompoundName("sumCashOperation").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
-                String result = (String) context.requestUserInteraction(new FiscalShtrihServiceInOutClientAction(baudRate, comPort, sum));
+                String result = (String) context.requestUserInteraction(new FiscalShtrihServiceInOutClientAction(password, comPort, baudRate, sum));
                 if (result == null) {
                     LM.findLCPByCompoundName("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
                 } else

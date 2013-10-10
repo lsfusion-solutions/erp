@@ -43,6 +43,8 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
 
             Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
             Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
+            Integer pass = (Integer) LM.findLCPByCompoundName("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+            int password = pass==null ? 30000 : pass * 1000;
 
             String cashierName = (String) LM.findLCPByCompoundName("nameUserReceipt").read(context, receiptObject);
             cashierName = cashierName == null ? "" : cashierName.trim();
@@ -134,7 +136,7 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
                 if (context.checkApply()) {
                     Boolean isReturn = receiptReturnItemList.size() > 0;
                     String result = (String) context.requestUserInteraction(
-                            new FiscalShtrihPrintReceiptClientAction(baudRate, comPort, isReturn,
+                            new FiscalShtrihPrintReceiptClientAction(password, comPort, baudRate, isReturn,
                                     new ReceiptInstance(sumCash == null ? null : sumCash.abs(),
                                             sumCard == null ? null : sumCard.abs(),
                                             sumGiftCard == null ? null : sumGiftCard.abs(),
