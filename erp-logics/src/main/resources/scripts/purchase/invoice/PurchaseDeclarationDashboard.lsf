@@ -1,0 +1,84 @@
+MODULE PurchaseDeclarationDashboard;
+
+REQUIRE Dashboard, PurchaseDeclarationDetail;
+
+NAMESPACE Purchase;
+
+selectedUserInvoice 'Отм.' = DATA SESSION BOOLEAN (UserInvoice); 
+minSelectedUserInvoice = GROUP MIN i IF selectedUserInvoice(i); 
+
+countSelectedUserInvoice 'Кол-во отм.' = GROUP SUM 1 IF selectedUserInvoice(invoice);
+
+countSelectedCustomerUserInvoices 'Кол-во получателей' = GROUP SUM 1 IF [GROUP SUM 1 IF selectedUserInvoice(invoice) BY customerUserInvoice(invoice)](invoice);
+countSelectedCurrencyUserInvoices 'Кол-во валют' = GROUP SUM 1 IF [GROUP SUM 1 IF selectedUserInvoice(invoice) BY currencyUserInvoice(invoice)](invoice);
+
+createMultiDeclaration 'Создать декларацию' = ACTION (invoice) {
+    IF countSelectedUserInvoice() THEN {
+        IF countSelectedCustomerUserInvoices()!=1 OR countSelectedCurrencyUserInvoices() != 1 THEN {
+            MESSAGE 'Выбраны накладные с разными покупателями или валютами';               
+        } ELSE {
+            FOR ADDOBJ d = Declaration DO {
+                legalEntityDeclaration(d) <- customerUserInvoice(minSelectedUserInvoice());
+                currencyDeclaration(d) <- currencyUserInvoice(minSelectedUserInvoice());
+                FOR selectedUserInvoice(i) DO {
+                    declarationUserInvoice(i) <- d;
+                }
+                FORM declaration OBJECTS d=d DOCKEDMODAL;
+                IF formResult() == FormResult.ok THEN {
+                    apply();
+                } ELSE {
+                    DELETE d;
+                }  
+            }         
+        }
+    } ELSE {
+        FOR ADDOBJ d = Declaration DO {
+            legalEntityDeclaration(d) <- customerUserInvoice(invoice);
+            currencyDeclaration(d) <- currencyUserInvoice(invoice);                
+            declarationUserInvoice(invoice) <- d;
+          
+            FORM declaration OBJECTS d=d DOCKEDMODAL;  
+            IF formResult() == FormResult.ok THEN {
+                apply();
+            } ELSE {
+                DELETE d;
+            }                           
+        }          
+    }    
+} TOOLBAR;
+
+
+FORM declarationDashboard 'Таможенное оформление'
+
+    OBJECTS dt = DATE FIXED PANEL
+    PROPERTIES(dt) date = OBJVALUE
+
+    OBJECTS i=UserInvoice FIXED GRID
+    PROPERTIES (i) selectedUserInvoice
+    PROPERTIES (i) READONLY isPostedUserInvoice, numberUserInvoice, seriesUserInvoice, dateUserInvoice, timeUserInvoice,                                 
+                   nameSupplierUserInvoice, nameCustomerUserInvoice, 
+                   nameCurrencyUserInvoice, countUserInvoiceDetailUserInvoice, quantityUserInvoiceDetailUserInvoice, sumUserInvoiceDetailUserInvoice,
+                   VATSumUserInvoiceDetailUserInvoice, invoiceSumUserInvoiceDetailUserInvoice
+
+    PROPERTIES (i) createMultiDeclaration FORCE PANEL TOOLBAR
+    FILTERS        showDeclarationUserInvoice(i), 
+                   TRUE AND NOT  declarationUserInvoice(i)
+    
+    OBJECTS d = Declaration FIXED GRID
+    PROPERTIES(d)  READONLY isPostedDeclaration FORCE GRID, numberDeclaration, seriesDeclaration, dateDeclaration, timeDeclaration,
+                   nameLegalEntityDeclaration, nameHomeCurrencyDeclaration, nameCurrencyDeclaration, 
+                   sumDeclarationDetailDeclaration, deliverySumDeclaration, chargeSumDeclaration,
+                   homeSumDeclarationDetailDeclaration, dutySumDeclarationDetailDeclaration, VATSumDeclarationDetailDeclaration, 
+                   registrationSumDeclaration
+    PROPERTIES(d)  ADDFORM, EDITFORM, deleted =DELETE FORCE PANEL TOOLBAR                       
+                       
+    FILTERGROUP filters FILTER 'Накладные на дату' 'F5' dateUserInvoice(i)<=dt DEFAULT
+    FILTERGROUP filters1 FILTER 'Декларации на дату' 'F5' dateDeclaration(d)==dt DEFAULT
+                               
+;
+
+NAVIGATOR {
+    purchaseDashboardNavigator {
+        ADD declarationDashboard;
+    }
+}
