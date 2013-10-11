@@ -275,6 +275,8 @@ sumOutSkuLedger 'Сумма' (ledger) = ABSTRACT NUMERIC[16,2] (OutSkuLedger) PE
 
 signedSumSkuLedger 'Сумма' (ledger) = MULTI sumInSkuLedger(ledger),
                                             -sumOutSkuLedger(ledger) PERSISTENT;
+                                            
+signedPriceSkuLedger 'Цена' (ledger)= signedSumSkuLedger(ledger)/signedQuantitySkuLedger(ledger) IF NOT signedQuantitySkuLedger(ledger) == 0.0;                                            
 
 // ---------------------------- Остаток по товару -------------------------------- //
 
@@ -746,7 +748,8 @@ FORM currentBalanceSkuStock 'Текущие остатки'
 
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
-                    signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
+                    signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, skipSkuLedger
+                    
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==s AND stockSkuLedger(bil)==st
     ORDER BY dateTimeSkuLedger DESC
 
@@ -832,7 +835,7 @@ FORM balanceSkuStock 'Остатки на дату'
 
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
-                    signedQuantitySkuLedger, signedSumSkuLedger
+                    signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==s AND stockSkuLedger(bil)==st
     ORDER BY dateTimeSkuLedger DESC
 
@@ -913,7 +916,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
 
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
-                    signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
+                    signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, skipSkuLedger
     FILTERS isPostedSkuLedger(bil) AND costSkuLedgerBatch(bil, bt) AND stockSkuLedger(bil)==st   //skuSkuLedger(bil)==skuBatch(bt)
     ORDER BY dateTimeSkuLedger DESC
 
@@ -1005,7 +1008,7 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
 
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
-                    signedQuantitySkuLedger, signedSumSkuLedger, skipSkuLedger
+                    signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, skipSkuLedger
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==skuBatch(bt) AND stockSkuLedger(bil)==st,
             dateTimeSkuLedger(bil) < t
     ORDER BY dateTimeSkuLedger DESC
@@ -1086,7 +1089,7 @@ FORM skuLedger 'Регистр движений'
 
     OBJECTS s = SkuLedger
     PROPERTIES(s) READONLY numberSkuLedger, seriesSkuLedger, dateSkuLedger, dateTimeSkuLedger, canonicalNameSkuGroupSkuLedger, nameSkuSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
-                           nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger, costSumSkuLedger
+                           nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, costSumSkuLedger
     FILTERS isPostedSkuLedger(s)
 
     FILTERS dateSkuLedger(s) >= dFrom, dateSkuLedger(s) <= dTo

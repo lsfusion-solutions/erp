@@ -6,6 +6,7 @@ NAMESPACE Stock;
 
 // -------------------------------- Движение товара -------------------------- //
 
+currentAccountPriceASkuStock 'Цена учетная' (sku, stock) = prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stock, currentDateTime());
 accountPriceASkuStockSkuLedger 'Цена учетная' (sku, stock, ledger) = prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTimeSkuLedger(ledger));
 accountPriceASkuSkuLedger 'Цена учетная' (sku, ledger)= prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
 
@@ -15,8 +16,8 @@ FORM movementSku 'Движение товара'
 
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
-                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger,
-                             balanceASkuLedger
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger, 
+                             signedSumSkuLedger, balanceASkuLedger
     PROPERTIES(s,bil) READONLY accountPriceASkuSkuLedger                        
     ORDER BY dateTimeSkuLedger
     FILTERS skuSkuLedger(bil) == s,
@@ -34,7 +35,7 @@ FORM movementSkuStock 'Движение товара по складу'
 
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
-                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger,
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger,
                              signedSumSkuLedger , balanceASkuLedger
     PROPERTIES(s,st,bil) READONLY accountPriceASkuStockSkuLedger                           
     ORDER BY dateTimeSkuLedger
@@ -66,7 +67,7 @@ FORM balancesSkuStock 'Остатки'
 
     OBJECTS st = Stock
     PROPERTIES(st) READONLY idStock, nameStock
-    PROPERTIES READONLY currentBalanceSkuStock(s,st)
+    PROPERTIES READONLY currentBalanceSkuStock(s,st), currentAccountPriceASkuStock(s,st)
 
     ORDER BY idStock
     FILTERS currentBalanceSkuStock(s,st),
@@ -89,7 +90,7 @@ FORM movementBatch 'Движение по партии'
 
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
-                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger
+                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger
 
     PROPERTIES      READONLY balanceABatchLedger(bt,bil), accountPriceABatchSkuLedger(bt,bil)
            
@@ -109,7 +110,7 @@ FORM movementBatchStock 'Движение по партии'
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
                              nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger,
-                             signedSumSkuLedger
+                             signedPriceSkuLedger, signedSumSkuLedger
     PROPERTIES      READONLY balanceABatchLedger(bt,bil), accountPriceABatchStockSkuLedger(bt,st,bil)
 
     ORDER BY dateTimeSkuLedger
@@ -144,7 +145,7 @@ FORM balancesBatchStock 'Остатки'
 
     OBJECTS st = Stock
     PROPERTIES(st) READONLY idStock, nameStock
-    PROPERTIES READONLY currentBalanceBatchStock(bt,st)
+    PROPERTIES READONLY currentBalanceBatchStock(bt,st), currentAccountPriceBatchStock(bt,st)
 
     ORDER BY idStock
     FILTERS currentBalanceBatchStock(bt,st),
