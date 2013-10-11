@@ -1,10 +1,13 @@
 MODULE StockMovement;
 
-REQUIRE SkuLedger, EmployeeStock;
+REQUIRE SkuLedger, EmployeeStock, PriceListLedger;
 
 NAMESPACE Stock;
 
 // -------------------------------- Движение товара -------------------------- //
+
+accountPriceASkuStockSkuLedger 'Цена учетная' (sku, stock, ledger) = prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTimeSkuLedger(ledger));
+accountPriceASkuSkuLedger 'Цена учетная' (sku, ledger)= prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
 
 FORM movementSku 'Движение товара'
     OBJECTS s = Sku FIXED PANEL
@@ -14,6 +17,7 @@ FORM movementSku 'Движение товара'
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
                              nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger,
                              balanceASkuLedger
+    PROPERTIES(s,bil) READONLY accountPriceASkuSkuLedger                        
     ORDER BY dateTimeSkuLedger
     FILTERS skuSkuLedger(bil) == s,
             isPostedSkuLedger(bil),
@@ -32,6 +36,7 @@ FORM movementSkuStock 'Движение товара по складу'
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
                              nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger,
                              signedSumSkuLedger , balanceASkuLedger
+    PROPERTIES(s,st,bil) READONLY accountPriceASkuStockSkuLedger                           
     ORDER BY dateTimeSkuLedger
     FILTERS skuSkuLedger(bil) == s,
             isPostedSkuLedger(bil),
@@ -75,6 +80,8 @@ END
 
 // -------------------------------- Движение по партии -------------------------- //
 balanceABatchLedger 'Остаток (после)' (batch, ledger) = balanceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
+accountPriceABatchStockSkuLedger 'Цена учетная' (batch, stock, ledger)= prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTimeSkuLedger(ledger));
+accountPriceABatchSkuLedger 'Цена учетная' (batch, ledger)= prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
 
 FORM movementBatch 'Движение по партии'
     OBJECTS bt = Batch FIXED PANEL
@@ -84,7 +91,8 @@ FORM movementBatch 'Движение по партии'
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
                              nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedSumSkuLedger
 
-    PROPERTIES      READONLY balanceABatchLedger(bt,bil) //costSkuLedgerBatch(bil, bt),
+    PROPERTIES      READONLY balanceABatchLedger(bt,bil), accountPriceABatchSkuLedger(bt,bil)
+           
     ORDER BY dateTimeSkuLedger
     FILTERS costSkuLedgerBatch(bil, bt),
             isPostedSkuLedger(bil),
@@ -102,7 +110,7 @@ FORM movementBatchStock 'Движение по партии'
     PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
                              nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger,
                              signedSumSkuLedger
-    PROPERTIES      READONLY balanceABatchLedger(bt,bil) //costSkuLedgerBatch(bil, bt),
+    PROPERTIES      READONLY balanceABatchLedger(bt,bil), accountPriceABatchStockSkuLedger(bt,st,bil)
 
     ORDER BY dateTimeSkuLedger
     FILTERS costSkuLedgerBatch(bil, bt),
