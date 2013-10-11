@@ -130,7 +130,7 @@ public class FiscalShtrih {
         return checkErrors(result, true);
     }
 
-    public static void registerItem(int password, boolean sale, ReceiptItem item) throws RuntimeException {
+    public static void registerItem(int password, boolean sale, ReceiptItem item, Integer taxRange) throws RuntimeException {
 
         printFiscalText(password, item.name.substring(0, Math.min(item.name.length(), 40)));
 
@@ -138,16 +138,18 @@ public class FiscalShtrih {
         shtrihActiveXComponent.setProperty("Quantity", new Variant(item.quantity.doubleValue()));
         shtrihActiveXComponent.setProperty("Price", new Variant(item.price.doubleValue()));
         shtrihActiveXComponent.setProperty("Department", new Variant(item.isGiftCard ? 3 : 1));
+        shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
 
         Variant result = Dispatch.call(shtrihDispatch, sale ? "Sale" : "ReturnSale");
         checkErrors(result, true);
 
     }
 
-    public static void discountItem(int password, ReceiptItem item, Boolean isReturn) throws RuntimeException {
+    public static void discountItem(int password, ReceiptItem item, Integer taxRange, Boolean isReturn) throws RuntimeException {
         if (item.discount != null) {
             shtrihActiveXComponent.setProperty("Password", new Variant(password));
             shtrihActiveXComponent.setProperty("Summ1", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
+            shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
 
             Variant result = Dispatch.call(shtrihDispatch, item.discount.doubleValue() > 0 ? "Charge" : "Discount");
             checkErrors(result, true);
@@ -159,6 +161,7 @@ public class FiscalShtrih {
         shtrihActiveXComponent.setProperty("Summ1", new Variant(receipt.sumCash));
         shtrihActiveXComponent.setProperty("Summ2", new Variant(receipt.sumCard));
         shtrihActiveXComponent.setProperty("Summ3", new Variant(receipt.sumGiftCard));
+        shtrihActiveXComponent.setProperty("Tax1", new Variant(0));
 
         Variant result = Dispatch.call(shtrihDispatch, "CloseCheck");
         checkErrors(result, true);
@@ -206,19 +209,22 @@ public class FiscalShtrih {
 
     public static void printReceipt(int password, ReceiptInstance receipt, boolean sale) {
 
+        Map<Integer, Integer> taxRanges = getTaxRanges();
+        
         openReceipt(password, sale);
 
         for (ReceiptItem item : (receipt.receiptList)) {
-            registerItem(password, sale, item);
-            discountItem(password, item, !sale);
+            Integer taxRange = taxRanges.get(item.valueVAT.intValue());
+            registerItem(password, sale, item, taxRange);
+            discountItem(password, item, taxRange, !sale);
         }
 
         closeReceipt(password, receipt);
     }
 
-    public static void resetOperatorTable() {
+    public static void resetTable(int tableNumber) {
         shtrihActiveXComponent.setProperty("Password", systemPassword);
-        shtrihActiveXComponent.setProperty("TableNumber", new Variant(2));
+        shtrihActiveXComponent.setProperty("TableNumber", new Variant(tableNumber));
         Variant result = Dispatch.call(shtrihDispatch, "InitTable");
         checkErrors(result, true);
     }
@@ -238,5 +244,42 @@ public class FiscalShtrih {
         result = Dispatch.call(shtrihDispatch, "WriteTable");
         checkErrors(result, true);
     }
+
+    public static void setTaxRate(UpdateDataTaxRate taxRate) {
+
+        shtrihActiveXComponent.setProperty("Password", systemPassword);
+        shtrihActiveXComponent.setProperty("TableNumber", new Variant(6));
+        shtrihActiveXComponent.setProperty("RowNumber", new Variant(taxRate.taxRateNumber));
+        shtrihActiveXComponent.setProperty("FieldNumber", new Variant(1));  //Имя налога
+        shtrihActiveXComponent.setProperty("ValueOfFieldString", new Variant("НДС"));
+        Variant result = Dispatch.call(shtrihDispatch, "WriteTable");
+        checkErrors(result, true);
+
+        shtrihActiveXComponent.setProperty("FieldNumber", new Variant(2));  //Ставка налога
+        shtrihActiveXComponent.setProperty("ValueOfFieldInteger", new Variant(taxRate.taxRateValue.doubleValue() * 100));
+        result = Dispatch.call(shtrihDispatch, "WriteTable");
+        checkErrors(result, true);
+    }
+
+    public static Map<Integer, Integer> getTaxRanges() {
+        Map<Integer, Integer> result = new HashMap<Integer, Integer>();
+        for(int i = 1; i<=4;i++)
+            result.put(readTaxRange(i), i);
+        return result;
+    }
+
+    public static int readTaxRange(int rowNumber) {
+
+        shtrihActiveXComponent.setProperty("Password", systemPassword);
+        shtrihActiveXComponent.setProperty("TableNumber", new Variant(6));
+        shtrihActiveXComponent.setProperty("RowNumber", new Variant(rowNumber));
+        shtrihActiveXComponent.setProperty("FieldNumber", new Variant(1));
+        Variant result = Dispatch.call(shtrihDispatch, "ReadTable");
+        checkErrors(result, true);
+
+        return shtrihActiveXComponent.getPropertyAsInt("ValueOfFieldInteger");
+    }
+    
+    
 }
 

@@ -92,7 +92,7 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
             QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
             String[] rdProperties = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                     "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
-                    "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail"};
+                    "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail"};
             for (String rdProperty : rdProperties)
                 receiptDetailQuery.addProperty(rdProperty, LM.findLCPByCompoundName(rdProperty).getExpr(context.getModifier(), receiptDetailExpr));
             receiptDetailQuery.and(LM.findLCPByCompoundName("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
@@ -112,21 +112,22 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
                 BigDecimal sumReceiptDetail = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
                 BigDecimal discountSumReceiptDetail = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                 discountSumReceiptDetail = discountSumReceiptDetail == null ? null : discountSumReceiptDetail.negate();
+                BigDecimal valueVATReceiptDetail = (BigDecimal) receiptDetailValues.get("valueVATReceiptDetail");
                 String typeReceiptDetail = (String) receiptDetailValues.get("typeReceiptDetail");
                 Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
 
                 if (quantitySale != null && !isGiftCard)
                     receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name,
-                            sumReceiptDetail, discountSumReceiptDetail));
+                            sumReceiptDetail, discountSumReceiptDetail, valueVATReceiptDetail));
                 if (quantity != null && isGiftCard) {
                     receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат",
-                            sumReceiptDetail, discountSumReceiptDetail));
+                            sumReceiptDetail, discountSumReceiptDetail, valueVATReceiptDetail));
                 }
                 if (quantityReturn != null) {
                     BigDecimal discount = discountSumReceiptDetail == null ? BigDecimal.ZERO : discountSumReceiptDetail.divide(quantityReturn);
                     receiptReturnItemList.add(new ReceiptItem(isGiftCard,
                             price, quantityReturn, barcode,
-                            name, sumReceiptDetail, discount));
+                            name, sumReceiptDetail, discount, valueVATReceiptDetail));
                 }
             }
 

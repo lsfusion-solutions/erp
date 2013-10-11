@@ -16,7 +16,7 @@ public class FiscalShtrihUpdateDataClientAction implements ClientAction {
     public FiscalShtrihUpdateDataClientAction(int password, Integer comPort, Integer baudRate, UpdateDataInstance updateData) {
         this.password = password;
         this.comPort = comPort == null ? 0 : comPort;
-        this.baudRate = baudRate == null ? 0 : baudRate;
+        this.baudRate = baudRate== null ? 0 : baudRate;
         this.updateData = updateData;
     }
 
@@ -28,25 +28,17 @@ public class FiscalShtrihUpdateDataClientAction implements ClientAction {
 
             FiscalShtrih.openPort(password, comPort, baudRate);
 
-            FiscalShtrih.resetOperatorTable();
+            FiscalShtrih.resetTable(2);
             if(updateData.operatorList.isEmpty())
                 updateData.operatorList.add(new UpdateDataOperator(1, "Кассир по умолчанию"));
             for (int i = 1; i <= Math.min(updateData.operatorList.size(), 29); i++) {
                 FiscalShtrih.setOperatorName(updateData.operatorList.get(i-1), i);
             }
 
-            /*Double[] rates = new Double[4];
-            for (UpdateDataTaxRate rate : updateData.taxRateList) {
-                if(rate.taxRateNumber<=4)
-                rates[rate.taxRateNumber - 1] = rate.taxRateValue;
-            }
-            String code = "";
-            for (Double rate : rates) {
-                code += (rate == null ? 0 : 1);
-            }
-
-            FiscalShtrih.setMulDecCurRF(code, rates);
-            FiscalShtrih.closePort();*/
+            FiscalShtrih.resetTable(6);
+            for (int i = 1; i <= Math.min(updateData.taxRateList.size(), 4); i++) {
+                FiscalShtrih.setTaxRate(updateData.taxRateList.get(i-1));
+            }            
 
         } catch (RuntimeException e) {
             FiscalShtrih.closePort();

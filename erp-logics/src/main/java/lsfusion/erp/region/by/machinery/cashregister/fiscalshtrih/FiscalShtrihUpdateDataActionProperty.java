@@ -19,6 +19,7 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,11 +38,11 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
             Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(session);
             Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(session);
             Integer pass = (Integer) LM.findLCPByCompoundName("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
-            int password = pass==null ? 30000 : pass * 1000;
+            int password = pass == null ? 30000 : pass * 1000;
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
             KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
-            ImRevMap<Object, KeyExpr> operatorKeys = MapFact.toRevMap((Object)"customUser", customUserExpr, "groupCashRegister", groupCashRegisterExpr);
+            ImRevMap<Object, KeyExpr> operatorKeys = MapFact.toRevMap((Object) "customUser", customUserExpr, "groupCashRegister", groupCashRegisterExpr);
 
             QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<Object, Object>(operatorKeys);
             operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", getLCP("operatorNumberGroupCashRegisterCustomUser").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
@@ -71,19 +72,26 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
             rangeQuery.addProperty("numberRange", getLCP("numberRange").getExpr(context.getModifier(), rangeExpr));
             rangeQuery.addProperty("valueCurrentRateRange", getLCP("valueCurrentRateRange").getExpr(context.getModifier(), rangeExpr));
             rangeQuery.addProperty("countryRange", getLCP("countryRange").getExpr(context.getModifier(), rangeExpr));
+            rangeQuery.addProperty("reverseRange", getLCP("reverseRange").getExpr(context.getModifier(), rangeExpr));
 
             rangeQuery.and(getLCP("countryRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).compare(countryObject.getExpr(), Compare.EQUALS));
             rangeQuery.and(getLCP("taxRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("tax")).compare(taxVATObject.getExpr(), Compare.EQUALS));
             rangeQuery.and(getLCP("numberRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).getWhere());
 
-
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session.sql);
+            int skippedRanges = 0;
             for (ImMap<Object, Object> rangeValues : rangeResult.valueIt()) {
                 Integer number = (Integer) rangeValues.get("numberRange");
-                Double value = (Double) rangeValues.get("valueCurrentRateRange");
-                if (number != null)
-                    taxRateList.add(new UpdateDataTaxRate(number, value));
+                boolean reverseRange = rangeValues.get("reverseRange") != null;
+                BigDecimal value = (BigDecimal) rangeValues.get("valueCurrentRateRange");
+                if (number != null) {
+                    if (reverseRange)
+                        skippedRanges++;
+                    else
+                        taxRateList.add(new UpdateDataTaxRate(number - skippedRanges, value));
+                }
             }
+            
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalShtrihUpdateDataClientAction(password, comPort, baudRate, new UpdateDataInstance(operatorList, taxRateList)));
                 if (result == null)
