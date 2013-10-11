@@ -1,18 +1,15 @@
 package lsfusion.erp.region.by.integration.excel;
 
-import org.apache.commons.lang.time.DateUtils;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import org.apache.commons.lang.time.DateUtils;
 
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.text.ParseException;
 
-public class ImportExcelActionProperty extends ScriptingActionProperty {
+public class ImportExcelActionProperty extends DefaultImportActionProperty {
 
     public ImportExcelActionProperty(ScriptingLogicsModule LM) {
         super(LM);
@@ -32,9 +29,5 @@ public class ImportExcelActionProperty extends ScriptingActionProperty {
 
     protected static Boolean parseBoolean(String value) {
         return value.equals("1") ? true : null;
-    }
-
-    @Override
-    protected void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
     }
 }

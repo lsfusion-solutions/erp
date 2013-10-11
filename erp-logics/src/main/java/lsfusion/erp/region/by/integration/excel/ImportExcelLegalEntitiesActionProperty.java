@@ -83,36 +83,5 @@ public class ImportExcelLegalEntitiesActionProperty extends ImportExcelActionPro
         }
 
         return data;
-    }
-
-    private static String[] getAndTrimOwnershipFromName(String name) {
-        String nameOwnership = "";
-        String shortNameOwnership = "";
-        for (String[] ownership : ownershipsList) {
-            if (name.contains(ownership[0] + " ") || name.contains(" " + ownership[0])) {
-                nameOwnership = ownership[1];
-                shortNameOwnership = ownership[0];
-                name = name.replace(ownership[0], "");
-            }
-        }
-        return new String[]{shortNameOwnership, nameOwnership, name};
-    }
-
-    static String[][] ownershipsList = new String[][]{
-            {"ОАОТ", "Открытое акционерное общество торговое"},
-            {"ОАО", "Открытое акционерное общество"},
-            {"СООО", "Совместное общество с ограниченной ответственностью"},
-            {"ООО", "Общество с ограниченной ответственностью"},
-            {"ОДО", "Общество с дополнительной ответственностью"},
-            {"ЗАО", "Закрытое акционерное общество"},
-            {"ЧТУП", "Частное торговое унитарное предприятие"},
-            {"ЧУТП", "Частное унитарное торговое предприятие"},
-            {"ТЧУП", "Торговое частное унитарное предприятие"},
-            {"ЧУП", "Частное унитарное предприятие"},
-            {"РУП", "Республиканское унитарное предприятие"},
-            {"РДУП", "Республиканское дочернее унитарное предприятие"},
-            {"УП", "Унитарное предприятие"},
-            {"ИП", "Индивидуальный предприниматель"},
-            {"СПК", "Сельскохозяйственный производственный кооператив"},
-            {"СП", "Совместное предприятие"}};
+    }  
 }
