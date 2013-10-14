@@ -55,7 +55,7 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
                 String firstNameContact = (String) operatorValues.get("firstNameContact");
                 String lastNameContact = (String) operatorValues.get("lastNameContact");
                 if (number != null)
-                    operatorList.add(new UpdateDataOperator(number, firstNameContact.trim() + " " + lastNameContact.trim()));
+                    operatorList.add(new UpdateDataOperator(number, (firstNameContact==null ? "" : firstNameContact.trim()) + " " + (lastNameContact==null ? "" : lastNameContact.trim())));
             }
 
             List<UpdateDataTaxRate> taxRateList = new ArrayList<UpdateDataTaxRate>();
