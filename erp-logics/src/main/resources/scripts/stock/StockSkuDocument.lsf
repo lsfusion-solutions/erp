@@ -662,6 +662,8 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
 
     nameQuantity###stockExtra (stock)= [FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(кол-во)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
     namePrice###stockExtra (stock)= [FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(цена)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+    nameBalance###stockExtra (stock)= [FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(остаток)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;    
+    
     
     not###stockProp###object (o) = NOT stockProp###object(o);
     EXTEND FORM form
@@ -761,13 +763,13 @@ END
 
 META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp, stockExtra)
 
-    detail###Batch###object###stockProp###stockExtra (sku, object, stockProp, stockExtra) =  GROUP MAX detail
+    detail###Batch###object###stockProp###stockExtra (batch, object, stockProp, stockExtra) =  GROUP MAX detail
         BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
 
-    quantityBatch###object###stockProp###stockExtra 'Кол-во товара в документе' (sku, object, stockProp, stockExtra) = GROUP SUM quantity###detail(detail)
+    quantityBatch###object###stockProp###stockExtra 'Кол-во товара в документе' (batch, object, stockProp, stockExtra) = GROUP SUM quantity###detail(detail)
         BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
 
-    quantityBatch###object###stockProp 'Итого' (sku, object, stockProp) = GROUP SUM quantity###detail(detail)
+    quantityBatch###object###stockProp 'Итого' (batch, object, stockProp) = GROUP SUM quantity###detail(detail)
         BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail);
 
     backgroundQuantityBatch###object###Stock 'Цвет' (batch, object, stock) = RGB(255,128,128) IF quantityBatch###object###stockProp(batch, object, stock) AND NOT
