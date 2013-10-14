@@ -82,13 +82,13 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
 
             Set<Integer> taxNumbers = new HashSet<Integer>();
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session.sql, MapFact.singletonOrder((Object) "numberRange", false));
-            int i = 1;
+            int i = 2;
             for (ImMap<Object, Object> rangeValues : rangeResult.valueIt()) {
                 Integer number = (Integer) rangeValues.get("numberRange");
                 boolean reverseRange = rangeValues.get("reverseRange") != null;
                 BigDecimal value = (BigDecimal) rangeValues.get("valueCurrentRateRange");
-                if (number != null && value != null && value.intValue() > 0 && !taxNumbers.contains(number)) {
-                    taxNumbers.add(number);
+                if (number != null && value != null && value.intValue() > 0 && !taxNumbers.contains(number) && value.intValue() != 20) {
+                    taxNumbers.add(number); //последняя проверка - костыль: по умолчанию, 1-ый НДС - уже 20%, и его не надо устанавливать. Нумерация начинается с 2.
                     if (!reverseRange) {
                         taxRateList.add(new UpdateDataTaxRate(i, value));
                         i++;
