@@ -46,8 +46,8 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
 
             QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<Object, Object>(operatorKeys);
             operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", getLCP("operatorNumberGroupCashRegisterCustomUser").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
-            operatorQuery.addProperty("userFirstName", getLCP("userFirstName").getExpr(context.getModifier(), customUserExpr));
-            operatorQuery.addProperty("userLastName", getLCP("userLastName").getExpr(context.getModifier(), customUserExpr));
+            operatorQuery.addProperty("firstNameContact", getLCP("firstNameContact").getExpr(context.getModifier(), customUserExpr));
+            operatorQuery.addProperty("lastNameContact", getLCP("lastNameContact").getExpr(context.getModifier(), customUserExpr));
 
             operatorQuery.and(getLCP("operatorNumberGroupCashRegisterCustomUser").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
 
@@ -55,10 +55,10 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
             List<UpdateDataOperator> operatorList = new ArrayList<UpdateDataOperator>();
             for (ImMap<Object, Object> operatorValues : operatorResult.valueIt()) {
                 Integer number = (Integer) operatorValues.get("operatorNumberGroupCashRegisterCustomUser");
-                String userFirstName = (String) operatorValues.get("userFirstName");
-                String userLastName = (String) operatorValues.get("userLastName");
+                String firstNameContact = (String) operatorValues.get("firstNameContact");
+                String lastNameContact = (String) operatorValues.get("lastNameContact");
                 if (number != null)
-                    operatorList.add(new UpdateDataOperator(number * 1000, userFirstName.trim() + " " + userLastName.trim()));
+                    operatorList.add(new UpdateDataOperator(number * 1000, firstNameContact.trim() + " " + lastNameContact.trim()));
             }
 
             List<UpdateDataTaxRate> taxRateList = new ArrayList<UpdateDataTaxRate>();
