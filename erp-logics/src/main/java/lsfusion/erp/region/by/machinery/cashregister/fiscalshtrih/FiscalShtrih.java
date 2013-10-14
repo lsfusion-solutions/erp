@@ -138,7 +138,8 @@ public class FiscalShtrih {
         shtrihActiveXComponent.setProperty("Quantity", new Variant(item.quantity.doubleValue()));
         shtrihActiveXComponent.setProperty("Price", new Variant(item.price.doubleValue()));
         shtrihActiveXComponent.setProperty("Department", new Variant(item.isGiftCard ? 3 : 1));
-        shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
+        if (taxRange != null)
+            shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
 
         Variant result = Dispatch.call(shtrihDispatch, sale ? "Sale" : "ReturnSale");
         checkErrors(result, true);
@@ -149,7 +150,8 @@ public class FiscalShtrih {
         if (item.discount != null) {
             shtrihActiveXComponent.setProperty("Password", new Variant(password));
             shtrihActiveXComponent.setProperty("Summ1", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
-            shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
+            if (taxRange != null)
+                shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
 
             Variant result = Dispatch.call(shtrihDispatch, item.discount.doubleValue() > 0 ? "Charge" : "Discount");
             checkErrors(result, true);
@@ -210,11 +212,11 @@ public class FiscalShtrih {
     public static void printReceipt(int password, ReceiptInstance receipt, boolean sale) {
 
         Map<Integer, Integer> taxRanges = getTaxRanges();
-        
+
         openReceipt(password, sale);
 
         for (ReceiptItem item : (receipt.receiptList)) {
-            Integer taxRange = taxRanges.get(item.valueVAT.intValue());
+            Integer taxRange = item.valueVAT == null ? null : taxRanges.get(item.valueVAT.intValue());
             registerItem(password, sale, item, taxRange);
             discountItem(password, item, taxRange, !sale);
         }
@@ -228,21 +230,22 @@ public class FiscalShtrih {
         Variant result = Dispatch.call(shtrihDispatch, "InitTable");
         checkErrors(result, true);
     }
-    
-    public static void setOperatorName(UpdateDataOperator operator, int operatorNumber) {
 
-        shtrihActiveXComponent.setProperty("Password", new Variant(systemPassword));
-        shtrihActiveXComponent.setProperty("TableNumber", new Variant(2));
-        shtrihActiveXComponent.setProperty("RowNumber", new Variant(operatorNumber));
-        shtrihActiveXComponent.setProperty("FieldNumber", new Variant(2));  //Имя кассира
-        shtrihActiveXComponent.setProperty("ValueOfFieldString", new Variant(operator.operatorName));
-        Variant result = Dispatch.call(shtrihDispatch, "WriteTable");
-        checkErrors(result, true);
+    public static void setOperatorName(UpdateDataOperator operator) {
+        if (operator.operatorNumber <= 28) {
+            shtrihActiveXComponent.setProperty("Password", new Variant(systemPassword));
+            shtrihActiveXComponent.setProperty("TableNumber", new Variant(2));
+            shtrihActiveXComponent.setProperty("RowNumber", new Variant(operator.operatorNumber));
+            shtrihActiveXComponent.setProperty("FieldNumber", new Variant(2));  //Имя кассира
+            shtrihActiveXComponent.setProperty("ValueOfFieldString", new Variant(operator.operatorName));
+            Variant result = Dispatch.call(shtrihDispatch, "WriteTable");
+            checkErrors(result, true);
 
-        shtrihActiveXComponent.setProperty("FieldNumber", new Variant(1));  //Пароль кассира
-        shtrihActiveXComponent.setProperty("ValueOfFieldInteger", new Variant(operator.operatorPassword));
-        result = Dispatch.call(shtrihDispatch, "WriteTable");
-        checkErrors(result, true);
+            shtrihActiveXComponent.setProperty("FieldNumber", new Variant(1));  //Пароль кассира
+            shtrihActiveXComponent.setProperty("ValueOfFieldInteger", new Variant(operator.operatorPassword));
+            result = Dispatch.call(shtrihDispatch, "WriteTable");
+            checkErrors(result, true);
+        }
     }
 
     public static void setTaxRate(UpdateDataTaxRate taxRate) {
@@ -263,7 +266,7 @@ public class FiscalShtrih {
 
     public static Map<Integer, Integer> getTaxRanges() {
         Map<Integer, Integer> result = new HashMap<Integer, Integer>();
-        for(int i = 1; i<=4;i++)
+        for (int i = 1; i <= 4; i++)
             result.put(readTaxRange(i), i);
         return result;
     }
@@ -279,7 +282,7 @@ public class FiscalShtrih {
 
         return shtrihActiveXComponent.getPropertyAsInt("ValueOfFieldInteger");
     }
-    
-    
+
+
 }
 
