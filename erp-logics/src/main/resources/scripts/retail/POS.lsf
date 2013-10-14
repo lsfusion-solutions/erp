@@ -35,6 +35,8 @@ currentCashRegister () = cashRegisterComputer(currentComputer());
 GROUP receiptZReport 'Z-отчет' : public;
 
 currentZReport() = zReportCashRegister(currentCashRegister());
+zReportReceipt(r) <- currentZReport() WHEN SET(r IS Receipt);
+
 numberCurrentZReport 'Номер текущего Z-отчета' () = numberZReport(currentZReport()) IN receiptZReport;
 sumCashCurrentZReport() = sumCashZReport(currentZReport());
 
@@ -50,7 +52,6 @@ currentSumCashCurrentCashRegister 'Сумма наличных в кассе' ()
 createCurrentReceipt 'Создать новый чек' = ACTION () {
     FOR ADDOBJ r = Receipt DO {
         seek(r);
-        zReportReceipt(r) <- currentZReport();
         numberReceipt(r) <- maxNumberReceiptZReport(currentZReport()) (+) 1;
     }
 }
@@ -118,7 +119,6 @@ allowPaymentGiftCard = DATA SESSION BOOLEAN();
 
 postReceipt 'Смешанный платеж' = ACTION (receipt) {
     allowPaymentGiftCard() <- TRUE;
-    zReportReceipt(receipt) <- currentZReport();
     DELETE payment WHERE receiptPayment(payment) == receipt;
     IF sumReceiptDetailReceipt(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
@@ -140,7 +140,6 @@ postReceipt 'Смешанный платеж' = ACTION (receipt) {
 
 postCardReceipt 'Карточкой' = ACTION (receipt) {
     allowPaymentGiftCard() <- NULL;
-    zReportReceipt(receipt) <- currentZReport();
     DELETE payment WHERE receiptPayment(payment) == receipt;
     IF sumReceiptDetailReceipt(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
@@ -154,7 +153,6 @@ postCardReceipt 'Карточкой' = ACTION (receipt) {
 
 postCashReceipt 'Наличными' = ACTION (receipt) {
     allowPaymentGiftCard() <- NULL;
-    zReportReceipt(receipt) <- currentZReport();
     DELETE payment WHERE receiptPayment(payment) == receipt;
     IF sumReceiptDetailReceipt(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
@@ -248,7 +246,6 @@ consumedChangeBarcodeSaleReceipt = DATA SESSION BOOLEAN();
 overChangeBarcodeSaleReceipt = ABSTRACT ACTION LIST (STRING[15], Receipt);
 
 changeBarcodeSaleReceipt = ACTION (receipt) {
-    zReportReceipt(receipt) <- currentZReport();
     REQUEST STRING[15] INPUT;
     consumedChangeBarcodeSaleReceipt() <- NULL;
     overChangeBarcodeSaleReceipt(requestedString(), receipt);
@@ -305,7 +302,6 @@ DESIGN searchSkuSaleReceipt FROM DEFAULT {
 }
 
 searchSkuSaleReceipt 'Поиск' = ACTION (receipt) {
-    zReportReceipt(receipt) <- currentZReport();
     FORM searchSkuSaleReceipt OBJECTS st = departmentStoreReceipt(receipt), r = receipt MODAL;
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptSaleDetailSku(receipt, chosenObject('s'), idBarcodeSku(chosenObject('s')));
@@ -354,7 +350,6 @@ DESIGN searchBatchSaleReceipt FROM DEFAULT {
 }
 
 searchBatchSaleReceipt 'Поиск' = ACTION (receipt) {
-    zReportReceipt(receipt) <- currentZReport();
     FORM searchBatchSaleReceipt OBJECTS st = departmentStoreReceipt(receipt), r = receipt MODAL;
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptSaleDetailBatch(receipt, chosenObject('b'), idBarcodeSkuBatch(chosenObject('b')));
@@ -406,7 +401,6 @@ DESIGN scanBarcodeReturnReceipt FROM DEFAULT {
 }
 
 scanBarcodeReturnReceipt 'Ввести штрих-код' = ACTION (receipt) {
-    zReportReceipt(receipt) <- currentZReport();
     FORM barcodeInput MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL dialogBarcodeSku = Sku();
@@ -441,7 +435,6 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
 ;
 
 searchSkuReturnReceipt 'Поиск' = ACTION (receipt) {
-    zReportReceipt(receipt) <- currentZReport();
     FORM searchSkuReturnReceipt OBJECTS st = departmentStoreReceipt(receipt) MODAL;
     IF formResult() == FormResult.ok THEN {
         EXEC createReceiptReturnDetail(receipt, chosenObject('r'), idBarcodeSku(skuReceiptSaleDetail(chosenObject('r'))));
