@@ -81,7 +81,7 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
             rangeQuery.and(getLCP("numberRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).getWhere());
 
             Set<Integer> taxNumbers = new HashSet<Integer>();
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session.sql);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session.sql, MapFact.singletonOrder((Object) "numberRange", false));
             int i = 1;
             for (ImMap<Object, Object> rangeValues : rangeResult.valueIt()) {
                 Integer number = (Integer) rangeValues.get("numberRange");

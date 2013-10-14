@@ -215,6 +215,7 @@ public class FiscalShtrih {
 
         for (ReceiptItem item : (receipt.receiptList)) {
             Integer taxRange = (item.valueVAT != null && taxRanges.containsKey(item.valueVAT.intValue())) ? taxRanges.get(item.valueVAT.intValue()) : 0;
+            System.out.print("Sale: " + item.name + " VAT= " + item.valueVAT + " - " + taxRange);   //лог, убрать
             registerItem(password, sale, item, taxRange);
             discountItem(password, item, taxRange, !sale);
         }
@@ -248,6 +249,8 @@ public class FiscalShtrih {
 
     public static void setTaxRate(UpdateDataTaxRate taxRate) {
 
+        System.out.println("Tax # " + taxRate.taxRateNumber + " - " + taxRate.taxRateValue);   //лог, убрать
+        
         shtrihActiveXComponent.setProperty("Password", systemPassword);
         shtrihActiveXComponent.setProperty("TableNumber", new Variant(6));
         shtrihActiveXComponent.setProperty("RowNumber", new Variant(taxRate.taxRateNumber));
