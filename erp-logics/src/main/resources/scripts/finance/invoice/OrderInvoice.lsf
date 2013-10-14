@@ -453,117 +453,115 @@ META defineOrderInvoice(sign, stockProp)
 
 //-- аггр.объект
 
-    @defineDocumentInterfaceDetailQuantityPrefix (order, invoice, ' (выписано)');
-    invoiceQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail) WHEN CHANGED(quantityUserOrderDetail(detail));
-    @defineDocumentInterfaceProperty (order, createInvoice, 'Создать накладную');
+    // todo : временно отключено из-за тормозов при вводе количества в подборе, так как строка заказов может начать влиять на партии
+//    @defineDocumentInterfaceDetailQuantityPrefix (order, invoice, ' (выписано)');
+//    invoiceQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail) WHEN CHANGED(quantityUserOrderDetail(detail));
+//    @defineDocumentInterfaceProperty (order, createInvoice, 'Создать накладную');
+//
+//
+//    showInvoiceOrder (order) =  order IS Order AND NOT createInvoiceOrder(order);
+//    
+//    EXTEND FORM userOrder
+//        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) createInvoiceUserOrder
+//        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) SHOWIF createInvoiceUserOrder(o) seriesNumberContractSkuUserOrder, isCommissionUserOrder
+//
+//        PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityUserOrderDetail SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
+//        PROPERTIES(d) invoiceQuantityUserOrderDetail AFTER quantityUserOrderDetail SHOWIF createInvoiceUserOrder(o) BACKGROUND backgroundInvoiceOrder(o)
+//    ;
+//    EXTEND DESIGN userOrder {
+//        headerCreateDocuments {
+//            NEW headerInvoice {
+//                type = CONTAINERH;
+//                caption = 'Накладная';
+//                ADD PROPERTY(createInvoiceUserOrder);
+//                ADD PROPERTY(seriesNumberContractSkuUserOrder);
+//                ADD PROPERTY(isCommissionUserOrder);
+//            }
+//        }
+//    }
+//
+//    EXTEND FORM orders
+//        PROPERTIES(o) READONLYIF isReadonly() AFTER nameAgreementOrder(o) BACKGROUND backgroundInvoiceOrder(o) isCommissionOrder, seriesNumberContractSkuOrder
+//
+//        PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityOrderDetail SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
+//        PROPERTIES(d) invoiceQuantityOrderDetail AFTER quantityOrderDetail SHOWIF createInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
+//    ;
+//    EXTEND FORM invoiceOrders
+//        PROPERTIES (d) READONLY BACKGROUND backgroundInvoiceOrder(o)  toInvoiceOrderDetail
+//    ;
 
-    @defineDocumentInterfaceContract(Order, contractSku, supplier, customer,
-                                     'Организация (поставщик) договора заказа не соответствует организация (поставщик) заказа',
-                                     'Организация (покупатель) договора заказа не соответствует организация (покупатель) заказа');
-
-    showInvoiceOrder (order) =  order IS Order AND NOT createInvoiceOrder(order);
-    
-    EXTEND FORM userOrder
-        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) createInvoiceUserOrder
-        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) SHOWIF createInvoiceUserOrder(o) seriesNumberContractSkuUserOrder, isCommissionUserOrder
-
-        PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityUserOrderDetail SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
-        PROPERTIES(d) invoiceQuantityUserOrderDetail AFTER quantityUserOrderDetail SHOWIF createInvoiceUserOrder(o) BACKGROUND backgroundInvoiceOrder(o)
-    ;
-    EXTEND DESIGN userOrder {
-        headerCreateDocuments {
-            NEW headerInvoice {
-                type = CONTAINERH;
-                caption = 'Накладная';
-                ADD PROPERTY(createInvoiceUserOrder);
-                ADD PROPERTY(seriesNumberContractSkuUserOrder);
-                ADD PROPERTY(isCommissionUserOrder);
-            }
-        }
-    }
-
-    EXTEND FORM orders
-        PROPERTIES(o) READONLYIF isReadonly() AFTER nameAgreementOrder(o) BACKGROUND backgroundInvoiceOrder(o) isCommissionOrder, seriesNumberContractSkuOrder
-
-        PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityOrderDetail SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
-        PROPERTIES(d) invoiceQuantityOrderDetail AFTER quantityOrderDetail SHOWIF createInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
-    ;
-    EXTEND FORM invoiceOrders
-        PROPERTIES (d) READONLY BACKGROUND backgroundInvoiceOrder(o)  toInvoiceOrderDetail
-    ;
-
-    CLASS OrderInvoice 'Накладная на основе заказа'###sign : Invoice;
-    CLASS OrderInvoiceDetail 'Строка накладной на основе заказа'###sign : InvoiceDetail;
-
-    @defineDocumentTables(orderInvoice);
-
-    @defineDocumentAggregation(order, orderInvoice, createInvoiceOrder);
-
-    invoiceInvoiceDetail(detail) += orderInvoiceOrderInvoiceDetail(detail);
-
-    @defineDocumentDetailIndex(orderInvoice);
-
-    dateInvoice(invoice) += dateOrderInvoice(invoice);
-    timeInvoice(invoice) += timeOrderInvoice(invoice);
-
-    @defineDocumentAggregationStockPrefix(order, orderInvoice, supplierStock, 'Склад поставщика', , );
-    supplierStockInvoice(invoice) += supplierStockOrderInvoice(invoice);
-    dataSupplierStockInvoiceDetail(invoiceDetail) += dataSupplierStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    @defineDocumentAggregationStockPrefix(order, orderInvoice, customerStock, 'Склад покупателя', , );
-    customerStockInvoice(invoice) += customerStockOrderInvoice(invoice);
-    dataCustomerStockInvoiceDetail(invoiceDetail) += dataCustomerStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-
-    @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, supplier, 'Поставщик', , );
-    supplierInvoice(invoice) += supplierOrderInvoice(invoice);
-    @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, customer, 'Покупатель', , );
-    customerInvoice(invoice) += customerOrderInvoice(invoice);
-
-    @defineDocumentAggregationPosted(order, orderInvoice);
-    isPostedInvoice(invoice) += isPostedOrderInvoice(invoice);
-    
-    @defineDocumentAggregationClosed(order, orderInvoice);
-    isClosedInvoice(invoice) += isClosedOrderInvoice(invoice);    
-
-    numberOrderInvoice 'Номер документа' (orderInvoice) = numberOrder(orderOrderInvoice(orderInvoice));
-    numberInvoice(invoice) += numberOrderInvoice(invoice);
-
-    seriesOrderInvoice 'Серия документа' (orderInvoice) = seriesOrder(orderOrderInvoice(orderInvoice));
-    seriesInvoice(invoice) += seriesOrderInvoice(invoice);
-
-    seriesNumberOrderInvoice 'Серия/номер документа' (orderInvoice) = seriesNumberOrder(orderOrderInvoice(orderInvoice));
-
-    noteInvoiceOrderInvoice 'Примечание' (orderInvoice) = noteOrder(orderOrderInvoice(orderInvoice));
-    noteInvoice(invoice) += noteInvoiceOrderInvoice(invoice);
-
-    currencyOrderInvoice  (orderInvoice) = currencyOrder(orderOrderInvoice(orderInvoice));
-    currencyInvoice (invoice) += currencyOrderInvoice(invoice);
-
-    priceListTypeInvoice(invoice) += priceListTypeOrder(orderOrderInvoice(invoice));
-    agreementInvoice(invoice) += agreementOrder(orderOrderInvoice(invoice));
-    contractSkuInvoice(invoice) += contractSkuOrder(orderOrderInvoice(invoice));
-    isCommissionInvoice (invoice) += isCommissionOrder(orderOrderInvoice(invoice));
-
-//    @defineDocumentDescription(orderInvoice, OrderInvoiceDetail, 'Накладная на основе заказа'###sign);
-//    descriptionInvoice (invoice) += descriptionOrderInvoice(invoice);
-
-    @defineDocumentAggregationDetailSku(order, orderInvoice, sku);
-    skuInvoiceDetail(invoiceDetail) +=  skuOrderInvoiceDetail(invoiceDetail);
-
-    priceListTypeInvoiceDetail(detail) += priceListTypeOrderDetail(orderDetailOrderInvoiceDetail(detail));
-
-
-    quantityInvoiceDetail(invoiceDetail) += invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    priceInvoiceDetail(invoiceDetail) += priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    sumInvoiceDetail(invoiceDetail) += sumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    VATInvoiceDetail(invoiceDetail) += VATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    valueVATInvoiceDetail(invoiceDetail) += valueVATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    invoicePriceInvoiceDetail(invoiceDetail) += invoicePriceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    VATSumInvoiceDetail(invoiceDetail) += VATSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-
-    orderInvoiceDetail(invoiceDetail) += orderOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-
-    editInvoice(invoice) += ACTION EXEC editOrder(orderOrderInvoice(invoice));
+//    CLASS OrderInvoice 'Накладная на основе заказа'###sign : Invoice;
+//    CLASS OrderInvoiceDetail 'Строка накладной на основе заказа'###sign : InvoiceDetail;
+//
+//    @defineDocumentTables(orderInvoice);
+//
+//    @defineDocumentAggregation(order, orderInvoice, createInvoiceOrder);
+//
+//    invoiceInvoiceDetail(detail) += orderInvoiceOrderInvoiceDetail(detail);
+//
+//    @defineDocumentDetailIndex(orderInvoice);
+//
+//    dateInvoice(invoice) += dateOrderInvoice(invoice);
+//    timeInvoice(invoice) += timeOrderInvoice(invoice);
+//
+//    @defineDocumentAggregationStockPrefix(order, orderInvoice, supplierStock, 'Склад поставщика', , );
+//    supplierStockInvoice(invoice) += supplierStockOrderInvoice(invoice);
+//    dataSupplierStockInvoiceDetail(invoiceDetail) += dataSupplierStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    @defineDocumentAggregationStockPrefix(order, orderInvoice, customerStock, 'Склад покупателя', , );
+//    customerStockInvoice(invoice) += customerStockOrderInvoice(invoice);
+//    dataCustomerStockInvoiceDetail(invoiceDetail) += dataCustomerStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//
+//    @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, supplier, 'Поставщик', , );
+//    supplierInvoice(invoice) += supplierOrderInvoice(invoice);
+//    @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, customer, 'Покупатель', , );
+//    customerInvoice(invoice) += customerOrderInvoice(invoice);
+//
+//    @defineDocumentAggregationPosted(order, orderInvoice);
+//    isPostedInvoice(invoice) += isPostedOrderInvoice(invoice);
+//    
+//    @defineDocumentAggregationClosed(order, orderInvoice);
+//    isClosedInvoice(invoice) += isClosedOrderInvoice(invoice);    
+//
+//    numberOrderInvoice 'Номер документа' (orderInvoice) = numberOrder(orderOrderInvoice(orderInvoice));
+//    numberInvoice(invoice) += numberOrderInvoice(invoice);
+//
+//    seriesOrderInvoice 'Серия документа' (orderInvoice) = seriesOrder(orderOrderInvoice(orderInvoice));
+//    seriesInvoice(invoice) += seriesOrderInvoice(invoice);
+//
+//    seriesNumberOrderInvoice 'Серия/номер документа' (orderInvoice) = seriesNumberOrder(orderOrderInvoice(orderInvoice));
+//
+//    noteInvoiceOrderInvoice 'Примечание' (orderInvoice) = noteOrder(orderOrderInvoice(orderInvoice));
+//    noteInvoice(invoice) += noteInvoiceOrderInvoice(invoice);
+//
+//    currencyOrderInvoice  (orderInvoice) = currencyOrder(orderOrderInvoice(orderInvoice));
+//    currencyInvoice (invoice) += currencyOrderInvoice(invoice);
+//
+//    priceListTypeInvoice(invoice) += priceListTypeOrder(orderOrderInvoice(invoice));
+//    agreementInvoice(invoice) += agreementOrder(orderOrderInvoice(invoice));
+//    contractSkuInvoice(invoice) += contractSkuOrder(orderOrderInvoice(invoice));
+//    isCommissionInvoice (invoice) += isCommissionOrder(orderOrderInvoice(invoice));
+//
+////    @defineDocumentDescription(orderInvoice, OrderInvoiceDetail, 'Накладная на основе заказа'###sign);
+////    descriptionInvoice (invoice) += descriptionOrderInvoice(invoice);
+//
+//    @defineDocumentAggregationDetailSku(order, orderInvoice, sku);
+//    skuInvoiceDetail(invoiceDetail) +=  skuOrderInvoiceDetail(invoiceDetail);
+//
+//    priceListTypeInvoiceDetail(detail) += priceListTypeOrderDetail(orderDetailOrderInvoiceDetail(detail));
+//
+//
+//    quantityInvoiceDetail(invoiceDetail) += invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    priceInvoiceDetail(invoiceDetail) += priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    sumInvoiceDetail(invoiceDetail) += sumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    VATInvoiceDetail(invoiceDetail) += VATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    valueVATInvoiceDetail(invoiceDetail) += valueVATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    invoicePriceInvoiceDetail(invoiceDetail) += invoicePriceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    VATSumInvoiceDetail(invoiceDetail) += VATSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//
+//    orderInvoiceDetail(invoiceDetail) += orderOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//
+//    editInvoice(invoice) += ACTION EXEC editOrder(orderOrderInvoice(invoice));
 
 END
 
@@ -583,9 +581,9 @@ META defineOrderInvoicePack (showPackage)
         }
     }
 
-    showPackInvoice(invoice) += showPackOrder(orderOrderInvoice(invoice));
-    barcodePackInvoiceDetail(invoiceDetail) +=  barcodePackOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    amountPackInvoiceDetail(invoiceDetail) +=  amountPackOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    packQuantityInvoiceDetail(invoiceDetail) +=  packQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    showPackInvoice(invoice) += showPackOrder(orderOrderInvoice(invoice));
+//    barcodePackInvoiceDetail(invoiceDetail) +=  barcodePackOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    amountPackInvoiceDetail(invoiceDetail) +=  amountPackOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+//    packQuantityInvoiceDetail(invoiceDetail) +=  packQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
 
 END
