@@ -138,8 +138,7 @@ public class FiscalShtrih {
         shtrihActiveXComponent.setProperty("Quantity", new Variant(item.quantity.doubleValue()));
         shtrihActiveXComponent.setProperty("Price", new Variant(item.price.doubleValue()));
         shtrihActiveXComponent.setProperty("Department", new Variant(item.isGiftCard ? 3 : 1));
-        if (taxRange != null)
-            shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
+        shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
 
         Variant result = Dispatch.call(shtrihDispatch, sale ? "Sale" : "ReturnSale");
         checkErrors(result, true);
@@ -150,8 +149,7 @@ public class FiscalShtrih {
         if (item.discount != null) {
             shtrihActiveXComponent.setProperty("Password", new Variant(password));
             shtrihActiveXComponent.setProperty("Summ1", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
-            if (taxRange != null)
-                shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
+            shtrihActiveXComponent.setProperty("Tax1", new Variant(taxRange));
 
             Variant result = Dispatch.call(shtrihDispatch, item.discount.doubleValue() > 0 ? "Charge" : "Discount");
             checkErrors(result, true);
@@ -216,7 +214,7 @@ public class FiscalShtrih {
         openReceipt(password, sale);
 
         for (ReceiptItem item : (receipt.receiptList)) {
-            Integer taxRange = item.valueVAT == null ? null : taxRanges.get(item.valueVAT.intValue());
+            Integer taxRange = (item.valueVAT != null && taxRanges.containsKey(item.valueVAT.intValue())) ? taxRanges.get(item.valueVAT.intValue()) : 0;
             registerItem(password, sale, item, taxRange);
             discountItem(password, item, taxRange, !sale);
         }

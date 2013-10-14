@@ -22,7 +22,9 @@ import lsfusion.server.session.DataSession;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionProperty {
 
@@ -58,7 +60,7 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
                 String firstNameContact = (String) operatorValues.get("firstNameContact");
                 String lastNameContact = (String) operatorValues.get("lastNameContact");
                 if (number != null)
-                    operatorList.add(new UpdateDataOperator(number * 1000, number, (firstNameContact==null ? "" : firstNameContact.trim()) + " " + (lastNameContact==null ? "" : lastNameContact.trim())));
+                    operatorList.add(new UpdateDataOperator(number * 1000, number, (firstNameContact == null ? "" : firstNameContact.trim()) + " " + (lastNameContact == null ? "" : lastNameContact.trim())));
             }
 
             List<UpdateDataTaxRate> taxRateList = new ArrayList<UpdateDataTaxRate>();
@@ -78,20 +80,22 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
             rangeQuery.and(getLCP("taxRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("tax")).compare(taxVATObject.getExpr(), Compare.EQUALS));
             rangeQuery.and(getLCP("numberRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).getWhere());
 
+            Set<Integer> taxNumbers = new HashSet<Integer>();
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session.sql);
-            int skippedRanges = 0;
+            int i = 1;
             for (ImMap<Object, Object> rangeValues : rangeResult.valueIt()) {
                 Integer number = (Integer) rangeValues.get("numberRange");
                 boolean reverseRange = rangeValues.get("reverseRange") != null;
                 BigDecimal value = (BigDecimal) rangeValues.get("valueCurrentRateRange");
-                if (number != null) {
-                    if (reverseRange)
-                        skippedRanges++;
-                    else
-                        taxRateList.add(new UpdateDataTaxRate(number - skippedRanges, value));
+                if (number != null && value != null && value.intValue() > 0 && !taxNumbers.contains(number)) {
+                    taxNumbers.add(number);
+                    if (!reverseRange) {
+                        taxRateList.add(new UpdateDataTaxRate(i, value));
+                        i++;
+                    }
                 }
             }
-            
+
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalShtrihUpdateDataClientAction(password, comPort, baudRate, new UpdateDataInstance(operatorList, taxRateList)));
                 if (result == null)
