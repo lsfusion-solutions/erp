@@ -128,11 +128,29 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                                     BigDecimal discountSumReceiptDetail = (BigDecimal) getTagValue("discountSumReceiptDetail", receiptDetailElement, 2);
                                     BigDecimal discountPercentReceiptSaleDetail = (BigDecimal) getTagValue("discountPercentReceiptDetail", receiptDetailElement, 2);
                                     Integer numberReceiptDetail = (Integer) getTagValue("numberReceiptDetail", receiptDetailElement, 1);
-                                    
-                                    String idPromotionCondition = (String) getTagValue("idPromotionCondition", receiptDetailElement, 0);
-                                    BigDecimal quantityReceiptSaleDetailPromotionCondition = (BigDecimal) getTagValue("quantityReceiptDetailPromotionCondition", receiptDetailElement, 2);
-                                    BigDecimal promotionSumReceiptSaleDetailPromotionCondition = (BigDecimal) getTagValue("promotionSumReceiptDetailPromotionCondition", receiptDetailElement, 2);
 
+                                    NodeList promotionConditionList = receiptElement.getElementsByTagName("promotionCondition");
+                                    for (int promotionConditionIndex = 0; promotionConditionIndex < promotionConditionList.getLength(); promotionConditionIndex++) {
+                                        Node promotionCondition = promotionConditionList.item(promotionConditionIndex);
+                                        if (promotionCondition.getNodeType() == Node.ELEMENT_NODE) {
+                                            Element promotionConditionElement = (Element) promotionCondition;
+                                            String idPromotionCondition = (String) getTagValue("idPromotionCondition", promotionConditionElement, 0);
+                                            BigDecimal quantityReceiptDetailPromotionCondition = (BigDecimal) getTagValue("quantityReceiptDetailPromotionCondition", promotionConditionElement, 2);
+                                            BigDecimal promotionSumReceiptDetailPromotionCondition = (BigDecimal) getTagValue("promotionSumReceiptDetailPromotionCondition", promotionConditionElement, 2);
+
+                                            if (quantityReceiptReturnDetail != null)
+                                                dataReturn.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
+                                                        numberReceiptDetail, idBarcodeReceiptDetail, quantityReceiptReturnDetail, priceReceiptDetail, sumReceiptDetail,
+                                                        discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard));
+                                            else
+                                                dataSale.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
+                                                        numberReceiptDetail, idBarcodeReceiptDetail, quantityReceiptSaleDetail, priceReceiptDetail, sumReceiptDetail,
+                                                        discountSumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceipt, seriesNumberDiscountCard,
+                                                        idPromotionCondition, quantityReceiptDetailPromotionCondition, promotionSumReceiptDetailPromotionCondition));
+                                        }
+                                    }
+                                    
+                                    if(promotionConditionList.getLength()==0) {
                                     if (quantityReceiptReturnDetail != null)
                                         dataReturn.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
                                                 numberReceiptDetail, idBarcodeReceiptDetail, quantityReceiptReturnDetail, priceReceiptDetail, sumReceiptDetail,
@@ -141,7 +159,8 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                                         dataSale.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
                                                 numberReceiptDetail, idBarcodeReceiptDetail, quantityReceiptSaleDetail, priceReceiptDetail, sumReceiptDetail,
                                                 discountSumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceipt, seriesNumberDiscountCard,
-                                                idPromotionCondition, quantityReceiptSaleDetailPromotionCondition, promotionSumReceiptSaleDetailPromotionCondition));
+                                                null, null, null));
+                                    }
                                 }
                             }
                         }
