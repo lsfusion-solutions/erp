@@ -9,6 +9,7 @@ GROUP articleBase 'Базовые свойства' : base;
 GROUP articleSupplier 'Информащия от поставщика' : base;
 GROUP articleDescription 'Описание' : base;
 GROUP articleSeason 'Сезон' : base;
+GROUP articleSize 'Габариты' : base;
 
 // Артикул
 CLASS Article 'Артикул';
@@ -168,6 +169,19 @@ compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN articleBase
 
 EXTEND FORM article PROPERTIES(a) compositionArticle, nameUOMArticle;
 EXTEND FORM articles PROPERTIES(a) BEFORE nameColorArticle(a) READONLYIF isReadonly() nameUOMArticle, compositionArticle;
+
+//  Габариты
+netWeightArticle 'Вес нетто, кг' = DATA NUMERIC[9,3] (Article) IN articleSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
+grossWeightArticle 'Вес брутто, кг' = DATA NUMERIC[9,3] (Article) IN articleSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
+
+EXTEND FORM article PROPERTIES(a) netWeightArticle, grossWeightArticle;
+EXTEND DESIGN article {
+    articlePrimary {
+        ADD a.articleSize {type = CONTAINERH;}
+    }
+}
+EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() netWeightArticle, grossWeightArticle;
+
 
 // Коллекция
 CLASS Collection 'Коллекция';
