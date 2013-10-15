@@ -31,8 +31,8 @@ public class FiscalShtrihUpdateDataClientAction implements ClientAction {
             //FiscalShtrih.resetTable(2);
             //if (updateData.operatorList.isEmpty())
             //    updateData.operatorList.add(new UpdateDataOperator(1000, 1, "Кассир по умолчанию"));
-            for (int i = 1; i <= 28/*updateData.operatorList.size()*/; i++) {
-                FiscalShtrih.setOperatorName(updateData.operatorList.size() <= (i - 1) ? new UpdateDataOperator(i * 1000, i, "Кассир по умолчанию") : updateData.operatorList.get(i - 1));
+            for (int i = 1; i <= updateData.operatorList.size(); i++) {
+                FiscalShtrih.setOperatorName(updateData.operatorList.get(i - 1));
                 Thread.sleep(1000);
             }
 

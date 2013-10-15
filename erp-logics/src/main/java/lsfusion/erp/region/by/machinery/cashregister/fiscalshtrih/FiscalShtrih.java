@@ -215,7 +215,7 @@ public class FiscalShtrih {
 
         for (ReceiptItem item : (receipt.receiptList)) {
             Integer taxRange = (item.valueVAT != null && taxRanges.containsKey(item.valueVAT.intValue())) ? taxRanges.get(item.valueVAT.intValue()) : 0;
-            System.out.print("Sale: " + item.name + " VAT= " + item.valueVAT + " - " + taxRange);   //лог, убрать
+            System.out.println("Sale: " + item.name + " VAT= " + item.valueVAT + " - " + taxRange);   //лог, убрать
             registerItem(password, sale, item, taxRange);
             discountItem(password, item, taxRange, !sale);
         }
@@ -258,6 +258,8 @@ public class FiscalShtrih {
         shtrihActiveXComponent.setProperty("ValueOfFieldString", new Variant("НДС"));
         Variant result = Dispatch.call(shtrihDispatch, "WriteTable");
         checkErrors(result, true);
+
+        System.out.println("Tax # " + taxRate.taxRateNumber + " - " + taxRate.taxRateValue);   //лог, убрать
 
         shtrihActiveXComponent.setProperty("FieldNumber", new Variant(2));  //Ставка налога
         shtrihActiveXComponent.setProperty("ValueOfFieldInteger", new Variant(taxRate.taxRateValue.doubleValue() * 100));
