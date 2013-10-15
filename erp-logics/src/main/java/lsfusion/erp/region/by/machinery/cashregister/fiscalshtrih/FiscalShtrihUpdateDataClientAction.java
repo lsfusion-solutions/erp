@@ -28,26 +28,18 @@ public class FiscalShtrihUpdateDataClientAction implements ClientAction {
         try {
 
             FiscalShtrih.openPort(password, comPort, baudRate);
-            //FiscalShtrih.resetTable(2);
-            //if (updateData.operatorList.isEmpty())
-            //    updateData.operatorList.add(new UpdateDataOperator(1000, 1, "Кассир по умолчанию"));
+            
             for (int i = 1; i <= updateData.operatorList.size(); i++) {
                 FiscalShtrih.setOperatorName(updateData.operatorList.get(i - 1));
-                Thread.sleep(1000);
             }
 
-            //FiscalShtrih.resetTable(6);
-            for (int i = 1; i <= /*Math.min(updateData.taxRateList.size(),*/ 4/*)*/; i++) {
+            for (int i = 1; i <=  4; i++) {
                 FiscalShtrih.setTaxRate(updateData.taxRateList.size() <= (i - 1) ? new UpdateDataTaxRate(i, BigDecimal.ZERO) : updateData.taxRateList.get(i - 1));
-                Thread.sleep(1000);
             }
 
             FiscalShtrih.closePort();
 
         } catch (RuntimeException e) {
-            FiscalShtrih.closePort();
-            return e.getMessage();
-        } catch (InterruptedException e) {
             FiscalShtrih.closePort();
             return e.getMessage();
         }

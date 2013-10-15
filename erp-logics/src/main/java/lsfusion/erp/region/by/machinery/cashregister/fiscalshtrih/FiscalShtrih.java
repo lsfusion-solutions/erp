@@ -215,7 +215,7 @@ public class FiscalShtrih {
 
         for (ReceiptItem item : (receipt.receiptList)) {
             Integer taxRange = (item.valueVAT != null && taxRanges.containsKey(item.valueVAT.intValue())) ? taxRanges.get(item.valueVAT.intValue()) : 0;
-            System.out.println("Sale: " + item.name + " VAT= " + item.valueVAT + " - " + taxRange);   //лог, убрать
+            //System.out.println("Sale: " + item.name + " VAT= " + item.valueVAT + " - " + taxRange);   //лог, убрать
             registerItem(password, sale, item, taxRange);
             discountItem(password, item, taxRange, !sale);
         }
@@ -223,15 +223,11 @@ public class FiscalShtrih {
         closeReceipt(password, receipt);
     }
 
-    public static void resetTable(int tableNumber) {
-        shtrihActiveXComponent.setProperty("Password", systemPassword);
-        shtrihActiveXComponent.setProperty("TableNumber", new Variant(tableNumber));
-        Variant result = Dispatch.call(shtrihDispatch, "InitTable");
-        checkErrors(result, true);
-    }
-
     public static void setOperatorName(UpdateDataOperator operator) {
         if (operator.operatorNumber <= 28) {
+
+            prepareTableField(2, 2);
+
             shtrihActiveXComponent.setProperty("Password", new Variant(systemPassword));
             shtrihActiveXComponent.setProperty("TableNumber", new Variant(2));
             shtrihActiveXComponent.setProperty("RowNumber", new Variant(operator.operatorNumber));
@@ -249,8 +245,10 @@ public class FiscalShtrih {
 
     public static void setTaxRate(UpdateDataTaxRate taxRate) {
 
-        System.out.println("Tax # " + taxRate.taxRateNumber + " - " + taxRate.taxRateValue);   //лог, убрать
-        
+        //System.out.println("Tax # " + taxRate.taxRateNumber + " - " + taxRate.taxRateValue);   //лог, убрать
+
+        prepareTableField(6, 1);
+
         shtrihActiveXComponent.setProperty("Password", systemPassword);
         shtrihActiveXComponent.setProperty("TableNumber", new Variant(6));
         shtrihActiveXComponent.setProperty("RowNumber", new Variant(taxRate.taxRateNumber));
@@ -259,11 +257,24 @@ public class FiscalShtrih {
         Variant result = Dispatch.call(shtrihDispatch, "WriteTable");
         checkErrors(result, true);
 
-        System.out.println("Tax # " + taxRate.taxRateNumber + " - " + taxRate.taxRateValue);   //лог, убрать
+        prepareTableField(6, 2);
 
+        shtrihActiveXComponent.setProperty("Password", systemPassword);
+        shtrihActiveXComponent.setProperty("TableNumber", new Variant(6));
+        shtrihActiveXComponent.setProperty("RowNumber", new Variant(taxRate.taxRateNumber));
         shtrihActiveXComponent.setProperty("FieldNumber", new Variant(2));  //Ставка налога
+        shtrihActiveXComponent.setProperty("ValueOfFieldString", new Variant(null));
         shtrihActiveXComponent.setProperty("ValueOfFieldInteger", new Variant(taxRate.taxRateValue.doubleValue() * 100));
         result = Dispatch.call(shtrihDispatch, "WriteTable");
+        checkErrors(result, true);
+    }
+
+    public static void prepareTableField(int tableNumber, int fieldNumber) {
+        shtrihActiveXComponent.setProperty("Password", new Variant(systemPassword));
+        shtrihActiveXComponent.setProperty("TableNumber", new Variant(tableNumber));
+        shtrihActiveXComponent.setProperty("FieldNumber", new Variant(fieldNumber));
+
+        Variant result = Dispatch.call(shtrihDispatch, "GetFieldStruct");
         checkErrors(result, true);
     }
 
