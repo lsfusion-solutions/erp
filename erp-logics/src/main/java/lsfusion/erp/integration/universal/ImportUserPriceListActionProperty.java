@@ -33,6 +33,7 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.text.ParseException;
 import java.util.*;
 
@@ -85,8 +86,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     dateColumn = null;
                 }
 
-                ObjectValue company = LM.findLCPByCompoundName("companyImportUserPriceListType").readClasses(context, (DataObject) importUserPriceListTypeObject);
-                DataObject companyObject = company instanceof NullValue ? null : (DataObject) company;
+                ObjectValue operation = LM.findLCPByCompoundName("operationImportUserPriceListType").readClasses(context, (DataObject) importUserPriceListTypeObject);
+                DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
 
                 Map<String, String[]> importColumns = readImportColumns(context, LM, importUserPriceListTypeObject);
                 Map<String, String[]> importPriceColumns = readPriceImportColumns(context, LM, importUserPriceListTypeObject);
@@ -101,7 +102,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         for (byte[] file : fileList) {
 
                             importData(context, userPriceListObject, importColumns, importPriceColumns, file,
-                                    fileExtension.trim(), startRow, dateRow, dateColumn, csvSeparator, itemKeyType, companyObject);
+                                    fileExtension.trim(), startRow, dateRow, dateColumn, csvSeparator, itemKeyType, operationObject);
 
                         }
                     }
@@ -123,7 +124,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     public boolean importData(ExecutionContext context, DataObject userPriceListObject,
                               Map<String, String[]> importColumns, Map<String, String[]> importPriceColumns,
                               byte[] file, String fileExtension, Integer startRow, Integer dateRow, Integer dateColumn,
-                              String csvSeparator, String itemKeyType, DataObject companyObject)
+                              String csvSeparator, String itemKeyType, DataObject operationObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
         List<UserPriceListDetail> userPriceListDetailList;
@@ -139,12 +140,12 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         else
             userPriceListDetailList = null;
 
-        return importUserPriceListDetails(context, userPriceListDetailList, companyObject, userPriceListObject, itemKeyType);
+        return importUserPriceListDetails(context, userPriceListDetailList, operationObject, userPriceListObject, itemKeyType);
 
     }
 
     private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailsList,
-                                               DataObject companyObject, DataObject userPriceListObject, String itemKeyType) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+                                               DataObject operationObject, DataObject userPriceListObject, String itemKeyType) throws ScriptingErrorLog.SemanticErrorException, SQLException {
 
         if (userPriceListDetailsList != null) {
 
@@ -154,8 +155,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             List<List<Object>> data = initData(userPriceListDetailsList.size());
 
-            if (companyObject != null) {
-                props.add(new ImportProperty(companyObject, LM.findLCPByCompoundName("companyUserPriceList").getMapping(userPriceListObject)));
+            if (operationObject != null) {
+                props.add(new ImportProperty(operationObject, LM.findLCPByCompoundName("operationUserPriceList").getMapping(userPriceListObject)));
             }
 
             ImportField idItemField = new ImportField(LM.findLCPByCompoundName("idItem"));
@@ -264,22 +265,20 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
                 data.get(i).add(true);
 
-            ImportField shortNameCurrencyField = new ImportField(LM.findLCPByCompoundName("shortNameCurrency"));
-            ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Currency"),
-                    LM.findLCPByCompoundName("currencyShortName").getMapping(shortNameCurrencyField));
-            keys.add(currencyKey);
-            props.add(new ImportProperty(shortNameCurrencyField, LM.findLCPByCompoundName("currencyUserPriceList").getMapping(userPriceListObject),
-                    LM.object(LM.findClassByCompoundName("Currency")).getMapping(currencyKey)));
-            fields.add(shortNameCurrencyField);
-            for (int i = 0; i < userPriceListDetailsList.size(); i++)
-                data.get(i).add("BLR");
-
             if (showField(userPriceListDetailsList, "date")) {
                 ImportField dateUserPriceListField = new ImportField(LM.findLCPByCompoundName("dateUserPriceList"));
                 props.add(new ImportProperty(dateUserPriceListField, LM.findLCPByCompoundName("dateUserPriceList").getMapping(userPriceListObject)));
+                props.add(new ImportProperty(dateUserPriceListField, LM.findLCPByCompoundName("fromDateUserPriceList").getMapping(userPriceListObject)));
                 fields.add(dateUserPriceListField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(userPriceListDetailsList.get(i).date);
+
+                ImportField timeUserPriceListField = new ImportField(LM.findLCPByCompoundName("timeUserPriceList"));
+                props.add(new ImportProperty(timeUserPriceListField, LM.findLCPByCompoundName("timeUserPriceList").getMapping(userPriceListObject)));
+                props.add(new ImportProperty(timeUserPriceListField, LM.findLCPByCompoundName("fromTimeUserPriceList").getMapping(userPriceListObject)));
+                fields.add(timeUserPriceListField);
+                for (int i = 0; i < userPriceListDetailsList.size(); i++)
+                    data.get(i).add(new Time(0, 0, 0));
             }
 
             ImportTable table = new ImportTable(fields, data);

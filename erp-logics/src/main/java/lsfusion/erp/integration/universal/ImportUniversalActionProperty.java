@@ -229,7 +229,11 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         XSSFRow xssfRow = sheet.getRow(row);
         if (xssfRow == null) return defaultValue;
         XSSFCell xssfCell = xssfRow.getCell(cell);
-        return xssfCell == null ? defaultValue : new Date(xssfCell.getDateCellValue().getTime());
+        if(xssfCell==null) return defaultValue;
+        if (xssfCell.getCellType() == Cell.CELL_TYPE_NUMERIC)
+            return new Date(xssfCell.getDateCellValue().getTime());
+        else
+            return parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue)));                        
     }
 
     protected String getDBFFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException {

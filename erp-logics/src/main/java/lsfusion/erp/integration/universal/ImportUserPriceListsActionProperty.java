@@ -45,7 +45,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
             importUserPriceListTypeQuery.addProperty("separatorImportUserPriceListType", getLCP("separatorImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             importUserPriceListTypeQuery.addProperty("captionImportUserPriceListKeyTypeImportUserPriceListType", getLCP("captionImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
 
-            importUserPriceListTypeQuery.addProperty("companyImportUserPriceListType", getLCP("companyImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("operationImportUserPriceListType", getLCP("operationImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             
             importUserPriceListTypeQuery.and(isImportUserPriceListType.getExpr(importUserPriceListTypeKey).getWhere());
             importUserPriceListTypeQuery.and(getLCP("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
@@ -78,8 +78,8 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
                     dateColumn = null;
                 }
 
-                ObjectValue company = entryValue.get("companyImportUserPriceListType");
-                DataObject companyObject = company instanceof NullValue ? null : (DataObject) company;
+                ObjectValue operation = entryValue.get("operationImportUserPriceListType");
+                DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
                
                 Map<String, String[]> importColumns = ImportUserPriceListActionProperty.readImportColumns(context, LM, importUserPriceListTypeObject);
                 Map<String, String[]> importPriceColumns = ImportUserPriceListActionProperty.readPriceImportColumns(context, LM, importUserPriceListTypeObject);               
@@ -97,7 +97,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
 
                                     boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context, userPriceListObject, importColumns,
                                             importPriceColumns, IOUtils.getFileBytes(f), fileExtension.trim(), startRow,
-                                            dateRow, dateColumn, csvSeparator == null ? null : csvSeparator.trim(), keyType, companyObject);
+                                            dateRow, dateColumn, csvSeparator == null ? null : csvSeparator.trim(), keyType, operationObject);
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());
