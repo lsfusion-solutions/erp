@@ -24,6 +24,30 @@ TABLE stockGroupOperation(StockGroup, Operation);
 @defineOperationStock(customerStock, stc, 'Склады покупателя');
 @defineCountStockOperation(customer, customer, buyer);
 
+// Подсчет операций для складов поставщика и покупателя по-умолчанию            
+countOperationSupplierStockCustomerStock (supplierStock, customerStock) = GROUP SUM 1 
+    IF inSupplierStockOperation(supplierStock,operation)
+    AND isCompanyStock(supplierStock) 
+    AND inSupplierOperation(legalEntityStock(supplierStock),operation)
+    AND isSellerLegalEntity(legalEntityStock(supplierStock))                                                     
+    AND inCustomerStockOperation(customerStock,operation)
+    AND isCustomerStock(customerStock) 
+    AND inCustomerOperation(legalEntityStock(customerStock),operation)
+    AND isBuyerLegalEntity(legalEntityStock(customerStock))                                                                                                       
+        BY supplierStock, customerStock;
+                                                        
+                                                        
+defaultOperationSupplierStockCustomerStock (supplierStock, customerStock) = GROUP MIN operation 
+    IF inSupplierStockOperation(supplierStock,operation)
+    AND isCompanyStock(supplierStock) 
+    AND inSupplierOperation(legalEntityStock(supplierStock),operation)
+    AND isSellerLegalEntity(legalEntityStock(supplierStock))                                                     
+    AND inCustomerStockOperation(customerStock,operation)
+    AND isCustomerStock(customerStock) 
+    AND inCustomerOperation(legalEntityStock(customerStock),operation)
+    AND isBuyerLegalEntity(legalEntityStock(customerStock))                                                                                                       
+        BY supplierStock, customerStock;
+
 EXTEND FORM operation
     FILTERS countCompanyStockStockGroup(stsg),
             isCompanyStock(sts),

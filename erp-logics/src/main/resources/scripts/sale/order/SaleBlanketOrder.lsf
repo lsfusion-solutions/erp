@@ -23,17 +23,26 @@ numeratorBlanketOrderStock(order, stock) <- defaultNumeratorUserOrder() WHEN SET
 operationBlanketOrder = DATA Operation (BlanketOrder);
 nameOperationBlanketOrder 'Операция' = nameOperation(operationBlanketOrder(blanketOrder));
 
-operationOrder(order) += operationBlanketOrder(blanketOrderBlanketOrderOrder(order));
+dataOperationBlanketOrderStock = DATA Operation (BlanketOrder, Stock);
+operationBlanketOrderStock (blanketOrder, stock) = OVERRIDE (operationBlanketOrder(blanketOrder) IF stock IS Stock), dataOperationBlanketOrderStock(blanketOrder, stock);
+nameOperationBlanketOrderStock 'Операция' (blanketOrder, stock)= nameOperation(operationBlanketOrderStock (blanketOrder, stock));
 
-operationBlanketOrderDetail 'Операция' (blanketOrderDetail) = operationBlanketOrder(blanketOrderBlanketOrderDetail(blanketOrderDetail));
+operationBlanketOrderDetail 'Операция' (detail) = operationBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail));
+
+operationOrder(order) += operationBlanketOrderStock(blanketOrderBlanketOrderOrder(order), stockBlanketOrderOrder(order));
 
 CONSTRAINT operationBlanketOrderDetail(blanketOrderDetail) AND priceListTypeBlanketOrderDetail(blanketOrderDetail)
            AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderDetail(blanketOrderDetail), operationBlanketOrderDetail(blanketOrderDetail))
     CHECKED BY priceListTypeBlanketOrderDetail
     MESSAGE 'Вид цены должен совпадать с отмеченными в операции';
 
-CONSTRAINT operationBlanketOrder(blanketOrder) AND priceListTypeBlanketOrderStock(blanketOrder, stock)
-           AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderStock(blanketOrder, stock), operationBlanketOrder(blanketOrder))
+//CONSTRAINT operationBlanketOrder(blanketOrder) AND priceListTypeBlanketOrderStock(blanketOrder, stock)
+//           AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderStock(blanketOrder, stock), operationBlanketOrder(blanketOrder))
+//    CHECKED BY priceListTypeBlanketOrderStock
+//    MESSAGE 'Вид цены должен совпадать с отмеченными в операции';
+
+CONSTRAINT dataOperationBlanketOrderStock(blanketOrder, stock) AND priceListTypeBlanketOrderStock(blanketOrder, stock)
+           AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderStock(blanketOrder, stock), dataOperationBlanketOrderStock(blanketOrder, stock))
     CHECKED BY priceListTypeBlanketOrderStock
     MESSAGE 'Вид цены должен совпадать с отмеченными в операции';
 
@@ -47,8 +56,29 @@ CONSTRAINT operationBlanketOrder(blanketOrder)
     CHECKED BY customerBlanketOrder
     MESSAGE 'Покупатель должен совпадать с отмеченными в операции';
 
+//--
+CONSTRAINT dataOperationBlanketOrderStock(order,stock)
+           AND NOT inSupplierOperation(supplierBlanketOrder(order), dataOperationBlanketOrderStock(order,stock))
+    CHECKED BY dataOperationBlanketOrderStock       
+    MESSAGE 'Поставщик должен совпадать с отмеченными в операции (для склада)';
+
+CONSTRAINT dataOperationBlanketOrderStock(order,stock)
+           AND NOT inCustomerOperation(customerBlanketOrder(order), dataOperationBlanketOrderStock(order,stock))
+    CHECKED BY dataOperationBlanketOrderStock
+    MESSAGE 'Покупатель должен совпадать с отмеченными в операции (для склада)';
+    
+CONSTRAINT dataOperationBlanketOrderStock(order,stock)
+           AND NOT inSupplierStockOperation(supplierStockBlanketOrder(order), dataOperationBlanketOrderStock(order,stock))
+    CHECKED BY dataOperationBlanketOrderStock
+    MESSAGE 'Склад поставщика должен совпадать с отмеченными в операции для склада';
+CONSTRAINT dataOperationBlanketOrderStock(order,stock)
+           AND NOT inCustomerStockOperation(stock, dataOperationBlanketOrderStock(order,stock))
+    CHECKED BY dataOperationBlanketOrderStock
+    MESSAGE 'Склад покупателя должен совпадать с отмеченными в операции для склада';
+    
 EXTEND FORM blanketOrder
     PROPERTIES(o) nameOperationBlanketOrder
+    PROPERTIES(o,c) nameOperationBlanketOrderStock BEFORE namePriceListTypeBlanketOrderStock      
 ;
 
 EXTEND DESIGN blanketOrder{
@@ -56,6 +86,7 @@ EXTEND DESIGN blanketOrder{
         ADD PROPERTY(nameOperationBlanketOrder) BEFORE PROPERTY(nameCurrencyBlanketOrder);
     }
 }
+
 @defineDocumentOperationRole(blanketOrder);
 @deriveDocumentOperationLegalEntity(blanketOrder, customer, blanketOrder);
 @defineDocumentLegalEntityAccess(BlanketOrder, customer, customer);
@@ -71,6 +102,13 @@ CONSTRAINT customerBlanketOrder(blanketOrder) AND NOT isCustomerLegalEntity(cust
 
 @defineDocumentLegalEntityStockAccess(BlanketOrder, supplier, company, blanketOrder);
 @deriveDocumentOperationStock(blanketOrder, supplierStock, blanketOrder);
+
+WHEN SESSION FORMS blanketOrder (CHANGED (supplierBlanketOrder(o) AND inBlanketOrderStock(o, customerStock)) OR
+                                 CHANGED (supplierStockBlanketOrder(o) AND inBlanketOrderStock(o, customerStock)) OR
+                                 CHANGED (customerBlanketOrder(o) AND inBlanketOrderStock(o, customerStock))) NOINLINE DO {
+    dataOperationBlanketOrderStock(o, customerStock) <- defaultOperationSupplierCustomerSupplierStockCustomerStockUser(supplierBlanketOrder(o), customerBlanketOrder(o),supplierStockBlanketOrder(o),customerStock,currentUser()) IF inBlanketOrderStock(o,customerStock)
+        WHERE countOperationSupplierCustomerSupplierStockCustomerStockUser(supplierBlanketOrder(o), customerBlanketOrder(o),supplierStockBlanketOrder(o),customerStock,currentUser())==1;
+}
 
 //------------------------------ Расширение формы -----------------------------//
 // Резервы
