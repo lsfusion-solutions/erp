@@ -1,6 +1,6 @@
 MODULE ItemArticle;
 
-REQUIRE System, Item, ComplianceGroup, ComplianceGroupItem, CustomsGroupItem, CustomsGroupItem, Tax;
+REQUIRE System, Item, Tax;
 
 NAMESPACE Item;
 
@@ -34,6 +34,8 @@ FORM article 'Артикул'
 
     OBJECTS c = Country
     PROPERTIES (c) READONLY nameCountry
+    FILTERGROUP filters1
+            FILTER 'Страны, у которых есть НДС' 'F11' countRangeTaxCountry (Tax.taxVAT, c) DEFAULT
 
     EDIT Article OBJECT a
 ;
@@ -52,6 +54,10 @@ DESIGN article FROM DEFAULT {
                 type = CONTAINERV;
                 caption = 'Основные данные';
                 ADD a.articleBase {
+                    type = CONTAINERH;
+                }
+                NEW regionPrm {
+                    caption = 'Региональные свойства';
                     type = CONTAINERH;
                 }
             }
@@ -211,68 +217,6 @@ nameCollectionArticle 'Коллекция' (Article) = nameCollection(collection
 EXTEND FORM article PROPERTIES(a)  nameCollectionArticle;
 EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameCollectionArticle;
 
-//-- ТН ВЭД
-TABLE countryArticle(Country, Article);
-customsGroupCountryArticle = DATA CustomsGroup(Country, Article);
-codeCustomsGroupCountryArticle 'ТН ВЭД' (country, article) = codeCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplier MINCHARWIDTH 10 PREFCHARWIDTH 15;
-nameCustomsGroupCountryArticle 'Позиция ТН ВЭД' (country, article) = nameCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplier MINCHARWIDTH 30 PREFCHARWIDTH 40;
-codeCustomsGroupDefaultCountryArticle 'ТН ВЭД' (article) = codeCustomsGroup(customsGroupCountryArticle(defaultCountry(), article)) IN articleSupplier MINCHARWIDTH 10 PREFCHARWIDTH 15;
-
-changeCustomsGroupDefaultCountryArticle = ACTION (article) {
-    REQUEST OBJECT cg
-    FORM customsGroups OBJECTS cz = customsZoneDefaultCountry() MODAL SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        customsGroupCountryArticle(country, article) <- requestedObject() WHERE country == defaultCountry();
-
-    } ELSE IF formResult() == FormResult.drop THEN {
-        customsGroupCountryArticle(country, article) <- NULL WHERE country == defaultCountry();
-    }
-}
-
-CONSTRAINT customsZoneCustomsGroup(customsGroupCountryArticle(country, article)) != customsZoneCountry(country) CHECKED BY customsGroupCountryArticle
-    MESSAGE 'Таможенная зона должна соответствовать стране';
-
-//-- Группа сертификации
-complianceGroupCountryArticle = DATA ComplianceGroup(Country, Article);
-nameComplianceGroupCountryArticle 'Группа сертификации' (country, article) = nameComplianceGroup(complianceGroupCountryArticle(country, article)) IN articleSupplier MINCHARWIDTH 30 PREFCHARWIDTH 40;
-nameComplianceGroupDefaultCountryArticle 'Группа сертификации' (article) = nameComplianceGroup(complianceGroupCountryArticle(defaultCountry(), article)) IN articleSupplier MINCHARWIDTH 10 PREFCHARWIDTH 15;
-
-changeComplianceGroupDefaultCountryArticle = ACTION (article) {
-    REQUEST OBJECT cg
-    FORM complianceGroups MODAL SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        complianceGroupCountryArticle(country, article) <- requestedObject() WHERE country == defaultCountry();
-
-    } ELSE IF formResult() == FormResult.drop THEN {
-        complianceGroupCountryArticle(country, article) <- NULL WHERE country == defaultCountry();
-    }
-}
-
-
-
-EXTEND FORM article
-    PROPERTIES(a)  codeCustomsGroupDefaultCountryArticle  ON CHANGE changeCustomsGroupDefaultCountryArticle(a),
-    nameComplianceGroupDefaultCountryArticle  ON CHANGE changeComplianceGroupDefaultCountryArticle(a)
-
-    PROPERTIES(c,a) codeCustomsGroupCountryArticle, nameComplianceGroupCountryArticle
-    FILTERGROUP filters1
-            FILTER 'Страны, у которых есть НДС' 'F11' countRangeTaxCountry (Tax.taxVAT, c) DEFAULT
-
-;
-EXTEND DESIGN article  {
-    articlePrimary {
-        NEW regionPrm AFTER a.articleBase{
-            caption = 'Региональные свойства';
-            type = CONTAINERH;
-            ADD PROPERTY(codeCustomsGroupDefaultCountryArticle);
-            ADD PROPERTY(nameComplianceGroupDefaultCountryArticle);
-        }
-    }
-}
-
-EXTEND FORM articles
-    PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  codeCustomsGroupDefaultCountryArticle, nameComplianceGroupDefaultCountryArticle
-;
 // Размер
 CLASS Size 'Размер товара';
 TABLE size(Size);
@@ -334,6 +278,38 @@ DESIGN sizeHeights FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @defineObjectItemAttributeBatch (sizeHeight, nameSizeHeight, 'Рост');
 @implementItemAttribute(nameSizeHeightItem, 'Рост', String, itemSizeHeight);
 
+overCopyItem(s, d) += ACTION (s, d) {
+    articleItem(d) <- articleItem(s);
+    colorItem(d) <- colorItem(s);
+    sizeItem(d) <- sizeItem(s);
+    sizeHeightItem(d) <- sizeHeightItem(s);
+}
+
+EXTEND DESIGN item {
+    itemPrimaryColumn2 {
+        ADD i.itemArticle {
+            columns = 2;
+        }
+    }
+}
+
+
+EXTEND DESIGN itemGroup {
+    itemGroupDetail {
+        ADD g.itemArticle {
+            columns = 6;
+        }
+    }
+}
+
+NAVIGATOR {
+    skuNavigator {
+        ADD articles AFTER itemGroups;
+    }
+}
+
+// --------------------------------- Атрибуты только для артикулов -------------------------- //
+
 // Сезон
 CLASS Season 'Сезон';
 TABLE season (Season);
@@ -378,16 +354,17 @@ FORM seasonYears 'Годы'
 ;
 DESIGN seasonYears FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-seasonArticle= DATA Season (Article);
-nameSeasonArticle 'Сезон' (a)= nameSeason(seasonArticle(a)) IN articleSeason MINCHARWIDTH 20 PREFCHARWIDTH 30;
-seasonYearArticle= DATA SeasonYear (Article);
-nameSeasonYearArticle 'Год' (a)= nameSeasonYear(seasonYearArticle(a)) IN articleSeason MINCHARWIDTH 10 PREFCHARWIDTH 15;
+seasonArticle = DATA Season (Article);
+nameSeasonArticle 'Сезон' (a) = nameSeason(seasonArticle(a)) IN articleSeason MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-seasonItem (item)= seasonArticle(articleItem(item));
-nameSeasonItem 'Сезон' (i)= nameSeason(seasonItem(i)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
+seasonYearArticle = DATA SeasonYear (Article);
+nameSeasonYearArticle 'Год' (a) = nameSeasonYear(seasonYearArticle(a)) IN articleSeason MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+seasonItem (item) = seasonArticle(articleItem(item));
+nameSeasonItem 'Сезон' (i) = nameSeason(seasonItem(i)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
  
-seasonYearItem (item)= seasonYearArticle(articleItem(item));
-nameSeasonYearItem 'Год' (i)= nameSeasonYear(seasonYearItem(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
+seasonYearItem (item) = seasonYearArticle(articleItem(item));
+nameSeasonYearItem 'Год' (i) = nameSeasonYear(seasonYearItem(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 EXTEND FORM item
     PROPERTIES(i)  nameSeasonYearItem, nameSeasonItem
@@ -409,17 +386,15 @@ EXTEND FORM articles
     PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  nameSeasonYearArticle, nameSeasonArticle
 ;
 
+// ------------------ Добавляем на форму артикулов товары в отдельную вкладку ---------------------- //
 EXTEND FORM article
 
     OBJECTS i = Item
     PROPERTIES (i) captionItem, canonicalNameItemGroupItem, compositionItem, nameUOMItem, nameColorItem,                        
-                   codeCustomsGroupDefaultCountryItem ON CHANGE changeCustomsGroupDefaultCountryItem(i), 
-                   nameComplianceGroupDefaultCountryItem ON CHANGE changeComplianceGroupCountryItem(i),
                    nameSizeItem, nameSizeHeightItem     
     PROPERTIES (i) ADDOBJ, DELETESESSION   
                                                                     
     FILTERS articleItem(i) == a      
-    
 ;
 EXTEND DESIGN article {
     articleDetail{
@@ -443,8 +418,9 @@ EXTEND DESIGN articles {
     }
 } 
 
+// ------------------------- Автоматическое проставление свойств товара для артикула ---------------------- //
 WHEN SESSION FORMS article CHANGED(captionArticle(article)) DO         
-    captionItem(i) <- captionArticle(article) WHERE articleItem(i)==article;
+    captionItem(i) <- captionArticle(article) WHERE articleItem(i) == article;
     
 WHEN SESSION FORMS article CHANGED(itemGroupArticle(article)) DO         
     itemGroupItem(i) <- itemGroupArticle(article) WHERE articleItem(i)==article;
@@ -457,54 +433,13 @@ WHEN SESSION FORMS article CHANGED(UOMArticle(article)) DO
     
 WHEN SESSION FORMS article CHANGED(colorArticle(article)) DO         
     colorItem(i) <- colorArticle(article) WHERE articleItem(i)==article;
-        
-WHEN SESSION FORMS article CHANGED(customsGroupCountryArticle(country, article)) DO         
-    customsGroupCountryItem(country, i) <- customsGroupCountryArticle(country, article) WHERE articleItem(i)==article;      
 
-WHEN SESSION FORMS article CHANGED(complianceGroupCountryArticle(country, article)) DO         
-    complianceGroupCountryItem(country, i) <- complianceGroupCountryArticle(country, article) WHERE articleItem(i)==article; 
-        
-        
+// ----------------------------- Автоматическое проставление свойств при создании товара --------------------- //
 WHEN SESSION FORMS article
-    SET(i IS Item) AND articleItem(i)==article DO { 
-        ASSIGN captionItem(i) <- captionArticle(article);
-        ASSIGN itemGroupItem(i) <- itemGroupArticle(article) WHERE articleItem(i)==article;
-        ASSIGN compositionItem(i) <- compositionArticle(article);  
-        ASSIGN UOMItem(i) <- UOMArticle(article);  
-        ASSIGN colorItem(i) <- colorArticle(article);
-        ASSIGN customsGroupCountryItem(country, i) <- customsGroupCountryArticle(country, article);      
-        ASSIGN complianceGroupCountryItem(country, i) <- complianceGroupCountryArticle(country, article); 
+    SET(i IS Item) AND articleItem(i) == article DO { 
+        captionItem(i) <- captionArticle(article);
+        itemGroupItem(i) <- itemGroupArticle(article) WHERE articleItem(i)==article;
+        compositionItem(i) <- compositionArticle(article);  
+        UOMItem(i) <- UOMArticle(article);  
+        colorItem(i) <- colorArticle(article);
     }    
-
-
-
-overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN articleItem(d) <- articleItem(s);
-    ASSIGN colorItem(d) <- colorItem(s);
-    ASSIGN sizeItem(d) <- sizeItem(s);
-    ASSIGN sizeHeightItem(d) <- sizeHeightItem(s);
-}
-
-EXTEND DESIGN item {
-    itemPrimaryColumn2 {
-        ADD i.itemArticle {
-            columns = 2;
-        }
-    }
-}
-
-
-EXTEND DESIGN itemGroup {
-    itemGroupDetail {
-        ADD g.itemArticle {
-            columns = 6;
-        }
-    }
-}
-
-
-NAVIGATOR {
-    skuNavigator {
-        ADD articles AFTER itemGroups;
-    }
-}

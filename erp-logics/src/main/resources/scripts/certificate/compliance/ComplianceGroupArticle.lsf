@@ -1,0 +1,49 @@
+MODULE ComplianceGroupArticle;
+
+REQUIRE ComplianceGroupItem, ItemArticle;
+
+NAMESPACE Compliance;
+
+//-- Группа сертификации
+complianceGroupCountryArticle = DATA ComplianceGroup(Country, Article);
+nameComplianceGroupCountryArticle 'Группа сертификации' (country, article) = nameComplianceGroup(complianceGroupCountryArticle(country, article)) IN articleSupplier MINCHARWIDTH 30 PREFCHARWIDTH 40;
+nameComplianceGroupDefaultCountryArticle 'Группа сертификации' (article) = nameComplianceGroup(complianceGroupCountryArticle(defaultCountry(), article)) IN articleSupplier MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+changeComplianceGroupDefaultCountryArticle = ACTION (article) {
+    REQUEST OBJECT cg
+    FORM complianceGroups MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        complianceGroupCountryArticle(country, article) <- requestedObject() WHERE country == defaultCountry();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        complianceGroupCountryArticle(country, article) <- NULL WHERE country == defaultCountry();
+    }
+}
+
+EXTEND FORM article
+    PROPERTIES(a)    nameComplianceGroupDefaultCountryArticle  ON CHANGE changeComplianceGroupDefaultCountryArticle(a)
+    PROPERTIES(c, a) nameComplianceGroupCountryArticle
+
+    PROPERTIES (i) nameComplianceGroupDefaultCountryItem ON CHANGE changeComplianceGroupCountryItem(i)
+;
+EXTEND DESIGN article  {
+    regionPrm {
+        ADD PROPERTY(nameComplianceGroupDefaultCountryArticle);
+    }
+}
+
+WHEN SESSION FORMS article CHANGED(complianceGroupCountryArticle(country, article)) DO         
+    complianceGroupCountryItem(country, i) <- complianceGroupCountryArticle(country, article) WHERE articleItem(i) == article; 
+
+WHEN SESSION FORMS article SET(i IS Item) DO
+    complianceGroupCountryItem(country, i) <- complianceGroupCountryArticle(country, articleItem(i)); 
+
+
+EXTEND FORM articles
+    PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea nameComplianceGroupDefaultCountryArticle
+;
+
+EXTEND FORM article
+
+    
+;
