@@ -161,7 +161,7 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
 
                 QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
                 paymentQuery.addProperty("sumPayment", getLCP("sumPayment").getExpr(session.getModifier(), paymentExpr));
-                paymentQuery.addProperty("paymentMeansPayment", getLCP("paymentMeansPayment").getExpr(session.getModifier(), paymentExpr));
+                paymentQuery.addProperty("paymentMeansPayment", getLCP("namePaymentMeansPayment").getExpr(session.getModifier(), paymentExpr));
                 paymentQuery.addProperty("sidPaymentTypePayment", getLCP("sidPaymentTypePayment").getExpr(session.getModifier(), paymentExpr));
 
                 paymentQuery.and(getLCP("receiptPayment").getExpr(session.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
