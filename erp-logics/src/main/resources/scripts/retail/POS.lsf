@@ -30,8 +30,6 @@ currentPOSPriceBatchReceiptDetail 'Текущая цена' (batch, receiptDetai
 
 zReportCashRegister = DATA ZReport (CashRegister);
 
-currentCashRegister () = cashRegisterComputer(currentComputer());
-
 GROUP receiptZReport 'Z-отчет' : public;
 
 currentZReport() = zReportCashRegister(currentCashRegister());
@@ -281,7 +279,6 @@ FORM searchSkuSaleReceipt 'Поиск SKU'
     FILTERGROUP filters
         FILTER 'Товары с остатком' 'F10' prevCurrentBalanceSkuStock(s, st) DEFAULT
 
-    HINTTABLE LIST POSPriceListTypeReceipt, departmentStoreReceipt, groupCashRegisterReceipt
 ;
 
 DESIGN searchSkuSaleReceipt FROM DEFAULT {
@@ -329,7 +326,6 @@ FORM searchBatchSaleReceipt 'Поиск партии'
     FILTERGROUP filters
         FILTER 'Товары с остатком' 'F10' prevCurrentBalanceBatchStock(b, st) DEFAULT
 
-    HINTTABLE LIST POSPriceListTypeReceipt, departmentStoreReceipt, groupCashRegisterReceipt
 ;
 
 DESIGN searchBatchSaleReceipt FROM DEFAULT {
@@ -544,7 +540,8 @@ inReceiptPromotion (receipt, promotion) = inPromotionStore(promotion, storeRecei
                                           NOT sumReceiptDetailReceipt(receipt) < minSumBillPromotion(promotion) AND NOT sumReceiptDetailReceipt(receipt) > maxSumBillPromotion(promotion)
                                           AND NOT skipPromotionDOW(promotion, DOWInDate(dateReceipt(receipt)))
                                           AND NOT cumulativeSumReceiptPromotion (receipt, promotion) < minCumulativeSumPromotion(promotion) AND NOT cumulativeSumReceiptPromotion (receipt, promotion) > maxCumulativeSumPromotion(promotion)
-                                          AND NOT (hasDiscountCardPromotion(promotion) AND NOT inPromotionDiscountCard(promotion, discountCardReceipt(receipt)));
+                                          AND NOT (hasDiscountCardPromotion(promotion) AND NOT inPromotionDiscountCard(promotion, discountCardReceipt(receipt)))
+                                          AND NOT (noDiscountCardPromotion(promotion) AND discountCardReceipt(receipt));
 
 inReceiptSaleDetailPromotionCondition (receiptDetail, promotionCondition) =
     inReceiptPromotion(receiptReceiptDetail(receiptDetail), promotionPromotionCondition(promotionCondition))
@@ -714,7 +711,6 @@ FORM POS
     EVENTS
         ON INIT createCurrentReceipt()
 
-    HINTTABLE LIST POSPriceListTypeReceipt, departmentStoreReceipt, groupCashRegisterReceipt
 ;
 
 DESIGN POS FROM DEFAULT {

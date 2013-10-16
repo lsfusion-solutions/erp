@@ -223,6 +223,7 @@ minSumBillPromotion 'Сумма чека (от)' (promotion) = DATA NUMERIC[14,2
 maxSumBillPromotion 'Сумма чека (до)' (promotion) = DATA NUMERIC[14,2] (Promotion);
 
 hasDiscountCardPromotion 'Есть дисконтная карта' = DATA BOOLEAN (Promotion);
+noDiscountCardPromotion 'Нет дисконтной карты' = DATA BOOLEAN (Promotion);
 allDiscountCardPromotion 'Любая дисконтная карта' = DATA BOOLEAN (Promotion);
 
 TABLE promotionDiscountCard (Promotion, DiscountCard);
@@ -286,14 +287,18 @@ inPromotionConditionSku 'В условии' (promotionCondition, sku) = OVERRIDE
                                                                           inParentPromotionConditionSkuGroup(promotionCondition, skuGroupSku(sku)),
                                                                           inDataPromotionConditionSku(promotionCondition, sku);
 
+notHasDiscountCardPromotion (p) = NOT hasDiscountCardPromotion(p);
+notNoDiscountCardPromotion (p) = NOT noDiscountCardPromotion(p);
+
 FORM promotion 'Акция'
     OBJECTS sh=Promotion   FIXED PANEL
     PROPERTIES(sh)     namePromotion, namePromotionGroupPromotion, userSetPromotion,
                        nameNumeratorPromotion, numberPromotion, seriesPromotion,
                        dateFromPromotion, dateToPromotion, timeOfFromPromotion, timeOfToPromotion,
                        minSumBillPromotion, maxSumBillPromotion
-    PROPERTIES(sh)                                     hasDiscountCardPromotion
-    PROPERTIES(sh) SHOWIF hasDiscountCardPromotion(sh) minCumulativeSumPromotion, maxCumulativeSumPromotion, useCurrentReceiptPromotion, allDiscountCardPromotion
+    PROPERTIES(sh) SHOWIF notNoDiscountCardPromotion(sh)  hasDiscountCardPromotion 
+    PROPERTIES(sh) SHOWIF notHasDiscountCardPromotion(sh) noDiscountCardPromotion 
+    PROPERTIES(sh) SHOWIF hasDiscountCardPromotion(sh)    minCumulativeSumPromotion, maxCumulativeSumPromotion, useCurrentReceiptPromotion, allDiscountCardPromotion
     OBJECTS d=DOW
     PROPERTIES(d)     READONLY staticCaption
     PROPERTIES(sh, d)  skipPromotionDOW
@@ -403,6 +408,7 @@ DESIGN promotion FROM DEFAULT {
                 type = COLUMNS;
                 columns = 1;
                 ADD PROPERTY(hasDiscountCardPromotion);
+                ADD PROPERTY(noDiscountCardPromotion);
                 ADD PROPERTY(minCumulativeSumPromotion);
                 ADD PROPERTY(maxCumulativeSumPromotion);
                 ADD PROPERTY(useCurrentReceiptPromotion);
@@ -460,53 +466,45 @@ DESIGN promotion FROM DEFAULT {
 
 copyPromotion 'Копировать' = ACTION (promotion) NEWSESSION {
     FOR ADDOBJ p = Promotion DO {
-        ASSIGN promotionGroupPromotion(p) <- promotionGroupPromotion(promotion);
-        ASSIGN dateFromPromotion(p) <- dateFromPromotion(promotion);
-        ASSIGN dateToPromotion(p) <- dateToPromotion(promotion);
-        ASSIGN timeOfFromPromotion(p) <- timeOfFromPromotion(promotion);
-        ASSIGN timeOfToPromotion(p) <- timeOfToPromotion(promotion);
-        ASSIGN minSumBillPromotion(p) <- minSumBillPromotion(promotion);
-        ASSIGN maxSumBillPromotion(p) <-  maxSumBillPromotion(promotion);
-        ASSIGN hasDiscountCardPromotion(p) <- hasDiscountCardPromotion(promotion);
-        ASSIGN minCumulativeSumPromotion(p) <- minCumulativeSumPromotion(promotion);
-        ASSIGN maxCumulativeSumPromotion(p) <- maxCumulativeSumPromotion(promotion);
-        ASSIGN useCurrentReceiptPromotion(p) <- useCurrentReceiptPromotion(promotion);
-        ASSIGN allDiscountCardPromotion(p) <- allDiscountCardPromotion(promotion);
+        promotionGroupPromotion(p) <- promotionGroupPromotion(promotion);
+        dateFromPromotion(p) <- dateFromPromotion(promotion);
+        dateToPromotion(p) <- dateToPromotion(promotion);
+        timeOfFromPromotion(p) <- timeOfFromPromotion(promotion);
+        timeOfToPromotion(p) <- timeOfToPromotion(promotion);
+        minSumBillPromotion(p) <- minSumBillPromotion(promotion);
+        maxSumBillPromotion(p) <-  maxSumBillPromotion(promotion);
+        hasDiscountCardPromotion(p) <- hasDiscountCardPromotion(promotion);
+        noDiscountCardPromotion(p) <- noDiscountCardPromotion(promotion);
+        minCumulativeSumPromotion(p) <- minCumulativeSumPromotion(promotion);
+        maxCumulativeSumPromotion(p) <- maxCumulativeSumPromotion(promotion);
+        useCurrentReceiptPromotion(p) <- useCurrentReceiptPromotion(promotion);
+        allDiscountCardPromotion(p) <- allDiscountCardPromotion(promotion);
 
-        FOR promotionPromotionCondition(promotionCondition) == promotion DO {
-            FOR ADDOBJ pc = PromotionCondition DO {
-                ASSIGN promotionPromotionCondition(pc) <- p;
-                ASSIGN minQuantityPromotionCondition(pc) <- minQuantityPromotionCondition(promotionCondition);
-                ASSIGN minSumPromotionCondition(pc) <- minSumPromotionCondition(promotionCondition);
-                ASSIGN quantityDiscountPromotionCondition(pc) <- quantityDiscountPromotionCondition(promotionCondition);
-                ASSIGN percentPromotionCondition(pc) <- percentPromotionCondition(promotionCondition);
-                ASSIGN resultPricePromotionCondition(pc) <- resultPricePromotionCondition(promotionCondition);
-                ASSIGN sumDiscountPromotionCondition(pc) <- sumDiscountPromotionCondition(promotionCondition);
-                ASSIGN sumReceiptPromotionCondition(pc) <- sumReceiptPromotionCondition(promotionCondition);
+        FOR promotionPromotionCondition(promotionCondition) == promotion ADDOBJ pc = PromotionCondition DO {
+            promotionPromotionCondition(pc) <- p;
+            minQuantityPromotionCondition(pc) <- minQuantityPromotionCondition(promotionCondition);
+            minSumPromotionCondition(pc) <- minSumPromotionCondition(promotionCondition);
+            quantityDiscountPromotionCondition(pc) <- quantityDiscountPromotionCondition(promotionCondition);
+            percentPromotionCondition(pc) <- percentPromotionCondition(promotionCondition);
+            resultPricePromotionCondition(pc) <- resultPricePromotionCondition(promotionCondition);
+            sumDiscountPromotionCondition(pc) <- sumDiscountPromotionCondition(promotionCondition);
+            sumReceiptPromotionCondition(pc) <- sumReceiptPromotionCondition(promotionCondition);
 
-                ASSIGN allDiscountSkuGroupPromotionCondition(pc) <- allDiscountSkuGroupPromotionCondition(promotionCondition);
-
-                FOR inDataPromotionConditionDiscountSkuGroup(promotionCondition, discountSkuGroup) DO {
-                    ASSIGN inDataPromotionConditionDiscountSkuGroup(pc, discountSkuGroup) <- TRUE;
-                };
-                FOR inDataPromotionConditionSkuGroup(promotionCondition, skuGroup) DO {
-                    ASSIGN inDataPromotionConditionSkuGroup(pc, skuGroup) <- TRUE;
-                };
-                FOR inDataPromotionConditionSku(promotionCondition, sku) DO {
-                    ASSIGN inDataPromotionConditionSku(pc, sku) <- TRUE;
-                };
-            };
-        };
+            allDiscountSkuGroupPromotionCondition(pc) <- allDiscountSkuGroupPromotionCondition(promotionCondition);
+            inDataPromotionConditionDiscountSkuGroup(pc, discountSkuGroup) <- inDataPromotionConditionDiscountSkuGroup(promotionCondition, discountSkuGroup);
+            inDataPromotionConditionSkuGroup(pc, skuGroup) <- inDataPromotionConditionSkuGroup(promotionCondition, skuGroup);
+            inDataPromotionConditionSku(pc, sku) <- inDataPromotionConditionSku(promotionCondition, sku);
+        }
 
         FORM promotion OBJECTS sh = p MANAGESESSION DOCKEDMODAL;
-    };
+    }
 } TOOLBAR;
 
 FORM promotions 'Акции'
     OBJECTS sh=Promotion
     PROPERTIES(sh)     READONLY namePromotion, numberPromotion, seriesPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
                                 timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
-                                hasDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
+                                hasDiscountCardPromotion, noDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
                                 useCurrentReceiptPromotion, allDiscountCardPromotion
     PROPERTIES(sh)    copyPromotion, ADDFORM, EDITFORM, DELETE
 
@@ -522,7 +520,7 @@ FORM promotionGroup 'Группа акций'
     PROPERTIES(sh)     userOrderPromotion
     PROPERTIES(sh)     READONLY namePromotion, seriesPromotion, numberPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
                                 timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
-                                hasDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
+                                hasDiscountCardPromotion, noDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
                                 useCurrentReceiptPromotion, allDiscountCardPromotion
     PROPERTIES(sh)     copyPromotion, ADDFORM, EDITFORM, DELETE
     ORDER BY userOrderPromotion
@@ -541,7 +539,7 @@ FORM promotionGroups 'Группы акций'
     PROPERTIES(sh)     READONLY orderPromotion
     PROPERTIES(sh)     READONLY namePromotion, seriesPromotion, numberPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
                                 timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
-                                hasDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
+                                hasDiscountCardPromotion, noDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
                                 useCurrentReceiptPromotion, allDiscountCardPromotion
     PROPERTIES(sh)     ADDFORM, EDITFORM, DELETE
     ORDER BY orderPromotion
@@ -556,7 +554,7 @@ EXTEND FORM discountCard
     PROPERTIES(p, d) inPromotionDiscountCard
     PROPERTIES(p) READONLY namePromotion, numberPromotion, seriesPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
                            timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
-                           hasDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
+                           hasDiscountCardPromotion, noDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
                            useCurrentReceiptPromotion, allDiscountCardPromotion
     FILTERS hasDiscountCardPromotion(p)
 ;
