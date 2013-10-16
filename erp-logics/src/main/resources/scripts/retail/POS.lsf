@@ -550,7 +550,7 @@ inReceiptSaleDetailPromotionCondition (receiptDetail, promotionCondition) =
     inReceiptPromotion(receiptReceiptDetail(receiptDetail), promotionPromotionCondition(promotionCondition))
     AND inPromotionConditionSku(promotionCondition, skuReceiptDetail(receiptDetail));
 
-maxSalePriceReceiptSku (receipt, sku) = GROUP MAX priceReceiptSaleDetail(detail) BY receiptReceiptSaleDetail(detail), skuReceiptSaleDetail(detail);
+//maxSalePriceReceiptSku (receipt, sku) = GROUP MAX priceReceiptSaleDetail(detail) BY receiptReceiptSaleDetail(detail), skuReceiptSaleDetail(detail);
 
 isAppliedPromotionReceiptSaleDetailPromotionCondition 'Акция применяется' (receiptSaleDetail, promotionCondition) =
     IF userSetPromotionCondition(promotionCondition) THEN setUserPromotionReceiptSaleDetailPromotionCondition(receiptSaleDetail, promotionCondition)
@@ -562,12 +562,12 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
     promotionSumReceiptSaleDetailPromotionCondition(detail, condition) <- NULL WHERE receiptReceiptSaleDetail(detail) == receipt;
     discountSumReceiptSaleDetail(detail) <- NULL WHERE receiptReceiptSaleDetail(detail) == receipt;
 
-    LOCAL maxSalePriceSku = NUMERIC[14,2] (Sku);
-    maxSalePriceSku(sku) <- maxSalePriceReceiptSku(receipt, sku);
+//    LOCAL maxSalePriceSku = NUMERIC[14,2] (Sku);
+//    maxSalePriceSku(sku) <- maxSalePriceReceiptSku(receipt, sku);
 
     FOR promotionGroup IS PromotionGroup DO {
-        LOCAL leftSku = NUMERIC[14,3] (Sku);
-        ASSIGN leftSku(sku) <- quantityReceiptSaleDetailSkuReceipt (sku, receipt);   //'Кол-во товара в документе'
+//        LOCAL leftSku = NUMERIC[14,3] (Sku);
+//        leftSku(sku) <- quantityReceiptSaleDetailSkuReceipt (sku, receipt);   //'Кол-во товара в документе'
 
         LOCAL leftQuantityReceiptSaleDetail = NUMERIC[14,3] (ReceiptSaleDetail);
         leftQuantityReceiptSaleDetail(detail) <- quantityReceiptSaleDetail(detail) WHERE receiptReceiptSaleDetail(detail) == receipt;
@@ -577,14 +577,14 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
 
         FOR promotionGroupPromotion(promotion) == promotionGroup AND inReceiptPromotion(receipt, promotion) ORDER orderPromotion(promotion) DO {
             LOCAL quantityPromotionCondition = NUMERIC[14,3] (PromotionCondition);
-            quantityPromotionCondition(promotionCondition) <- [GROUP SUM leftSku (sku)
-                                                                         IF inPromotionConditionSku(promotionCondition, sku)
+            quantityPromotionCondition(promotionCondition) <- [GROUP SUM leftQuantityReceiptSaleDetail(detail)
+                                                                         IF inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail))
                                                                      BY promotionCondition](promotionCondition) IF
                                                                         promotionPromotionCondition(promotionCondition) == promotion;
 
             LOCAL sumPromotionCondition = NUMERIC[14,3] (PromotionCondition);
-            sumPromotionCondition(promotionCondition) <- [GROUP SUM leftSku (sku) * maxSalePriceSku(sku)
-                                                                    IF inPromotionConditionSku(promotionCondition, sku)
+            sumPromotionCondition(promotionCondition) <- [GROUP SUM leftQuantityReceiptSaleDetail(detail) * priceReceiptSaleDetail(detail)
+                                                                    IF inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail))
                                                                     BY promotionCondition](promotionCondition) IF
                                                                        promotionPromotionCondition(promotionCondition) == promotion;
 
@@ -603,31 +603,33 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
                 takenPromotionCondition(promotionCondition) <- min(countPromotion() * quantityDiscountPromotionCondition(promotionCondition), quantityPromotionCondition(promotionCondition));
 
                 // Размазываем его по "Sku"
-                LOCAL takenSkuPromotionCondition = NUMERIC[14,3] (Sku, PromotionCondition);
-                takenSkuPromotionCondition(sku, promotionCondition) <- [PARTITION UNGROUP takenPromotionCondition
-                                                                                  LIMIT leftSku (sku)
-                                                                                        IF inPromotionConditionSku(promotionCondition, sku)
-                                                                                  BY promotionCondition
-                                                                                  ORDER maxSalePriceSku(sku), sku] (sku, promotionCondition);
+//                LOCAL takenSkuPromotionCondition = NUMERIC[14,3] (Sku, PromotionCondition);
+//                takenSkuPromotionCondition(sku, promotionCondition) <- [PARTITION UNGROUP takenPromotionCondition
+//                                                                                  LIMIT leftSku (sku)
+//                                                                                        IF inPromotionConditionSku(promotionCondition, sku)
+//                                                                                  BY promotionCondition
+//                                                                                  ORDER maxSalePriceSku(sku), sku] (sku, promotionCondition);
 
                 // Размазываем его по строкам чека
                 LOCAL takenReceiptSaleDetailPromotionCondition = NUMERIC[14,3] (ReceiptSaleDetail, PromotionCondition);
-                takenReceiptSaleDetailPromotionCondition (detail, condition) <- [PARTITION UNGROUP takenSkuPromotionCondition
-                                                                                           LIMIT leftQuantityReceiptSaleDetail(detail) IF isAppliedPromotionReceiptSaleDetailPromotionCondition(detail, promotionCondition)
-                                                                                           BY skuReceiptSaleDetail(detail), promotionCondition
-                                                                                           ORDER DESC detail](detail, condition);
+                takenReceiptSaleDetailPromotionCondition (detail, condition) <- [PARTITION UNGROUP takenPromotionCondition
+                                                                                           LIMIT leftQuantityReceiptSaleDetail(detail) 
+                                                                                                 IF inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail))  
+                                                                                                 AND isAppliedPromotionReceiptSaleDetailPromotionCondition(detail, promotionCondition)
+                                                                                           BY promotionCondition
+                                                                                           ORDER DESC priceReceiptSaleDetail(detail), detail](detail, condition);
 
                 // Считаем сколько товара использовали из каждой строки чека
                 LOCAL takenReceiptSaleDetail = NUMERIC[14,3] (ReceiptSaleDetail);
                 takenReceiptSaleDetail(detail) <- [GROUP SUM takenReceiptSaleDetailPromotionCondition(detail, condition) BY detail](detail);
 
                 // Считаем сколько использовали каждый товар
-                LOCAL takenSku = NUMERIC[14,3] (Sku);
-                takenSku(sku) <- [GROUP SUM takenReceiptSaleDetail(detail) BY skuReceiptSaleDetail(detail)] (sku);
+//                LOCAL takenSku = NUMERIC[14,3] (Sku);
+//                takenSku(sku) <- [GROUP SUM takenReceiptSaleDetail(detail) BY skuReceiptSaleDetail(detail)] (sku);
 
                 // Отнимаем использованные
                 leftQuantityReceiptSaleDetail(detail) <- leftQuantityReceiptSaleDetail(detail) (-) takenReceiptSaleDetail(detail);
-                leftSku(sku) <- leftSku(sku) (-) takenSku(sku);
+//                leftSku(sku) <- leftSku(sku) (-) takenSku(sku);
 
                 quantityReceiptSaleDetailPromotionCondition(detail, condition) <- takenReceiptSaleDetailPromotionCondition(detail, condition)
                     WHERE takenReceiptSaleDetailPromotionCondition(detail, condition);
