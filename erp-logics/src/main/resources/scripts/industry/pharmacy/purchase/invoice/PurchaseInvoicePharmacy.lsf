@@ -29,9 +29,9 @@ EXTEND FORM invoices
 ;
 
 
-WHEN SESSION FORMS userInvoice CHANGED (batchUserInvoiceDetail(detail)) OR
+WHEN SESSION FORMS userInvoice (CHANGED (batchUserInvoiceDetail(detail)) OR
                                CHANGED (skuUserInvoiceDetail(detail)) OR
-                               CHANGED (customerStockUserInvoiceDetail(detail)) DO {
+                               CHANGED (customerStockUserInvoiceDetail(detail))) AND NOT CHANGED(seriesPharmacyUserInvoiceDetail(detail)) DO {
     seriesPharmacyUserInvoiceDetail(detail) <- IF batchUserInvoiceDetail(detail) 
                                                     THEN seriesPharmacyBatch(batchUserInvoiceDetail(detail))
                                                     ELSE seriesPharmacyBatch(lastOrderBatchSkuStock(skuUserInvoiceDetail(detail), customerStockUserInvoiceDetail(detail)));
