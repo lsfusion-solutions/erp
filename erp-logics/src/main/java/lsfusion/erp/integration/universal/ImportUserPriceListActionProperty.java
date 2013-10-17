@@ -106,7 +106,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
                             importData(context, userPriceListObject, importColumns, importPriceColumns, file,
                                     fileExtension.trim(), startRow, dateRow, dateColumn, csvSeparator, itemKeyType,
-                                    operationObject, defaultItemGroupObject);
+                                    operationObject, defaultItemGroupObject, false);
 
                         }
                     }
@@ -128,7 +128,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     public boolean importData(ExecutionContext context, DataObject userPriceListObject,
                               Map<String, String[]> importColumns, Map<String, String[]> importPriceColumns,
                               byte[] file, String fileExtension, Integer startRow, Integer dateRow, Integer dateColumn,
-                              String csvSeparator, String itemKeyType, DataObject operationObject, DataObject defaultItemGroupObject)
+                              String csvSeparator, String itemKeyType, DataObject operationObject, DataObject defaultItemGroupObject,
+                              boolean apply)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
         List<UserPriceListDetail> userPriceListDetailList;
@@ -144,13 +145,13 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         else
             userPriceListDetailList = null;
 
-        return importUserPriceListDetails(context, userPriceListDetailList, operationObject, defaultItemGroupObject, userPriceListObject, itemKeyType);
+        return importUserPriceListDetails(context, userPriceListDetailList, operationObject, defaultItemGroupObject, userPriceListObject, itemKeyType, apply);
 
     }
 
     private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailsList,
-                                               DataObject operationObject, DataObject defaultItemGroupObject, 
-                                               DataObject userPriceListObject, String itemKeyType) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+                                               DataObject operationObject, DataObject defaultItemGroupObject,
+                                               DataObject userPriceListObject, String itemKeyType, boolean apply) throws ScriptingErrorLog.SemanticErrorException, SQLException {
 
         if (userPriceListDetailsList != null) {
 
@@ -220,8 +221,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             fields.add(idUserPriceListDetailField);
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
                 data.get(i).add(userPriceListDetailsList.get(i).idUserPriceListDetail);
-            
-            if(defaultItemGroupObject!=null) {
+
+            if (defaultItemGroupObject != null) {
                 props.add(new ImportProperty(defaultItemGroupObject, LM.findLCPByCompoundName("itemGroupItem").getMapping(itemKey)));
             }
 
@@ -296,9 +297,12 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             session.sql.pushVolatileStats(null);
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
-            String result = session.applyMessage(context.getBL());
-            session.sql.popVolatileStats(null);
-            session.close();
+            String result = null;
+            if (apply) {
+                result = session.applyMessage(context.getBL());
+                session.sql.popVolatileStats(null);
+                session.close();
+            }
 
             LM.findLAPByCompoundName("formRefresh").execute(context);
 
