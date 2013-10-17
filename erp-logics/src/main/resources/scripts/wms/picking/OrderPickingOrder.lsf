@@ -24,6 +24,8 @@ EXTEND FORM pickingOrders
     PROPERTIES (o) READONLY ordersPickingOrder
 ;
 
+pickingNumberOrderDetail = ABSTRACT INTEGER (OrderDetail) PERSISTENT;
+
 // ------------------- Свойства для заказа на комплектацию ------------------------------- //
  
 numberOrderPickingOrder 'Номер заказа' (pickingOrder) = numberOrder(orderPickingOrder(pickingOrder));
@@ -71,7 +73,20 @@ CLASS OrderPickingOrderDetail 'Строка заказа на комплекта
 
 @defineDocumentTables(orderPickingOrder);
 
-@defineDocumentAggregation(order, orderPickingOrder, createPickingOrderOrder);
+quantityOrderPickingNumber = GROUP SUM quantityOrderDetail(d) BY orderOrderDetail(d), pickingNumberOrderDetail(d);
+countPickingOrderOrder = GROUP SUM 1 IF quantityOrderPickingNumber(o, n) BY o PERSISTENT;
+
+@defineAggregationClass(order, Order, pickingNumber, INTEGER, orderPickingOrder, OrderPickingOrder, quantityOrderPickingNumber);
+@defineDocumentAggregationHeaderTime(order, orderPickingOrder);
+
+
+@defineAggregation(orderDetail, orderPickingOrderDetail, createPickingOrderOrderDetail);
+
+orderPickingOrderOrderPickingOrderDetail (detail) = orderPickingOrderOrderPickingNumber(orderOrderDetail(orderDetailOrderPickingOrderDetail(detail)), pickingNumberOrderDetail(orderDetailOrderPickingOrderDetail(detail)));
+
+@defineDocumentAggregationDetailTime(order, orderPickingOrder);
+
+@defineDocumentHeaderCount(orderPickingOrder);
 
 isPostedPickingOrder(order) += isPostedOrder(orderOrderPickingOrder(order));
 isClosedPickingOrder(order) += isClosedOrder(orderOrderPickingOrder(order)); 
@@ -106,24 +121,30 @@ binPickingOrderDetail(detail) += binOrderDetail(orderDetailOrderPickingOrderDeta
 orderPickingOrder(pickingOrder) += orderOrderPickingOrder(pickingOrder);
 editPickingOrder(pickingOrder) += ACTION EXEC editOrder(orderOrderPickingOrder(pickingOrder));
 
-acceptedOrder 'Принят в работу' (order) = acceptedPickingOrder(orderPickingOrderOrder(order));
-namePerformerOrder 'Комплектовщик' (order) = namePerformerPickingOrder(orderPickingOrderOrder(order));
+acceptedOrder 'Принят в работу' (order) = GROUP SUM 1 IF acceptedPickingOrder(o) BY orderPickingOrder(o);
+namePerformerOrder 'Комплектовщики' (order) = GROUP CONCAT ',', namePerformerPickingOrder(o) BY orderPickingOrder(o);
 
-calcPartOrder 'Частично собран' (order) = calcPartPickingOrder(orderPickingOrderOrder(order));
-calcFullOrder 'Полностью собран' (order) = calcFullPickingOrder(orderPickingOrderOrder(order));
+calcPartOrder 'Частично собран' (order) = GROUP SUM 1 IF calcPartPickingOrder(o) BY orderPickingOrder(o);
+calcFullOrder 'Полностью собран' (order) = GROUP SUM 1 IF calcFullPickingOrder(o) BY orderPickingOrder(o);
 calcPartOrFullOrder 'Собран' (order) = calcPartOrder(order) OR calcFullOrder(order);
 
-startDateTimeOrder 'Начало комплектации' (order) = startDateTimePickingOrder(orderPickingOrderOrder(order));
-finishDateTimeOrder 'Завершение комплектации' (order) = finishDateTimePickingOrder(orderPickingOrderOrder(order));
+startDateTimeOrder 'Начало комплектации' (order) = GROUP MIN startDateTimePickingOrder(o) BY orderPickingOrder(o);
+finishDateTimeOrder 'Завершение комплектации' (order) = GROUP MAX finishDateTimePickingOrder(o) BY orderPickingOrder(o);
+
 
 statusPickingOrder 'Статус комплектации' (order) = CASE
-    WHEN orderPickingOrderOrder(order) THEN statusPickingPickingOrder(orderPickingOrderOrder(order))
+    WHEN calcPartOrder(order) THEN 'Частично собран'
+    WHEN calcFullOrder(order) THEN 'Полностью собран'
+    WHEN acceptedOrder(order) THEN 'В комплектации'
     WHEN order IS Order THEN 'Без комплектации';
-backgroundStatusPickingOrder 'Цвет' (order) = CASE
-    WHEN orderPickingOrderOrder(order) THEN backgroundStatusPickingPickingOrder(orderPickingOrderOrder(order))
-    WHEN order IS Order THEN RGB(224, 224, 255);
-packQuantityOrder 'Кол-во собранных мест' (order) = packQuantityPickingOrder(orderPickingOrderOrder(order));
 
+backgroundStatusPickingOrder 'Цвет' (order) = CASE
+    WHEN calcPartOrder(order) THEN RGB(255,238,165)
+    WHEN calcFullOrder(order) THEN RGB(212,255,212)
+    WHEN acceptedOrder(order) THEN RGB(255,238,165)
+    WHEN order IS Order THEN RGB(255,200,216);
+    
+packQuantityOrder 'Кол-во собранных мест' (order) = GROUP SUM packQuantityPickingOrder(o) BY orderPickingOrder(o);
 
 META defineOrderPickingOrder(sign, stockProp)
 
@@ -151,6 +172,42 @@ META defineOrderPickingOrder(sign, stockProp)
     @extendFormInterfaceDetailBin(order, o, , quantity);
 
     @deriveDocumentOperationProperty(UserOrder, showBin);
+    
+    quantityUserOrderBin 'Кол-во' = GROUP SUM quantityUserOrderDetail(d) BY userOrderUserOrderDetail(d), binUserOrderDetail(d); 
+
+    // ---------------------- Разбиение заказа на несколько комплектаций ------------------- //
+    
+    pickingNumberOrderDetail 'Номер комплектации' = ABSTRACT INTEGER (OrderDetail);
+    pickingNumberUserOrderDetail 'Номер комплектации' = DATA INTEGER (UserOrderDetail);
+    pickingNumberUserOrderDetail(d) <- 1 WHEN SET(d IS UserOrderDetail);
+    
+    pickingNumberOrderDetail(d) += pickingNumberUserOrderDetail(d);
+    Order.pickingNumberOrderDetail (d) += pickingNumberOrderDetail(d);
+    
+    pickingNumberUserOrderBin 'Номер комплектации' = GROUP MAX pickingNumberUserOrderDetail(d) BY userOrderUserOrderDetail(d), binUserOrderDetail(d);
+    changePickingNumberUserOrderBin = ACTION (o, b) {
+        REQUEST INTEGER INPUT;
+        pickingNumberUserOrderDetail(d) <- requestedInteger() WHERE userOrderUserOrderDetail(d) == o AND binUserOrderDetail(d) == b;
+    }
+    
+    EXTEND FORM userOrder
+        PROPERTIES(d) SHOWIF createPickingOrderUserOrder(o) pickingNumberUserOrderDetail AFTER nameBinUserOrderDetail
+         
+        OBJECTS bn = Bin
+        PROPERTIES(bn) READONLY SHOWIF createPickingOrderUserOrder(o)    nameBin 
+        PROPERTIES(o, bn) SHOWIF createPickingOrderUserOrder(o)          quantityUserOrderBin READONLY, 
+                                                                         pickingNumberUserOrderBin ON CHANGE changePickingNumberUserOrderBin(o, bn)
+        FILTERS quantityUserOrderBin(o, bn)
+        ORDER BY nameBin
+    ;
+    
+    EXTEND DESIGN userOrder {
+        specification.box {
+            ADD bn.box {
+                caption = 'Комплектация';
+            }
+        }
+    }
 
     //-------------------- Расширяем операции свойством по созданию заказа на комплектацию -----------------------//
 
