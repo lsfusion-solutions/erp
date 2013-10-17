@@ -3,7 +3,8 @@ MODULE ImportUserPriceList;
 REQUIRE System,
         Item,
         PriceList,
-        PriceListOperation;
+        PriceListOperation,
+        StockAdjustment;
 
 CLASS ImportUserPriceListTypeFileExtension 'Тип файла (импорт прайс-листов)' {
     xls 'XLS',
@@ -40,6 +41,11 @@ autoImportDirectoryImportUserPriceListType 'Папка' =  DATA VARSTRING[100](I
 
 operationImportUserPriceListType =  DATA Operation.Operation(ImportUserPriceListType);
 nameOperationImportUserPriceListType 'Операция' (importUserPriceListType) =  Operation.nameOperation(operationImportUserPriceListType(importUserPriceListType));
+
+stockImportUserPriceListType =  DATA Stock(ImportUserPriceListType);
+nameStockImportUserPriceListType 'Склад' (importUserPriceListType) =  nameStock(stockImportUserPriceListType(importUserPriceListType));
+
+quantityAdjustmentImportUserPriceListType 'Колонка остатка' =  DATA VARSTRING[20](ImportUserPriceListType);
  
 defaultItemGroupImportUserPriceListType =  DATA ItemGroup(ImportUserPriceListType);
 nameDefaultItemGroupImportUserPriceListType 'Группа товаров' (importUserPriceListType) =  nameItemGroup(defaultItemGroupImportUserPriceListType(importUserPriceListType));
@@ -89,7 +95,8 @@ FORM importUserPriceListType 'Тип импорта'
     PROPERTIES(i) nameImportUserPriceListType, captionImportUserPriceListTypeFileExtensionImportUserPriceListType, startRowImportUserPriceListType,
                   separatorImportUserPriceListType SHOWIF showSeparator(i), dateRowImportUserPriceListType SHOWIF showDateCell(i),
                   dateColumnImportUserPriceListType SHOWIF showDateCell(i), captionImportUserPriceListKeyTypeImportUserPriceListType
-    PROPERTIES(i) FORCE PANEL nameOperationImportUserPriceListType, nameDefaultItemGroupImportUserPriceListType 
+    PROPERTIES(i) FORCE PANEL nameOperationImportUserPriceListType, nameStockImportUserPriceListType, nameDefaultItemGroupImportUserPriceListType,
+                              quantityAdjustmentImportUserPriceListType
     PROPERTIES(i) autoImportImportUserPriceListType, autoImportDirectoryImportUserPriceListType FORCE PANEL SHOWIF autoImportImportUserPriceListType(i)
                    
     OBJECTS d = ImportUserPriceListTypeDetail
@@ -115,7 +122,9 @@ EXTEND DESIGN importUserPriceListType {
         NEW invoiceParamsContainer {
             caption = 'Параметры прайс-листа';
             ADD PROPERTY(nameOperationImportUserPriceListType);
+            ADD PROPERTY(nameStockImportUserPriceListType);
             ADD PROPERTY(nameDefaultItemGroupImportUserPriceListType);
+            ADD PROPERTY(quantityAdjustmentImportUserPriceListType);
             NEW dateContainer {
                 type = CONTAINERH;
                 ADD PROPERTY(dateRowImportUserPriceListType);

@@ -44,10 +44,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
             importUserPriceListTypeQuery.addProperty("startRowImportUserPriceListType", getLCP("startRowImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             importUserPriceListTypeQuery.addProperty("separatorImportUserPriceListType", getLCP("separatorImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             importUserPriceListTypeQuery.addProperty("captionImportUserPriceListKeyTypeImportUserPriceListType", getLCP("captionImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-
-            importUserPriceListTypeQuery.addProperty("operationImportUserPriceListType", getLCP("operationImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("defaultItemGroupImportUserPriceListType", getLCP("defaultItemGroupImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-
+           
             importUserPriceListTypeQuery.and(isImportUserPriceListType.getExpr(importUserPriceListTypeKey).getWhere());
             importUserPriceListTypeQuery.and(getLCP("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
             importUserPriceListTypeQuery.and(getLCP("autoImportDirectoryImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
@@ -65,29 +62,8 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
                 String csvSeparator = (String) entryValue.get("separatorImportUserPriceListType").getValue();
                 csvSeparator = csvSeparator == null ? null : csvSeparator.trim();
                 String keyType = (String) entryValue.get("captionImportUserPriceListKeyTypeImportUserPriceListType").getValue();
-                String dateRowString = (String) LM.findLCPByCompoundName("dateRowImportUserPriceListType").read(context, importUserPriceListTypeObject);
-                Integer dateRow;
-                try {
-                    dateRow = dateRowString == null ? null : Integer.parseInt(dateRowString);
-                } catch (Exception e) {
-                    dateRow = null;
-                }
-                String dateColumnString = (String) LM.findLCPByCompoundName("dateColumnImportUserPriceListType").read(context, importUserPriceListTypeObject);
-                Integer dateColumn;
-                try {
-                    dateColumn = dateColumnString == null ? null : Integer.parseInt(dateColumnString);
-                } catch (Exception e) {
-                    dateColumn = null;
-                }
 
-                ObjectValue operation = entryValue.get("operationImportUserPriceListType");
-                DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
-
-                ObjectValue defaultItemGroup = entryValue.get("defaultItemGroupImportUserPriceListType");
-                DataObject defaultItemGroupObject = defaultItemGroup instanceof NullValue ? null : (DataObject) defaultItemGroup;
-
-                Map<String, String[]> importColumns = ImportUserPriceListActionProperty.readImportColumns(context, LM, importUserPriceListTypeObject);
-                Map<DataObject, String[]> importPriceColumns = ImportUserPriceListActionProperty.readPriceImportColumns(context, LM, importUserPriceListTypeObject);
+                ImportColumns importColumns = ImportUserPriceListActionProperty.readImportColumns(context, LM, importUserPriceListTypeObject);
 
                 if (directory != null && fileExtension != null) {
                     File dir = new File(directory.trim());
@@ -101,9 +77,8 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
                                 try {
 
                                     boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
-                                            userPriceListObject, importColumns, importPriceColumns, IOUtils.getFileBytes(f),
-                                            fileExtension.trim(), startRow, dateRow, dateColumn, csvSeparator, keyType,
-                                            operationObject, defaultItemGroupObject, true);
+                                            userPriceListObject, importColumns, IOUtils.getFileBytes(f), fileExtension.trim(),
+                                            startRow, csvSeparator, keyType, true);
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());

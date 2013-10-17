@@ -16,14 +16,13 @@ public class UserPriceListDetail {
     public String captionItem;
     public String idUOMItem;
     public Date date;
-    /*public DataObject priceTypeObject;
-    public BigDecimal price;*/
     public Map<DataObject, BigDecimal> prices;
+    public BigDecimal quantityAdjustment;
 
 
     public UserPriceListDetail(String idUserPriceListDetail, String idUserPriceList, String idItem, String barcodeItem,
                                String articleItem, String captionItem, String idUOMItem, Date date, 
-                               Map<DataObject, BigDecimal> prices/*, DataObject priceTypeObject, BigDecimal price*/) {
+                               Map<DataObject, BigDecimal> prices, BigDecimal quantityAdjustment) {
         this.idUserPriceListDetail = idUserPriceListDetail;
         this.idUserPriceList = idUserPriceList;
         this.idItem = idItem;
@@ -33,7 +32,6 @@ public class UserPriceListDetail {
         this.idUOMItem = idUOMItem;
         this.date = date;
         this.prices = prices;
-/*        this.priceTypeObject = priceTypeObject;
-        this.price = price;*/
+        this.quantityAdjustment = quantityAdjustment;
     }
 }
