@@ -87,7 +87,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
                 DataObject defaultItemGroupObject = defaultItemGroup instanceof NullValue ? null : (DataObject) defaultItemGroup;
 
                 Map<String, String[]> importColumns = ImportUserPriceListActionProperty.readImportColumns(context, LM, importUserPriceListTypeObject);
-                Map<String, String[]> importPriceColumns = ImportUserPriceListActionProperty.readPriceImportColumns(context, LM, importUserPriceListTypeObject);
+                Map<DataObject, String[]> importPriceColumns = ImportUserPriceListActionProperty.readPriceImportColumns(context, LM, importUserPriceListTypeObject);
 
                 if (directory != null && fileExtension != null) {
                     File dir = new File(directory.trim());

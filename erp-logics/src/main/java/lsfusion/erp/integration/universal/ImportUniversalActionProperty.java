@@ -142,7 +142,7 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
                 return BigDecimal.valueOf(hssfCell.getNumericCellValue());
             case Cell.CELL_TYPE_STRING:
             default:
-                String result = hssfCell.getStringCellValue();
+                String result = hssfCell.getStringCellValue().trim();
                 return result.isEmpty() ? defaultValue : new BigDecimal(result);
         }
     }
@@ -213,7 +213,7 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
                 return BigDecimal.valueOf(xssfCell.getNumericCellValue());
             case Cell.CELL_TYPE_STRING:
             default:
-                String result = xssfCell.getStringCellValue();
+                String result = xssfCell.getStringCellValue().trim();
                 return result.isEmpty() ? defaultValue : new BigDecimal(result);
         }
     }

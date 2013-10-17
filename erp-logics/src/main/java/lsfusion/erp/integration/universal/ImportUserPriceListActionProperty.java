@@ -93,7 +93,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 DataObject defaultItemGroupObject = defaultItemGroup instanceof NullValue ? null : (DataObject) defaultItemGroup;
 
                 Map<String, String[]> importColumns = readImportColumns(context, LM, importUserPriceListTypeObject);
-                Map<String, String[]> importPriceColumns = readPriceImportColumns(context, LM, importUserPriceListTypeObject);
+                Map<DataObject, String[]> importPriceColumns = readPriceImportColumns(context, LM, importUserPriceListTypeObject);
 
                 if (importColumns != null && fileExtension != null) {
 
@@ -126,7 +126,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     }
 
     public boolean importData(ExecutionContext context, DataObject userPriceListObject,
-                              Map<String, String[]> importColumns, Map<String, String[]> importPriceColumns,
+                              Map<String, String[]> importColumns, Map<DataObject, String[]> importPriceColumns,
                               byte[] file, String fileExtension, Integer startRow, Integer dateRow, Integer dateColumn,
                               String csvSeparator, String itemKeyType, DataObject operationObject, DataObject defaultItemGroupObject,
                               boolean apply)
@@ -145,13 +145,14 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         else
             userPriceListDetailList = null;
 
-        return importUserPriceListDetails(context, userPriceListDetailList, operationObject, defaultItemGroupObject, userPriceListObject, itemKeyType, apply);
+        return importUserPriceListDetails(context, userPriceListDetailList, operationObject, defaultItemGroupObject, userPriceListObject, importPriceColumns.keySet(), itemKeyType, apply);
 
     }
 
     private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailsList,
                                                DataObject operationObject, DataObject defaultItemGroupObject,
-                                               DataObject userPriceListObject, String itemKeyType, boolean apply) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+                                               DataObject userPriceListObject, Set<DataObject> dataPriceListTypeObjectList,
+                                               String itemKeyType, boolean apply) throws ScriptingErrorLog.SemanticErrorException, SQLException {
 
         if (userPriceListDetailsList != null) {
 
@@ -248,32 +249,13 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     data.get(i).add(userPriceListDetailsList.get(i).idUOMItem);
             }
 
-            ImportField idDataPriceListTypeField = new ImportField(LM.findLCPByCompoundName("idDataPriceListType"));
-            ImportKey<?> dataPriceListTypeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("DataPriceListType"),
-                    LM.findLCPByCompoundName("dataPriceListTypeId").getMapping(idDataPriceListTypeField));
-            dataPriceListTypeKey.skipKey = true;
-            keys.add(dataPriceListTypeKey);
-            fields.add(idDataPriceListTypeField);
-            for (int i = 0; i < userPriceListDetailsList.size(); i++)
-                data.get(i).add(userPriceListDetailsList.get(i).priceType);
-
-            ImportField pricePriceListDetailDataPriceListTypeField = new ImportField(LM.findLCPByCompoundName("pricePriceListDetailDataPriceListType"));
-            props.add(new ImportProperty(pricePriceListDetailDataPriceListTypeField, LM.findLCPByCompoundName("pricePriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeKey)));
-            fields.add(pricePriceListDetailDataPriceListTypeField);
-            for (int i = 0; i < userPriceListDetailsList.size(); i++)
-                data.get(i).add(userPriceListDetailsList.get(i).price);
-
-            ImportField inPriceListDataPriceListTypeField = new ImportField(LM.findLCPByCompoundName("inPriceListDataPriceListType"));
-            props.add(new ImportProperty(inPriceListDataPriceListTypeField, LM.findLCPByCompoundName("inPriceListDataPriceListType").getMapping(userPriceListObject, dataPriceListTypeKey)));
-            fields.add(inPriceListDataPriceListTypeField);
-            for (int i = 0; i < userPriceListDetailsList.size(); i++)
-                data.get(i).add(true);
-
-            ImportField showPriceListPriceListTypeField = new ImportField(LM.findLCPByCompoundName("showPriceListPriceListType"));
-            props.add(new ImportProperty(showPriceListPriceListTypeField, LM.findLCPByCompoundName("showPriceListPriceListType").getMapping(userPriceListObject, dataPriceListTypeKey)));
-            fields.add(showPriceListPriceListTypeField);
-            for (int i = 0; i < userPriceListDetailsList.size(); i++)
-                data.get(i).add(true);
+            for (DataObject dataPriceListTypeObject : dataPriceListTypeObjectList) {
+                ImportField pricePriceListDetailDataPriceListTypeField = new ImportField(LM.findLCPByCompoundName("pricePriceListDetailDataPriceListType"));
+                props.add(new ImportProperty(pricePriceListDetailDataPriceListTypeField, LM.findLCPByCompoundName("pricePriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
+                fields.add(pricePriceListDetailDataPriceListTypeField);
+                for (int i = 0; i < userPriceListDetailsList.size(); i++)
+                    data.get(i).add(userPriceListDetailsList.get(i).prices.get(dataPriceListTypeObject));
+            }
 
             if (showField(userPriceListDetailsList, "date")) {
                 ImportField dateUserPriceListField = new ImportField(LM.findLCPByCompoundName("dateUserPriceList"));
@@ -312,10 +294,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     }
 
     private List<UserPriceListDetail> importUserPriceListsFromXLS(byte[] importFile, Map<String, String[]> importColumns,
-                                                                  Map<String, String[]> importPriceColumns, Integer startRow,
+                                                                  Map<DataObject, String[]> importPriceColumns, Integer startRow,
                                                                   Integer dateRow, Integer dateColumn) throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
-        List<UserPriceListDetail> userUserPriceListDetailList = new ArrayList<UserPriceListDetail>();
+        List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
 
         HSSFWorkbook Wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
         HSSFSheet sheet = Wb.getSheetAt(0);
@@ -330,18 +312,22 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String captionItem = getXLSFieldValue(sheet, i, getColumnNumbers(importColumns.get("captionItem")));
             String idUOMItem = getXLSFieldValue(sheet, i, getColumnNumbers(importColumns.get("idUOMItem")));
             String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
-            if (!idUserPriceListDetail.equals("_"))
-                for (Map.Entry<String, String[]> entry : importPriceColumns.entrySet()) {
+            if (!idUserPriceListDetail.equals("_")) {
+                Map<DataObject, BigDecimal> prices = new HashMap<DataObject, BigDecimal>();
+                for (Map.Entry<DataObject, String[]> entry : importPriceColumns.entrySet()) {
                     BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, getColumnNumbers(entry.getValue()));
-                    userUserPriceListDetailList.add(new UserPriceListDetail(idUserPriceListDetail, idUserPriceList,
-                            idItem, barcodeItem, articleItem, captionItem, idUOMItem, date, entry.getKey(), price));
+                    prices.put(entry.getKey(), price);
                 }
+                userPriceListDetailList.add(new UserPriceListDetail(idUserPriceListDetail, idUserPriceList,
+                        idItem, barcodeItem, articleItem, captionItem, idUOMItem, null, prices));
+
+            }
         }
 
-        return userUserPriceListDetailList;
+        return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, Map<String, String[]> importColumns, Map<String, String[]> importPriceColumns, Integer startRow,
+    private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, Map<String, String[]> importColumns, Map<DataObject, String[]> importPriceColumns, Integer startRow,
                                                                   Integer dateRow, Integer dateColumn, String csvSeparator) throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -367,10 +353,14 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 String captionItem = getCSVFieldValue(values, getColumnNumbers(importColumns.get("captionItem")));
                 String idUOMItem = getCSVFieldValue(values, getColumnNumbers(importColumns.get("idUOMItem")));
                 String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
-                for (Map.Entry<String, String[]> entry : importPriceColumns.entrySet()) {
-                    BigDecimal price = getCSVBigDecimalFieldValue(values, getColumnNumbers(entry.getValue()));
+                if (!idUserPriceListDetail.equals("_")) {
+                    Map<DataObject, BigDecimal> prices = new HashMap<DataObject, BigDecimal>();
+                    for (Map.Entry<DataObject, String[]> entry : importPriceColumns.entrySet()) {
+                        BigDecimal price = getCSVBigDecimalFieldValue(values, getColumnNumbers(entry.getValue()));
+                        prices.put(entry.getKey(), price);
+                    }
                     userPriceListDetailList.add(new UserPriceListDetail(idUserPriceListDetail, idUserPriceList,
-                            idItem, barcodeItem, articleItem, captionItem, idUOMItem, date, entry.getKey(), price));
+                            idItem, barcodeItem, articleItem, captionItem, idUOMItem, null, prices));
                 }
             }
         }
@@ -379,7 +369,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     }
 
     private List<UserPriceListDetail> importUserPriceListsFromXLSX(byte[] importFile, Map<String, String[]> importColumns,
-                                                                   Map<String, String[]> importPriceColumns,
+                                                                   Map<DataObject, String[]> importPriceColumns,
                                                                    Integer startRow, Integer dateRow, Integer dateColumn) throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -398,17 +388,21 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String captionItem = getXLSXFieldValue(sheet, i, getColumnNumbers(importColumns.get("captionItem")));
             String idUOMItem = getXLSXFieldValue(sheet, i, getColumnNumbers(importColumns.get("idUOMItem")));
             String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
-            for (Map.Entry<String, String[]> entry : importPriceColumns.entrySet()) {
-                BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, getColumnNumbers(entry.getValue()));
+            if (!idUserPriceListDetail.equals("_")) {
+                Map<DataObject, BigDecimal> prices = new HashMap<DataObject, BigDecimal>();
+                for (Map.Entry<DataObject, String[]> entry : importPriceColumns.entrySet()) {
+                    BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, getColumnNumbers(entry.getValue()));
+                    prices.put(entry.getKey(), price);
+                }
                 userPriceListDetailList.add(new UserPriceListDetail(idUserPriceListDetail, idUserPriceList,
-                        idItem, barcodeItem, articleItem, captionItem, idUOMItem, date, entry.getKey(), price));
+                        idItem, barcodeItem, articleItem, captionItem, idUOMItem, date, prices));
             }
         }
 
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, Map<String, String[]> importColumns, Map<String, String[]> importPriceColumns, Integer startRow) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
+    private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, Map<String, String[]> importColumns, Map<DataObject, String[]> importPriceColumns, Integer startRow) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
 
@@ -428,10 +422,14 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String captionItem = getDBFFieldValue(file, importColumns.get("captionItem"));
             String idUOMItem = getDBFFieldValue(file, importColumns.get("idUOMItem"));
             String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
-            for (Map.Entry<String, String[]> entry : importPriceColumns.entrySet()) {
-                BigDecimal price = getDBFBigDecimalFieldValue(file, entry.getValue());
+            if (!idUserPriceListDetail.equals("_")) {
+                Map<DataObject, BigDecimal> prices = new HashMap<DataObject, BigDecimal>();
+                for (Map.Entry<DataObject, String[]> entry : importPriceColumns.entrySet()) {
+                    BigDecimal price = getDBFBigDecimalFieldValue(file, entry.getValue());
+                    prices.put(entry.getKey(), price);
+                }
                 userPriceListDetailList.add(new UserPriceListDetail(idUserPriceListDetail, idUserPriceList,
-                        idItem, barcodeItem, articleItem, captionItem, idUOMItem, null, entry.getKey(), price));
+                        idItem, barcodeItem, articleItem, captionItem, idUOMItem, null, prices));
             }
         }
 
@@ -467,28 +465,28 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return importColumns.isEmpty() ? null : importColumns;
     }
 
-    protected static Map<String, String[]> readPriceImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    protected static Map<DataObject, String[]> readPriceImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
 
-        Map<String, String[]> importColumns = new HashMap<String, String[]>();
+        Map<DataObject, String[]> importColumns = new HashMap<DataObject, String[]>();
 
         LCP<?> isDataPriceListType = LM.is(LM.findClassByCompoundName("DataPriceListType"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDataPriceListType.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        query.addProperty("idDataPriceListType", LM.findLCPByCompoundName("idDataPriceListType").getExpr(context.getModifier(), key));
         query.addProperty("indexImportUserPriceListTypeDataPriceListType", LM.findLCPByCompoundName("indexImportUserPriceListTypeDataPriceListType").getExpr(context.getModifier(), importUserPriceListTypeObject.getExpr(), key));
         query.and(isDataPriceListType.getExpr(key).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context.getSession().sql);
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context.getSession());
 
-        for (ImMap<Object, Object> entry : result.valueIt()) {
+        for (int i = 0, size = result.size(); i < size; i++) {
+            ImMap<Object, ObjectValue> entryValue = result.getValue(i);
 
-            String idDataPriceListType = (String) entry.get("idDataPriceListType");
-            String indexes = (String) entry.get("indexImportUserPriceListTypeDataPriceListType");
+            DataObject dataPriceListTypeObject = result.getKey(i).valueIt().iterator().next();
+            String indexes = (String) entryValue.get("indexImportUserPriceListTypeDataPriceListType").getValue();
             if (indexes != null) {
                 String[] splittedIndexes = indexes.split("\\+");
-                for (int i = 0; i < splittedIndexes.length; i++)
-                    splittedIndexes[i] = splittedIndexes[i].trim();
-                importColumns.put(idDataPriceListType, splittedIndexes);
+                for (int j = 0; j < splittedIndexes.length; j++)
+                    splittedIndexes[j] = splittedIndexes[j].trim();
+                importColumns.put(dataPriceListTypeObject, splittedIndexes);
             }
         }
         return importColumns.isEmpty() ? null : importColumns;
