@@ -25,10 +25,7 @@ import java.text.DateFormatSymbols;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public abstract class ImportUniversalActionProperty extends ScriptingActionProperty {
 
@@ -158,7 +155,7 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         HSSFRow hssfRow = sheet.getRow(row);
         if (hssfRow == null) return defaultValue;
         HSSFCell hssfCell = hssfRow.getCell(cell);
-        if(hssfCell==null) return defaultValue;
+        if (hssfCell == null) return defaultValue;
         if (hssfCell.getCellType() == Cell.CELL_TYPE_NUMERIC)
             return new Date(hssfCell.getDateCellValue().getTime());
         else
@@ -229,11 +226,11 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         XSSFRow xssfRow = sheet.getRow(row);
         if (xssfRow == null) return defaultValue;
         XSSFCell xssfCell = xssfRow.getCell(cell);
-        if(xssfCell==null) return defaultValue;
+        if (xssfCell == null) return defaultValue;
         if (xssfCell.getCellType() == Cell.CELL_TYPE_NUMERIC)
             return new Date(xssfCell.getDateCellValue().getTime());
         else
-            return parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue)));                        
+            return parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue)));
     }
 
     protected String getDBFFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException {
@@ -269,7 +266,16 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
 
     protected Date getDBFDateFieldValue(DBF importFile, String[] fields, String charset, Date defaultValue) throws UnsupportedEncodingException, ParseException {
         String dateString = getDBFFieldValue(importFile, fields, charset, "");
-        return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd"}).getTime());
+        if (dateString.isEmpty()) return defaultValue;
+        try {
+            return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd", "dd.MM.yy", "dd.MM.yyyy"}).getTime());
+        } catch (ParseException e) {
+            //чит для даты в формате MM.yyyy (без дня) : выставляем последний день месяца 
+            Calendar dateWithoutDay = Calendar.getInstance();
+            dateWithoutDay.setTime(new SimpleDateFormat("MM.yyyy").parse(dateString));
+            dateWithoutDay.set(Calendar.DAY_OF_MONTH, dateWithoutDay.getActualMaximum(Calendar.DAY_OF_MONTH));
+            return new Date(dateWithoutDay.getTime().getTime());
+        }
     }
 
     protected Integer[] getColumnNumbers(String[] importColumns) {
@@ -285,10 +291,11 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
     static final DateFormatSymbols RU_SYMBOLS = new DateFormatSymbols(RU_LOCALE);
     static final String[] RU_MONTHS = {"января", "февраля", "марта", "апреля", "мая",
             "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"};
+
     static {
         RU_SYMBOLS.setMonths(RU_MONTHS);
     }
-    
+
     private Date parseDate(String value) {
         try {
             return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
