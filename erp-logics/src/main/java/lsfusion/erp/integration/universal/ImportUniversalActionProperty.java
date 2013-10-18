@@ -257,7 +257,14 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String[] fields, String charset, String defaultValue) throws UnsupportedEncodingException {
         String value = getDBFFieldValue(importFile, fields, charset, defaultValue);
-        return value == null ? null : new BigDecimal(value);
+        if (value == null) return null;
+        BigDecimal result = null;
+        try {
+            result = new BigDecimal(value.trim());
+        } catch (NumberFormatException e) {
+        }
+        
+        return result;
     }
 
     protected Date getDBFDateFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException, ParseException {
