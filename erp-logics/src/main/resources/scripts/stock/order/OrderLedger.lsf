@@ -259,6 +259,28 @@ DESIGN orderBatchLedger FROM DEFAULT {
     ADD functions.box;
 }
 
+//-- Запрет на расходование товаров по партиям больше чем есть в остатке
+
+banNegativeBatch 'Запретить расходовать больше чем в остатке по партии' = DATA BOOLEAN ();
+
+EXTEND FORM options 
+    PROPERTIES() banNegativeBatch 
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(banNegativeBatch);
+    }
+}
+
+allowedNegativeBatchStock 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Batch, Stock);
+
+EXTEND FORM currentBalanceBatchStock 
+    PROPERTIES (bt,st) allowedNegativeBatchStock BEFORE nameSkuBatch(bt)  SHOWIF banNegativeBatch()
+;
+
+CONSTRAINT (currentBalanceBatchStock(bt,st) (+) currentReserveBatchStock(bt,st))< 0.0 AND NOT  ((allowedNegativeBatchStock(bt,st) AND banNegativeBatch()) OR (bt IS Batch AND st IS Stock AND NOT banNegativeBatch()))
+    MESSAGE 'Расходуется больше чем доступно';
 
 //---------------------------------------------- Макросы для имплементаций Продажа-------------------------------------//
 
