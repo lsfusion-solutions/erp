@@ -1012,6 +1012,8 @@ public class ImportActionProperty {
                 keys.add(customsGroupKey);
                 props.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundName("customsGroupUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                         LM.object(LM.findClassByCompoundName("CustomsGroup")).getMapping(customsGroupKey)));
+                props.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundName("customsGroupSku").getMapping(itemKey),
+                        LM.object(LM.findClassByCompoundName("CustomsGroup")).getMapping(customsGroupKey)));
                 fields.add(codeCustomsGroupField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).codeCustomsGroup);
