@@ -6,6 +6,8 @@ import java.util.Date;
 
 public class PurchaseInvoiceDetail {
     public String numberUserInvoice;
+    public Date dateUserInvoice;
+    public String currencyUserInvoice;
     public String idUserInvoiceDetail;
     public String idBarcodeSku;
     public String idBatch;
@@ -29,16 +31,39 @@ public class PurchaseInvoiceDetail {
     public Date expiryDate;
     public String idPharmacyPriceGroup;
     public String seriesPharmacy;
+    public String idArticle;
+    public String captionArticle;
+    public String idColor;
+    public String nameColor;
+    public String idCollection;
+    public String nameCollection;
+    public String idSize;
+    public String nameSize;
+    public String idSeasonYear;
+    public String idSeason;
+    public String nameSeason;
+    public String idTheme;
+    public String nameTheme;
+    public BigDecimal netWeight;
+    public BigDecimal grossWeight;
+    public String composition;
 
 
-    public PurchaseInvoiceDetail(String numberUserInvoice, String idUserInvoiceDetail, String idBarcodeSku,
-                                 String idBatch, String idItem, String captionItem, String idUOM, String idManufacturer,
-                                 String nameCountry, String nameImportCountry, String idCustomer, 
-                                 String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
-                                 BigDecimal valueVAT, BigDecimal sumVAT, BigDecimal invoiceSum, 
-                                 BigDecimal manufacturingPrice,  String numberCompliance, String numberDeclaration, 
-                                 Date expiryDate, String idPharmacyPriceGroup, String seriesPharmacy) {
+    public PurchaseInvoiceDetail(String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
+                                 String idUserInvoiceDetail, String idBarcodeSku, String idBatch, String idItem,
+                                 String captionItem, String idUOM, String idManufacturer, String nameCountry, 
+                                 String nameImportCountry, String idCustomer, String idCustomerStock, 
+                                 BigDecimal quantity, BigDecimal price, BigDecimal sum, BigDecimal valueVAT, 
+                                 BigDecimal sumVAT, BigDecimal invoiceSum, BigDecimal manufacturingPrice,  
+                                 String numberCompliance, String numberDeclaration, Date expiryDate, 
+                                 String idPharmacyPriceGroup, String seriesPharmacy, String idArticle,
+                                 String captionArticle, String idColor, String nameColor, String idCollection,
+                                 String nameCollection, String idSize, String nameSize, String idSeasonYear, 
+                                 String idSeason, String nameSeason, String idTheme, String nameTheme, 
+                                 BigDecimal netWeight, BigDecimal grossWeight, String composition) {
         this.numberUserInvoice = numberUserInvoice;
+        this.dateUserInvoice = dateUserInvoice;
+        this.currencyUserInvoice = currencyUserInvoice;
         this.idUserInvoiceDetail = idUserInvoiceDetail;
         this.idBarcodeSku = idBarcodeSku;
         this.idBatch = idBatch;
@@ -62,5 +87,21 @@ public class PurchaseInvoiceDetail {
         this.expiryDate = expiryDate;
         this.idPharmacyPriceGroup = idPharmacyPriceGroup;
         this.seriesPharmacy = seriesPharmacy;
+        this.idArticle = idArticle;
+        this.captionArticle = captionArticle;
+        this.idColor = idColor;
+        this.nameColor = nameColor;
+        this.idCollection = idCollection;
+        this.nameCollection = nameCollection;
+        this.idSize = idSize;
+        this.nameSize = nameSize;
+        this.idSeasonYear = idSeasonYear;
+        this.idSeason = idSeason;
+        this.nameSeason = nameSeason;
+        this.idTheme = idTheme;
+        this.nameTheme = nameTheme;
+        this.netWeight = netWeight;
+        this.grossWeight = grossWeight;
+        this.composition = composition;
     }
 }

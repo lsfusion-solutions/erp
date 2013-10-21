@@ -8,6 +8,7 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFDateUtil;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.ss.usermodel.Cell;
@@ -51,6 +52,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         return allowedVAT.contains(VAT) ? VAT : null;
     }
 
+    protected String getCSVFieldValue(String[] values, Map<String, String[]> importColumns, String columnName) throws ParseException {
+        return getCSVFieldValue(values, getColumnNumbers(importColumns.get(columnName)));
+    }
+
     protected String getCSVFieldValue(String[] values, Integer[] indexes) throws ParseException {
         return getCSVFieldValue(values, indexes, null);
     }
@@ -70,6 +75,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         return values.length <= index ? defaultValue : values[index];
     }
 
+    protected BigDecimal getCSVBigDecimalFieldValue(String[] values, Map<String, String[]> importColumns, String columnName) throws ParseException {
+        return getCSVBigDecimalFieldValue(values, getColumnNumbers(importColumns.get(columnName)));
+    }
+
     //Пока разрешено склеивать несколько ячеек только как строки
     protected BigDecimal getCSVBigDecimalFieldValue(String[] values, Integer[] indexes) throws ParseException {
         if (indexes == null) return null;
@@ -81,6 +90,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         return value == null ? defaultValue : new BigDecimal(value);
     }
 
+    protected Date getCSVDateFieldValue(String[] values, Map<String, String[]> importColumns, String columnName) throws ParseException {
+        return getCSVDateFieldValue(values, getColumnNumbers(importColumns.get(columnName)));
+    }
+
     //Пока разрешено склеивать несколько ячеек только как строки
     protected Date getCSVDateFieldValue(String[] values, Integer[] indexes) throws ParseException {
         if (indexes == null) return null;
@@ -90,6 +103,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
     protected Date getCSVDateFieldValue(String[] values, Integer index, Date defaultValue) throws ParseException {
         String value = getCSVFieldValue(values, index, null);
         return value == null ? defaultValue : new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy"}).getTime());
+    }
+
+    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, Map<String, String[]> importColumns, String columnName) throws ParseException {
+        return getXLSFieldValue(sheet, row, getColumnNumbers(importColumns.get(columnName)));
     }
 
     protected String getXLSFieldValue(HSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
@@ -122,6 +139,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         }
     }
 
+    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, Integer row, Map<String, String[]> importColumns, String columnName) throws ParseException {
+        return getXLSBigDecimalFieldValue(sheet, row, getColumnNumbers(importColumns.get(columnName)));
+    }
+
     //Пока разрешено склеивать несколько ячеек только как строки
     protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
         if (cells == null) return null;
@@ -144,6 +165,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         }
     }
 
+    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Map<String, String[]> importColumns, String columnName) throws ParseException {
+        return getXLSDateFieldValue(sheet, row, getColumnNumbers(importColumns.get(columnName)));
+    }
+
     //Пока разрешено склеивать несколько ячеек только как строки
     protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
         if (cells == null) return null;
@@ -156,11 +181,18 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         if (hssfRow == null) return defaultValue;
         HSSFCell hssfCell = hssfRow.getCell(cell);
         if (hssfCell == null) return defaultValue;
-        if (hssfCell.getCellType() == Cell.CELL_TYPE_NUMERIC)
-            return new Date(hssfCell.getDateCellValue().getTime());
-        else
+        if (hssfCell.getCellType() == Cell.CELL_TYPE_NUMERIC) {
+            if (HSSFDateUtil.isCellDateFormatted(hssfCell)) {
+                return new Date(hssfCell.getDateCellValue().getTime());
+            } else {
+                return parseDate(getXLSFieldValue(sheet, row, cell, String.valueOf(defaultValue)));
+            }
+        } else
             return parseDate(getXLSFieldValue(sheet, row, cell, String.valueOf(defaultValue)));
+    }
 
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Map<String, String[]> importColumns, String columnName) throws ParseException {
+        return getXLSXFieldValue(sheet, row, getColumnNumbers(importColumns.get(columnName)));
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
@@ -193,6 +225,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         }
     }
 
+    protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Map<String, String[]> importColumns, String columnName) throws ParseException {
+        return getXLSXBigDecimalFieldValue(sheet, row, getColumnNumbers(importColumns.get(columnName)));
+    }
+
     //Пока разрешено склеивать несколько ячеек только как строки
     protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
         if (cells == null) return null;
@@ -215,6 +251,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         }
     }
 
+    protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Map<String, String[]> importColumns, String columnName) throws ParseException {
+        return getXLSXDateFieldValue(sheet, row, getColumnNumbers(importColumns.get(columnName)));
+    }
+
     //Пока разрешено склеивать несколько ячеек только как строки
     protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer[] cells) throws ParseException {
         if (cells == null) return null;
@@ -231,6 +271,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
             return new Date(xssfCell.getDateCellValue().getTime());
         else
             return parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue)));
+    }
+
+    protected String getDBFFieldValue(DBF importFile, Map<String, String[]> importColumns, String columnName) throws UnsupportedEncodingException {
+        return getDBFFieldValue(importFile, importColumns.get(columnName));
     }
 
     protected String getDBFFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException {
@@ -251,6 +295,10 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         }
     }
 
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, Map<String, String[]> importColumns, String columnName) throws UnsupportedEncodingException {
+        return getDBFBigDecimalFieldValue(importFile, importColumns.get(columnName));
+    }
+
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException {
         return getDBFBigDecimalFieldValue(importFile, fields, "cp866", null);
     }
@@ -263,8 +311,12 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
             result = new BigDecimal(value.trim());
         } catch (NumberFormatException e) {
         }
-        
+
         return result;
+    }
+
+    protected Date getDBFDateFieldValue(DBF importFile, Map<String, String[]> importColumns, String columnName) throws UnsupportedEncodingException, ParseException {
+        return getDBFDateFieldValue(importFile, importColumns.get(columnName));
     }
 
     protected Date getDBFDateFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException, ParseException {
@@ -275,7 +327,7 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         String dateString = getDBFFieldValue(importFile, fields, charset, "");
         if (dateString.isEmpty()) return defaultValue;
         try {
-            return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd", "dd.MM.yy", "dd.MM.yyyy"}).getTime());
+            return dateString.isEmpty() ? defaultValue : parseDate(dateString);
         } catch (ParseException e) {
             //чит для даты в формате MM.yyyy (без дня) : выставляем последний день месяца 
             Calendar dateWithoutDay = Calendar.getInstance();
@@ -303,11 +355,14 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         RU_SYMBOLS.setMonths(RU_MONTHS);
     }
 
-    private Date parseDate(String value) {
+    private Date parseDate(String value) throws ParseException {
         try {
-            return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
+            if (value.length() == 8 && Integer.parseInt(value.substring(4, 6)) > 12)
+                return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime()); //чит для отличия ddMMyyyy от yyyyMMdd
+            else
+                return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd.MM.yyyy"}).getTime());
         } catch (ParseException e) {
-            return null;
+            return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
         }
     }
 }
