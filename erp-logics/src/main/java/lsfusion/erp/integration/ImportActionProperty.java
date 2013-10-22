@@ -1005,14 +1005,14 @@ public class ImportActionProperty {
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).shortNameCurrency);
 
-
+                ObjectValue defaultCountryObject = LM.findLCPByCompoundName("defaultCountry").readClasses(context.getSession());
                 ImportField codeCustomsGroupField = new ImportField(LM.findLCPByCompoundName("codeCustomsGroup"));
                 ImportKey<?> customsGroupKey = new ImportKey((CustomClass) LM.findClassByCompoundName("CustomsGroup"),
                         LM.findLCPByCompoundName("customsGroupCode").getMapping(codeCustomsGroupField));
                 keys.add(customsGroupKey);
                 props.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundName("customsGroupUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                         LM.object(LM.findClassByCompoundName("CustomsGroup")).getMapping(customsGroupKey)));
-                props.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundName("customsGroupSku").getMapping(itemKey),
+                props.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundName("customsGroupCountryItem").getMapping(defaultCountryObject, itemKey),
                         LM.object(LM.findClassByCompoundName("CustomsGroup")).getMapping(customsGroupKey)));
                 fields.add(codeCustomsGroupField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
