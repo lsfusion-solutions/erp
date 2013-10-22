@@ -489,7 +489,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     } TOOLBAR;
     
 //-- Копирование строк     
-    overCopyOrderDetail = ABSTRACT ACTION LIST (UserOrderDetail, UserOrderDetail);
+    overCopyUserOrderDetail = ABSTRACT ACTION LIST (UserOrderDetail, UserOrderDetail);
 
     copyOrderDetail 'Копировать' = ACTION (detail) {
         FOR ADDOBJ d = UserOrderDetail DO {          
@@ -504,15 +504,14 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
             shipmentDataTime###userOrderDetail(d) <- shipmentDataTime###userOrderDetail(detail);        
             closeDataDate###userOrderDetail(d) <- closeDataDate###userOrderDetail(detail);  
             
-            EXEC overCopyOrderDetail(d, detail);                              
+            EXEC overCopyUserOrderDetail(d, detail);                              
         }
     } TOOLBAR;
     
     EXTEND FORM userOrder 
         PROPERTIES(d) copyOrderDetail FORCE PANEL 
     ;    
-
-
+         
     FORM orders 'Заказы' TITLE 'Заказы'###sign
         OBJECTS o = Order
         PROPERTIES (o) READONLYIF isReadonly() isClosedOrder, isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
@@ -607,7 +606,7 @@ META defineOrderBatch(legalEntityProp, stockProp)
     @defineDocumentInterfaceDetailBatch(order, batch);
     Order.batchOrderDetail(d) += batchOrderDetail(d);
     
-    overCopyOrderDetail(d, detail) += ACTION (d, detail) {      
+    overCopyUserOrderDetail(d, detail) += ACTION (d, detail) {      
         batchUserOrderDetail(d) <- batchUserOrderDetail(detail);
     } 
 
