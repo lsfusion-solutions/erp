@@ -65,8 +65,9 @@ GROUP receiptAction 'Оплата' : public;
 postPrintReceipt 'Напечатать фискальный чек' = ABSTRACT ACTION LIST (Receipt);
 noFiscalPostPrintReceipt 'Создать чек (без фискального регистратора)' = ACTION (receipt) {
     IF receipt IS Receipt THEN {
-        EXEC apply();
-        EXEC createCurrentReceipt();
+        apply();
+        IF NOT canceled() THEN
+            createCurrentReceipt();
     }
 }
 postPrintReceipt(receipt) += ACTION IF NOT sidCashRegisterModelReceipt(receipt) THEN noFiscalPostPrintReceipt(receipt);
