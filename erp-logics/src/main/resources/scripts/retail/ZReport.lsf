@@ -296,9 +296,9 @@ discountSumReceipt 'Сумма скидки по чеку' (receipt) = discountS
 
 // импорт-экспорт чеков
 
-exportReceiptsZReportCustomAction 'Экспортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportCustomActionProperty';
-exportReceiptsZReportFolderAction 'Экспортировать чеки (в папку)' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportFolderActionProperty';
-importReceiptsZReportAction 'Импортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ImportReceiptsZReportActionProperty';
+exportReceiptsZReport 'Экспортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportCustomActionProperty';
+exportReceiptsFolderZReport 'Экспортировать чеки (в папку)' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportFolderActionProperty';
+importReceiptsZReport 'Импортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ImportReceiptsZReportActionProperty';
 
 exportReceipt 'Экспортировать' (receipt) = DATA SESSION BOOLEAN (Receipt);
 exportedIncrementReceipt 'Экспортировано (инкрементно)' (receipt) = DATA BOOLEAN (Receipt);
@@ -306,10 +306,8 @@ pathExportReceipts 'Путь' = DATA VARSTRING[100] ();
 
 exportIncrementReceipts 'Экспортировать (инкрементно) чеки' = ACTION() {
     FOR z IS ZReport DO {
-        FOR NOT(exportedIncrementReceipt(r)) AND zReportReceipt(r)==z  DO {
-            exportReceipt(r) <- TRUE;    
-        }
-        exportReceiptsZReportFolderAction(z);
+        exportReceipt(r) <- NOT exportedIncrementReceipt(r) WHERE zReportReceipt(r) == z;    
+        exportReceiptsFolderZReport(z);
     }
 }
 
@@ -583,7 +581,7 @@ FORM zReports 'Z-отчеты'
     PROPERTIES (z) closeZReport SHOWIF isOpenedZReport(z), openZReport SHOWIF isClosedZReport(z)
 
     PROPERTIES (z) deletez=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftOpenedZReport(z),
-                            exportReceiptsZReportCustomAction FORCE PANEL TOOLBAR, importReceiptsZReportAction FORCE PANEL TOOLBAR,
+                            exportReceiptsZReport FORCE PANEL TOOLBAR, importReceiptsZReport FORCE PANEL TOOLBAR,
                             postZReport SHOWIF isDraftOpenedZReport(z), unpostZReport SHOWIF isPostedOpenedZReport(z)
 
     OBJECTS b=Receipt

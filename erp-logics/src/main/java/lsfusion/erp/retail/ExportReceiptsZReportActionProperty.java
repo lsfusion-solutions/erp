@@ -31,10 +31,9 @@ import javax.xml.transform.stream.StreamResult;
 import java.io.*;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty {
 
@@ -211,7 +210,12 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
             DOMSource source = new DOMSource(doc);
             trans.transform(source, result);
             String xmlString = sw.toString();
-            File file = filePath == null ? File.createTempFile("export", ".xml") : new File(filePath + "//" + numberZReport.trim() + ".xml");
+            
+            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
+            Calendar cal = Calendar.getInstance();
+            String fileName = numberZReport.trim() + "-" + dateFormat.format(cal.getTime());
+            
+            File file = filePath == null ? File.createTempFile("export", ".xml") : new File(filePath + "//" + fileName + ".xml");
             PrintWriter writer = new PrintWriter(
                     new OutputStreamWriter(
                             new FileOutputStream(file), "UTF8"));
