@@ -96,7 +96,8 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                             receiptNumber++;
                             BigDecimal discountSumReceipt = (BigDecimal) getTagValue("discountSumReceipt", receiptElement, 2);
                             String seriesNumberDiscountCard = (String) getTagValue("numberDiscountCardReceipt", receiptElement, 0);
-
+                            String noteReceipt = (String) getTagValue("noteReceipt", receiptElement, 0);
+                            
                             Long dateTimeValue = (Long) getTagValue("dateTimeReceipt", receiptElement, 3);
                             Date dateReceipt = dateTimeValue == null ? null : new Date(dateTimeValue);
                             Time timeReceipt = dateTimeValue == null ? null : new Time(dateTimeValue);
@@ -141,11 +142,11 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                                             if (quantityReceiptReturnDetail != null)
                                                 dataReturn.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
                                                         numberReceiptDetail, idBarcodeReceiptDetail, quantityReceiptReturnDetail, priceReceiptDetail, sumReceiptDetail,
-                                                        discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard));
+                                                        discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard, noteReceipt));
                                             else
                                                 dataSale.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
                                                         numberReceiptDetail, idBarcodeReceiptDetail, quantityReceiptSaleDetail, priceReceiptDetail, sumReceiptDetail,
-                                                        discountSumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceipt, seriesNumberDiscountCard,
+                                                        discountSumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceipt, seriesNumberDiscountCard, noteReceipt,
                                                         idPromotionCondition, quantityReceiptDetailPromotionCondition, promotionSumReceiptDetailPromotionCondition));
                                         }
                                     }
@@ -154,11 +155,11 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                                     if (quantityReceiptReturnDetail != null)
                                         dataReturn.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
                                                 numberReceiptDetail, idBarcodeReceiptDetail, quantityReceiptReturnDetail, priceReceiptDetail, sumReceiptDetail,
-                                                discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard));
+                                                discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard, noteReceipt));
                                     else
                                         dataSale.add(Arrays.<Object>asList(numberCashRegisterZReport, numberZReport, dateReceipt, timeReceipt, receiptNumber,
                                                 numberReceiptDetail, idBarcodeReceiptDetail, quantityReceiptSaleDetail, priceReceiptDetail, sumReceiptDetail,
-                                                discountSumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceipt, seriesNumberDiscountCard,
+                                                discountSumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceipt, seriesNumberDiscountCard, noteReceipt,
                                                 null, null, null));
                                     }
                                 }
@@ -193,7 +194,8 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 ImportField numberPaymentField = new ImportField(LM.findLCPByCompoundName("numberPayment"));
                 ImportField paymentMeansPaymentField = new ImportField(LM.baseLM.staticCaption);
                 ImportField seriesNumberDiscountCardField = new ImportField(LM.findLCPByCompoundName("seriesNumberDiscountCard"));
-
+                ImportField noteReceiptField = new ImportField(LM.findLCPByCompoundName("noteReceipt"));
+                
                 ImportField idPromotionConditionField = new ImportField(LM.findLCPByCompoundName("idPromotionCondition"));
                 ImportField quantityReceiptSaleDetailPromotionConditionField = new ImportField(LM.findLCPByCompoundName("quantityReceiptSaleDetailPromotionCondition"));
                 ImportField promotionSumReceiptSaleDetailPromotionConditionField = new ImportField(LM.findLCPByCompoundName("promotionSumReceiptSaleDetailPromotionCondition"));
@@ -223,6 +225,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
                 saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
+                saleProperties.add(new ImportProperty(noteReceiptField, LM.findLCPByCompoundName("noteReceipt").getMapping(receiptKey)));
 
                 ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ReceiptSaleDetail"), LM.findLCPByCompoundName("receiptDetailZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberReceiptDetailField, cashRegisterField));
                 saleProperties.add(new ImportProperty(numberReceiptDetailField, LM.findLCPByCompoundName("numberReceiptDetail").getMapping(receiptSaleDetailKey)));
@@ -258,6 +261,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
                 returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
+                returnProperties.add(new ImportProperty(noteReceiptField, LM.findLCPByCompoundName("noteReceipt").getMapping(receiptKey)));
 
                 ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ReceiptReturnDetail"), LM.findLCPByCompoundName("receiptDetailZReportReceiptNumberCashRegister").getMapping(zReportNumberField, numberReceiptField, numberReceiptDetailField, cashRegisterField));
                 returnProperties.add(new ImportProperty(numberReceiptDetailField, LM.findLCPByCompoundName("numberReceiptDetail").getMapping(receiptReturnDetailKey)));
@@ -275,13 +279,14 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 List<ImportField> saleImportFields = Arrays.asList(cashRegisterField, zReportNumberField, dateField, timeField,
                         numberReceiptField, numberReceiptDetailField, idBarcodeReceiptDetailField, quantityReceiptSaleDetailField,
                         priceReceiptSaleDetailField, sumReceiptSaleDetailField, discountSumReceiptSaleDetailField,
-                        discountPercentReceiptSaleDetailField, discountSumSaleReceiptField, seriesNumberDiscountCardField, 
-                        idPromotionConditionField, quantityReceiptSaleDetailPromotionConditionField, promotionSumReceiptSaleDetailPromotionConditionField);
+                        discountPercentReceiptSaleDetailField, discountSumSaleReceiptField, seriesNumberDiscountCardField,
+                        noteReceiptField, idPromotionConditionField, quantityReceiptSaleDetailPromotionConditionField,
+                        promotionSumReceiptSaleDetailPromotionConditionField);
 
                 List<ImportField> returnImportFields = Arrays.asList(cashRegisterField, zReportNumberField, dateField, timeField,
                         numberReceiptField, numberReceiptDetailField, idBarcodeReceiptDetailField, quantityReceiptReturnDetailField,
                         priceReceiptReturnDetailField, retailSumReceiptReturnDetailField, discountSumReceiptReturnDetailField,
-                        discountSumReturnReceiptField, seriesNumberDiscountCardField);
+                        discountSumReturnReceiptField, seriesNumberDiscountCardField, noteReceiptField);
 
                 new IntegrationService(session, new ImportTable(saleImportFields, dataSale), Arrays.asList(zReportKey, 
                         cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey, discountCardKey, promotionConditionKey),

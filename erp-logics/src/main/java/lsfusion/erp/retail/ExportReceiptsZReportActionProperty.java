@@ -56,20 +56,13 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
             DataSession session = context.getSession();
             Map<String, byte[]> files = new HashMap<String, byte[]>();
 
-            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
-
-            Document doc = docBuilder.newDocument();
-            Element rootElement = doc.createElement("zReport");
-            doc.appendChild(rootElement);
-
             String numberZReport = (String) LM.findLCPByCompoundName("numberZReport").read(session, zReportObject);
 
             KeyExpr receiptExpr = new KeyExpr("receipt");
             ImRevMap<Object, KeyExpr> receiptKeys = MapFact.singletonRev((Object) "receipt", receiptExpr);
 
             String[] receiptProperties = new String[]{"dateTimeReceipt", "discountSumReceipt",
-                    "numberDiscountCardReceipt"};
+                    "numberDiscountCardReceipt", "noteReceipt"};
             QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<Object, Object>(receiptKeys);
             for (String rProperty : receiptProperties) {
                 receiptQuery.addProperty(rProperty, getLCP(rProperty).getExpr(session.getModifier(), receiptExpr));
@@ -81,6 +74,14 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
 
             if (receiptResult.size() == 0)
                 return;
+
+            DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
+
+            Document doc = docBuilder.newDocument();
+            Element rootElement = doc.createElement("zReport");
+            doc.appendChild(rootElement);
+            
             for (int i = 0, size = receiptResult.size(); i < size; i++) {
                 DataObject receiptObject = new DataObject(receiptResult.getKey(i).get("receipt"), (ConcreteClass) LM.findClassByCompoundName("Receipt"));
                 LM.findLCPByCompoundName("exportReceipt").change((Object) null, session.getSession(), receiptObject);
@@ -120,7 +121,7 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
                             value = receiptDetailResult.getValue(j).get(field).getValue();
                         if (value != null) {
                             Element element = doc.createElement(field.replace("Sale", "").replace("Return", ""));
-                            element.appendChild(doc.createTextNode(String.valueOf(value)));
+                            element.appendChild(doc.createTextNode(String.valueOf(value).trim()));
                             receiptDetail.appendChild(element);
                         }
                     }
@@ -146,7 +147,7 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
                             Object value = promotionConditionResult.getValue(z).get(field);
                             if (value != null) {
                                 Element element = doc.createElement(field.replace("Sale", "").replace("Return", ""));
-                                element.appendChild(doc.createTextNode(String.valueOf(value)));
+                                element.appendChild(doc.createTextNode(String.valueOf(value).trim()));
                                 promotionCondition.appendChild(element);
                             }
                         }
@@ -175,22 +176,22 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
                         Object value = paymentValues.get(field);
                         if (value != null) {
                             Element element = doc.createElement(field);
-                            element.appendChild(doc.createTextNode(String.valueOf(value)));
+                            element.appendChild(doc.createTextNode(String.valueOf(value).trim()));
                             payment.appendChild(element);
                         }
                     }
                     receipt.appendChild(payment);
                 }
 
-                String[] fields = new String[]{"dateTimeReceipt", "discountSumReceipt", "numberDiscountCardReceipt"};
+                String[] fields = new String[]{"dateTimeReceipt", "discountSumReceipt", "numberDiscountCardReceipt", "noteReceipt"};
                 for (String field : fields) {
                     Object value = receiptResult.getValue(i).get(field);
                     if (value != null) {
                         Element element = doc.createElement(field);
                         if (value instanceof Timestamp)
-                            element.appendChild(doc.createTextNode(String.valueOf(((Timestamp) value).getTime())));
+                            element.appendChild(doc.createTextNode(String.valueOf(((Timestamp) value).getTime()).trim()));
                         else
-                            element.appendChild(doc.createTextNode(String.valueOf(value)));
+                            element.appendChild(doc.createTextNode(String.valueOf(value).trim()));
                         receipt.appendChild(element);
                     }
                 }
