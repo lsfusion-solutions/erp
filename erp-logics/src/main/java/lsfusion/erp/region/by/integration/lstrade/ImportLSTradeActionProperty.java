@@ -263,7 +263,6 @@ public class ImportLSTradeActionProperty extends DefaultImportActionProperty {
         }
 
         List<Item> data = new ArrayList<Item>();
-        List<Double> allowedVAT = Arrays.asList(0.0, 9.09, 16.67, 10.0, 20.0, 24.0);
 
         int recordCount = (numberOfItems != null && numberOfItems != 0 && numberOfItems < totalRecordCount) ? numberOfItems : totalRecordCount;
         for (int i = 0; i < recordCount; i++) {
@@ -308,7 +307,7 @@ public class ImportLSTradeActionProperty extends DefaultImportActionProperty {
             if (!idItemGroup.isEmpty() && (!inactiveItem || importInactive) && !isWare)
                 data.add(new Item(isItem, idItemGroup, captionItem, UOM, brand, brand, nameCountry, barcode, barcode,
                         date, isWeightItem ? isWeightItem : null, null, null, compositionItem.isEmpty() ? null : compositionItem,
-                        allowedVAT.contains(retailVAT) ? retailVAT : null, idWare, priceWare, ndsWare,
+                        VATifAllowed(retailVAT), idWare, priceWare, ndsWare, 
                         "RW_".equals(idRateWaste) ? null : idRateWaste, null, null, isItem, quantityPackItem, null, null,
                         null, null));
         }

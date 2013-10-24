@@ -13,6 +13,7 @@ import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class DefaultImportActionProperty extends ScriptingActionProperty {
@@ -29,6 +30,12 @@ public class DefaultImportActionProperty extends ScriptingActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
     }
 
+    private List<BigDecimal> allowedVAT = Arrays.asList(BigDecimal.valueOf(0.0), BigDecimal.valueOf(9.09), BigDecimal.valueOf(16.67), BigDecimal.valueOf(10.0), BigDecimal.valueOf(20.0), BigDecimal.valueOf(24.0));
+
+    protected BigDecimal VATifAllowed(BigDecimal VAT) {
+        return allowedVAT.contains(VAT) ? VAT : null;
+    }
+
     protected void checkFileExistence(String filePath) {
         if (!(new File(filePath).exists()))
             throw new RuntimeException("Запрашиваемый файл " + filePath + " не найден");
@@ -41,7 +48,7 @@ public class DefaultImportActionProperty extends ScriptingActionProperty {
         }
         return data;
     }
-    
+
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
         if (operand1 == null && operand2 == null)
             return null;
@@ -76,7 +83,7 @@ public class DefaultImportActionProperty extends ScriptingActionProperty {
     protected BigDecimal safeDivide(BigDecimal dividend, BigDecimal quotient) {
         return safeDivide(dividend, quotient, 3);
     }
-    
+
     protected BigDecimal safeDivide(BigDecimal dividend, BigDecimal quotient, int scale) {
         if (dividend == null || dividend.doubleValue() == 0 || quotient == null || quotient.doubleValue() == 0)
             return null;
@@ -86,19 +93,19 @@ public class DefaultImportActionProperty extends ScriptingActionProperty {
     protected String getSplittedValue(String[] splittedLine, int index, String defaultValue) {
         return splittedLine == null || splittedLine.length <= index ? defaultValue : splittedLine[index];
     }
-    
+
     protected String getStringFromEntry(List<Object> entry, int index) {
         return entry == null ? null : (String) entry.get(index);
     }
-    
+
     protected BigDecimal getBigDecimalFromEntry(List<Object> entry, int index) {
         return entry == null ? null : (BigDecimal) entry.get(index);
     }
-    
+
     protected Date getDateFromEntry(List<Object> entry, int index) {
         return entry == null ? null : (Date) entry.get(index);
     }
-    
+
     protected Boolean getBooleanFromEntry(List<Object> entry, int index) {
         return entry == null ? null : (Boolean) entry.get(index);
     }

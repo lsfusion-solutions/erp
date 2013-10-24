@@ -31,7 +31,7 @@ import java.util.*;
 public abstract class ImportUniversalActionProperty extends ScriptingActionProperty {
 
     public ImportUniversalActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{valueClass});
+        super(LM, valueClass);
     }
 
     @Override
