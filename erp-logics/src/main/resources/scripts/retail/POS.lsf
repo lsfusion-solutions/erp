@@ -659,6 +659,7 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
 
 prevCurrentBalanceSkuReceipt (sku, receipt) = prevCurrentBalanceSkuStock(sku, departmentStoreReceipt(receipt));
 prevCurrentBalanceSkuReceiptDetail 'Тек. остаток' (receiptDetail) = prevCurrentBalanceSkuReceipt(skuReceiptDetail(receiptDetail), receiptReceiptDetail(receiptDetail));
+prevCurrentBalanceSkuReceiptDetailStock 'Тек. остаток' (receiptDetail, stock) = prevCurrentBalanceSkuStock(skuReceiptDetail(receiptDetail), stock);
 
 prevCurrentBalanceBatchReceipt (batch, receipt) = prevCurrentBalanceBatchStock(batch, departmentStoreReceipt(receipt));
 prevCurrentBalanceBatchReceiptDetail 'Тек. остаток' (receiptDetail) = prevCurrentBalanceBatchReceipt(batchReceiptDetail(receiptDetail), receiptReceiptDetail(receiptDetail));
@@ -711,6 +712,13 @@ FORM POS
     FILTERS userSetPromotionCondition(pcu) AND inReceiptSaleDetailPromotionCondition(d, pcu)
 
     PROPERTIES() fiscalAdvancePaper, fiscalCutReceipt
+    
+    OBJECTS s = DepartmentStore
+    PROPERTIES(s) READONLY nameStoreDepartmentStore
+    PROPERTIES prevCurrentBalanceSkuReceiptDetailStock(d, s)
+
+    FILTERS accessCompanyEmployeeStock(currentUser(), s),
+            prevCurrentBalanceSkuReceiptDetailStock(d, s)
 
     EVENTS
         ON INIT createCurrentReceipt()
@@ -824,6 +832,9 @@ DESIGN POS FROM DEFAULT {
                 ADD pcu.box {
                     caption = 'Возможные акции';
                     REMOVE pcu.toolbar;
+                }
+                ADD s.box{
+                    caption = 'Остатки в других магазинах';
                 }
             }
             NEW misc {
