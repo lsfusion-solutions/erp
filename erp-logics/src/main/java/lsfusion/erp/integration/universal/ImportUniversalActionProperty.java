@@ -1,9 +1,9 @@
 package lsfusion.erp.integration.universal;
 
+import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.lang.time.DateUtils;
@@ -28,7 +28,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public abstract class ImportUniversalActionProperty extends ScriptingActionProperty {
+public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
 
     public ImportUniversalActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
@@ -36,20 +36,6 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
-    }
-
-    public List<List<Object>> initData(int size) {
-        List<List<Object>> data = new ArrayList<List<Object>>();
-        for (int i = 0; i < size; i++) {
-            data.add(new ArrayList<Object>());
-        }
-        return data;
-    }
-
-    private List<BigDecimal> allowedVAT = Arrays.asList(BigDecimal.valueOf(0.0), BigDecimal.valueOf(9.09), BigDecimal.valueOf(16.67), BigDecimal.valueOf(10.0), BigDecimal.valueOf(20.0), BigDecimal.valueOf(24.0));
-
-    protected BigDecimal VATifAllowed(BigDecimal VAT) {
-        return allowedVAT.contains(VAT) ? VAT : null;
     }
 
     protected String getCSVFieldValue(String[] values, Map<String, String[]> importColumns, String columnName) throws ParseException {
@@ -309,7 +295,7 @@ public abstract class ImportUniversalActionProperty extends ScriptingActionPrope
         BigDecimal result = null;
         try {
             result = new BigDecimal(value.trim());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException ignored) {
         }
 
         return result;
