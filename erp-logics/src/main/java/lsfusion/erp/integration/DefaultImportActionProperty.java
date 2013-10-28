@@ -30,10 +30,10 @@ public class DefaultImportActionProperty extends ScriptingActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
     }
 
-    private List<BigDecimal> allowedVAT = Arrays.asList(BigDecimal.valueOf(0.0), BigDecimal.valueOf(9.09), BigDecimal.valueOf(16.67), BigDecimal.valueOf(10.0), BigDecimal.valueOf(20.0), BigDecimal.valueOf(24.0));
+    private List<Double> allowedVAT = Arrays.asList(0.0, 9.09, 16.67, 10.0, 20.0, 24.0);
 
     protected BigDecimal VATifAllowed(BigDecimal VAT) {
-        return allowedVAT.contains(VAT) ? VAT : null;
+        return VAT == null || !allowedVAT.contains(VAT.doubleValue()) ? null : VAT;
     }
 
     protected void checkFileExistence(String filePath) {
