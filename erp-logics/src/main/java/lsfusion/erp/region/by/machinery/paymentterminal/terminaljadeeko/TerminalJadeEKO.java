@@ -75,7 +75,7 @@ public class TerminalJadeEKO {
     }
     
     private static String toStr(BigDecimal value) {
-        return (value == null) ? "0" : String.valueOf(value.intValue());       
+        return (value == null) ? "0" : String.valueOf(Math.abs(value.intValue()));       
     }
 }
 
