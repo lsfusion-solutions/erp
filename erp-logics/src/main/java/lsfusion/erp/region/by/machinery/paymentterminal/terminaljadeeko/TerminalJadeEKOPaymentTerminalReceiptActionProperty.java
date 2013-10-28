@@ -36,7 +36,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
 
         try {
 
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentPaymentTerminal").read(context);
+            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentPaymentTerminalModelCashRegister").read(context);
             BigDecimal sumCard = null;
 
             KeyExpr paymentExpr = new KeyExpr("payment");

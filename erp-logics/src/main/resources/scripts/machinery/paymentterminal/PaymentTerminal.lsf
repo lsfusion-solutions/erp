@@ -2,12 +2,6 @@ MODULE PaymentTerminal;
 
 REQUIRE System, Machinery, Store, LegalEntity;
 
-// Группы
-CLASS GroupPaymentTerminal 'Группы платёжных терминалов' : GroupMachinery;
-
-departmentStoreGroupPaymentTerminal = DATA DepartmentStore (GroupPaymentTerminal);
-stockGroupMachinery (groupMachinery) += departmentStoreGroupPaymentTerminal(groupMachinery);
-
 // Модели
 CLASS PaymentTerminalModel 'Модель платёжных терминалов' : Model;
 
@@ -28,80 +22,6 @@ FORM paymentTerminalsModels 'Модели платёжных терминало�
     DIALOG PaymentTerminalModel OBJECT p
 ;
 
-// Платёжные терминалы
-CLASS PaymentTerminal 'Платёжный терминал' : Machinery;
-isGroupPaymentTerminal (machinery) = machinery IS GroupPaymentTerminal;
-
-groupPaymentTerminalPaymentTerminal = DATA GroupPaymentTerminal (PaymentTerminal);
-groupMachineryMachinery(machinery) += groupPaymentTerminalPaymentTerminal(machinery);
-
-paymentTerminalModelPaymentTerminal = DATA PaymentTerminalModel (PaymentTerminal);
-modelMachinery(machinery) += paymentTerminalModelPaymentTerminal(machinery);
-
-numberPaymentTerminal 'Регистрационный номер платёжного терминала' = DATA VARSTRING[100] (PaymentTerminal) IN base;
-paymentTerminalNumber (paymentTerminal) = GROUP AGGR paymentTerminal BY numberPaymentTerminal (paymentTerminal) WHERE paymentTerminal IS PaymentTerminal;
-
-comPortPaymentTerminal 'Порт платёжного терминала' = DATA INTEGER (PaymentTerminal) IN base;
-
-computerPaymentTerminal = DATA Computer (PaymentTerminal);
-hostnameComputerPaymentTerminal 'Компьютер' (paymentTerminal) = hostnameComputer(computerPaymentTerminal(paymentTerminal)) IN base;
-
-paymentTerminalComputer (computer) = GROUP AGGR paymentTerminal BY computerPaymentTerminal(paymentTerminal) WHERE paymentTerminal IS PaymentTerminal PERSISTENT;
-
-currentPaymentTerminal 'Текущий платёжный терминал' = paymentTerminalComputer(currentComputer());
-
-numberCurrentPaymentTerminal 'Номер платёжного терминала' = numberPaymentTerminal(currentPaymentTerminal());
-sidModelCurrentPaymentTerminal 'Код модели' = sidModelMachinery(currentPaymentTerminal());
-comPortCurrentPaymentTerminal 'Порт' = comPortPaymentTerminal(currentPaymentTerminal());
-nppMachineryCurrentPaymentTerminal 'Номер кассового места' = nppMachinery(currentPaymentTerminal());
-
-FORM paymentTerminal 'Платёжный терминал'
-    OBJECTS p=PaymentTerminal FIXED PANEL
-    PROPERTIES(p) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberPaymentTerminal, comPortPaymentTerminal, nameModelMachinery,
-                  hostnameComputerPaymentTerminal
-    EDIT PaymentTerminal OBJECT p
-;
-
-FORM groupPaymentTerminal 'Группа платёжных терминалов'
-    OBJECTS grp=GroupPaymentTerminal FIXED PANEL
-    PROPERTIES(grp) nameStockGroupMachinery, nameEquipmentServerGroupMachinery, nameGroupMachinery,
-                    filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grp),
-                    namePriceListTypeGroupMachinery
-
-    OBJECTS p=PaymentTerminal
-    PROPERTIES(p)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberPaymentTerminal,
-                    comPortPaymentTerminal, nameModelMachinery, hostnameComputerPaymentTerminal, ADDOBJ, DELETESESSION
-
-    FILTERGROUP filters2
-        FILTER 'Показывать только для данной группы' 'F10' groupPaymentTerminalPaymentTerminal(p) == grp DEFAULT
-
-    EDIT GroupPaymentTerminal OBJECT grp
-;
-
-FORM groupsPaymentTerminal 'Группы платёжных терминалов'
-    OBJECTS grp=GroupPaymentTerminal, p=PaymentTerminal
-    PROPERTIES(grp)  READONLY nameStockGroupMachinery, nameEquipmentServerGroupMachinery, nameGroupMachinery,
-                     filterSkuGroupMachinery
-    PROPERTIES(grp)  ADDFORM, EDITFORM, DELETE
-
-    PROPERTIES(p) READONLY nppMachinery, descriptionMachinery, portMachinery,
-                           numberPaymentTerminal, comPortPaymentTerminal, nameModelMachinery
-    FILTERS groupPaymentTerminalPaymentTerminal(p) == grp
-;
-@extendFormFilterAccessStock(GroupMachinery, grp, groupsPaymentTerminal, stock, company);
-
-
-DESIGN groupsPaymentTerminal FROM DEFAULT {
-    NEW pane {
-        fill = 1;
-        type = SPLITV;
-
-        ADD grp.box;
-        ADD p.box;
-    }
-    ADD functions.box;
-}
-
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
 loadDefaultPaymentTerminalModel 'Добавить модель платёжных терминалов' = ACTION (iname, isid, ihandler)  {
@@ -117,49 +37,3 @@ loadDefaultPaymentTerminalModels 'Загрузить стандартные мо
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultPaymentTerminalModels);
-
-// --------------------------------------- Генерация групп платёжных терминалов -------------------------------- //
-loadDefaultGroupPaymentTerminal 'Сгенерировать группу платёжных терминалов' = ACTION(stock, model, num) {
-    FOR ADDOBJ g = GroupPaymentTerminal DO {
-        ASSIGN departmentStoreGroupPaymentTerminal(g) <- stock;
-        ASSIGN nameGroupMachinery(g) <- 'Группа платёжных терминалов по умолчанию';
-
-        LOCAL numPaymentTerminal = INTEGER();
-        ASSIGN numPaymentTerminal() <- 0;
-        WHILE numPaymentTerminal() < num DO {
-            FOR ADDOBJ c = PaymentTerminal DO {
-                ASSIGN groupPaymentTerminalPaymentTerminal(c) <- g;
-                ASSIGN numPaymentTerminal() <- numPaymentTerminal() + 1;
-                ASSIGN nppMachinery(c) <- numPaymentTerminal();
-                ASSIGN paymentTerminalModelPaymentTerminal(c) <- model;
-                ASSIGN descriptionMachinery(c) <- CONCAT ' ', 'Касса', VARSTRING[255](numPaymentTerminal()), '(', nameStock(stock), ')';
-            }
-        }
-    }
-}
-
-EXTEND FORM defaultData
-    OBJECTS         ptm=PaymentTerminalModel FIXED PANEL
-    PROPERTIES(ptm) SELECTOR namePaymentTerminalModel
-
-    OBJECTS         cPaymentTerminal=INTEGER FIXED PANEL
-    PROPERTIES(cPaymentTerminal)   intValuePaymentTerminal = OBJVALUE
-    PROPERTIES (s, ptm, cPaymentTerminal) loadDefaultGroupPaymentTerminal
-;
-
-EXTEND DESIGN defaultData {
-    PROPERTY(namePaymentTerminalModel(ptm)) {
-        caption = 'Модель платёжных терминалов';
-    }
-    PROPERTY(intValuePaymentTerminal) {
-        caption = 'Количество платёжных терминалов';
-    }
-    machinery {
-        NEW paymentTerminal {
-            caption = 'Платёжные терминалы';
-            ADD PROPERTY(namePaymentTerminalModel(ptm));
-            ADD PROPERTY(intValuePaymentTerminal);
-            ADD PROPERTY(loadDefaultGroupPaymentTerminal);
-        }
-    }
-}
