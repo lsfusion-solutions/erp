@@ -133,7 +133,12 @@ postReceipt 'Смешанный платеж' = ACTION (receipt) {
         }
         FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
         IF formResult() == FormResult.ok THEN {
-            postPrintReceipt(receipt);
+            postPaymentTerminalReceipt(receipt);
+            IF NOT postPaymentTerminalReceiptResult() THEN {
+                postPrintReceipt(receipt);
+            } ELSE {
+                MESSAGE postPaymentTerminalReceiptResult();
+            }
         } ELSE {
             DELETE p WHERE receiptPayment(p) == receipt;
         }
@@ -152,8 +157,7 @@ postCardReceipt 'Карточкой' = ACTION (receipt) {
         postPaymentTerminalReceipt(receipt);
         IF NOT postPaymentTerminalReceiptResult() THEN {
             postPrintReceipt(receipt);
-        }
-        ELSE {
+        } ELSE {
             MESSAGE postPaymentTerminalReceiptResult();
         }
     }
