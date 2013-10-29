@@ -13,11 +13,11 @@ public class TerminalJadeEKO {
         jadeEKODLL jadeEKO = (jadeEKODLL) Native.loadLibrary("jadeEKO", jadeEKODLL.class);
 
         boolean operation(byte[] port, byte[] un, byte[] req, byte[] resp);
-        
+
         int lasterror();
-        
+
         void errorstring(int err, byte[] buf);
-        
+
         void un(byte[] buf);
 
         void generateun(byte[] buf);
@@ -38,28 +38,30 @@ public class TerminalJadeEKO {
         jadeEKODLL.jadeEKO.generateun(un);
         byte[] response = new byte[255];
         jadeEKODLL.jadeEKO.operation(getBytes("COM" + String.valueOf(comPort)), un, getBytes(query), response);
-        checkErrors(true);
-        
+        String error = checkErrors();
+        if (error != null)
+            return error;
         String responseString = Native.toString(response, "cp1251");
-        
+
         switch (responseString.charAt(0)) {
-            case '0': return "Операция не выполнена"; //кнопка cancel или недостаточно средств
-            case '1': return "Не завершена предыдущая операция";
-            case '2': return null; //"Операция выполнена
-            case '3': return "Операция, выполняемая кассиром, не завершена";
-            default: return responseString;
+            case '0':
+                return "Операция не выполнена"; //кнопка cancel или недостаточно средств
+            case '1':
+                return "Не завершена предыдущая операция";
+            case '2':
+                return null; //"Операция выполнена
+            case '3':
+                return "Операция, выполняемая кассиром, не завершена";
+            default:
+                return responseString;
         }
-        
-        
     }
 
-    public static int checkErrors(Boolean throwException) throws RuntimeException {
-        int lastError = jadeEKODLL.jadeEKO.lasterror();  
-        if (lastError != 0) {
-            if (throwException)
-                throw new RuntimeException("jadeEko Exception: " + getError());
-        }
-        return lastError;
+    public static String checkErrors() throws RuntimeException {
+        int lastError = jadeEKODLL.jadeEKO.lasterror();
+        if (lastError != 0)
+            return getError();
+        return null;
     }
 
     public static String getError() {
@@ -69,13 +71,13 @@ public class TerminalJadeEKO {
         jadeEKODLL.jadeEKO.errorstring(lastError, lastErrorText);
         return Native.toString(lastErrorText, "cp1251");
     }
-    
+
     private static byte[] getBytes(String input) throws UnsupportedEncodingException {
         return (input + "\0").getBytes("cp1251");
     }
-    
+
     private static String toStr(BigDecimal value) {
-        return (value == null) ? "0" : String.valueOf(Math.abs(value.intValue()));       
+        return (value == null) ? "0" : String.valueOf(value.intValue());
     }
 }
 

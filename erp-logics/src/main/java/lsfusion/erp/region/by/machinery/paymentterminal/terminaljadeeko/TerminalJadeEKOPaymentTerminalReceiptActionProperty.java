@@ -72,7 +72,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
                 break;
             }
 
-            String result = (String) context.requestUserInteraction(new TerminalJadeEKOPaymentTerminalReceiptClientAction(comPort, sumCard, isSale, null));
+            String result = sumCard == null || sumCard.abs().equals(BigDecimal.ZERO) ? null : (String) context.requestUserInteraction(new TerminalJadeEKOPaymentTerminalReceiptClientAction(comPort, sumCard.abs(), isSale, null));
 
             LM.findLCPByCompoundName("postPaymentTerminalReceiptResult").change(result, context.getSession());
 
