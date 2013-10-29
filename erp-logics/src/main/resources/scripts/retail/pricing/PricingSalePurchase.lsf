@@ -38,6 +38,9 @@ CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(purchaseRe
            CHECKED BY purchaseRetailPriceListTypeUserInvoiceDetail
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
+overRetailStockUserInvoiceDetail = ABSTRACT Stock (UserInvoiceDetail);
+retailStockUserInvoiceDetail (d) = OVERRIDE customerStockUserInvoiceDetail(d), overRetailStockUserInvoiceDetail(d);
+
 WHEN SESSION // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail)) OR
     CHANGED(calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
@@ -46,7 +49,7 @@ WHEN SESSION // цены берем на начало сессии, а не эт
     CHANGED(dateTimeUserInvoiceDetail(detail))) AND pt == calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
     purchaseRetailPriceListTypeUserInvoiceDetail(detail) <- IF prevPriceBPriceListTypeSkuStockDateTime(pt,
                                                                                           skuUserInvoiceDetail(detail),
-                                                                                          customerStockUserInvoiceDetail(detail),
+                                                                                          retailStockUserInvoiceDetail(detail),
                                                                                           dateTimeUserInvoiceDetail(detail))
                                                             THEN pt
                                                             ELSE calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail);
@@ -89,7 +92,7 @@ purchaseRoundConditionUserInvoiceDetail(userInvoiceDetail) =
 
 // Проставление цены по виду цен
 overLimitPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
-@deriveDocumentDetailBatchOnSessionPriceListType(UserInvoiceDetail, purchaseRetail, purchasePricing, customerStock, userInvoice);
+@deriveDocumentDetailBatchOnSessionPriceListType(UserInvoiceDetail, purchaseRetail, purchasePricing, retailStock, userInvoice);
 // -- Суммы по строкам
 
 @defineDocumentInterfaceDetailMarkupSumPrefix (invoice, purchaseRetail, ' (закупка)');
