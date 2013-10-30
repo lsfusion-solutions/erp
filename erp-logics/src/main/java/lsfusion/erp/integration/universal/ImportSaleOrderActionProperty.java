@@ -339,23 +339,23 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         HSSFSheet sheet = Wb.getSheetAt(0);
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
-            String numberOrder = getXLSFieldValue(sheet, i, importColumns, "numberDocument");
+            String numberOrder = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
             String idOrderDetail = String.valueOf(orderObject) + i;
-            String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSFieldValue(sheet, i, importColumns, "barcodeItem"));
-            String idBatch = getXLSFieldValue(sheet, i, importColumns, "idBatch");
-            String idItem = getXLSFieldValue(sheet, i, importColumns, "idItem");
-            String manufacturerItem = getXLSFieldValue(sheet, i, importColumns, "manufacturerItem");
-            String idCustomerStock = getXLSFieldValue(sheet, i, importColumns, "idCustomerStock");
+            String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
+            String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
+            String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
+            String manufacturerItem = getXLSFieldValue(sheet, i, importColumns.get("manufacturerItem"));
+            String idCustomerStock = getXLSFieldValue(sheet, i, importColumns.get("idCustomerStock"));
             ObjectValue customerStockObject = idCustomerStock == null ? null : LM.findLCPByCompoundName("stockId").readClasses(context, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : LM.findLCPByCompoundName("legalEntityStock").readClasses(context, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : LM.findLCPByCompoundName("idLegalEntity").read(context, customerObject));
-            BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, importColumns, "quantity");
-            BigDecimal price = getXLSBigDecimalFieldValue(sheet, i,importColumns, "price");
-            BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, importColumns, "sum");
-            BigDecimal valueVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns, "valueVAT");
-            BigDecimal sumVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns, "sumVAT");
-            BigDecimal invoiceSum = getXLSBigDecimalFieldValue(sheet, i, importColumns, "invoiceSum");
-            BigDecimal manufacturingPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns, "manufacturingPrice");
+            BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
+            BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("price"));
+            BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
+            BigDecimal valueVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("valueVAT"));
+            BigDecimal sumVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
+            BigDecimal invoiceSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
+            BigDecimal manufacturingPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
 
             saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
                     manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
@@ -383,23 +383,23 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                 String[] values = line.split(csvSeparator);
 
-                String numberOrder = getCSVFieldValue(values, importColumns, "numberDocument");
+                String numberOrder = getCSVFieldValue(values, importColumns.get("numberDocument"));
                 String idOrderDetail = String.valueOf(orderObject) + count;
-                String barcodeItem = BarcodeUtils.convertBarcode12To13(getCSVFieldValue(values, importColumns, "barcodeItem"));
-                String idBatch = getCSVFieldValue(values, importColumns, "idBatch");
-                String idItem = getCSVFieldValue(values, importColumns, "idItem");
-                String manufacturerItem = getCSVFieldValue(values, importColumns, "manufacturerItem");
-                String idCustomerStock = getCSVFieldValue(values, importColumns, "idCustomerStock");
+                String barcodeItem = BarcodeUtils.convertBarcode12To13(getCSVFieldValue(values, importColumns.get("barcodeItem")));
+                String idBatch = getCSVFieldValue(values, importColumns.get("idBatch"));
+                String idItem = getCSVFieldValue(values, importColumns.get("idItem"));
+                String manufacturerItem = getCSVFieldValue(values, importColumns.get("manufacturerItem"));
+                String idCustomerStock = getCSVFieldValue(values, importColumns.get("idCustomerStock"));
                 ObjectValue customerStockObject = idCustomerStock == null ? null : LM.findLCPByCompoundName("stockId").readClasses(context, new DataObject(idCustomerStock));
                 ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : LM.findLCPByCompoundName("legalEntityStock").readClasses(context, (DataObject) customerStockObject));
                 String idCustomer = (String) (customerObject == null ? null : LM.findLCPByCompoundName("idLegalEntity").read(context, customerObject));
-                BigDecimal quantity = getCSVBigDecimalFieldValue(values, importColumns, "quantity");
-                BigDecimal price = getCSVBigDecimalFieldValue(values, importColumns, "price");
-                BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns, "sum");
-                BigDecimal valueVAT = getCSVBigDecimalFieldValue(values, importColumns, "valueVAT");
-                BigDecimal sumVAT = getCSVBigDecimalFieldValue(values, importColumns, "sumVAT");
-                BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, importColumns, "invoiceSum");
-                BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, importColumns, "manufacturingPrice");
+                BigDecimal quantity = getCSVBigDecimalFieldValue(values, importColumns.get("quantity"));
+                BigDecimal price = getCSVBigDecimalFieldValue(values, importColumns.get("price"));
+                BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns.get("sum"));
+                BigDecimal valueVAT = getCSVBigDecimalFieldValue(values, importColumns.get("valueVAT"));
+                BigDecimal sumVAT = getCSVBigDecimalFieldValue(values, importColumns.get("sumVAT"));
+                BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, importColumns.get("invoiceSum"));
+                BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, importColumns.get("manufacturingPrice"));
 
                 saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
                         manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
@@ -419,23 +419,23 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
 
-            String numberOrder = getXLSXFieldValue(sheet, i, importColumns, "numberDocument");
+            String numberOrder = getXLSXFieldValue(sheet, i, importColumns.get("numberDocument"));
             String idOrderDetail = String.valueOf(orderObject) + i;
-            String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSXFieldValue(sheet, i, importColumns, "barcodeItem"));
-            String idBatch = getXLSXFieldValue(sheet, i, importColumns, "idBatch");
-            String idItem = getXLSXFieldValue(sheet, i, importColumns, "idItem");
-            String manufacturerItem = getXLSXFieldValue(sheet, i, importColumns, "manufacturerItem");
-            String idCustomerStock = getXLSXFieldValue(sheet, i, importColumns, "idCustomerStock");
+            String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
+            String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
+            String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
+            String manufacturerItem = getXLSXFieldValue(sheet, i, importColumns.get("manufacturerItem"));
+            String idCustomerStock = getXLSXFieldValue(sheet, i, importColumns.get("idCustomerStock"));
             ObjectValue customerStockObject = idCustomerStock == null ? null : LM.findLCPByCompoundName("stockId").readClasses(context, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : LM.findLCPByCompoundName("legalEntityStock").readClasses(context, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : LM.findLCPByCompoundName("idLegalEntity").read(context, customerObject));
-            BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, importColumns, "quantity");
-            BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, importColumns, "price");
-            BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, importColumns, "sum");
-            BigDecimal valueVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns, "valueVAT");
-            BigDecimal sumVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns, "sumVAT");
-            BigDecimal invoiceSum = getXLSXBigDecimalFieldValue(sheet, i, importColumns, "invoiceSum");
-            BigDecimal manufacturingPrice = getXLSXBigDecimalFieldValue(sheet, i, importColumns, "manufacturingPrice");
+            BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
+            BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("price"));
+            BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
+            BigDecimal valueVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("valueVAT"));
+            BigDecimal sumVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
+            BigDecimal invoiceSum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
+            BigDecimal manufacturingPrice = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
 
             saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
                     manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum,
@@ -461,23 +461,23 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             file.read();
 
-            String numberOrder = getDBFFieldValue(file, importColumns, "numberDocument");
+            String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"));
             String idOrderDetail = String.valueOf(orderObject) + i;
-            String barcodeItem = BarcodeUtils.convertBarcode12To13(getDBFFieldValue(file, importColumns, "barcodeItem"));
-            String idBatch = getDBFFieldValue(file, importColumns, "idBatch");
-            String idItem = getDBFFieldValue(file, importColumns, "idItem");
-            String manufacturerItem = getDBFFieldValue(file, importColumns, "manufacturerItem");
-            String idCustomerStock = getDBFFieldValue(file, importColumns, "idCustomerStock");
+            String barcodeItem = BarcodeUtils.convertBarcode12To13(getDBFFieldValue(file, importColumns.get("barcodeItem")));
+            String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"));
+            String idItem = getDBFFieldValue(file, importColumns.get("idItem"));
+            String manufacturerItem = getDBFFieldValue(file, importColumns.get("manufacturerItem"));
+            String idCustomerStock = getDBFFieldValue(file, importColumns.get("idCustomerStock"));
             ObjectValue customerStockObject = idCustomerStock == null ? null : LM.findLCPByCompoundName("stockId").readClasses(context, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : LM.findLCPByCompoundName("legalEntityStock").readClasses(context, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : LM.findLCPByCompoundName("idLegalEntity").read(context, customerObject));
-            BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns, "quantity");
-            BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns, "price");
-            BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns, "sum");
-            BigDecimal valueVAT = getDBFBigDecimalFieldValue(file, importColumns, "valueVAT");
-            BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns, "sumVAT");
-            BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns, "invoiceSum");
-            BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns, "manufacturingPrice");
+            BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns.get("quantity"));
+            BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns.get("price"));
+            BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"));
+            BigDecimal valueVAT = getDBFBigDecimalFieldValue(file, importColumns.get("valueVAT"));
+            BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns.get("sumVAT"));
+            BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"));
+            BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns.get("manufacturingPrice"));
 
             saleOrderDetailList.add(new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, idItem,
                     manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT,

@@ -12,10 +12,12 @@ public class PurchaseInvoiceDetail {
     public String idBarcodeSku;
     public String idBatch;
     public String idItem;
+    public String idItemGroup;
     public String captionItem;
     public String idUOM;
     public String idManufacturer;
     public String nameCountry;
+    public String nameOriginCountry;
     public String nameImportCountry;
     public String idCustomer;
     public String idCustomerStock;
@@ -50,13 +52,13 @@ public class PurchaseInvoiceDetail {
 
 
     public PurchaseInvoiceDetail(String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
-                                 String idUserInvoiceDetail, String idBarcodeSku, String idBatch, String idItem,
-                                 String captionItem, String idUOM, String idManufacturer, String nameCountry, 
-                                 String nameImportCountry, String idCustomer, String idCustomerStock, 
-                                 BigDecimal quantity, BigDecimal price, BigDecimal sum, BigDecimal valueVAT, 
-                                 BigDecimal sumVAT, BigDecimal invoiceSum, BigDecimal manufacturingPrice,  
-                                 String numberCompliance, String numberDeclaration, Date expiryDate, 
-                                 String idPharmacyPriceGroup, String seriesPharmacy, String idArticle,
+                                 String idUserInvoiceDetail, String idBarcodeSku, String idBatch, String idItem, 
+                                 String idItemGroup, String captionItem, String idUOM, String idManufacturer, 
+                                 String nameCountry, String nameOriginCountry, String nameImportCountry, 
+                                 String idCustomer, String idCustomerStock, BigDecimal quantity, BigDecimal price,
+                                 BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, BigDecimal invoiceSum, 
+                                 BigDecimal manufacturingPrice, String numberCompliance, String numberDeclaration, 
+                                 Date expiryDate, String idPharmacyPriceGroup, String seriesPharmacy, String idArticle,
                                  String captionArticle, String idColor, String nameColor, String idCollection,
                                  String nameCollection, String idSize, String nameSize, String idSeasonYear, 
                                  String idSeason, String nameSeason, String idTheme, String nameTheme, 
@@ -68,10 +70,12 @@ public class PurchaseInvoiceDetail {
         this.idBarcodeSku = idBarcodeSku;
         this.idBatch = idBatch;
         this.idItem = idItem;
+        this.idItemGroup = idItemGroup;
         this.captionItem = captionItem;
         this.idUOM = idUOM;
         this.idManufacturer = idManufacturer;
         this.nameCountry = nameCountry;
+        this.nameOriginCountry = nameOriginCountry;
         this.nameImportCountry = nameImportCountry;
         this.idCustomer = idCustomer;
         this.idCustomerStock = idCustomerStock;

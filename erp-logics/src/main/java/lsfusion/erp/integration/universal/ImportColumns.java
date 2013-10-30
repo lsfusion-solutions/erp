@@ -40,16 +40,12 @@ public class ImportColumns {
         return quantityAdjustmentColumn;
     }
 
-    public Integer getIntQuantityAdjustmentColumn() {
-        return quantityAdjustmentColumn == null ? null : (Integer.parseInt(quantityAdjustmentColumn) - 1);
-    }
-
     public Integer getDateRow() {
         return dateRow == null ? null : (dateRow - 1);
     }
 
-    public Integer getDateColumn() {
-        return dateColumn == null ? null : (dateColumn - 1);
+    public String getDateColumn() {
+        return dateColumn == null ? null : String.valueOf(dateColumn);
     }
 
     public DataObject getOperationObject() {
