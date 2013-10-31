@@ -243,18 +243,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             props.add(new ImportProperty(iField, LM.findLCPByCompoundName("skuBarcode").getMapping(barcodeKey),
                     LM.object(LM.findClassByCompoundName("Item")).getMapping(itemKey)));
 
-            if (showField(userInvoiceDetailsList, "idItemGroup")) {
-                ImportField idItemGroupField = new ImportField(LM.findLCPByCompoundName("idItemGroup"));
-                ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ItemGroup"),
-                        LM.findLCPByCompoundName("itemGroupId").getMapping(idItemGroupField));
-                keys.add(itemGroupKey);
-                props.add(new ImportProperty(idItemGroupField, LM.findLCPByCompoundName("itemGroupItem").getMapping(itemKey),
-                        LM.object(LM.findClassByCompoundName("ItemGroup")).getMapping(itemGroupKey)));
-                fields.add(idItemGroupField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idItemGroup);
-            }
-
             if (showField(userInvoiceDetailsList, "captionItem")) {
                 ImportField captionItemField = new ImportField(LM.findLCPByCompoundName("captionItem"));
                 props.add(new ImportProperty(captionItemField, LM.findLCPByCompoundName("captionItem").getMapping(itemKey)));
@@ -501,6 +489,21 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 fields.add(idArticleField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idArticle);
+
+                if (showField(userInvoiceDetailsList, "idItemGroup")) {
+                    ImportField idItemGroupField = new ImportField(LM.findLCPByCompoundName("idItemGroup"));
+                    ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ItemGroup"),
+                            LM.findLCPByCompoundName("itemGroupId").getMapping(idItemGroupField));
+                    keys.add(itemGroupKey);
+                    props.add(new ImportProperty(idItemGroupField, LM.findLCPByCompoundName("itemGroupItem").getMapping(itemKey),
+                            LM.object(LM.findClassByCompoundName("ItemGroup")).getMapping(itemGroupKey)));
+                    if (itemArticleLM != null)
+                        props.add(new ImportProperty(idItemGroupField, itemArticleLM.findLCPByCompoundName("itemGroupArticle").getMapping(articleKey),
+                                itemArticleLM.object(itemArticleLM.findClassByCompoundName("ItemGroup")).getMapping(itemGroupKey)));
+                    fields.add(idItemGroupField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).idItemGroup);
+                }
 
                 if (showField(userInvoiceDetailsList, "captionArticle")) {
                     ImportField captionArticleField = new ImportField(itemArticleLM.findLCPByCompoundName("captionArticle"));
@@ -775,8 +778,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         originalCaptionItem, UOMItem, manufacturerItem, nameCountry, nameOriginCountry, importCountryBatch, idCustomer,
                         idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum,
                         manufacturingPrice, compliance, declaration, expiryDate, pharmacyPriceGroupItem, seriesPharmacy,
-                        idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, 
-                        nameCollection, idSize, nameSize, idSeasonYear, idSeason, nameSeason, idTheme, nameTheme, 
+                        idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection,
+                        nameCollection, idSize, nameSize, idSeasonYear, idSeason, nameSeason, idTheme, nameTheme,
                         netWeight, grossWeight, composition, originalComposition));
         }
 
@@ -857,10 +860,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String keyColumnValue = getCSVFieldValue(values, importColumns.get(keyColumn));
                 if (keyColumnValue != null && !keyColumnValue.isEmpty())
                     purchaseInvoiceDetailList.add(new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
-                            idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem, 
+                            idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem,
                             captionItem, originalCaptionItem, UOMItem, manufacturerItem, nameCountry, nameOriginCountry,
                             importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
-                            sumVAT, invoiceSum, manufacturingPrice, compliance, declaration, expiryDate, 
+                            sumVAT, invoiceSum, manufacturingPrice, compliance, declaration, expiryDate,
                             pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
                             idColor, nameColor, idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason,
                             nameSeason, idTheme, nameTheme, netWeight, grossWeight, composition, originalComposition));
@@ -938,11 +941,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String keyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(keyColumn));
             if (keyColumnValue != null && !keyColumnValue.isEmpty())
                 purchaseInvoiceDetailList.add(new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
-                        idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem, 
-                        captionItem, originalCaptionItem, UOMItem, manufacturerItem, nameCountry, nameOriginCountry, 
+                        idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem,
+                        captionItem, originalCaptionItem, UOMItem, manufacturerItem, nameCountry, nameOriginCountry,
                         importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
                         sumVAT, invoiceSum, manufacturingPrice, compliance, declaration, expiryDate, pharmacyPriceGroupItem,
-                        seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, 
+                        seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor,
                         idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason, nameSeason, idTheme,
                         nameTheme, netWeight, grossWeight, composition, originalComposition));
         }
@@ -1024,12 +1027,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String keyColumnValue = getDBFFieldValue(file, importColumns.get(keyColumn));
             if (keyColumnValue != null && !keyColumnValue.isEmpty())
                 purchaseInvoiceDetailList.add(new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
-                        idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem, 
+                        idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem,
                         captionItem, originalCaptionItem, UOMItem, manufacturerItem, nameCountry, nameOriginCountry,
-                        importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), 
+                        importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
                         sumVAT, invoiceSum, manufacturingPrice, compliance, declaration, expiryDate, pharmacyPriceGroup,
-                        seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, 
-                        idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason, nameSeason, idTheme, 
+                        seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor,
+                        idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason, nameSeason, idTheme,
                         nameTheme, netWeight, grossWeight, composition, originalComposition));
         }
 
