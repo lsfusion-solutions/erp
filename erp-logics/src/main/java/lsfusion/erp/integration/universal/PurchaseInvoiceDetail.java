@@ -13,7 +13,7 @@ public class PurchaseInvoiceDetail {
     public String idBatch;
     public String idItem;
     public String idItemGroup;
-    public String tariffCodeItem;
+    public String originalCustomsGroupItem;
     public String captionItem;
     public String idUOM;
     public String idManufacturer;
@@ -50,11 +50,11 @@ public class PurchaseInvoiceDetail {
     public BigDecimal netWeight;
     public BigDecimal grossWeight;
     public String composition;
-
+    public String originalComposition;
 
     public PurchaseInvoiceDetail(String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
                                  String idUserInvoiceDetail, String idBarcodeSku, String idBatch, String idItem, 
-                                 String idItemGroup, String tariffCodeItem, String captionItem, String idUOM, 
+                                 String idItemGroup, String originalCustomsGroupItem, String captionItem, String idUOM, 
                                  String idManufacturer, String nameCountry, String nameOriginCountry, 
                                  String nameImportCountry, String idCustomer, String idCustomerStock, BigDecimal quantity,
                                  BigDecimal price, BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, 
@@ -64,7 +64,7 @@ public class PurchaseInvoiceDetail {
                                  String nameColor, String idCollection, String nameCollection, String idSize, 
                                  String nameSize, String idSeasonYear, String idSeason, String nameSeason, 
                                  String idTheme, String nameTheme, BigDecimal netWeight, BigDecimal grossWeight, 
-                                 String composition) {
+                                 String composition, String originalComposition) {
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
         this.currencyUserInvoice = currencyUserInvoice;
@@ -73,7 +73,7 @@ public class PurchaseInvoiceDetail {
         this.idBatch = idBatch;
         this.idItem = idItem;
         this.idItemGroup = idItemGroup;
-        this.tariffCodeItem = tariffCodeItem;
+        this.originalCustomsGroupItem = originalCustomsGroupItem;
         this.captionItem = captionItem;
         this.idUOM = idUOM;
         this.idManufacturer = idManufacturer;
@@ -110,5 +110,6 @@ public class PurchaseInvoiceDetail {
         this.netWeight = netWeight;
         this.grossWeight = grossWeight;
         this.composition = composition;
+        this.originalComposition = originalComposition;
     }
 }
