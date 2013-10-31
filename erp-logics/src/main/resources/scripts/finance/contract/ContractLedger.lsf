@@ -112,7 +112,10 @@ META defineInOutContractLedgerPrefix(caption, prefix, classPrefix)
 END
 
 @defineInOutContractLedgerPrefix('Приход', in, In);
-numberInContractLedger 'Номер документа' = ABSTRACT STRING[20] (InContractLedger) PERSISTENT;
+
+numberInContractLedger 'Номер документа' = ABSTRACT STRING[20] (InContractLedger) PERSISTENT MINCHARWIDTH 7;
+seriesInContractLedger 'Серия' = ABSTRACT STRING[2] (InContractLedger) PERSISTENT FIXEDCHARWIDTH 3;
+seriesNumberInContractLedger 'Серия/Номер' (i) = CONCAT '', seriesInContractLedger(i), numberInContractLedger(i) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
 customerStockInContractLedger = ABSTRACT Stock (InContractLedger) PERSISTENT;
 nameCustomerStockInContractLedger 'Склад покупателя' (inContractLedger) = nameStock(customerStockInContractLedger(inContractLedger));
 supplierStockInContractLedger (document) = ABSTRACT Stock (InContractLedger) PERSISTENT;
@@ -215,6 +218,7 @@ META implementInContractLedger(objectClass, contractProp)
     EXTEND CLASS objectClass : InContractLedger;
     @implementInOutContractLedgerPrefix(in, objectClass, contractProp);
     numberInContractLedger(inContractLedger) += number###objectClass(inContractLedger);
+    seriesInContractLedger(inContractLedger) += series###objectClass(inContractLedger);    
     customerStockInContractLedger(inContractLedger) += customerStock###objectClass(inContractLedger);
     supplierStockInContractLedger(inContractLedger) += supplierStock###objectClass(inContractLedger);
 END
@@ -451,7 +455,7 @@ FORM unpaidDocuments 'Неоплаченные документы'
     PROPERTIES() namePartyA, namePartyB, seriesNumberContractProp
 
     OBJECTS i = InContractLedger
-    PROPERTIES(i) READONLY isPostedInContractLedger, numberInContractLedger, dateInContractLedger, namePartyAContractInContractLedger, 
+    PROPERTIES(i) READONLY isPostedInContractLedger, numberInContractLedger, seriesInContractLedger, dateInContractLedger, namePartyAContractInContractLedger, 
                            nameSupplierStockInContractLedger, namePartyBContractInContractLedger, nameCustomerStockInContractLedger, 
                            nameCurrencyContractInContractLedger, seriesNumberContractInContractLedger, sumInContractLedger, 
                            costedOutContractLedgerInContractLedger, debtInContractLedger, descriptionInContractLedger                             

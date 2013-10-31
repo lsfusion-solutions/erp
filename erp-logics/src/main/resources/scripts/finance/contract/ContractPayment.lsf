@@ -36,12 +36,12 @@ sumContractPayment(payment) <- IF currencyContractPayment(payment) == currencyAc
 CONSTRAINT currencyTypeExchange(typeExchangeContractPayment(payment)) != currencyContractPayment(payment)
     CHECKED BY typeExchangeContractPayment MESSAGE 'Валюта договора должна совпадать с валютой типа обмена';
 
-CONSTRAINT partyAContract(contractPayment(payment)) != beneficiaryPayment(payment)
+CONSTRAINT contractPayment(payment) IS Contract AND NOT partyAContract(contractPayment(payment)) == beneficiaryPayment(payment)
     CHECKED BY contractPayment MESSAGE 'Выбранный договор не действителен для бенефициара';
 
-CONSTRAINT partyBContract(contractPayment(payment)) != payerPayment(payment)
+CONSTRAINT contractPayment(payment) IS Contract AND NOT partyBContract(contractPayment(payment)) == payerPayment(payment)
     CHECKED BY contractPayment MESSAGE 'Выбранный договор не действителен для плательщика';
-
+    
 @implementContractLedger( , Payment, contract);
 sumContractLedger(contractLedger) += -sumContractPayment(contractLedger);
 
@@ -92,7 +92,7 @@ EXTEND FORM payment
     PROPERTIES(p, i) costOutContractLedgerInContractLedger
     ORDER BY dateInContractLedger
 
-    FILTERS contractPayment(p) == contractInContractLedger(i)
+    FILTERS contractInContractLedger(i) == contractPayment(p)
 ;
 
 EXTEND DESIGN payment{
