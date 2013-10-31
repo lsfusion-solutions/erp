@@ -712,6 +712,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String UOMItem = getXLSFieldValue(sheet, i, importColumns.get("UOMItem"));
             String manufacturerItem = getXLSFieldValue(sheet, i, importColumns.get("manufacturerItem"));
             String nameCountry = getXLSFieldValue(sheet, i, importColumns.get("nameCountry"));
+            nameCountry = nameCountry == null ? null : nameCountry.replace("*", "").trim().toUpperCase();
             String nameOriginCountry = getXLSFieldValue(sheet, i, importColumns.get("nameOriginCountry"));
             nameOriginCountry = nameOriginCountry == null ? null : nameOriginCountry.replace("*", "").trim().toUpperCase();
             String importCountryBatch = getXLSFieldValue(sheet, i, importColumns.get("importCountryBatch"));
@@ -795,6 +796,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String UOMItem = getCSVFieldValue(values, importColumns.get("UOMItem"));
                 String manufacturerItem = getCSVFieldValue(values, importColumns.get("manufacturerItem"));
                 String nameCountry = getCSVFieldValue(values, importColumns.get("nameCountry"));
+                nameCountry = nameCountry == null ? null : nameCountry.replace("*", "").trim().toUpperCase();
                 String nameOriginCountry = getCSVFieldValue(values, importColumns.get("nameOriginCountry"));
                 nameOriginCountry = nameOriginCountry == null ? null : nameOriginCountry.replace("*", "").trim().toUpperCase();
                 String importCountryBatch = getCSVFieldValue(values, importColumns.get("importCountryBatch"));
@@ -873,6 +875,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String UOMItem = getXLSXFieldValue(sheet, i, importColumns.get("UOMItem"));
             String manufacturerItem = getXLSXFieldValue(sheet, i, importColumns.get("manufacturerItem"));
             String nameCountry = getXLSXFieldValue(sheet, i, importColumns.get("nameCountry"));
+            nameCountry = nameCountry == null ? null : nameCountry.replace("*", "").trim().toUpperCase();
             String nameOriginCountry = getXLSXFieldValue(sheet, i, importColumns.get("nameOriginCountry"));
             nameOriginCountry = nameOriginCountry == null ? null : nameOriginCountry.replace("*", "").trim().toUpperCase();
             String importCountryBatch = getXLSXFieldValue(sheet, i, importColumns.get("importCountryBatch"));
@@ -956,6 +959,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String UOMItem = getDBFFieldValue(file, importColumns.get("UOMItem"));
             String manufacturerItem = getDBFFieldValue(file, importColumns.get("manufacturerItem"));
             String nameCountry = getDBFFieldValue(file, importColumns.get("nameCountry"));
+            nameCountry = nameCountry == null ? null : nameCountry.replace("*", "").trim().toUpperCase();
             String nameOriginCountry = getDBFFieldValue(file, importColumns.get("nameOriginCountry"));
             nameOriginCountry = nameOriginCountry == null ? null : nameOriginCountry.replace("*", "").trim().toUpperCase();
             String importCountryBatch = getDBFFieldValue(file, importColumns.get("importCountryBatch"));
