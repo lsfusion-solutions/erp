@@ -13,6 +13,7 @@ public class PurchaseInvoiceDetail {
     public String idBatch;
     public String idItem;
     public String idItemGroup;
+    public String tariffCodeItem;
     public String captionItem;
     public String idUOM;
     public String idManufacturer;
@@ -53,16 +54,17 @@ public class PurchaseInvoiceDetail {
 
     public PurchaseInvoiceDetail(String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
                                  String idUserInvoiceDetail, String idBarcodeSku, String idBatch, String idItem, 
-                                 String idItemGroup, String captionItem, String idUOM, String idManufacturer, 
-                                 String nameCountry, String nameOriginCountry, String nameImportCountry, 
-                                 String idCustomer, String idCustomerStock, BigDecimal quantity, BigDecimal price,
-                                 BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, BigDecimal invoiceSum, 
-                                 BigDecimal manufacturingPrice, String numberCompliance, String numberDeclaration, 
-                                 Date expiryDate, String idPharmacyPriceGroup, String seriesPharmacy, String idArticle,
-                                 String captionArticle, String idColor, String nameColor, String idCollection,
-                                 String nameCollection, String idSize, String nameSize, String idSeasonYear, 
-                                 String idSeason, String nameSeason, String idTheme, String nameTheme, 
-                                 BigDecimal netWeight, BigDecimal grossWeight, String composition) {
+                                 String idItemGroup, String tariffCodeItem, String captionItem, String idUOM, 
+                                 String idManufacturer, String nameCountry, String nameOriginCountry, 
+                                 String nameImportCountry, String idCustomer, String idCustomerStock, BigDecimal quantity,
+                                 BigDecimal price, BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, 
+                                 BigDecimal invoiceSum, BigDecimal manufacturingPrice, String numberCompliance, 
+                                 String numberDeclaration, Date expiryDate, String idPharmacyPriceGroup, 
+                                 String seriesPharmacy, String idArticle, String captionArticle, String idColor,
+                                 String nameColor, String idCollection, String nameCollection, String idSize, 
+                                 String nameSize, String idSeasonYear, String idSeason, String nameSeason, 
+                                 String idTheme, String nameTheme, BigDecimal netWeight, BigDecimal grossWeight, 
+                                 String composition) {
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
         this.currencyUserInvoice = currencyUserInvoice;
@@ -71,6 +73,7 @@ public class PurchaseInvoiceDetail {
         this.idBatch = idBatch;
         this.idItem = idItem;
         this.idItemGroup = idItemGroup;
+        this.tariffCodeItem = tariffCodeItem;
         this.captionItem = captionItem;
         this.idUOM = idUOM;
         this.idManufacturer = idManufacturer;
