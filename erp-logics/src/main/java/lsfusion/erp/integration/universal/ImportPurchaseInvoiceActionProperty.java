@@ -37,6 +37,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     ScriptingLogicsModule itemPharmacyByLM;
     ScriptingLogicsModule purchaseInvoicePharmacyLM;
     ScriptingLogicsModule itemArticleLM;
+    ScriptingLogicsModule customsGroupArticleLM;
 
     public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, LM.findClassByCompoundName("Purchase.UserInvoice"));
@@ -54,6 +55,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             this.itemPharmacyByLM = (ScriptingLogicsModule) context.getBL().getModule("ItemPharmacyBy");
             this.purchaseInvoicePharmacyLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoicePharmacy");
             this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
+            this.customsGroupArticleLM = (ScriptingLogicsModule) context.getBL().getModule("CustomsGroupArticle");
 
             DataObject userInvoiceObject = context.getDataKeyValue(userInvoiceInterface);
 
@@ -536,10 +538,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         data.get(i).add(userInvoiceDetailsList.get(i).originalComposition);
                 }
 
-                if (showField(userInvoiceDetailsList, "originalCustomsGroupItem")) {
-                    ImportField originalCustomsGroupItemField = new ImportField(LM.findLCPByCompoundName("originalCustomsGroupItem"));
-                    props.add(new ImportProperty(originalCustomsGroupItemField, LM.findLCPByCompoundName("originalCustomsGroupItem").getMapping(itemKey)));
-                    props.add(new ImportProperty(originalCustomsGroupItemField, LM.findLCPByCompoundName("originalCustomsGroupArticle").getMapping(articleKey)));
+                if (customsGroupArticleLM != null && showField(userInvoiceDetailsList, "originalCustomsGroupItem")) {
+                    ImportField originalCustomsGroupItemField = new ImportField(customsGroupArticleLM.findLCPByCompoundName("originalCustomsGroupItem"));
+                    props.add(new ImportProperty(originalCustomsGroupItemField, customsGroupArticleLM.findLCPByCompoundName("originalCustomsGroupItem").getMapping(itemKey)));
+                    props.add(new ImportProperty(originalCustomsGroupItemField, customsGroupArticleLM.findLCPByCompoundName("originalCustomsGroupArticle").getMapping(articleKey)));
                     fields.add(originalCustomsGroupItemField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).originalCustomsGroupItem);
@@ -746,15 +748,15 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             BigDecimal grossWeight = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("grossWeight"));
             String composition = getXLSFieldValue(sheet, i, importColumns.get("composition"));
             String originalComposition = getXLSFieldValue(sheet, i, importColumns.get("originalComposition"));
-            
+
             String keyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(keyColumn));
             if (keyColumnValue != null && !keyColumnValue.isEmpty())
                 purchaseInvoiceDetailList.add(new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
-                        idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem, captionItem, 
+                        idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem, captionItem,
                         UOMItem, manufacturerItem, nameCountry, nameOriginCountry, importCountryBatch, idCustomer,
-                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum, 
+                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum,
                         manufacturingPrice, compliance, declaration, expiryDate, pharmacyPriceGroupItem, seriesPharmacy,
-                        idArticle, captionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize, 
+                        idArticle, captionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize,
                         idSeasonYear, idSeason, nameSeason, idTheme, nameTheme, netWeight, grossWeight, composition,
                         originalComposition));
         }
@@ -829,7 +831,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 BigDecimal grossWeight = getCSVBigDecimalFieldValue(values, importColumns.get("grossWeight"));
                 String composition = getCSVFieldValue(values, importColumns.get("composition"));
                 String originalComposition = getCSVFieldValue(values, importColumns.get("originalComposition"));
-                
+
                 String keyColumnValue = getCSVFieldValue(values, importColumns.get(keyColumn));
                 if (keyColumnValue != null && !keyColumnValue.isEmpty())
                     purchaseInvoiceDetailList.add(new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
@@ -907,7 +909,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             BigDecimal grossWeight = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("grossWeight"));
             String composition = getXLSXFieldValue(sheet, i, importColumns.get("composition"));
             String originalComposition = getXLSXFieldValue(sheet, i, importColumns.get("originalComposition"));
-            
+
             String keyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(keyColumn));
             if (keyColumnValue != null && !keyColumnValue.isEmpty())
                 purchaseInvoiceDetailList.add(new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
@@ -990,7 +992,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             BigDecimal grossWeight = getDBFBigDecimalFieldValue(file, importColumns.get("grossWeight"));
             String composition = getDBFFieldValue(file, importColumns.get("composition"));
             String originalComposition = getDBFFieldValue(file, importColumns.get("originalComposition"));
-            
+
             String keyColumnValue = getDBFFieldValue(file, importColumns.get(keyColumn));
             if (keyColumnValue != null && !keyColumnValue.isEmpty())
                 purchaseInvoiceDetailList.add(new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
