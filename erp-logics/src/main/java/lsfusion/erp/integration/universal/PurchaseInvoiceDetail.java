@@ -15,6 +15,7 @@ public class PurchaseInvoiceDetail {
     public String idItemGroup;
     public String originalCustomsGroupItem;
     public String captionItem;
+    public String originalCaptionItem;
     public String idUOM;
     public String idManufacturer;
     public String nameCountry;
@@ -36,6 +37,7 @@ public class PurchaseInvoiceDetail {
     public String seriesPharmacy;
     public String idArticle;
     public String captionArticle;
+    public String originalCaptionArticle;
     public String idColor;
     public String nameColor;
     public String idCollection;
@@ -54,17 +56,18 @@ public class PurchaseInvoiceDetail {
 
     public PurchaseInvoiceDetail(String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
                                  String idUserInvoiceDetail, String idBarcodeSku, String idBatch, String idItem, 
-                                 String idItemGroup, String originalCustomsGroupItem, String captionItem, String idUOM, 
-                                 String idManufacturer, String nameCountry, String nameOriginCountry, 
-                                 String nameImportCountry, String idCustomer, String idCustomerStock, BigDecimal quantity,
-                                 BigDecimal price, BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, 
-                                 BigDecimal invoiceSum, BigDecimal manufacturingPrice, String numberCompliance, 
-                                 String numberDeclaration, Date expiryDate, String idPharmacyPriceGroup, 
-                                 String seriesPharmacy, String idArticle, String captionArticle, String idColor,
-                                 String nameColor, String idCollection, String nameCollection, String idSize, 
-                                 String nameSize, String idSeasonYear, String idSeason, String nameSeason, 
-                                 String idTheme, String nameTheme, BigDecimal netWeight, BigDecimal grossWeight, 
-                                 String composition, String originalComposition) {
+                                 String idItemGroup, String originalCustomsGroupItem, String captionItem, 
+                                 String originalCaptionItem, String idUOM, String idManufacturer, String nameCountry,
+                                 String nameOriginCountry, String nameImportCountry, String idCustomer, 
+                                 String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
+                                 BigDecimal valueVAT, BigDecimal sumVAT, BigDecimal invoiceSum,
+                                 BigDecimal manufacturingPrice, String numberCompliance, String numberDeclaration,
+                                 Date expiryDate, String idPharmacyPriceGroup, String seriesPharmacy, String idArticle,
+                                 String captionArticle, String originalCaptionArticle, String idColor, String nameColor,
+                                 String idCollection, String nameCollection, String idSize, String nameSize, 
+                                 String idSeasonYear, String idSeason, String nameSeason, String idTheme, 
+                                 String nameTheme, BigDecimal netWeight, BigDecimal grossWeight, String composition, 
+                                 String originalComposition) {
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
         this.currencyUserInvoice = currencyUserInvoice;
@@ -75,6 +78,7 @@ public class PurchaseInvoiceDetail {
         this.idItemGroup = idItemGroup;
         this.originalCustomsGroupItem = originalCustomsGroupItem;
         this.captionItem = captionItem;
+        this.originalCaptionItem = originalCaptionItem;
         this.idUOM = idUOM;
         this.idManufacturer = idManufacturer;
         this.nameCountry = nameCountry;
@@ -96,6 +100,7 @@ public class PurchaseInvoiceDetail {
         this.seriesPharmacy = seriesPharmacy;
         this.idArticle = idArticle;
         this.captionArticle = captionArticle;
+        this.originalCaptionArticle = originalCaptionArticle;
         this.idColor = idColor;
         this.nameColor = nameColor;
         this.idCollection = idCollection;
