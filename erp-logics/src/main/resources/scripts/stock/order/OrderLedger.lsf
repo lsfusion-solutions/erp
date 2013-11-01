@@ -148,6 +148,7 @@ reserveAPurchaseBatchStockDateTime 'Резерв закупки (после)' (b
 
 //по Sku
 currentReserveSkuStock 'Текущий резерв' (sku, stock) = currentReservePurchaseSkuStock (sku, stock) (-) currentReserveSaleSkuStock (sku, stock);
+prevCurrentReserveSkuStock 'Текущий резерв' (sku, stock) = prevCurrentReservePurchaseSkuStock (sku, stock) (-) prevCurrentReserveSaleSkuStock (sku, stock);
 
 reserveBSkuStockDate 'Резерв на начало дня' (sku, stock, date) = reserveBPurchaseSkuStockDate (sku, stock, date) (-) reserveBSaleSkuStockDate (sku, stock, date);
 reserveASkuStockDate 'Резерв на конец дня' (sku, stock, date) = reserveAPurchaseSkuStockDate (sku, stock, date) (-) reserveASaleSkuStockDate (sku, stock, date);
@@ -158,6 +159,7 @@ reserveASkuStockDateTime 'Резерв (после)' (sku, stock, dateTime) = re
 prevReserveBSkuStockDateTime 'Резерв (до)' (sku, stock, dateTime) = PREV(reserveBSkuStockDateTime(sku, stock, dateTime));
 //по партиям
 currentReserveBatchStock 'Текущий резерв' (batch, stock) = currentReservePurchaseBatchStock (batch, stock) (-) currentReserveSaleBatchStock (batch, stock);
+prevCurrentReserveBatchStock 'Текущий резерв' (batch, stock) = prevCurrentReservePurchaseBatchStock (batch, stock) (-) prevCurrentReserveSaleBatchStock (batch, stock);
 
 reserveBBatchStockDate 'Резерв на начало дня' (batch, stock, date) = reserveBPurchaseBatchStockDate (batch, stock, date) (-) reserveBSaleBatchStockDate (batch, stock, date);
 reserveABatchStockDate 'Резерв на конец дня' (batch, stock, date) = reserveAPurchaseBatchStockDate (batch, stock, date) (-) reserveASaleBatchStockDate (batch, stock, date);
@@ -170,6 +172,9 @@ prevReserveBBatchStockDateTime 'Резерв (до)' (batch, stock, dateTime) = 
 // ----------------------- Доступное количество -------------------------- //
 availableQuantitySkuStock 'Доступное количество' (sku, stock) = currentBalanceSkuStock(sku, stock) (+) currentReserveSkuStock(sku, stock);
 availableQuantityBatchStock 'Доступное количество' (batch, stock) = currentBalanceBatchStock(batch, stock) (+) currentReserveBatchStock(batch, stock);
+
+prevAvailableQuantitySkuStock 'Доступное количество' (sku, stock) = prevCurrentBalanceSkuStock(sku, stock) (+) prevCurrentReserveSkuStock(sku, stock);
+prevAvailableQuantityBatchStock 'Доступное количество' (batch, stock) = prevCurrentBalanceBatchStock(batch, stock) (+) prevCurrentReserveBatchStock(batch, stock);
 
 prevAvailableQuantitySkuStockDateTime 'Доступное количество' (sku, stock, dateTime) = (prevCurrentBalanceSkuStock(sku, stock) IF dateTime IS DATETIME) (+) prevReserveBSkuStockDateTime(sku, stock, dateTime);
 prevAvailableQuantityBatchStockDateTime 'Доступное количество' (batch, stock, dateTime) = (prevCurrentBalanceBatchStock(batch, stock) IF dateTime IS DATETIME) (+) prevReserveBBatchStockDateTime(batch, stock, dateTime);
