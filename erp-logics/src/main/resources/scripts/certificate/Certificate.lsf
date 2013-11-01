@@ -9,7 +9,12 @@ TABLE certificate(Certificate);
 @defineDocumentAbstractHeaderTimePrefix(Certificate, from, ' с');
 @defineDocumentAbstractHeaderTimePrefix(Certificate, to, ' по');
 
-@defineDocumentAbstractHeaderNumber(Certificate);
+numberCertificate 'Номер' = ABSTRACT STRING[30] (Certificate) IN numbered PERSISTENT MINCHARWIDTH 10;
+seriesCertificate 'Серия' = ABSTRACT STRING[2] (Certificate) IN numbered PERSISTENT FIXEDCHARWIDTH 3; 
+
+seriesNumberCertificate 'Серия/Номер' (o) = 
+    CONCAT '', seriesCertificate(o), numberCertificate(o) 
+    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
 
 descriptionCertificate 'Документ качества' (certificate) = CONCAT ' ', seriesNumberCertificate(certificate), 'от ' + fromDateCertificate(certificate), 'по ' + toDateCertificate(certificate);
 
