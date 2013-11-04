@@ -338,8 +338,8 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     addUserShipment 'Добавить' = ACTION ADDFORM UserShipment;
     editUserShipment 'Редактировать' (userShipment) = ACTION EDITFORM UserShipment;
     editShipment (shipment) += editUserShipment(shipment);
-
-    overCopyShipment = ABSTRACT ACTION LIST (Shipment, Shipment);
+    overCopyShipmentDetail = ABSTRACT ACTION LIST (UserShipmentDetail, ShipmentDetail);
+    overCopyShipment = ABSTRACT ACTION LIST (Shipment, UserShipment);
 
     copyShipment 'Копировать' = ACTION (shipment) NEWSESSION {
         FOR ADDOBJ s = UserShipment DO {
@@ -360,6 +360,8 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                     ASSIGN priceUserShipmentDetail(d) <- priceShipmentDetail(shipmentDetail);
                     ASSIGN expiryDateUserShipmentDetail(d) <- expiryDateShipmentDetail(shipmentDetail);
                     ASSIGN data###stockProp###userShipmentDetail(d) <- data###stockProp###shipmentDetail(shipmentDetail);
+                    
+                    EXEC overCopyShipmentDetail(d, shipmentDetail);
                 }
             }
 
@@ -368,7 +370,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     } TOOLBAR;
     
 //-- Копирование строк     
-    overCopyShipmentDetail = ABSTRACT ACTION LIST (UserShipmentDetail, UserShipmentDetail);
+    overCopyUserShipmentDetail = ABSTRACT ACTION LIST (UserShipmentDetail, UserShipmentDetail);
 
     copyShipmentDetail 'Копировать' = ACTION (detail) {
         FOR ADDOBJ d = UserShipmentDetail DO {          
@@ -380,7 +382,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
             ASSIGN data###stockProp###userShipmentDetail(d) <- data###stockProp###userShipmentDetail(detail);
             ASSIGN expiryDateUserShipmentDetail(d) <- expiryDateUserShipmentDetail(detail);
             
-            EXEC overCopyShipmentDetail(d, detail);                              
+            EXEC overCopyUserShipmentDetail(d, detail);                              
         }
     } TOOLBAR;
     
@@ -460,9 +462,12 @@ END
 
 META defineShipmentBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(shipment, batch);
-    overCopyShipmentDetail(d, detail) += ACTION (d, detail) {      
+    overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
         batchUserShipmentDetail(d) <- batchUserShipmentDetail(detail);
     } 
+    overCopyShipmentDetail(d, detail) += ACTION (d, detail) {      
+        batchUserShipmentDetail(d) <- batchShipmentDetail(detail);
+    }     
 
     // История по правой кнопке мыши
     @defineBalancesBatch(shipmentDetail); //-- показываем по нажатию правой клавиши остатки партии

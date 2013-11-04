@@ -390,8 +390,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     editUserInvoice 'Редактировать' (userInvoice) = ACTION EDITFORM UserInvoice;
     editInvoice (invoice) += editUserInvoice(invoice);
 
-    overCopyInvoice = ABSTRACT ACTION LIST (Invoice, Invoice);
-
+    overCopyInvoice = ABSTRACT ACTION LIST (Invoice, UserInvoice);
+    overCopyInvoiceDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, InvoiceDetail);
+    
     copyInvoice 'Копировать' = ACTION (invoice) NEWSESSION {
         FOR ADDOBJ i = UserInvoice DO {
             ASSIGN supplierUserInvoice(i) <- supplierInvoice(invoice);
@@ -415,6 +416,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                     ASSIGN quantityUserInvoiceDetail(d) <- quantityInvoiceDetail(invoiceDetail);
                     ASSIGN priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
                     ASSIGN data###stockProp###userInvoiceDetail(d) <- data###stockProp###invoiceDetail(invoiceDetail);
+                    
+                    EXEC overCopyInvoiceDetail(d, invoiceDetail);
                 }
             }
 
@@ -423,7 +426,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     } TOOLBAR;
     
 //-- Копирование строк     
-    overCopyInvoiceDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, UserInvoiceDetail);
+    overCopyUserInvoiceDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, UserInvoiceDetail);
 
     copyInvoiceDetail 'Копировать' = ACTION (detail) {
         FOR ADDOBJ d = UserInvoiceDetail DO {          
@@ -436,7 +439,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
             priceListType###userInvoiceDetail(d) <- priceListType###userInvoiceDetail(detail);
             invoicePrice###userInvoiceDetail(d) <- invoicePrice###userInvoiceDetail(detail);
             
-            overCopyInvoiceDetail(d, detail);                              
+            overCopyUserInvoiceDetail(d, detail);                              
         }
     } TOOLBAR;
     
@@ -551,10 +554,13 @@ END
 META defineInvoiceBatch(stockProp)
     @defineDocumentInterfaceDetailBatch(invoice, batch);
     
+    overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
+        batchUserInvoiceDetail(d) <- batchUserInvoiceDetail(detail);
+    }  
     overCopyInvoiceDetail(d, detail) += ACTION (d, detail) {      
         batchUserInvoiceDetail(d) <- batchUserInvoiceDetail(detail);
     }  
-
+    
     // Пишем в цену инвойса из вида цен в зависимости от партии
     @deriveDocumentDetailPricePriceListTypeVATBatch(userInvoice, stockProp, userInvoice);
 
@@ -750,7 +756,7 @@ META defineInvoiceHomeCurrency(dumb)
     homePriceUserInvoiceDetail 'Цена (конв.)' = DATA NUMERIC[14,2](UserInvoiceDetail);
     homePriceInvoiceDetail(d) += homePriceUserInvoiceDetail(d);
     
-    overCopyInvoiceDetail(d, detail) += ACTION (d, detail) {      
+    overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
         dataRateExchangeUserInvoiceDetail(d) <- dataRateExchangeUserInvoiceDetail(detail);
     }  
 

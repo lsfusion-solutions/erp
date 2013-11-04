@@ -461,7 +461,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     
     isUserOpenedOrder(o)=  isOpenedOrder(o) AND isUserOrder(o);
 
-    overCopyOrder = ABSTRACT ACTION LIST (Order, Order);
+    overCopyOrderDetail = ABSTRACT ACTION LIST (UserOrderDetail, OrderDetail);
+    overCopyOrder = ABSTRACT ACTION LIST (Order, UserOrder);
     copyOrder 'Копировать' = ACTION (order) NEWSESSION {
         FOR ADDOBJ o = UserOrder DO {
             ASSIGN supplierUserOrder(o) <- supplierOrder(order);
@@ -481,6 +482,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                     ASSIGN skuUserOrderDetail(d) <- skuOrderDetail(orderDetail);
                     ASSIGN quantityUserOrderDetail(d) <- quantityOrderDetail(orderDetail);
                     ASSIGN data###stockProp###userOrderDetail(d) <- data###stockProp###orderDetail(orderDetail);
+                    
+                    EXEC overCopyOrderDetail(d, orderDetail);
                 }
             }
 
@@ -609,7 +612,9 @@ META defineOrderBatch(legalEntityProp, stockProp)
     overCopyUserOrderDetail(d, detail) += ACTION (d, detail) {      
         batchUserOrderDetail(d) <- batchUserOrderDetail(detail);
     } 
-
+    overCopyOrderDetail(d, detail) += ACTION (d, detail) {      
+        batchUserOrderDetail(d) <- batchOrderDetail(detail);
+    } 
     // Пишем в цену заказа из вида цен в зависимости от партии
     @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp, userOrder);
 
