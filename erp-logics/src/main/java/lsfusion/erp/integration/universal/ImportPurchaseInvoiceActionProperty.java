@@ -296,14 +296,14 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).nameCountry);
 
-                ImportField nameOriginCountryField = new ImportField(LM.findLCPByCompoundName("nameOriginCountry"));
-                props.add(new ImportProperty(nameOriginCountryField, LM.findLCPByCompoundName("nameOriginCountry").getMapping(countryKey)));
-                fields.add(nameOriginCountryField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).nameOriginCountry);
-            }
-
-            if (showField(userInvoiceDetailsList, "nameOriginCountry")) {
+                if (showField(userInvoiceDetailsList, "nameOriginCountry")) {
+                    ImportField nameOriginCountryField = new ImportField(LM.findLCPByCompoundName("nameOriginCountry"));
+                    props.add(new ImportProperty(nameOriginCountryField, LM.findLCPByCompoundName("nameOriginCountry").getMapping(countryKey)));
+                    fields.add(nameOriginCountryField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).nameOriginCountry);
+                }
+            } else if (showField(userInvoiceDetailsList, "nameOriginCountry")) {
                 ImportField nameOriginCountryField = new ImportField(LM.findLCPByCompoundName("nameOriginCountry"));
                 ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Country"),
                         LM.findLCPByCompoundName("countryNameOrigin").getMapping(nameOriginCountryField));
@@ -314,12 +314,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 fields.add(nameOriginCountryField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).nameOriginCountry);
-
-                ImportField nameCountryField = new ImportField(LM.findLCPByCompoundName("nameCountry"));
-                props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundName("nameCountry").getMapping(countryKey)));
-                fields.add(nameCountryField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).nameCountry);
             }
 
             if (showField(userInvoiceDetailsList, "idCustomer")) {
@@ -964,32 +958,43 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
 
         DBF file = new DBF(tempFile.getPath());
-
+        byte charsetByte = IOUtils.getFileBytes(new File(tempFile.getPath()))[29];
+        String charset;
+        switch (charsetByte) {
+            case (byte) 0x65:
+                charset = "cp866";
+                break;               
+            case (byte) 0xC9:
+                charset = "cp1251";
+                break;
+            default:
+                charset = "cp866";
+        }
         int totalRecordCount = file.getRecordCount();
 
         for (int i = startRow - 1; i < totalRecordCount; i++) {
 
             file.read();
 
-            String numberDocument = getDBFFieldValue(file, importColumns.get("numberDocument"));
-            Date dateDocument = getDBFDateFieldValue(file, importColumns.get("dateDocument"));
-            String currencyDocument = getDBFFieldValue(file, importColumns.get("currencyDocument"));
+            String numberDocument = getDBFFieldValue(file, importColumns.get("numberDocument"), charset);
+            Date dateDocument = getDBFDateFieldValue(file, importColumns.get("dateDocument"), charset);
+            String currencyDocument = getDBFFieldValue(file, importColumns.get("currencyDocument"), charset);
             String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
-            String barcodeItem = BarcodeUtils.convertBarcode12To13(getDBFFieldValue(file, importColumns.get("barcodeItem")));
-            String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"));
-            String idItem = getDBFFieldValue(file, importColumns.get("idItem"));
-            String idItemGroup = getDBFFieldValue(file, importColumns.get("idItemGroup"));
-            String originalCustomsGroupItem = getDBFFieldValue(file, importColumns.get("originalCustomsGroupItem"));
-            String captionItem = getDBFFieldValue(file, importColumns.get("captionItem"));
-            String originalCaptionItem = getDBFFieldValue(file, importColumns.get("originalCaptionItem"));
-            String UOMItem = getDBFFieldValue(file, importColumns.get("UOMItem"));
-            String manufacturerItem = getDBFFieldValue(file, importColumns.get("manufacturerItem"));
-            String nameCountry = getDBFFieldValue(file, importColumns.get("nameCountry"));
+            String barcodeItem = BarcodeUtils.convertBarcode12To13(getDBFFieldValue(file, importColumns.get("barcodeItem"), charset));
+            String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), charset);
+            String idItem = getDBFFieldValue(file, importColumns.get("idItem"), charset);
+            String idItemGroup = getDBFFieldValue(file, importColumns.get("idItemGroup"), charset);
+            String originalCustomsGroupItem = getDBFFieldValue(file, importColumns.get("originalCustomsGroupItem"), charset);
+            String captionItem = getDBFFieldValue(file, importColumns.get("captionItem"), charset);
+            String originalCaptionItem = getDBFFieldValue(file, importColumns.get("originalCaptionItem"), charset);
+            String UOMItem = getDBFFieldValue(file, importColumns.get("UOMItem"), charset);
+            String manufacturerItem = getDBFFieldValue(file, importColumns.get("manufacturerItem"), charset);
+            String nameCountry = getDBFFieldValue(file, importColumns.get("nameCountry"), charset);
             nameCountry = nameCountry == null ? null : nameCountry.replace("*", "").trim().toUpperCase();
-            String nameOriginCountry = getDBFFieldValue(file, importColumns.get("nameOriginCountry"));
+            String nameOriginCountry = getDBFFieldValue(file, importColumns.get("nameOriginCountry"), charset);
             nameOriginCountry = nameOriginCountry == null ? null : nameOriginCountry.replace("*", "").trim().toUpperCase();
-            String importCountryBatch = getDBFFieldValue(file, importColumns.get("importCountryBatch"));
-            String idCustomerStock = getDBFFieldValue(file, importColumns.get("idCustomerStock"));
+            String importCountryBatch = getDBFFieldValue(file, importColumns.get("importCountryBatch"), charset);
+            String idCustomerStock = getDBFFieldValue(file, importColumns.get("idCustomerStock"), charset);
             ObjectValue customerStockObject = idCustomerStock == null ? null : LM.findLCPByCompoundName("stockId").readClasses(context, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : LM.findLCPByCompoundName("legalEntityStock").readClasses(context, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : LM.findLCPByCompoundName("idLegalEntity").read(context, customerObject));
@@ -1000,29 +1005,29 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns.get("sumVAT"));
             BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"));
             BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns.get("manufacturingPrice"));
-            String compliance = getDBFFieldValue(file, importColumns.get("compliance"));
-            String declaration = getDBFFieldValue(file, importColumns.get("declaration"));
-            Date expiryDate = getDBFDateFieldValue(file, importColumns.get("expiryDate"));
-            String pharmacyPriceGroup = getDBFFieldValue(file, importColumns.get("pharmacyPriceGroupItem"));
-            String seriesPharmacy = getDBFFieldValue(file, importColumns.get("seriesPharmacy"));
-            String idArticle = getDBFFieldValue(file, importColumns.get("idArticle"));
-            String captionArticle = getDBFFieldValue(file, importColumns.get("captionArticle"));
-            String originalCaptionArticle = getDBFFieldValue(file, importColumns.get("originalCaptionArticle"));
-            String idColor = getDBFFieldValue(file, importColumns.get("idColor"));
-            String nameColor = getDBFFieldValue(file, importColumns.get("nameColor"));
-            String idCollection = getDBFFieldValue(file, importColumns.get("idCollection"));
-            String nameCollection = getDBFFieldValue(file, importColumns.get("nameCollection"));
-            String idSize = getDBFFieldValue(file, importColumns.get("idSize"));
-            String nameSize = getDBFFieldValue(file, importColumns.get("nameSize"));
-            String idSeasonYear = getDBFFieldValue(file, importColumns.get("idSeasonYear"));
-            String idSeason = getDBFFieldValue(file, importColumns.get("idSeason"));
-            String nameSeason = getDBFFieldValue(file, importColumns.get("nameSeason"));
-            String idTheme = getDBFFieldValue(file, importColumns.get("idTheme"));
-            String nameTheme = getDBFFieldValue(file, importColumns.get("nameTheme"));
+            String compliance = getDBFFieldValue(file, importColumns.get("compliance"), charset);
+            String declaration = getDBFFieldValue(file, importColumns.get("declaration"), charset);
+            Date expiryDate = getDBFDateFieldValue(file, importColumns.get("expiryDate"), charset);
+            String pharmacyPriceGroup = getDBFFieldValue(file, importColumns.get("pharmacyPriceGroupItem"), charset);
+            String seriesPharmacy = getDBFFieldValue(file, importColumns.get("seriesPharmacy"), charset);
+            String idArticle = getDBFFieldValue(file, importColumns.get("idArticle"), charset);
+            String captionArticle = getDBFFieldValue(file, importColumns.get("captionArticle"), charset);
+            String originalCaptionArticle = getDBFFieldValue(file, importColumns.get("originalCaptionArticle"), charset);
+            String idColor = getDBFFieldValue(file, importColumns.get("idColor"), charset);
+            String nameColor = getDBFFieldValue(file, importColumns.get("nameColor"), charset);
+            String idCollection = getDBFFieldValue(file, importColumns.get("idCollection"), charset);
+            String nameCollection = getDBFFieldValue(file, importColumns.get("nameCollection"), charset);
+            String idSize = getDBFFieldValue(file, importColumns.get("idSize"), charset);
+            String nameSize = getDBFFieldValue(file, importColumns.get("nameSize"), charset);
+            String idSeasonYear = getDBFFieldValue(file, importColumns.get("idSeasonYear"), charset);
+            String idSeason = getDBFFieldValue(file, importColumns.get("idSeason"), charset);
+            String nameSeason = getDBFFieldValue(file, importColumns.get("nameSeason"), charset);
+            String idTheme = getDBFFieldValue(file, importColumns.get("idTheme"), charset);
+            String nameTheme = getDBFFieldValue(file, importColumns.get("nameTheme"), charset);
             BigDecimal netWeight = getDBFBigDecimalFieldValue(file, importColumns.get("netWeight"));
             BigDecimal grossWeight = getDBFBigDecimalFieldValue(file, importColumns.get("grossWeight"));
-            String composition = getDBFFieldValue(file, importColumns.get("composition"));
-            String originalComposition = getDBFFieldValue(file, importColumns.get("originalComposition"));
+            String composition = getDBFFieldValue(file, importColumns.get("composition"), charset);
+            String originalComposition = getDBFFieldValue(file, importColumns.get("originalComposition"), charset);
 
             String keyColumnValue = getDBFFieldValue(file, importColumns.get(keyColumn));
             if (keyColumnValue != null && !keyColumnValue.isEmpty())

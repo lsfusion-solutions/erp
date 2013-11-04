@@ -272,7 +272,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected String getDBFFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException {
-        return getDBFFieldValue(importFile, fields, "cp866", null);
+        return getDBFFieldValue(importFile, fields, "cp866");
+    }
+
+    protected String getDBFFieldValue(DBF importFile, String[] fields, String charset) throws UnsupportedEncodingException {
+        return getDBFFieldValue(importFile, fields, charset, null);
     }
 
     protected String getDBFFieldValue(DBF importFile, String[] fields, String charset, String defaultValue) throws UnsupportedEncodingException {
@@ -317,7 +321,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected Date getDBFDateFieldValue(DBF importFile, String[] fields) throws UnsupportedEncodingException, ParseException {
-        return getDBFDateFieldValue(importFile, fields, "cp866", null);
+        return getDBFDateFieldValue(importFile, fields, "cp866");
+    }
+
+    protected Date getDBFDateFieldValue(DBF importFile, String[] fields, String charset) throws UnsupportedEncodingException, ParseException {
+        return getDBFDateFieldValue(importFile, fields, charset, null);
     }
 
     protected Date getDBFDateFieldValue(DBF importFile, String[] fields, String charset, Date defaultValue) throws UnsupportedEncodingException, ParseException {
