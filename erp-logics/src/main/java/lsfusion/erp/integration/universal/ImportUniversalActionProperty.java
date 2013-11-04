@@ -217,7 +217,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 result = (xssfCell.getStringCellValue().isEmpty()) ? defaultValue : xssfCell.getStringCellValue().trim();
                 break;
         }
-        return getSubstring(result, from, to);        
+        return getSubstring(result, from, to);
     }
 
     //Пока разрешено склеивать несколько ячеек только как строки
@@ -287,7 +287,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             parseIndex(splittedField[1]), parseIndex(splittedField[2]));
                 } else {
                     value = new String(importFile.getField(field).getBytes(), charset).trim();
-                }                
+                }
                 result += ((result.isEmpty() || value.isEmpty()) ? "" : " ") + value;
             }
             return result.isEmpty() ? defaultValue : result;
@@ -301,7 +301,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String field) throws UnsupportedEncodingException {
-        return getDBFBigDecimalFieldValue(importFile, new String[] {field}, "cp866", null);
+        return getDBFBigDecimalFieldValue(importFile, new String[]{field}, "cp866", null);
     }
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String[] fields, String charset, String defaultValue) throws UnsupportedEncodingException {
@@ -323,15 +323,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     protected Date getDBFDateFieldValue(DBF importFile, String[] fields, String charset, Date defaultValue) throws UnsupportedEncodingException, ParseException {
         String dateString = getDBFFieldValue(importFile, fields, charset, "");
         if (dateString.isEmpty()) return defaultValue;
-        try {
-            return dateString.isEmpty() ? defaultValue : parseDate(dateString);
-        } catch (ParseException e) {
-            //чит для даты в формате MM.yyyy (без дня) : выставляем последний день месяца 
-            Calendar dateWithoutDay = Calendar.getInstance();
-            dateWithoutDay.setTime(new SimpleDateFormat("MM.yyyy").parse(dateString));
-            dateWithoutDay.set(Calendar.DAY_OF_MONTH, dateWithoutDay.getActualMaximum(Calendar.DAY_OF_MONTH));
-            return new Date(dateWithoutDay.getTime().getTime());
-        }
+        return dateString.isEmpty() ? defaultValue : parseDate(dateString);
     }
 
     private Integer parseIndex(String index) {
@@ -341,7 +333,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             return null;
         }
     }
-    
+
     private String getSubstring(String value, Integer from, Integer to) {
         return (value == null || from == null || from < 0 || from > value.length()) ? value :
                 ((to == null || to > value.length())) ? value.substring(from) : value.substring(from, to + 1);
@@ -358,12 +350,22 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     private Date parseDate(String value) throws ParseException {
         try {
-            if (value.length() == 8 && Integer.parseInt(value.substring(4, 6)) > 12)
-                return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime()); //чит для отличия ddMMyyyy от yyyyMMdd
-            else
-                return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd.MM.yyyy"}).getTime());
+            if (value.length() == 4 || value.length() == 7) {
+                //чит для даты в формате MMyy / MM.yyyy / MM-yyyy (без дня) : выставляем последний день месяца 
+                Calendar dateWithoutDay = Calendar.getInstance();
+                dateWithoutDay.setTime(DateUtils.parseDate(value, new String[]{"MMyy", "MM.yyyy", "MM-yyyy"}));
+                dateWithoutDay.set(Calendar.DAY_OF_MONTH, dateWithoutDay.getActualMaximum(Calendar.DAY_OF_MONTH));
+                return new Date(dateWithoutDay.getTime().getTime());
+            } else if (value.length() == 8 && Integer.parseInt(value.substring(3, 5)) > 12) {
+                //чит для отличия ddMMyyyy от yyyyMMdd
+                return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
+            } else if (value.length() > 12) {
+                //чит для даты с месяцем прописью
+                return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
+            }
+            return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd.MM.yyyy"}).getTime());
         } catch (ParseException e) {
-            return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
+            return null;
         }
     }
 }
