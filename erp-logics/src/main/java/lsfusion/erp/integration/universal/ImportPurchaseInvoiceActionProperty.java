@@ -761,7 +761,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idTheme = getXLSFieldValue(sheet, i, importColumns.get("idTheme"));
             String nameTheme = getXLSFieldValue(sheet, i, importColumns.get("nameTheme"));
             BigDecimal netWeight = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("netWeight"));
+            BigDecimal netWeightSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("netWeightSum"));
+            netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
             BigDecimal grossWeight = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("grossWeight"));
+            BigDecimal grossWeightSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("grossWeightSum"));
+            grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
             String composition = getXLSFieldValue(sheet, i, importColumns.get("composition"));
             String originalComposition = getXLSFieldValue(sheet, i, importColumns.get("originalComposition"));
 
@@ -847,7 +851,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String idTheme = getCSVFieldValue(values, importColumns.get("idTheme"));
                 String nameTheme = getCSVFieldValue(values, importColumns.get("nameTheme"));
                 BigDecimal netWeight = getCSVBigDecimalFieldValue(values, importColumns.get("netWeight"));
+                BigDecimal netWeightSum = getCSVBigDecimalFieldValue(values, importColumns.get("netWeightSum"));
+                netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
                 BigDecimal grossWeight = getCSVBigDecimalFieldValue(values, importColumns.get("grossWeight"));
+                BigDecimal grossWeightSum = getCSVBigDecimalFieldValue(values, importColumns.get("grossWeight"));
+                grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
+                
                 String composition = getCSVFieldValue(values, importColumns.get("composition"));
                 String originalComposition = getCSVFieldValue(values, importColumns.get("originalComposition"));
 
@@ -928,7 +937,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idTheme = getXLSXFieldValue(sheet, i, importColumns.get("idTheme"));
             String nameTheme = getXLSXFieldValue(sheet, i, importColumns.get("nameTheme"));
             BigDecimal netWeight = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("netWeight"));
+            BigDecimal netWeightSum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("netWeightSum"));
+            netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
             BigDecimal grossWeight = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("grossWeight"));
+            BigDecimal grossWeightSum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("grossWeightSum"));
+            grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
+            
             String composition = getXLSXFieldValue(sheet, i, importColumns.get("composition"));
             String originalComposition = getXLSXFieldValue(sheet, i, importColumns.get("originalComposition"));
 
@@ -1025,7 +1039,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idTheme = getDBFFieldValue(file, importColumns.get("idTheme"), charset);
             String nameTheme = getDBFFieldValue(file, importColumns.get("nameTheme"), charset);
             BigDecimal netWeight = getDBFBigDecimalFieldValue(file, importColumns.get("netWeight"));
+            BigDecimal netWeightSum = getDBFBigDecimalFieldValue(file, importColumns.get("netWeightSum"));
+            netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
             BigDecimal grossWeight = getDBFBigDecimalFieldValue(file, importColumns.get("grossWeight"));
+            BigDecimal grossWeightSum = getDBFBigDecimalFieldValue(file, importColumns.get("grossWeightSum"));
+            grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
+            
             String composition = getDBFFieldValue(file, importColumns.get("composition"), charset);
             String originalComposition = getDBFFieldValue(file, importColumns.get("originalComposition"), charset);
 
