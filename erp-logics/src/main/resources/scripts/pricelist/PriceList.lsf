@@ -1,6 +1,6 @@
 MODULE PriceList;
 
-REQUIRE PriceListLedger, StockTax;
+REQUIRE PriceListLedger, StockTax, Item;
 
 NAMESPACE PriceList;
 
@@ -259,6 +259,12 @@ currentPriceSkuPriceListDataPriceListTypeStock 'Действующая цена'
     ELSE
         prevPriceAPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, fromDateTimePriceList(priceList));
 
+currentPriceBatchPriceListDataPriceListTypeStock 'Действующая цена' (batch, priceList, dataPriceListType, stock) =
+    IF inPriceListDataPriceListType(priceList, dataPriceListType) THEN
+        prevPriceBPriceListTypeSkuStockDateTime(dataPriceListType, skuBatch(batch), stock, fromDateTimePriceList(priceList))
+    ELSE
+        prevPriceAPriceListTypeSkuStockDateTime(dataPriceListType, skuBatch(batch), stock, fromDateTimePriceList(priceList));
+
 changePricePriceListDetailDataPriceListTypeStock 'Изменение, %' (priceListDetail, dataPriceListType, stock) =
     pricePriceListDetailDataPriceListType(priceListDetail, dataPriceListType) * 100.0 /
     (currentPricePriceListDetailDataPriceListTypeStock (priceListDetail, dataPriceListType, stock) IF currentPricePriceListDetailDataPriceListTypeStock (priceListDetail, dataPriceListType, stock) != 0) - 100.0;
@@ -282,7 +288,7 @@ backgroundCurrentDataPriceListType 'Цвет' (dataPriceListType) = RGB(255,238,
 backgroundChangeDataPriceListType 'Цвет' (dataPriceListType) = RGB(232,184,146) IF dataPriceListType IS DataPriceListType;
 backgroundDataPriceListType 'Цвет' (dataPriceListType) = RGB(213,249,185) IF dataPriceListType IS DataPriceListType;
 
-// Подбор товаров
+// Подбор товаров SKU
 detailSkuUserPriceList(sku, price) = GROUP SUM 1 IF sku == skuUserPriceListDetail(detail) AND price == userPriceListUserPriceListDetail(detail)
                                            BY skuUserPriceListDetail(detail), userPriceListUserPriceListDetail(detail);
 
@@ -298,6 +304,27 @@ changeInSkuUserPriceList = ACTION (sku, priceList) {
         FOR ADDOBJ d = UserPriceListDetail DO {
            userPriceListUserPriceListDetail(d) <- priceList;
            skuUserPriceListDetail(d) <- sku;
+        }
+    }
+}
+
+// Подбор товаров batch
+detailBatchUserPriceList(batch, price) = GROUP SUM 1 IF batch == batchUserPriceListDetail(detail) AND price == userPriceListUserPriceListDetail(detail)
+                                           BY batchUserPriceListDetail(detail), userPriceListUserPriceListDetail(detail);
+
+inBatchUserPriceList 'Вкл.' (batch, price) = TRUE IF detailBatchUserPriceList(batch, price);
+
+changeInBatchUserPriceList = ACTION (batch, priceList) {
+    REQUEST BOOLEAN INPUT;
+    IF NOT requestedLogical() THEN {
+        IF detailBatchUserPriceList(batch, priceList) THEN {
+            DELETE detail WHERE batch == batchUserPriceListDetail(detail) AND priceList == userPriceListUserPriceListDetail(detail);
+        }
+    } ELSE {
+        FOR ADDOBJ d = UserPriceListDetail DO {
+           userPriceListUserPriceListDetail(d) <- priceList;
+           batchUserPriceListDetail(d) <- batch;
+           skuUserPriceListDetail(d) <- skuBatch(batch);
         }
     }
 }
@@ -352,11 +379,31 @@ backgroundPriceListDetail 'Цвет' (priceListDetail) =
 filterPriceListTypeUserPriceList = DATA SESSION PriceListType (UserPriceList);
 nameFilterPriceListTypeUserPriceList 'Вид цены' (userPriceList) = namePriceListType(filterPriceListTypeUserPriceList(userPriceList));
 
+//sku
 currentPriceSkuPriceListStock 'Текущая цена' (sku, userPriceList, stock) =
     currentPriceSkuPriceListDataPriceListTypeStock(sku, userPriceList, filterPriceListTypeUserPriceList(userPriceList), stock);
 filterPriceListTypeUserPriceListSkuStock (userPriceList, sku, stock) =
     currentPriceSkuPriceListStock (sku, userPriceList, stock) OR
     (sku IS Sku AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
+
+//batch
+currentPriceBatchPriceListStock 'Текущая цена' (batch, userPriceList, stock) =
+    currentPriceBatchPriceListDataPriceListTypeStock(batch, userPriceList, filterPriceListTypeUserPriceList(userPriceList), stock);
+filterPriceListTypeUserPriceListBatchStock (userPriceList, batch, stock) =
+    currentPriceBatchPriceListStock (batch, userPriceList, stock) OR
+    (batch IS Batch AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
+    
+//Производитель
+filterManufacturerUserPriceList = DATA SESSION Manufacturer (UserPriceList);
+nameFilterManufacturerUserPriceList 'Производитель' (userPriceList) = nameManufacturer(filterManufacturerUserPriceList(userPriceList)); 
+   
+filterSupplierUserPriceListSku (userPriceList, sku) =
+    filterManufacturerUserPriceList(userPriceList) == manufacturerItem(sku) OR sku IS Item AND NOT filterManufacturerUserPriceList(userPriceList);    
+   
+filterSupplierUserPriceListBatch (userPriceList, batch) =
+    filterManufacturerUserPriceList(userPriceList) == manufacturerBatch(batch) OR batch IS Batch AND NOT filterManufacturerUserPriceList(userPriceList);      
+
+isParentGroupSupplierGroupBatch(group, batch) = isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(supplierBatch(batch)), group);
 
 FORM userPriceList 'Прайс'
     OBJECTS p = UserPriceList FIXED PANEL
@@ -425,7 +472,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES(ts2) SELECTOR nameStock
     FILTERS inPriceListStock(p, ts2),
             isCompanyStock(ts2)
-    PROPERTIES(p) FORCE PANEL nameFilterPriceListTypeUserPriceList
+    PROPERTIES(p) FORCE PANEL nameFilterPriceListTypeUserPriceList, nameFilterManufacturerUserPriceList
 
     OBJECTS s2=Sku
     PROPERTIES inSkuUserPriceList(s2, p) ON CHANGE changeInSkuUserPriceList(s2, p)
@@ -433,12 +480,31 @@ FORM userPriceList 'Прайс'
     PROPERTIES READONLY currentPriceSkuPriceListStock(s2, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)
     PROPERTIES(s2, p, t, ts2) currentPriceSkuPriceListDataPriceListTypeStock COLUMNS (t) HEADER headerNameCurrentDataPriceListType(p, t) SHOWIF headerNameCurrentDataPriceListType(p, t) BACKGROUND backgroundCurrentDataPriceListType(t)
     FILTERS filterPriceListTypeUserPriceListSkuStock(p, s2, ts2),
-            groupTypeUserPriceList(p) == groupTypeGroup(sk2)
+            groupTypeUserPriceList(p) == groupTypeGroup(sk2),
+            filterSupplierUserPriceListSku(p, s2)
     FILTERGROUP filters3
         FILTER 'С остатком' 'F10' currentBalanceSkuStock(s2, ts2)
 
     FILTERS isParentGroupSku(sk2, s2)
     ORDER BY inputName2
+
+    TREE supplierGroupTree f = LegalEntityGroup PARENT parentLegalEntityGroup
+    PROPERTIES READONLY fTreeName = nameLegalEntityGroup(f) 
+    
+    OBJECTS b=Batch
+    PROPERTIES inBatchUserPriceList(b, p) ON CHANGE changeInBatchUserPriceList(b, p)    
+    PROPERTIES READONLY  nameSkuBatch(b)
+    PROPERTIES READONLY QUICKFILTER nameSkuBatch idBarcodeSkuBatch(b), shortNameUOMBatch(b), nameBatch(b), 
+                                                 prevCurrentBalanceBatchStock(b, ts2)
+    PROPERTIES READONLY currentPriceBatchPriceListStock(b, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)                                                 
+    PROPERTIES(b, p, t, ts2) currentPriceBatchPriceListDataPriceListTypeStock COLUMNS (t) HEADER headerNameCurrentDataPriceListType(p, t) SHOWIF headerNameCurrentDataPriceListType(p, t) BACKGROUND backgroundCurrentDataPriceListType(t)
+    FILTERS filterPriceListTypeUserPriceListBatchStock(p, b, ts2),
+            isParentSkuGroupBatch(sk2, b),
+            filterSupplierUserPriceListBatch(p, b),
+            isParentGroupSupplierGroupBatch(f, b)   
+    FILTERGROUP filters4
+        FILTER 'С остатком' 'F10' prevCurrentBalanceBatchStock(b, ts2)
+    ORDER BY nameSkuBatch    
 
     EVENTS
         ON OK prePostUserPriceList(p)
@@ -561,6 +627,7 @@ DESIGN userPriceList FROM DEFAULT {
                     caption = 'Фильтры';
                     type = CONTAINERH;
                     ADD PROPERTY(nameFilterPriceListTypeUserPriceList);
+                    ADD PROPERTY(nameFilterManufacturerUserPriceList);
                 }
             }
             NEW detailFourthContainer{
@@ -568,13 +635,25 @@ DESIGN userPriceList FROM DEFAULT {
                 type = SPLITH;
                 NEW leftColumnContainer2 {
                     fill = 1;
-                    ADD PROPERTY(nameGroupTypeP);
-                    ADD skuTree2.tree.box {
-                        caption = 'Товары';
+                    type = SPLITV;
+                    NEW treeContainer{
+                        fill = 1;
+                        ADD PROPERTY(nameGroupTypeP);
+                        ADD skuTree2.tree.box {
+                            caption = 'Товары';
+                        }                        
                     }
+                    ADD supplierGroupTree.tree.box{
+                        caption = 'Поставщики';
+                    }                    
                 }
-                ADD s2.box {
+                NEW tabContainer{
+                    type = TABBED;
                     fill = 3;
+                    ADD s2.box;
+                    ADD b.box{
+                        caption = 'Партии';
+                    }                    
                 }
             }
         }

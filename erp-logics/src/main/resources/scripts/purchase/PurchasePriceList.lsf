@@ -6,10 +6,14 @@ filterSupplierUserPriceList = DATA SESSION LegalEntity (UserPriceList);
 nameFilterSupplierUserPriceList 'Поставщик' (userPriceList) = nameLegalEntity(filterSupplierUserPriceList(userPriceList));
 filterSupplierUserPriceListSku (userPriceList, sku) = prevInSupplierSku(filterSupplierUserPriceList(userPriceList), sku) OR
                                               (sku IS Sku AND NOT filterSupplierUserPriceList(userPriceList));
+                                              
+filterSupplierUserPriceListBatch (userPriceList, batch) = 
+    supplierBatch(batch) == filterSupplierUserPriceList(userPriceList) OR (batch IS Batch AND NOT filterSupplierUserPriceList(userPriceList));                                  
 
 EXTEND FORM userPriceList
     PROPERTIES(p) FORCE PANEL nameFilterSupplierUserPriceList
-    FILTERS filterSupplierUserPriceListSku(p, s2)
+    FILTERS filterSupplierUserPriceListSku(p, s2),
+            filterSupplierUserPriceListBatch(p, b)
 ;
 
 EXTEND DESIGN userPriceList {
