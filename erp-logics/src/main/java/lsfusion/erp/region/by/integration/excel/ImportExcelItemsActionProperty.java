@@ -89,7 +89,7 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
 
             data.add(new Item(idItem, idGroup, nameItem, idUOM, nameBrand, idBrand, nameCountry,
                     barcode, barcode, date, isWeight, netWeightItem, grossWeightItem, compositionItem, retailVAT, idWare,
-                    priceWare, wareVAT, idWriteOffRate, baseMarkup, retailMarkup, idItem, amountPack, null, null,
+                    priceWare, wareVAT, idWriteOffRate, baseMarkup, retailMarkup, idItem, amountPack, null, null, null,
                     null, null));
         }
 

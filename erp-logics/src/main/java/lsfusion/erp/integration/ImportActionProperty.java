@@ -331,16 +331,6 @@ public class ImportActionProperty {
         for (int i = 0; i < itemsList.size(); i++)
             data.get(i).add(itemsList.get(i).idItemGroup);
 
-        ImportField idUOMField = new ImportField(LM.findLCPByCompoundName("idUOM"));
-        ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UOM"),
-                LM.findLCPByCompoundName("UOMId").getMapping(idUOMField));
-        keys.add(UOMKey);
-        props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundName("UOMItem").getMapping(itemKey),
-                LM.object(LM.findClassByCompoundName("UOM")).getMapping(UOMKey)));
-        fields.add(idUOMField);
-        for (int i = 0; i < itemsList.size(); i++)
-            data.get(i).add(itemsList.get(i).idUOM);
-
         ImportField idBrandField = new ImportField(LM.findLCPByCompoundName("idBrand"));
         ImportKey<?> brandKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Brand"),
                 LM.findLCPByCompoundName("brandId").getMapping(idBrandField));
@@ -386,6 +376,18 @@ public class ImportActionProperty {
         for (int i = 0; i < itemsList.size(); i++)
             data.get(i).add(itemsList.get(i).idBarcode);
 
+        ImportField idUOMField = new ImportField(LM.findLCPByCompoundName("idUOM"));
+        ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UOM"),
+                LM.findLCPByCompoundName("UOMId").getMapping(idUOMField));
+        keys.add(UOMKey);
+        props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundName("UOMItem").getMapping(itemKey),
+                LM.object(LM.findClassByCompoundName("UOM")).getMapping(UOMKey)));
+        props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundName("UOMBarcode").getMapping(barcodeKey),
+                LM.object(LM.findClassByCompoundName("UOM")).getMapping(UOMKey)));
+        fields.add(idUOMField);
+        for (int i = 0; i < itemsList.size(); i++)
+            data.get(i).add(itemsList.get(i).idUOM);
+        
         ImportField isWeightItemField = new ImportField(LM.findLCPByCompoundName("isWeightItem"));
         props.add(new ImportProperty(isWeightItemField, LM.findLCPByCompoundName("isWeightItem").getMapping(itemKey)));
         fields.add(isWeightItemField);
@@ -542,6 +544,13 @@ public class ImportActionProperty {
         fields.add(amountBarcodePackField);
         for (int i = 0; i < itemsList.size(); i++)
             data.get(i).add(itemsList.get(i).amountPack);
+
+        ImportField idUOMPackField = new ImportField(LM.findLCPByCompoundName("idUOM"));
+        props.add(new ImportProperty(idUOMPackField, LM.findLCPByCompoundName("UOMBarcode").getMapping(barcodePackKey),
+                LM.object(LM.findClassByCompoundName("UOM")).getMapping(UOMKey)));
+        fields.add(idUOMPackField);
+        for (int i = 0; i < itemsList.size(); i++)
+            data.get(i).add(itemsList.get(i).idUOMPack);
 
         ImportField idManufacturerField = new ImportField(LM.findLCPByCompoundName("idManufacturer"));
         ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Manufacturer"),

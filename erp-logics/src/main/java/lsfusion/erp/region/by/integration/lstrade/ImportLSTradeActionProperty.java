@@ -309,7 +309,7 @@ public class ImportLSTradeActionProperty extends DefaultImportActionProperty {
                         date, isWeightItem ? isWeightItem : null, null, null, compositionItem.isEmpty() ? null : compositionItem,
                         VATifAllowed(retailVAT), idWare, priceWare, ndsWare, 
                         "RW_".equals(idRateWaste) ? null : idRateWaste, null, null, isItem, quantityPackItem, null, null,
-                        null, null));
+                        null, null, null));
         }
         return data;
     }

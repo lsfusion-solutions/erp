@@ -28,6 +28,7 @@ public class Item {
     public BigDecimal retailMarkup;
     public String idBarcodePack;
     public BigDecimal amountPack;
+    public String idUOMPack;
     public String idManufacturer;
     public String nameManufacturer;
     public String codeCustomsGroup;
@@ -37,8 +38,8 @@ public class Item {
                 String nameCountry, String idBarcode, String extIdBarcode, Date date, Boolean isWeightItem,
                 BigDecimal netWeightItem, BigDecimal grossWeightItem, String compositionItem, BigDecimal retailVAT,
                 String idWare, BigDecimal priceWare, BigDecimal vatWare, String idWriteOffRate, BigDecimal baseMarkup,
-                BigDecimal retailMarkup, String idBarcodePack, BigDecimal amountPack, String idManufacturer,
-                String nameManufacturer, String codeCustomsGroup, String nameCustomsZone) {
+                BigDecimal retailMarkup, String idBarcodePack, BigDecimal amountPack, String idUOMPack, 
+                String idManufacturer, String nameManufacturer, String codeCustomsGroup, String nameCustomsZone) {
         this.idItem = idItem;
         this.idItemGroup = idItemGroup;
         this.captionItem = captionItem;
@@ -62,6 +63,7 @@ public class Item {
         this.retailMarkup = retailMarkup;
         this.idBarcodePack = idBarcodePack;
         this.amountPack = amountPack;
+        this.idUOMPack = idUOMPack;
         this.idManufacturer = idManufacturer;
         this.nameManufacturer = nameManufacturer;
         this.codeCustomsGroup = codeCustomsGroup;
