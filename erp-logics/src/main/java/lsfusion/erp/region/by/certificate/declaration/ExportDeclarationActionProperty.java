@@ -37,12 +37,10 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
         try {
-            List<String> exportProperties = BaseUtils.toList("numberDeclarationDetail",
-                    "nameCustomsDeclarationDetail",
-                    "codeCustomsGroupDeclarationDetail",
-                    "sidCountryDeclarationDetail", "sidOrigin2CountryDeclarationDetail", "quantityDeclarationDetail",
-                    "sumDeclarationDetail", "sumNetWeightDeclarationDetail",
-                    "sumGrossWeightDeclarationDetail");
+            List<String> exportProperties = BaseUtils.toList("numberDeclarationDetail", "nameCustomsDeclarationDetail",
+                    "codeCustomsGroupDeclarationDetail", "sidCountryDeclarationDetail", "idUOMDeclarationDetail",
+                    "shortNameUOMDeclarationDetail", "sidOrigin2CountryDeclarationDetail", "quantityDeclarationDetail",
+                    "sumDeclarationDetail", "sumNetWeightDeclarationDetail", "sumGrossWeightDeclarationDetail");
 
             List<String> exportTitlesTSware = BaseUtils.toList("Порядковый номер декларируемого товара", "Наименование товара", "Вес брутто",
                     "Вес нетто", "Вес нетто без упаковки", "Фактурная стоимость товара", "Таможенная стоимость",
@@ -177,10 +175,10 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
 
                 addStringCellToRow(values.get("nameCustomsDeclarationDetail"), ";");
 
-                addDoubleCellToRow(values.get("sumGrossWeightDeclarationDetail"), ";", 3);
-                addDoubleCellToRow(values.get("sumNetWeightDeclarationDetail"), ";", 3);
-                addDoubleCellToRow(values.get("sumNetWeightDeclarationDetail"), ";", 3); //Вес нетто без упаковки
-                addDoubleCellToRow(values.get("sumDeclarationDetail"), ";", 7);
+                addNumericCellToRow(values.get("sumGrossWeightDeclarationDetail"), ";", 3);
+                addNumericCellToRow(values.get("sumNetWeightDeclarationDetail"), ";", 3);
+                addNumericCellToRow(values.get("sumNetWeightDeclarationDetail"), ";", 3); //Вес нетто без упаковки
+                addNumericCellToRow(values.get("sumDeclarationDetail"), ";", 7);
                 addStringCellToRow(null, ";"); //Таможенная стоимость
                 addStringCellToRow(null, ";"); //Статистическая стоимость
                 addStringCellToRow(values.get("codeCustomsGroupDeclarationDetail"), ";");
@@ -205,7 +203,7 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
                 addConstantStringCellToRow("КГ", ";");  //Краткое наименование специфических единиц измерения
                 addStringCellToRow(null, ";"); //Код единицы измерения подакцизного товара
                 addStringCellToRow(null, ";"); //Наименование единицы измерения подакцизного товара
-                addDoubleCellToRow(values.get("quantityDeclarationDetail"), ";", 0);
+                addNumericCellToRow(values.get("quantityDeclarationDetail"), ";", 0);
                 addStringCellToRow(null, ";");
                 addStringCellToRow(null, ";");
 
@@ -257,9 +255,9 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
                 addStringCellToRow(null, ";"); //Стандарт (ГОСТ, ОСТ, СПП, СТО, ТУ)
                 addStringCellToRow(null, ";"); //Сорт (группа сортов)
                 addStringCellToRow(null, ";"); //Дата выпуска
-                addDoubleCellToRow(values.get("quantityDeclarationDetail"), ";", 0); //Количество товара
-                addStringCellToRow(null, ";"); //Краткое наименование единицы измерения
-                addStringCellToRow(null, ";"); //Код единицы измерения
+                addNumericCellToRow(values.get("quantityDeclarationDetail"), ";", 0); //Количество товара
+                addStringCellToRow(values.get("shortNameUOMDeclarationDetail"), ";"); //Краткое наименование единицы измерения
+                addStringCellToRow(values.get("idUOMDeclarationDetail"), ";"); //Код единицы измерения
                 addStringCellToRow(null, ";"); //Группа товаров
 
                 writerTSmarkings.println(row);
@@ -275,24 +273,24 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
             context.delayUserInterfaction(new ExportFileClientAction(files));
 
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (FileNotFoundException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void addCellToRow(Object cell, Boolean isDouble, Integer precision, String prefix, String separator, Boolean useSeparatorIfNull) {
+    public void addCellToRow(Object cell, Boolean isNumeric, Integer precision, String prefix, String separator, Boolean useSeparatorIfNull) {
         if (cell != null) {
             if (prefix != null)
                 row += prefix;
-            if (!isDouble)
-                row += cell.toString().trim().replace('.', ',');
+            if (!isNumeric)
+                row += cell.toString().trim();
             else {
                 String bigDecimal = new BigDecimal(cell.toString()).setScale(precision, BigDecimal.ROUND_HALF_DOWN).toString().replace('.', ',');
                 while (bigDecimal.endsWith("0") && bigDecimal.length() > 1)
@@ -312,7 +310,7 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
         addCellToRow(cell, false, null, null, separator, true);
     }
 
-    public void addDoubleCellToRow(Object cell, String separator, int precision) {
+    public void addNumericCellToRow(Object cell, String separator, int precision) {
         addCellToRow(cell, true, precision, null, separator, true);
     }
 
