@@ -8,6 +8,8 @@ NAMESPACE Purchase;
 
 legalEntityDeclaration = DATA LegalEntity(Declaration);
 nameLegalEntityDeclaration 'Импортёр' (declaration) = nameLegalEntity(legalEntityDeclaration(declaration));
+fillNameLegalEntityDeclaration 'Полное имя импортера' (declaration) = fullNameLegalEntity(legalEntityDeclaration(declaration));
+addressLegalEntityDeclaration 'Адрес' (declaration) = addressLegalEntityDate(legalEntityDeclaration(declaration), dateDeclaration(declaration));
 
 @defineDocumentLegalEntityAccess(Declaration, legalEntity, company);
 
@@ -152,6 +154,7 @@ nameCustomsUserInvoiceDetail 'Наименование (декл.)' (d) = OVERRI
 
 countrySkuUserInvoiceDetail (d) = countrySku(skuUserInvoiceDetail(d));
 nameCountrySkuUserInvoiceDetail 'Страна' (d) = nameCountry(countrySkuUserInvoiceDetail(d));
+sidOrigin2CountrySkuUserInvoiceDetail 'Код страны' (d) = sidOrigin2Country(countrySkuUserInvoiceDetail(d));
 
 UOMUserInvoiceDetail(d) = UOMSku(skuUserInvoiceDetail(d));
 
@@ -628,6 +631,8 @@ calcSumWeightDutyDeclarationDetail 'Пошлина, (мин.)' (declarationDetai
                                                                            weightDutyDeclarationDetail(declarationDetail) *
                                                                            rateExchangeCustomsZoneDeclaration(declarationDeclarationDetail(declarationDetail));
 
+isWeightDutyDeclarationDetail (d) = calcSumWeightDutyDeclarationDetail(d) > calcSumPriceDutyDeclarationDetail(d);  
+
 calcDutySumDeclarationDetail 'Пошлина' (d) = roundPriceCurrency((MAX calcSumWeightDutyDeclarationDetail(d),
                                                                      calcSumPriceDutyDeclarationDetail(d)),
                                                                 homeCurrencyDeclarationDetail(d)) MINCHARWIDTH 12;
@@ -637,8 +642,10 @@ WHEN SESSION FORMS declaration CHANGED(calcDutySumDeclarationDetail(d)) DO
 
 // -------------------------------- Расчет НДС -------------------------- //
 
+baseVATSumDeclarationDetail(d) = homeSumDeclarationDetail(d) (+) dutySumDeclarationDetail(d); 
+
 calcVATSumDeclarationDetail 'НДС' (d) =
-    roundPriceCurrency((homeSumDeclarationDetail(d) (+) dutySumDeclarationDetail(d)) *
+    roundPriceCurrency(baseVATSumDeclarationDetail(d) *
                        percentVATDeclarationDetail(d) / 100.0,
                        homeCurrencyDeclarationDetail(d)) MINCHARWIDTH 12;
 
