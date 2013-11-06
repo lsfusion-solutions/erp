@@ -5,36 +5,43 @@ REQUIRE SkuLedger;
 NAMESPACE Stock;
 
 showSeriesPharmacy 'Показывать серию лекарственного средства' = DATA BOOLEAN ();
+showContractPrice 'Показывать контрактную цену' = DATA BOOLEAN ();
 showImportCountry 'Показывать страну ввоза' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES() showSeriesPharmacy, showImportCountry
+    PROPERTIES() showSeriesPharmacy, showContractPrice, showImportCountry
 ;
 
 EXTEND DESIGN options {
     commons {
         ADD PROPERTY(showSeriesPharmacy);
+        ADD PROPERTY(showContractPrice);
         ADD PROPERTY(showImportCountry);
     }
 }                                                                                                           
 
 seriesPharmacyBatch 'Серия лекарственного средства' = ABSTRACT VARSTRING[20] (Batch) PERSISTENT;
 
+contractPriceBatch 'Контрактная цена' = ABSTRACT VARSTRING[20] (Batch) PERSISTENT;
+
 importCountryBatch 'Страна ввоза' = ABSTRACT Country (Batch);
 nameImportCountryBatch 'Страна ввоза' = nameCountry(importCountryBatch(batch)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
 
 EXTEND FORM currentBalanceBatchStock
-    PROPERTIES READONLY seriesPharmacyBatch(bt) SHOWIF showSeriesPharmacy() AFTER nameSkuBatch(bt), 
+    PROPERTIES READONLY seriesPharmacyBatch(bt) SHOWIF showSeriesPharmacy() AFTER nameSkuBatch(bt),
+                        contractPriceBatch(bt) SHOWIF showContractPrice() AFTER nameSkuBatch(bt),
                         nameImportCountryBatch(bt) SHOWIF showImportCountry() AFTER nameSkuBatch(bt)
 ;
 
 EXTEND FORM dialogBatchStock
-    PROPERTIES READONLY seriesPharmacyBatch(bt) SHOWIF showSeriesPharmacy() AFTER nameSkuBatch(bt), 
+    PROPERTIES READONLY seriesPharmacyBatch(bt) SHOWIF showSeriesPharmacy() AFTER nameSkuBatch(bt),
+                        contractPriceBatch(bt) SHOWIF showContractPrice() AFTER nameSkuBatch(bt),
                         nameImportCountryBatch(bt) SHOWIF showImportCountry() AFTER nameSkuBatch(bt)
 ;
 
 EXTEND FORM batches
-    PROPERTIES READONLY seriesPharmacyBatch(bt) SHOWIF showSeriesPharmacy() AFTER nameSkuBatch(bt), 
+    PROPERTIES READONLY seriesPharmacyBatch(bt) SHOWIF showSeriesPharmacy() AFTER nameSkuBatch(bt),
+                        contractPriceBatch(bt) SHOWIF showContractPrice() AFTER nameSkuBatch(bt),
                         nameImportCountryBatch(bt) SHOWIF showImportCountry() AFTER nameSkuBatch(bt)
 ;
 

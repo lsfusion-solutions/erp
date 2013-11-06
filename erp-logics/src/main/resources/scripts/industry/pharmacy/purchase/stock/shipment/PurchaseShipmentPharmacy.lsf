@@ -4,6 +4,18 @@ REQUIRE PurchaseShipment, PurchaseInvoicePharmacy, StockPharmacy, Country;
 
 NAMESPACE Purchase;
 
+// контрактная цена
+contractPriceShipmentDetail 'Контрактная цена' = ABSTRACT VARSTRING[20] (ShipmentDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+
+contractPriceUserShipmentDetail 'Контрактная цена' = DATA VARSTRING[20] (UserShipmentDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+
+@defineDocumentAggregationDetailProperty (invoice, invoiceShipment, contractPrice, 'Контрактная цена');
+
+contractPriceShipmentDetail(detail) += contractPriceUserShipmentDetail(detail);
+contractPriceShipmentDetail(detail) += contractPriceInvoiceShipmentDetail(detail);
+
+contractPriceBatch (batch) += contractPriceShipmentDetail(shipmentDetailShipmentBatch(batch));
+
 // серия лекарства
 seriesPharmacyShipmentDetail 'Серия лекарственного средства' = ABSTRACT VARSTRING[20] (ShipmentDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
 
