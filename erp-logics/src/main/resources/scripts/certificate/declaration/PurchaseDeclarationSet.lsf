@@ -1,0 +1,121 @@
+MODULE PurchaseDeclarationSet;
+
+REQUIRE PurchaseDeclarationDetail;
+
+NAMESPACE Purchase;
+
+CLASS Set 'Комплект' ;
+TABLE set (Set);
+
+nameSet 'Наименование'= DATA VARISTRING[255] (Set);
+@defineExternalizable(set, VARSTRING[100]);
+
+CLASS SetDetail 'Строка комплекта' ;
+TABLE setDetail (SetDetail);
+
+@defineDocumentRelation(set, SetDetail, );
+@defineDocumentDetailIndex(set, SetDetail, recognize);
+
+nameSetDetail 'Наименование'= DATA VARISTRING[255] (SetDetail);
+	
+coefficientQuantitySetDetail 'Коэффициент кол-ва' = DATA NUMERIC[8,2] (SetDetail);
+percentSumSetDetail '% суммы' = DATA NUMERIC[8,2] (SetDetail);
+
+percentNetWeightSetDetail '% вес нетто' = DATA NUMERIC[8,2] (SetDetail);
+percentGrossWeightSetDetail '% вес брутто' = DATA NUMERIC[8,2] (SetDetail);
+
+customsGroupSetDetail = DATA CustomsGroup (SetDetail);
+codeCustomsGroupSetDetail 'ТН ВЭД' (d) = codeCustomsGroup(customsGroupSetDetail(d));
+
+VATCustomsExceptionSetDetail = DATA VATCustomsException (SetDetail);
+nameVATCustomsExceptionSetDetail 'Льгота НДС' (d) = nameVATCustomsException(VATCustomsExceptionSetDetail(d));
+
+
+FORM set 'Комплект'
+    OBJECTS s=Set FIXED PANEL
+    PROPERTIES(s) nameSet, idSet SHOWIF showIDs()
+    
+    OBJECTS d=SetDetail 
+    PROPERTIES(d) indexSetDetail READONLY, nameSetDetail, percentNetWeightSetDetail, percentGrossWeightSetDetail, 
+                  codeCustomsGroupSetDetail, nameVATCustomsExceptionSetDetail, coefficientQuantitySetDetail, percentSumSetDetail,
+                  ADDOBJ, deleteid=DELETESESSION
+                  
+    FILTERS setSetDetail(d) == s
+    EDIT Set OBJECT s
+;
+
+FORM sets 'Комплекты'
+    OBJECTS s=Set
+    PROPERTIES(s) nameSet READONLY, idSet SHOWIF showIDs() READONLY, DELETE
+    PROPERTIES(s) ADDFORM, EDITFORM            
+    ORDER BY nameSet
+    
+    OBJECTS d=SetDetail 
+    PROPERTIES(d) READONLY indexSetDetail, nameSetDetail, percentNetWeightSetDetail, percentGrossWeightSetDetail, 
+                  codeCustomsGroupSetDetail, nameVATCustomsExceptionSetDetail, coefficientQuantitySetDetail, percentSumSetDetail
+    FILTERS setSetDetail(d) == s
+               
+    DIALOG Set OBJECT s
+;
+DESIGN sets FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+inUserInvoiceDetail 'Отм.' = DATA SESSION BOOLEAN (UserInvoiceDetail);
+inUserInvoiceDetailDeclaration (declaration)= GROUP SUM 1 IF inUserInvoiceDetail(d) BY  declarationUserInvoiceDetail(d);
+
+overComponentsQuantityDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationInvoiceDetail);
+
+overNameSetDeclarationInvoiceDetail = ABSTRACT VARISTRING[255](DeclarationInvoiceDetail);
+
+createSetDeclarationInvoiceDetail 'Разбить комплекты' = ACTION (declaration) {
+    IF inUserInvoiceDetailDeclaration(declaration) THEN {
+        LOCAL set = Set(); 
+        
+        FORM sets MODAL;
+        IF formResult() == FormResult.ok THEN {
+            set() <- chosenObject('s');
+            DELETE d WHERE declarationDeclarationInvoiceDetail(d) == declaration AND inUserInvoiceDetail(userInvoiceDetailDeclarationInvoiceDetail(d));
+            
+            
+            FOR inUserInvoiceDetail(id) AND declarationUserInvoiceDetail(id) == declaration DO {                              
+                
+                FOR setSetDetail(sd) == set() ORDER id ADDOBJ did = DeclarationInvoiceDetail DO {
+                
+                    declarationDeclarationInvoiceDetail(did) <- declaration;
+                    userInvoiceDetailDeclarationInvoiceDetail(did) <- id;                             
+                    
+                    nameCustomsDeclarationInvoiceDetail(did) <- VARISTRING[255](CONCAT ' /', nameSetDetail(sd), overNameSetDeclarationInvoiceDetail(did));
+                    
+                    quantityDeclarationInvoiceDetail(did) <- quantityUserInvoiceDetail(id)*coefficientQuantitySetDetail(sd);
+                    
+                    sumNetWeightDeclarationInvoiceDetail(did) <- sumNetWeightUserInvoiceDetail(id)*percentNetWeightSetDetail(sd)/100;
+                    sumGrossWeightDeclarationInvoiceDetail(did) <- sumGrossWeightUserInvoiceDetail(id)*percentGrossWeightSetDetail(sd)/100;
+                    
+                    customsGroupDeclarationInvoiceDetail(did) <- customsGroupSetDetail (sd);
+                    VATCustomsExceptionDeclarationInvoiceDetail(did) <- VATCustomsExceptionSetDetail(sd);                   
+                              
+                    priceDeclarationInvoiceDetail(did) <- sumUserInvoiceDetail(id)*percentSumSetDetail(sd)/quantityDeclarationInvoiceDetail(did)/100;                          
+                    EXEC overComponentsQuantityDeclarationInvoiceDetail(did);
+                } 
+            } 
+        }       
+    } ELSE {
+        MESSAGE 'Не отмечены строки, которые следует разукомплектовать';
+    } 
+
+} TOOLBAR CONFIRM;
+
+setUserInvoiceDetail= DATA Set (UserInvoiceDetail);
+nameSetUserInvoiceDetail 'Комплект' (d)= nameSet(setUserInvoiceDetail(d)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+
+EXTEND FORM declaration   
+    PROPERTIES(id) inUserInvoiceDetail BEFORE seriesNumberUserInvoiceDetail(id)
+    PROPERTIES(id) nameSetUserInvoiceDetail BEFORE nameCountrySkuUserInvoiceDetail(id)
+       
+    PROPERTIES(d)  createSetDeclarationInvoiceDetail TODRAW di FORCE PANEL TOOLBAR BEFORE createDeclarationInvoiceDetailDeclaration(d) 
+;
+
+NAVIGATOR {
+    customsMasterData {
+        ADD sets;
+    }
+}

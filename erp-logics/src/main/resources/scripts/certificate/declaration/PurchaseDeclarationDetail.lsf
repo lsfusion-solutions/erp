@@ -325,7 +325,7 @@ declarationDeclarationInvoiceDetail = DATA Declaration (DeclarationInvoiceDetail
 userInvoiceDetailDeclarationInvoiceDetail = DATA UserInvoiceDetail (DeclarationInvoiceDetail) NOT NULL DELETE;
 userInvoiceDeclarationInvoiceDetail (d) = userInvoiceUserInvoiceDetail(userInvoiceDetailDeclarationInvoiceDetail(d));  
 
-nameCustomsDeclarationInvoiceDetail 'Наименование' = DATA VARSTRING[200] (DeclarationInvoiceDetail);
+nameCustomsDeclarationInvoiceDetail 'Наименование' = DATA VARISTRING[255] (DeclarationInvoiceDetail);
 
 UOMDeclarationInvoiceDetail 'Ед. изм.' (d) = UOMUserInvoiceDetail (userInvoiceDetailDeclarationInvoiceDetail(d)) PERSISTENT;
 shortNameUOMDeclarationInvoiceDetail 'Ед. изм.' (d) = shortNameUOM(UOMDeclarationInvoiceDetail(d));
@@ -354,6 +354,8 @@ sumDeclarationInvoiceDetailDeclaration 'Сумма (по позициям нак
                                                                                BY declarationDeclarationInvoiceDetail(d) MINCHARWIDTH 15;
 
 overQuantityDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationInvoiceDetail, UserInvoiceDetail);
+//isSetUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
+//overQuantityDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationInvoiceDetail, UserInvoiceDetail);
 
 createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTION (declaration) {
     DELETE d WHERE declarationDeclarationInvoiceDetail(d) == declaration;
@@ -377,13 +379,32 @@ createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTI
     } 
 } TOOLBAR CONFIRM;
 
+overCopyDetailDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationInvoiceDetail, DeclarationInvoiceDetail);
+
+copyDeclarationInvoiceDetail 'Копировать' = ACTION (detail) {
+    FOR ADDOBJ d = DeclarationInvoiceDetail DO {          
+    
+        declarationDeclarationInvoiceDetail(d) <-  declarationDeclarationInvoiceDetail(detail);
+        userInvoiceDetailDeclarationInvoiceDetail(d) <-  userInvoiceDetailDeclarationInvoiceDetail(detail);
+        nameCustomsDeclarationInvoiceDetail(d) <-  nameCustomsDeclarationInvoiceDetail(detail);
+        sumNetWeightDeclarationInvoiceDetail(d) <-  sumNetWeightDeclarationInvoiceDetail(detail);
+        sumGrossWeightDeclarationInvoiceDetail(d) <-  sumGrossWeightDeclarationInvoiceDetail(detail);
+        customsGroupDeclarationInvoiceDetail(d) <- customsGroupDeclarationInvoiceDetail(detail);
+        VATCustomsExceptionDeclarationInvoiceDetail(d) <- VATCustomsExceptionDeclarationInvoiceDetail(detail);
+        quantityDeclarationInvoiceDetail(d) <- quantityDeclarationInvoiceDetail(detail);
+        priceDeclarationInvoiceDetail(d) <- priceDeclarationInvoiceDetail(detail);
+            
+        EXEC overCopyDetailDeclarationInvoiceDetail(d, detail);                              
+    }
+} TOOLBAR;
+
 EXTEND FORM declaration
     OBJECTS di = DeclarationInvoiceDetail
     PROPERTIES(di) nameCustomsDeclarationInvoiceDetail, shortNameUOMDeclarationInvoiceDetail, nameCountryDeclarationInvoiceDetail,
                    sumNetWeightDeclarationInvoiceDetail, sumGrossWeightDeclarationInvoiceDetail,
                    codeCustomsGroupDeclarationInvoiceDetail, nameVATCustomsExceptionDeclarationInvoiceDetail,
                    quantityDeclarationInvoiceDetail, priceDeclarationInvoiceDetail, sumDeclarationInvoiceDetail,  
-                   ADDOBJ, DELETESESSION
+                   ADDOBJ, DELETESESSION, copyDeclarationInvoiceDetail FORCE PANEL 
     
     PROPERTIES(d) createDeclarationInvoiceDetailDeclaration TODRAW di FORCE PANEL TOOLBAR
     FILTERS declarationDeclarationInvoiceDetail(di)== d
@@ -426,7 +447,7 @@ dateDeclarationDetail 'Дата' (d) = dateDeclaration(declarationDeclarationDet
 homeCurrencyDeclarationDetail (d) = homeCurrencyDeclaration(declarationDeclarationDetail(d));
 
 // Первичные свойства для строк деклараций
-nameCustomsDeclarationDetail 'Наименование' = DATA VARSTRING[200](DeclarationDetail);
+nameCustomsDeclarationDetail 'Наименование' = DATA VARISTRING[255](DeclarationDetail);
 
 UOMDeclarationDetail = DATA UOM(DeclarationDetail);
 idUOMDeclarationDetail 'Код ед. изм.' (declarationDetail) = idUOM(UOMDeclarationDetail(declarationDetail));
@@ -676,7 +697,7 @@ quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityDeclarationInvoiceDet
                                               countryDeclarationInvoiceDetail(d),
                                               priceDeclarationInvoiceDetail(d); //PERSISTENT;
 
-overQuantityDeclarationDetail = ABSTRACT ACTION LIST (DeclarationDetail, Declaration, VARSTRING[200], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[14,2]);
+overQuantityDeclarationDetail = ABSTRACT ACTION LIST (DeclarationDetail, Declaration, VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[14,2]);
 
 createDeclarationDetailDeclaration 'Создать позиции' = ACTION (declaration) {
     DELETE d WHERE declarationDeclarationDetail(d) == declaration;
