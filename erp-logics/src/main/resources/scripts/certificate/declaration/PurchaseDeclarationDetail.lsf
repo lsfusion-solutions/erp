@@ -60,24 +60,10 @@ rateExchangeCustomsZoneDeclaration(declaration) <- calcRateExchangeCustomsZoneDe
 roundDeclaration 'Точность округления' = DATA INTEGER(Declaration);
 roundDeclaration(d) <- defaultRoundCurrency(homeCurrencyDeclaration(d)) WHEN CHANGED(homeCurrencyDeclaration(d));
 
-//дополнительные документы для декларации
-CLASS CustomsDocument 'Дополнительные документы декларации';
-TABLE customsDocument(CustomsDocument);
-
-nameCustomsDocument 'Наименование' = DATA VARSTRING[150] (CustomsDocument);
-dateCustomsDocument 'Дата' = DATA DATE (CustomsDocument);
-sumCustomsDocument 'Сумма' = DATA NUMERIC[16,2] (CustomsDocument);
-declarationCustomsDocument = DATA Declaration (CustomsDocument);
-
 EXTEND FORM declaration
     PROPERTIES(d) nameLegalEntityDeclaration, nameCurrencyDeclaration, nameCustomsZoneDeclaration, nameHomeCurrencyDeclaration,
                   nameTypeExchangeDeclaration, roundDeclaration, rateExchangeDeclaration, nameCurrencyCustomsZoneDeclaration READONLY,
                   rateExchangeCustomsZoneDeclaration
-
-    OBJECTS cd = CustomsDocument
-    PROPERTIES(cd) dateCustomsDocument, nameCustomsDocument, sumCustomsDocument
-    PROPERTIES(cd) ADDOBJ, DELETE
-    FILTERS declarationCustomsDocument(cd) == d
 ;
 
 EXTEND DESIGN declaration {
@@ -134,10 +120,6 @@ EXTEND DESIGN declaration {
         NEW declarationDetails {
             caption = 'Строки декларации';
         } 
-        NEW documents {
-            caption = 'Дополнительные документы';
-            ADD cd.box;
-        }
     }
     ADD functions.box;
 }
@@ -675,6 +657,7 @@ calcRegistrationSumDeclaration 'Таможенный сбор' (d) = roundPriceC
 declarationDetailDeclarationInvoiceDetail = DATA DeclarationDetail(DeclarationInvoiceDetail);
 inDeclarationInvoiceDetailDeclarationDetail 'Вкл.' (id, dd) = declarationDetailDeclarationInvoiceDetail(id) == dd;
 
+inDeclarationDetailUserInvoiceDetail (d, i) = GROUP SUM 1 BY declarationDetailDeclarationInvoiceDetail(d), userInvoiceDetailDeclarationInvoiceDetail(d);
 inDeclarationDetailUserInvoice (d, i) = GROUP SUM 1 BY declarationDetailDeclarationInvoiceDetail(d), userInvoiceDeclarationInvoiceDetail(d);
 
 invoicesDeclarationDetail 'Накладные' (d) =
@@ -864,3 +847,43 @@ EXTEND DESIGN userInvoice{
         }
     }
 }
+
+// --------------------------------------------- Дополнительные документы для декларации ---------------------------- //
+
+CLASS CustomsDocument 'Дополнительные документы декларации';
+TABLE customsDocument(CustomsDocument);
+
+idCustomsDocument 'Код' = DATA VARSTRING[20] (CustomsDocument);
+nameCustomsDocument 'Наименование' = DATA VARSTRING[150] (CustomsDocument);
+dateCustomsDocument 'Дата' = DATA DATE (CustomsDocument);
+sumCustomsDocument 'Сумма' = DATA NUMERIC[16,2] (CustomsDocument);
+declarationCustomsDocument = DATA Declaration (CustomsDocument);
+
+TABLE customsDocumentUserInvoice (CustomsDocument, UserInvoice);
+inCustomsDocumentUserInvoice 'Вкл' = DATA BOOLEAN (CustomsDocument, UserInvoice);
+
+EXTEND FORM declaration
+    OBJECTS cd = CustomsDocument
+    PROPERTIES(cd) dateCustomsDocument, idCustomsDocument, nameCustomsDocument, sumCustomsDocument
+    PROPERTIES(cd) ADDOBJ, DELETE
+    FILTERS declarationCustomsDocument(cd) == d
+    
+    OBJECTS cdu = UserInvoice
+    PROPERTIES inCustomsDocumentUserInvoice(cd, cdu)
+    PROPERTIES(cdu) READONLY dateUserInvoice, seriesNumberUserInvoice
+    FILTERS inDeclarationUserInvoice(d, cdu)
+;
+
+EXTEND DESIGN declaration {
+    detail {
+        NEW documents {
+            caption = 'Дополнительные документы';
+            ADD cd.box;
+            ADD cdu.box;
+        }
+    }
+}
+
+// ---------------- Связь строки декларации и документов ---------------- //
+
+inDeclarationDetailCustomsDocument (dd, cd) = GROUP SUM 1 IF inCustomsDocumentUserInvoice(cd, ui) AND inDeclarationDetailUserInvoice(dd, ui) BY dd, cd;  
