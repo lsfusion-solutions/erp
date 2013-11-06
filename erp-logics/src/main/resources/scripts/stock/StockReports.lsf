@@ -20,6 +20,10 @@ sessionConcatGroups 'Группы' (groupType) =
 sumBGroupTypeStockDate 'Итоговая сумма отчета' (groupType, stock, date) =
     GROUP SUM sumBSkuStockDate(sku, stock, date) IF inSessionGroup(groupGroupTypeSku(groupType, sku))
     BY groupType, stock, date PREFCHARWIDTH 15;
+    
+sumAGroupTypeStockDate 'Итоговая сумма отчета' (groupType, stock, date) =
+    GROUP SUM sumASkuStockDate(sku, stock, date) IF inSessionGroup(groupGroupTypeSku(groupType, sku))
+    BY groupType, stock, date PREFCHARWIDTH 15;    
 
 sumInGroupTypeStockDateDate 'Итоговая сумма пришедшего товара отчета' (groupType, stock, dateFrom, dateTo) =
     GROUP SUM sumInSkuStockDateDate(sku, stock, dateFrom, dateTo) IF inSessionGroup(groupGroupTypeSku(groupType, sku))
@@ -249,7 +253,7 @@ FORM printListBackSheet 'Оборотная ведомость'
     PROPERTIES(gt) READONLY sessionConcatGroups
     PROPERTIES sumBGroupTypeStockDate(gt, st, df)
     PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
-    PROPERTIES sumBGroupTypeStockDate(gt, st, dt)
+    PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
@@ -258,8 +262,8 @@ FORM printListBackSheet 'Оборотная ведомость'
 
     PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
     PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
-    PROPERTIES(s, st, dt) READONLY balanceBSkuStockDate, sumBSkuStockDate
-    FILTERS balanceBSkuStockDate(s, st, df) OR balanceBSkuStockDate(s, st, dt)
+    PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
+    FILTERS balanceBSkuStockDate(s, st, df) OR balanceASkuStockDate(s, st, dt)
 ;
 
 printListBackSheet 'Списком' (stock, dateFrom, dateTo) =
@@ -281,7 +285,7 @@ FORM printBackSheet 'Оборотная ведомость'
     PROPERTIES(gt) READONLY sessionConcatGroups
     PROPERTIES sumBGroupTypeStockDate(gt, st, df)
     PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
-    PROPERTIES sumBGroupTypeStockDate(gt, st, dt)
+    PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
@@ -290,7 +294,7 @@ FORM printBackSheet 'Оборотная ведомость'
     FILTERS groupTypeGroup(sk) == gt
     PROPERTIES(sk, st, df) READONLY sumBSkuGroupStockDate
     PROPERTIES(sk, st, df, dt) READONLY sumInGroupSkuStockDateDate, sumOutGroupSkuStockDateDate
-    PROPERTIES(sk, st, dt) READONLY sumBSkuGroupStockDate
+    PROPERTIES(sk, st, dt) READONLY sumASkuGroupStockDate
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(sk) DEFAULT
 
     OBJECTS s = Sku
@@ -300,8 +304,8 @@ FORM printBackSheet 'Оборотная ведомость'
 
     PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
     PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
-    PROPERTIES(s, st, dt) READONLY balanceBSkuStockDate, sumBSkuStockDate
-    FILTERS balanceBSkuStockDate(s, st, df) OR balanceBSkuStockDate(s, st, dt)
+    PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
+    FILTERS balanceBSkuStockDate(s, st, df) OR balanceASkuStockDate(s, st, dt)
 ;
 
 printBackSheet 'По группам' (stock, dateFrom, dateTo) =
@@ -322,7 +326,7 @@ FORM reportBackSheet 'Оборотная ведомость'
     PROPERTIES(gt) SELECTOR nameGroupType
     PROPERTIES sumBGroupTypeStockDate(gt, st, df)
     PROPERTIES(gt, st, df, dt) sumInGroupTypeStockDateDate, sumOutGroupTypeStockDateDate
-    PROPERTIES sumBGroupTypeStockDate(gt, st, dt)
+    PROPERTIES sumAGroupTypeStockDate(gt, st, dt)
 //    PROPERTIES(gt) READONLY sessionConcatGroups
 
     TREE skuTree sk = Group PARENT parentGroup
@@ -330,7 +334,7 @@ FORM reportBackSheet 'Оборотная ведомость'
     PROPERTIES READONLY skuTreeName = nameGroup(sk)
     PROPERTIES(sk, st, df) READONLY sumRecBSkuGroupStockDate
     PROPERTIES(sk, st, df, dt) READONLY sumRecInGroupSkuStockDateDate, sumRecOutGroupSkuStockDateDate
-    PROPERTIES(sk, st, dt) READONLY sumRecBSkuGroupStockDate
+    PROPERTIES(sk, st, dt) READONLY sumRecASkuGroupStockDate
     ORDER BY skuTreeName
     FILTERS groupTypeGroup(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(sk) DEFAULT
@@ -343,8 +347,8 @@ FORM reportBackSheet 'Оборотная ведомость'
     PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
     PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
     PROPERTIES(st, df, dt) printListBackSheet, printBackSheet
-    PROPERTIES(s, st, dt) READONLY balanceBSkuStockDate, sumBSkuStockDate
-    FILTERS balanceBSkuStockDate(s, st, df) OR balanceBSkuStockDate(s, st, dt)
+    PROPERTIES(s, st, dt) READONLY balanceASkuStockDate, sumASkuStockDate
+    FILTERS balanceBSkuStockDate(s, st, df) OR balanceASkuStockDate(s, st, dt)
 ;
 @extendFormFilterStockAccess(Stock, st, reportBackSheet);
 
@@ -366,7 +370,7 @@ DESIGN reportBackSheet FROM DEFAULT{
         ADD PROPERTY(sumBGroupTypeStockDate(gt, st, df)){caption = 'Начала периода';}
         ADD PROPERTY(sumInGroupTypeStockDateDate){caption = 'Товара пришедшего за период';}
         ADD PROPERTY(sumOutGroupTypeStockDateDate){caption = 'Товара ушедшего за период';}
-        ADD PROPERTY(sumBGroupTypeStockDate(gt, st, dt)){caption = 'Конца периода';}
+        ADD PROPERTY(sumAGroupTypeStockDate(gt, st, dt)){caption = 'Конца периода';}
     }
     NEW bottomContainer {
         fill = 1;
@@ -375,7 +379,7 @@ DESIGN reportBackSheet FROM DEFAULT{
         ADD skuTree.tree.box;
 
         PROPERTY(sumRecBSkuGroupStockDate(sk, st, df)){caption = 'Остаток на начало периода';}
-        PROPERTY(sumRecBSkuGroupStockDate(sk, st, dt)){caption = 'Остаток на конец периода';}
+        PROPERTY(sumRecASkuGroupStockDate(sk, st, dt)){caption = 'Остаток на конец периода';}
 
         NEW tabContainer {
             fill = 2;
@@ -391,8 +395,8 @@ DESIGN reportBackSheet FROM DEFAULT{
                 ADD s.box;
                 PROPERTY(balanceBSkuStockDate(s, st, df)){caption = 'Остаток на начало периода';}
                 PROPERTY(sumBSkuStockDate(s, st, df)){caption = 'Сумма на начало периода';}
-                PROPERTY(balanceBSkuStockDate(s, st, dt)){caption = 'Остаток на конец периода';}
-                PROPERTY(sumBSkuStockDate(s, st, dt)){caption = 'Сумма на конец периода';}
+                PROPERTY(balanceASkuStockDate(s, st, dt)){caption = 'Остаток на конец периода';}
+                PROPERTY(sumASkuStockDate(s, st, dt)){caption = 'Сумма на конец периода';}
             }
         }
     }
