@@ -55,6 +55,9 @@ nameBatch 'Название' (batch) = ABSTRACT VARISTRING[200] (Batch) PERSISTE
 expiryDateBatch 'Годен до' (batch) = ABSTRACT DATE (Batch) PERSISTENT INDEXED;
 prevExpiryDateBatch 'Годен до' (batch) = PREV(expiryDateBatch(batch));
 
+manufactureDateBatch 'Годен до' (batch) = ABSTRACT DATE (Batch) PERSISTENT INDEXED;
+prevManufactureDateBatch 'Годен до' (batch) = PREV(manufactureDateBatch(batch));
+
 numberBatch 'Номер документа' = ABSTRACT STRING[18] (Batch) MINCHARWIDTH 8 PERSISTENT;
 seriesBatch 'Серия документа' = ABSTRACT STRING[2] (Batch) FIXEDCHARWIDTH 3 PERSISTENT;
 
@@ -1300,6 +1303,26 @@ END
 
 META defineDocumentInterfaceDetailExpiryDate(object)
     @defineDocumentInterfaceDetailExpiryDatePrefix(object, );
+END
+
+META defineDocumentDetailManufactureDateCustomPrefix(detail, prefix)
+    prefix###manufactureDate###detail 'Дата изготовления' = DATA DATE (###detail);
+END
+META defineDocumentAbstractDetailManufactureDateCustomPrefix(detail, prefix)
+    prefix###manufactureDate###detail 'Дата изготовления' = ABSTRACT DATE (###detail) PERSISTENT;
+END
+META defineDocumentInterfaceDetailManufactureDateCustomPrefix(detail, prefix)
+    @defineDocumentAbstractDetailManufactureDateCustomPrefix(detail, prefix);
+    @defineDocumentDetailManufactureDateCustomPrefix(user###detail, prefix);
+    prefix###manufactureDate###detail(detail) += prefix###manufactureDate###user###detail(detail);
+END
+
+META defineDocumentInterfaceDetailManufactureDatePrefix(object, prefix)
+    @defineDocumentInterfaceDetailManufactureDateCustomPrefix(object##Detail, prefix);
+END
+
+META defineDocumentInterfaceDetailManufactureDate(object)
+    @defineDocumentInterfaceDetailManufactureDatePrefix(object, );
 END
 
 // ---------------------------------- Остаток (до) ----------------------- //

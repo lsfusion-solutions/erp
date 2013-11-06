@@ -229,7 +229,8 @@ META defineInvoiceShipment(sign, stockProp, filter)
     shipmentTimeUserInvoice(i) <- timeUserInvoice(i) WHEN CHANGED(timeUserInvoice(i));
 
     @defineDocumentInterfaceDetailExpiryDate(invoice);
-
+    @defineDocumentInterfaceDetailManufactureDate(invoice);
+    
     overCopyInvoice(s, d) += ACTION (s, d) {
         ASSIGN createShipmentUserInvoice(d) <- createShipmentUserInvoice(s);
     }
@@ -249,7 +250,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
         PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) SHOWIF createShipmentUserInvoice(i) shipmentSumUserInvoiceDetailUserInvoice,
                       shipmentDateUserInvoice, shipmentTimeUserInvoice
         PROPERTIES(d) BEFORE deleteid SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      expiryDateUserInvoiceDetail, name###stockProp###userInvoiceDetail ON CHANGE changeData###stockProp###filter###userInvoiceDetail(d), shipmentSumUserInvoiceDetail
+                      manufactureDateUserInvoiceDetail, expiryDateUserInvoiceDetail, name###stockProp###userInvoiceDetail ON CHANGE changeData###stockProp###filter###userInvoiceDetail(d), shipmentSumUserInvoiceDetail
         PROPERTIES(d) BEFORE deleteid BACKGROUND backgroundShippedInvoice(i) shipmentPriceUserInvoiceDetail
         PROPERTIES(d) READONLY shippedInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF showShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
         PROPERTIES(d) shipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
@@ -270,7 +271,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
     EXTEND FORM invoices
         PROPERTIES(i) READONLY BACKGROUND backgroundShippedInvoice(i) shipmentSumInvoiceDetailInvoice BEFORE ordersInvoice
         PROPERTIES(d) READONLY SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      expiryDateInvoiceDetail, name###stockProp###invoiceDetail, shipmentPriceInvoiceDetail, shipmentSumInvoiceDetail
+                      manufactureDateInvoiceDetail, expiryDateInvoiceDetail, name###stockProp###invoiceDetail, shipmentPriceInvoiceDetail, shipmentSumInvoiceDetail
         PROPERTIES(d) READONLY shippedInvoiceDetail AFTER quantityInvoiceDetail SHOWIF showShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
         PROPERTIES(d) READONLY shipmentQuantityInvoiceDetail AFTER quantityInvoiceDetail SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
     ;
@@ -278,7 +279,8 @@ META defineInvoiceShipment(sign, stockProp, filter)
         PROPERTIES (d) READONLY BACKGROUND backgroundShippedInvoice(i)  toShipInvoiceDetail, shipmentPriceInvoiceDetail
     ;
     
-    overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
+    overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {
+        manufactureDateUserInvoiceDetail(d) <- manufactureDateUserInvoiceDetail(detail);  
         expiryDateUserInvoiceDetail(d) <- expiryDateUserInvoiceDetail(detail);
         shipmentPriceUserInvoiceDetail(d) <- shipmentPriceUserInvoiceDetail(detail);           
     }        
@@ -340,6 +342,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
 
     quantityShipmentDetail(shipmentDetail) += shipmentQuantityInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
     expiryDateShipmentDetail(shipmentDetail) += expiryDateInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
+    manufactureDateShipmentDetail(shipmentDetail) += manufactureDateInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
 
     priceInvoiceShipmentDetail(invoiceShipmentDetail) = shipmentPriceInvoiceDetail(invoiceDetailInvoiceShipmentDetail(invoiceShipmentDetail));
     priceShipmentDetail(shipmentDetail) += priceInvoiceShipmentDetail(shipmentDetail);
@@ -367,6 +370,7 @@ META defineInvoiceShipmentBatch(dumb)
     batchShipmentDetail (shipmentDetail) += batchInvoiceShipmentDetail(shipmentDetail);
 
     expiryDateUserInvoiceDetail(detail) <- prevExpiryDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
+    manufactureDateUserInvoiceDetail(detail) <- prevManufactureDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
 END
 
 META defineInvoiceShipmentPack(dumb)
