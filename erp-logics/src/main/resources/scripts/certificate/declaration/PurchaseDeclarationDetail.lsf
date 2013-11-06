@@ -371,6 +371,8 @@ sumDeclarationInvoiceDetail 'Стоимость' (d) = quantityDeclarationInvoic
 sumDeclarationInvoiceDetailDeclaration 'Сумма (по позициям накладной)' = GROUP SUM sumDeclarationInvoiceDetail(d)
                                                                                BY declarationDeclarationInvoiceDetail(d) MINCHARWIDTH 15;
 
+overQuantityDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationInvoiceDetail, UserInvoiceDetail);
+
 createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTION (declaration) {
     DELETE d WHERE declarationDeclarationInvoiceDetail(d) == declaration;
 
@@ -386,8 +388,10 @@ createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTI
         customsGroupDeclarationInvoiceDetail(did) <- customsGroupUserInvoiceDetail (id);
         VATCustomsExceptionDeclarationInvoiceDetail(did) <- VATCustomsExceptionUserInvoiceDetail(id);
         
-        quantityDeclarationInvoiceDetail(did) <- quantityUserInvoiceDetail(id);
+        quantityDeclarationInvoiceDetail(did) <- quantityUserInvoiceDetail(id);          
         priceDeclarationInvoiceDetail(did) <- priceUserInvoiceDetail(id);
+        
+        EXEC overQuantityDeclarationInvoiceDetail(did, id);
     } 
 } TOOLBAR CONFIRM;
 
@@ -689,6 +693,8 @@ quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityDeclarationInvoiceDet
                                               countryDeclarationInvoiceDetail(d),
                                               priceDeclarationInvoiceDetail(d); //PERSISTENT;
 
+overQuantityDeclarationDetail = ABSTRACT ACTION LIST (DeclarationDetail, Declaration, VARSTRING[200], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[14,2]);
+
 createDeclarationDetailDeclaration 'Создать позиции' = ACTION (declaration) {
     DELETE d WHERE declarationDeclarationDetail(d) == declaration;
     FOR quantity == quantityGroupDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ADDOBJ dd=DeclarationDetail DO {
@@ -703,6 +709,7 @@ createDeclarationDetailDeclaration 'Создать позиции' = ACTION (dec
 
         // Значения
         quantityDeclarationDetail (dd) <- quantity;
+        EXEC overQuantityDeclarationDetail(dd, declaration, customsName, UOM, customsGroup, customsException, country, price);
 
         // связываем строки накладной и декларации
         declarationDetailDeclarationInvoiceDetail(id) <- dd WHERE
