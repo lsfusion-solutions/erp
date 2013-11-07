@@ -7,6 +7,14 @@ NAMESPACE Purchase;
 // добавляем в инвойс декларацию
 @defineDocumentCertificate(declaration, invoice, i, 'Таможенная декларация');
 
+inInvoiceDeclaration (invoice, declaration)= GROUP SUM 1 BY invoiceInvoiceDetail(d), declarationInvoiceDetail(d);
+
+invoicesDeclaration 'Накладные' (declaration) =
+    GROUP CONCAT shortDescriptionInvoice(invoice) IF inInvoiceDeclaration (invoice, declaration), ','
+              BY declaration ORDER invoice MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
+
+inInvoiceDeclarationInvoiceDetail = inInvoiceDeclaration(invoiceInvoiceDetail(detail), declarationInvoiceDetail(detail)); 
+
 sumInvoiceDetailDeclaration 'Сумма (по накладным)' = GROUP SUM sumInvoiceDetail(d)
                                                           BY declarationInvoiceDetail(d) MINCHARWIDTH 15;
 sumUserInvoiceDetailDeclaration 'Сумма (по накладным)' = GROUP SUM sumUserInvoiceDetail(d)

@@ -238,10 +238,6 @@ inDeclarationUserInvoice 'Вкл.' (declaration, invoice) = declarationUserInvoi
 
 inDeclarationUserInvoiceDetail 'Вкл.' (declaration, detail) = dataDeclarationUserInvoiceDetail(detail) == declaration;
 
-invoicesDeclaration 'Накладные' (declaration) =
-    GROUP CONCAT shortDescriptionInvoice(invoice) IF inDeclarationUserInvoice (declaration, invoice), ','
-              BY declaration ORDER invoice MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
-
 FORM declarationInvoices 'Выбрать накладные'
     OBJECTS d=Declaration FIXED PANEL                           
     PROPERTIES(d) READONLY seriesNumberDeclaration, nameLegalEntityDeclaration, nameCurrencyDeclaration, dateTimeDeclaration
@@ -253,7 +249,7 @@ FORM declarationInvoices 'Выбрать накладные'
 
     OBJECTS id=UserInvoiceDetail
     PROPERTIES(d, id) inDeclarationUserInvoiceDetail
-    PROPERTIES(id) READONLY indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail,
+    PROPERTIES(id) READONLY indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail, codeCustomsGroupUserInvoiceDetail,
                             quantityUserInvoiceDetail, priceUserInvoiceDetail
     FILTERS userInvoiceUserInvoiceDetail(id) == i,
             declarationUserInvoiceDetail(id)==d OR d IS Declaration AND NOT declarationUserInvoiceDetail(id)
@@ -844,10 +840,6 @@ EXTEND FORM declaration
 
 
 //-- Декларирование
-inInvoiceDeclaration (invoice, declaration)= GROUP SUM 1 IF declarationInvoiceDetail(detail)== declaration AND invoiceInvoiceDetail(detail) == invoice BY invoice, declaration;
-
-inInvoiceDeclarationInvoiceDetail = inInvoiceDeclaration(invoiceInvoiceDetail(detail), declarationInvoiceDetail(detail)); 
-
 createDeclarationDetailUserInvoice 'Рассчитать платежи' (userInvoice) = ACTION (userInvoice) {
     FOR inInvoiceDeclaration(userInvoice, declaration) DO {
         createDeclarationInvoiceDetailDeclaration(declaration);
@@ -920,7 +912,7 @@ EXTEND FORM declaration
     OBJECTS cdu = UserInvoice
     PROPERTIES inCustomsDocumentUserInvoice(cd, cdu)
     PROPERTIES(cdu) READONLY dateUserInvoice, seriesNumberUserInvoice
-    FILTERS inDeclarationUserInvoice(d, cdu)
+    FILTERS inInvoiceDeclaration(cdu, d)
 ;
 
 EXTEND DESIGN declaration {
