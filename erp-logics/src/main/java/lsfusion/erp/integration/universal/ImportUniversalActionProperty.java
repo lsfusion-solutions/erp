@@ -34,6 +34,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         super(LM, valueClass);
     }
 
+    public ImportUniversalActionProperty(ScriptingLogicsModule LM) {
+        super(LM);
+    }
+
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
     }
@@ -85,7 +89,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     protected Date getCSVDateFieldValue(String[] values, String index, Date defaultValue) throws ParseException {
         String value = getCSVFieldValue(values, parseIndex(index), null, null, null);
-        return value == null ? defaultValue : new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy"}).getTime());
+        return value == null ? defaultValue : parseDate(value);
     }
 
     protected String getXLSFieldValue(HSSFSheet sheet, Integer row, String[] cells) throws ParseException {
@@ -371,10 +375,18 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 //чит для даты с месяцем прописью
                 return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
             }
-            return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd.MM.yyyy"}).getTime());
+            return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy"}).getTime());
         } catch (ParseException e) {
             return null;
         }
+    }
+
+    protected String trim(String input) {
+        return input == null ? null : trim(input, input.trim().length());
+    }
+
+    protected String trim(String input, Integer length) {
+        return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }
 }
 

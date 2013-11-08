@@ -1,6 +1,5 @@
 package lsfusion.erp.integration.universal;
 
-import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -11,24 +10,18 @@ import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.xBaseJ.xBaseJException;
 
 import java.io.File;
-import java.io.IOException;
 import java.sql.SQLException;
-import java.text.ParseException;
-import java.util.HashMap;
 import java.util.Map;
 
-public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
+public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty {
 
     public ImportSaleOrdersActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
@@ -44,10 +37,11 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<Object, Object> importTypeQuery = new QueryBuilder<Object, Object>(importTypeKeys);
             importTypeQuery.addProperty("autoImportDirectoryImportType", getLCP("autoImportDirectoryImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionImportTypeFileExtensionImportType", getLCP("captionImportTypeFileExtensionImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionFileExtensionImportType", getLCP("captionFileExtensionImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("startRowImportType", getLCP("startRowImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("separatorImportType", getLCP("separatorImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionImportKeyTypeImportType", getLCP("captionImportKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionPrimaryKeyTypeImportType", getLCP("captionPrimaryKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionSecondaryKeyTypeImportType", getLCP("captionSecondaryKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
 
             importTypeQuery.addProperty("autoImportSupplierImportType", getLCP("autoImportSupplierImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("autoImportSupplierStockImportType", getLCP("autoImportSupplierStockImportType").getExpr(context.getModifier(), importTypeKey));
@@ -64,45 +58,41 @@ public class ImportSaleOrdersActionProperty extends ScriptingActionProperty {
 
                 DataObject importTypeObject = importTypeResult.getKey(i).valueIt().iterator().next();
 
-                String directory = (String) entryValue.get("autoImportDirectoryImportType").getValue();
-                String fileExtension = (String) entryValue.get("captionImportTypeFileExtensionImportType").getValue();
+                String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());
+                String fileExtension = trim((String) entryValue.get("captionFileExtensionImportType").getValue());
                 Integer startRow = (Integer) entryValue.get("startRowImportType").getValue();
                 startRow = startRow == null ? 1 : startRow;
-                String csvSeparator = (String) entryValue.get("separatorImportType").getValue();
-                String captionImportKeyTypeImportType = (String) entryValue.get("captionImportKeyTypeImportType").getValue();
+                String csvSeparator = trim((String) LM.findLCPByCompoundName("separatorImportType").read(context, importTypeObject));
+                csvSeparator = csvSeparator == null ? ";" : csvSeparator;
+                String primaryKeyType = parseKeyType((String) LM.findLCPByCompoundName("namePrimaryKeyTypeImportType").read(context, importTypeObject));
+                String secondaryKeyType = parseKeyType((String) LM.findLCPByCompoundName("nameSecondaryKeyTypeImportType").read(context, importTypeObject));
 
-                ObjectValue operation = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
-                DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
-                ObjectValue autoImportSupplier = entryValue.get("autoImportSupplierImportType");
-                DataObject autoImportSupplierObject = autoImportSupplier instanceof NullValue ? null : (DataObject) autoImportSupplier;
-                ObjectValue autoImportSupplierStock = entryValue.get("autoImportSupplierStockImportType");
-                DataObject autoImportSupplierStockObject = autoImportSupplierStock instanceof NullValue ? null : (DataObject) autoImportSupplierStock;
-                ObjectValue autoImportCustomer = entryValue.get("autoImportCustomerImportType");
-                DataObject autoImportCustomerObject = autoImportCustomer instanceof NullValue ? null : (DataObject) autoImportCustomer;
-                ObjectValue autoImportCustomerStock = entryValue.get("autoImportCustomerStockImportType");
-                DataObject autoImportCustomerStockObject = autoImportCustomerStock instanceof NullValue ? null : (DataObject) autoImportCustomerStock;
+                ObjectValue operationObject = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue supplierObject = entryValue.get("autoImportSupplierImportType");
+                ObjectValue supplierStockObject = entryValue.get("autoImportSupplierStockImportType");
+                ObjectValue customerObject = entryValue.get("autoImportCustomerImportType");
+                ObjectValue customerStockObject = entryValue.get("autoImportCustomerStockImportType");
 
                 Map<String, String[]> importColumns = ImportSaleOrderActionProperty.readImportColumns(context, LM, importTypeObject);
 
                 if (directory != null && fileExtension != null) {
-                    File dir = new File(directory.trim());
+                    File dir = new File(directory);
 
                     if (dir.exists()) {
 
                         for (File f : dir.listFiles()) {
-                            if (f.getName().toLowerCase().endsWith(fileExtension.trim().toLowerCase())) {
+                            if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
                                 DataObject orderObject = context.addObject((ConcreteCustomClass) LM.findClassByCompoundName("Sale.UserOrder"));
 
                                 try {
 
-                                    boolean importResult = new ImportSaleOrderActionProperty(LM).importOrders(context, orderObject, importColumns,
-                                            IOUtils.getFileBytes(f), fileExtension.trim(), startRow,
-                                            csvSeparator == null ? null : csvSeparator.trim(), captionImportKeyTypeImportType,
-                                            operationObject, autoImportSupplierObject, autoImportSupplierStockObject,
-                                            autoImportCustomerObject, autoImportCustomerStockObject);
+                                    boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context, orderObject,
+                                            importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, csvSeparator,
+                                            primaryKeyType, secondaryKeyType, operationObject, supplierObject,
+                                            supplierStockObject, customerObject, customerStockObject);                                                                                                        
 
                                     if (importResult)
-                                        renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());
+                                        renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
                                 } catch (Exception e) {
                                     ServerLoggers.systemLogger.error(e);

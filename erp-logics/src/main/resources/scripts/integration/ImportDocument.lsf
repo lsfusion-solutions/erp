@@ -2,14 +2,14 @@ MODULE ImportDocument;
 
 REQUIRE System, Import;
 
-CLASS ImportTypeFileExtension 'Тип файла' {
+CLASS FileExtension 'Тип файла' {
     xls 'XLS',
     xlsx 'XLSX',
     csv 'CSV',
     dbf 'DBF'
 }
 
-CLASS ImportKeyType 'Ключ товара' {
+CLASS KeyType 'Ключ товара' {
     barcode 'Штрихкод',
     batch   'Код партии',
     item    'Код товара'
@@ -43,7 +43,8 @@ CLASS ImportTypeDetail 'Свойство' {
     sumVAT 'Сумма НДС',
     invoiceSum 'Сумма с НДС',
     seriesPharmacy 'Серия лекарственного средства',
-    compliance 'Сертификат',
+    numberCompliance 'Номер сертификата',
+    dateCompliance 'Дата сертификата',
     declaration 'Декларация',
     expiryDate 'Срок годности',
     idArticle 'Код артикула',
@@ -74,15 +75,20 @@ TABLE importType(ImportType);
 nameImportType 'Имя' =  DATA VARSTRING[100](ImportType);
 startRowImportType 'Начинать со строки' = DATA INTEGER(ImportType);
 separatorImportType 'Разделитель' = DATA INTEGER(ImportType);
-importKeyTypeImportType 'Тип ключа' = DATA ImportKeyType(ImportType);
-captionImportKeyTypeImportType 'Тип ключа' (importType) = staticCaption(importKeyTypeImportType(importType));
-nameImportKeyTypeImportType 'Тип ключа' (importType) = staticName(importKeyTypeImportType(importType));
+
+primaryKeyTypeImportType 'Тип первичного ключа' = DATA KeyType(ImportType);
+captionPrimaryKeyTypeImportType 'Тип первичного ключа' (importType) = staticCaption(primaryKeyTypeImportType(importType));
+namePrimaryKeyTypeImportType 'Тип первичного ключа' (importType) = staticName(primaryKeyTypeImportType(importType));
+
+secondaryKeyTypeImportType 'Тип вторичного ключа' = DATA KeyType(ImportType);
+captionSecondaryKeyTypeImportType 'Тип вторичного ключа' (importType) = staticCaption(secondaryKeyTypeImportType(importType));
+nameSecondaryKeyTypeImportType 'Тип вторичного ключа' (importType) = staticName(secondaryKeyTypeImportType(importType));
 
 TABLE importTypeImportTypeDetail (ImportType, ImportTypeDetail);
 indexImportTypeImportTypeDetail 'Поле' = DATA VARSTRING[50] (ImportType, ImportTypeDetail);
 
-importTypeFileExtensionImportType  = DATA ImportTypeFileExtension(ImportType);
-captionImportTypeFileExtensionImportType 'Тип файла' (importType) = staticCaption(importTypeFileExtensionImportType(importType));
+fileExtensionImportType  = DATA FileExtension(ImportType);
+captionFileExtensionImportType 'Тип файла' (importType) = staticCaption(fileExtensionImportType(importType));
 
 autoImportOperationImportType =  DATA Operation.Operation(ImportType);
 nameAutoImportOperationImportType 'Операция'(importType) = Operation.nameOperation(autoImportOperationImportType(importType));
@@ -102,24 +108,24 @@ FORM importTypeDetails
     DIALOG ImportTypeDetail OBJECT itd
 ;
 
-FORM importTypeFileExtensions 'Типы файлов'
-    OBJECTS f=ImportTypeFileExtension
+FORM fileExtensions 'Типы файлов'
+    OBJECTS f=FileExtension
     PROPERTIES(f) READONLY staticCaption
-    DIALOG ImportTypeFileExtension OBJECT f
+    DIALOG FileExtension OBJECT f
 ;
 
-FORM importKeyTypes 'Типы ключа'
-    OBJECTS k=ImportKeyType
+FORM keyTypes 'Типы ключа'
+    OBJECTS k=KeyType
     PROPERTIES(k) READONLY staticCaption
-    DIALOG ImportKeyType OBJECT k
+    DIALOG KeyType OBJECT k
 ;
 
-showSeparator (importType) = importType==ImportTypeFileExtension.csv;
+showSeparator (importType) = importType==FileExtension.csv;
 
 FORM importType 'Тип импорта'
     OBJECTS i=ImportType FIXED PANEL
-    PROPERTIES(i) nameImportType, captionImportTypeFileExtensionImportType, startRowImportType,
-                  separatorImportType SHOWIF showSeparator(i), captionImportKeyTypeImportType
+    PROPERTIES(i) nameImportType, captionFileExtensionImportType, startRowImportType,
+                  separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, captionSecondaryKeyTypeImportType
     PROPERTIES(i) nameAutoImportOperationImportType FORCE PANEL, 
                   nameAutoImportSupplierImportType FORCE PANEL,
                   nameAutoImportSupplierStockImportType FORCE PANEL,
@@ -133,8 +139,8 @@ FORM importType 'Тип импорта'
 
 FORM importTypes 'Типы импорта'
     OBJECTS i=ImportType
-    PROPERTIES(i) READONLY nameImportType, captionImportTypeFileExtensionImportType, startRowImportType,
-                   separatorImportType SHOWIF showSeparator(i), captionImportKeyTypeImportType
+    PROPERTIES(i) READONLY nameImportType, captionFileExtensionImportType, startRowImportType,
+                   separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, captionSecondaryKeyTypeImportType
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE
     DIALOG ImportType OBJECT i
 ;
@@ -162,8 +168,8 @@ EXTEND DESIGN importType {
 
 EXTEND FORM integrationData
     OBJECTS i=ImportType
-    PROPERTIES(i) READONLY nameImportType, captionImportTypeFileExtensionImportType, startRowImportType,
-                   separatorImportType SHOWIF showSeparator(i), captionImportKeyTypeImportType
+    PROPERTIES(i) READONLY nameImportType, captionFileExtensionImportType, startRowImportType,
+                   separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, captionSecondaryKeyTypeImportType
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE
 ;
 

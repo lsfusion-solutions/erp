@@ -31,6 +31,7 @@ public class PurchaseInvoiceDetail {
     public BigDecimal invoiceSum;
     public BigDecimal manufacturingPrice;
     public String numberCompliance;
+    public Date dateCompliance;
     public String numberDeclaration;
     public Date expiryDate;
     public String idPharmacyPriceGroup;
@@ -61,12 +62,13 @@ public class PurchaseInvoiceDetail {
                                  String nameOriginCountry, String nameImportCountry, String idCustomer, 
                                  String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
                                  BigDecimal valueVAT, BigDecimal sumVAT, BigDecimal invoiceSum,
-                                 BigDecimal manufacturingPrice, String numberCompliance, String numberDeclaration,
-                                 Date expiryDate, String idPharmacyPriceGroup, String seriesPharmacy, String idArticle,
-                                 String captionArticle, String originalCaptionArticle, String idColor, String nameColor,
-                                 String idCollection, String nameCollection, String idSize, String nameSize, 
-                                 String idSeasonYear, String idSeason, String nameSeason, String idTheme, 
-                                 String nameTheme, BigDecimal netWeight, BigDecimal grossWeight, String composition, 
+                                 BigDecimal manufacturingPrice, String numberCompliance, Date dateCompliance, 
+                                 String numberDeclaration, Date expiryDate, String idPharmacyPriceGroup, 
+                                 String seriesPharmacy, String idArticle, String captionArticle, 
+                                 String originalCaptionArticle, String idColor, String nameColor, String idCollection,
+                                 String nameCollection, String idSize, String nameSize, String idSeasonYear, 
+                                 String idSeason, String nameSeason, String idTheme, String nameTheme, 
+                                 BigDecimal netWeight, BigDecimal grossWeight, String composition, 
                                  String originalComposition) {
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
@@ -94,6 +96,7 @@ public class PurchaseInvoiceDetail {
         this.invoiceSum = invoiceSum;
         this.manufacturingPrice = manufacturingPrice;
         this.numberCompliance = numberCompliance;
+        this.dateCompliance = dateCompliance;
         this.numberDeclaration = numberDeclaration;
         this.expiryDate = expiryDate;
         this.idPharmacyPriceGroup = idPharmacyPriceGroup;

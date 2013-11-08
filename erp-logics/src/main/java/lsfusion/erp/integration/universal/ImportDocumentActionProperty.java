@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.universal;
 
+import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -10,34 +11,23 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.apache.commons.lang.time.DateUtils;
-import org.apache.poi.hssf.usermodel.HSSFCell;
-import org.apache.poi.hssf.usermodel.HSSFRow;
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.xBaseJ.DBF;
-import org.xBaseJ.xBaseJException;
 
-import java.io.UnsupportedEncodingException;
-import java.math.BigDecimal;
-import java.sql.Date;
+import java.io.File;
+import java.io.IOException;
 import java.sql.SQLException;
-import java.text.ParseException;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public abstract class ImportDocumentActionProperty extends ImportUniversalActionProperty {
 
     public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
+    }
+
+    public ImportDocumentActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM);
     }
 
     @Override
@@ -63,12 +53,37 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
             String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
             if (indexes != null) {
                 String[] splittedIndexes = indexes.split("\\+");
-                for(int i = 0; i<splittedIndexes.length;i++)
+                for (int i = 0; i < splittedIndexes.length; i++)
                     splittedIndexes[i] = splittedIndexes[i].trim();
                 importColumns.put(field[field.length - 1], splittedIndexes);
             }
         }
         return importColumns.isEmpty() ? null : importColumns;
-    }   
+    }
+
+    public String parseKeyType(String keyType) {
+        String[] primaryParts = keyType == null ? null : keyType.split("\\.");
+        return primaryParts == null ? null : trim(primaryParts[primaryParts.length - 1]);
+    }
+
+    public String getKeyColumn(String keyType) {
+        return (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
+    }
+
+    public String getDBFCharset(File file) throws IOException {
+        byte charsetByte = IOUtils.getFileBytes(file)[29];
+        String charset;
+        switch (charsetByte) {
+            case (byte) 0x65:
+                charset = "cp866";
+                break;
+            case (byte) 0xC9:
+                charset = "cp1251";
+                break;
+            default:
+                charset = "cp866";
+        }
+        return charset;
+    }
 }
 
