@@ -24,16 +24,29 @@ percentSumSetDetail '% суммы' = DATA NUMERIC[8,2] (SetDetail);
 percentNetWeightSetDetail '% вес нетто' = DATA NUMERIC[8,2] (SetDetail);
 percentGrossWeightSetDetail '% вес брутто' = DATA NUMERIC[8,2] (SetDetail);
 
+sumPercentSumSetDetailSet 'Итого % суммы' (set) = GROUP SUM percentSumSetDetail(detail) BY setSetDetail(detail) IN documentSum;
+sumPercentNetWeightSetDetailSet 'Итого % вес нетто' (set) = GROUP SUM percentNetWeightSetDetail(detail) BY setSetDetail(detail) IN documentSum;
+sumPercentGrossWeightSetDetailSet 'Итого % вес брутто' (set) = GROUP SUM percentGrossWeightSetDetail(detail) BY setSetDetail(detail) IN documentSum;
+
+backgroundPercentSumSet 'Цвет' (set)= RGB(255,128,128) IF sumPercentSumSetDetailSet(set) != 100.0;
+backgroundPercentNetWeightSet 'Цвет' (set)= RGB(255,128,128) IF sumPercentNetWeightSetDetailSet(set) != 100.0;
+backgroundPercentPercentGrossWeightSet 'Цвет' (set)= RGB(255,128,128) IF sumPercentGrossWeightSetDetailSet(set) != 100.0;
+
 customsGroupSetDetail = DATA CustomsGroup (SetDetail);
 codeCustomsGroupSetDetail 'ТН ВЭД' (d) = codeCustomsGroup(customsGroupSetDetail(d));
 
 VATCustomsExceptionSetDetail = DATA VATCustomsException (SetDetail);
 nameVATCustomsExceptionSetDetail 'Льгота НДС' (d) = nameVATCustomsException(VATCustomsExceptionSetDetail(d));
 
+CONSTRAINT customsGroupSetDetail(d) AND VATCustomsExceptionSetDetail(d) 
+           AND NOT customsGroupVATCustomsException(VATCustomsExceptionSetDetail(d)) == customsGroupSetDetail(d)
+    CHECKED BY VATCustomsExceptionSetDetail MESSAGE 'Льгота НДС должна соответствовать ТН ВЭД для строки комплекта';
 
 FORM set 'Комплект'
     OBJECTS s=Set FIXED PANEL
-    PROPERTIES(s) nameSet, idSet SHOWIF showIDs()
+    PROPERTIES(s) nameSet, idSet SHOWIF showIDs(), sumPercentSumSetDetailSet BACKGROUND backgroundPercentSumSet(s), 
+                  sumPercentNetWeightSetDetailSet BACKGROUND backgroundPercentNetWeightSet(s), 
+                  sumPercentGrossWeightSetDetailSet BACKGROUND backgroundPercentPercentGrossWeightSet(s) 
     
     OBJECTS d=SetDetail 
     PROPERTIES(d) indexSetDetail READONLY, nameSetDetail, percentNetWeightSetDetail, percentGrossWeightSetDetail, 
@@ -46,8 +59,8 @@ FORM set 'Комплект'
 
 FORM sets 'Комплекты'
     OBJECTS s=Set
-    PROPERTIES(s) nameSet READONLY, idSet SHOWIF showIDs() READONLY, DELETE
-    PROPERTIES(s) ADDFORM, EDITFORM            
+    PROPERTIES(s) nameSet READONLY, idSet SHOWIF showIDs() READONLY, sumPercentSumSetDetailSet, sumPercentNetWeightSetDetailSet, sumPercentGrossWeightSetDetailSet 
+    PROPERTIES(s) DELETE, ADDFORM, EDITFORM            
     ORDER BY nameSet
     
     OBJECTS d=SetDetail 
@@ -63,43 +76,60 @@ inDeclarationInvoiceDetail 'Отм.' = DATA SESSION BOOLEAN (DeclarationInvoiceD
 inDeclarationInvoiceDetailDeclaration (declaration)= GROUP SUM 1 IF inDeclarationInvoiceDetail(d) BY  declarationDeclarationInvoiceDetail(d);
 
 overCreateSetDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationDetail);
-createSetDeclarationInvoiceDetail 'Разбить комплекты' = ACTION (declaration) {
-    IF inDeclarationInvoiceDetailDeclaration(declaration) THEN {
-        LOCAL set = Set(); 
+setDeclarationInvoiceDetail= DATA Set (DeclarationInvoiceDetail);
+nameSetDeclarationInvoiceDetail 'Комплект' (d) = nameSet(setDeclarationInvoiceDetail(d)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+countSetDeclarationInvoiceDetailDeclaration (declaration)= GROUP SUM 1 IF setDeclarationInvoiceDetail(d) BY  declarationDeclarationInvoiceDetail(d);
+
+createOverSetDeclarationDetailDeclarationInvoiceDetail = ACTION (did) {                         
         
-        FORM sets MODAL;
-        IF formResult() == FormResult.ok THEN {
-            set() <- chosenObject('s');
-            DELETE d WHERE declarationDeclarationDetail(d) == declaration AND inDeclarationInvoiceDetail(declarationInvoiceDetailDeclarationDetail(d));
+    FOR setSetDetail(sd) == setDeclarationInvoiceDetail(did) ADDOBJ dd = DeclarationDetail DO {
+
+        declarationDeclarationDetail(dd) <- declarationDeclarationInvoiceDetail(did);
+        declarationInvoiceDetailDeclarationDetail(dd) <- did;                             
+        
+        nameCustomsDeclarationDetail(dd) <- nameSetDetail(sd);
+        UOMDeclarationDetail(dd) <- UOMDeclarationInvoiceDetail(did);
+        
+        quantityDeclarationDetail(dd) <- quantityDeclarationInvoiceDetail(did) * coefficientQuantitySetDetail(sd);
+        
+        sumNetWeightDeclarationDetail(dd) <- sumNetWeightDeclarationInvoiceDetail(did) * percentNetWeightSetDetail(sd) / 100;
+        sumGrossWeightDeclarationDetail(dd) <- sumGrossWeightDeclarationInvoiceDetail(did) * percentGrossWeightSetDetail(sd) / 100;
+        
+        customsGroupDeclarationDetail(dd) <- customsGroupSetDetail (sd);
+        VATCustomsExceptionDeclarationDetail(dd) <- VATCustomsExceptionSetDetail(sd);                   
+                  
+        priceDeclarationDetail(dd) <- sumDeclarationInvoiceDetail(did) * percentSumSetDetail(sd) / quantityDeclarationDetail(dd) / 100;                          
+        overCreateSetDeclarationInvoiceDetail(dd);        
+        
+    } 
+}
+isSetDeclarationInvoiceDetail(did) += TRUE IF setDeclarationInvoiceDetail(did);
+overSetDeclarationInvoiceDetail (did) += ACTION (did) {
+    EXEC createOverSetDeclarationDetailDeclarationInvoiceDetail(did);
+}
+
+createSetDeclarationInvoiceDetail 'Разбить комплекты' = ACTION (declaration) {
+    IF inDeclarationInvoiceDetailDeclaration(declaration) THEN {     
+        IF  inDeclarationInvoiceDetailDeclaration(declaration) == countSetDeclarationInvoiceDetailDeclaration (declaration) THEN {          
+            DELETE d WHERE declarationDeclarationDetail(d) == declaration AND inDeclarationInvoiceDetail(declarationInvoiceDetailDeclarationDetail(d)) AND setDeclarationInvoiceDetail(declarationInvoiceDetailDeclarationDetail(d));           
             
-            FOR inDeclarationInvoiceDetail(did) AND declarationDeclarationInvoiceDetail(did) == declaration AND setSetDetail(sd) == set() ADDOBJ dd = DeclarationDetail DO {                              
+            FOR inDeclarationInvoiceDetail(did) AND declarationDeclarationInvoiceDetail(did) == declaration DO {                              
+                EXEC createOverSetDeclarationDetailDeclarationInvoiceDetail(did);   
+            }         
+        } ELSE {
+            CONFIRM 'Не для всех отмеченных позиций указан комплект. Продолжить?';
+            IF (confirmed()) THEN {
+                DELETE d WHERE declarationDeclarationDetail(d) == declaration AND inDeclarationInvoiceDetail(declarationInvoiceDetailDeclarationDetail(d)) AND setDeclarationInvoiceDetail(declarationInvoiceDetailDeclarationDetail(d));           
                 
-                declarationDeclarationDetail(dd) <- declaration;
-                declarationInvoiceDetailDeclarationDetail(dd) <- did;                             
-                
-                nameCustomsDeclarationDetail(dd) <- nameSetDetail(sd);
-                UOMDeclarationDetail(dd) <- UOMDeclarationInvoiceDetail(did);
-                
-                quantityDeclarationDetail(dd) <- quantityDeclarationInvoiceDetail(did) * coefficientQuantitySetDetail(sd);
-                
-                sumNetWeightDeclarationDetail(dd) <- sumNetWeightDeclarationInvoiceDetail(did) * percentNetWeightSetDetail(sd) / 100;
-                sumGrossWeightDeclarationDetail(dd) <- sumGrossWeightDeclarationInvoiceDetail(did) * percentGrossWeightSetDetail(sd) / 100;
-                
-                customsGroupDeclarationDetail(dd) <- customsGroupSetDetail (sd);
-                VATCustomsExceptionDeclarationDetail(dd) <- VATCustomsExceptionSetDetail(sd);                   
-                          
-                priceDeclarationDetail(dd) <- sumDeclarationInvoiceDetail(did) * percentSumSetDetail(sd) / quantityDeclarationDetail(dd) / 100;                          
-                overCreateSetDeclarationInvoiceDetail(dd);
-            } 
-        }       
+                FOR inDeclarationInvoiceDetail(did) AND declarationDeclarationInvoiceDetail(did) == declaration DO {                              
+                    EXEC createOverSetDeclarationDetailDeclarationInvoiceDetail(did);   
+                }             
+            }
+        }        
     } ELSE {
         MESSAGE 'Не отмечены строки, которые следует разукомплектовать';
     } 
-
 } TOOLBAR;
-
-setDeclarationInvoiceDetail= DATA Set (DeclarationInvoiceDetail);
-nameSetDeclarationInvoiceDetail 'Комплект' (d) = nameSet(setDeclarationInvoiceDetail(d)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 EXTEND FORM declaration   
     PROPERTIES(di) inDeclarationInvoiceDetail BEFORE nameCustomsDeclarationInvoiceDetail 

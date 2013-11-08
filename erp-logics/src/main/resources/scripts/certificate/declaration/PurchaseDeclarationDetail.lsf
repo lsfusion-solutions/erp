@@ -365,8 +365,6 @@ quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityUserInvoiceDetail(d)
                                               priceUserInvoiceDetail(d); //PERSISTENT;
 
 overCreateDeclarationInvoiceDetailDeclaration = ABSTRACT ACTION LIST (Declaration);
-//isSetUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
-//overQuantityDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationInvoiceDetail, UserInvoiceDetail);
 
 createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTION (declaration) {
     DELETE d WHERE declarationDeclarationInvoiceDetail(d) == declaration;
@@ -383,7 +381,6 @@ createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTI
 
         // Значения
         quantityDeclarationInvoiceDetail (dd) <- quantity;
-//        overQuantityDeclarationInvoiceDetail(dd, declaration, customsName, UOM, customsGroup, customsException, country, price);
 
         // связываем строки накладной и декларации
         declarationInvoiceDetailUserInvoiceDetail(id) <- dd WHERE
@@ -693,44 +690,43 @@ invoicesDeclarationDetail 'Накладные' (d) =
 // -------------------------------------- Создание позиций по строкам накладной -------------------------- //
 
 noneVATCustomsExceptionDeclarationInvoiceDetail(d) = OVERRIDE VATCustomsException.none, VATCustomsExceptionDeclarationInvoiceDetail(d);
-//quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityDeclarationInvoiceDetail(d)
-//                                           BY declarationDeclarationInvoiceDetail(d),
-//                                              nameCustomsDeclarationInvoiceDetail(d),
-//                                              UOMDeclarationInvoiceDetail(d),
-//                                              customsGroupDeclarationInvoiceDetail(d),
-//                                              noneVATCustomsExceptionDeclarationInvoiceDetail(d),
-//                                              countryDeclarationInvoiceDetail(d),
-//                                              priceDeclarationInvoiceDetail(d); //PERSISTENT;
 
-//overQuantityDeclarationDetail = ABSTRACT ACTION LIST (DeclarationDetail, Declaration, VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[14,2]);
+isSetDeclarationInvoiceDetail = ABSTRACT BOOLEAN (DeclarationInvoiceDetail);
+overSetDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationInvoiceDetail);
 
 overCreateDeclarationDetailDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationDetail, DeclarationInvoiceDetail);
+
 createDeclarationDetailDeclaration 'Создать позиции' = ACTION (declaration) {
     DELETE d WHERE declarationDeclarationDetail(d) == declaration;
-
-    FOR declarationDeclarationInvoiceDetail(did) == declaration ORDER did ADDOBJ dd = DeclarationDetail DO {
-        declarationDeclarationDetail(dd) <- declaration;
-        declarationInvoiceDetailDeclarationDetail(dd) <- did;
-        
-        nameCustomsDeclarationDetail(dd) <- nameCustomsDeclarationInvoiceDetail(did);
-        UOMDeclarationDetail(dd) <- UOMDeclarationInvoiceDetail(did); 
-        countryDeclarationDetail(dd) <- countryDeclarationInvoiceDetail(did); 
-        
-        sumNetWeightDeclarationDetail(dd) <- sumNetWeightDeclarationInvoiceDetail (did);
-        sumGrossWeightDeclarationDetail(dd) <- sumGrossWeightDeclarationInvoiceDetail (did);
-        
-        customsGroupDeclarationDetail(dd) <- customsGroupDeclarationInvoiceDetail (did);
-        VATCustomsExceptionDeclarationDetail(dd) <- VATCustomsExceptionDeclarationInvoiceDetail(did);
-        
-        quantityDeclarationDetail(dd) <- quantityDeclarationInvoiceDetail(did);          
-        priceDeclarationDetail(dd) <- priceDeclarationInvoiceDetail(did);
-        
-        overCreateDeclarationDetailDeclarationInvoiceDetail(dd, did);
-    } 
-
+    FOR declarationDeclarationInvoiceDetail(did) == declaration ORDER did  DO {
+        IF isSetDeclarationInvoiceDetail(did) THEN {
+            overSetDeclarationInvoiceDetail(did);
+        } ELSE {    
+            FOR declarationDeclarationInvoiceDetail(did) == declaration ORDER did ADDOBJ dd = DeclarationDetail DO {
+                declarationDeclarationDetail(dd) <- declaration;
+                declarationInvoiceDetailDeclarationDetail(dd) <- did;
+                
+                nameCustomsDeclarationDetail(dd) <- nameCustomsDeclarationInvoiceDetail(did);
+                UOMDeclarationDetail(dd) <- UOMDeclarationInvoiceDetail(did); 
+                countryDeclarationDetail(dd) <- countryDeclarationInvoiceDetail(did); 
+                
+                sumNetWeightDeclarationDetail(dd) <- sumNetWeightDeclarationInvoiceDetail (did);
+                sumGrossWeightDeclarationDetail(dd) <- sumGrossWeightDeclarationInvoiceDetail (did);
+                
+                customsGroupDeclarationDetail(dd) <- customsGroupDeclarationInvoiceDetail (did);
+                VATCustomsExceptionDeclarationDetail(dd) <- VATCustomsExceptionDeclarationInvoiceDetail(did);
+                
+                quantityDeclarationDetail(dd) <- quantityDeclarationInvoiceDetail(did);          
+                priceDeclarationDetail(dd) <- priceDeclarationInvoiceDetail(did);
+                
+                overCreateDeclarationDetailDeclarationInvoiceDetail(dd, did);
+            }         
+        }
+    }
     registrationSumDeclaration(declaration) <- calcRegistrationSumDeclaration(declaration);
 } TOOLBAR CONFIRM;
 
+//------------------------------ Копирование строк --------------------// 
 overCopyDetailDeclarationDetail = ABSTRACT ACTION LIST (DeclarationDetail, DeclarationDetail);
 
 copyDeclarationDetail 'Копировать' = ACTION (detail) {
