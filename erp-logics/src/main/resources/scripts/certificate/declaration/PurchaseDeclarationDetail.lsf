@@ -313,7 +313,7 @@ EXTEND DESIGN declaration {
 
 //------------------------------------------ Разбиение строк инвойсов -------------------------------------------------//
 
-CLASS DeclarationInvoiceDetail 'Позиции накладной';
+CLASS DeclarationInvoiceDetail 'Позиции декларации';
 TABLE declarationInvoiceDetail(DeclarationInvoiceDetail);
 
 declarationDeclarationInvoiceDetail = DATA Declaration (DeclarationInvoiceDetail) NOT NULL DELETE;
@@ -323,7 +323,7 @@ declarationInvoiceDetailUserInvoiceDetail = DATA DeclarationInvoiceDetail (UserI
 //userInvoiceDetailDeclarationInvoiceDetail = DATA UserInvoiceDetail (DeclarationInvoiceDetail) NOT NULL DELETE;
 //userInvoiceDeclarationInvoiceDetail (d) = userInvoiceUserInvoiceDetail(userInvoiceDetailDeclarationInvoiceDetail(d));  
 
-nameCustomsDeclarationInvoiceDetail 'Наименование' = DATA VARISTRING[255] (DeclarationInvoiceDetail);
+nameCustomsDeclarationInvoiceDetail 'Наименование' = DATA VARISTRING[255] (DeclarationInvoiceDetail) IN recognize;
 
 //UOMDeclarationInvoiceDetail 'Ед. изм.' (d) = UOMUserInvoiceDetail (userInvoiceDetailDeclarationInvoiceDetail(d)) PERSISTENT;
 
@@ -332,13 +332,13 @@ shortNameUOMDeclarationInvoiceDetail 'Ед. изм.' (d) = shortNameUOM(UOMDecla
 
 //countryDeclarationInvoiceDetail 'Страна' (d) = countrySkuUserInvoiceDetail (userInvoiceDetailDeclarationInvoiceDetail(d)) PERSISTENT;
 countryDeclarationInvoiceDetail 'Страна' (d) = DATA Country (DeclarationInvoiceDetail) PERSISTENT;
-nameCountryDeclarationInvoiceDetail 'Страна' (d) = nameCountry(countryDeclarationInvoiceDetail(d));
+nameCountryDeclarationInvoiceDetail 'Страна' (d) = nameCountry(countryDeclarationInvoiceDetail(d)) IN recognize;
 
 sumNetWeightDeclarationInvoiceDetail 'Вес нетто' (d) = DATA NUMERIC[9,3] (DeclarationInvoiceDetail); 
 sumGrossWeightDeclarationInvoiceDetail 'Вес брутто' (d) = DATA NUMERIC[9,3] (DeclarationInvoiceDetail);
 
 customsGroupDeclarationInvoiceDetail 'ТН ВЭД' (d) = DATA CustomsGroup (DeclarationInvoiceDetail);
-codeCustomsGroupDeclarationInvoiceDetail 'ТН ВЭД' (d) = codeCustomsGroup(customsGroupDeclarationInvoiceDetail(d));
+codeCustomsGroupDeclarationInvoiceDetail 'ТН ВЭД' (d) = codeCustomsGroup(customsGroupDeclarationInvoiceDetail(d)) IN recognize;
 
 VATCustomsExceptionDeclarationInvoiceDetail 'Льгота НДС' = DATA VATCustomsException (DeclarationInvoiceDetail);
 nameVATCustomsExceptionDeclarationInvoiceDetail 'Льгота НДС' (d) = nameVATCustomsException(VATCustomsExceptionDeclarationInvoiceDetail(d));
@@ -351,7 +351,7 @@ quantityDeclarationInvoiceDetail 'Кол-во' = DATA NUMERIC[14,3](DeclarationI
 priceDeclarationInvoiceDetail 'Цена' = DATA NUMERIC[14,2] (DeclarationInvoiceDetail);
 sumDeclarationInvoiceDetail 'Стоимость' (d) = quantityDeclarationInvoiceDetail(d) * priceDeclarationInvoiceDetail(d);
 
-sumDeclarationInvoiceDetailDeclaration 'Сумма (по позициям накладной)' = GROUP SUM sumDeclarationInvoiceDetail(d)
+sumDeclarationInvoiceDetailDeclaration 'Сумма (по позициям декларации)' = GROUP SUM sumDeclarationInvoiceDetail(d)
                                                                                BY declarationDeclarationInvoiceDetail(d) MINCHARWIDTH 15;
 
 noneVATCustomsExceptionUserInvoiceDetail(d) = OVERRIDE VATCustomsException.none, VATCustomsExceptionUserInvoiceDetail(d);
@@ -416,9 +416,9 @@ EXTEND DESIGN declaration {
     }
 }
 
-//------------------------------------------ Позиции декларации -------------------------------------------------------//
+//------------------------------------------ Строки декларации -------------------------------------------------------//
 
-CLASS DeclarationDetail 'Позиция декларации';
+CLASS DeclarationDetail 'Строка декларации';
 TABLE declarationDetail(DeclarationDetail);
 
 declarationDeclarationDetail = DATA Declaration(DeclarationDetail);
@@ -687,7 +687,20 @@ invoicesDeclarationDetail 'Накладные' (d) =
     GROUP CONCAT seriesNumberInvoice(i) IF inDeclarationDetailUserInvoice(d, i), ','
               BY d ORDER i MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
 
-// -------------------------------------- Создание позиций по строкам накладной -------------------------- //
+// --------------------------------- Ограничение на строки декларации ----------------------------------- //
+
+sumNetWeightDeclarationDetailDeclarationInvoiceDetail (d) = GROUP SUM sumNetWeightDeclarationDetail(d) BY declarationInvoiceDetailDeclarationDetail(d); 
+sumGrossWeightDeclarationDetailDeclarationInvoiceDetail (d) = GROUP SUM sumGrossWeightDeclarationDetail(d) BY declarationInvoiceDetailDeclarationDetail(d);
+sumDeclarationDetailDeclarationInvoiceDetail (d) = GROUP SUM sumDeclarationDetail(d) BY declarationInvoiceDetailDeclarationDetail(d);
+
+CONSTRAINT sumNetWeightDeclarationDetailDeclarationInvoiceDetail(d) != sumNetWeightDeclarationInvoiceDetail(d) 
+    MESSAGE 'Вес нетто строк деклараций не соответствует весу нетто позиции декларации'; 
+CONSTRAINT sumGrossWeightDeclarationDetailDeclarationInvoiceDetail(d) != sumGrossWeightDeclarationInvoiceDetail(d) 
+    MESSAGE 'Вес брутто строк деклараций не соответствует весу брутто позиции декларации'; 
+CONSTRAINT sumDeclarationDetailDeclarationInvoiceDetail(d) != sumDeclarationInvoiceDetail(d) 
+    MESSAGE 'Сумма строк деклараций не соответствует сумме позиции декларации'; 
+
+// -------------------------------------- Создание строк по позициям деклараций -------------------------- //
 
 noneVATCustomsExceptionDeclarationInvoiceDetail(d) = OVERRIDE VATCustomsException.none, VATCustomsExceptionDeclarationInvoiceDetail(d);
 
@@ -696,7 +709,7 @@ overSetDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationInvoiceDetail
 
 overCreateDeclarationDetailDeclarationInvoiceDetail = ABSTRACT ACTION LIST (DeclarationDetail, DeclarationInvoiceDetail);
 
-createDeclarationDetailDeclaration 'Создать позиции' = ACTION (declaration) {
+createDeclarationDetailDeclaration 'Создать строки' = ACTION (declaration) {
     DELETE d WHERE declarationDeclarationDetail(d) == declaration;
     FOR declarationDeclarationInvoiceDetail(did) == declaration ORDER did  DO {
         IF isSetDeclarationInvoiceDetail(did) THEN {
@@ -765,7 +778,7 @@ EXTEND FORM declaration
     FILTERS declarationDeclarationDetail(dd) == d
 
     FILTERGROUP filters
-        FILTER 'По позициям накладной' 'F4' declarationInvoiceDetailDeclarationDetail(dd) == di DEFAULT 
+        FILTER 'По позициям декларации' 'F4' declarationInvoiceDetailDeclarationDetail(dd) == di DEFAULT 
 ;
 
 EXTEND DESIGN declaration {
