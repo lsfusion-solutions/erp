@@ -364,7 +364,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 dateWithoutDay.setTime(DateUtils.parseDate(value, new String[]{"MMyy", "MM.yyyy", "MM-yyyy"}));
                 dateWithoutDay.set(Calendar.DAY_OF_MONTH, dateWithoutDay.getActualMaximum(Calendar.DAY_OF_MONTH));
                 return new Date(dateWithoutDay.getTime().getTime());
-            } else if (value.length() == 8 && Integer.parseInt(value.substring(3, 5)) > 12) {
+            } else if (value.length() == 8 && !value.contains(".") && Integer.parseInt(value.substring(4, 6)) > 12) {
                 //чит для отличия ddMMyyyy от yyyyMMdd
                 return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
             } else if (value.length() > 12) {
