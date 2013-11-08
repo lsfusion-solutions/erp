@@ -400,7 +400,15 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 fields.add(numberComplianceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).numberCompliance);
-            }
+
+                if (showField(userInvoiceDetailsList, "dateCompliance")) {
+                    ImportField dateComplianceField = new ImportField(LM.findLCPByCompoundName("dateCompliance"));
+                    props.add(new ImportProperty(dateComplianceField, LM.findLCPByCompoundName("dateCompliance").getMapping(complianceKey)));                                        
+                    fields.add(dateComplianceField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
+                }
+            }          
 
             if (showField(userInvoiceDetailsList, "numberDeclaration")) {
                 ImportField numberDeclarationField = new ImportField(LM.findLCPByCompoundName("numberDeclaration"));
