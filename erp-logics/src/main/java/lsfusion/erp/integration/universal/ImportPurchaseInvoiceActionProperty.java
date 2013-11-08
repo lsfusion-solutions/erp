@@ -103,7 +103,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                             if (userInvoiceDetailsList != null && userInvoiceDetailsList.size() >= 2)
                                 importUserInvoices(userInvoiceDetailsList.get(1), session, userInvoiceObject,
-                                        primaryKeyType, operationObject, supplierObject, supplierStockObject,
+                                        secondaryKeyType, operationObject, supplierObject, supplierStockObject,
                                         customerObject, customerStockObject);
                             
                             session.apply(context.getBL());
