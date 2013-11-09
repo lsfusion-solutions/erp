@@ -140,8 +140,13 @@ sidOrigin2CountrySkuUserInvoiceDetail 'Код страны' (d) = sidOrigin2Coun
 
 UOMUserInvoiceDetail(d) = UOMSku(skuUserInvoiceDetail(d));
 
-sumNetWeightUserInvoiceDetail 'Вес нетто' (d) = netWeightSku(skuUserInvoiceDetail(d)) * quantityUserInvoiceDetail(d);
-sumGrossWeightUserInvoiceDetail 'Вес брутто' (d) = grossWeightSku(skuUserInvoiceDetail(d)) * quantityUserInvoiceDetail(d);
+sumNetWeightUserInvoiceDetail 'Вес нетто' = DATA NUMERIC[9,3] (UserInvoiceDetail);
+sumGrossWeightUserInvoiceDetail 'Вес брутто' = DATA NUMERIC[9,3] (UserInvoiceDetail);
+ 
+sumNetWeightUserInvoiceDetail(d) <- netWeightSku(skuUserInvoiceDetail(d)) * quantityUserInvoiceDetail(d)
+    WHEN CHANGED(skuUserInvoiceDetail(d)) OR CHANGED(quantityUserInvoiceDetail(d));
+sumGrossWeightUserInvoiceDetail(d) <- grossWeightSku(skuUserInvoiceDetail(d)) * quantityUserInvoiceDetail(d)
+    WHEN CHANGED(skuUserInvoiceDetail(d)) OR CHANGED(quantityUserInvoiceDetail(d));
 
 // ТН ВЭД
 customsGroupInvoiceDetail = ABSTRACT CustomsGroup(InvoiceDetail);
@@ -361,7 +366,7 @@ quantityGroupDeclaration 'Кол-во' = GROUP SUM quantityUserInvoiceDetail(d)
                                               UOMUserInvoiceDetail(d),
                                               customsGroupUserInvoiceDetail(d),
                                               noneVATCustomsExceptionUserInvoiceDetail(d),
-                                              countryUserInvoiceDetail(d),
+                                              countrySkuUserInvoiceDetail(d),
                                               priceUserInvoiceDetail(d); //PERSISTENT;
 
 overCreateDeclarationInvoiceDetailDeclaration = ABSTRACT ACTION LIST (Declaration);
@@ -389,7 +394,7 @@ createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTI
             UOMUserInvoiceDetail(id) == UOM AND
             customsGroupUserInvoiceDetail(id) == customsGroup AND
             noneVATCustomsExceptionUserInvoiceDetail(id) == customsException AND
-            countryUserInvoiceDetail(id) == country AND
+            countrySkuUserInvoiceDetail(id) == country AND
             priceUserInvoiceDetail(id) == price;
     }
 
