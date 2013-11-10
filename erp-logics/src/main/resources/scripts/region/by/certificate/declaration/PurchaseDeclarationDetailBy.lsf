@@ -1,7 +1,33 @@
 MODULE PurchaseDeclarationDetailBy;
 
-REQUIRE PurchaseDeclarationDetail, LegalEntityBy;
+REQUIRE PurchaseDeclarationDetail, LegalEntityBy, Item;
 
 NAMESPACE Purchase;
 
 UNPLegalEntityDeclaration 'Полное имя импортера' (declaration) = UNPLegalEntity(legalEntityDeclaration(declaration));
+
+customsCodeUOM 'Код в декларации' = DATA VARSTRING[3] (UOM);
+EXTEND FORM UOM
+    PROPERTIES(u) customsCodeUOM
+;
+EXTEND FORM UOMs
+    PROPERTIES(u) READONLY customsCodeUOM
+;
+customsCodeUOMDeclarationDetail 'Код ед. изм. в декларации' (d) = customsCodeUOM(UOMDeclarationDetail(d));
+
+typePaymentCustomsDocument 'Вид платежа' = DATA VARSTRING[4] (CustomsDocument);
+refDocCustomsDocument 'Ссылка на документ' = DATA VARSTRING[6] (CustomsDocument);
+descriptionCustomsDocument 'Описание' = DATA VARSTRING[60] (CustomsDocument);
+
+isVATCustomsExceptionCustomsDocument 'По льготам' = DATA BOOLEAN (CustomsDocument); 
+
+inDeclarationDetailBrand = GROUP SUM 1 IF inDeclarationDetailUserInvoiceDetail(d, i) BY d, brandItem(skuUserInvoiceDetail(i));
+ 
+nameBrandDeclarationDetail 'Бренды' =
+    GROUP CONCAT nameBrand(b) IF inDeclarationDetailBrand(d, b), ','
+              BY d ORDER b MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
+
+
+EXTEND FORM declaration
+    PROPERTIES(cd) isVATCustomsExceptionCustomsDocument, typePaymentCustomsDocument, refDocCustomsDocument, descriptionCustomsDocument
+;
