@@ -531,7 +531,7 @@ VATSumDeclarationDetail 'НДС' = DATA NUMERIC[16,2] (DeclarationDetail) MINCHA
 // Порядковый номер строки
 numberDefaultDeclarationDetail 'Номер' (declarationDetail) =
         PARTITION SUM 1 IF declarationDetail IS DeclarationDetail BY declarationDeclarationDetail(declarationDetail)
-        ORDER declarationDetail;
+        ORDER codeCustomsGroupDeclarationDetail(declarationDetail), declarationDetail;
 
 userNumberDeclarationDetail 'Пользовательский номер' (declarationDetail) = DATA INTEGER (DeclarationDetail);
 numberDeclarationDetail 'Номер' (declarationDetail) = OVERRIDE numberDefaultDeclarationDetail(declarationDetail), userNumberDeclarationDetail(declarationDetail) MINCHARWIDTH 4 PREFCHARWIDTH 4;
@@ -913,6 +913,7 @@ EXTEND DESIGN userInvoice{
 CLASS CustomsDocument 'Дополнительные документы декларации';
 TABLE customsDocument(CustomsDocument);
 
+orderCustomsDocument 'Порядок' = DATA INTEGER (CustomsDocument);
 idCustomsDocument 'Код' = DATA VARSTRING[20] (CustomsDocument);
 nameCustomsDocument 'Наименование' = DATA VARSTRING[150] (CustomsDocument);
 dateCustomsDocument 'Дата' = DATA DATE (CustomsDocument);
@@ -924,7 +925,7 @@ inCustomsDocumentUserInvoice 'Вкл' = DATA BOOLEAN (CustomsDocument, UserInvoi
 
 EXTEND FORM declaration
     OBJECTS cd = CustomsDocument
-    PROPERTIES(cd) dateCustomsDocument, idCustomsDocument, nameCustomsDocument, sumCustomsDocument
+    PROPERTIES(cd) orderCustomsDocument, dateCustomsDocument, idCustomsDocument, nameCustomsDocument, sumCustomsDocument
     PROPERTIES(cd) ADDOBJ, deleted = DELETESESSION
     FILTERS declarationCustomsDocument(cd) == d
     
