@@ -476,6 +476,22 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     data.get(i).add(userInvoiceDetailsList.get(i).seriesPharmacy);
             }
 
+            if (showField(userInvoiceDetailsList, "sumNetWeight")) {
+                ImportField sumNetWeightField = new ImportField(LM.findLCPByCompoundName("sumNetWeightUserInvoiceDetail"));
+                props.add(new ImportProperty(sumNetWeightField, LM.findLCPByCompoundName("sumNetWeightUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                fields.add(sumNetWeightField);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).sumNetWeight);
+            }
+
+            if (showField(userInvoiceDetailsList, "sumGrossWeight")) {
+                ImportField sumGrossWeightField = new ImportField(LM.findLCPByCompoundName("sumGrossWeightUserInvoiceDetail"));
+                props.add(new ImportProperty(sumGrossWeightField, LM.findLCPByCompoundName("sumGrossWeightUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                fields.add(sumGrossWeightField);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).sumGrossWeight);
+            }
+
             if ((itemArticleLM != null)) {
 
                 ImportField idArticleField = new ImportField(itemArticleLM.findLCPByCompoundName("idArticle"));
@@ -802,7 +818,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate,
                     pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor,
                     nameColor, idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason, nameSeason,
-                    idTheme, nameTheme, netWeight, grossWeight, composition, originalComposition);
+                    idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition, originalComposition);
 
             String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
@@ -899,8 +915,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration,
                         expiryDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle,
                         originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize,
-                        idSeasonYear, idSeason, nameSeason, idTheme, nameTheme, netWeight, grossWeight, composition,
-                        originalComposition);
+                        idSeasonYear, idSeason, nameSeason, idTheme, nameTheme, netWeight, netWeightSum, grossWeight,
+                        grossWeightSum, composition, originalComposition);
 
                 String primaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(secondaryKeyColumn));
@@ -992,8 +1008,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration,
                     expiryDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle,
                     originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize,
-                    idSeasonYear, idSeason, nameSeason, idTheme, nameTheme, netWeight, grossWeight, composition,
-                    originalComposition);
+                    idSeasonYear, idSeason, nameSeason, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, 
+                    grossWeightSum, composition, originalComposition);
 
             String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
@@ -1091,7 +1107,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration,
                     expiryDate, pharmacyPriceGroup, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
                     idColor, nameColor, idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason,
-                    nameSeason, idTheme, nameTheme, netWeight, grossWeight, composition, originalComposition);
+                    nameSeason, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition,
+                    originalComposition);
 
             String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn));
