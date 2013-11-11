@@ -47,7 +47,13 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
             if (objectValue != null) {
                 List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
                 for (byte[] file : fileList) {
-                    importDuties(context, file);
+
+                    List<List<List<Object>>> data = importDutiesFromDBF(context, file);
+
+                    if (data != null && data.size() >= 1)
+                        importDuty(context, data.get(0));
+                    if (data != null && data.size() >= 2)
+                        importVAT(context, data.get(1));
                 }
             }
 
@@ -62,9 +68,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         }
     }
 
-    private void importDuties(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException {
-
-        List<List<Object>> data = importDutiesFromDBF(context, fileBytes);
+    private void importDuty(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException {
 
         List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
         List<ImportField> fields = new ArrayList<ImportField>();
@@ -89,11 +93,6 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         keys.add(dutyCustomsRateKey);
         props.add(new ImportProperty(idCustomsRateField, LM.findLCPByCompoundName("idDutyCustomsRate").getMapping(dutyCustomsRateKey)));
 
-        ImportKey<?> VATCustomsRateKey = new ImportKey((CustomClass) LM.findClassByCompoundName("VATCustomsRate"),
-                LM.findLCPByCompoundName("VATCustomsRateId").getMapping(idCustomsRateField));
-        keys.add(VATCustomsRateKey);
-        props.add(new ImportProperty(idCustomsRateField, LM.findLCPByCompoundName("idVATCustomsRate").getMapping(VATCustomsRateKey)));
-
         ImportField sumRegistrationCustomsRateField = new ImportField(LM.findLCPByCompoundName("sumRegistrationCustomsRate"));
         props.add(new ImportProperty(sumRegistrationCustomsRateField, LM.findLCPByCompoundName("sumRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
         props.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundName("customsGroupRegistrationCustomsRate").getMapping(registrationCustomsRateKey),
@@ -110,6 +109,47 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         props.add(new ImportProperty(weightDutyDutyCustomsRateField, LM.findLCPByCompoundName("weightDutyDutyCustomsRate").getMapping(dutyCustomsRateKey)));
         fields.add(weightDutyDutyCustomsRateField);
 
+        ImportField dateFromCustomsGroupField = new ImportField(DateClass.instance);
+        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundName("dateFromCustomsGroup").getMapping(customsGroupKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundName("dateFromRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundName("dateFromDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        fields.add(dateFromCustomsGroupField);
+
+        ImportField dateToCustomsGroupField = new ImportField(DateClass.instance);
+        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundName("dateToCustomsGroup").getMapping(customsGroupKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundName("dateToRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundName("dateToDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        fields.add(dateToCustomsGroupField);
+
+        ImportTable table = new ImportTable(fields, data);
+
+        DataSession session = context.createSession();
+        IntegrationService service = new IntegrationService(session, table, keys, props);
+        service.synchronize(true, false);
+        session.apply(context.getBL());
+        session.close();
+    }
+
+    private void importVAT(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> data) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException {
+
+        List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+        List<ImportField> fields = new ArrayList<ImportField>();
+        List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+        ImportField codeCustomsGroupField = new ImportField(LM.findLCPByCompoundName("codeCustomsGroup"));
+        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) LM.findClassByCompoundName("CustomsGroup"),
+                LM.findLCPByCompoundName("customsGroupCode").getMapping(codeCustomsGroupField));
+        keys.add(customsGroupKey);
+        fields.add(codeCustomsGroupField);
+
+        ImportField idCustomsRateField = new ImportField(LM.findLCPByCompoundName("idRegistrationCustomsRate"));
+        fields.add(idCustomsRateField);
+       
+        ImportKey<?> VATCustomsRateKey = new ImportKey((CustomClass) LM.findClassByCompoundName("VATCustomsRate"),
+                LM.findLCPByCompoundName("VATCustomsRateId").getMapping(idCustomsRateField));
+        keys.add(VATCustomsRateKey);
+        props.add(new ImportProperty(idCustomsRateField, LM.findLCPByCompoundName("idVATCustomsRate").getMapping(VATCustomsRateKey)));
+       
         ImportField rangeField = new ImportField(LM.findLCPByCompoundName("dataValueSupplierVATCustomsGroupDate"));
         ImportKey<?> rangeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Range"),
                 LM.findLCPByCompoundName("valueCurrentVATDefaultValue").getMapping(rangeField));
@@ -120,16 +160,10 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         fields.add(rangeField);
 
         ImportField dateFromCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundName("dateFromCustomsGroup").getMapping(customsGroupKey)));
-        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundName("dateFromRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
-        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundName("dateFromDutyCustomsRate").getMapping(dutyCustomsRateKey)));
         props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundName("dateFromVATCustomsRate").getMapping(VATCustomsRateKey)));
         fields.add(dateFromCustomsGroupField);
 
         ImportField dateToCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundName("dateToCustomsGroup").getMapping(customsGroupKey)));
-        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundName("dateToRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
-        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundName("dateToDutyCustomsRate").getMapping(dutyCustomsRateKey)));
         props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundName("dateToVATCustomsRate").getMapping(VATCustomsRateKey)));
         fields.add(dateToCustomsGroupField);
 
@@ -142,7 +176,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         session.close();
     }
 
-    private List<List<Object>> importDutiesFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
+    private List<List<List<Object>>> importDutiesFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         Set<String> tnvedSet = getTNVEDSet(context);
 
@@ -153,7 +187,8 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
 
         Map<String, BigDecimal> registrationMap = new HashMap<String, BigDecimal>();
 
-        List<List<Object>> data = new ArrayList<List<Object>>();
+        List<List<Object>> dataDuty = new ArrayList<List<Object>>();
+        List<List<Object>> dataVAT = new ArrayList<List<Object>>();
         Map<String, List<Object>> dataVATMap = new HashMap<String, List<Object>>();
 
         int recordCount = file.getRecordCount();
@@ -173,7 +208,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
                         registrationMap.put(codeCustomsGroup, stav_a);
                     break;
                 case 2:
-                    data.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, null, dateFrom, dateTo));
+                    dataDuty.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, /*null, */dateFrom, dateTo));
                     break;
                 case 4:
                     dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), null, null, null, stav_a, dateFrom, dateTo));
@@ -186,12 +221,11 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
 
         for (String tnved : tnvedSet) {
             List<Object> entry = dataVATMap.get(tnved);
-            data.add(Arrays.asList(tnved, entry == null ? tnved + String.valueOf(defaultDateTo) : entry.get(1), entry == null ? null : entry.get(2),
-                    entry == null ? null : entry.get(3), entry == null ? null : entry.get(4), entry == null ? BigDecimal.valueOf(20) : entry.get(5),
+            dataVAT.add(Arrays.asList(tnved, entry == null ? tnved + String.valueOf(defaultDateTo) : entry.get(1), entry == null ? BigDecimal.valueOf(20) : entry.get(5),
                     entry == null ? defaultDateFrom : entry.get(6), entry == null ? defaultDateTo : entry.get(7)));
         }
 
-        return data;
+        return Arrays.asList(dataDuty, dataVAT);
     }
 
     private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException {
