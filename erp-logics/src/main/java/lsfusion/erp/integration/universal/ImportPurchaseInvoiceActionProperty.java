@@ -272,6 +272,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Manufacturer"),
                         LM.findLCPByCompoundName("manufacturerId").getMapping(idManufacturerField));
                 keys.add(manufacturerKey);
+                props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("nameManufacturer").getMapping(manufacturerKey)));
                 props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("idManufacturer").getMapping(manufacturerKey)));
                 props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("manufacturerItem").getMapping(itemKey),
                         LM.object(LM.findClassByCompoundName("Manufacturer")).getMapping(manufacturerKey)));
