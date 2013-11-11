@@ -236,7 +236,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isCustomsGroup.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        query.addProperty("codeCustomsGroup", getLCP("codeCustomsGroup").getExpr(context.getModifier(), key));
+        query.addProperty("codeCustomsGroup", LM.findLCPByCompoundName("codeCustomsGroup").getExpr(context.getModifier(), key));
         query.and(isCustomsGroup.getExpr(key).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context.getSession().sql);
 

@@ -39,15 +39,15 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
             ImRevMap<Object, KeyExpr> importUserPriceListTypeKeys = (ImRevMap<Object, KeyExpr>) isImportUserPriceListType.getMapKeys();
             KeyExpr importUserPriceListTypeKey = importUserPriceListTypeKeys.singleValue();
             QueryBuilder<Object, Object> importUserPriceListTypeQuery = new QueryBuilder<Object, Object>(importUserPriceListTypeKeys);
-            importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", getLCP("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("captionImportUserPriceListTypeFileExtensionImportUserPriceListType", getLCP("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("startRowImportUserPriceListType", getLCP("startRowImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("separatorImportUserPriceListType", getLCP("separatorImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("captionImportUserPriceListKeyTypeImportUserPriceListType", getLCP("captionImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", LM.findLCPByCompoundName("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("captionImportUserPriceListTypeFileExtensionImportUserPriceListType", LM.findLCPByCompoundName("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("startRowImportUserPriceListType", LM.findLCPByCompoundName("startRowImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("separatorImportUserPriceListType", LM.findLCPByCompoundName("separatorImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("captionImportUserPriceListKeyTypeImportUserPriceListType", LM.findLCPByCompoundName("captionImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
            
             importUserPriceListTypeQuery.and(isImportUserPriceListType.getExpr(importUserPriceListTypeKey).getWhere());
-            importUserPriceListTypeQuery.and(getLCP("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
-            importUserPriceListTypeQuery.and(getLCP("autoImportDirectoryImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
+            importUserPriceListTypeQuery.and(LM.findLCPByCompoundName("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
+            importUserPriceListTypeQuery.and(LM.findLCPByCompoundName("autoImportDirectoryImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> importUserPriceListTypeResult = importUserPriceListTypeQuery.executeClasses(context);
 
             for (int i = 0, size = importUserPriceListTypeResult.size(); i < size; i++) {

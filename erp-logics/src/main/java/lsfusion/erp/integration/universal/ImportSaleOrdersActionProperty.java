@@ -36,21 +36,21 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
             ImRevMap<Object, KeyExpr> importTypeKeys = (ImRevMap<Object, KeyExpr>) isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<Object, Object> importTypeQuery = new QueryBuilder<Object, Object>(importTypeKeys);
-            importTypeQuery.addProperty("autoImportDirectoryImportType", getLCP("autoImportDirectoryImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionFileExtensionImportType", getLCP("captionFileExtensionImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("startRowImportType", getLCP("startRowImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("separatorImportType", getLCP("separatorImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionPrimaryKeyTypeImportType", getLCP("captionPrimaryKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionSecondaryKeyTypeImportType", getLCP("captionSecondaryKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportDirectoryImportType", LM.findLCPByCompoundName("autoImportDirectoryImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionFileExtensionImportType", LM.findLCPByCompoundName("captionFileExtensionImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("startRowImportType", LM.findLCPByCompoundName("startRowImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("separatorImportType", LM.findLCPByCompoundName("separatorImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionPrimaryKeyTypeImportType", LM.findLCPByCompoundName("captionPrimaryKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionSecondaryKeyTypeImportType", LM.findLCPByCompoundName("captionSecondaryKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
 
-            importTypeQuery.addProperty("autoImportSupplierImportType", getLCP("autoImportSupplierImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportSupplierStockImportType", getLCP("autoImportSupplierStockImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerImportType", getLCP("autoImportCustomerImportType").getExpr(context.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerStockImportType", getLCP("autoImportCustomerStockImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportSupplierImportType", LM.findLCPByCompoundName("autoImportSupplierImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportSupplierStockImportType", LM.findLCPByCompoundName("autoImportSupplierStockImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportCustomerImportType", LM.findLCPByCompoundName("autoImportCustomerImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportCustomerStockImportType", LM.findLCPByCompoundName("autoImportCustomerStockImportType").getExpr(context.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(getLCP("autoImportImportType").getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(getLCP("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(LM.findLCPByCompoundName("autoImportImportType").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(LM.findLCPByCompoundName("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(context);
 
             for (int i = 0, size = importTypeResult.size(); i < size; i++) {

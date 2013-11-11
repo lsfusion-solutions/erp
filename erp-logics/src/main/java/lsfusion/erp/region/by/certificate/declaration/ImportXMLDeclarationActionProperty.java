@@ -136,11 +136,11 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                     properties.add(new ImportProperty(nameUOMField, LM.findLCPByCompoundName("nameUOM").getMapping(UOMKey)));
                     properties.add(new ImportProperty(nameUOMField, LM.findLCPByCompoundName("shortName").getMapping(UOMKey)));
                     properties.add(new ImportProperty(UOMIDField, LM.findLCPByCompoundName("idUOM").getMapping(UOMKey)));
-                    properties.add(new ImportProperty(UOMIDField, getLCP("UOMDeclarationDetail").getMapping(declarationDetailKey),
+                    properties.add(new ImportProperty(UOMIDField, LM.findLCPByCompoundName("UOMDeclarationDetail").getMapping(declarationDetailKey),
                             LM.object(getClass("UOM")).getMapping(UOMKey)));
 
-                    properties.add(new ImportProperty(codeCustomsGroupField, getLCP("codeCustomsGroup").getMapping(customsGroupKey)));
-                    properties.add(new ImportProperty(codeCustomsGroupField, getLCP("customsGroupDeclarationDetail").getMapping(declarationDetailKey),
+                    properties.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundName("codeCustomsGroup").getMapping(customsGroupKey)));
+                    properties.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundName("customsGroupDeclarationDetail").getMapping(declarationDetailKey),
                             LM.object(getClass("CustomsGroup")).getMapping(customsGroupKey)));
                     properties.add(new ImportProperty(sidOrigin2CountryField, LM.findLCPByCompoundName("sidOrigin2CountryDeclarationDetail").getMapping(declarationDetailKey)));
                     properties.add(new ImportProperty(sidOrigin2CountryField, LM.findLCPByCompoundName("countryDeclarationDetail").getMapping(declarationDetailKey),
