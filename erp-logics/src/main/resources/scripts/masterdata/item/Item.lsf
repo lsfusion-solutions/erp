@@ -448,6 +448,7 @@ END
 // ---------------------------- Конкретные свойства -------------------------------- //
 
 GROUP itemBase 'Базовые свойства' : base;
+GROUP itemOriginal 'Оригинальные свойства' : base;
 
 // Неактивный
 inactiveItemGroup 'Неактивная' = DATA BOOLEAN (ItemGroup);
@@ -474,7 +475,7 @@ EXTEND FORM dialogItemGroups
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(captionItem, 'Название', String, itemCaption);
 
-@defineStringItemAttribute(originalCaption, VARSTRING[100], 'Название (ориг.)', itemBase);
+@defineStringItemAttribute(originalCaption, VARSTRING[100], 'Название (ориг.)', itemOriginal);
 
 // Единица измерения
 @defineObjectItemAttribute(UOM, UOM, nameUOM, 'Единица измерения', itemBase);
@@ -553,7 +554,7 @@ DESIGN manufacturerDialog FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @defineItemAttributeBatch (composition, 'Состав');
 compositionSku (sku) += compositionItem(sku);
 
-@defineStringItemAttribute(originalComposition, STRING[255], 'Состав (ориг.)', itemBase);
+@defineStringItemAttribute(originalComposition, STRING[255], 'Состав (ориг.)', itemOriginal);
 
 // Тара
 skuTypeItem = DATA SkuType (Item);
@@ -736,7 +737,9 @@ DESIGN itemGroup FROM DEFAULT{
             ADD g.itemBase {
                 columns = 6;
             }
-
+            ADD g.itemOriginal {
+                columns = 6;            
+            }
             ADD g.itemSize {
                 columns = 6;
             }
@@ -751,10 +754,12 @@ overCopyItemBarcode = ABSTRACT ACTION LIST (Barcode, Barcode, Sku);
 copyDataItem = ACTION (item, i) {
     itemGroupItem(i) <- itemGroupItem(item);
     captionItem(i) <- captionItem(item);
+    originalCaptionItem(i) <- originalCaptionItem(item);
     UOMItem(i) <- UOMItem(item);
     brandItem(i) <- brandItem(item);
     manufacturerItem(i) <- manufacturerItem(item);
     compositionItem(i) <- compositionItem(item);
+    originalCompositionItem(i) <- originalCompositionItem(item);
     netWeightItem(i) <- netWeightItem(item);
     grossWeightItem(i) <- grossWeightItem(item);
     countryItem(i) <- countryItem(item);
@@ -762,8 +767,6 @@ copyDataItem = ACTION (item, i) {
     skuTypeItem(i) <- skuTypeItem(item);
     isWeightItem(i) <- isWeightItem(item);
     inactiveItem(i) <- inactiveItem(item);
-    originalCaptionItem(i) <- originalCaptionItem(item);
-    originalCompositionItem(i) <- originalCompositionItem(item);
 
     FOR skuBarcode(barcode) == item DO {
         FOR ADDOBJ b = Barcode DO {

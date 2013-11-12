@@ -4,20 +4,15 @@ REQUIRE System, Item, Tax;
 
 NAMESPACE Item;
 
-GROUP itemArticle 'Артикул' : public;
-GROUP articleBase 'Базовые свойства' : base;
-GROUP articleSupplier 'Информация от поставщика' : base;
-GROUP articleDescription 'Описание' : base;
-GROUP articleSeason 'Сезон' : base;
-GROUP articleSize 'Габариты' : base;
+GROUP itemArticle 'Артикул' : base;
 
 // Артикул
 CLASS Article 'Артикул';
 TABLE article(Article);
 
 @defineExternalizable(article, VARSTRING[100]);
-captionArticle 'Название' = DATA VARISTRING[100](Article) IN articleBase MINCHARWIDTH 20 PREFCHARWIDTH 40;
-originalCaptionArticle 'Наименование (ориг.)' = DATA VARSTRING[100] (Article) IN articleSupplier MINCHARWIDTH 20 PREFCHARWIDTH 40;
+captionArticle 'Название' = DATA VARISTRING[100](Article) IN itemBase MINCHARWIDTH 20 PREFCHARWIDTH 40;
+originalCaptionArticle 'Наименование (ориг.)' = DATA VARSTRING[100] (Article) IN itemOriginal MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 itemGroupArticle  = DATA ItemGroup(Article);
 nameItemGroupArticle 'Товарная группа' (Article) = nameItemGroup(itemGroupArticle(Article));
@@ -33,7 +28,7 @@ imageArticle 'Изображение' = DATA IMAGEFILE (Article) TABLE imagesArt
 
 FORM article 'Артикул'
     OBJECTS a=Article FIXED PANEL
-    PROPERTIES(a) captionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, imageArticle
+    PROPERTIES(a) captionArticle, originalCaptionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, imageArticle
 
     OBJECTS c = Country
     PROPERTIES (c) READONLY nameCountry
@@ -54,9 +49,11 @@ DESIGN article FROM DEFAULT {
             type = TABBED;
             NEW articlePrimary {
                 type = CONTAINERV;
-                type = CONTAINERV;
                 caption = 'Основные данные';
-                ADD a.articleBase {
+                ADD a.itemBase {
+                    type = CONTAINERH;
+                }
+                ADD a.itemOriginal {
                     type = CONTAINERH;
                 }
                 NEW regionPrm {
@@ -88,7 +85,7 @@ FORM articles 'Артикулы'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeItemGroup(g) DEFAULT
 
     OBJECTS a=Article
-    PROPERTIES(a) READONLYIF isReadonly() captionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle
+    PROPERTIES(a) READONLYIF isReadonly() captionArticle, originalCaptionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle
     PROPERTIES(a) ADDFORM, EDITFORM, deletea=DELETE
     ORDER BY captionArticle
 
@@ -162,35 +159,35 @@ calcColorItem (item)= OVERRIDE (Color.none IF item IS Item), colorItem(item);
 countColorArticle 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY calcColorItem(item), articleItem(item) PERSISTENT;
 
 colorArticle  = DATA Color(Article);
-nameColorArticle 'Цвет' (Article) = nameColor(colorArticle(Article)) IN articleDescription;
+nameColorArticle 'Цвет' (Article) = nameColor(colorArticle(Article)) IN itemArticle;
 
 EXTEND FORM article PROPERTIES(a) nameColorArticle;
 EXTEND DESIGN article  {
     articlePrimary {
-        ADD a.articleDescription {type = CONTAINERH;}
+        ADD a.itemArticle { type = CONTAINERH; }
     }
 }
 EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameColorArticle;
 
 //  Ед. изм.
 UOMArticle  = DATA UOM (Article);
-nameUOMArticle 'Единица измерения' (article) = nameUOM(UOMArticle(article)) IN articleBase MINCHARWIDTH 10 PREFCHARWIDTH 10;
+nameUOMArticle 'Единица измерения' (article) = nameUOM(UOMArticle(article)) IN itemBase MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
 //  Состав
-compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN articleBase MINCHARWIDTH 30 PREFCHARWIDTH 40;
-originalCompositionArticle 'Состав (ориг.)' = DATA VARSTRING[255] (Article) IN articleSupplier MINCHARWIDTH 30 PREFCHARWIDTH 40;
+compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN itemBase MINCHARWIDTH 30 PREFCHARWIDTH 40;
+originalCompositionArticle 'Состав (ориг.)' = DATA VARSTRING[255] (Article) IN itemOriginal MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
-EXTEND FORM article PROPERTIES(a) compositionArticle, nameUOMArticle;
-EXTEND FORM articles PROPERTIES(a) BEFORE nameColorArticle(a) READONLYIF isReadonly() nameUOMArticle, compositionArticle;
+EXTEND FORM article PROPERTIES(a) compositionArticle, originalCompositionArticle, nameUOMArticle;
+EXTEND FORM articles PROPERTIES(a) BEFORE nameColorArticle(a) READONLYIF isReadonly() nameUOMArticle, compositionArticle, originalCompositionArticle;
 
 //  Габариты
-netWeightArticle 'Вес нетто, кг' = DATA NUMERIC[9,3] (Article) IN articleSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
-grossWeightArticle 'Вес брутто, кг' = DATA NUMERIC[9,3] (Article) IN articleSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
+netWeightArticle 'Вес нетто, кг' = DATA NUMERIC[9,3] (Article) IN itemSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
+grossWeightArticle 'Вес брутто, кг' = DATA NUMERIC[9,3] (Article) IN itemSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
 
 EXTEND FORM article PROPERTIES(a) netWeightArticle, grossWeightArticle;
 EXTEND DESIGN article {
     articlePrimary {
-        ADD a.articleSize {type = CONTAINERH;}
+        ADD a.itemSize {type = CONTAINERH;}
     }
 }
 EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() netWeightArticle, grossWeightArticle;
@@ -219,7 +216,7 @@ FORM collections 'Цвета товара'
 DESIGN collections FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 collectionArticle  = DATA Collection(Article);
-nameCollectionArticle 'Коллекция' (Article) = nameCollection(collectionArticle(Article)) IN articleDescription MINCHARWIDTH 10 PREFCHARWIDTH 20;
+nameCollectionArticle 'Коллекция' (Article) = nameCollection(collectionArticle(Article)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
 EXTEND FORM article PROPERTIES(a)  nameCollectionArticle;
 EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameCollectionArticle;
@@ -362,10 +359,10 @@ FORM seasonYears 'Годы'
 DESIGN seasonYears FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 seasonArticle = DATA Season (Article);
-nameSeasonArticle 'Сезон' (a) = nameSeason(seasonArticle(a)) IN articleSeason MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameSeasonArticle 'Сезон' (a) = nameSeason(seasonArticle(a)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 seasonYearArticle = DATA SeasonYear (Article);
-nameSeasonYearArticle 'Год' (a) = nameSeasonYear(seasonYearArticle(a)) IN articleSeason MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameSeasonYearArticle 'Год' (a) = nameSeasonYear(seasonYearArticle(a)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 seasonItem (item) = seasonArticle(articleItem(item));
 nameSeasonItem 'Сезон' (i) = nameSeason(seasonItem(i)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
@@ -374,20 +371,13 @@ seasonYearItem (item) = seasonYearArticle(articleItem(item));
 nameSeasonYearItem 'Год' (i) = nameSeasonYear(seasonYearItem(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 EXTEND FORM item
-    PROPERTIES(i)  nameSeasonYearItem, nameSeasonItem
+    PROPERTIES(i) nameSeasonYearItem, nameSeasonItem
 ;
 EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() AFTER nameSizeHeightItem(i) nameSeasonYearItem, nameSeasonItem;
 
 EXTEND FORM article
     PROPERTIES(a)  nameSeasonYearArticle, nameSeasonArticle
 ;
-EXTEND DESIGN article  {
-    articlePrimary {
-        ADD a.articleSeason AFTER a.articleDescription{                     
-            type = CONTAINERH;
-        }
-    }
-}
 
 EXTEND FORM articles
     PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  nameSeasonYearArticle, nameSeasonArticle
@@ -397,9 +387,9 @@ EXTEND FORM articles
 EXTEND FORM article
 
     OBJECTS i = Item
-    PROPERTIES (i) captionItem, originalCaptionItem, canonicalNameItemGroupItem, compositionItem, nameUOMItem, nameColorItem,                        
+    PROPERTIES (i) captionItem, compositionItem, nameUOMItem, nameColorItem,                        
                    nameSizeItem, nameSizeHeightItem     
-    PROPERTIES (i) ADDOBJ, DELETESESSION   
+    PROPERTIES (i) ADDOBJ, deletei = DELETESESSION   
                                                                     
     FILTERS articleItem(i) == a      
 ;
@@ -412,7 +402,7 @@ EXTEND DESIGN article {
 EXTEND FORM articles
 
     OBJECTS i = Item
-    PROPERTIES (i) READONLY captionItem, originalCaptionItem, compositionItem, nameUOMItem, nameColorItem, 
+    PROPERTIES (i) READONLY captionItem, compositionItem, nameUOMItem, nameColorItem, 
                    nameSizeItem, nameSizeHeightItem       
     
     FILTERS articleItem(i) == a      

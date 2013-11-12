@@ -7,11 +7,11 @@ NAMESPACE CustomsGroup;
 //-- ТН ВЭД
 TABLE countryArticle(Country, Article);
 customsGroupCountryArticle = DATA CustomsGroup(Country, Article);
-codeCustomsGroupCountryArticle 'ТН ВЭД' (country, article) = codeCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplier MINCHARWIDTH 10 PREFCHARWIDTH 15;
-nameCustomsGroupCountryArticle 'Позиция ТН ВЭД' (country, article) = nameCustomsGroup(customsGroupCountryArticle(country, article)) IN articleSupplier MINCHARWIDTH 30 PREFCHARWIDTH 40;
-codeCustomsGroupDefaultCountryArticle 'ТН ВЭД' (article) = codeCustomsGroup(customsGroupCountryArticle(defaultCountry(), article)) IN articleSupplier MINCHARWIDTH 10 PREFCHARWIDTH 15;
+codeCustomsGroupCountryArticle 'ТН ВЭД' (country, article) = codeCustomsGroup(customsGroupCountryArticle(country, article)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameCustomsGroupCountryArticle 'Позиция ТН ВЭД' (country, article) = nameCustomsGroup(customsGroupCountryArticle(country, article)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+codeCustomsGroupDefaultCountryArticle 'ТН ВЭД' (article) = codeCustomsGroup(customsGroupCountryArticle(defaultCountry(), article)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-originalCustomsGroupArticle 'Код ТНВЭД' = DATA STRING[10] (Article);
+originalCustomsGroupArticle 'Код ТНВЭД' = DATA STRING[10] (Article) IN base;
 
 changeCustomsGroupDefaultCountryArticle = ACTION (article) {
     REQUEST OBJECT cg
@@ -28,16 +28,22 @@ CONSTRAINT customsZoneCustomsGroup(customsGroupCountryArticle(country, article))
     MESSAGE 'Таможенная зона должна соответствовать стране';
 
 EXTEND FORM article
-    PROPERTIES(a)    codeCustomsGroupDefaultCountryArticle  ON CHANGE changeCustomsGroupDefaultCountryArticle(a)
+    PROPERTIES(a)    originalCustomsGroupArticle,
+                     codeCustomsGroupDefaultCountryArticle  ON CHANGE changeCustomsGroupDefaultCountryArticle(a)
     PROPERTIES(c, a) codeCustomsGroupCountryArticle
     
-    PROPERTIES(i)    codeCustomsGroupDefaultCountryItem ON CHANGE changeCustomsGroupDefaultCountryItem(i) 
+    PROPERTIES(i) BEFORE deletei codeCustomsGroupDefaultCountryItem ON CHANGE changeCustomsGroupDefaultCountryItem(i) 
 ;
 EXTEND DESIGN article  {
     regionPrm {
+        ADD PROPERTY(originalCustomsGroupArticle);
         ADD PROPERTY(codeCustomsGroupDefaultCountryArticle);
     }
 }
+
+EXTEND FORM articles
+    PROPERTIES(a) originalCustomsGroupArticle
+;
 
 WHEN SESSION FORMS article CHANGED(customsGroupCountryArticle(country, article)) DO         
     customsGroupCountryItem(country, i) <- customsGroupCountryArticle(country, article) WHERE articleItem(i) == article;      
