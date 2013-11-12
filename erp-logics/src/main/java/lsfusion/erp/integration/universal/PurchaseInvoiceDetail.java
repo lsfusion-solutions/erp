@@ -18,6 +18,7 @@ public class PurchaseInvoiceDetail {
     public String originalCaptionItem;
     public String idUOM;
     public String idManufacturer;
+    public String nameManufacturer;
     public String nameCountry;
     public String nameOriginCountry;
     public String nameImportCountry;
@@ -48,6 +49,8 @@ public class PurchaseInvoiceDetail {
     public String idSeasonYear;
     public String idSeason;
     public String nameSeason;
+    public String idBrand;
+    public String nameBrand;
     public String idTheme;
     public String nameTheme;
     public BigDecimal netWeight;
@@ -60,8 +63,8 @@ public class PurchaseInvoiceDetail {
     public PurchaseInvoiceDetail(String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
                                  String idUserInvoiceDetail, String idBarcodeSku, String idBatch, String idItem, 
                                  String idItemGroup, String originalCustomsGroupItem, String captionItem, 
-                                 String originalCaptionItem, String idUOM, String idManufacturer, String nameCountry,
-                                 String nameOriginCountry, String nameImportCountry, String idCustomer, 
+                                 String originalCaptionItem, String idUOM, String idManufacturer, String nameManufacturer, 
+                                 String nameCountry, String nameOriginCountry, String nameImportCountry, String idCustomer, 
                                  String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
                                  BigDecimal valueVAT, BigDecimal sumVAT, BigDecimal invoiceSum,
                                  BigDecimal manufacturingPrice, String numberCompliance, Date dateCompliance, 
@@ -69,9 +72,9 @@ public class PurchaseInvoiceDetail {
                                  String seriesPharmacy, String idArticle, String captionArticle, 
                                  String originalCaptionArticle, String idColor, String nameColor, String idCollection,
                                  String nameCollection, String idSize, String nameSize, String idSeasonYear, 
-                                 String idSeason, String nameSeason, String idTheme, String nameTheme, 
-                                 BigDecimal netWeight, BigDecimal sumNetWeight, BigDecimal grossWeight, 
-                                 BigDecimal sumGrossWeight,  String composition, String originalComposition) {
+                                 String idSeason, String nameSeason, String idBrand, String nameBrand, String idTheme,
+                                 String nameTheme, BigDecimal netWeight, BigDecimal sumNetWeight, BigDecimal grossWeight, 
+                                 BigDecimal sumGrossWeight, String composition, String originalComposition) {
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
         this.currencyUserInvoice = currencyUserInvoice;
@@ -85,6 +88,7 @@ public class PurchaseInvoiceDetail {
         this.originalCaptionItem = originalCaptionItem;
         this.idUOM = idUOM;
         this.idManufacturer = idManufacturer;
+        this.nameManufacturer = nameManufacturer;
         this.nameCountry = nameCountry;
         this.nameOriginCountry = nameOriginCountry;
         this.nameImportCountry = nameImportCountry;
@@ -115,6 +119,8 @@ public class PurchaseInvoiceDetail {
         this.idSeasonYear = idSeasonYear;
         this.idSeason = idSeason;
         this.nameSeason = nameSeason;
+        this.idBrand = idBrand;
+        this.nameBrand = nameBrand;
         this.idTheme = idTheme;
         this.nameTheme = nameTheme;
         this.netWeight = netWeight;

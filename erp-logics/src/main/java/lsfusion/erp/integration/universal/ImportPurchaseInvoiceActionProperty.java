@@ -52,7 +52,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         try {
 
             DataSession session = context.getSession();
-            
+
             this.purchaseManufacturingPriceLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseManufacturingPrice");
             this.itemPharmacyByLM = (ScriptingLogicsModule) context.getBL().getModule("ItemPharmacyBy");
             this.purchaseInvoicePharmacyLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoicePharmacy");
@@ -75,12 +75,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 Integer startRow = (Integer) LM.findLCPByCompoundName("startRowImportType").read(session, importTypeObject);
                 startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
 
-                ObjectValue operationObject = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);               
+                ObjectValue operationObject = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierObject = LM.findLCPByCompoundName("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierStockObject = LM.findLCPByCompoundName("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerObject = LM.findLCPByCompoundName("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerStockObject = LM.findLCPByCompoundName("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
-                
+
                 Map<String, String[]> importColumns = readImportColumns(context, LM, importTypeObject);
 
                 if (importColumns != null && fileExtension != null) {
@@ -91,13 +91,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
 
                         for (byte[] file : fileList) {
-                                                      
+
                             List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = importUserInvoicesFromFile(session,
                                     (Integer) userInvoiceObject.object, importColumns, file, fileExtension, startRow, csvSeparator,
                                     primaryKeyType, secondaryKeyType);
 
                             if (userInvoiceDetailsList != null && userInvoiceDetailsList.size() >= 1)
-                                importUserInvoices(userInvoiceDetailsList.get(0), session, userInvoiceObject, 
+                                importUserInvoices(userInvoiceDetailsList.get(0), session, userInvoiceObject,
                                         primaryKeyType, operationObject, supplierObject, supplierStockObject,
                                         customerObject, customerStockObject);
 
@@ -105,7 +105,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                                 importUserInvoices(userInvoiceDetailsList.get(1), session, userInvoiceObject,
                                         secondaryKeyType, operationObject, supplierObject, supplierStockObject,
                                         customerObject, customerStockObject);
-                            
+
                             session.apply(context.getBL());
                             session.close();
 
@@ -272,13 +272,20 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Manufacturer"),
                         LM.findLCPByCompoundName("manufacturerId").getMapping(idManufacturerField));
                 keys.add(manufacturerKey);
-                props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("nameManufacturer").getMapping(manufacturerKey)));
                 props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("idManufacturer").getMapping(manufacturerKey)));
                 props.add(new ImportProperty(idManufacturerField, LM.findLCPByCompoundName("manufacturerItem").getMapping(itemKey),
                         LM.object(LM.findClassByCompoundName("Manufacturer")).getMapping(manufacturerKey)));
                 fields.add(idManufacturerField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idManufacturer);
+
+                if (showField(userInvoiceDetailsList, "nameManufacturer")) {
+                    ImportField nameManufacturerField = new ImportField(LM.findLCPByCompoundName("nameManufacturer"));
+                    props.add(new ImportProperty(nameManufacturerField, LM.findLCPByCompoundName("nameManufacturer").getMapping(manufacturerKey)));
+                    fields.add(nameManufacturerField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).nameManufacturer);
+                }
             }
 
             if (showField(userInvoiceDetailsList, "nameCountry")) {
@@ -404,12 +411,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 if (showField(userInvoiceDetailsList, "dateCompliance")) {
                     ImportField dateComplianceField = new ImportField(LM.findLCPByCompoundName("dateCompliance"));
-                    props.add(new ImportProperty(dateComplianceField, LM.findLCPByCompoundName("dateCompliance").getMapping(complianceKey)));                                        
+                    props.add(new ImportProperty(dateComplianceField, LM.findLCPByCompoundName("dateCompliance").getMapping(complianceKey)));
                     fields.add(dateComplianceField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
                 }
-            }          
+            }
 
             if (showField(userInvoiceDetailsList, "numberDeclaration")) {
                 ImportField numberDeclarationField = new ImportField(LM.findLCPByCompoundName("numberDeclaration"));
@@ -686,6 +693,29 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     }
                 }
 
+                if (showField(userInvoiceDetailsList, "idBrand")) {
+                    ImportField idBrandField = new ImportField(itemArticleLM.findLCPByCompoundName("idBrand"));
+                    ImportKey<?> brandKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Brand"),
+                            itemArticleLM.findLCPByCompoundName("brandId").getMapping(idBrandField));
+                    keys.add(brandKey);
+                    props.add(new ImportProperty(idBrandField, itemArticleLM.findLCPByCompoundName("idBrand").getMapping(brandKey)));
+                    props.add(new ImportProperty(idBrandField, itemArticleLM.findLCPByCompoundName("brandArticle").getMapping(articleKey),
+                            LM.object(itemArticleLM.findClassByCompoundName("Brand")).getMapping(brandKey)));
+                    props.add(new ImportProperty(idBrandField, itemArticleLM.findLCPByCompoundName("brandItem").getMapping(itemKey),
+                            LM.object(itemArticleLM.findClassByCompoundName("Brand")).getMapping(brandKey)));
+                    fields.add(idBrandField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).idBrand);
+
+                    if (showField(userInvoiceDetailsList, "nameBrand")) {
+                        ImportField nameBrandField = new ImportField(itemArticleLM.findLCPByCompoundName("nameBrand"));
+                        props.add(new ImportProperty(nameBrandField, itemArticleLM.findLCPByCompoundName("nameBrand").getMapping(brandKey)));
+                        fields.add(nameBrandField);
+                        for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                            data.get(i).add(userInvoiceDetailsList.get(i).nameBrand);
+                    }
+                }
+
                 /*if (showField(userInvoiceDetailsList, "idTheme")) {
                     ImportField idThemeField = new ImportField(itemArticleLM.findLCPByCompoundName("idTheme"));
                     ImportKey<?> themeKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Theme"),
@@ -765,7 +795,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String captionItem = getXLSFieldValue(sheet, i, importColumns.get("captionItem"));
             String originalCaptionItem = getXLSFieldValue(sheet, i, importColumns.get("originalCaptionItem"));
             String UOMItem = getXLSFieldValue(sheet, i, importColumns.get("UOMItem"));
-            String manufacturerItem = getXLSFieldValue(sheet, i, importColumns.get("manufacturerItem"));
+            String idManufacturer = getXLSFieldValue(sheet, i, importColumns.get("idManufacturer"));
+            String nameManufacturer = getXLSFieldValue(sheet, i, importColumns.get("nameManufacturer"));
             String nameCountry = getXLSFieldValue(sheet, i, importColumns.get("nameCountry"));
             nameCountry = nameCountry == null ? null : nameCountry.replace("*", "").trim().toUpperCase();
             String nameOriginCountry = getXLSFieldValue(sheet, i, importColumns.get("nameOriginCountry"));
@@ -800,6 +831,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idSeasonYear = getXLSFieldValue(sheet, i, importColumns.get("idSeasonYear"));
             String idSeason = getXLSFieldValue(sheet, i, importColumns.get("idSeason"));
             String nameSeason = getXLSFieldValue(sheet, i, importColumns.get("nameSeason"));
+            String idBrand = getXLSFieldValue(sheet, i, importColumns.get("idBrand"));
+            String nameBrand = getXLSFieldValue(sheet, i, importColumns.get("nameBrand"));
             String idTheme = getXLSFieldValue(sheet, i, importColumns.get("idTheme"));
             String nameTheme = getXLSFieldValue(sheet, i, importColumns.get("nameTheme"));
             BigDecimal netWeight = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("netWeight"));
@@ -813,12 +846,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
                     idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem,
-                    captionItem, originalCaptionItem, UOMItem, manufacturerItem, nameCountry, nameOriginCountry,
+                    captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry,
                     importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate,
                     pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor,
                     nameColor, idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason, nameSeason,
-                    idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition, originalComposition);
+                    idBrand, nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, 
+                    composition, originalComposition);
 
             String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
@@ -862,7 +896,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String captionItem = getCSVFieldValue(values, importColumns.get("captionItem"));
                 String originalCaptionItem = getCSVFieldValue(values, importColumns.get("originalCaptionItem"));
                 String UOMItem = getCSVFieldValue(values, importColumns.get("UOMItem"));
-                String manufacturerItem = getCSVFieldValue(values, importColumns.get("manufacturerItem"));
+                String idManufacturer = getCSVFieldValue(values, importColumns.get("idManufacturer"));
+                String nameManufacturer = getCSVFieldValue(values, importColumns.get("nameManufacturer"));
                 String nameCountry = getCSVFieldValue(values, importColumns.get("nameCountry"));
                 nameCountry = nameCountry == null ? null : nameCountry.replace("*", "").trim().toUpperCase();
                 String nameOriginCountry = getCSVFieldValue(values, importColumns.get("nameOriginCountry"));
@@ -897,6 +932,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String idSeasonYear = getCSVFieldValue(values, importColumns.get("idSeasonYear"));
                 String idSeason = getCSVFieldValue(values, importColumns.get("idSeason"));
                 String nameSeason = getCSVFieldValue(values, importColumns.get("nameSeason"));
+                String idBrand = getCSVFieldValue(values, importColumns.get("idBrand"));
+                String nameBrand = getCSVFieldValue(values, importColumns.get("nameBrand"));
                 String idTheme = getCSVFieldValue(values, importColumns.get("idTheme"));
                 String nameTheme = getCSVFieldValue(values, importColumns.get("nameTheme"));
                 BigDecimal netWeight = getCSVBigDecimalFieldValue(values, importColumns.get("netWeight"));
@@ -908,14 +945,15 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String composition = getCSVFieldValue(values, importColumns.get("composition"));
                 String originalComposition = getCSVFieldValue(values, importColumns.get("originalComposition"));
 
-                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
-                        idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem,
-                        captionItem, originalCaptionItem, UOMItem, manufacturerItem, nameCountry, nameOriginCountry,
-                        importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
-                        sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration,
-                        expiryDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle,
-                        originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize,
-                        idSeasonYear, idSeason, nameSeason, idTheme, nameTheme, netWeight, netWeightSum, grossWeight,
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument,
+                        currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup,
+                        originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer, 
+                        nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer, 
+                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum, 
+                        manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate, 
+                        pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, 
+                        idColor, nameColor, idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason,
+                        nameSeason, idBrand, nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight,
                         grossWeightSum, composition, originalComposition);
 
                 String primaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(primaryKeyColumn));
@@ -955,7 +993,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String captionItem = getXLSXFieldValue(sheet, i, importColumns.get("captionItem"));
             String originalCaptionItem = getXLSXFieldValue(sheet, i, importColumns.get("originalCaptionItem"));
             String UOMItem = getXLSXFieldValue(sheet, i, importColumns.get("UOMItem"));
-            String manufacturerItem = getXLSXFieldValue(sheet, i, importColumns.get("manufacturerItem"));
+            String idManufacturer = getXLSXFieldValue(sheet, i, importColumns.get("idManufacturer"));
+            String nameManufacturer = getXLSXFieldValue(sheet, i, importColumns.get("nameManufacturer"));
             String nameCountry = getXLSXFieldValue(sheet, i, importColumns.get("nameCountry"));
             nameCountry = nameCountry == null ? null : nameCountry.replace("*", "").trim().toUpperCase();
             String nameOriginCountry = getXLSXFieldValue(sheet, i, importColumns.get("nameOriginCountry"));
@@ -990,6 +1029,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idSeasonYear = getXLSXFieldValue(sheet, i, importColumns.get("idSeasonYear"));
             String idSeason = getXLSXFieldValue(sheet, i, importColumns.get("idSeason"));
             String nameSeason = getXLSXFieldValue(sheet, i, importColumns.get("nameSeason"));
+            String idBrand = getXLSXFieldValue(sheet, i, importColumns.get("idBrand"));
+            String nameBrand = getXLSXFieldValue(sheet, i, importColumns.get("nameBrand"));
             String idTheme = getXLSXFieldValue(sheet, i, importColumns.get("idTheme"));
             String nameTheme = getXLSXFieldValue(sheet, i, importColumns.get("nameTheme"));
             BigDecimal netWeight = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("netWeight"));
@@ -1001,15 +1042,15 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String composition = getXLSXFieldValue(sheet, i, importColumns.get("composition"));
             String originalComposition = getXLSXFieldValue(sheet, i, importColumns.get("originalComposition"));
 
-            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
-                    idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem,
-                    captionItem, originalCaptionItem, UOMItem, manufacturerItem, nameCountry, nameOriginCountry,
-                    importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
-                    sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration,
-                    expiryDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle,
-                    originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize,
-                    idSeasonYear, idSeason, nameSeason, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, 
-                    grossWeightSum, composition, originalComposition);
+            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument,
+                    currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup,
+                    originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer,
+                    nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock,
+                    quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice,
+                    numberCompliance, dateCompliance, declaration, expiryDate, pharmacyPriceGroupItem, seriesPharmacy,
+                    idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection,
+                    idSize, nameSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idTheme, nameTheme, 
+                    netWeight, netWeightSum, grossWeight, grossWeightSum, composition, originalComposition);
 
             String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
@@ -1035,7 +1076,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         DBF file = new DBF(tempFile.getPath());
         String charset = getDBFCharset(tempFile);
-        
+
         int totalRecordCount = file.getRecordCount();
 
         for (int i = startRow - 1; i < totalRecordCount; i++) {
@@ -1054,7 +1095,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String captionItem = getDBFFieldValue(file, importColumns.get("captionItem"), charset);
             String originalCaptionItem = getDBFFieldValue(file, importColumns.get("originalCaptionItem"), charset);
             String UOMItem = getDBFFieldValue(file, importColumns.get("UOMItem"), charset);
-            String manufacturerItem = getDBFFieldValue(file, importColumns.get("manufacturerItem"), charset);
+            String idManufacturer = getDBFFieldValue(file, importColumns.get("idManufacturer"), charset);
+            String nameManufacturer = getDBFFieldValue(file, importColumns.get("nameManufacturer"), charset);
             String nameCountry = getDBFFieldValue(file, importColumns.get("nameCountry"), charset);
             nameCountry = nameCountry == null ? null : nameCountry.replace("*", "").trim().toUpperCase();
             String nameOriginCountry = getDBFFieldValue(file, importColumns.get("nameOriginCountry"), charset);
@@ -1088,7 +1130,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameSize = getDBFFieldValue(file, importColumns.get("nameSize"), charset);
             String idSeasonYear = getDBFFieldValue(file, importColumns.get("idSeasonYear"), charset);
             String idSeason = getDBFFieldValue(file, importColumns.get("idSeason"), charset);
-            String nameSeason = getDBFFieldValue(file, importColumns.get("nameSeason"), charset);
+            String nameSeason = getDBFFieldValue(file, importColumns.get("nameSeason"), charset);   
+            String idBrand = getDBFFieldValue(file, importColumns.get("idBrand"), charset);
+            String nameBrand = getDBFFieldValue(file, importColumns.get("nameBrand"), charset);
             String idTheme = getDBFFieldValue(file, importColumns.get("idTheme"), charset);
             String nameTheme = getDBFFieldValue(file, importColumns.get("nameTheme"), charset);
             BigDecimal netWeight = getDBFBigDecimalFieldValue(file, importColumns.get("netWeight"));
@@ -1102,13 +1146,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
                     idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem,
-                    captionItem, originalCaptionItem, UOMItem, manufacturerItem, nameCountry, nameOriginCountry,
+                    captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry,
                     importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration,
                     expiryDate, pharmacyPriceGroup, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
                     idColor, nameColor, idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason,
-                    nameSeason, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition,
-                    originalComposition);
+                    nameSeason, idBrand, nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, 
+                    grossWeightSum, composition, originalComposition);
 
             String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn));

@@ -30,6 +30,11 @@ import java.util.*;
 
 public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
 
+    // syntax : 
+    // "=xxx" - constant value
+    // "xxx^(1,6) - substring(1,6)
+    // "xxx+yyy" - concatenate
+    
     public ImportUniversalActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
     }
@@ -54,6 +59,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         String result = "";
         for (String cell : cells) {
             String value;
+            if(isConstantValue(cell))
+                return cell.substring(1);
             if (cell.matches(substringPattern)) {
                 String[] splittedCell = cell.split(splitPattern);
                 value = getCSVFieldValue(values, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
@@ -101,6 +108,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         String result = "";
         for (String cell : cells) {
             String value;
+            if(isConstantValue(cell))
+                return cell.substring(1);
             if (cell.matches(substringPattern)) {
                 String[] splittedCell = cell.split(splitPattern);
                 value = getXLSFieldValue(sheet, row, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
@@ -193,6 +202,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         String result = "";
         for (String cell : cells) {
             String value;
+            if(isConstantValue(cell))
+                return cell.substring(1);
             if (cell.matches(substringPattern)) {
                 String[] splittedCell = cell.split(splitPattern);
                 value = getXLSXFieldValue(sheet, row, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
@@ -289,6 +300,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             String result = "";
             for (String field : fields) {
                 String value;
+                if(isConstantValue(field))
+                    return field.substring(1);
                 if (field.matches(substringPattern)) {
                     String[] splittedField = field.split(splitPattern);
                     value = getSubstring(new String(importFile.getField(splittedField[0]).getBytes(), charset).trim(),
@@ -379,6 +392,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         } catch (ParseException e) {
             return null;
         }
+    }
+    
+    private boolean isConstantValue(String input) {
+        return input.startsWith("=");
     }
 
     protected String trim(String input) {
