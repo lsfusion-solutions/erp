@@ -851,7 +851,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate,
                     pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor,
                     nameColor, idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason, nameSeason,
-                    idBrand, nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, 
+                    idBrand, nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum,
                     composition, originalComposition);
 
             String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
@@ -947,11 +947,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument,
                         currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup,
-                        originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer, 
-                        nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer, 
-                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum, 
-                        manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate, 
-                        pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, 
+                        originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer,
+                        nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer,
+                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum,
+                        manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate,
+                        pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
                         idColor, nameColor, idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason,
                         nameSeason, idBrand, nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight,
                         grossWeightSum, composition, originalComposition);
@@ -1049,7 +1049,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice,
                     numberCompliance, dateCompliance, declaration, expiryDate, pharmacyPriceGroupItem, seriesPharmacy,
                     idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection,
-                    idSize, nameSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idTheme, nameTheme, 
+                    idSize, nameSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idTheme, nameTheme,
                     netWeight, netWeightSum, grossWeight, grossWeightSum, composition, originalComposition);
 
             String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
@@ -1078,6 +1078,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         String charset = getDBFCharset(tempFile);
 
         int totalRecordCount = file.getRecordCount();
+
+        for (int i = 0; i < startRow - 1; i++) {
+            file.read();
+        }
 
         for (int i = startRow - 1; i < totalRecordCount; i++) {
 
@@ -1130,7 +1134,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameSize = getDBFFieldValue(file, importColumns.get("nameSize"), charset);
             String idSeasonYear = getDBFFieldValue(file, importColumns.get("idSeasonYear"), charset);
             String idSeason = getDBFFieldValue(file, importColumns.get("idSeason"), charset);
-            String nameSeason = getDBFFieldValue(file, importColumns.get("nameSeason"), charset);   
+            String nameSeason = getDBFFieldValue(file, importColumns.get("nameSeason"), charset);
             String idBrand = getDBFFieldValue(file, importColumns.get("idBrand"), charset);
             String nameBrand = getDBFFieldValue(file, importColumns.get("nameBrand"), charset);
             String idTheme = getDBFFieldValue(file, importColumns.get("idTheme"), charset);
@@ -1151,7 +1155,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration,
                     expiryDate, pharmacyPriceGroup, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
                     idColor, nameColor, idCollection, nameCollection, idSize, nameSize, idSeasonYear, idSeason,
-                    nameSeason, idBrand, nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, 
+                    nameSeason, idBrand, nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight,
                     grossWeightSum, composition, originalComposition);
 
             String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn));
