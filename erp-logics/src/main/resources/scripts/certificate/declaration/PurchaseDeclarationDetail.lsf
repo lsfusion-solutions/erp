@@ -530,12 +530,16 @@ WHEN SESSION FORMS declaration CHANGED(customsGroupDeclarationDetail(d)) OR CHAN
 VATSumDeclarationDetail 'НДС' = DATA NUMERIC[16,2] (DeclarationDetail) MINCHARWIDTH 12;
 
 // Порядковый номер строки
-numberDefaultDeclarationDetail 'Номер' (declarationDetail) =
-        PARTITION SUM 1 IF declarationDetail IS DeclarationDetail BY declarationDeclarationDetail(declarationDetail)
-        ORDER codeCustomsGroupDeclarationDetail(declarationDetail), declarationDetail;
-
 userNumberDeclarationDetail 'Пользовательский номер' (declarationDetail) = DATA INTEGER (DeclarationDetail);
+
+numberDefaultDeclarationDetail 'Номер' (d) =
+        PARTITION SUM 1 IF d IS DeclarationDetail AND NOT userNumberDeclarationDetail(d) BY declarationDeclarationDetail(d)
+        ORDER codeCustomsGroupDeclarationDetail(d), d;
+
 numberDeclarationDetail 'Номер' (declarationDetail) = OVERRIDE numberDefaultDeclarationDetail(declarationDetail), userNumberDeclarationDetail(declarationDetail) MINCHARWIDTH 4 PREFCHARWIDTH 4;
+
+// Делаем, чтобы номера были уникальными
+declarationDetailNumber (number) = GROUP AGGR d BY numberDeclarationDetail(d) WHERE d IS DeclarationDetail;
 
 // Свойство для импорта строк деклараций
 declarationDetailUserNumberNameCustoms (number, name) = GROUP AGGR declarationDetail BY

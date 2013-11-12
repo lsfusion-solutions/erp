@@ -22,12 +22,31 @@ descriptionCustomsDocument 'Описание' = DATA VARSTRING[60] (CustomsDocum
 isVATCustomsExceptionCustomsDocument 'По льготам' = DATA BOOLEAN (CustomsDocument); 
 
 inDeclarationDetailBrand = GROUP SUM 1 IF inDeclarationDetailUserInvoiceDetail(d, i) BY d, brandItem(skuUserInvoiceDetail(i));
- 
 nameBrandDeclarationDetail 'Бренды' =
     GROUP CONCAT nameBrand(b) IF inDeclarationDetailBrand(d, b), ','
               BY d ORDER b MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
 
+inDeclarationDetailManufacturer = GROUP SUM 1 IF inDeclarationDetailUserInvoiceDetail(d, i) BY d, manufacturerItem(skuUserInvoiceDetail(i));
+nameManufacturerDeclarationDetail 'Производители' =
+    GROUP CONCAT nameManufacturer(m) IF inDeclarationDetailManufacturer(d, m), ','
+              BY d ORDER m MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
 
 EXTEND FORM declaration
     PROPERTIES(cd) BEFORE deleted descriptionCustomsDocument, refDocCustomsDocument, typePaymentCustomsDocument, isVATCustomsExceptionCustomsDocument
 ;
+
+isVATCustomsExceptionCustomsGroup = DATA BOOLEAN (CustomsGroup);
+EXTEND FORM customsGroup
+    PROPERTIES(cg) isVATCustomsExceptionCustomsGroup  
+;
+EXTEND DESIGN customsGroup {
+    dateContainer {
+        ADD PROPERTY(isVATCustomsExceptionCustomsGroup);
+    }
+}
+
+EXTEND FORM customsGroups
+    PROPERTIES(cg) READONLYIF isReadonly() isVATCustomsExceptionCustomsGroup 
+;
+
+isVATCustomsExceptionDeclarationDetail(d) = VATCustomsExceptionDeclarationDetail(d) OR isVATCustomsExceptionCustomsGroup(customsGroupDeclarationDetail(d)); 
