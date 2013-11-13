@@ -28,14 +28,19 @@ GROUP sumConsignment 'Суммы' : base;
 CLASS ABSTRACT Consignment 'Накладная';
 CLASS ABSTRACT ConsignmentDetail 'Строка накладной';
 
-dateConsignment 'Дата' (consignment) = ABSTRACT DATE (Consignment);
+dataDateConsignment 'Дата' (consignment) = ABSTRACT DATE (Consignment);
+overDateConsignment 'Дата' (consignment) = ABSTRACT DATE (Consignment);
+dateConsignment 'Дата' (consignment) = OVERRIDE dataDateConsignment(consignment), overDateConsignment(consignment);
+
 
 numberConsignment 'Номер' = ABSTRACT STRING[18] (Consignment) IN numbered MINCHARWIDTH 7;
 seriesConsignment 'Серия' = ABSTRACT STRING[2] (Consignment) IN numbered FIXEDCHARWIDTH 3; 
 
-seriesNumberConsignment 'Серия/Номер' (o) = 
-    CONCAT '', seriesConsignment(o), numberConsignment(o) 
-    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
+overSeriesNumberConsignment 'Серия/Номер' (consignment) = ABSTRACT STRING[21] (Consignment);
+
+seriesNumberConsignment 'Серия/Номер' (o) = OVERRIDE 
+    (CONCAT '', seriesConsignment(o), numberConsignment(o)),
+    overSeriesNumberConsignment(o)  MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
 
 // ---------------------------------- Юридические лица ---------------------- //
 
@@ -139,7 +144,7 @@ readdressingConsignment 'Переадресовка' (consignment) = ABSTRACT VA
 
 GROUP issuanceConsignment 'Отпуск' : base;
 
-shipmentBaseConsignment 'Основание отпуска' (consignment) = ABSTRACT VARSTRING[30] (Consignment) IN issuanceConsignment;
+shipmentBaseConsignment 'Основание отпуска' (consignment) = ABSTRACT VARSTRING[100] (Consignment) IN issuanceConsignment;
 
 issuanceAllowedConsignment (consignment) = ABSTRACT Employee (Consignment);
 nameIssuanceAllowedConsignment 'Отпуск разрешил' (consignment) = nameContact(issuanceAllowedConsignment(consignment)) IN issuanceConsignment;
@@ -236,7 +241,11 @@ sumRetailConsignmentDetail 'Сумма розничная' (consignmentDetail) =
 
 packQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
 
-grossWeightConsignmentDetail 'Масса груза, кг.' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
+dataGrossWeightConsignmentDetail 'Масса груза, кг.' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
+overGrossWeightConsignmentDetail 'Масса груза, кг.' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
+grossWeightConsignmentDetail 'Масса груза, кг.' (consignmentDetail) = OVERRIDE dataGrossWeightConsignmentDetail(consignmentDetail),
+                                                                               overGrossWeightConsignmentDetail(consignmentDetail);
+
 grossWeightTonConsignmentDetail 'Масса груза, т.' (consignmentDetail) = round6(grossWeightConsignmentDetail(consignmentDetail) / 1000);
 
 noteConsignmentDetail 'Примечание' (consignmentDetail) = ABSTRACT VARSTRING[100] (ConsignmentDetail) MINCHARWIDTH 30 PREFCHARWIDTH 80;
@@ -647,7 +656,7 @@ META defineConsignmentHeaderInner (object, class)
 
     readdressing###object 'Переадресовка' (object) = DATA VARSTRING[50] (class) IN carConsignment;
 
-    shipmentBase###object 'Основание отпуска' (object) = DATA VARSTRING[30] (class) IN issuanceConsignment;
+    shipmentBase###object 'Основание отпуска' (object) = DATA VARSTRING[100] (class) IN issuanceConsignment;
 
     issuanceAllowed###object (object) = DATA Employee(class);
 
@@ -692,7 +701,7 @@ META defineConsignmentAbstractHeaderInner(object, class)
 
     readdressing###object 'Переадресовка' (object) = ABSTRACT VARSTRING[50] (class) IN carConsignment;
 
-    shipmentBase###object 'Основание отпуска' (object) = ABSTRACT VARSTRING[30] (class) IN issuanceConsignment;
+    shipmentBase###object 'Основание отпуска' (object) = ABSTRACT VARSTRING[100] (class) IN issuanceConsignment;
 
     issuanceAllowed###object (object) = ABSTRACT Employee(class);
 
@@ -732,7 +741,7 @@ END
 META implementConsignmentHeader (concrete)
     EXTEND CLASS concrete : Consignment;
 
-    dateConsignment (consignment) += date###concrete(consignment);
+    dataDateConsignment (consignment) += date###concrete(consignment);
     numberConsignment (consignment) += number###concrete(consignment);
     seriesConsignment (consignment) += series###concrete(consignment);
 
@@ -876,7 +885,7 @@ META implementConsignmentDetailInner (concrete, concreteClass, skuProp)
     quantityConsignmentDetail (consignmentDetail) += quantity###concrete##Detail (consignmentDetail);
 
     packQuantityConsignmentDetail (consignmentDetail) += packQuantity###concrete##Detail (consignmentDetail);
-    grossWeightConsignmentDetail (consignmentDetail) += grossWeight###concrete##Detail (consignmentDetail);
+    dataGrossWeightConsignmentDetail (consignmentDetail) += grossWeight###concrete##Detail (consignmentDetail);
 END
 META implementConsignmentDetail (concrete)
     @implementConsignmentDetail (concrete, sku);
