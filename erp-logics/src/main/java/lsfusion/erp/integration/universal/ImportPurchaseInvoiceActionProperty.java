@@ -223,6 +223,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idBatch);
 
+            ImportField dataIndexUserInvoiceDetailField = new ImportField(LM.findLCPByCompoundName("dataIndexUserInvoiceDetail"));
+            props.add(new ImportProperty(dataIndexUserInvoiceDetailField, LM.findLCPByCompoundName("dataIndexUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+            fields.add(dataIndexUserInvoiceDetailField);
+            for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                data.get(i).add(userInvoiceDetailsList.get(i).dataIndex);
+
             ImportField idItemField = new ImportField(LM.findLCPByCompoundName("idItem"));
             fields.add(idItemField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
@@ -790,6 +796,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String originalCustomsGroupItem = getXLSFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
             String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
+            Integer dataIndex = Integer.parseInt(getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(i)));
             String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
             String idItemGroup = getXLSFieldValue(sheet, i, importColumns.get("idItemGroup"));
             String captionItem = getXLSFieldValue(sheet, i, importColumns.get("captionItem"));
@@ -845,7 +852,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String originalComposition = getXLSFieldValue(sheet, i, importColumns.get("originalComposition"));
 
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
-                    idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem,
+                    idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem,
                     captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry,
                     importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate,
@@ -890,6 +897,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + count;
                 String barcodeItem = BarcodeUtils.convertBarcode12To13(getCSVFieldValue(values, importColumns.get("barcodeItem")));
                 String idBatch = getCSVFieldValue(values, importColumns.get("idBatch"));
+                Integer dataIndex = Integer.parseInt(getCSVFieldValue(values, importColumns.get("idItem"), String.valueOf(count)));
                 String idItem = getCSVFieldValue(values, importColumns.get("idItem"));
                 String idItemGroup = getCSVFieldValue(values, importColumns.get("idItemGroup"));
                 String originalCustomsGroupItem = getCSVFieldValue(values, importColumns.get("originalCustomsGroupItem"));
@@ -946,7 +954,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String originalComposition = getCSVFieldValue(values, importColumns.get("originalComposition"));
 
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument,
-                        currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup,
+                        currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup,
                         originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer,
                         nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer,
                         idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum,
@@ -987,6 +995,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
+            Integer dataIndex = Integer.parseInt(getXLSXFieldValue(sheet, i, importColumns.get("idItem"), String.valueOf(i)));
             String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
             String idItemGroup = getXLSXFieldValue(sheet, i, importColumns.get("idItemGroup"));
             String originalCustomsGroupItem = getXLSXFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
@@ -1043,7 +1052,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String originalComposition = getXLSXFieldValue(sheet, i, importColumns.get("originalComposition"));
 
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument,
-                    currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup,
+                    currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup,
                     originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer,
                     nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock,
                     quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice,
@@ -1093,6 +1102,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getDBFFieldValue(file, importColumns.get("barcodeItem"), charset));
             String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), charset);
+            Integer dataIndex = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), charset, String.valueOf(i + 1)).intValue(); 
             String idItem = getDBFFieldValue(file, importColumns.get("idItem"), charset);
             String idItemGroup = getDBFFieldValue(file, importColumns.get("idItemGroup"), charset);
             String originalCustomsGroupItem = getDBFFieldValue(file, importColumns.get("originalCustomsGroupItem"), charset);
@@ -1149,7 +1159,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String originalComposition = getDBFFieldValue(file, importColumns.get("originalComposition"), charset);
 
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
-                    idUserInvoiceDetail, barcodeItem, idBatch, idItem, idItemGroup, originalCustomsGroupItem,
+                    idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem,
                     captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry,
                     importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration,

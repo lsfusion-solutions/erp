@@ -11,6 +11,7 @@ public class PurchaseInvoiceDetail {
     public String idUserInvoiceDetail;
     public String idBarcodeSku;
     public String idBatch;
+    public Integer dataIndex;
     public String idItem;
     public String idItemGroup;
     public String originalCustomsGroupItem;
@@ -61,8 +62,8 @@ public class PurchaseInvoiceDetail {
     public String originalComposition;
 
     public PurchaseInvoiceDetail(String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
-                                 String idUserInvoiceDetail, String idBarcodeSku, String idBatch, String idItem, 
-                                 String idItemGroup, String originalCustomsGroupItem, String captionItem, 
+                                 String idUserInvoiceDetail, String idBarcodeSku, String idBatch, Integer dataIndex, 
+                                 String idItem, String idItemGroup, String originalCustomsGroupItem, String captionItem, 
                                  String originalCaptionItem, String idUOM, String idManufacturer, String nameManufacturer, 
                                  String nameCountry, String nameOriginCountry, String nameImportCountry, String idCustomer, 
                                  String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
@@ -81,6 +82,7 @@ public class PurchaseInvoiceDetail {
         this.idUserInvoiceDetail = idUserInvoiceDetail;
         this.idBarcodeSku = idBarcodeSku;
         this.idBatch = idBatch;
+        this.dataIndex = dataIndex;
         this.idItem = idItem;
         this.idItemGroup = idItemGroup;
         this.originalCustomsGroupItem = originalCustomsGroupItem;

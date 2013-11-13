@@ -8,6 +8,7 @@ public class SaleOrderDetail {
     public String idOrderDetail;
     public String idBarcodeSku;
     public String idBatch;
+    public Integer dataIndex;
     public String idItem;
     public String idManufacturer;
     public String idCustomer;
@@ -20,14 +21,15 @@ public class SaleOrderDetail {
     public BigDecimal invoiceSum;
     public BigDecimal manufacturingPrice;
 
-    public SaleOrderDetail(String numberOrder, String idOrderDetail, String idBarcodeSku, String idBatch,
-                           String idItem, String idManufacturer, String idCustomer, String idCustomerStock, 
+    public SaleOrderDetail(String numberOrder, String idOrderDetail, String idBarcodeSku, String idBatch, 
+                           Integer dataIndex, String idItem, String idManufacturer, String idCustomer, String idCustomerStock, 
                            BigDecimal quantity, BigDecimal price, BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, 
                            BigDecimal invoiceSum, BigDecimal manufacturingPrice) {
         this.numberOrder = numberOrder;
         this.idOrderDetail = idOrderDetail;
         this.idBarcodeSku = idBarcodeSku;
         this.idBatch = idBatch;
+        this.dataIndex = dataIndex;
         this.idItem = idItem;
         this.idManufacturer = idManufacturer;
         this.idCustomer = idCustomer;
