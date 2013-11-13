@@ -76,10 +76,12 @@ META defineDocumentPack(object, detail, f)
         WHEN CHANGED(quantityUser###detail(d)) OR CHANGED(amountPackUser###detail(d));
 
     // Объявляем действия по изменению количества в упаковке и количества упаковок
+    overChangeAmountPackUser###detail = ABSTRACT ACTION LIST (###detail); 
     changeAmountPackUser###detail = ACTION (detail) {
         REQUEST NUMERIC[14,3] INPUT;
         ASSIGN amountPackUser###detail(detail) <- requestedNumeric();
         ASSIGN quantityUser###detail(detail) <- packQuantityUser###detail(detail)*amountPackUser###detail(detail);
+        EXEC overChangeAmountPackUser###detail(detail);
     }
 
     changePackQuantityUser###detail = ACTION (detail) {
