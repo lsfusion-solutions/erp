@@ -796,7 +796,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String originalCustomsGroupItem = getXLSFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
             String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
-            Integer dataIndex = Integer.parseInt(getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(i)));
+            Integer dataIndex = Integer.parseInt(getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(primaryList.size() + secondaryList.size() + 1)));
             String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
             String idItemGroup = getXLSFieldValue(sheet, i, importColumns.get("idItemGroup"));
             String captionItem = getXLSFieldValue(sheet, i, importColumns.get("captionItem"));
@@ -897,7 +897,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + count;
                 String barcodeItem = BarcodeUtils.convertBarcode12To13(getCSVFieldValue(values, importColumns.get("barcodeItem")));
                 String idBatch = getCSVFieldValue(values, importColumns.get("idBatch"));
-                Integer dataIndex = Integer.parseInt(getCSVFieldValue(values, importColumns.get("idItem"), String.valueOf(count)));
+                Integer dataIndex = Integer.parseInt(getCSVFieldValue(values, importColumns.get("idItem"), String.valueOf(primaryList.size() + secondaryList.size() + 1)));
                 String idItem = getCSVFieldValue(values, importColumns.get("idItem"));
                 String idItemGroup = getCSVFieldValue(values, importColumns.get("idItemGroup"));
                 String originalCustomsGroupItem = getCSVFieldValue(values, importColumns.get("originalCustomsGroupItem"));
@@ -995,7 +995,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
-            Integer dataIndex = Integer.parseInt(getXLSXFieldValue(sheet, i, importColumns.get("idItem"), String.valueOf(i)));
+            Integer dataIndex = Integer.parseInt(getXLSXFieldValue(sheet, i, importColumns.get("idItem"), String.valueOf(primaryList.size() + secondaryList.size() + 1)));
             String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
             String idItemGroup = getXLSXFieldValue(sheet, i, importColumns.get("idItemGroup"));
             String originalCustomsGroupItem = getXLSXFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
@@ -1102,7 +1102,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getDBFFieldValue(file, importColumns.get("barcodeItem"), charset));
             String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), charset);
-            Integer dataIndex = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), charset, String.valueOf(i + 1)).intValue(); 
+            Integer dataIndex = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), charset, String.valueOf(primaryList.size() + secondaryList.size() + 1)).intValue(); 
             String idItem = getDBFFieldValue(file, importColumns.get("idItem"), charset);
             String idItemGroup = getDBFFieldValue(file, importColumns.get("idItemGroup"), charset);
             String originalCustomsGroupItem = getDBFFieldValue(file, importColumns.get("originalCustomsGroupItem"), charset);

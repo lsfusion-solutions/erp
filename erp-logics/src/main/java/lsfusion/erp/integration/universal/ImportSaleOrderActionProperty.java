@@ -375,7 +375,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String idOrderDetail = String.valueOf(orderObject) + i;
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
-            Integer dataIndex = Integer.parseInt(getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(i)));
+            Integer dataIndex = Integer.parseInt(getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(primaryList.size() + secondaryList.size() + 1)));
             String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
             String manufacturerItem = getXLSFieldValue(sheet, i, importColumns.get("manufacturerItem"));
             String idCustomerStock = getXLSFieldValue(sheet, i, importColumns.get("idCustomerStock"));
@@ -428,7 +428,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 String idOrderDetail = String.valueOf(orderObject) + count;
                 String barcodeItem = BarcodeUtils.convertBarcode12To13(getCSVFieldValue(values, importColumns.get("barcodeItem")));
                 String idBatch = getCSVFieldValue(values, importColumns.get("idBatch"));
-                Integer dataIndex = Integer.parseInt(getCSVFieldValue(values, importColumns.get("idItem"), String.valueOf(count)));
+                Integer dataIndex = Integer.parseInt(getCSVFieldValue(values, importColumns.get("idItem"), String.valueOf(primaryList.size() + secondaryList.size() + 1)));
                 String idItem = getCSVFieldValue(values, importColumns.get("idItem"));
                 String manufacturerItem = getCSVFieldValue(values, importColumns.get("manufacturerItem"));
                 String idCustomerStock = getCSVFieldValue(values, importColumns.get("idCustomerStock"));
@@ -475,7 +475,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String idOrderDetail = String.valueOf(orderObject) + i;
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
-            Integer dataIndex = Integer.parseInt(getXLSXFieldValue(sheet, i, importColumns.get("idItem"), String.valueOf(i)));
+            Integer dataIndex = Integer.parseInt(getXLSXFieldValue(sheet, i, importColumns.get("idItem"), String.valueOf(primaryList.size() + secondaryList.size() + 1)));
             String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
             String manufacturerItem = getXLSXFieldValue(sheet, i, importColumns.get("manufacturerItem"));
             String idCustomerStock = getXLSXFieldValue(sheet, i, importColumns.get("idCustomerStock"));
@@ -528,7 +528,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String idOrderDetail = String.valueOf(orderObject) + i;
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getDBFFieldValue(file, importColumns.get("barcodeItem")));
             String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"));
-            Integer dataIndex = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), charset, String.valueOf(i + 1)).intValue();
+            Integer dataIndex = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), charset, String.valueOf(primaryList.size() + secondaryList.size() + 1)).intValue();
             String idItem = getDBFFieldValue(file, importColumns.get("idItem"));
             String manufacturerItem = getDBFFieldValue(file, importColumns.get("manufacturerItem"));
             String idCustomerStock = getDBFFieldValue(file, importColumns.get("idCustomerStock"));
