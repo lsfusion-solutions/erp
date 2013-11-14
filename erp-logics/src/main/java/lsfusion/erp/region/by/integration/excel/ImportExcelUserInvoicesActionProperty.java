@@ -83,8 +83,8 @@ public class ImportExcelUserInvoicesActionProperty extends ImportExcelActionProp
             data.add(new UserInvoiceDetail(seriesUserInvoice + numberUserInvoice, seriesUserInvoice, numberUserInvoice,
                     null, true, userInvoiceDetailSID, dateUserInvoice, idItem, false, quantity, supplier,
                     customerWarehouse, supplierWarehouse, price, null, null, chargePrice, null, null, null, null,
-                    retailPrice, retailMarkup, textCompliance, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null, null, null, null));
+                    retailPrice, retailMarkup, null, textCompliance, null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null, null, null));
         }
 
         return data;
