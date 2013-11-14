@@ -646,7 +646,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     }
                 }
 
-                if (showField(userInvoiceDetailsList, "idSize")) {
+                if (itemArticleLM != null && showField(userInvoiceDetailsList, "idSize")) {
                     ImportField idSizeField = new ImportField(itemArticleLM.findLCPByCompoundName("idSize"));
                     ImportKey<?> sizeKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Size"),
                             itemArticleLM.findLCPByCompoundName("sizeId").getMapping(idSizeField));
@@ -667,7 +667,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                             data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
                     }
 
-                    if (itemArticleLM != null && showField(userInvoiceDetailsList, "nameOriginalSize")) {
+                    if (showField(userInvoiceDetailsList, "nameOriginalSize")) {
                         ImportField nameOriginalSizeField = new ImportField(itemArticleLM.findLCPByCompoundName("nameOriginalSize"));
                         props.add(new ImportProperty(nameOriginalSizeField, itemArticleLM.findLCPByCompoundName("nameOriginalSize").getMapping(sizeKey)));
                         fields.add(nameOriginalSizeField);
