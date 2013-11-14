@@ -667,7 +667,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                             data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
                     }
 
-                    if (showField(userInvoiceDetailsList, "nameOriginalSize")) {
+                    if (itemArticleLM != null && showField(userInvoiceDetailsList, "nameOriginalSize")) {
                         ImportField nameOriginalSizeField = new ImportField(itemArticleLM.findLCPByCompoundName("nameOriginalSize"));
                         props.add(new ImportProperty(nameOriginalSizeField, itemArticleLM.findLCPByCompoundName("nameOriginalSize").getMapping(sizeKey)));
                         fields.add(nameOriginalSizeField);
