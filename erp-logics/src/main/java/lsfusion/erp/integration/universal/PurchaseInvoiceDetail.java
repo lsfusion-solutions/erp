@@ -48,7 +48,7 @@ public class PurchaseInvoiceDetail {
     public String nameCollection;
     public String idSize;
     public String nameSize;
-    public String originalNameSize;
+    public String nameOriginalSize;
     public String idSeasonYear;
     public String idSeason;
     public String nameSeason;
@@ -74,7 +74,7 @@ public class PurchaseInvoiceDetail {
                                  String numberDeclaration, Date expiryDate, Date manufactureDate, String idPharmacyPriceGroup, 
                                  String seriesPharmacy, String idArticle, String captionArticle, 
                                  String originalCaptionArticle, String idColor, String nameColor, String idCollection,
-                                 String nameCollection, String idSize, String nameSize, String originalNameSize, 
+                                 String nameCollection, String idSize, String nameSize, String nameOriginalSize, 
                                  String idSeasonYear, String idSeason, String nameSeason, String idBrand,
                                  String nameBrand, String idTheme, String nameTheme, BigDecimal netWeight, 
                                  BigDecimal sumNetWeight, BigDecimal grossWeight, BigDecimal sumGrossWeight, 
@@ -122,7 +122,7 @@ public class PurchaseInvoiceDetail {
         this.nameCollection = nameCollection;
         this.idSize = idSize;
         this.nameSize = nameSize;
-        this.originalNameSize = originalNameSize;
+        this.nameOriginalSize = nameOriginalSize;
         this.idSeasonYear = idSeasonYear;
         this.idSeason = idSeason;
         this.nameSeason = nameSeason;

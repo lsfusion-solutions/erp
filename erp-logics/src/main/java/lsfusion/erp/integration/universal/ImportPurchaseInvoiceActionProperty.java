@@ -667,12 +667,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                             data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
                     }
 
-                    if (showField(userInvoiceDetailsList, "originalNameSize")) {
-                        ImportField originalNameSizeField = new ImportField(itemArticleLM.findLCPByCompoundName("originalNameSize"));
-                        props.add(new ImportProperty(originalNameSizeField, itemArticleLM.findLCPByCompoundName("originalNameSize").getMapping(sizeKey)));
-                        fields.add(originalNameSizeField);
+                    if (showField(userInvoiceDetailsList, "nameOriginalSize")) {
+                        ImportField nameOriginalSizeField = new ImportField(itemArticleLM.findLCPByCompoundName("nameOriginalSize"));
+                        props.add(new ImportProperty(nameOriginalSizeField, itemArticleLM.findLCPByCompoundName("nameOriginalSize").getMapping(sizeKey)));
+                        fields.add(nameOriginalSizeField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                            data.get(i).add(userInvoiceDetailsList.get(i).originalNameSize);
+                            data.get(i).add(userInvoiceDetailsList.get(i).nameOriginalSize);
                     }
                 }
 
@@ -852,7 +852,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameCollection = getXLSFieldValue(sheet, i, importColumns.get("nameCollection"));
             String idSize = getXLSFieldValue(sheet, i, importColumns.get("idSize"));
             String nameSize = getXLSFieldValue(sheet, i, importColumns.get("nameSize"));
-            String originalNameSize = getXLSFieldValue(sheet, i, importColumns.get("originalNameSize"));
+            String nameOriginalSize = getXLSFieldValue(sheet, i, importColumns.get("nameOriginalSize"));
             String idSeasonYear = getXLSFieldValue(sheet, i, importColumns.get("idSeasonYear"));
             String idSeason = getXLSFieldValue(sheet, i, importColumns.get("idSeason"));
             String nameSeason = getXLSFieldValue(sheet, i, importColumns.get("nameSeason"));
@@ -876,7 +876,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate,
                     manufactureDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, 
                     originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize,
-                    originalNameSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idTheme, nameTheme, 
+                    nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idTheme, nameTheme, 
                     netWeight, netWeightSum, grossWeight, grossWeightSum, composition, originalComposition);
 
             String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
@@ -956,7 +956,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String nameCollection = getCSVFieldValue(values, importColumns.get("nameCollection"));
                 String idSize = getCSVFieldValue(values, importColumns.get("idSize"));
                 String nameSize = getCSVFieldValue(values, importColumns.get("nameSize"));
-                String originalNameSize = getCSVFieldValue(values, importColumns.get("originalNameSize"));
+                String nameOriginalSize = getCSVFieldValue(values, importColumns.get("nameOriginalSize"));
                 String idSeasonYear = getCSVFieldValue(values, importColumns.get("idSeasonYear"));
                 String idSeason = getCSVFieldValue(values, importColumns.get("idSeason"));
                 String nameSeason = getCSVFieldValue(values, importColumns.get("nameSeason"));
@@ -980,7 +980,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum,
                         manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate,
                         pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
-                        idColor, nameColor, idCollection, nameCollection, idSize, nameSize, originalNameSize, 
+                        idColor, nameColor, idCollection, nameCollection, idSize, nameSize, nameOriginalSize, 
                         idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idTheme, nameTheme, netWeight, 
                         netWeightSum, grossWeight, grossWeightSum, composition, originalComposition);
 
@@ -1056,7 +1056,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameCollection = getXLSXFieldValue(sheet, i, importColumns.get("nameCollection"));
             String idSize = getXLSXFieldValue(sheet, i, importColumns.get("idSize"));
             String nameSize = getXLSXFieldValue(sheet, i, importColumns.get("nameSize"));
-            String originalNameSize = getXLSXFieldValue(sheet, i, importColumns.get("originalNameSize"));
+            String nameOriginalSize = getXLSXFieldValue(sheet, i, importColumns.get("nameOriginalSize"));
             String idSeasonYear = getXLSXFieldValue(sheet, i, importColumns.get("idSeasonYear"));
             String idSeason = getXLSXFieldValue(sheet, i, importColumns.get("idSeason"));
             String nameSeason = getXLSXFieldValue(sheet, i, importColumns.get("nameSeason"));
@@ -1080,7 +1080,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice,
                     numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem,
                     seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection,
-                    nameCollection, idSize, nameSize, originalNameSize, idSeasonYear, idSeason, nameSeason, idBrand, 
+                    nameCollection, idSize, nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, 
                     nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition,
                     originalComposition);
 
@@ -1166,7 +1166,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameCollection = getDBFFieldValue(file, importColumns.get("nameCollection"), charset);
             String idSize = getDBFFieldValue(file, importColumns.get("idSize"), charset);
             String nameSize = getDBFFieldValue(file, importColumns.get("nameSize"), charset);
-            String originalNameSize = getDBFFieldValue(file, importColumns.get("originalNameSize"), charset);
+            String nameOriginalSize = getDBFFieldValue(file, importColumns.get("nameOriginalSize"), charset);
             String idSeasonYear = getDBFFieldValue(file, importColumns.get("idSeasonYear"), charset);
             String idSeason = getDBFFieldValue(file, importColumns.get("idSeason"), charset);
             String nameSeason = getDBFFieldValue(file, importColumns.get("nameSeason"), charset);
@@ -1189,7 +1189,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
                     sumVAT, invoiceSum, manufacturingPrice, numberCompliance, dateCompliance, declaration, expiryDate,
                     manufactureDate, pharmacyPriceGroup, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
-                    idColor, nameColor, idCollection, nameCollection, idSize, nameSize, originalNameSize, idSeasonYear, 
+                    idColor, nameColor, idCollection, nameCollection, idSize, nameSize, nameOriginalSize, idSeasonYear, 
                     idSeason, nameSeason, idBrand, nameBrand, idTheme, nameTheme, netWeight, netWeightSum, grossWeight,
                     grossWeightSum, composition, originalComposition);
 
