@@ -271,16 +271,16 @@ changePricePriceListDetailDataPriceListTypeStock 'Изменение, %' (priceL
 
 // Заголовки колонок
 headerNameCurrentDataPriceListType (userPriceList, dataPriceListType) =
-    [FORMULA VARSTRING[50]  ' CAST($1 AS TEXT) || \' (старая) \''](
+    [= FORMULA VARSTRING[50]  ' CAST($1 AS TEXT) || \' (старая) \''](
     namePriceListType(dataPriceListType)) IF showPriceListPriceListType(userPriceList, dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;
 
 headerNameChangeDataPriceListType (userPriceList, dataPriceListType) =
-    [FORMULA VARSTRING[50]  'CAST($1 AS TEXT) || \' (изменение, %) \''](
+    [= FORMULA VARSTRING[50]  'CAST($1 AS TEXT) || \' (изменение, %) \''](
     namePriceListType(dataPriceListType)) IF inUserPriceListDataPriceListType (userPriceList, dataPriceListType) AND
                                              showUserPriceListPriceListType (userPriceList, dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;
 
 headerNameDataPriceListType (userPriceList, dataPriceListType) =
-    [FORMULA VARSTRING[50]  ' CAST($1 AS TEXT) || \' (новая) \''](
+    [= FORMULA VARSTRING[50]  ' CAST($1 AS TEXT) || \' (новая) \''](
     namePriceListType(dataPriceListType)) IF inPriceListDataPriceListType(userPriceList, dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;
 
 // Цвета колонок
@@ -526,13 +526,13 @@ FORM userPriceList 'Прайс'
 //        ON CHANGE p setCurrentUserPriceList(p)
 //;
 //
-//WHEN SESSION FORMS userPriceList SET([VIEW userPriceList.d](d)) AND p == currentUserPriceList() DO
+//WHEN SESSION FORMS userPriceList SET([= VIEW userPriceList.d](d)) AND p == currentUserPriceList() DO
 //    FOR showUserPriceListPriceListType(p, pt) AND isCompanyStock(s) NOINLINE (pt) DO
 //        viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s);  
 //
 //WHEN SESSION FORMS userPriceList CHANGED(showUserPriceListPriceListType(p, pt)) NOINLINE (pt) DO
 //    viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s) 
-//        WHERE [VIEW userPriceList.d](d) AND isCompanyStock(s);  
+//        WHERE [= VIEW userPriceList.d](d) AND isCompanyStock(s);  
 //
 //WHEN SESSION FORMS userPriceList CHANGED(skuUserPriceListDetail(d)) OR CHANGED(fromDateTimeUserPriceListDetail(d)) DO
 //    viewCurrentPricePriceListDetailDataPriceListTypeStock(d, pt, s) <- currentPricePriceListDetailDataPriceListTypeStock(d, pt, s) 
@@ -735,7 +735,7 @@ isSelectedUserPriceListDetail 'Отм' = DATA SESSION BOOLEAN (UserPriceListDeta
 changeMarkUpChosenSkuUserPriceList 'Изменить цену для отмеченных строк' = ACTION (userPriceList, stock) {
     FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList MODAL;
     IF formResult() == FormResult.ok THEN {
-        IF NOT [GROUP SUM 1 IF isSelectedUserPriceListDetail(priceListDetail)
+        IF NOT [= GROUP SUM 1 IF isSelectedUserPriceListDetail(priceListDetail)
                       BY userPriceListUserPriceListDetail(priceListDetail)](userPriceList) THEN
             MESSAGE 'Выберите хотя бы одну позицию'
         ELSE {
@@ -815,7 +815,7 @@ changeMarkUpSkuUserPriceList 'Изменить цену для всех стро
                                  WHERE userPriceListUserPriceListDetail(detail) == userPriceList;
         }
 
-        FOR [FILTER userPriceList.d](detail) DO {
+        FOR [= FILTER userPriceList.d](detail) DO {
             IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent AND includeVATPriceListType(chosenObject('nt')) AND NOT includeVATPriceListType(chosenObject('pt')) THEN {
                 ASSIGN priceUserPriceListDetailDataPriceListType(detail, t) <-
                     roundPriceRoundCondition(prevPrice(detail) * (valueVATUserPriceListDetail(detail) + 100.0) / 100.0 * (chosenNumeric('n') + 100.0) / 100.0, roundConditionPriceListType(t))

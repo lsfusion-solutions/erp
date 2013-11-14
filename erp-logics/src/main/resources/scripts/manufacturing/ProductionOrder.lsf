@@ -172,7 +172,7 @@ quantityProductOrder 'Кол-во изделий в заказе' (product, orde
     BY productProductDetail(productDetail), orderProductDetail(productDetail) PERSISTENT;
 
 TABLE BOMOrder(BOM, Order);
-quantityProductsBOMOrder 'Кол-во спецификаций' (BOM, order) = [GROUP MAX quantityProductOrder(product, order)/ quantityProduct(product)
+quantityProductsBOMOrder 'Кол-во спецификаций' (BOM, order) = [= GROUP MAX quantityProductOrder(product, order)/ quantityProduct(product)
     BY BOMProduct(product), order](BOM, order) PERSISTENT;
 
 createComponentsOrder 'Заполнить компоненты из спецификации' = ACTION (order)  {
@@ -212,7 +212,7 @@ createRecComponentsOrder 'Заполнить из спецификации (ре
 // ------------- Заполнение изделий из спецификаций --------------- //
 
 quantityComponentsBOMOrder 'Кол-во спецификаций' (BOM, order) =
-    [GROUP MAX bruttoQuantityComponentDetail(componentDetail) / bruttoQuantityComponentDate(componentComponentDetail(componentDetail), dateComponentDetail(componentDetail))
+    [= GROUP MAX bruttoQuantityComponentDetail(componentDetail) / bruttoQuantityComponentDate(componentComponentDetail(componentDetail), dateComponentDetail(componentDetail))
     BY BOMComponent(componentComponentDetail(componentDetail)), orderComponentDetail(componentDetail)](BOM, order);
 
 createProductsOrder 'Заполнить изделия из спецификации ' = ACTION (order)  {
@@ -450,11 +450,11 @@ backgroundSubstitutesOrder 'Цвет' (order) = RGB(255,224,255) IF order IS Ord
 recPricePercentProductSkuOrder (product, sku, order) = recPricePercentProductSkuDate (product, sku, dateOrder(order));
 
 calcComponentsPriceProductDetail 'Цена расчетная (с/с)' (productDetail) =
-    [GROUP SUM recPricePercentProductSkuOrder(product, sku, order) * priceSkuOrder(sku, order)/(100 * quantityProduct(product))
+    [= GROUP SUM recPricePercentProductSkuOrder(product, sku, order) * priceSkuOrder(sku, order)/(100 * quantityProduct(product))
     BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail));
 
 calcPremiumComponentsPriceProductDetail 'Цена компонентов с надбавкой' (productDetail)=
-    [GROUP SUM recPricePercentProductSkuOrder(product, sku, order) * premiumPriceSkuOrder(sku, order)/(100 *quantityProduct(product))
+    [= GROUP SUM recPricePercentProductSkuOrder(product, sku, order) * premiumPriceSkuOrder(sku, order)/(100 *quantityProduct(product))
     BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail));
 
 calcPremiumPriceProductDetail 'Цена расчетная (с надбавками)' (productDetail) =
@@ -498,9 +498,9 @@ valueVATSkuOrder(sku, order) <- valueRateRangeDate(
              CHANGED(includeVATOrder(order) IF sku IS Sku);
 
 calcPriceVATProductDetail 'Цена НДС' (productDetail)=
-    [GROUP SUM recPricePercentProductSkuOrder(product, sku, order) * premiumPriceSkuOrder(sku, order) * (valueVATSkuOrder(sku, order)/(100+valueVATSkuOrder(sku, order)))/(100 *quantityProduct(product))
+    [= GROUP SUM recPricePercentProductSkuOrder(product, sku, order) * premiumPriceSkuOrder(sku, order) * (valueVATSkuOrder(sku, order)/(100+valueVATSkuOrder(sku, order)))/(100 *quantityProduct(product))
     BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail));
-calcValueVATProductDetail 'НДС, %' (productDetail)= [100*X/(Y-X)](
+calcValueVATProductDetail 'НДС, %' (productDetail)= [= 100*X/(Y-X)](
     calcPriceVATProductDetail(productDetail), calcPremiumComponentsPriceProductDetail(productDetail));
 valueVATProductDetail 'НДС, %' = DATA NUMERIC[10,5] (ProductDetail);
 

@@ -28,7 +28,7 @@ nameCountryRange 'Страна' (range) = nameCountry(countryRange(range)) IN re
 
 countRangeTaxCountry 'Кол-во шкал' (tax, country) = GROUP SUM 1 IF range IS Range BY taxRange(range), countryRange(range);
 
-maxDataRangeTax(tax, country) = OVERRIDE 0 IF tax IS Tax AND country IS Country, [GROUP MAX numberRange(range) BY taxRange(range), countryRange(range)](tax, country);
+maxDataRangeTax(tax, country) = OVERRIDE 0 IF tax IS Tax AND country IS Country, [= GROUP MAX numberRange(range) BY taxRange(range), countryRange(range)](tax, country);
 addNewRange 'Добавить шкалу' = ACTION (tax, country) {
     FOR ADDOBJ r = Range DO {
         ASSIGN numberRange(r) <- maxDataRangeTax(tax, country) + 1;
@@ -529,7 +529,7 @@ META defineDocumentInterfaceDetailVATDataSumPrefix (object, prefix)
 END
 
 META deriveDocumentDetailReverseVATSumCustomPrefix(detail, prefixA, prefixB, currencyProp)
-    prefixA###VATSum###detail (detail)  <- roundPriceCurrency([X*Y/(100+Y)](prefixB###sum###detail(detail), calcValue###prefixA###VAT###detail(detail)), currencyProp###detail(detail))
+    prefixA###VATSum###detail (detail)  <- roundPriceCurrency([= X*Y/(100+Y)](prefixB###sum###detail(detail), calcValue###prefixA###VAT###detail(detail)), currencyProp###detail(detail))
                     WHEN CHANGED(prefixB###sum###detail(detail)) OR CHANGED (prefixA###VAT###detail(detail)) OR CHANGED (currencyProp###detail(detail));
 
 END

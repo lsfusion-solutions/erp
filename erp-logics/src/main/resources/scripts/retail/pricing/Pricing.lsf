@@ -158,7 +158,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
         AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND priceListType IS CalcPriceListType NOINLINE (priceListType) INLINE DO {
             prefix###markup###idetail(detail) <- markupCalcPriceListTypeSku(priceListType, sku###idetail(detail))
                                                          WHERE prefix###priceListType###idetail(detail) == priceListType;
-            prefix###price###idetail(detail) <- roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
+            prefix###price###idetail(detail) <- roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
                                                                     prefixP###price###idetail(detail),
                                                                     prefix###markup###idetail(detail),
                                                                     value###prefix###VAT###idetail(detail)), roundConditionPriceListType(priceListType))
@@ -186,7 +186,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                                                        stockProp###idetail(detail),
                                                                                        dateTime###idetail(detail))
                                                          WHERE prefix###priceListType###idetail(detail) == priceListType;
-            prefix###markup###idetail(detail) <- [round2(((X/Z*100/(100+Y))-1)*100)](
+            prefix###markup###idetail(detail) <- [= round2(((X/Z*100/(100+Y))-1)*100)](
                                                                prefix###price###idetail(detail),
                                                                prefixP###price###idetail(detail),
                                                                value###prefix###VAT###idetail(detail))
@@ -195,7 +195,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
 END
 
 META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD)
-    calc###prefixC###markup###detail(detail)  = [round2(((X/Z*100/(100+Y))-1)*100)](
+    calc###prefixC###markup###detail(detail)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
         prefixA###price###detail(detail),
         prefixB###price###detail(detail),
         value###prefixD###VAT###detail(detail));
@@ -214,7 +214,7 @@ END
 
 META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixCondition)
 
-    calc###prefixA###price###detail(detail)  = roundPriceRoundCondition(NUMERIC[14,2]([X*(Y+100)*(Z+100)/10000](
+    calc###prefixA###price###detail(detail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
     prefixB###price###detail(detail),
     prefixC###markup###detail(detail),
     value###prefixD###VAT###detail(detail))), prefixCondition###roundCondition###detail(detail));
@@ -237,7 +237,7 @@ END
 //-- С учетом предельных надбавок
 
 META changeDocumentDetailLimitPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixCondition)
-    calc###prefixA###price###detail(detail)  = roundPriceRoundCondition(NUMERIC[14,2]([X*(Y+100)*(Z+100)/10000](
+    calc###prefixA###price###detail(detail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
     prefixB###price###detail(detail),
     prefixC###markup###detail(detail),
     value###prefixD###VAT###detail(detail))), prefixCondition###roundCondition###detail(detail));
@@ -262,7 +262,7 @@ END
 
 //-- Для общего случая
 META changeDocumentDetailMarkupPrefixInner(detail, prefixA, prefixB, prefixC, prefixD, prefixE, prefixF)
-    calc###prefixB###markup###detail(detail)  = [round2(((X/Z*100/(100+Y))-1)*100)](
+    calc###prefixB###markup###detail(detail)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
         prefixC###price###detail(detail),
         prefixD###price###detail(detail),
         value###prefixE###VAT###detail(detail));
@@ -282,7 +282,7 @@ END
 
 META changeDocumentDetailPricePrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixE, prefixF)
 
-    calc###prefixB###price###detail(detail)  = roundPriceRoundCondition(NUMERIC[14,2]([X*(Y+100)*(Z+100)/10000](
+    calc###prefixB###price###detail(detail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
         prefixD###price###detail(detail),
         prefixC###markup###detail(detail),
         value###prefixE###VAT###detail(detail))), roundCondition###detail(detail));
@@ -715,7 +715,7 @@ WHEN SESSION FORMS userPricing // цены берем на начало сесс
 // Проставление надбавки и розничной цены при изменении sku, склада, времени, вида цен, цены расценки, НДС в форме userPricing
 //overLimitPriceUserPricingDetail = ABSTRACT NUMERIC[14,2] (UserPricingDetail);
 //
-//minRetailPriceUserPricingDetail 'Минимальная розничная цена' (detail)= MIN roundPriceRoundCondition([X*(Y+100)*(Z+100)/10000](
+//minRetailPriceUserPricingDetail 'Минимальная розничная цена' (detail)= MIN roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
 //                                                                        pricingPriceUserPricingDetail(detail),
 //                                                                        retailMarkupUserPricingDetail(detail),
 //                                                                        valueRetailVATUserPricingDetail(detail)), roundConditionPriceListType(calcRetailCalcPriceListTypeUserPricingDetail(detail))),

@@ -467,7 +467,7 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
             ASSIGN inBarcode(barcode) <- TRUE IF NOT (priceBarcodeGroupMachinery(barcode, groupMachinery) == transactionPriceBarcodeGroupMachinery(barcode, groupMachinery)) WHERE inBarcode(barcode);
 
         LOCAL countBarcode = INTEGER();
-        ASSIGN countBarcode() <- [GROUP SUM 1 IF inBarcode(barcode)]();
+        ASSIGN countBarcode() <- [= GROUP SUM 1 IF inBarcode(barcode)]();
         IF countBarcode() THEN {
             EXEC createMachineryPriceTransactionGroupMachinery(groupMachinery);
             FOR t == addedObject() DO {
@@ -481,7 +481,7 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
                 ASSIGN priceMachineryPriceTransactionBarcode(t, barcode) <- priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
             }
 
-            ASSIGN message() <- [FORMULA TEXT '$1 || $2 || \' - \' || CAST($3 as text) || \' товаров.\'\n']
+            ASSIGN message() <- [= FORMULA TEXT '$1 || $2 || \' - \' || CAST($3 as text) || \' товаров.\'\n']
                              (message(), nameGroupMachinery(groupMachinery), countBarcode());
             ASSIGN sentSomething() <- TRUE;
         }

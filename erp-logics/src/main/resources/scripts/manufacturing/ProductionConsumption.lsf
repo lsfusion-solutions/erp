@@ -104,10 +104,10 @@ consumedSumComponentDetail (detail) <- NUMERIC[16,2](roundPriceCurrency((priceCo
 quantityOutputProductOrder 'Кол-во изделий в заказе (произведенных)' (product, order) = GROUP SUM outputQuantityProductDetail(productDetail)
     BY productProductDetail(productDetail), orderProductDetail(productDetail);
 
-quantityOutputBOMOrder 'Кол-во спецификаций (произведенных)' (BOM, order) = [GROUP MAX quantityOutputProductOrder(product, order)/ quantityProduct(product)
+quantityOutputBOMOrder 'Кол-во спецификаций (произведенных)' (BOM, order) = [= GROUP MAX quantityOutputProductOrder(product, order)/ quantityProduct(product)
     BY BOMProduct(product), order](BOM, order);
 
-recBruttoQuantityOutputOrderSku 'Кол-во для произ-го' (order, sku) = [GROUP SUM quantityOutputBOMOrder(BOM, order) * recBruttoNodeQuantityBOMSkuDate(BOM, sku, dateOrder(order)) BY order, sku](
+recBruttoQuantityOutputOrderSku 'Кол-во для произ-го' (order, sku) = [= GROUP SUM quantityOutputBOMOrder(BOM, order) * recBruttoNodeQuantityBOMSkuDate(BOM, sku, dateOrder(order)) BY order, sku](
     order, sku) IF bruttoQuantitySkuOrder(sku, order);
 
 createOutputComponentOrder 'Заполнить кол-во компонентов для произведенных изделий' = ACTION (order)  {
@@ -402,7 +402,7 @@ createShipmentConsumption 'Создать поставку для Сырья' = 
         ASSIGN Sale.customerUserShipment(sh) <- legalEntityStockConsumption(consumption);
         ASSIGN Sale.customerStockUserShipment(sh) <- stockConsumption(consumption);
         ASSIGN createPurchaseUserShipment(sh) <- TRUE;
-        ASSIGN Sale.noteUserShipment(sh) <- [FORMULA VARSTRING[100] 'CAST($1 AS TEXT)'](descriptionConsumption(consumption));
+        ASSIGN Sale.noteUserShipment(sh) <- [= FORMULA VARSTRING[100] 'CAST($1 AS TEXT)'](descriptionConsumption(consumption));
 
         FOR consumptionConsumptionDetail(consumptionDetail)== consumption ADDOBJ d = Sale.UserShipmentDetail DO {
             ASSIGN Sale.userShipmentUserShipmentDetail(d) <- sh;

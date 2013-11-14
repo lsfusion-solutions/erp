@@ -229,14 +229,14 @@ ON APPLY {
                                   OR CHANGED(changedDataSkuLedger(ledger)))
                                  AND isPostedDataSkuLedger(ledger));
 
-    IF [GROUP MAX changedLedger(ledger)]() THEN
+    IF [= GROUP MAX changedLedger(ledger)]() THEN
         NEWSESSION SINGLE {
             ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedLedger(ledger);
 
             LOCAL orderedLedger = INTEGER (DataSkuLedger);
             ASSIGN orderedLedger(ledger) <- PARTITION SUM 1 IF changedLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
 
-            FOR iterate(i, 1, [GROUP MAX orderedLedger(ledger)]()) DO {
+            FOR iterate(i, 1, [= GROUP MAX orderedLedger(ledger)]()) DO {
                 ASSIGN changedCostDataSkuLedger(ledger) <- TRUE WHERE orderedLedger(ledger) == i;
                 ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch) WHERE orderedLedger(ledger) == i;
             }
@@ -343,22 +343,22 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     // без учета текущей даты/времени
     balanceB##postfix##SkuStockDate 'Остаток на начало дня'###caption (sku, stock, date) = currentBalance##postfix##SkuStock(sku, stock)
-                                                                      (-) [GROUP SUM signedQuantity##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn >= date
+                                                                      (-) [= GROUP SUM signedQuantity##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn >= date
                                                                                  BY sku, stock, date](sku, stock, date);
 
     // с учетом текущей даты/времени
     balanceA##postfix##SkuStockDate 'Остаток на конец дня'###caption (sku, stock, date) = currentBalance##postfix##SkuStock(sku, stock)
-                                                                     (-) [GROUP SUM signedQuantity##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn > date
+                                                                     (-) [= GROUP SUM signedQuantity##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn > date
                                                                                 BY sku, stock, date](sku, stock, date);
 
     // без учета текущей даты/времени
     balanceB##postfix##SkuStockDateTime 'Остаток (до)'###caption (sku, stock, dateTime) = currentBalance##postfix##SkuStock(sku, stock)
-                                                                              (-) [GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) >= dateTime
+                                                                              (-) [= GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) >= dateTime
                                                                                          BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateTime](sku, stock, dateTime);
 
     // с учетом текущей даты/времени
     balanceA##postfix##SkuStockDateTime 'Остаток (после)'###caption (sku, stock, dateTime) = currentBalance##postfix##SkuStock(sku, stock)
-                                                                             (-) [GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) > dateTime
+                                                                             (-) [= GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) > dateTime
                                                                                         BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateTime](sku, stock, dateTime);
 
     balanceA##postfix##GroupStockDateTime 'Остаток (после)'###caption (group,  stock, dateTime) =
@@ -417,7 +417,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     // без учета текущей даты/времени
     sumB##postfix##SkuStockDate 'Сумма на начало дня'###caption (sku, stock, date) = currentSum##postfix##SkuStock(sku, stock)
-                                                                      (-) [GROUP SUM signedSum##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn >= date
+                                                                      (-) [= GROUP SUM signedSum##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn >= date
                                                                                  BY sku, stock, date](sku, stock, date);
 
     sumB##postfix##SkuGroupStockDate 'Сумма на начало дня (по группе)' (group, stock, date) =
@@ -430,7 +430,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     // с учетом текущей даты/времени
     sumA##postfix##SkuStockDate 'Сумма на конец дня'###caption (sku, stock, date) = currentSum##postfix##SkuStock(sku, stock)
-                                                                     (-) [GROUP SUM signedSum##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn > date
+                                                                     (-) [= GROUP SUM signedSum##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn > date
                                                                                 BY sku, stock, date](sku, stock, date);
 
     sumA##postfix##SkuGroupStockDate 'Сумма на конец дня (по группе)' (group, stock, date) =
@@ -458,7 +458,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     // без учета текущей даты/времени
     sumB##postfix##SkuStockDateTime 'Сумма (до)'###caption (sku, stock, dateTime) = currentSum##postfix##SkuStock(sku, stock)
-                                                                      (-) [GROUP SUM signedSum##postfix##SkuStockDateTime (sku, stock, dateIn) IF dateIn >= dateTime
+                                                                      (-) [= GROUP SUM signedSum##postfix##SkuStockDateTime (sku, stock, dateIn) IF dateIn >= dateTime
                                                                                  BY sku, stock, dateTime](sku, stock, dateTime);
 
     sumB##postfix##SkuGroupStockDateTime 'Учетная сумма группы товаров (до)' (group, stock, dateTime) =
@@ -471,14 +471,14 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
         
     // с учетом текущей даты/времени
     sumA##postfix##SkuStockDateTime 'Сумма (после)'###caption (sku, stock, dateTime) = currentSum##postfix##SkuStock(sku, stock)
-                                                                     (-) [GROUP SUM signedSum##postfix##SkuStockDateTime (sku, stock, dateIn) IF dateIn > dateTime
+                                                                     (-) [= GROUP SUM signedSum##postfix##SkuStockDateTime (sku, stock, dateIn) IF dateIn > dateTime
                                                                                 BY sku, stock, dateTime](sku, stock, dateTime);
 
     // суммы для периодов
     sumIn##postfix##SkuStockDateDate 'Сумма товара пришедшего за период' (sku, stock, dateFrom, dateTo) =
-        [GROUP SUM sumIn##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn >= dateFrom
+        [= GROUP SUM sumIn##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn >= dateFrom
                BY sku, stock, dateFrom](sku, stock, dateFrom) (-)
-        [GROUP SUM sumIn##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn > dateTo
+        [= GROUP SUM sumIn##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn > dateTo
                BY sku, stock, dateTo](sku, stock, dateTo);
     sumIn##postfix##GroupSkuStockDateDate 'Сумма товара пришедшего за период(по группе)' (group, stock, dateFrom, dateTo) =
         GROUP SUM sumIn##postfix##SkuStockDateDate (sku, stock, dateFrom, dateTo)
@@ -488,9 +488,9 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
         BY group, stock, dateFrom, dateTo;
 
     sumOut##postfix##SkuStockDateDate 'Сумма товара ушедшего за период' (sku, stock, dateFrom, dateTo) =
-        [GROUP SUM sumOut##postfix##SkuStockDate(sku, stock, dateOut) IF dateOut >= dateFrom
+        [= GROUP SUM sumOut##postfix##SkuStockDate(sku, stock, dateOut) IF dateOut >= dateFrom
                BY sku, stock, dateFrom](sku, stock, dateFrom) (-)
-        [GROUP SUM sumOut##postfix##SkuStockDate(sku, stock, dateOut) IF dateOut > dateTo
+        [= GROUP SUM sumOut##postfix##SkuStockDate(sku, stock, dateOut) IF dateOut > dateTo
                BY sku, stock, dateTo](sku, stock, dateTo);
     sumOut##postfix##GroupSkuStockDateDate 'Сумма товара ушедшего за период(по группе)' (group, stock, dateFrom, dateTo) =
         GROUP SUM sumOut##postfix##SkuStockDateDate (sku, stock, dateFrom, dateTo)
@@ -534,22 +534,22 @@ balanceSkuStockDatePeriod (item, departmentStore, date, period) =
 //----------------------------------------- По партиям ---------------------------------------------//
 // без учета текущей даты/времени
 balanceBBatchStockDate 'Остаток на начало дня' (batch, stock, date) = currentBalanceBatchStock(batch, stock)
-    (-) [GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateSkuLedger(ledger) >= date
+    (-) [= GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateSkuLedger(ledger) >= date
     BY batch, stockSkuLedger(ledger), date](batch, stock, date);
 
 // с учетом текущей даты/времени
 balanceABatchStockDate 'Остаток на конец дня' (batch, stock, date) = currentBalanceBatchStock(batch, stock)
-    (-) [GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateSkuLedger(ledger) > date
+    (-) [= GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateSkuLedger(ledger) > date
     BY batch, stockSkuLedger(ledger), date](batch, stock, date);
 
 // без учета текущей даты/времени
 balanceBBatchStockDateTime 'Остаток (до)' (batch, stock, dateTime) = currentBalanceBatchStock(batch, stock)
-    (-) [GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateTimeSkuLedger(ledger) >= dateTime
+    (-) [= GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateTimeSkuLedger(ledger) >= dateTime
     BY batch, stockSkuLedger(ledger), dateTime](batch, stock, dateTime);
 
 // с учетом текущей даты/времени
 balanceABatchStockDateTime 'Остаток (после)' (batch, stock, dateTime) = currentBalanceBatchStock(batch, stock)
-    (-) [GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateTimeSkuLedger(ledger) > dateTime
+    (-) [= GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateTimeSkuLedger(ledger) > dateTime
     BY batch, stockSkuLedger(ledger), dateTime](batch, stock, dateTime);
 
 //---------------------------------------------- За период ------------------------------------------//
@@ -1345,7 +1345,7 @@ META defineDocumentInterfaceDetailSkuBalance(object)
 END
 
 META deriveDocumentDetailSkuBalanceCustom (detail, skuProp, stockProp)
-    balanceBSku###detail (detail)  <- [PREV(balanceBSkuStockDateTime(sku, stock, dateTime) IF dateTime IS DATETIME)](skuProp###detail(detail), stockProp###detail(detail), dateTime###detail(detail))
+    balanceBSku###detail (detail)  <- [= PREV(balanceBSkuStockDateTime(sku, stock, dateTime) IF dateTime IS DATETIME)](skuProp###detail(detail), stockProp###detail(detail), dateTime###detail(detail))
         WHEN CHANGED(skuProp###detail(detail)) OR CHANGED(stockProp###detail(detail)) OR CHANGED(dateTime###detail(detail));
 END
 META deriveDocumentDetailSkuBalance (object, skuProp, stockProp)

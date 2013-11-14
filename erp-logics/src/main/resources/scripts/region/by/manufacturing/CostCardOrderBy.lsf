@@ -7,7 +7,7 @@ NAMESPACE Production;
 
 calcMultiplierSkuOrder(sku, order)= OVERRIDE (1.000 IF sku IS Sku AND order IS Order), multiplierSkuOrder(sku, order);
 
-quantityBOMSkuOrder (BOM, sku, order) = [GROUP SUM recBruttoNodeQuantityBOMSkuDate (BOM, sku, dateOrder(order)) * calcMultiplierSkuOrder(sku, order)
+quantityBOMSkuOrder (BOM, sku, order) = [= GROUP SUM recBruttoNodeQuantityBOMSkuDate (BOM, sku, dateOrder(order)) * calcMultiplierSkuOrder(sku, order)
     BY BOM, sku, order](BOM, sku, order) IF bruttoQuantitySkuOrder(sku, order);
 quantityProductDetailSku 'Норма' (productDetail, sku) = quantityBOMSkuOrder(BOMProduct(productProductDetail(productDetail)), sku, orderProductDetail(productDetail));
 
@@ -18,7 +18,7 @@ quantityInBOMProductDetail 'Кол-во изделий в спец.'(productDeta
 productsSumInBOMProductDetail 'Сумма изделий в спец.' = roundPriceCurrency((quantityInBOMProductDetail(productDetail) * productsPriceProductDetail(productDetail)), currencyProductDetail(productDetail));
 
 //--
-quantityProductSkuOrder (product, sku, order) = [GROUP SUM recPricePercentProductSkuDate (product, sku, dateOrder(order))* calcMultiplierSkuOrder(sku, order)/100 BY product, sku, order](product, sku, order) IF bruttoQuantitySkuOrder(sku, order);
+quantityProductSkuOrder (product, sku, order) = [= GROUP SUM recPricePercentProductSkuDate (product, sku, dateOrder(order))* calcMultiplierSkuOrder(sku, order)/100 BY product, sku, order](product, sku, order) IF bruttoQuantitySkuOrder(sku, order);
 
 quantityProductProductDetailSku 'Норма с учетом коэфф.цены'(productDetail, sku) = quantityProductSkuOrder(
     productProductDetail(productDetail), sku, orderProductDetail(productDetail)); // св-во необходимо, т.к. в BOM-ах есть уд.вес цены => мы его включаем в норму. Пока так, в будущем возможно надо будет включать в надбавку.
@@ -38,7 +38,7 @@ componentsSumInBOMProductDetail 'Сумма компонента для изде
 premiumComponentsSumInBOMProductDetail 'Сумма компонента с надбавкой для изделий в спец.' (productDetail) = calcPremiumComponentsPriceProductDetail(productDetail)*quantityInBOMProductDetail(productDetail);
 //--
 VATMarkupSumInBOMProductDetail 'НДС и надбавка в спец' (productDetail) =  productsSumInBOMProductDetail(productDetail) (-) componentsSumInBOMProductDetail(productDetail);
-retailVATSumInBOMProductDetail 'Сумма НДС в спец' (productDetail) = [X*Y/(100+Y)](VATMarkupSumInBOMProductDetail(productDetail), valueVATProductDetail(productDetail));
+retailVATSumInBOMProductDetail 'Сумма НДС в спец' (productDetail) = [= X*Y/(100+Y)](VATMarkupSumInBOMProductDetail(productDetail), valueVATProductDetail(productDetail));
 retailMarkupSumInBOMProductDetail 'Сумма надбавки' (productDetail) =  VATMarkupSumInBOMProductDetail(productDetail) (-) retailVATSumInBOMProductDetail(productDetail);
 
 retailMarkupPriceProductDetail 'Цена надбавки (ед.)' (productDetail)= retailMarkupSumInBOMProductDetail(productDetail)/quantityInBOMProductDetail(productDetail);
@@ -49,7 +49,7 @@ retailVATPriceProductDetail 'Цена НДС (ед.)' (productDetail)= retailVAT
 
 //--  Нетто
 
-nettoQuantityBOMSkuOrder (BOM, sku, order) = [GROUP SUM recNettoNodeQuantityBOMSku (BOM, sku) * calcMultiplierSkuOrder(sku, order)
+nettoQuantityBOMSkuOrder (BOM, sku, order) = [= GROUP SUM recNettoNodeQuantityBOMSku (BOM, sku) * calcMultiplierSkuOrder(sku, order)
     BY BOM, sku, order](BOM, sku, order) IF bruttoQuantitySkuOrder(sku, order);
 
 nettoQuantityProductDetailSku 'Нетто' (productDetail, sku) = nettoQuantityBOMSkuOrder(BOMProduct(productProductDetail(productDetail)), sku, orderProductDetail(productDetail));

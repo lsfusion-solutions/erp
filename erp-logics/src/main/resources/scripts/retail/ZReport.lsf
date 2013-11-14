@@ -56,7 +56,7 @@ departmentStoreZReport(zReport) <- departmentStoreCashRegister(cashRegisterZRepo
     WHEN CHANGED(cashRegisterZReport(zReport));
 
 descriptionZReport (zReport) =
-    [FORMULA VARSTRING[200] '\'Продажа по кассе \' || CAST($1 AS TEXT) || \' отдела \' || CAST($2 AS TEXT) ||  \' от \' || CAST($3 AS TEXT)'](
+    [= FORMULA VARSTRING[200] '\'Продажа по кассе \' || CAST($1 AS TEXT) || \' отдела \' || CAST($2 AS TEXT) ||  \' от \' || CAST($3 AS TEXT)'](
     numberCashRegisterZReport(zReport), nameDepartmentStoreZReport(zReport), dateZReport(zReport));
 
 //----------------------------------------------- Чеки ---------------------------------------------------//
@@ -199,7 +199,7 @@ receiptSaleDetailReceiptReturnDetail = DATA ReceiptSaleDetail (ReceiptReturnDeta
 receiptSaleReceiptReturnDetail (returnDetail) = receiptReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(returnDetail));
 
 descriptionSaleReceiptReturnDetail 'Чек продажи' (returnDetail) =
-    [FORMULA VARSTRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) ||  \' позиция \' || CAST($3 AS TEXT)'](
+    [= FORMULA VARSTRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) ||  \' позиция \' || CAST($3 AS TEXT)'](
     numberReceipt(receiptSaleReceiptReturnDetail(returnDetail)), dateTimeReceipt(receiptSaleReceiptReturnDetail(returnDetail)), indexReceiptDetail(receiptSaleDetailReceiptReturnDetail(returnDetail))) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 // Количества и суммы
@@ -359,13 +359,13 @@ numberReceiptDetail 'Номер позиции чека' = DATA INTEGER (Receipt
 receiptDetailZReportReceiptNumberCashRegister (zReport, receipt, receiptDetail, cashRegister) = GROUP AGGR receiptDetail BY numberZReport(zReportReceiptDetail(receiptDetail)), numberReceipt(receiptReceiptDetail(receiptDetail)), numberReceiptDetail(receiptDetail), numberCashRegister(cashRegisterZReport(zReportReceiptDetail(receiptDetail))) WHERE receiptDetail IS ReceiptDetail;
 //
 
-descriptionReceipt 'Название документа' (receipt) = [FORMULA VARSTRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '](
+descriptionReceipt 'Название документа' (receipt) = [= FORMULA VARSTRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '](
                                                numberReceipt(receipt), dateTimeReceipt(receipt));
 
-descriptionReceiptSaleDetail (receiptDetail) = [FORMULA VARSTRING[200] '\'Продажа № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '] (
+descriptionReceiptSaleDetail (receiptDetail) = [= FORMULA VARSTRING[200] '\'Продажа № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '] (
                                           numberReceipt(receiptReceiptSaleDetail(receiptDetail)), dateTimeReceipt(receiptReceiptSaleDetail(receiptDetail)));
 
-descriptionReceiptReturnDetail (receiptDetail) = [FORMULA VARSTRING[200] '\'Возврат № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '] (
+descriptionReceiptReturnDetail (receiptDetail) = [= FORMULA VARSTRING[200] '\'Возврат № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '] (
                                             numberReceipt(receiptReceiptReturnDetail(receiptDetail)), dateTimeReceipt(receiptReceiptReturnDetail(receiptDetail)));
 
 descriptionReceiptDetail (receiptDetail) = OVERRIDE descriptionReceiptReturnDetail(receiptDetail), descriptionReceiptSaleDetail(receiptDetail);

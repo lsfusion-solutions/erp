@@ -40,7 +40,7 @@ valueRetailVATUserOutputDetail(detail) <- valueVATProductDetail(productDetailUse
 
 VATMarkupSumUserOutputDetail 'НДС и надбавка' (userOutputDetail) =  retailSumUserOutputDetail(userOutputDetail) (-) supplierSumUserOutputDetail(userOutputDetail);
 
-retailVATSumUserOutputDetail(userOutputDetail) <- roundPriceCurrency([X*Y/(100+Y)](VATMarkupSumUserOutputDetail(userOutputDetail), valueRetailVATUserOutputDetail(userOutputDetail)), currencyUserOutputDetail(userOutputDetail))
+retailVATSumUserOutputDetail(userOutputDetail) <- roundPriceCurrency([= X*Y/(100+Y)](VATMarkupSumUserOutputDetail(userOutputDetail), valueRetailVATUserOutputDetail(userOutputDetail)), currencyUserOutputDetail(userOutputDetail))
         WHEN CHANGED(VATMarkupSumUserOutputDetail(userOutputDetail)) OR
              CHANGED(valueRetailVATUserOutputDetail(userOutputDetail)) OR
              CHANGED(currencyUserOutputDetail(userOutputDetail));
@@ -49,7 +49,7 @@ retailMarkupSumUserOutputDetail (userOutputDetail) <- VATMarkupSumUserOutputDeta
         WHEN CHANGED(VATMarkupSumUserOutputDetail(userOutputDetail)) OR
              CHANGED(retailVATSumUserOutputDetail(userOutputDetail));
 
-retailMarkupUserOutputDetail(userOutputDetail) <-[round2(X*100/Y)](retailMarkupSumUserOutputDetail(userOutputDetail),supplierSumUserOutputDetail(userOutputDetail))
+retailMarkupUserOutputDetail(userOutputDetail) <-[= round2(X*100/Y)](retailMarkupSumUserOutputDetail(userOutputDetail),supplierSumUserOutputDetail(userOutputDetail))
         WHEN CHANGED(retailMarkupSumUserOutputDetail(userOutputDetail)) OR
              CHANGED(supplierSumUserOutputDetail(userOutputDetail));
 
@@ -70,9 +70,9 @@ backgroundRetailOrder 'Цвет' (order) = RGB(224, 255, 255) IF order IS Order;
 
 componentsSumProductDetail 'Сумма компонентов произведенного изделия' (productDetail) = NUMERIC[16,2](roundPriceCurrency((componentsPriceProductDetail(productDetail)*outputQuantityProductDetail(productDetail)),currencyProductDetail(productDetail)));
 VATMarkupSumProductDetail 'НДС и надбавка' (productDetail) =  NUMERIC[16,2](outputProductsSumProductDetail(productDetail) (-) componentsSumProductDetail(productDetail));
-retailVATSumProductDetail 'Сумма НДС' (productDetail) = NUMERIC[16,2](roundPriceCurrency([X*Y/(100+Y)](VATMarkupSumProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
+retailVATSumProductDetail 'Сумма НДС' (productDetail) = NUMERIC[16,2](roundPriceCurrency([= X*Y/(100+Y)](VATMarkupSumProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
 retailMarkupSumProductDetail 'Сумма надбавки' (productDetail) = NUMERIC[16,2](VATMarkupSumProductDetail(productDetail) (-) retailVATSumProductDetail(productDetail));
-retailMarkupProductDetail 'Надбавка, %'(productDetail) = NUMERIC[8,3]([round2(X*100/Y)](retailMarkupSumProductDetail(productDetail), componentsSumProductDetail(productDetail)));
+retailMarkupProductDetail 'Надбавка, %'(productDetail) = NUMERIC[8,3]([= round2(X*100/Y)](retailMarkupSumProductDetail(productDetail), componentsSumProductDetail(productDetail)));
 
 pricingCommitteeOutput(output) += pricingCommitteeOrder(orderOrderOutput(output));
 createPricingOutput(output) += createPricingOrder(orderOrderOutput(output));

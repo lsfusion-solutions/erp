@@ -99,7 +99,7 @@ changeBatchUserRepricingDetail = ACTION (detail) {
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRepricing, retailPricingPriceListType, curRetail, sku, departmentStore);
 
 // Автоматическое проставление надбавок
-curMarkupUserRepricingDetail(userRepricingDetail)  <- [round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+curMarkupUserRepricingDetail(userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
     curRetailPriceUserRepricingDetail(userRepricingDetail),
     valueCurVATUserRepricingDetail(userRepricingDetail),
     curRepricingPriceUserRepricingDetail(userRepricingDetail))
@@ -136,7 +136,7 @@ repricingPriceRepricingDetail (detail) = OVERRIDE priceRepricingDetail(detail), 
 @defineDocumentInterfaceDetailPricePrefix(repricing, retail, ' розничная после');
 
 // Автоматическое проставление надбавок
-markupUserRepricingDetail(userRepricingDetail)  <- [round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+markupUserRepricingDetail(userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
     retailPriceUserRepricingDetail(userRepricingDetail),
     valueVATUserRepricingDetail(userRepricingDetail),
     repricingPriceUserRepricingDetail(userRepricingDetail))
@@ -246,11 +246,11 @@ percentUserRepricing 'Процент' (userRepricing)= DATA NUMERIC[8,3](UserRep
 CONSTRAINT changePriceTypeUserRepricing(userRepricing) AND NOT percentUserRepricing(userRepricing) //CHECKED BY changePriceTypeUserRepricing
         MESSAGE 'Не задан процент для изменения цены';
 
-newDiscountRetailPriceUserRepricingDetail (d) =  roundPriceRoundCondition(NUMERIC[14,2]([X+(X*Y)/100](
+newDiscountRetailPriceUserRepricingDetail (d) =  roundPriceRoundCondition(NUMERIC[14,2]([= X+(X*Y)/100](
     curRetailPriceUserRepricingDetail(d),
     percentUserRepricing(userRepricingUserRepricingDetail(d)))), roundConditionDepartmentStore(departmentStoreUserRepricingDetail(d)));
 
-newMarkupRetailPriceUserRepricingDetail (d) = roundPriceRoundCondition(NUMERIC[14,2]([X*(Y+100)*(Z+100)/10000](
+newMarkupRetailPriceUserRepricingDetail (d) = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
     curRepricingPriceUserRepricingDetail(d),
     percentUserRepricing(userRepricingUserRepricingDetail(d)),
     valueCurVATUserRepricingDetail(d))), roundConditionDepartmentStore(departmentStoreUserRepricingDetail(d)));
