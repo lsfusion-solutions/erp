@@ -32,6 +32,7 @@ public class PurchaseInvoiceDetail {
     public BigDecimal sumVAT;
     public BigDecimal invoiceSum;
     public BigDecimal manufacturingPrice;
+    public String contractPrice;
     public String numberCompliance;
     public Date dateCompliance;
     public String numberDeclaration;
@@ -70,7 +71,7 @@ public class PurchaseInvoiceDetail {
                                  String nameCountry, String nameOriginCountry, String nameImportCountry, String idCustomer, 
                                  String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
                                  BigDecimal valueVAT, BigDecimal sumVAT, BigDecimal invoiceSum,
-                                 BigDecimal manufacturingPrice, String numberCompliance, Date dateCompliance, 
+                                 BigDecimal manufacturingPrice, String contractPrice, String numberCompliance, Date dateCompliance, 
                                  String numberDeclaration, Date expiryDate, Date manufactureDate, String idPharmacyPriceGroup, 
                                  String seriesPharmacy, String idArticle, String captionArticle, 
                                  String originalCaptionArticle, String idColor, String nameColor, String idCollection,
@@ -106,6 +107,7 @@ public class PurchaseInvoiceDetail {
         this.sumVAT = sumVAT;
         this.invoiceSum = invoiceSum;
         this.manufacturingPrice = manufacturingPrice;
+        this.contractPrice = contractPrice;
         this.numberCompliance = numberCompliance;
         this.dateCompliance = dateCompliance;
         this.numberDeclaration = numberDeclaration;
