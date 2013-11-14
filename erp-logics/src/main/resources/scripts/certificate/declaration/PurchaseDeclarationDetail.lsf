@@ -622,15 +622,17 @@ EXTEND DESIGN declaration {
 
 // ----------------------- Расчет суммы транспортных расходов -------------------------- //
 
-coeffSumDeclarationDetail 'Удельный вес по стоимости' = NUMERIC[22,8](sumDeclarationDetail(d)) / sumDeclarationDetailDeclaration(declarationDeclarationDetail(d));
+coeffSumGrossWeightDeclarationDetail 'Удельный вес по весу брутто' = NUMERIC[22,8](sumGrossWeightDeclarationDetail(d)) / sumGrossWeightDeclarationDetailDeclaration(declarationDeclarationDetail(d));
 
-calcDeliverySumDeclarationDetail = round(deliverySumDeclaration(declarationDeclarationDetail(d)) * coeffSumDeclarationDetail(d),
+calcDeliverySumDeclarationDetail = round(deliverySumDeclaration(declarationDeclarationDetail(d)) * coeffSumGrossWeightDeclarationDetail(d),
                                          roundDeclaration(declarationDeclarationDetail(d)));
 WHEN SESSION FORMS declaration CHANGED(calcDeliverySumDeclarationDetail(d)) DO {
     deliverySumDeclarationDetail(d) <- calcDeliverySumDeclarationDetail(d);
 }
 
 // ----------------------- Расчет суммы услуг -------------------------- //
+
+coeffSumDeclarationDetail 'Удельный вес по стоимости' = NUMERIC[22,8](sumDeclarationDetail(d)) / sumDeclarationDetailDeclaration(declarationDeclarationDetail(d));
 
 calcChargeSumDeclarationDetail = round(chargeSumDeclaration(declarationDeclarationDetail(d)) * coeffSumDeclarationDetail(d),
                                        roundDeclaration(declarationDeclarationDetail(d)));
