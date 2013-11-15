@@ -25,7 +25,6 @@ public class ImportData {
     private Integer numberOfUserInvoicesAtATime;
     private Boolean importInactive;
     private boolean skipKeys;
-    private boolean withoutRecalc;
 
     public ImportData() {
     }
@@ -204,13 +203,5 @@ public class ImportData {
 
     public void setSkipKeys(boolean skipKeys) {
         this.skipKeys = skipKeys;
-    }
-
-    public boolean getWithoutRecalc() {
-        return withoutRecalc;
-    }
-
-    public void setWithoutRecalc(boolean withoutRecalc) {
-        this.withoutRecalc = withoutRecalc;
     }
 }

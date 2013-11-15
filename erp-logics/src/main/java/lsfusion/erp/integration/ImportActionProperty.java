@@ -9,7 +9,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.ApplyFilter;
 import lsfusion.server.session.DataSession;
 import org.xBaseJ.xBaseJException;
 
@@ -51,46 +50,46 @@ public class ImportActionProperty {
             LM.findLCPByCompoundName("defaultCountry").change(countryBelarus, context.getSession());
             context.getSession().apply(context.getBL());
 
-            importItemGroups(importData.getItemGroupsList(), importData.getWithoutRecalc());
+            importItemGroups(importData.getItemGroupsList());
 
-            importParentGroups(importData.getParentGroupsList(), importData.getWithoutRecalc());
+            importParentGroups(importData.getParentGroupsList());
 
-            importBanks(importData.getBanksList(), importData.getWithoutRecalc());
+            importBanks(importData.getBanksList());
 
-            importLegalEntities(importData.getLegalEntitiesList(), importData.getWithoutRecalc());
+            importLegalEntities(importData.getLegalEntitiesList());
 
-            importEmployees(importData.getEmployeesList(), importData.getWithoutRecalc());
+            importEmployees(importData.getEmployeesList());
 
-            importWarehouseGroups(importData.getWarehouseGroupsList(), importData.getWithoutRecalc());
+            importWarehouseGroups(importData.getWarehouseGroupsList());
 
-            importWarehouses(importData.getWarehousesList(), importData.getWithoutRecalc());
+            importWarehouses(importData.getWarehousesList());
 
-            importStores(importData.getStoresList(), importData.getWithoutRecalc());
+            importStores(importData.getStoresList());
 
-            importDepartmentStores(importData.getDepartmentStoresList(), importData.getWithoutRecalc());
+            importDepartmentStores(importData.getDepartmentStoresList());
 
-            importContracts(importData.getContractsList(), importData.getWithoutRecalc());
+            importContracts(importData.getContractsList());
 
-            importRateWastes(importData.getRateWastesList(), importData.getWithoutRecalc());
+            importRateWastes(importData.getRateWastesList());
 
-            importWares(importData.getWaresList(), importData.getWithoutRecalc());
+            importWares(importData.getWaresList());
 
-            importUOMs(importData.getUOMsList(), importData.getWithoutRecalc());
+            importUOMs(importData.getUOMsList());
 
-            importItems(importData.getItemsList(), importData.getNumberOfItemsAtATime(), importData.getSkipKeys(), importData.getWithoutRecalc());
+            importItems(importData.getItemsList(), importData.getNumberOfItemsAtATime(), importData.getSkipKeys());
 
-            importPriceListStores(importData.getPriceListStoresList(), importData.getNumberOfPriceListsAtATime(), importData.getWithoutRecalc());
+            importPriceListStores(importData.getPriceListStoresList(), importData.getNumberOfPriceListsAtATime());
 
-            importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime(), importData.getWithoutRecalc());
+            importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime());
 
-            importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys(), importData.getWithoutRecalc());
+            importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys());
 
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void importParentGroups(List<ItemGroup> parentGroupsList, boolean withoutRecalc) throws ScriptingErrorLog.SemanticErrorException {
+    private void importParentGroups(List<ItemGroup> parentGroupsList) throws ScriptingErrorLog.SemanticErrorException {
         try {
             if (parentGroupsList != null) {
 
@@ -121,8 +120,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -135,7 +132,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importItemGroups(List<ItemGroup> itemGroupsList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importItemGroups(List<ItemGroup> itemGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (itemGroupsList != null) {
@@ -164,8 +161,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -178,7 +173,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importWares(List<Ware> waresList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importWares(List<Ware> waresList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (warePurchaseInvoiceLM != null && waresList != null) {
@@ -215,8 +210,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -229,7 +222,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime, boolean skipKeys, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             Integer numAtATime = (numberOfItemsAtATime == null || numberOfItemsAtATime <= 0) ? 5000 : numberOfItemsAtATime;
@@ -237,7 +230,7 @@ public class ImportActionProperty {
                 int amountOfImportIterations = (int) Math.ceil((double) itemsList.size() / numAtATime);
                 Integer rest = itemsList.size();
                 for (int i = 0; i < amountOfImportIterations; i++) {
-                    importPackOfItems(warePurchaseInvoiceLM, writeOffItemLM, itemsList.subList(i * numAtATime, i * numAtATime + (rest > numAtATime ? numAtATime : rest)), skipKeys, withoutRecalc);
+                    importPackOfItems(warePurchaseInvoiceLM, writeOffItemLM, itemsList.subList(i * numAtATime, i * numAtATime + (rest > numAtATime ? numAtATime : rest)), skipKeys);
                     rest -= numAtATime;
                     System.gc();
                 }
@@ -251,7 +244,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importUOMs(List<UOM> uomsList, boolean withoutRecalc) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    private void importUOMs(List<UOM> uomsList) throws ScriptingErrorLog.SemanticErrorException, SQLException {
         if (uomsList == null)
             return;
 
@@ -285,8 +278,6 @@ public class ImportActionProperty {
         ImportTable table = new ImportTable(fields, data);
 
         DataSession session = context.createSession();
-        if (withoutRecalc)
-            session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
         session.sql.pushVolatileStats(null);
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
@@ -296,7 +287,7 @@ public class ImportActionProperty {
     }
 
 
-    private void importPackOfItems(ScriptingLogicsModule warePurchaseInvoiceLM, ScriptingLogicsModule writeOffItemLM, List<Item> itemsList, boolean skipKeys, boolean withoutRecalc)
+    private void importPackOfItems(ScriptingLogicsModule warePurchaseInvoiceLM, ScriptingLogicsModule writeOffItemLM, List<Item> itemsList, boolean skipKeys)
             throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException {
         if (itemsList.size() == 0) return;
 
@@ -594,8 +585,6 @@ public class ImportActionProperty {
         ImportTable table = new ImportTable(fields, data);
 
         DataSession session = context.createSession();
-        if (withoutRecalc)
-            session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
         session.sql.pushVolatileStats(null);
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
@@ -604,7 +593,7 @@ public class ImportActionProperty {
         session.close();
     }
 
-    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (userInvoiceDetailsList != null) {
 
@@ -1043,8 +1032,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -1055,7 +1042,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (priceListStoresList != null) {
 
@@ -1070,8 +1057,6 @@ public class ImportActionProperty {
                     return;
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
 
                 ObjectValue dataPriceListTypeObject = LM.findLCPByCompoundName("dataPriceListTypeId").readClasses(session, new DataObject("Coordinated", StringClass.get(100)));
@@ -1170,7 +1155,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importPriceListSuppliers(List<PriceListSupplier> priceListSuppliersList, Integer numberAtATime, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importPriceListSuppliers(List<PriceListSupplier> priceListSuppliersList, Integer numberAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (priceListSuppliersList != null) {
 
@@ -1185,8 +1170,6 @@ public class ImportActionProperty {
                     return;
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
 
                 ObjectValue dataPriceListTypeObject = LM.findLCPByCompoundName("dataPriceListTypeId").readClasses(session, new DataObject("Offered", StringClass.get(100)));
@@ -1276,7 +1259,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importLegalEntities(List<LegalEntity> legalEntitiesList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importLegalEntities(List<LegalEntity> legalEntitiesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (legalEntitiesList != null) {
@@ -1438,8 +1421,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -1452,7 +1433,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importEmployees(List<Employee> employeesList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importEmployees(List<Employee> employeesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (employeesList != null) {
@@ -1504,8 +1485,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -1518,7 +1497,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importWarehouseGroups(List<WarehouseGroup> warehouseGroupsList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importWarehouseGroups(List<WarehouseGroup> warehouseGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (warehouseGroupsList != null) {
@@ -1547,8 +1526,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -1561,7 +1538,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importWarehouses(List<Warehouse> warehousesList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importWarehouses(List<Warehouse> warehousesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (warehousesList != null) {
@@ -1617,8 +1594,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -1631,7 +1606,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importStores(List<LegalEntity> storesList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importStores(List<LegalEntity> storesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (storeLM != null && storesList != null) {
@@ -1697,8 +1672,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -1711,7 +1684,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importDepartmentStores(List<DepartmentStore> departmentStoresList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importDepartmentStores(List<DepartmentStore> departmentStoresList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (storeLM != null && departmentStoresList != null) {
@@ -1750,8 +1723,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -1764,7 +1735,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importBanks(List<Bank> banksList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importBanks(List<Bank> banksList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (banksList != null) {
@@ -1819,8 +1790,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -1833,7 +1802,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importRateWastes(List<RateWaste> rateWastesList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importRateWastes(List<RateWaste> rateWastesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (writeOffItemLM != null && rateWastesList != null) {
@@ -1878,8 +1847,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
@@ -1892,7 +1859,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importContracts(List<Contract> contractsList, boolean withoutRecalc) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importContracts(List<Contract> contractsList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         try {
             if (contractsList != null) {
@@ -1963,8 +1930,6 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                if (withoutRecalc)
-                    session.setApplyFilter(ApplyFilter.WITHOUT_RECALC);
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
