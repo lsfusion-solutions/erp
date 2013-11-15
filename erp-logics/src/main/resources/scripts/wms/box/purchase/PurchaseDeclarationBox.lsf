@@ -1,0 +1,63 @@
+MODULE PurchaseDeclarationBox;
+
+REQUIRE PurchaseDeclarationDetail, PurchaseShipmentBox;
+
+NAMESPACE Purchase;
+
+TABLE userInvoiceBox (UserInvoice, Box);
+TABLE declarationUserInvoiceBox (Declaration, UserInvoice, Box);
+
+countNotDeclarationUserInvoiceBox  (userInvoice, box)= GROUP SUM 1 IF detail IS UserInvoiceDetail AND NOT declarationUserInvoiceDetail(detail)
+    BY userInvoiceUserInvoiceDetail(detail), boxUserInvoiceDetail(detail);
+
+countDeclarationUserInvoiceBox  (declaration, userInvoice, box)= GROUP SUM 1 IF detail IS UserInvoiceDetail
+    BY declarationUserInvoiceDetail(detail), userInvoiceUserInvoiceDetail(detail), boxUserInvoiceDetail(detail);
+
+TABLE declarationBox(Declaration, Box);
+inDeclarationBox 'Вкл.' = DATA BOOLEAN (Declaration, Box);
+
+changeInDeclarationBox= ACTION (declaration, box) {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        inDeclarationBox(declaration,box) <- TRUE;
+        FOR boxUserInvoiceDetail(detail) == box AND NOT dataDeclarationUserInvoiceDetail(detail) DO {
+            dataDeclarationUserInvoiceDetail(detail) <- declaration;
+        }
+    } ELSE {
+        inDeclarationBox(declaration,box) <- NULL;
+        FOR boxUserInvoiceDetail(detail) == box AND dataDeclarationUserInvoiceDetail(detail)== declaration DO {
+            dataDeclarationUserInvoiceDetail(detail) <- NULL;
+        };
+    }
+}
+
+EXTEND FORM declaration
+    PROPERTIES(id) READONLY nameBoxUserInvoiceDetail BEFORE quantityUserInvoiceDetail(id)
+;
+
+EXTEND FORM declarationInvoices
+
+    PROPERTIES(id) READONLY nameBoxUserInvoiceDetail BEFORE quantityUserInvoiceDetail
+
+    OBJECTS b=Box
+    PROPERTIES(b) READONLY nameBox
+    PROPERTIES(d,b) inDeclarationBox ON CHANGE changeInDeclarationBox(d,b)
+    FILTERS countDeclarationUserInvoiceBox(d,i,b) OR d IS Declaration AND countNotDeclarationUserInvoiceBox(i,b)
+
+    OBJECTS idd=UserInvoiceDetail
+    PROPERTIES(d, idd) inDeclarationUserInvoiceDetail
+    PROPERTIES(idd) READONLY indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail,
+                   quantityUserInvoiceDetail, priceUserInvoiceDetail
+    FILTERS invoiceInvoiceDetail(idd)==i,
+            boxUserInvoiceDetail(idd)==b,
+            declarationUserInvoiceDetail(idd)==d OR d IS Declaration AND NOT declarationUserInvoiceDetail(idd)
+;
+EXTEND DESIGN declarationInvoices {
+    pane {
+        NEW boxContainer {
+            caption = 'Короба';
+            ADD b.box;
+            ADD idd.box;
+        }
+    }
+}

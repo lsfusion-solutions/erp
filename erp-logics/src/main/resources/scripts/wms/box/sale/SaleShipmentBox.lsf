@@ -1,0 +1,56 @@
+MODULE SaleShipmentBox;
+
+REQUIRE Box, SaleShipment, SaleBox;
+
+NAMESPACE Sale;
+
+//--------------------------------- Короб  ----------------------------------//
+
+@defineDocumentInterfaceDetailBox(shipment);
+overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
+    boxUserShipmentDetail(d) <- boxUserShipmentDetail(detail);
+}
+@extendFormInterfaceDetailBox(shipment, s, , quantity);
+@deriveDocumentOperationProperty(UserShipment, showBox);
+//boxUserShipmentDetail(detail) <- boxStockSku(supplierStockUserShipmentDetail(detail), skuUserShipmentDetail(detail))
+//    WHEN CHANGED(supplierStockUserShipmentDetail(detail)) OR
+//         CHANGED(skuUserShipmentDetail(detail));
+
+//-- invoice
+@defineInvoiceShipmentBox(supplierStock);
+@deriveDocumentOperationProperty(UserInvoice, showBox);
+
+EXTEND CLASS Box : ShipmentDimension;
+nameShipmentDimension(d) += nameBox(d);
+
+shipmentDimensionUserShipmentDetail(d) += boxUserShipmentDetail(d);
+
+//---------------------------------Новый функционал ----------------------------------//
+
+@defineDocumentDetailBoxCustom(userShipment, current, ' текущий');
+currentBoxUserShipmentDetail (detail) = currentBoxUserShipment(userShipmentUserShipmentDetail(detail));
+
+shipmentDimensionUserShipment(s) += currentBoxUserShipment(s);
+
+EXTEND FORM userShipment
+    PROPERTIES(s) SHOWIF showBoxUserShipment(s) nameCurrentBoxUserShipment
+;
+
+EXTEND DESIGN userShipment {
+    headerBox {
+        ADD PROPERTY(nameCurrentBoxUserShipment) AFTER PROPERTY(showBoxUserShipment);
+    }
+}
+
+inBoxUserShipment (box, userShipment) = GROUP SUM 1 IF includeInvoiceUserShipment(invoiceInvoiceDetail(detail), userShipment)
+    BY boxInvoiceDetail(detail), userShipment;
+CONSTRAINT  currentBoxUserShipment(userShipment) AND NOT inBoxUserShipment(currentBoxUserShipment(userShipment), userShipment)
+    CHECKED BY currentBoxUserShipment MESSAGE 'В качестве текущего короба выбран короб, которого нету в накладных';
+
+WHEN SESSION FORMS userShipment
+    SET(detail IS UserShipmentDetail) AND currentBoxUserShipmentDetail(detail)
+        DO ASSIGN boxUserShipmentDetail(detail) <- currentBoxUserShipmentDetail(detail) WHERE currentBoxUserShipmentDetail(detail);
+
+WHEN SESSION FORMS userShipment
+    CHANGED(invoiceDetailUserShipmentDetail(detail))
+        DO ASSIGN boxUserShipmentDetail(detail) <- boxInvoiceDetail(invoiceDetailUserShipmentDetail(detail));

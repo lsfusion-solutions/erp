@@ -4,9 +4,6 @@ REQUIRE Bin, SaleShipment, SaleBin;
 
 NAMESPACE Sale;
 
-//// -- Операция
-//@defineOperationProperty(showBin, 'Ячейка', showContainer);
-
 //---------------------------------Ячейка ----------------------------------//
 
 @defineDocumentInterfaceDetailBin(shipment);
@@ -30,17 +27,10 @@ binUserInvoiceDetail(detail) <- binStockSku(supplierStockUserInvoiceDetail(detai
 //-- Проводим по регистру (ячейка)
 binDataSkuLedger(ledger) += binShipmentDetail(ledger);
 
-EXTEND CLASS Bin : ShipmentDimension;
-nameShipmentDimension(d) += nameBin(d);
-
-shipmentDimensionUserShipmentDetail(d) += binUserShipmentDetail(d);
-
 //---------------------------------Новый функционал ----------------------------------//
 
 @defineDocumentDetailBinCustom(userShipment, current, ' текущая');
 currentBinUserShipmentDetail (detail) = currentBinUserShipment(userShipmentUserShipmentDetail(detail));
-
-shipmentDimensionUserShipment(s) += currentBinUserShipment(s);
 
 EXTEND FORM userShipment
     PROPERTIES(s) SHOWIF showBinUserShipment(s) nameCurrentBinUserShipment
@@ -52,10 +42,6 @@ EXTEND DESIGN userShipment {
     }
 }
 
-inBinUserShipment (bin, userShipment) = GROUP SUM 1 IF includeInvoiceUserShipment(invoiceInvoiceDetail(detail), userShipment)
-    BY binInvoiceDetail(detail), userShipment;
-CONSTRAINT  currentBinUserShipment(userShipment) AND NOT inBinUserShipment(currentBinUserShipment(userShipment), userShipment)
-    CHECKED BY currentBinUserShipment MESSAGE 'В качестве текущей ячейки выбрана ячейка, которой нету в накладных';
 
 WHEN SESSION FORMS userShipment
     SET(detail IS UserShipmentDetail) AND currentBinUserShipmentDetail(detail)
