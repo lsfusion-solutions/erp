@@ -850,13 +850,16 @@ calcRegistrationPriceUserInvoiceDetail 'Таможенный сбор (ед.)' (
                                                                                   roundDeclaration(declarationUserInvoiceDetail(d)));
 
 // Расчет расходов
-recalculatePriceInvoiceDeclaration 'Рассчитать расходы (за ед.)' = ACTION (declaration) {
+recalculateDutyPriceInvoiceDeclaration 'Рассчитать пошлины (за ед.)' = ACTION (declaration) {
     dutyPriceUserInvoiceDetail(d) <- calcDutyPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
+} TOOLBAR;
+
+recalculateRegistrationPriceInvoiceDeclaration 'Рассчитать сбор (за ед.)' = ACTION (declaration) {
     registrationPriceUserInvoiceDetail(d) <- calcRegistrationPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
 } TOOLBAR;
 
 EXTEND FORM declaration
-    PROPERTIES(d) recalculatePriceInvoiceDeclaration TODRAW id
+    PROPERTIES(d) recalculateDutyPriceInvoiceDeclaration TODRAW id, recalculateRegistrationPriceInvoiceDeclaration TODRAW id 
 ;
 
 //-- Операция
@@ -884,7 +887,8 @@ createDeclarationDetailUserInvoice 'Рассчитать платежи' (userIn
             VATSumDeclarationDetail(detail) <- calcVATSumDeclarationDetail(detail);                                                                                                                                           
                                                                                                                                
         }
-        recalculatePriceInvoiceDeclaration(declaration);
+        recalculateDutyPriceInvoiceDeclaration(declaration);
+        recalculateRegistrationPriceInvoiceDeclaration(declaration);
     }    
 } TOOLBAR; 
 
