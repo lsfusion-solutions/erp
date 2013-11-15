@@ -48,6 +48,17 @@ backgroundStatusPickingPickingOrder 'Цвет' (order) =  CASE
       WHEN calcFullOrder(order) THEN RGB(255,238,165)
 ; 
 
+changeTripOrder = ACTION (order){
+    REQUEST OBJECT t 
+    FORM dialogDateTrips OBJECTS d=dateOrder(order) MODAL SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+            tripOrder (order) <- requestedObject();
+        } ELSE IF formResult() == FormResult.drop THEN {
+            tripOrder (order) <- NULL;   
+    }        
+}
+
+
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
 
     OBJECTS d = DATE FIXED PANEL
@@ -55,8 +66,9 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
 
     OBJECTS o=Order FIXED GRID
     PROPERTIES(o) inConsignmentPrintOrder
-    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPickingOrder(o) nameDriverTripOrder, dateTripOrder, numberTripOrder, 
-                  numberOrder, dateOrder,
+    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPickingOrder(o) nameDriverTripOrder, dateTripOrder
+    PROPERTIES(o) BACKGROUND backgroundStatusPickingPickingOrder(o) numberTripOrder ON CHANGE changeTripOrder(o)   
+    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPickingOrder(o) numberOrder, dateOrder,
                   nameToOrder, nameToStockOrder, packQuantityOrder, quantityOrderDetailOrder,
                   startDateTimeOrder, finishDateTimeOrder
     PROPERTIES(o) printConsignmentOrder FORCE PANEL TOOLBAR
