@@ -25,12 +25,20 @@ forwarderTrip 'Товар к перевозке принял (экспедито
 @setTripPropTrip(forwarder);
 
 loadingExecuterTrip = DATA Employee(Trip);
-nameLoadingExecuterTrip 'Исполнитель ПРР' (trip) = nameContact(loadingExecuterTrip(trip));
+nameLoadingExecuterTrip 'Исполнитель погрузки' (trip) = nameContact(loadingExecuterTrip(trip));
 @setTripPropTrip(loadingExecuter);
 
+unloadingExecuterTrip = DATA Employee(Trip);
+nameUnloadingExecuterTrip 'Исполнитель разгрузки' (trip) = nameContact(unloadingExecuterTrip(trip));
+@setTripPropTrip(unloadingExecuter);
+
 wayOfLoadingTrip = DATA WayOfLoading(Trip);
-nameWayOfLoadingTrip 'Способ ПРР' (trip) = nameWayOfLoading(wayOfLoadingTrip(trip));
+nameWayOfLoadingTrip 'Способ погрузки' (trip) = nameWayOfLoading(wayOfLoadingTrip(trip));
 @setTripPropTrip(wayOfLoading);
+
+wayOfUnloadingTrip = DATA WayOfLoading(Trip);
+nameWayOfUnloadingTrip 'Способ разгрузки' (trip) = nameWayOfLoading(wayOfUnloadingTrip(trip));
+@setTripPropTrip(wayOfUnloading);
 
 codeLoadingTrip 'Код ПРР' = DATA STRING[3] (Trip);
 @setTripPropTrip(codeLoading);
@@ -57,7 +65,8 @@ printVerticalConsignmentTrip 'Печать ТТН-1 (верт.)' (trip) = ACTION
 } TOOLBAR;
 
 EXTEND FORM trip
-    PROPERTIES (t) nameIssuanceAllowedTrip, nameIssuanceExecutedTrip, forwarderTrip, nameLoadingExecuterTrip, nameWayOfLoadingTrip, codeLoadingTrip, documentNameCurrencyTrip
+    PROPERTIES (t) nameIssuanceAllowedTrip, nameIssuanceExecutedTrip, forwarderTrip, nameLoadingExecuterTrip, 
+                   nameWayOfLoadingTrip, nameUnloadingExecuterTrip, nameWayOfUnloadingTrip, codeLoadingTrip, documentNameCurrencyTrip
     PROPERTIES createConsignmentTrip(t) TODRAW i
     PROPERTIES printHorizontalConsignmentTrip(t) TODRAW i
     PROPERTIES printVerticalConsignmentTrip(t) TODRAW i
@@ -79,6 +88,8 @@ EXTEND DESIGN trip {
                 caption = 'ППР';
                 ADD PROPERTY(nameLoadingExecuterTrip);
                 ADD PROPERTY(nameWayOfLoadingTrip);
+                ADD PROPERTY(nameUnloadingExecuterTrip);
+                ADD PROPERTY(nameWayOfUnloadingTrip);
                 ADD PROPERTY(codeLoadingTrip);
             }
             NEW dopContainer {
@@ -89,3 +100,7 @@ EXTEND DESIGN trip {
         };
     }
 }
+
+nameForwarderTrip(trip) = VARSTRING[40] (CONCAT ' ', 'Водитель ' + nameDriverTrip(trip));
+
+forwarderTrip (trip) <- nameForwarderTrip(trip) WHEN CHANGED(driverTrip(trip)); 

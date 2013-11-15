@@ -164,10 +164,16 @@ goodsAcceptedConsignment 'Принял грузополучатель' (consignm
 GROUP loadingConsignment 'ПРР' : base;
 
 loadingExecuterConsignment (consignment) = ABSTRACT Employee(Consignment);
-nameLoadingExecuterConsignment 'Исполнитель ПРР' (consignment) = nameContact(loadingExecuterConsignment(consignment)) IN loadingConsignment;
+nameLoadingExecuterConsignment 'Исполнитель погрузки' (consignment) = nameContact(loadingExecuterConsignment(consignment)) IN loadingConsignment;
 
 wayOfLoadingConsignment (consignment) = ABSTRACT WayOfLoading(Consignment);
-nameWayOfLoadingConsignment 'Способ ПРР' (consignment) = nameWayOfLoading(wayOfLoadingConsignment(consignment)) IN loadingConsignment;
+nameWayOfLoadingConsignment 'Способ погрузки' (consignment) = nameWayOfLoading(wayOfLoadingConsignment(consignment)) IN loadingConsignment;
+
+unloadingExecuterConsignment (consignment) = ABSTRACT Employee(Consignment);
+nameUnloadingExecuterConsignment 'Исполнитель разгрузки' (consignment) = nameContact(unloadingExecuterConsignment(consignment)) IN loadingConsignment;
+
+wayOfUnloadingConsignment (consignment) = ABSTRACT WayOfLoading(Consignment);
+nameWayOfUnloadingConsignment 'Способ разгрузки' (consignment) = nameWayOfLoading(wayOfUnloadingConsignment(consignment)) IN loadingConsignment;
 
 codeLoadingConsignment 'Код ПРР' (consignment) = ABSTRACT STRING[3] (Consignment)IN loadingConsignment;
 
@@ -388,6 +394,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##forwarderConsignment=forwarderConsignment, prefix##warrantConsignment=warrantConsignment, 
                        prefix##warrantHolderConsignment=warrantHolderConsignment, prefix##goodsAcceptedConsignment=goodsAcceptedConsignment,
                        prefix##nameLoadingExecuterConsignment=nameLoadingExecuterConsignment, prefix##nameWayOfLoadingConsignment=nameWayOfLoadingConsignment, 
+                       prefix##nameUnloadingExecuterConsignment=nameUnloadingExecuterConsignment, prefix##nameWayOfUnloadingConsignment=nameWayOfUnloadingConsignment, 
                        prefix##codeLoadingConsignment=codeLoadingConsignment,
                        prefix##arrivalTimeConsignment=arrivalTimeConsignment, prefix##departureTimeConsignment=departureTimeConsignment, 
                        prefix##downtimeConsignment=downtimeConsignment, prefix##raceQuantityConsignment=raceQuantityConsignment,
@@ -494,6 +501,7 @@ FORM consignment 'Атрибуты накладной'
                    readdressingConsignment, nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment,
                    forwarderConsignment, warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
                    nameLoadingExecuterConsignment, nameWayOfLoadingConsignment, codeLoadingConsignment,
+                   nameUnloadingExecuterConsignment, nameWayOfUnloadingConsignment,
                    arrivalTimeConsignment, departureTimeConsignment, downtimeConsignment, raceQuantityConsignment,
                    quantityConsignmentDetailConsignment, overPackQuantityConsignmentDetailConsignment, grossWeightTonConsignmentDetailConsignment,
                    sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment, sumInvoiceConsignmentDetailConsignment,
@@ -556,7 +564,7 @@ DESIGN consignment FROM DEFAULT {
             ADD PROPERTY (shortNameCurrencyConsignment(c));
         }
         ADD c.issuanceConsignment {
-            columns = 4;
+            columns = 3;
         }
         ADD c.loadingConsignment {
             columns = 4;
@@ -676,8 +684,10 @@ META defineConsignmentHeaderInner (object, class)
     goodsAccepted###object 'Принял грузополучатель' (object) = DATA VARSTRING[40] (class) IN issuanceConsignment;
 
     loadingExecuter###object (object) = DATA Employee(class);
-
     wayOfLoading###object (object) = DATA WayOfLoading(class);
+
+    unloadingExecuter###object (object) = DATA Employee(class);
+    wayOfUnloading###object (object) = DATA WayOfLoading(class);
 
     codeLoading###object 'Код ПРР' (object) = DATA STRING[3] (class) IN loadingConsignment;
 
@@ -721,8 +731,10 @@ META defineConsignmentAbstractHeaderInner(object, class)
     goodsAccepted###object 'Принял грузополучатель' (object) = ABSTRACT VARSTRING[40] (class) IN issuanceConsignment;
 
     loadingExecuter###object (object) = ABSTRACT Employee(class);
-
     wayOfLoading###object (object) = ABSTRACT WayOfLoading(class);
+
+    unloadingExecuter###object (object) = ABSTRACT Employee(class);
+    wayOfUnloading###object (object) = ABSTRACT WayOfLoading(class);
 
     codeLoading###object 'Код ПРР' (object) = ABSTRACT STRING[3] (class) IN loadingConsignment;
 
@@ -778,8 +790,11 @@ META implementConsignmentHeader (concrete)
     goodsAcceptedConsignment (consignment) += goodsAccepted###concrete (consignment);
 
     loadingExecuterConsignment (consignment) += loadingExecuter###concrete (consignment);
-
     wayOfLoadingConsignment (consignment) += wayOfLoading###concrete (consignment);
+
+    unloadingExecuterConsignment (consignment) += unloadingExecuter###concrete (consignment);
+    wayOfUnloadingConsignment (consignment) += wayOfUnloading###concrete (consignment);
+
     codeLoadingConsignment (consignment) += codeLoading###concrete (consignment);
 
     arrivalTimeConsignment (consignment) += arrivalTime###concrete (consignment);
@@ -818,8 +833,11 @@ META implementConsignmentDocumentHeader (concrete, object, prefix)
     prefix###goodsAccepted###concrete (concrete) += goodsAccepted###object (concrete);
 
     prefix###loadingExecuter###concrete (concrete) += loadingExecuter###object (concrete);
-
     prefix###wayOfLoading###concrete (concrete) += wayOfLoading###object (concrete);
+
+    prefix###unloadingExecuter###concrete (concrete) += unloadingExecuter###object (concrete);
+    prefix###wayOfUnloading###concrete (concrete) += wayOfUnloading###object (concrete);
+
     prefix###codeLoading###concrete (concrete) += codeLoading###object (concrete);
 
     prefix###arrivalTime###concrete (concrete) += arrivalTime###object (concrete);
@@ -865,8 +883,11 @@ META implementConsignmentDocumentHeaderPrefix (concrete, object, NS)
     NS.goodsAccepted###concrete (concrete) += goodsAccepted###object (concrete);
 
     NS.loadingExecuter###concrete (concrete) += loadingExecuter###object (concrete);
-
     NS.wayOfLoading###concrete (concrete) += wayOfLoading###object (concrete);
+
+    NS.unloadingExecuter###concrete (concrete) += unloadingExecuter###object (concrete);
+    NS.wayOfUnloading###concrete (concrete) += wayOfUnloading###object (concrete);
+
     NS.codeLoading###concrete (concrete) += codeLoading###object (concrete);
 
     NS.arrivalTime###concrete (concrete) += arrivalTime###object (concrete);
@@ -915,10 +936,16 @@ issuanceExecutedStock  = DATA Employee(Stock);
 nameIssuanceExecutedStock 'Отпуск произвел' (stock) = nameContact(issuanceExecutedStock(stock)) IN invoiceConsignment;
 
 loadingExecuterStock = DATA Employee(Stock);
-nameLoadingExecuterStock 'Исполнитель ПРР' (stock) = nameContact(loadingExecuterStock(stock)) IN invoiceConsignment;
+nameLoadingExecuterStock 'Исполнитель погрузки' (stock) = nameContact(loadingExecuterStock(stock)) IN invoiceConsignment;
 
 wayOfLoadingStock = DATA WayOfLoading(Stock);
-nameWayOfLoadingStock 'Способ ПРР' (stock) = nameWayOfLoading(wayOfLoadingStock(stock)) IN invoiceConsignment;
+nameWayOfLoadingStock 'Способ погрузки' (stock) = nameWayOfLoading(wayOfLoadingStock(stock)) IN invoiceConsignment;
+
+unloadingExecuterStock = DATA Employee(Stock);
+nameUnloadingExecuterStock 'Исполнитель разгрузки' (stock) = nameContact(unloadingExecuterStock(stock)) IN invoiceConsignment;
+
+wayOfUnloadingStock = DATA WayOfLoading(Stock);
+nameWayOfUnloadingStock 'Способ разгрузки' (stock) = nameWayOfLoading(wayOfUnloadingStock(stock)) IN invoiceConsignment;
 
 codeLoadingStock 'Код ПРР' = DATA STRING[3] (Stock)IN invoiceConsignment;
 
@@ -930,7 +957,9 @@ META deriveConsignmentPropertyALL(stockProp)
     @deriveConsignmentProperty(userInvoice, issuanceAllowed, stockProp);
     @deriveConsignmentProperty(userInvoice, issuanceExecuted, stockProp);
     @deriveConsignmentProperty(userInvoice, loadingExecuter, stockProp);
+    @deriveConsignmentProperty(userInvoice, unloadingExecuter, stockProp);
     @deriveConsignmentProperty(userInvoice, wayOfLoading, stockProp);
+    @deriveConsignmentProperty(userInvoice, wayOfUnloading, stockProp);
     @deriveConsignmentProperty(userInvoice, codeLoading, stockProp);          
 END
 
