@@ -55,6 +55,8 @@ public class PurchaseInvoiceDetail {
     public String nameSeason;
     public String idBrand;
     public String nameBrand;
+    public String idBox;
+    public String nameBox;
     public String idTheme;
     public String nameTheme;
     public BigDecimal netWeight;
@@ -77,9 +79,9 @@ public class PurchaseInvoiceDetail {
                                  String originalCaptionArticle, String idColor, String nameColor, String idCollection,
                                  String nameCollection, String idSize, String nameSize, String nameOriginalSize, 
                                  String idSeasonYear, String idSeason, String nameSeason, String idBrand,
-                                 String nameBrand, String idTheme, String nameTheme, BigDecimal netWeight, 
-                                 BigDecimal sumNetWeight, BigDecimal grossWeight, BigDecimal sumGrossWeight, 
-                                 String composition, String originalComposition) {
+                                 String nameBrand, String idBox, String nameBox, String idTheme, String nameTheme, 
+                                 BigDecimal netWeight, BigDecimal sumNetWeight, BigDecimal grossWeight, 
+                                 BigDecimal sumGrossWeight, String composition, String originalComposition) {
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
         this.currencyUserInvoice = currencyUserInvoice;
@@ -130,6 +132,8 @@ public class PurchaseInvoiceDetail {
         this.nameSeason = nameSeason;
         this.idBrand = idBrand;
         this.nameBrand = nameBrand;
+        this.idBox = idBox;
+        this.nameBox = nameBox;
         this.idTheme = idTheme;
         this.nameTheme = nameTheme;
         this.netWeight = netWeight;
