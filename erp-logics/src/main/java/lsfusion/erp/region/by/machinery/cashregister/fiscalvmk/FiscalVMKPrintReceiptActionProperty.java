@@ -56,7 +56,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
 
             paymentQuery.and(getLCP("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context.getSession().sql);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context.getSession());
             for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
                 DataObject paymentMeansCashObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCash");
                 DataObject paymentMeansCardObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCard");
@@ -83,7 +83,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
 
             receiptDetailQuery.and(getLCP("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context.getSession().sql);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context.getSession());
             List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
             List<ReceiptItem> receiptReturnItemList = new ArrayList<ReceiptItem>();
             for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
