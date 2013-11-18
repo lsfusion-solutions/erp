@@ -146,10 +146,11 @@ calcBaseManufacturingPriceUserInvoiceDetail (detail) = IF addCostPriceToManufact
 baseManufacturingPriceUserInvoiceDetail (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(detail))/100;
 
 updateManufacturingPriceUserInvoiceDetail = ACTION (d) {
-    IF roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)) THEN
-        manufacturingPriceUserInvoiceDetail(d) <- roundPriceRoundCondition(baseManufacturingPriceUserInvoiceDetail(d), roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))
-    ELSE
-        manufacturingPriceUserInvoiceDetail(d) <- baseManufacturingPriceUserInvoiceDetail(d);
+    manufacturingPriceUserInvoiceDetail(d) <- 
+        IF roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)) THEN
+            round(baseManufacturingPriceUserInvoiceDetail(d), priceRoundRoundCondition(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d))))
+        ELSE
+            baseManufacturingPriceUserInvoiceDetail(d);
 }
 
 WHEN SESSION FORMS userInvoice, declaration
