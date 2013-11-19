@@ -34,7 +34,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     // "=xxx" - constant value
     // "xxx^(1,6) - substring(1,6)
     // "xxx+yyy" - concatenate
-    
+    // "xxx/yyy" - divide (for numbers)
+    // пока нет поддержки одновременно divide и substring
     public ImportUniversalActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
     }
@@ -59,9 +60,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         String result = "";
         for (String cell : cells) {
             String value;
-            if(isConstantValue(cell))
+            if (isConstantValue(cell))
                 return cell.substring(1);
-            if (cell.matches(substringPattern)) {
+            if (isDivisionValue(cell)) {
+                String[] splittedField = cell.split("/");
+                BigDecimal dividedValue = BigDecimal.ZERO;
+                for (String arg : splittedField) {
+                    BigDecimal argument = getCSVBigDecimalFieldValue(values, arg.trim(), null);
+                    dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
+                }
+                value = String.valueOf(dividedValue);
+            } else if (cell.matches(substringPattern)) {
                 String[] splittedCell = cell.split(splitPattern);
                 value = getCSVFieldValue(values, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
             } else {
@@ -108,9 +117,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         String result = "";
         for (String cell : cells) {
             String value;
-            if(isConstantValue(cell))
+            if (isConstantValue(cell))
                 return cell.substring(1);
-            if (cell.matches(substringPattern)) {
+            if (isDivisionValue(cell)) {
+                String[] splittedField = cell.split("/");
+                BigDecimal dividedValue = BigDecimal.ZERO;
+                for (String arg : splittedField) {
+                    BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, parseIndex(arg.trim()), null);
+                    dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
+                }
+                value = String.valueOf(dividedValue);
+            } else if (cell.matches(substringPattern)) {
                 String[] splittedCell = cell.split(splitPattern);
                 value = getXLSFieldValue(sheet, row, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
             } else {
@@ -202,9 +219,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         String result = "";
         for (String cell : cells) {
             String value;
-            if(isConstantValue(cell))
+            if (isConstantValue(cell))
                 return cell.substring(1);
-            if (cell.matches(substringPattern)) {
+            if (isDivisionValue(cell)) {
+                String[] splittedField = cell.split("/");
+                BigDecimal dividedValue = BigDecimal.ZERO;
+                for (String arg : splittedField) {
+                    BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, parseIndex(arg.trim()), null);
+                    dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
+                }
+                value = String.valueOf(dividedValue);
+            } else if (cell.matches(substringPattern)) {
                 String[] splittedCell = cell.split(splitPattern);
                 value = getXLSXFieldValue(sheet, row, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
             } else {
@@ -300,9 +325,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             String result = "";
             for (String field : fields) {
                 String value;
-                if(isConstantValue(field))
+                if (isConstantValue(field))
                     return field.substring(1);
-                if (field.matches(substringPattern)) {
+                if (isDivisionValue(field)) {
+                    String[] splittedField = field.split("/");
+                    BigDecimal dividedValue = null;
+                    for (String arg : splittedField) {
+                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, new String[]{arg.trim()}, charset, null);
+                        dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
+                    }
+                    value = String.valueOf(dividedValue);
+                } else if (field.matches(substringPattern)) {
                     String[] splittedField = field.split(splitPattern);
                     value = getSubstring(new String(importFile.getField(splittedField[0]).getBytes(), charset).trim(),
                             parseIndex(splittedField[1]), parseIndex(splittedField[2]));
@@ -393,9 +426,13 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             return null;
         }
     }
-    
+
     private boolean isConstantValue(String input) {
         return input.startsWith("=");
+    }
+
+    private boolean isDivisionValue(String input) {
+        return input.contains("/");
     }
 
     protected String trim(String input) {
