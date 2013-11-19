@@ -245,7 +245,10 @@ sumWholesaleMarkupConsignment 'Надбавка' (consignment) = ABSTRACT NUMERI
 
 sumRetailConsignmentDetail 'Сумма розничная' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 
-packQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
+dataPackQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
+overPackQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
+packQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = OVERRIDE dataPackQuantityConsignmentDetail(consignmentDetail), 
+                                                                                        overPackQuantityConsignmentDetail(consignmentDetail);
 
 dataGrossWeightConsignmentDetail 'Масса груза, кг.' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
 overGrossWeightConsignmentDetail 'Масса груза, кг.' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
@@ -503,7 +506,7 @@ FORM consignment 'Атрибуты накладной'
                    nameLoadingExecuterConsignment, nameWayOfLoadingConsignment, codeLoadingConsignment,
                    nameUnloadingExecuterConsignment, nameWayOfUnloadingConsignment,
                    arrivalTimeConsignment, departureTimeConsignment, downtimeConsignment, raceQuantityConsignment,
-                   quantityConsignmentDetailConsignment, overPackQuantityConsignmentDetailConsignment, grossWeightTonConsignmentDetailConsignment,
+                   quantityConsignmentDetailConsignment, overPackQuantityConsignmentDetailConsignment, grossWeightConsignmentDetailConsignment,
                    sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment, sumInvoiceConsignmentDetailConsignment,
                    countConsignmentDetailConsignment, noteConsignment, shortNameCurrencyConsignment//, SHOWIF isCustomsFlowConsignment(c)
 
@@ -512,7 +515,7 @@ FORM consignment 'Атрибуты накладной'
 
     PROPERTIES(d) nameSkuConsignmentDetail READONLY, shortNameUOMConsignmentDetail READONLY, quantityConsignmentDetail, priceConsignmentDetail,
                   sumConsignmentDetail, vatConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
-                  packQuantityConsignmentDetail, grossWeightTonConsignmentDetail, noteConsignmentDetail READONLY, extraDescriptionConsignmentDetail READONLY
+                  packQuantityConsignmentDetail, grossWeightConsignmentDetail, noteConsignmentDetail READONLY, extraDescriptionConsignmentDetail READONLY
 
     FILTERS consignmentConsignmentDetail(d) == c
 ;
@@ -574,7 +577,7 @@ DESIGN consignment FROM DEFAULT {
             ADD PROPERTY(countConsignmentDetailConsignment);
             ADD PROPERTY(quantityConsignmentDetailConsignment);
             ADD PROPERTY(overPackQuantityConsignmentDetailConsignment);
-            ADD PROPERTY(grossWeightTonConsignmentDetailConsignment);
+            ADD PROPERTY(grossWeightConsignmentDetailConsignment);
             ADD PROPERTY(sumConsignmentDetailConsignment);
             ADD PROPERTY(sumVATConsignmentDetailConsignment);
             ADD PROPERTY(sumInvoiceConsignmentDetailConsignment);
@@ -911,7 +914,7 @@ META implementConsignmentDetailInner (concrete, concreteClass, skuProp)
     skuConsignmentDetail (consignmentDetail) += skuProp###concrete##Detail (consignmentDetail);
     quantityConsignmentDetail (consignmentDetail) += quantity###concrete##Detail (consignmentDetail);
 
-    packQuantityConsignmentDetail (consignmentDetail) += packQuantity###concrete##Detail (consignmentDetail);
+    dataPackQuantityConsignmentDetail (consignmentDetail) += packQuantity###concrete##Detail (consignmentDetail);
     dataGrossWeightConsignmentDetail (consignmentDetail) += grossWeight###concrete##Detail (consignmentDetail);
 END
 META implementConsignmentDetail (concrete)
@@ -961,5 +964,15 @@ META deriveConsignmentPropertyALL(stockProp)
     @deriveConsignmentProperty(userInvoice, wayOfLoading, stockProp);
     @deriveConsignmentProperty(userInvoice, wayOfUnloading, stockProp);
     @deriveConsignmentProperty(userInvoice, codeLoading, stockProp);          
+END
+
+META deriveConsignmentPropertyALL(object, stockProp)
+    @deriveConsignmentProperty(object, issuanceAllowed, stockProp);
+    @deriveConsignmentProperty(object, issuanceExecuted, stockProp);
+    @deriveConsignmentProperty(object, loadingExecuter, stockProp);
+    @deriveConsignmentProperty(object, unloadingExecuter, stockProp);
+    @deriveConsignmentProperty(object, wayOfLoading, stockProp);
+    @deriveConsignmentProperty(object, wayOfUnloading, stockProp);
+    @deriveConsignmentProperty(object, codeLoading, stockProp);          
 END
 
