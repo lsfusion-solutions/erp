@@ -169,15 +169,15 @@ reserveABatchStockDateTime 'Резерв (после)' (batch, stock, dateTime) 
 
 prevReserveBBatchStockDateTime 'Резерв (до)' (batch, stock, dateTime) = PREV(reserveBBatchStockDateTime(batch, stock, dateTime));
 
-// ----------------------- Доступное количество -------------------------- //
-availableQuantitySkuStock 'Доступное количество' (sku, stock) = currentBalanceSkuStock(sku, stock) (+) currentReserveSkuStock(sku, stock);
-availableQuantityBatchStock 'Доступное количество' (batch, stock) = currentBalanceBatchStock(batch, stock) (+) currentReserveBatchStock(batch, stock);
+// ----------------------- Доступное к-во -------------------------- //
+availableQuantitySkuStock 'Доступное к-во (всего)' (sku, stock) = currentBalanceSkuStock(sku, stock) (+) currentReserveSkuStock(sku, stock);
+availableQuantityBatchStock 'Доступное к-во (всего)' (batch, stock) = currentBalanceBatchStock(batch, stock) (+) currentReserveBatchStock(batch, stock);
 
-prevAvailableQuantitySkuStock 'Доступное количество' (sku, stock) = prevCurrentBalanceSkuStock(sku, stock) (+) prevCurrentReserveSkuStock(sku, stock);
-prevAvailableQuantityBatchStock 'Доступное количество' (batch, stock) = prevCurrentBalanceBatchStock(batch, stock) (+) prevCurrentReserveBatchStock(batch, stock);
+prevAvailableQuantitySkuStock 'Доступное к-во (всего)' (sku, stock) = prevCurrentBalanceSkuStock(sku, stock) (+) prevCurrentReserveSkuStock(sku, stock);
+prevAvailableQuantityBatchStock 'Доступное к-во (всего)' (batch, stock) = prevCurrentBalanceBatchStock(batch, stock) (+) prevCurrentReserveBatchStock(batch, stock);
 
-prevAvailableQuantitySkuStockDateTime 'Доступное количество' (sku, stock, dateTime) = (prevCurrentBalanceSkuStock(sku, stock) IF dateTime IS DATETIME) (+) prevReserveBSkuStockDateTime(sku, stock, dateTime);
-prevAvailableQuantityBatchStockDateTime 'Доступное количество' (batch, stock, dateTime) = (prevCurrentBalanceBatchStock(batch, stock) IF dateTime IS DATETIME) (+) prevReserveBBatchStockDateTime(batch, stock, dateTime);
+prevAvailableQuantitySkuStockDateTime 'Доступное к-во' (sku, stock, dateTime) = (prevCurrentBalanceSkuStock(sku, stock) IF dateTime IS DATETIME) (+) prevReserveBSkuStockDateTime(sku, stock, dateTime);
+prevAvailableQuantityBatchStockDateTime 'Доступное к-во' (batch, stock, dateTime) = (prevCurrentBalanceBatchStock(batch, stock) IF dateTime IS DATETIME) (+) prevReserveBBatchStockDateTime(batch, stock, dateTime);
 
 //---------------------------------------------- Формы продаж -------------------------------------//
 FORM orderSkuLedger 'Резерв по позициям'
@@ -479,12 +479,12 @@ EXTEND DESIGN balanceBatchStock {
 
 META extendFormDocumentSkuOrderLedger(object, form, concrete, stockProp)
 
-    prevAvailableQuantitySku###object 'Доступное количество' (sku, object)= prevAvailableQuantitySkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
+    prevAvailableQuantitySku###object 'Доступное к-во' (sku, object)= prevAvailableQuantitySkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
 
-    prevReserveBPurchaseSku###object 'Резерв (закупка)' (sku, object) = prevReserveBPurchaseSkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
+    prevReserveBPurchaseSku###object 'Резерв закупка' (sku, object) = prevReserveBPurchaseSkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
     prevCurrentReservePurchaseSku###object 'Резерв закупка (всего)' (sku, object) = prevCurrentReservePurchaseSkuStock(sku, stockProp###object(object));
 
-    prevReserveBSaleSku###object 'Резерв (продажа)' (sku, object) = prevReserveBSaleSkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
+    prevReserveBSaleSku###object 'Резерв продажа' (sku, object) = prevReserveBSaleSkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
     prevCurrentReserveSaleSku###object 'Резерв продажа (всего)' (sku, object) = prevCurrentReserveSaleSkuStock(sku, stockProp###object(object));
 
     reviewReserveSaleSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
@@ -536,12 +536,12 @@ END
 
 META extendFormDocumentBatchOrderLedger(object, form, concrete, stockProp)
 
-    prevAvailableQuantityBatch###object 'Доступное количество' (batch, object) = prevAvailableQuantityBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
+    prevAvailableQuantityBatch###object 'Доступное к-во' (batch, object) = prevAvailableQuantityBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
 
-    prevReserveBPurchaseBatch###object 'Резерв (закупка)' (batch, object) = prevReserveBPurchaseBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
+    prevReserveBPurchaseBatch###object 'Резерв закупка' (batch, object) = prevReserveBPurchaseBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
     prevCurrentReservePurchaseBatch###object 'Резерв закупка (всего)' (batch, object) = prevCurrentReservePurchaseBatchStock(batch, stockProp###object(object));
 
-    prevReserveBSaleBatch###object 'Резерв (продажа)' (batch, object) = prevReserveBSaleBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
+    prevReserveBSaleBatch###object 'Резерв продажа' (batch, object) = prevReserveBSaleBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
     prevCurrentReserveSaleBatch###object 'Резерв продажа (всего)' (batch, object) = prevCurrentReserveSaleBatchStock(batch, stockProp###object(object));
 
     reviewReserveSaleBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
@@ -593,10 +593,10 @@ END
 
 META extendFormDocumentSkuStockOrderLedger(object, form, concrete)
 
-    prevAvailableQuantitySkuStock###object 'Доступное количество' (sku, stock, object) = prevAvailableQuantitySkuStockDateTime(sku, stock, shipmentDateTime###object(object));
+    prevAvailableQuantitySkuStock###object 'Доступное к-во' (sku, stock, object) = prevAvailableQuantitySkuStockDateTime(sku, stock, shipmentDateTime###object(object));
 
-    prevReserveBPurchaseSkuStock###object 'Резерв (закупка)' (sku, stock, object) = prevReserveBPurchaseSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
-    prevReserveBSaleSkuStock###object 'Резерв (продажа)' (sku, stock, object) = prevReserveBSaleSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
+    prevReserveBPurchaseSkuStock###object 'Резерв закупка' (sku, stock, object) = prevReserveBPurchaseSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
+    prevReserveBSaleSkuStock###object 'Резерв продажа' (sku, stock, object) = prevReserveBSaleSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
 
     reviewReserveSaleSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
     reviewReservePurchaseSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
@@ -648,10 +648,10 @@ END
 
 META extendFormDocumentBatchStockOrderLedger(object, form, concrete)
 
-    prevAvailableQuantityBatchStock###object 'Доступное количество' (batch, stock, object) = prevAvailableQuantityBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
+    prevAvailableQuantityBatchStock###object 'Доступное к-во' (batch, stock, object) = prevAvailableQuantityBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
 
-    prevReserveBPurchaseBatchStock###object 'Резерв (закупка)' (batch, stock, object) = prevReserveBPurchaseBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
-    prevReserveBSaleBatchStock###object 'Резерв (продажа)' (batch, stock, object) = prevReserveBSaleBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
+    prevReserveBPurchaseBatchStock###object 'Резерв закупка' (batch, stock, object) = prevReserveBPurchaseBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
+    prevReserveBSaleBatchStock###object 'Резерв продажа' (batch, stock, object) = prevReserveBSaleBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
 
     reviewReserveSaleBatchStock###object 'Резерв' (batch, stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
     reviewReservePurchaseBatchStock###object 'Резерв' (batch, stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
