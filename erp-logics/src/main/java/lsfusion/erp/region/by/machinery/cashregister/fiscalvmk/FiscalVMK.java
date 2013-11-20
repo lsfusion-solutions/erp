@@ -178,9 +178,9 @@ public class FiscalVMK {
 
     public static void displayText(ReceiptItem item) {
         try {
-            String firstLine = " " + toStr(item.quantity) + "x" + toStr(BigDecimal.valueOf(item.price));
+            String firstLine = " " + toStr(item.quantity) + "x" + String.valueOf(item.price);
             firstLine = item.name.substring(0, 16 - Math.min(16, firstLine.length())) + firstLine;
-            String secondLine = toStr(BigDecimal.valueOf(item.sumPos));
+            String secondLine = String.valueOf(item.sumPos);
             while (secondLine.length() < 11)
                 secondLine = " " + secondLine;
             secondLine = "ИТОГ:" + secondLine;
@@ -193,18 +193,18 @@ public class FiscalVMK {
 
     public static boolean registerItem(ReceiptItem item) {
         try {
-            return vmkDLL.vmk.vmk_sale(item.barCode, (item.name + "\0").getBytes("cp1251"), Math.abs(item.price.intValue()), 1 /*отдел*/, item.quantity.doubleValue(), 0);
+            return vmkDLL.vmk.vmk_sale(item.barcode, (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), 1 /*отдел*/, item.quantity, 0);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
     }
 
     public static boolean discountItem(ReceiptItem item) {
-        if (item.articleDiscSum == null)
+        if (item.articleDiscSum == 0)
             return true;
-        boolean discount = item.articleDiscSum.doubleValue() < 0;
+        boolean discount = item.articleDiscSum < 0;
         try {
-            return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), Math.abs(item.articleDiscSum.intValue()), discount ? 3 : 1);
+            return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), (int) Math.abs(item.articleDiscSum), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
@@ -226,13 +226,9 @@ public class FiscalVMK {
                 checkErrors(true);
     }
 
-    private static String toStr(BigDecimal value) {
-        if (value == null)
-            return "0";
-        else {
-            boolean isInt = (value.subtract(BigDecimal.valueOf(value.intValue()))).equals(BigDecimal.ZERO);
-            return isInt ? String.valueOf(value.intValue()) : String.valueOf(value);
-        }
+    private static String toStr(double value) {
+        boolean isInt = (value - (int) value) == 0;
+        return isInt ? String.valueOf((int) value) : String.valueOf(value);
     }
 
     public static int checkErrors(Boolean throwException) {

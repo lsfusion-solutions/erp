@@ -87,21 +87,25 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
             List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
             List<ReceiptItem> receiptReturnItemList = new ArrayList<ReceiptItem>();
             for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
-                BigDecimal price = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
-                BigDecimal quantitySale = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
-                BigDecimal quantityReturn = (BigDecimal) receiptDetailValues.get("quantityReceiptReturnDetail");
+                BigDecimal priceValue = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
+                long price = priceValue == null ? 0 : priceValue.longValue();
+                BigDecimal quantitySaleValue = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
+                double quantitySale = quantitySaleValue == null ? 0.0 : quantitySaleValue.doubleValue();
+                BigDecimal quantityReturnValue = (BigDecimal) receiptDetailValues.get("quantityReceiptReturnDetail");
+                double quantityReturn = quantityReturnValue == null ? 0.0 : quantityReturnValue.doubleValue();
                 String barcode = (String) receiptDetailValues.get("idBarcodeReceiptDetail");
                 String name = (String) receiptDetailValues.get("nameSkuReceiptDetail");
-                BigDecimal sumReceiptDetail = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
-                BigDecimal discountPercentReceiptSaleDetail = (BigDecimal) receiptDetailValues.get("discountPercentReceiptSaleDetail");
-                BigDecimal discountSumReceiptDetail = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
-                Integer taxNumber = (Integer) receiptDetailValues.get("numberVATReceiptDetail");
-                if (quantitySale != null)
-                    receiptSaleItemList.add(new ReceiptItem(price.longValue(), quantitySale, barcode, name.trim(), sumReceiptDetail.longValue(),
-                            discountPercentReceiptSaleDetail, discountSumReceiptDetail==null ? null : discountSumReceiptDetail.negate(), taxNumber, 1));
-                if (quantityReturn != null)
-                    receiptReturnItemList.add(new ReceiptItem(price.longValue(), quantityReturn, barcode, name.trim(), sumReceiptDetail.longValue(),
-                            discountPercentReceiptSaleDetail, discountSumReceiptDetail==null ? null : discountSumReceiptDetail.negate(), taxNumber, 1));
+                name = name == null ? "" : name.trim();
+                BigDecimal sumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
+                long sumReceiptDetail = sumReceiptDetailValue == null ? 0 : sumReceiptDetailValue.longValue();
+                BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
+                long discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().longValue();
+                if (quantitySale > 0)
+                    receiptSaleItemList.add(new ReceiptItem(price, quantitySale, barcode, name, sumReceiptDetail,
+                            discountSumReceiptDetail));
+                if (quantityReturn > 0)
+                    receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, sumReceiptDetail,
+                            discountSumReceiptDetail));
             }
 
             if (context.checkApply()){
