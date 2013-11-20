@@ -85,7 +85,7 @@ public class DefaultImportActionProperty extends ScriptingActionProperty {
     }
 
     protected BigDecimal safeDivide(BigDecimal dividend, BigDecimal quotient, int scale) {
-        if (dividend == null || dividend.doubleValue() == 0 || quotient == null || quotient.doubleValue() == 0)
+        if (dividend == null || quotient == null || quotient.doubleValue() == 0)
             return null;
         return dividend.divide(quotient, scale, RoundingMode.HALF_UP);
     }
@@ -114,6 +114,7 @@ public class DefaultImportActionProperty extends ScriptingActionProperty {
             {"ОАОТ", "Открытое акционерное общество торговое"},
             {"ОАО", "Открытое акционерное общество"},
             {"СООО", "Совместное общество с ограниченной ответственностью"},
+            {"ИООО", "Иностранное общество с ограниченной ответственностью"},
             {"ООО", "Общество с ограниченной ответственностью"},
             {"ОДО", "Общество с дополнительной ответственностью"},
             {"ЗАО", "Закрытое акционерное общество"},
@@ -129,7 +130,7 @@ public class DefaultImportActionProperty extends ScriptingActionProperty {
             {"СП", "Совместное предприятие"}};
 
     protected static String[] getAndTrimOwnershipFromName(String name) {
-        name = name == null ? "" : name;
+        name = name == null ? "" : name.trim();
         String ownershipName = "";
         String ownershipShortName = "";
         for (String[] ownership : ownershipsList) {
@@ -139,6 +140,10 @@ public class DefaultImportActionProperty extends ScriptingActionProperty {
                 name = name.replace(ownership[0], "");
             }
         }
-        return new String[]{ownershipShortName, ownershipName, name};
+        return new String[]{ownershipShortName, ownershipName, name.trim()};
+    }
+
+    protected String trim(String input) {
+        return input == null ? null : input.trim();
     }
 }
