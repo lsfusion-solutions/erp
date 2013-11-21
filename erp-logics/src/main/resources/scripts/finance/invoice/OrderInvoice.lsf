@@ -123,8 +123,10 @@ META defineOrderInvoice(sign, stockProp)
         VATUserInvoiceDetail(id) <- VATOrderDetail(od);
         valueVATUserInvoiceDetail(id) <- valueVATOrderDetail(od);
         priceListTypeUserInvoiceDetail(id) <- priceListTypeOrderDetail(od);
-        priceUserInvoiceDetail(id) <- priceOrderDetail(od);
-        invoicePriceUserInvoiceDetail(id) <- invoicePriceOrderDetail(od);
+        IF NOT notFillPriceInvoiceOrderOperation(operationOrderDetail(od)) THEN {
+            priceUserInvoiceDetail(id) <- priceOrderDetail(od);
+            invoicePriceUserInvoiceDetail(id) <- invoicePriceOrderDetail(od);
+        }
         data###stockProp###userInvoiceDetail(id) <- data###stockProp###orderDetail(od);
     }
 
@@ -175,7 +177,19 @@ META defineOrderInvoice(sign, stockProp)
             }
     }
     
+    fillPriceUserInvoiceOrder = ACTION (userInvoice, order) {
+        IF notFillPriceInvoiceOrderOperation(operationOrder(order)) THEN {
+            FOR userInvoiceUserInvoiceDetail(d) == userInvoice AND pt == priceListTypeUserInvoiceDetail(d) AND skuUserInvoiceDetail(d) NOINLINE (pt) DO {
+                priceUserInvoiceDetail(d) <- prevListPriceMVATUserInvoiceDetail (pt, d);
+                invoicePriceUserInvoiceDetail(d) <- prevListPricePVATUserInvoiceDetail (pt, d);
+            }
+        }
+    }
+    
     fillHeaderUserInvoiceOrder = ACTION (userInvoice, order) {
+        dateUserInvoice(userInvoice) <- currentDate();
+        timeUserInvoice(userInvoice) <- currentTime();
+        
         supplierUserInvoice(userInvoice) <- supplierOrder(order) WHERE supplierOrder(order);
         supplierStockUserInvoice(userInvoice) <- supplierStockOrder(order) WHERE supplierStockOrder(order);
 
@@ -198,9 +212,13 @@ META defineOrderInvoice(sign, stockProp)
         fillHeaderUserInvoiceOrder(userInvoice, order);
         
         createDetailUserInvoiceOrder(userInvoice, order);
+        fillPriceUserInvoiceOrder(userInvoice, order);
     }
 
     fillSupplierStockUserInvoiceOrder = ACTION (supplierStock, userInvoice, order) {
+        dateUserInvoice(userInvoice) <- currentDate();
+        timeUserInvoice(userInvoice) <- currentTime();
+
         supplierUserInvoice(userInvoice) <- legalEntityStock(supplierStock);
         supplierStockUserInvoice(userInvoice) <- supplierStock;
 
@@ -215,6 +233,7 @@ META defineOrderInvoice(sign, stockProp)
         noteUserInvoice(userInvoice) <- noteOrder(order);
 
         createDetailUserInvoiceOrder(userInvoice, order);
+        fillPriceUserInvoiceOrder(userInvoice, order);
     }
 
     userInvoiceOrder = DATA SESSION UserInvoice (Order);
