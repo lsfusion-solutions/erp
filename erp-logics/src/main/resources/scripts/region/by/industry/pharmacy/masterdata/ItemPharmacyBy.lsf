@@ -4,14 +4,26 @@ REQUIRE ItemPharmacy, PriceListType;
 
 NAMESPACE Item;
 
-CLASS PharmacyPriceGroup 'Тип лекарственного средства';
+CLASS PharmacyPriceGroup 'Тип лекарственного средства': Group;
 TABLE pharmacyPriceGroup(PharmacyPriceGroup);
 
 namePharmacyPriceGroup 'Наименование' = DATA VARISTRING[50](PharmacyPriceGroup);
 @defineExternalizable(pharmacyPriceGroup, VARSTRING[100]);
+nameGroup(group) += namePharmacyPriceGroup(group);
+
+CLASS PharmacyGroupType 'Классификатор групп лекарственного средства': GroupType;
+namePharmacyGroupType 'Наименование' = DATA VARISTRING[100](PharmacyGroupType) IN recognize MINCHARWIDTH 25 PREFCHARWIDTH 25;
+nameGroupType(group)+=namePharmacyGroupType(group);
+
+pharmacyTypeGroupPharmacyPriceGroup = DATA PharmacyGroupType(PharmacyPriceGroup);
+namePharmacyTypeGroupPharmacyPriceGroup 'Наименование классификатора' = namePharmacyGroupType(pharmacyTypeGroupPharmacyPriceGroup(group));
+
+groupTypeGroup(group) += pharmacyTypeGroupPharmacyPriceGroup(group);
 
 pharmacyPriceGroupSku = ABSTRACT PharmacyPriceGroup (Sku) PERSISTENT;
 namePharmacyPriceGroupSku 'Тип лекарственного средства' (sku) = namePharmacyPriceGroup(pharmacyPriceGroupSku(sku));
+
+groupGroupTypeSku(type, sku) += WHEN type IS PharmacyGroupType THEN pharmacyPriceGroupSku(sku);
 
 @defineObjectItemAttribute(pharmacyPriceGroup, PharmacyPriceGroup, namePharmacyPriceGroup, 'Тип лекарственного средства', itemPharmacy);
 @defineObjectItemAttributeBatch (pharmacyPriceGroup, namePharmacyPriceGroup, 'Тип лекарственного средства');
@@ -70,7 +82,7 @@ retailMarkupPharmacyBatchPriceDate 'Розничная надбавка' (batch,
 FORM pharmacyMarkups 'Типы лекарственных средств'
 
     OBJECTS g=PharmacyPriceGroup
-    PROPERTIES (g) namePharmacyPriceGroup, idPharmacyPriceGroup SHOWIF showIDs()
+    PROPERTIES (g) namePharmacyPriceGroup, idPharmacyPriceGroup SHOWIF showIDs(), namePharmacyTypeGroupPharmacyPriceGroup
     PROPERTIES (g) ADDOBJ, DELETESESSION
     ORDER BY idPharmacyPriceGroup
 
