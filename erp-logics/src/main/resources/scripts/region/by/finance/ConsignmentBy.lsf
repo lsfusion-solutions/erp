@@ -197,10 +197,12 @@ shortNameUOMConsignmentDetail 'Единица измерения' (consignmentDe
 
 consignmentConsignmentDetail (consignmentDetail) = ABSTRACT Consignment (ConsignmentDetail);
 
+//useRetailPriceConsignment 'Использовать розничные цены' = ABSTRACT BOOLEAN (Consignment);
+
 quantityConsignmentDetail 'Количество' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
 
 dataPriceConsignmentDetail 'Цена' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
-overPriceConsignmentDetail 'Цена' (consignmentDetail) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
+overPriceConsignmentDetail 'Цена' (consignmentDetail) = ABSTRACT CASE NUMERIC[14,2] (ConsignmentDetail);
 priceConsignmentDetail 'Цена' (consignmentDetail) = OVERRIDE dataPriceConsignmentDetail(consignmentDetail), 
                                                              overPriceConsignmentDetail(consignmentDetail);
 
@@ -211,23 +213,23 @@ retailMarkupConsignmentDetail 'Надбавка розн.' (consignmentDetail) =
 wholesaleMarkupConsignmentDetail 'Надбавка опт.' (consignmentDetail) = ABSTRACT NUMERIC[16,3] (ConsignmentDetail);
 
 dataSumConsignmentDetail 'Стоимость' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
-overSumConsignmentDetail 'Стоимость' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+overSumConsignmentDetail 'Стоимость' (consignmentDetail) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
 sumConsignmentDetail 'Стоимость' (consignmentDetail) = OVERRIDE dataSumConsignmentDetail(consignmentDetail),
                                                                 overSumConsignmentDetail(consignmentDetail);
 
-isVatConsignmentDetail 'Не надо проставлять ставку' (consignmentDetail) = ABSTRACT BOOLEAN (ConsignmentDetail);                                                                
+notVatConsignmentDetail 'Не надо проставлять ставку' (consignmentDetail) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);                                                                
 dataVatConsignmentDetail 'НДС, %' (consignmentDetail) = ABSTRACT NUMERIC[10,5] (ConsignmentDetail);
-overVatConsignmentDetail 'НДС, %' (consignmentDetail) = ABSTRACT NUMERIC[10,5] (ConsignmentDetail);
+overVatConsignmentDetail 'НДС, %' (consignmentDetail) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
 vatConsignmentDetail 'НДС, %' (consignmentDetail) = (OVERRIDE dataVatConsignmentDetail(consignmentDetail),
-                                                             overVatConsignmentDetail(consignmentDetail)) IF NOT isVatConsignmentDetail(consignmentDetail);
+                                                             overVatConsignmentDetail(consignmentDetail)) IF NOT notVatConsignmentDetail(consignmentDetail);
 
 dataSumVATConsignmentDetail 'Сумма НДС' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
-overSumVATConsignmentDetail 'Сумма НДС' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+overSumVATConsignmentDetail 'Сумма НДС' (consignmentDetail) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
 sumVATConsignmentDetail 'Сумма НДС' (consignmentDetail) = OVERRIDE dataSumVATConsignmentDetail(consignmentDetail),
                                                                    overSumVATConsignmentDetail(consignmentDetail);
 
 dataSumInvoiceConsignmentDetail 'Сумма с НДС' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
-overSumInvoiceConsignmentDetail 'Сумма с НДС' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
+overSumInvoiceConsignmentDetail 'Сумма с НДС' (consignmentDetail) = ABSTRACT CASE NUMERIC[16,2] (ConsignmentDetail);
 sumInvoiceConsignmentDetail 'Сумма с НДС' (consignmentDetail) = OVERRIDE dataSumInvoiceConsignmentDetail(consignmentDetail),
                                                                          overSumInvoiceConsignmentDetail(consignmentDetail);
                                                                          
@@ -246,7 +248,7 @@ sumWholesaleMarkupConsignment 'Надбавка' (consignment) = ABSTRACT NUMERI
 sumRetailConsignmentDetail 'Сумма розничная' (consignmentDetail) = ABSTRACT NUMERIC[16,2] (ConsignmentDetail);
 
 dataPackQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
-overPackQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
+overPackQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = ABSTRACT CASE NUMERIC[14,3] (ConsignmentDetail);
 packQuantityConsignmentDetail 'Количество грузовых мест' (consignmentDetail) = OVERRIDE dataPackQuantityConsignmentDetail(consignmentDetail), 
                                                                                         overPackQuantityConsignmentDetail(consignmentDetail);
 
@@ -269,7 +271,7 @@ quantityConsignmentDetailConsignment 'Количество (всего)' (consig
 packQuantityConsignmentDetailConsignment 'Общее количество грузовых мест' (consignment) = GROUP SUM packQuantityConsignmentDetail(consignmentDetail)
                                                             BY consignmentConsignmentDetail(consignmentDetail) IN sumConsignment;
 
-packQuantityConsignment 'Общее количество грузовых мест' = ABSTRACT NUMERIC[8,2] (Consignment);
+packQuantityConsignment 'Общее количество грузовых мест' = ABSTRACT CASE NUMERIC[8,2] (Consignment);
 overPackQuantityConsignmentDetailConsignment 'Общее количество грузовых мест' (consignment) = OVERRIDE packQuantityConsignmentDetailConsignment(consignment),
                                                                                                        packQuantityConsignment(consignment);
 
@@ -283,7 +285,7 @@ grossWeightConsignmentDetailConsignment 'Общая масса груза, кг.
 isCustomsFlowConsignment 'Расход с СВХ' (consignment) = ABSTRACT BOOLEAN (Consignment);
 
 dataCurrencyConsignment 'Валюта (ИД)' (consignment) = ABSTRACT Currency (Consignment);
-overCurrencyConsignment 'Валюта (ИД)' (consignment) = ABSTRACT Currency (Consignment);
+overCurrencyConsignment 'Валюта (ИД)' (consignment) = ABSTRACT CASE Currency (Consignment);
 currencyConsignment 'Валюта (ИД)' (consignment) = OVERRIDE dataCurrencyConsignment(consignment), overCurrencyConsignment(consignment);
 shortNameCurrencyConsignment 'Валюта' (consignment) = shortNameCurrency(currencyConsignment(consignment));
 documentNameCurrencyConsignment 'Валюта в накладной сокр.' (consignment) = documentNameCurrency(currencyConsignment(consignment));
