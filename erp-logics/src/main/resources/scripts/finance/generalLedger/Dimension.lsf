@@ -291,6 +291,32 @@ NAVIGATOR {
         ADD userDimensions;
     }
 }
+// ------------------- Субконто для проводок --------------- //
+
+idDimension = ABSTRACT VARISTRING[100](Dimension) PERSISTENT;
+idDimension(dimension) += idLegalEntity(dimension) IF dimension IS LegalEntity;
+idDimension(dimension) += idEmployee(dimension) IF dimension IS Employee;
+//idDimension(dimension) += idGLAccount(dimension) IF dimension IS GLAccount;
+idDimension(dimension) += VARISTRING[20](numberRange(dimension)) IF dimension IS Tax.Range;
+idDimension(dimension) += VARISTRING[20](staticCaption(dimension)) IF dimension IS UserDimension;
+
+overIdDebitGeneralLedgerDimensionType = ABSTRACT CASE VARISTRING[20](GeneralLedger, DimensionType) PERSISTENT;
+idDebitGeneralLedgerDimensionType 'Субконто (дебет)' (generalLedger, dimensionType) =
+    OVERRIDE idDimension(debitGeneralLedgerDimensionType(generalLedger, dimensionType)),
+             overIdDebitGeneralLedgerDimensionType(generalLedger, dimensionType);
+
+overIdCreditGeneralLedgerDimensionType = ABSTRACT CASE VARISTRING[20](GeneralLedger, DimensionType) PERSISTENT;
+idCreditGeneralLedgerDimensionType 'Субконто (кредит)' (generalLedger, dimensionType) =
+    OVERRIDE idDimension(creditGeneralLedgerDimensionType(generalLedger, dimensionType)),
+             overIdCreditGeneralLedgerDimensionType(generalLedger, dimensionType);
+
+idDimensionsDebitGeneralLedger 'Субконто (дебет)' (ledger) = GROUP CONCAT VARSTRING[255](idDebitGeneralLedgerDimensionType(ledger, dimensionType)) IF orderDebitGeneralLedgerDimensionType(ledger, dimensionType) , ', '
+                                                                       BY ledger
+                                                                    ORDER orderDebitGeneralLedgerDimensionType (ledger, dimensionType) MINCHARWIDTH 5 PREFCHARWIDTH 15;
+
+idDimensionsCreditGeneralLedger 'Субконто (кредит)' (ledger) = GROUP CONCAT VARSTRING[255](idCreditGeneralLedgerDimensionType(ledger, dimensionType)) IF orderCreditGeneralLedgerDimensionType(ledger, dimensionType) , ', '
+                                                                         BY ledger
+                                                                      ORDER orderCreditGeneralLedgerDimensionType (ledger, dimensionType) MINCHARWIDTH 5 PREFCHARWIDTH 15;
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultDimensionGLAccount 'Добавить субконто' = ACTION (integer, sidType, sidAccount, type) {
