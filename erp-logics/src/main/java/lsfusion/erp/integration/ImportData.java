@@ -25,7 +25,8 @@ public class ImportData {
     private Integer numberOfUserInvoicesAtATime;
     private Boolean importInactive;
     private boolean skipKeys;
-
+    private boolean userInvoiceCreateNewItems;
+    
     public ImportData() {
     }
 
@@ -203,5 +204,13 @@ public class ImportData {
 
     public void setSkipKeys(boolean skipKeys) {
         this.skipKeys = skipKeys;
+    }
+
+    public boolean getUserInvoiceCreateNewItems() {
+        return userInvoiceCreateNewItems;
+    }
+
+    public void setUserInvoiceCreateNewItems(boolean userInvoiceCreateNewItems) {
+        this.userInvoiceCreateNewItems = userInvoiceCreateNewItems;
     }
 }

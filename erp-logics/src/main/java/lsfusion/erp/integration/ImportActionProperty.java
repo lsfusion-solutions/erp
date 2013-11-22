@@ -82,7 +82,7 @@ public class ImportActionProperty {
 
             importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime());
 
-            importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys());
+            importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys(), importData.getUserInvoiceCreateNewItems());
 
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
@@ -622,7 +622,8 @@ public class ImportActionProperty {
         session.close();
     }
 
-    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys, boolean userInvoiceCreateNewItems)
+            throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (userInvoiceDetailsList != null) {
 
@@ -789,9 +790,12 @@ public class ImportActionProperty {
 
 
                 ImportField idItemField = new ImportField(LM.findLCPByCompoundName("idItem"));
-                ImportKey<?> itemKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Sku"),
+                ImportKey<?> itemKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Item"),
                         LM.findLCPByCompoundName("itemId").getMapping(idItemField));
+                itemKey.skipKey = skipKeys && !userInvoiceCreateNewItems;
                 keys.add(itemKey);
+                if(userInvoiceCreateNewItems)
+                    props.add(new ImportProperty(idItemField, LM.findLCPByCompoundName("idItem").getMapping(itemKey)));
                 props.add(new ImportProperty(idItemField, LM.findLCPByCompoundName("Purchase.skuInvoiceDetail").getMapping(userInvoiceDetailKey),
                         LM.object(LM.findClassByCompoundName("Sku")).getMapping(itemKey)));
                 fields.add(idItemField);
