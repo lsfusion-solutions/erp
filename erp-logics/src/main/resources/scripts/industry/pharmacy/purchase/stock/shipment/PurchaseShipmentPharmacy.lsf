@@ -50,12 +50,25 @@ overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
 
 importCountryBatch (batch) += importCountryShipmentDetail(shipmentDetailShipmentBatch(batch));
 
+
+netWeightSkuShipmentDetail 'Вес нетто, кг (ед.)' (detail) = netWeightItem(skuShipmentDetail(detail));
+
+changeNetWeightSkuShipmentDetail = ACTION (detail) {
+    REQUEST NUMERIC[9,3] INPUT;
+    
+    IF requestedNumeric() THEN {
+        netWeightItem(sku) <- requestedNumeric() WHERE skuShipmentDetail(detail) == sku;    
+    }
+} 
+
 EXTEND FORM userShipment
-    PROPERTIES(d) seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchUserShipmentDetail, 
-                  nameImportCountryUserShipmentDetail SHOWIF showImportCountry() BEFORE nameBatchUserShipmentDetail
+    PROPERTIES(d) BEFORE nameBatchUserShipmentDetail nameImportCountryUserShipmentDetail SHOWIF showImportCountry(), 
+                                                     netWeightSkuShipmentDetail ON CHANGE changeNetWeightSkuShipmentDetail(d) ,
+                                                     seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy()
 ;
 
 EXTEND FORM shipments
-    PROPERTIES(d) READONLY seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchShipmentDetail, 
-                           nameImportCountryShipmentDetail SHOWIF showImportCountry() BEFORE nameBatchShipmentDetail
+    PROPERTIES(d) READONLY BEFORE nameBatchShipmentDetail nameImportCountryShipmentDetail SHOWIF showImportCountry(), 
+                                                          netWeightSkuShipmentDetail,
+                                                          seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy()
 ;
