@@ -28,13 +28,17 @@ createTripOrder 'Взять в рейс' = ACTION () {
         overCreateTripOrder(t);
         FORM optionTrip OBJECTS t = t MODAL;
 
-        FOR inCreatingTripOrder(order) 
-                AND NOT tripOrder(order) DO {
-            tripOrder(order) <- t;
+        IF formResult() == FormResult.ok THEN {
+            FOR inCreatingTripOrder(order) 
+                    AND NOT tripOrder(order) DO {
+                tripOrder(order) <- t;
+            }
+            overPrintTrip(t);
+            apply();
+        } ELSE {
+            cancel();
         }
-        overPrintTrip(t);
     }
-    EXEC apply();
 } TOOLBAR EDITKEY 'ctrl ENTER';
 
 cancelTripOrder 'Отменить' = ACTION (order) {
