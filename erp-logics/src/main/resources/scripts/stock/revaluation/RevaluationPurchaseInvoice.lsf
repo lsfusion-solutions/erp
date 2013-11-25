@@ -1,6 +1,6 @@
 MODULE RevaluationPurchaseInvoice;
 
-REQUIRE RevaluationManufacturingPrice, PurchaseInvoice, PurchaseShipment, PurchaseDeclarationDetail, PurchaseManufacturingPrice;
+REQUIRE RevaluationManufacturingPrice, PurchaseInvoice, PurchaseShipment, PurchaseDeclarationDetail, PurchaseManufacturingPrice, RevaluationOperation;
 
 PRIORITY Purchase;
 
@@ -80,5 +80,18 @@ EXTEND DESIGN userRevaluation{
 inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(rateExchangeRevaluationDetail(ledger)) AND type == SystemLedgerPriceListType.rateExchangeStockPriceListType THEN TRUE;
 pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(rateExchangeRevaluationDetail(ledger)) AND type == SystemLedgerPriceListType.rateExchangeStockPriceListType THEN NUMERIC[14,2](rateExchangeRevaluationDetail(ledger));
 
+@defineOperationProperty(showInvoice, 'Расценка импорта', showContainer);
+@deriveDocumentOperationProperty(UserRevaluation, showInvoice);
 
+typeExchangeOperation= DATA TypeExchange (Operation);
+nameTypeExchangeOperation 'Тип обмена' (o) = nameTypeExchange(typeExchangeOperation(o));
+EXTEND FORM operation
+    PROPERTIES(o) nameTypeExchangeOperation
+;
+EXTEND DESIGN operation {
+    showContainer {
+        ADD PROPERTY(nameTypeExchangeOperation);
+    }
+}
 
+@deriveDocumentOperationProperty(UserRevaluation, typeExchange);

@@ -1,0 +1,131 @@
+MODULE RevaluationDashboard;
+
+REQUIRE Revaluation, Dashboard, PriceListDashboard, RevaluationPurchaseInvoice, PurchaseComplianceDetail, PurchaseDeclarationDetail, PurchaseInvoice, PurchaseInvoiceCharge, PurchaseManufacturingPrice;
+
+NAMESPACE Revaluation;
+
+priceInvoiceDetailBatch 'Контрактная цена' (batch) = Purchase.priceInvoiceDetail(invoiceDetailBatch(batch));
+currencyInvoiceDetailBatch 'Валюта контрактной цены' (batch) = currencyInvoiceDetail(invoiceDetailBatch(batch));
+shortNameCurrencyInvoiceDetailBatch 'Валюта контрактной цены' (batch) = shortNameCurrency(currencyInvoiceDetailBatch(batch));
+rateExchangeInvoiceDetailBatch 'Курс обмена' (batch) = rateExchangeInvoiceDetail(invoiceDetailBatch(batch));
+homePriceInvoiceDetailBatch 'Контрактная цена (конверт.)' (batch)= homePriceInvoiceDetail(invoiceDetailBatch(batch));
+dutyPriceInvoiceDetailBatch 'Пошлина (ед.)' (batch)= dutyPriceInvoiceDetail(invoiceDetailBatch(batch));
+registrationPriceInvoiceDetailBatch 'Таможенный сбор (ед.)' (batch)= registrationPriceInvoiceDetail(invoiceDetailBatch(batch));
+manufacturingMarkupInvoiceDetailBatch 'Надбавка,% (к цене изготовителя)' (batch)= manufacturingMarkupInvoiceDetail(invoiceDetailBatch(batch));
+
+rateOperationCurrencyDateTime 'Курс' (operation,currency, dateTime)= rateTypeExchangeCurrencyDate(typeExchangeOperation(operation),currency,toDate(dateTime AS DATETIME));
+rateExchangeABatchStockDateTime 'Курс обмена' (batch, stock, dateTime) = prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.rateExchangeStockPriceListType, batch, stock, dateTime);
+    
+diffPercentBatchStockOperationCurrencyDateTime '% изменения курса' (batch, stock, operation,currency, dateTime)= round((rateOperationCurrencyDateTime(operation,currency, dateTime) / rateExchangeABatchStockDateTime(batch,stock,dateTime))*100 - 100.0, 2);
+
+filterPercentBatchStockOperationCurrencyDateTime (nu,bt,st,o,c,t) = (diffPercentBatchStockOperationCurrencyDateTime(bt,st,o,c,t) > (nu AS NUMERIC[8,2]) AND nu >0.0) OR (diffPercentBatchStockOperationCurrencyDateTime(bt,st,o,c,t) < (nu AS NUMERIC[8,2]) AND nu <0.0);
+
+createManagementRevaluation 'Создать управленческую переоценку' = ACTION (numeric, operation, currency, stock, time) {
+    FOR ADDOBJ r = UserRevaluation DO {
+        stockUserRevaluation(r) <-  stock;
+        dateUserRevaluation(r) <-  toDate(time);
+        timeUserRevaluation(r) <- toTime(time);    
+        operationUserRevaluation(r) <- operation;          
+        
+        FOR balanceBBatchStockDateTime(batch,stock,time) AND 
+            filterPercentBatchStockOperationCurrencyDateTime (numeric,batch,stock,operation,currency,time) AND 
+            currencyInvoiceDetailBatch(batch)==currency ADDOBJ rd = UserRevaluationDetail DO {
+                userRevaluationUserRevaluationDetail(rd) <- r;
+                skuUserRevaluationDetail(rd) <- skuBatch(batch);
+                batchUserRevaluationDetail(rd) <- batch;
+                quantityUserRevaluationDetail(rd) <- balanceBBatchStockDateTime(batch,stock,time);
+                manufacturingMarkupUserRevaluationDetail(rd) <- manufacturingMarkupInvoiceDetailBatch(batch);
+                manufacturingPriceUserRevaluationDetail(rd) <- NUMERIC[14,2](calcManufacturingPriceRevaluationDetail(rd));
+        }
+        FORM userRevaluation  OBJECTS p = r MANAGESESSION DOCKEDMODAL;
+    }
+};
+
+
+FORM revaluationDashboard 'Переоценка (склад)'  
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES (st) SELECTOR nameStock             
+    FILTERS isCompanyStock(st)
+
+    OBJECTS t=DATETIME FIXED PANEL
+    PROPERTIES(t) OBJVALUE
+
+    OBJECTS c=Currency FIXED PANEL
+    PROPERTIES(c) SELECTOR nameCurrency     
+             
+    OBJECTS o = Revaluation.Operation FIXED PANEL
+    PROPERTIES (o) SELECTOR Revaluation.nameOperation
+    FILTERS inUserOperation(currentUser(), o)             
+    PROPERTIES READONLY  nameTypeExchangeOperation(o), rateOperationCurrencyDateTime(o,c,t) 
+    
+
+    OBJECTS nu=NUMERIC[8,2] FIXED PANEL
+    PROPERTIES(nu) OBJVALUE  
+      
+    
+    OBJECTS bt=Batch
+    PROPERTIES(bt) READONLY nameSkuBatch 
+    PROPERTIES(bt,st,t) READONLY balanceBBatchStockDateTime
+    PROPERTIES(bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, idBatch, quantityBatch, 
+                   rateExchangeInvoiceDetailBatch FORCE GRID
+
+    PROPERTIES     diffPercentBatchStockOperationCurrencyDateTime(bt,st,o,c,t) FORCE GRID
+    FILTERS        balanceBBatchStockDateTime(bt,st,t),
+                   currencyInvoiceDetailBatch(bt)==c
+    FILTERGROUP filters1 FILTER 'Превышают %' 'F6' filterPercentBatchStockOperationCurrencyDateTime (nu,bt,st,o,c,t) DEFAULT     
+
+    OBJECTS p = Revaluation    
+
+    PROPERTIES (p) READONLY isPostedRevaluation, numberRevaluation, seriesRevaluation, 
+                   dateRevaluation, timeRevaluation, beforeDateRevaluation, nameStockRevaluation
+    PROPERTIES (p) READONLY countRevaluationDetailRevaluation, diffSumRevaluationDetailRevaluation
+    PROPERTIES (p) READONLY skipChangeLedgerRevaluation, noteRevaluation
+
+    PROPERTIES ()  addUserRevaluation TODRAW p
+    PROPERTIES (p) editRevaluation SHOWIF isOpenedRevaluation(p)
+    PROPERTIES (p) closeUserRevaluation SHOWIF isOpenedUserRevaluation(p), openUserRevaluation SHOWIF isClosedUserRevaluation(p)
+
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRevaluation(p)      
+    PROPERTIES (p) printRevaluation FORCE PANEL TOOLBAR
+    PROPERTIES (nu,o,c,st,t) createManagementRevaluation FORCE PANEL TOOLBAR TODRAW bt
+    
+    FILTERGROUP filters2 FILTER 'Переоценки на дату' 'F5' dateRevaluation(p)==toDate(t) DEFAULT         
+
+;
+
+DESIGN revaluationDashboard FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+
+        NEW topContainer {
+            type = CONTAINERV;
+            NEW row1{
+                type = CONTAINERH;
+                ADD st.box;
+                ADD t.box;
+            }
+            NEW row2{
+                type = CONTAINERH;
+                ADD c.box;                    
+                ADD o.box;
+                ADD nu.box {caption = '% отклонения курса';};
+            }                        
+        }
+        ADD bt.box {caption = 'Партии, для которых необходима переоценка';}        
+        ADD p.box;
+        ADD functions.box;
+    }
+}
+@extendFormFilterStockAccess(Stock, st, revaluationDashboard, company);
+@extendFormFilterAccessStock(Revaluation, p, revaluationDashboard, stock, company);
+
+
+
+NAVIGATOR {
+    dashboardNavigator {
+        priceListDashboardNavigator {
+            ADD revaluationDashboard;        
+        }    
+    }
+}
