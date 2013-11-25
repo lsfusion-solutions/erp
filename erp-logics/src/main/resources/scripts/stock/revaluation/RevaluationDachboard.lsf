@@ -20,7 +20,9 @@ diffPercentBatchStockOperationCurrencyDateTime '% изменения курса'
 
 filterPercentBatchStockOperationCurrencyDateTime (nu,bt,st,o,c,t) = (diffPercentBatchStockOperationCurrencyDateTime(bt,st,o,c,t) > (nu AS NUMERIC[8,2]) AND nu >0.0) OR (diffPercentBatchStockOperationCurrencyDateTime(bt,st,o,c,t) < (nu AS NUMERIC[8,2]) AND nu <0.0);
 
-createManagementRevaluation 'Создать управленческую переоценку' = ACTION (numeric, operation, currency, stock, time) {
+inRevaluationBatchStock 'Вкл.' (batch, stock) = DATA SESSION BOOLEAN (Batch, Stock);
+
+createManagementRevaluation 'Создать переоценку' = ACTION (numeric, operation, currency, stock, time) {
     FOR ADDOBJ r = UserRevaluation DO {
         stockUserRevaluation(r) <-  stock;
         dateUserRevaluation(r) <-  toDate(time);
@@ -28,7 +30,8 @@ createManagementRevaluation 'Создать управленческую пер�
         operationUserRevaluation(r) <- operation;          
         
         FOR balanceBBatchStockDateTime(batch,stock,time) AND 
-            filterPercentBatchStockOperationCurrencyDateTime (numeric,batch,stock,operation,currency,time) AND 
+            filterPercentBatchStockOperationCurrencyDateTime (numeric,batch,stock,operation,currency,time) AND
+            inRevaluationBatchStock(batch, stock) AND 
             currencyInvoiceDetailBatch(batch)==currency ADDOBJ rd = UserRevaluationDetail DO {
                 userRevaluationUserRevaluationDetail(rd) <- r;
                 skuUserRevaluationDetail(rd) <- skuBatch(batch);
@@ -65,10 +68,12 @@ FORM revaluationDashboard 'Переоценка (склад)'
       
     
     OBJECTS bt=Batch
+    PROPERTIES(bt, st) inRevaluationBatchStock
     PROPERTIES(bt) READONLY nameSkuBatch 
     PROPERTIES(bt,st,t) READONLY balanceBBatchStockDateTime
     PROPERTIES(bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, idBatch, quantityBatch, 
                    rateExchangeInvoiceDetailBatch FORCE GRID
+     PROPERTIES(bt,st,t) rateExchangeABatchStockDateTime FORCE GRID
 
     PROPERTIES     diffPercentBatchStockOperationCurrencyDateTime(bt,st,o,c,t) FORCE GRID
     FILTERS        balanceBBatchStockDateTime(bt,st,t),

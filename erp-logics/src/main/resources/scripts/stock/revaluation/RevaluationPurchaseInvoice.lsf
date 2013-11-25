@@ -24,9 +24,31 @@ rateExchangeRevaluationDetail 'Курс обмена (новый)' = ABSTRACT NU
 rateExchangeUserRevaluationDetail 'Курс обмена (новый)' = DATA NUMERIC[15,8] (UserRevaluationDetail);
 rateExchangeRevaluationDetail(d) += rateExchangeUserRevaluationDetail(d);
 
-manufacturingMarkupRevaluationDetail 'Надбавка,% (к цене изготовителя, новая)' = ABSTRACT NUMERIC[8,3] (RevaluationDetail);
-manufacturingMarkupUserRevaluationDetail 'Надбавка,% (к цене изготовителя, новая)' = DATA NUMERIC[8,3] (UserRevaluationDetail);
-manufacturingMarkupRevaluationDetail(d) += manufacturingMarkupUserRevaluationDetail(d);
+@defineDocumentInterfaceHeaderPriceListType (revaluation, calcPriceListType, manufacturing, ' (надбавка)');
+@defineDocumentDetailPriceListTypePrefix (revaluation, revaluationDetail, calcPriceListType, manufacturing, ' (надбавка)');
+@defineDocumentDetailPriceListTypePrefix (userRevaluation, userRevaluationDetail, calcPriceListType, manufacturing, ' (надбавка)');
+
+@defineDocumentInterfaceDetailMarkupCustomPrefix (revaluationDetail, manufacturing, ' (к цене изготовителя)');
+
+manufacturingCalcPriceListTypeOperation = DATA CalcPriceListType (Revaluation.Operation);
+nameManufacturingCalcPriceListTypeOperation 'Вид цен (надбавка к цене изготовителя)' (operation) = nameCalcPriceListType(manufacturingCalcPriceListTypeOperation(operation));
+
+manufacturingCalcPriceListTypeUserRevaluation (revaluation) <- manufacturingCalcPriceListTypeOperation(operationUserRevaluation(revaluation))
+    WHEN CHANGED(operationUserRevaluation(revaluation));
+
+manufacturingMarkupUserRevaluationDetail(detail) <- markupCalcPriceListTypeSku(manufacturingCalcPriceListTypeUserRevaluationDetail(detail), skuUserRevaluationDetail(detail))
+    WHEN CHANGED(manufacturingCalcPriceListTypeUserRevaluationDetail(detail)) OR
+         CHANGED(skuUserRevaluationDetail(detail));
+
+EXTEND FORM Revaluation.operation
+    PROPERTIES(o) nameManufacturingCalcPriceListTypeOperation
+;
+
+EXTEND DESIGN Revaluation.operation{
+    showContainer {
+        ADD PROPERTY(nameManufacturingCalcPriceListTypeOperation);
+    }
+}
 
 typeExchangeUserRevaluation 'Тип обмена' = DATA TypeExchange (UserRevaluation);
 nameTypeExchangeRevaluation 'Тип обмена' = nameTypeExchange(typeExchangeUserRevaluation(document)) IN documentPrm;
@@ -38,15 +60,24 @@ costManufacturingPriceRevaluationDetail(detail) = priceInvoiceDetailRevaluationD
     extraCostPriceInvoiceDetail(invoiceDetailRevaluationDetail(detail)) (+) 
     customCostPriceInvoiceDetail(invoiceDetailRevaluationDetail(detail))(+) 
     certificateCostPriceInvoiceDetail(invoiceDetailRevaluationDetail(detail));
-                             
-calcBaseManufacturingPriceRevaluationDetail 'Себестоимость (ед.)' (detail)= IF addCostPriceToManufacturingPriceUserInvoice(invoiceInvoiceDetail(invoiceDetailRevaluationDetail(detail))) 
+
+ addCostPriceToManufacturingPriceUserRevaluation 'Учитывать доп. расходы' (invoice) = DATA BOOLEAN (UserRevaluation) IN documentPrm;
+ addCostPriceToManufacturingPriceRevaluationOperation 'Учитывать в цене изготовителя доп. расходы' = DATA BOOLEAN (Operation);
+ addCostPriceToManufacturingPriceUserRevaluation(revaluation) <- addCostPriceToManufacturingPriceRevaluationOperation(operationUserRevaluation(revaluation))
+     WHEN CHANGED(operationUserRevaluation(revaluation));
+                                 
+calcBaseManufacturingPriceRevaluationDetail 'Себестоимость (ед.)' (detail)= IF addCostPriceToManufacturingPriceUserRevaluation(revaluationRevaluationDetail(detail)) 
                                     THEN costManufacturingPriceRevaluationDetail(detail)
                                     ELSE incomeManufacturingPriceRevaluationDetail(detail);
-calcManufacturingPriceRevaluationDetail (detail) = round(calcBaseManufacturingPriceRevaluationDetail (detail) * (100.0 (+) manufacturingMarkupRevaluationDetail(detail))/100, 2);
+calcManufacturingPriceRevaluationDetail (detail) = IF roundConditionPriceListType(manufacturingCalcPriceListTypeRevaluationDetail(detail)) THEN
+        round(calcBaseManufacturingPriceRevaluationDetail (detail) * (100.0 (+) manufacturingMarkupRevaluationDetail(detail))/100, priceRoundRoundCondition(roundConditionPriceListType(manufacturingCalcPriceListTypeRevaluationDetail(detail))))
+    ELSE 
+        round(calcBaseManufacturingPriceRevaluationDetail (detail) * (100.0 (+) manufacturingMarkupRevaluationDetail(detail))/100,2)
+;
         
-WHEN SESSION  FORMS userRevaluation
+WHEN SESSION FORMS userRevaluation
     (CHANGED(rateExchangeUserRevaluationDetail(detail)) OR CHANGED (manufacturingMarkupUserRevaluationDetail(detail)) OR 
-     CHANGED(invoiceDetailRevaluationDetail(detail))) AND  invoiceDetailRevaluationDetail(detail) DO {
+     CHANGED(invoiceDetailRevaluationDetail(detail)) OR CHANGED(addCostPriceToManufacturingPriceUserRevaluation(revaluationRevaluationDetail(detail)))) AND invoiceDetailRevaluationDetail(detail) DO {
         manufacturingPriceUserRevaluationDetail(detail) <- NUMERIC[14,2](calcManufacturingPriceRevaluationDetail(detail));
     }     
 
@@ -59,7 +90,8 @@ rateExchangeUserRevaluationDetail(detail) <- calcRateExchangeRevaluationDetail(d
 backgroundRetailRevaluation 'Цвет' (revaluation) = RGB(224, 255, 255) IF revaluation IS Revaluation;
 
 EXTEND FORM userRevaluation
-    PROPERTIES (p) showInvoiceUserRevaluation, nameTypeExchangeRevaluation SHOWIF showInvoiceUserRevaluation(p) BACKGROUND backgroundRetailRevaluation(p)
+    PROPERTIES (p) showInvoiceUserRevaluation, nameTypeExchangeRevaluation SHOWIF showInvoiceUserRevaluation(p) BACKGROUND backgroundRetailRevaluation(p), 
+    addCostPriceToManufacturingPriceUserRevaluation SHOWIF showInvoiceUserRevaluation(p), nameManufacturingCalcPriceListTypeUserRevaluation SHOWIF showInvoiceUserRevaluation(p)
     PROPERTIES (d) BACKGROUND backgroundRetailRevaluation(p) SHOWIF showInvoiceUserRevaluation(p) AFTER nameBatchUserRevaluationDetail descriptionInvoiceDetailRevaluationDetail
     PROPERTIES (d) SHOWIF showInvoiceUserRevaluation(p) BEFORE curManufacturingPriceUserRevaluationDetail READONLY priceInvoiceDetailRevaluationDetail,
                    shortNameCurrencyInvoiceDetailRevaluationDetail, rateExchangeInvoiceDetailRevaluationDetail,
@@ -86,11 +118,12 @@ pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(rateE
 typeExchangeOperation= DATA TypeExchange (Operation);
 nameTypeExchangeOperation 'Тип обмена' (o) = nameTypeExchange(typeExchangeOperation(o));
 EXTEND FORM operation
-    PROPERTIES(o) nameTypeExchangeOperation
+    PROPERTIES(o) nameTypeExchangeOperation, addCostPriceToManufacturingPriceRevaluationOperation
 ;
 EXTEND DESIGN operation {
     showContainer {
         ADD PROPERTY(nameTypeExchangeOperation);
+        ADD PROPERTY(addCostPriceToManufacturingPriceRevaluationOperation);
     }
 }
 
