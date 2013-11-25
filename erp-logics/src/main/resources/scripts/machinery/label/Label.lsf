@@ -291,16 +291,23 @@ FORM printLabelTransaction 'Печать ценников'
     FILTERS labelTransactionLabelTransactionDetail(d) == l
 ;
 
+selectedLabelTransactionDetail = DATA SESSION BOOLEAN (LabelTransactionDetail);
+deleteNotSelectedLabelTransactionDetail 'Удалить кроме отмеченных' = ACTION (t) {
+    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND NOT selectedLabelTransactionDetail(d);
+} TOOLBAR;
+
 FORM customLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
     PROPERTIES(l) nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, descriptionLabelTransaction, dateLabelTransaction, timeLabelTransaction,
                   nameStoreLabelTransaction, nameLegalEntityLabelTransaction
 
     OBJECTS d = LabelTransactionDetail
-    PROPERTIES(d) idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
+    PROPERTIES(d) selectedLabelTransactionDetail, idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
                   quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail,
                   ADDOBJ, DELETESESSION
     FILTERS labelTransactionLabelTransactionDetail(d) == l
+    
+    PROPERTIES(l) deleteNotSelectedLabelTransactionDetail TODRAW d 
 ;
 
 FORM labelTransactions 'Печать ценников'
