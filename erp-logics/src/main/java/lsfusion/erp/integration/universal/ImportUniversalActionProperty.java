@@ -1,5 +1,7 @@
 package lsfusion.erp.integration.universal;
 
+import jxl.CellType;
+import jxl.Sheet;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -7,10 +9,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.lang.time.DateUtils;
-import org.apache.poi.hssf.usermodel.HSSFCell;
-import org.apache.poi.hssf.usermodel.HSSFDateUtil;
-import org.apache.poi.hssf.usermodel.HSSFRow;
-import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -26,7 +24,8 @@ import java.text.DateFormatSymbols;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Calendar;
+import java.util.Locale;
 
 public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
 
@@ -108,11 +107,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return value == null ? defaultValue : parseDate(value);
     }
 
-    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, String[] cells) throws ParseException {
+    protected String getXLSFieldValue(Sheet sheet, Integer row, String[] cells) throws ParseException {
         return getXLSFieldValue(sheet, row, cells, null);
     }
 
-    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, String[] cells, String defaultValue) throws ParseException {
+    protected String getXLSFieldValue(Sheet sheet, Integer row, String[] cells, String defaultValue) throws ParseException {
         if (cells == null) return defaultValue;
         String result = "";
         for (String cell : cells) {
@@ -139,74 +138,59 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     //Пока подстроку разрешено брать только для строковых полей
-    protected String getXLSFieldValue(HSSFSheet sheet, Integer row, Integer cell, Integer from, Integer to, String defaultValue) throws ParseException {
+    protected String getXLSFieldValue(Sheet sheet, Integer row, Integer column, Integer from, Integer to, String defaultValue) throws ParseException {
+        if (column == null) return defaultValue;
+        jxl.Cell cell = sheet.getCell(column, row);
         if (cell == null) return defaultValue;
-        HSSFRow hssfRow = sheet.getRow(row);
-        if (hssfRow == null) return defaultValue;
-        HSSFCell hssfCell = hssfRow.getCell(cell);
-        if (hssfCell == null) return defaultValue;
         String result;
-        switch (hssfCell.getCellType()) {
-            case Cell.CELL_TYPE_NUMERIC:
-                result = new DecimalFormat("#.#####").format(hssfCell.getNumericCellValue());
-                result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
-                break;
-            case Cell.CELL_TYPE_STRING:
-            default:
-                result = (hssfCell.getStringCellValue().isEmpty()) ? defaultValue : hssfCell.getStringCellValue().trim();
-                break;
+        CellType type = cell.getType();
+        if (type.equals(CellType.NUMBER)) {
+            result = cell.getContents();
+            result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
+        } else {
+            result = (cell.getContents().isEmpty()) ? defaultValue : cell.getContents().trim();
         }
         return getSubstring(result, from, to);
     }
 
     //Пока разрешено склеивать несколько ячеек только как строки
-    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, Integer row, String[] cells) throws ParseException {
+    protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, Integer row, String[] cells) throws ParseException {
         if (cells == null) return null;
         return getXLSBigDecimalFieldValue(sheet, row, parseIndex(cells[0]), null);
     }
 
-    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, Integer row, Integer cell, BigDecimal defaultValue) throws ParseException, NumberFormatException {
+    protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, Integer row, Integer column, BigDecimal defaultValue) throws ParseException, NumberFormatException {
+        if (column == null) return defaultValue;
+        jxl.Cell cell = sheet.getCell(column, row);
         if (cell == null) return defaultValue;
-        HSSFRow hssfRow = sheet.getRow(row);
-        if (hssfRow == null) return defaultValue;
-        HSSFCell hssfCell = hssfRow.getCell(cell);
-        if (hssfCell == null) return defaultValue;
-        switch (hssfCell.getCellType()) {
-            case Cell.CELL_TYPE_NUMERIC:
-            case Cell.CELL_TYPE_FORMULA:
-                return BigDecimal.valueOf(hssfCell.getNumericCellValue());
-            case Cell.CELL_TYPE_STRING:
-            default:
-                String result = hssfCell.getStringCellValue().trim();
-                return result.isEmpty() ? defaultValue : new BigDecimal(result);
+        CellType cellType = cell.getType();
+        if (cellType.equals(CellType.NUMBER) || cellType.equals(CellType.NUMBER_FORMULA))
+            return new BigDecimal(cell.getContents());
+        else {
+            String result = cell.getContents().trim();
+            return result.isEmpty() ? defaultValue : new BigDecimal(result);
         }
     }
 
     //Пока разрешено склеивать несколько ячеек только как строки
-    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, String[] cells) throws ParseException {
+    protected Date getXLSDateFieldValue(Sheet sheet, Integer row, String[] cells) throws ParseException {
         if (cells == null) return null;
         return getXLSDateFieldValue(sheet, row, parseIndex(cells[0]), null);
     }
 
-    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, String cell) throws ParseException {
+    protected Date getXLSDateFieldValue(Sheet sheet, Integer row, String cell) throws ParseException {
         if (cell == null) return null;
         return getXLSDateFieldValue(sheet, row, parseIndex(cell), null);
     }
 
-    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {
+    protected Date getXLSDateFieldValue(Sheet sheet, Integer row, Integer column, Date defaultValue) throws ParseException {
+        if (column == null) return defaultValue;
+        jxl.Cell cell = sheet.getCell(column, row);
         if (cell == null) return defaultValue;
-        HSSFRow hssfRow = sheet.getRow(row);
-        if (hssfRow == null) return defaultValue;
-        HSSFCell hssfCell = hssfRow.getCell(cell);
-        if (hssfCell == null) return defaultValue;
-        if (hssfCell.getCellType() == Cell.CELL_TYPE_NUMERIC) {
-            if (HSSFDateUtil.isCellDateFormatted(hssfCell)) {
-                return new Date(hssfCell.getDateCellValue().getTime());
-            } else {
-                return parseDate(getXLSFieldValue(sheet, row, cell, null, null, String.valueOf(defaultValue)));
-            }
+        if (cell.getType().equals(CellType.NUMBER)) {
+            return new Date(new Long(cell.getContents()));
         } else
-            return parseDate(getXLSFieldValue(sheet, row, cell, null, null, String.valueOf(defaultValue)));
+            return parseDate(cell.getContents());
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, String[] cells) throws ParseException {

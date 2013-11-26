@@ -1,5 +1,8 @@
 package lsfusion.erp.integration.universal;
 
+import jxl.Sheet;
+import jxl.Workbook;
+import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -376,13 +379,18 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
 
-        HSSFWorkbook Wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
-        HSSFSheet sheet = Wb.getSheetAt(0);
+        //HSSFWorkbook Wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
+        //HSSFSheet sheet = Wb.getSheetAt(0);
+
+        WorkbookSettings ws = new WorkbookSettings();
+        ws.setEncoding("cp1251");
+        Workbook wb =  Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
+        Sheet sheet = wb.getSheet(0);
 
         Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ? 
                 null : getXLSDateFieldValue(sheet, importColumns.getDateRow(), importColumns.getDateColumn());
 
-        for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
+        for (int i = startRow - 1; i < sheet.getRows(); i++) {
             String idUserPriceList = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idUserPriceList"));
             String idItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idItem"));
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")));
@@ -607,7 +615,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 importColumns.put(dataPriceListTypeObject, splittedIndexes);
             }
         }
-        return importColumns.isEmpty() ? null : importColumns;
+        return importColumns;
     }
 
     private Boolean showField(List<UserPriceListDetail> data, String fieldName) {

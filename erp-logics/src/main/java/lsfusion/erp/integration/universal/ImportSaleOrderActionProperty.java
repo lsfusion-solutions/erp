@@ -1,5 +1,8 @@
 package lsfusion.erp.integration.universal;
 
+import jxl.Sheet;
+import jxl.Workbook;
+import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
 import lsfusion.erp.stock.BarcodeUtils;
@@ -15,8 +18,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.DBF;
@@ -362,11 +363,12 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
 
-        HSSFWorkbook Wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
+        WorkbookSettings ws = new WorkbookSettings();
+        ws.setEncoding("cp1251");
+        Workbook wb =  Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
+        Sheet sheet = wb.getSheet(0);
 
-        HSSFSheet sheet = Wb.getSheetAt(0);
-
-        for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
+        for (int i = startRow - 1; i < sheet.getRows(); i++) {
             String numberOrder = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
             String idOrderDetail = String.valueOf(orderObject) + i;
             String barcodeItem = BarcodeUtils.convertBarcode12To13(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
