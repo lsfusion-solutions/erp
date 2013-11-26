@@ -345,6 +345,7 @@ DESIGN labelTransactions FROM DEFAULT {
 // -------------------------------------------- Действия по печати ценников ------------------------------ //
 
 documentQuantityLabelTransactionDetail = DATA SESSION NUMERIC[14,3] (LabelTransactionDetail);
+documentPriceLabelTransactionDetail = DATA SESSION NUMERIC[14,2] (LabelTransactionDetail);
 
 calcPriceLabelTransactionDetail (d) =
     IF batchLabelTransactionDetail(d) THEN
@@ -360,7 +361,7 @@ calcPriceLabelTransactionDetail (d) =
 
 WHEN SESSION FORMS customLabelTransaction
     CHANGED(labelTypeLabelTransactionDetail(d)) DO {
-        priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+        priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
 }
 
 WHEN SESSION FORMS customLabelTransaction
@@ -427,8 +428,6 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
                                                             THEN INTEGER(quantity###document##Detail(dd))
                                                          ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
                     priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-
-                    documentQuantityLabelTransactionDetail(d) <- quantity###document##Detail###skuProp###document(skuBarcode(barcode), document); 
                 } 
                 // вызываем печатную форму для каждого из них
                 FORM printLabelTransaction OBJECTS l = t PRINT;
@@ -456,7 +455,7 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
                     barcodeLabelTransactionDetail(d) <- barcode;
 
                     nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
-                    documentQuantityLabelTransactionDetail(d) <- quantity###document##Detail###skuProp###document(skuBarcode(barcode), document); 
+                    documentQuantityLabelTransactionDetail(d) <- quantity###document##Detail(dd); 
                     createAttributeLabelTransactionDetail(d);
             }
             FORM customLabelTransaction OBJECTS l = t MODAL;
