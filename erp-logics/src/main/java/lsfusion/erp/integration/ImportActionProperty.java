@@ -667,6 +667,7 @@ public class ImportActionProperty {
                 ImportField idCustomerStockField = new ImportField(LM.findLCPByCompoundName("idStock"));
                 ImportKey<?> customerStockKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Stock"),
                         LM.findLCPByCompoundName("stockId").getMapping(idCustomerStockField));
+                customerStockKey.skipKey = skipKeys;
                 keys.add(customerStockKey);
                 props.add(new ImportProperty(idCustomerStockField, LM.findLCPByCompoundName("idStock").getMapping(customerStockKey)));
                 props.add(new ImportProperty(idCustomerStockField, LM.findLCPByCompoundName("Purchase.customerUserInvoice").getMapping(userInvoiceKey),

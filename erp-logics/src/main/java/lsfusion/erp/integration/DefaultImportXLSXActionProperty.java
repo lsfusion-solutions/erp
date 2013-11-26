@@ -44,6 +44,9 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
                 result = new DecimalFormat("#.#####").format(xssfCell.getNumericCellValue());
                 result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
                 break;
+            case Cell.CELL_TYPE_FORMULA:
+                result = xssfCell.getCellFormula();
+                break;
             case Cell.CELL_TYPE_STRING:
             default:
                 result = (xssfCell.getStringCellValue().isEmpty()) ? defaultValue : xssfCell.getStringCellValue().trim();
