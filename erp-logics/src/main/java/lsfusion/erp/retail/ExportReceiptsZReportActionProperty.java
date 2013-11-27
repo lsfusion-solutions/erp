@@ -121,16 +121,20 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
                     String[] fields = new String[]{"typeReceiptDetail", "priceReceiptDetail", "quantityReceiptSaleDetail",
                             "quantityReceiptReturnDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
                             "discountSumReceiptDetail", "discountPercentReceiptSaleDetail", "numberReceiptDetail",
-                            "articleReceiptDetail"};
+                            "articleReceiptDetail", "idItemReceiptDetail"};
 
+                    ObjectValue skuReceiptDetail = receiptDetailResult.getValue(j).get("skuReceiptDetail");
                     for (String field : fields) {
                         Object value = null;
                         if (field.equals("numberReceiptDetail")) {
                             value = numberReceiptDetail;
                             numberReceiptDetail++;
+                        } else if (field.equals("idItemReceiptDetail")) {
+                            if(itemArticleLM != null) {
+                                value = itemArticleLM.findLCPByCompoundName("idItem").read(context, skuReceiptDetail);
+                            }
                         } else if (field.equals("articleReceiptDetail")) {
                             if (itemArticleLM != null) {
-                                ObjectValue skuReceiptDetail = receiptDetailResult.getValue(j).get("skuReceiptDetail");
                                 value = itemArticleLM.findLCPByCompoundName("idArticle").read(context, 
                                         itemArticleLM.findLCPByCompoundName("articleItem").readClasses(context, (DataObject) skuReceiptDetail));
                             }
