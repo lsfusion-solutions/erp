@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 public class PurchaseInvoiceDetail {
+    public Boolean isPosted;
     public String numberUserInvoice;
     public Date dateUserInvoice;
     public String currencyUserInvoice;
@@ -66,7 +67,7 @@ public class PurchaseInvoiceDetail {
     public String composition;
     public String originalComposition;
 
-    public PurchaseInvoiceDetail(String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
+    public PurchaseInvoiceDetail(Boolean isPosted, String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
                                  String idUserInvoiceDetail, String idBarcodeSku, String idBatch, Integer dataIndex, 
                                  String idItem, String idItemGroup, String originalCustomsGroupItem, String captionItem, 
                                  String originalCaptionItem, String idUOM, String idManufacturer, String nameManufacturer, 
@@ -82,6 +83,7 @@ public class PurchaseInvoiceDetail {
                                  String nameBrand, String idBox, String nameBox, String idTheme, String nameTheme, 
                                  BigDecimal netWeight, BigDecimal sumNetWeight, BigDecimal grossWeight, 
                                  BigDecimal sumGrossWeight, String composition, String originalComposition) {
+        this.isPosted = isPosted;
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
         this.currencyUserInvoice = currencyUserInvoice;

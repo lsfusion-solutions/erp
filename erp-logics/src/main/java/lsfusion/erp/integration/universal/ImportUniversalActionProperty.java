@@ -58,6 +58,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         if (cells == null) return defaultValue;
         String result = "";
         for (String cell : cells) {
+            if (cell == null) return defaultValue;
             String value;
             if (isConstantValue(cell))
                 return cell.substring(1);
@@ -115,6 +116,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         if (cells == null) return defaultValue;
         String result = "";
         for (String cell : cells) {
+            if (cell == null) return defaultValue;
             String value;
             if (isConstantValue(cell))
                 return cell.substring(1);
@@ -202,6 +204,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         if (cells == null) return defaultValue;
         String result = "";
         for (String cell : cells) {
+            if (cell == null) return defaultValue;
             String value;
             if (isConstantValue(cell))
                 return cell.substring(1);
@@ -308,6 +311,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             if (fields == null) return defaultValue;
             String result = "";
             for (String field : fields) {
+                if (field == null) return defaultValue;
                 String value;
                 if (isConstantValue(field))
                     return field.substring(1);
@@ -412,11 +416,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private boolean isConstantValue(String input) {
-        return input.startsWith("=");
+        return input != null && input.startsWith("=");
     }
 
     private boolean isDivisionValue(String input) {
-        return input.contains("/");
+        return input != null && input.contains("/");
     }
 
     protected String trim(String input) {

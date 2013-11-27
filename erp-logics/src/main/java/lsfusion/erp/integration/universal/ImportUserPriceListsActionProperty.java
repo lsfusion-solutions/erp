@@ -42,6 +42,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
             importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", LM.findLCPByCompoundName("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             importUserPriceListTypeQuery.addProperty("captionImportUserPriceListTypeFileExtensionImportUserPriceListType", LM.findLCPByCompoundName("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             importUserPriceListTypeQuery.addProperty("startRowImportUserPriceListType", LM.findLCPByCompoundName("startRowImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("isPostedImportUserPriceListType", LM.findLCPByCompoundName("isPostedImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             importUserPriceListTypeQuery.addProperty("separatorImportUserPriceListType", LM.findLCPByCompoundName("separatorImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             importUserPriceListTypeQuery.addProperty("captionImportUserPriceListKeyTypeImportUserPriceListType", LM.findLCPByCompoundName("captionImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
            
@@ -59,6 +60,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
                 String fileExtension = (String) entryValue.get("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").getValue();
                 Integer startRow = (Integer) entryValue.get("startRowImportUserPriceListType").getValue();
                 startRow = startRow == null ? 1 : startRow;
+                Boolean isPosted = (Boolean) entryValue.get("isPostedImportUserPriceListType").getValue();
                 String csvSeparator = (String) entryValue.get("separatorImportUserPriceListType").getValue();
                 csvSeparator = csvSeparator == null ? null : csvSeparator.trim();
                 String keyType = (String) entryValue.get("captionImportUserPriceListKeyTypeImportUserPriceListType").getValue();
@@ -78,7 +80,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
 
                                     boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
                                             userPriceListObject, importColumns, IOUtils.getFileBytes(f), fileExtension.trim(),
-                                            startRow, csvSeparator, keyType, true);
+                                            startRow, isPosted, csvSeparator, keyType, true);
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());

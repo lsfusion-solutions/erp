@@ -73,7 +73,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 String csvSeparator = (String) LM.findLCPByCompoundName("separatorImportUserPriceListType").read(context, importUserPriceListTypeObject);
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator;
                 Integer startRow = (Integer) LM.findLCPByCompoundName("startRowImportUserPriceListType").read(context, importUserPriceListTypeObject);
-                startRow = startRow == null || startRow.equals(0) ? 1 : startRow;                
+                startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
+                Boolean isPosted = (Boolean) LM.findLCPByCompoundName("isPostedImportUserPriceListType").read(context, importUserPriceListTypeObject);
 
                 ImportColumns importColumns = readImportColumns(context, LM, importUserPriceListTypeObject);
 
@@ -87,7 +88,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         for (byte[] file : fileList) {
 
                             importData(context, userPriceListObject, importColumns, file, fileExtension.trim(), startRow,
-                                    csvSeparator, itemKeyType, false);
+                                    isPosted, csvSeparator, itemKeyType, false);
 
                         }
                     }
@@ -107,25 +108,25 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     }
 
     public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportColumns importColumns,
-                              byte[] file, String fileExtension, Integer startRow, String csvSeparator, String itemKeyType,
+                              byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String itemKeyType,
                               boolean apply)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
         List<UserPriceListDetail> userPriceListDetailList;
-        
+
         if (fileExtension.equals("DBF"))
-            userPriceListDetailList = importUserPriceListsFromDBF(file, importColumns, startRow);
+            userPriceListDetailList = importUserPriceListsFromDBF(file, importColumns, startRow, isPosted);
         else if (fileExtension.equals("XLS"))
-            userPriceListDetailList = importUserPriceListsFromXLS(file, importColumns, startRow);
+            userPriceListDetailList = importUserPriceListsFromXLS(file, importColumns, startRow, isPosted);
         else if (fileExtension.equals("XLSX"))
-            userPriceListDetailList = importUserPriceListsFromXLSX(file, importColumns, startRow);
+            userPriceListDetailList = importUserPriceListsFromXLSX(file, importColumns, startRow, isPosted);
         else if (fileExtension.equals("CSV"))
-            userPriceListDetailList = importUserPriceListsFromCSV(file, importColumns, startRow, csvSeparator);
+            userPriceListDetailList = importUserPriceListsFromCSV(file, importColumns, startRow, isPosted, csvSeparator);
         else
             userPriceListDetailList = null;
 
-        return importUserPriceListDetails(context, userPriceListDetailList, importColumns.getOperationObject(), importColumns.getDefaultItemGroupObject(), 
-                userPriceListObject, importColumns.getPriceColumns().keySet(), itemKeyType, apply) 
+        return importUserPriceListDetails(context, userPriceListDetailList, importColumns.getOperationObject(), importColumns.getDefaultItemGroupObject(),
+                userPriceListObject, importColumns.getPriceColumns().keySet(), itemKeyType, apply)
                 && (importColumns.getQuantityAdjustmentColumn() == null || importAdjustmentDetails(context, userPriceListDetailList, importColumns.getStockObject(), itemKeyType, apply));
 
     }
@@ -260,6 +261,14 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     data.get(i).add(new Time(0, 0, 0));
             }
 
+            if (showField(userPriceListDetailsList, "isPosted")) {
+                ImportField isPostedUserPriceListField = new ImportField(LM.findLCPByCompoundName("isPostedUserPriceList"));
+                props.add(new ImportProperty(isPostedUserPriceListField, LM.findLCPByCompoundName("isPostedUserPriceList").getMapping(userPriceListObject)));
+                fields.add(isPostedUserPriceListField);
+                for (int i = 0; i < userPriceListDetailsList.size(); i++)
+                    data.get(i).add(userPriceListDetailsList.get(i).isPosted);
+            }
+
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.getSession();
@@ -287,7 +296,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         if (dataAdjustment != null) {
 
             LM.findLAPByCompoundName("unpostAllUserAdjustment").execute(context.getSession());
-                       
+
             DataObject userAdjustmentObject = context.addObject((ConcreteCustomClass) LM.findClassByCompoundName("UserAdjustment"));
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
@@ -380,7 +389,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return false;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromXLS(byte[] importFile, ImportColumns importColumns, Integer startRow)
+    private List<UserPriceListDetail> importUserPriceListsFromXLS(byte[] importFile, ImportColumns importColumns, Integer startRow, Boolean isPosted)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -390,10 +399,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
-        Workbook wb =  Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
+        Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
         Sheet sheet = wb.getSheet(0);
 
-        Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ? 
+        Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ?
                 null : getXLSDateFieldValue(sheet, importColumns.getDateRow(), importColumns.getDateColumn());
 
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
@@ -411,7 +420,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, entry.getValue());
                     prices.put(entry.getKey(), price);
                 }
-                userPriceListDetailList.add(new UserPriceListDetail(idUserPriceListDetail, idUserPriceList,
+                userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
                         idItem, barcodeItem, articleItem, captionItem, idUOMItem, date, prices, quantityAdjustment));
 
             }
@@ -420,7 +429,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, ImportColumns importColumns, Integer startRow, String csvSeparator)
+    private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, ImportColumns importColumns, Integer startRow, Boolean isPosted, String csvSeparator)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -454,7 +463,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         BigDecimal price = getCSVBigDecimalFieldValue(values, entry.getValue());
                         prices.put(entry.getKey(), price);
                     }
-                    userPriceListDetailList.add(new UserPriceListDetail(idUserPriceListDetail, idUserPriceList,
+                    userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
                             idItem, barcodeItem, articleItem, captionItem, idUOMItem, date, prices, quantityAdjustment));
                 }
             }
@@ -463,7 +472,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromXLSX(byte[] importFile, ImportColumns importColumns, Integer startRow)
+    private List<UserPriceListDetail> importUserPriceListsFromXLSX(byte[] importFile, ImportColumns importColumns, Integer startRow, Boolean isPosted)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -471,7 +480,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
 
-        Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ? 
+        Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ?
                 null : getXLSXDateFieldValue(sheet, importColumns.getDateRow(), importColumns.getDateColumn());
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
@@ -490,7 +499,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, entry.getValue());
                     prices.put(entry.getKey(), price);
                 }
-                userPriceListDetailList.add(new UserPriceListDetail(idUserPriceListDetail, idUserPriceList,
+                userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
                         idItem, barcodeItem, articleItem, captionItem, idUOMItem, date, prices, quantityAdjustment));
             }
         }
@@ -498,7 +507,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, ImportColumns importColumns, Integer startRow)
+    private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, ImportColumns importColumns, Integer startRow, Boolean isPosted)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -517,8 +526,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String articleItem = getDBFFieldValue(file, importColumns.getColumns().get("articleItem"));
             String idItem = getDBFFieldValue(file, importColumns.getColumns().get("idItem"));
             String captionItem = getDBFFieldValue(file, importColumns.getColumns().get("captionItem"));
-            String idUOMItem = getDBFFieldValue(file, importColumns.getColumns().get("idUOMItem"));            
-            BigDecimal quantityAdjustment =  getDBFBigDecimalFieldValue(file, importColumns.getQuantityAdjustmentColumn());
+            String idUOMItem = getDBFFieldValue(file, importColumns.getColumns().get("idUOMItem"));
+            BigDecimal quantityAdjustment = getDBFBigDecimalFieldValue(file, importColumns.getQuantityAdjustmentColumn());
 
             String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
             if (!idUserPriceListDetail.equals("_")) {
@@ -527,7 +536,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     BigDecimal price = getDBFBigDecimalFieldValue(file, entry.getValue());
                     prices.put(entry.getKey(), price);
                 }
-                userPriceListDetailList.add(new UserPriceListDetail(idUserPriceListDetail, idUserPriceList,
+                userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
                         idItem, barcodeItem, articleItem, captionItem, idUOMItem, null, prices, quantityAdjustment));
             }
         }
@@ -565,11 +574,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         ObjectValue defaultItemGroup = LM.findLCPByCompoundName("defaultItemGroupImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject defaultItemGroupObject = defaultItemGroup instanceof NullValue ? null : (DataObject) defaultItemGroup;
-        
+
         return new ImportColumns(columns, priceColumns, quantityAdjustmentColumn, dateRow, dateColumn, operationObject,
-                                 stockObject, defaultItemGroupObject);
+                stockObject, defaultItemGroupObject);
     }
-    
+
     private static Map<String, String[]> readColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
 
         Map<String, String[]> importColumns = new HashMap<String, String[]>();
@@ -594,7 +603,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 importColumns.put(field[field.length - 1], splittedIndexes);
             }
         }
-        return importColumns.isEmpty() ? null : importColumns;
+        return importColumns;
     }
 
     private static Map<DataObject, String[]> readPriceImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {

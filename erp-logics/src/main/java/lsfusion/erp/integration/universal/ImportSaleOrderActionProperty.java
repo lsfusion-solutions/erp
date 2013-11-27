@@ -65,7 +65,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator;
                 Integer startRow = (Integer) LM.findLCPByCompoundName("startRowImportType").read(session, importTypeObject);
                 startRow = startRow == null ? 1 : startRow;
-
+                Boolean isPosted = (Boolean) LM.findLCPByCompoundName("isPostedImportType").read(session, importTypeObject);
+                
                 ObjectValue operationObject = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierObject = LM.findLCPByCompoundName("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierStockObject = LM.findLCPByCompoundName("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
@@ -83,7 +84,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                         for (byte[] file : fileList) {
                             
-                            makeImport(context, orderObject, importColumns, file, fileExtension, startRow, csvSeparator,
+                            makeImport(context, orderObject, importColumns, file, fileExtension, startRow, isPosted, csvSeparator,
                                     primaryKeyType, secondaryKeyType, operationObject, supplierObject, supplierStockObject, 
                                     customerObject, customerStockObject);                            
 
@@ -105,13 +106,13 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, String[]> importColumns,
-                              byte[] file, String fileExtension, Integer startRow, String csvSeparator, String primaryKeyType,
+                              byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String primaryKeyType,
                               String secondaryKeyType, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject) 
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException {
         
         List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(context.getSession(), (Integer) orderObject.object,
-                importColumns, file, fileExtension, startRow, csvSeparator, primaryKeyType, secondaryKeyType);
+                importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType, secondaryKeyType);
 
         boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0),
                 context, orderObject, primaryKeyType, operationObject, supplierObject, supplierStockObject, customerObject,
@@ -317,6 +318,14 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                     data.get(i).add(orderDetailsList.get(i).manufacturingPrice);
             }
 
+            if (showField(orderDetailsList, "isPosted")) {
+                ImportField isPostedOrderField = new ImportField(LM.findLCPByCompoundName("isPostedOrder"));
+                props.add(new ImportProperty(isPostedOrderField, LM.findLCPByCompoundName("isPostedOrder").getMapping(orderObject)));
+                fields.add(isPostedOrderField);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).isPosted);
+            }
+
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.getSession();
@@ -333,7 +342,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Integer orderObject, Map<String, String[]> importColumns,
-                                                            byte[] file, String fileExtension, Integer startRow,
+                                                            byte[] file, String fileExtension, Integer startRow, Boolean isPosted, 
                                                             String csvSeparator, String primaryKeyType, String secondaryKeyType)
             throws SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, ParseException, IOException, BiffException {
 
@@ -343,13 +352,13 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
         
         if (fileExtension.equals("DBF"))
-            orderDetailsList = importOrdersFromDBF(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, orderObject);
+            orderDetailsList = importOrdersFromDBF(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, isPosted, orderObject);
         else if (fileExtension.equals("XLS"))
-            orderDetailsList = importOrdersFromXLS(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, orderObject);
+            orderDetailsList = importOrdersFromXLS(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, isPosted, orderObject);
         else if (fileExtension.equals("XLSX"))
-            orderDetailsList = importOrdersFromXLSX(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, orderObject);
+            orderDetailsList = importOrdersFromXLSX(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, isPosted, orderObject);
         else if (fileExtension.equals("CSV"))
-            orderDetailsList = importOrdersFromCSV(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, csvSeparator, orderObject);
+            orderDetailsList = importOrdersFromCSV(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, isPosted, csvSeparator, orderObject);
         else
             orderDetailsList = null;
 
@@ -357,7 +366,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, byte[] importFile, Map<String, String[]> importColumns, 
-                                                            String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Integer orderObject) 
+                                                            String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Boolean isPosted, Integer orderObject) 
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
@@ -388,7 +397,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal invoiceSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
             BigDecimal manufacturingPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
 
-            SaleOrderDetail saleOrderDetail = new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, 
+            SaleOrderDetail saleOrderDetail = new SaleOrderDetail(isPosted, numberOrder, idOrderDetail, barcodeItem, idBatch, 
                     dataIndex, idItem, manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, 
                     VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice);
             
@@ -404,7 +413,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
-                                                      String primaryKeyColumn, String secondaryKeyColumn,  Integer startRow, String csvSeparator, Integer orderObject)
+                                                      String primaryKeyColumn, String secondaryKeyColumn,  Integer startRow, Boolean isPosted,
+                                                      String csvSeparator, Integer orderObject)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
@@ -441,7 +451,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, importColumns.get("invoiceSum"));
                 BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, importColumns.get("manufacturingPrice"));
 
-                SaleOrderDetail saleOrderDetail = new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, 
+                SaleOrderDetail saleOrderDetail = new SaleOrderDetail(isPosted, numberOrder, idOrderDetail, barcodeItem, idBatch, 
                         dataIndex, idItem, manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, 
                         VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice);
 
@@ -458,7 +468,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
-                                                       String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Integer orderObject) 
+                                                       String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, 
+                                                       Boolean isPosted, Integer orderObject) 
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
@@ -488,7 +499,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal invoiceSum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
             BigDecimal manufacturingPrice = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
 
-            SaleOrderDetail saleOrderDetail = new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, 
+            SaleOrderDetail saleOrderDetail = new SaleOrderDetail(isPosted, numberOrder, idOrderDetail, barcodeItem, idBatch, 
                     dataIndex, idItem, manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, 
                     VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice);
 
@@ -504,7 +515,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
-                                                      String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Integer orderObject) 
+                                                      String primaryKeyColumn, String secondaryKeyColumn, Integer startRow,
+                                                      Boolean isPosted, Integer orderObject) 
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
@@ -541,7 +553,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"));
             BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns.get("manufacturingPrice"));
 
-            SaleOrderDetail saleOrderDetail = new SaleOrderDetail(numberOrder, idOrderDetail, barcodeItem, idBatch, 
+            SaleOrderDetail saleOrderDetail = new SaleOrderDetail(isPosted, numberOrder, idOrderDetail, barcodeItem, idBatch, 
                     dataIndex, idItem, manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT,
                     invoiceSum, manufacturingPrice);
             

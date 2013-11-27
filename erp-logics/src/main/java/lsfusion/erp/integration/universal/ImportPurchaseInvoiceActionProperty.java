@@ -77,7 +77,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator.trim();
                 Integer startRow = (Integer) LM.findLCPByCompoundName("startRowImportType").read(session, importTypeObject);
                 startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
-
+                Boolean isPosted = (Boolean) LM.findLCPByCompoundName("isPostedImportType").read(session, importTypeObject);
+                
                 ObjectValue operationObject = LM.findLCPByCompoundName("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierObject = LM.findLCPByCompoundName("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierStockObject = LM.findLCPByCompoundName("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
@@ -96,8 +97,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         for (byte[] file : fileList) {
 
                             List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = importUserInvoicesFromFile(session,
-                                    (Integer) userInvoiceObject.object, importColumns, file, fileExtension, startRow, csvSeparator,
-                                    primaryKeyType, secondaryKeyType);
+                                    (Integer) userInvoiceObject.object, importColumns, file, fileExtension, startRow, 
+                                    isPosted, csvSeparator, primaryKeyType, secondaryKeyType);
 
                             if (userInvoiceDetailsList != null && userInvoiceDetailsList.size() >= 1)
                                 importUserInvoices(userInvoiceDetailsList.get(0), session, userInvoiceObject,
@@ -547,6 +548,14 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     data.get(i).add(userInvoiceDetailsList.get(i).sumGrossWeight);
             }
 
+            if (showField(userInvoiceDetailsList, "isPosted")) {
+                ImportField isPostedUserInvoiceField = new ImportField(LM.findLCPByCompoundName("isPostedUserInvoice"));
+                props.add(new ImportProperty(isPostedUserInvoiceField, LM.findLCPByCompoundName("isPostedUserInvoice").getMapping(userInvoiceObject)));
+                fields.add(isPostedUserInvoiceField);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).isPosted);
+            }
+
             if ((itemArticleLM != null)) {
 
                 ImportField idArticleField = new ImportField(itemArticleLM.findLCPByCompoundName("idArticle"));
@@ -804,8 +813,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(DataSession session, Integer userInvoiceObject, Map<String, String[]> importColumns,
-                                                                         byte[] file, String fileExtension, Integer startRow, String csvSeparator, String primaryKeyType,
-                                                                         String secondaryKeyType)
+                                                                         byte[] file, String fileExtension, Integer startRow, Boolean isPosted, 
+                                                                         String csvSeparator, String primaryKeyType, String secondaryKeyType)
             throws SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, ParseException, IOException, BiffException {
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
@@ -814,13 +823,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
 
         if (fileExtension.equals("DBF"))
-            userInvoiceDetailsList = importUserInvoicesFromDBF(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromDBF(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("XLS"))
-            userInvoiceDetailsList = importUserInvoicesFromXLS(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromXLS(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("XLSX"))
-            userInvoiceDetailsList = importUserInvoicesFromXLSX(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromXLSX(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("CSV"))
-            userInvoiceDetailsList = importUserInvoicesFromCSV(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, csvSeparator, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromCSV(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, startRow, isPosted, csvSeparator, userInvoiceObject);
         else
             userInvoiceDetailsList = null;
 
@@ -828,7 +837,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Integer userInvoiceObject)
+                                                                        String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, 
+                                                                        Boolean isPosted, Integer userInvoiceObject)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -907,7 +917,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String composition = getXLSFieldValue(sheet, i, importColumns.get("composition"));
             String originalComposition = getXLSFieldValue(sheet, i, importColumns.get("originalComposition"));
 
-            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
+            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, numberDocument, dateDocument, currencyDocument,
                     idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem,
                     captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry,
                     importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
@@ -929,7 +939,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, String csvSeparator, Integer userInvoiceObject)
+                                                                        String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Boolean isPosted, 
+                                                                        String csvSeparator, Integer userInvoiceObject)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1014,7 +1025,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String composition = getCSVFieldValue(values, importColumns.get("composition"));
                 String originalComposition = getCSVFieldValue(values, importColumns.get("originalComposition"));
 
-                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument,
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, numberDocument, dateDocument,
                         currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup,
                         originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer, 
                         nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer, 
@@ -1040,7 +1051,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
-                                                                         String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Integer userInvoiceObject)
+                                                                         String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, 
+                                                                         Boolean isPosted, Integer userInvoiceObject)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1118,7 +1130,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String composition = getXLSXFieldValue(sheet, i, importColumns.get("composition"));
             String originalComposition = getXLSXFieldValue(sheet, i, importColumns.get("originalComposition"));
 
-            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument,
+            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, numberDocument, dateDocument,
                     currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup,
                     originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer,
                     nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock,
@@ -1141,7 +1153,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Integer userInvoiceObject)
+                                                                        String primaryKeyColumn, String secondaryKeyColumn, Integer startRow,
+                                                                        Boolean isPosted, Integer userInvoiceObject)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1231,7 +1244,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String composition = getDBFFieldValue(file, importColumns.get("composition"), charset);
             String originalComposition = getDBFFieldValue(file, importColumns.get("originalComposition"), charset);
 
-            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(numberDocument, dateDocument, currencyDocument,
+            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, numberDocument, dateDocument, currencyDocument,
                     idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem,
                     captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry,
                     importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),

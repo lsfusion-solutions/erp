@@ -8,6 +8,7 @@ import java.sql.Date;
 import java.util.Map;
 
 public class UserPriceListDetail {
+    public Boolean isPosted;
     public String idUserPriceListDetail;
     public String idUserPriceList;
     public String idItem;
@@ -20,9 +21,10 @@ public class UserPriceListDetail {
     public BigDecimal quantityAdjustment;
 
 
-    public UserPriceListDetail(String idUserPriceListDetail, String idUserPriceList, String idItem, String barcodeItem,
-                               String articleItem, String captionItem, String idUOMItem, Date date, 
+    public UserPriceListDetail(Boolean isPosted, String idUserPriceListDetail, String idUserPriceList, String idItem, 
+                               String barcodeItem, String articleItem, String captionItem, String idUOMItem, Date date, 
                                Map<DataObject, BigDecimal> prices, BigDecimal quantityAdjustment) {
+        this.isPosted = isPosted;
         this.idUserPriceListDetail = idUserPriceListDetail;
         this.idUserPriceList = idUserPriceList;
         this.idItem = idItem;

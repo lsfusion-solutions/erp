@@ -39,6 +39,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
             importTypeQuery.addProperty("autoImportDirectoryImportType", LM.findLCPByCompoundName("autoImportDirectoryImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("captionFileExtensionImportType", LM.findLCPByCompoundName("captionFileExtensionImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("startRowImportType", LM.findLCPByCompoundName("startRowImportType").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("isPostedImportType", LM.findLCPByCompoundName("isPostedImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("separatorImportType", LM.findLCPByCompoundName("separatorImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("captionPrimaryKeyTypeImportType", LM.findLCPByCompoundName("captionPrimaryKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
             importTypeQuery.addProperty("captionSecondaryKeyTypeImportType", LM.findLCPByCompoundName("captionSecondaryKeyTypeImportType").getExpr(context.getModifier(), importTypeKey));
@@ -62,6 +63,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                 String fileExtension = trim((String) entryValue.get("captionFileExtensionImportType").getValue());
                 Integer startRow = (Integer) entryValue.get("startRowImportType").getValue();
                 startRow = startRow == null ? 1 : startRow;
+                Boolean isPosted = (Boolean) entryValue.get("isPostedImportType").getValue();
                 String csvSeparator = trim((String) LM.findLCPByCompoundName("separatorImportType").read(context, importTypeObject));
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator;
                 String primaryKeyType = parseKeyType((String) LM.findLCPByCompoundName("namePrimaryKeyTypeImportType").read(context, importTypeObject));
@@ -87,8 +89,8 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                                 try {
 
                                     boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context, orderObject,
-                                            importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, csvSeparator,
-                                            primaryKeyType, secondaryKeyType, operationObject, supplierObject,
+                                            importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, 
+                                            csvSeparator, primaryKeyType, secondaryKeyType, operationObject, supplierObject,
                                             supplierStockObject, customerObject, customerStockObject);                                                                                                        
 
                                     if (importResult)
