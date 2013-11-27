@@ -260,13 +260,15 @@ overChangeBarcodeSaleReceipt = ABSTRACT ACTION LIST (STRING[15], Receipt);
 changeBarcodeSaleReceipt = ACTION (receipt) {
     REQUEST STRING[15] INPUT;
     consumedChangeBarcodeSaleReceipt() <- NULL;
-    overChangeBarcodeSaleReceipt(requestedString(), receipt);
+    LOCAL barcode = STRING[15] ();
+    barcode() <- processedBarcode(requestedString());
+    overChangeBarcodeSaleReceipt(barcode(), receipt);
     IF NOT consumedChangeBarcodeSaleReceipt() THEN{
         LOCAL dialogBarcodeSku = Sku();
-        dialogBarcodeSku() <- skuBarcodeIdDate(requestedString(), currentDate());
+        dialogBarcodeSku() <- skuBarcodeIdDate(barcode(), currentDate());
 
         IF dialogBarcodeSku() IS Sku THEN {
-            EXEC createReceiptSaleDetailSku(receipt, dialogBarcodeSku(), requestedString());
+            EXEC createReceiptSaleDetailSku(receipt, dialogBarcodeSku(), barcode());
         } ELSE
             MESSAGE 'Не найден штрих-код';
     }

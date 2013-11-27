@@ -86,13 +86,17 @@ FORM barcodeDialog 'Штрих код'
     DIALOG Barcode OBJECT b
 ;
 
+// ---------------------------------- Предобработка штрих-кода --------------------------- //
+overPreprocessedBarcode = ABSTRACT CASE STRING[15] (STRING[15]);
+processedBarcode (b) = OVERRIDE b AS STRING[15], overPreprocessedBarcode(b); 
+
 // ----------------------------------- Форма по вводу штрих-кода ---------------------------- //
 
-barcodeInput 'Штрих-код' = DATA SESSION STRING[13] () EVENTID 'SCANNER';
+barcodeInput 'Штрих-код' = DATA SESSION STRING[15] () EVENTID 'SCANNER';
 changeBarcodeInput = ACTION () {
-    REQUEST STRING[13] INPUT;
-    ASSIGN barcodeInput() <- requestedString();
-    EXEC formOk();
+    REQUEST STRING[15] INPUT;
+    barcodeInput() <- processedBarcode(requestedString());
+    formOk();
 }
 FORM barcodeInput 'Ввод штрих-кода'
     PROPERTIES() barcodeInput ON CHANGE changeBarcodeInput()
@@ -181,7 +185,7 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
 
     changeAddDetailInputBarcode###idetail###object = ACTION (object) {
         REQUEST STRING[15] INPUT;
-        EXEC addDetailBarcode###idetail###object(object, requestedString());
+        EXEC addDetailBarcode###idetail###object(object, processedBarcode(requestedString()));
     };
     addDetailInputBarcode###idetail###object 'Ввод штрих-кода :' (object) = DATA SESSION STRING[15] (###object) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE changeAddDetailInputBarcode###idetail###object(object);
