@@ -187,6 +187,12 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 fields.add(idUserPriceListField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(userPriceListDetailsList.get(i).idUserPriceList);
+
+                ImportField isPostedUserPriceListField = new ImportField(LM.findLCPByCompoundName("isPostedUserPriceList"));
+                props.add(new ImportProperty(isPostedUserPriceListField, LM.findLCPByCompoundName("isPostedUserPriceList").getMapping(userPriceListObject)));
+                fields.add(isPostedUserPriceListField);
+                for (int i = 0; i < userPriceListDetailsList.size(); i++)
+                    data.get(i).add(true);
             }
 
             ImportField idUserPriceListDetailField = new ImportField(LM.findLCPByCompoundName("idUserPriceListDetail"));
