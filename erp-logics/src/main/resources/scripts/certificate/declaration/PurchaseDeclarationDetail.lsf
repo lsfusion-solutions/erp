@@ -188,8 +188,8 @@ setCustomsGroupUserInvoiceDetailDeclaration 'Заполнить ТН ВЭД' = A
 // ------------ Таможенные платежи -----------
 
 // Пошлина
-dutyPriceInvoiceDetail 'Пошлина (ед.)' = ABSTRACT NUMERIC[16,4](InvoiceDetail);
-dutyPriceUserInvoiceDetail 'Пошлина (ед.)' = DATA NUMERIC[16,4](UserInvoiceDetail);
+dutyPriceInvoiceDetail 'Пошлина (ед.)' = ABSTRACT NUMERIC[20,8](InvoiceDetail);
+dutyPriceUserInvoiceDetail 'Пошлина (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
 dutyPriceInvoiceDetail(detail) += dutyPriceUserInvoiceDetail(detail);
 
 overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
@@ -201,8 +201,8 @@ dutySumUserInvoiceDetail 'Сумма (пошлина)' (detail) = dutyPriceUserI
 @defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, duty, ' (пошлина) всего');
 
 // Сбор
-registrationPriceInvoiceDetail 'Таможенный сбор (ед.)' = ABSTRACT NUMERIC[16,4](InvoiceDetail);
-registrationPriceUserInvoiceDetail 'Таможенный сбор (ед.)' = DATA NUMERIC[16,4](UserInvoiceDetail);
+registrationPriceInvoiceDetail 'Таможенный сбор (ед.)' = ABSTRACT NUMERIC[20,8](InvoiceDetail);
+registrationPriceUserInvoiceDetail 'Таможенный сбор (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
 registrationPriceInvoiceDetail(detail) += registrationPriceUserInvoiceDetail(detail);
 
 overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
@@ -837,7 +837,7 @@ coeffDeclarationInvoiceDetailUserInvoiceDetail 'Удельный вес по с�
 
 calcDutySumUserInvoiceDetail (d) =
     PARTITION UNGROUP dutySumDeclarationInvoiceDetail
-              PROPORTION ROUND(4) coeffDeclarationInvoiceDetailUserInvoiceDetail(d)
+              PROPORTION ROUND(8) coeffDeclarationInvoiceDetailUserInvoiceDetail(d)
               BY declarationInvoiceDetailUserInvoiceDetail(d)
               ORDER d;
 
@@ -851,7 +851,7 @@ coeffDeclarationUserInvoiceDetail 'Удельный вес' (d) =
 
 calcRegistrationSumUserInvoiceDetail 'Таможенный сбор' (d) =
     PARTITION UNGROUP registrationSumDeclaration
-              PROPORTION ROUND(4) coeffDeclarationUserInvoiceDetail(d)
+              PROPORTION ROUND(8) coeffDeclarationUserInvoiceDetail(d)
               BY declarationUserInvoiceDetail(d)
               ORDER d;
 
