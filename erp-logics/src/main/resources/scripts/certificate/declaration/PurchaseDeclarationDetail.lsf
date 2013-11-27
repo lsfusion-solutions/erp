@@ -409,10 +409,9 @@ createDeclarationInvoiceDetailDeclaration 'Создать позиции' = ACTI
 
 EXTEND FORM declaration
     OBJECTS di = DeclarationInvoiceDetail
-    PROPERTIES(di) nameCustomsDeclarationInvoiceDetail, shortNameUOMDeclarationInvoiceDetail, nameCountryDeclarationInvoiceDetail,
-                   sumNetWeightDeclarationInvoiceDetail, sumGrossWeightDeclarationInvoiceDetail,
+    PROPERTIES(di) nameCustomsDeclarationInvoiceDetail, shortNameUOMDeclarationInvoiceDetail, nameCountryDeclarationInvoiceDetail,                       
                    codeCustomsGroupDeclarationInvoiceDetail, nameVATCustomsExceptionDeclarationInvoiceDetail,
-                   quantityDeclarationInvoiceDetail, priceDeclarationInvoiceDetail, sumDeclarationInvoiceDetail,  
+                   quantityDeclarationInvoiceDetail, priceDeclarationInvoiceDetail, 
                    ADDOBJ, DELETESESSION 
     
     PROPERTIES(d) createDeclarationInvoiceDetailDeclaration TODRAW di FORCE PANEL TOOLBAR
@@ -713,6 +712,18 @@ CONSTRAINT sumGrossWeightDeclarationDetailDeclarationInvoiceDetail(d) != sumGros
     MESSAGE 'Вес брутто строк деклараций не соответствует весу брутто позиции декларации'; 
 CONSTRAINT sumDeclarationDetailDeclarationInvoiceDetail(d) != sumDeclarationInvoiceDetail(d) 
     MESSAGE 'Сумма строк деклараций не соответствует сумме позиции декларации'; 
+    
+    
+backgroundSumNetWeightDeclarationInvoiceDetail (d) =  RGB(255,128,128) IF (sumNetWeightDeclarationDetailDeclarationInvoiceDetail(d) != sumNetWeightDeclarationInvoiceDetail(d)) OR (NOT sumNetWeightDeclarationDetailDeclarationInvoiceDetail(d));  
+backgroundSumGrossWeightDeclarationInvoiceDetail (d) =  RGB(255,128,128) IF (sumGrossWeightDeclarationDetailDeclarationInvoiceDetail(d) != sumGrossWeightDeclarationInvoiceDetail(d)) OR (NOT sumGrossWeightDeclarationDetailDeclarationInvoiceDetail(d));  
+backgroundSumDeclarationInvoiceDetail (d) =  RGB(255,128,128) IF (sumDeclarationDetailDeclarationInvoiceDetail(d) != sumDeclarationInvoiceDetail(d)) OR (NOT sumDeclarationDetailDeclarationInvoiceDetail(d));  
+
+EXTEND FORM declaration
+    PROPERTIES(di) AFTER nameCountryDeclarationInvoiceDetail(di) sumGrossWeightDeclarationInvoiceDetail BACKGROUND backgroundSumGrossWeightDeclarationInvoiceDetail(di), 
+                   sumNetWeightDeclarationInvoiceDetail BACKGROUND backgroundSumNetWeightDeclarationInvoiceDetail(di) 
+    PROPERTIES(di) AFTER priceDeclarationInvoiceDetail(di) sumDeclarationInvoiceDetail BACKGROUND backgroundSumDeclarationInvoiceDetail(di)
+
+;
 
 // -------------------------------------- Создание строк по позициям деклараций -------------------------- //
 
