@@ -84,7 +84,7 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
             return parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue)));
     }
 
-    private Date parseDate(String value) throws ParseException {
+    protected Date parseDate(String value) throws ParseException {
         try {
             if (value.length() == 4 || value.length() == 7) {
                 //чит для даты в формате MMyy / MM.yyyy / MM-yyyy (без дня) : выставляем последний день месяца 
@@ -96,7 +96,7 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
                 //чит для отличия ddMMyyyy от yyyyMMdd
                 return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
             } 
-            return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy"}).getTime());
+            return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy HH:mm"}).getTime());
         } catch (ParseException e) {
             return null;
         }
