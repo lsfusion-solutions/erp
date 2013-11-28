@@ -140,6 +140,22 @@ EXTEND FORM userInvoice
 @extendFormDocumentBatchOrderLedger(userInvoice, userInvoice, i, supplierStock);
 @extendFormDocumentBatchOrderLedgerAll(userInvoice, userInvoice, i);
 
+// --------------- Заполнение кода партии ----------------- //
+
+idBatchInvoiceDetail 'Код партии' = idBatch(batchInvoiceDetail(invoiceDetail)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+@defineMovementIdBatch(invoiceDetail, batch, customerStock);
+@defineBalancesIdBatch(invoiceDetail, batch);
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLYIF batchUserInvoiceDetail(d) SHOWIF showIDs()
+                  idBatchInvoiceDetail AFTER nameBatchUserInvoiceDetail(d)
+;
+EXTEND FORM invoices
+    PROPERTIES(d) READONLY SHOWIF showIDs()
+                  idBatchInvoiceDetail AFTER nameBatchInvoiceDetail(d)
+;
+
 // --------------------------- Проведение по регистру продаж ------------------------------------ //
 @implementSaleLedger(Invoice, sku, supplierStock);
 quantitySaleLedger (ledger) += quantityInvoiceDetail(ledger);
