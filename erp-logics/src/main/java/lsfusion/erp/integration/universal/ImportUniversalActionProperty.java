@@ -1,6 +1,8 @@
 package lsfusion.erp.integration.universal;
 
 import jxl.CellType;
+import jxl.NumberCell;
+import jxl.NumberFormulaCell;
 import jxl.Sheet;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.classes.ValueClass;
@@ -145,10 +147,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         jxl.Cell cell = sheet.getCell(column, row);
         if (cell == null) return defaultValue;
         String result;
-        CellType type = cell.getType();
-        if (type.equals(CellType.NUMBER)) {
-            result = cell.getContents();
-            result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
+        CellType cellType = cell.getType();
+        if (cellType.equals(CellType.NUMBER)) {
+            result = new DecimalFormat("#.#####").format(((NumberCell) cell).getValue());
+        } else if (cellType.equals(CellType.NUMBER_FORMULA)) {
+            result = new DecimalFormat("#.#####").format(((NumberFormulaCell) cell).getValue());
         } else {
             result = (cell.getContents().isEmpty()) ? defaultValue : cell.getContents().trim();
         }
@@ -166,8 +169,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         jxl.Cell cell = sheet.getCell(column, row);
         if (cell == null) return defaultValue;
         CellType cellType = cell.getType();
-        if (cellType.equals(CellType.NUMBER) || cellType.equals(CellType.NUMBER_FORMULA))
-            return new BigDecimal(cell.getContents());
+        if (cellType.equals(CellType.NUMBER))
+            return new BigDecimal(((NumberCell) cell).getValue());
+        else if (cellType.equals(CellType.NUMBER_FORMULA))
+            return new BigDecimal(((NumberFormulaCell) cell).getValue());
         else {
             String result = cell.getContents().trim();
             return result.isEmpty() ? defaultValue : new BigDecimal(result);
@@ -190,7 +195,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         jxl.Cell cell = sheet.getCell(column, row);
         if (cell == null) return defaultValue;
         if (cell.getType().equals(CellType.NUMBER)) {
-            return new Date(new Long(cell.getContents()));
+            return new Date((long) ((NumberCell) cell).getValue());
         } else
             return parseDate(cell.getContents());
     }
