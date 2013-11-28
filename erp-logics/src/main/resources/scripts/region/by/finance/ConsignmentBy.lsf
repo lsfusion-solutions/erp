@@ -147,10 +147,10 @@ GROUP issuanceConsignment 'Отпуск' : base;
 shipmentBaseConsignment 'Основание отпуска' (consignment) = ABSTRACT VARSTRING[100] (Consignment) IN issuanceConsignment;
 
 issuanceAllowedConsignment (consignment) = ABSTRACT Employee (Consignment);
-nameIssuanceAllowedConsignment 'Отпуск разрешил' (consignment) = nameContact(issuanceAllowedConsignment(consignment)) IN issuanceConsignment;
+nameIssuanceAllowedConsignment 'Отпуск разрешил' (consignment) = positionNameEmployee(issuanceAllowedConsignment(consignment)) IN issuanceConsignment;
 
 issuanceExecutedConsignment (consignment) = ABSTRACT Employee(Consignment);
-nameIssuanceExecutedConsignment 'Отпуск произвел' (consignment) = nameContact(issuanceExecutedConsignment(consignment)) IN issuanceConsignment;
+nameIssuanceExecutedConsignment 'Отпуск произвел' (consignment) = positionNameEmployee(issuanceExecutedConsignment(consignment)) IN issuanceConsignment;
 
 forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = ABSTRACT VARSTRING[40] (Consignment) IN issuanceConsignment;
 
@@ -590,7 +590,12 @@ DESIGN consignment FROM DEFAULT {
     ADD functions.box;
 }
 
-editConsignment 'Заполнить атрибуты накладной' (consignment) = ACTION FORM consignment OBJECTS c = consignment DOCKEDMODAL IMAGE 'edit.png';
+editConsignment 'Заполнить атрибуты накладной' (consignment) = ACTION (consignment) {
+    FORM consignment OBJECTS c = consignment DOCKEDMODAL; 
+        IF formResult() == FormResult.ok THEN {
+            apply();
+        }
+} IMAGE 'edit.png';
 
 FORM printConsignment 'Печать накладных'
     OBJECTS c=Consignment FIXED PANEL
