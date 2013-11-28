@@ -101,6 +101,8 @@ userReceipt(receipt) <- currentUser() WHEN SET(receipt IS Receipt);
 @defineDocumentDetailPosted(zReport, Receipt);
 @defineDocumentDetailClosed(zReport, Receipt);
 
+skipReceipt 'Не проводить по регистру' = DATA BOOLEAN (Receipt); 
+
 @defineDocumentRelation(receipt, ReceiptSaleDetail);
 @defineDocumentRelation(receipt, ReceiptReturnDetail);
 
@@ -141,6 +143,9 @@ dateTimeReceiptDetail(detail) += dateTimeReceiptSaleDetail(detail);
 
 @defineDocumentDetailClosed(receipt, ReceiptSaleDetail);
 @defineDocumentDetailClosed(receipt, ReceiptReturnDetail);
+
+skipReceiptSaleDetail 'Не проводить по регистру' (receiptDetail) = skipReceipt(receiptReceiptSaleDetail(receiptDetail)); 
+skipReceiptReturnDetail 'Не проводить по регистру' (receiptDetail) = skipReceipt(receiptReceiptReturnDetail(receiptDetail)); 
 
 isPostedReceiptDetail 'Проведен' (receiptDetail) = MULTI isPostedReceiptReturnDetail(receiptDetail), isPostedReceiptSaleDetail(receiptDetail) PERSISTENT;
 isClosedReceiptDetail 'Проведен' (receiptDetail) = MULTI isClosedReceiptReturnDetail(receiptDetail), isClosedReceiptSaleDetail(receiptDetail) PERSISTENT;
@@ -381,6 +386,7 @@ quantityOutFIFOSkuLedger (ledger) += quantityReceiptSaleDetail(ledger);
 sumOutSkuLedger (ledger) += sumReceiptSaleDetail(ledger);
 numberDataSkuLedger (ledger) += STRING[18](numberReceipt(receiptReceiptSaleDetail(ledger)));
 legalEntityDataSkuLedger (ledger) += legalEntityDiscountCard(discountCardReceipt(receiptReceiptSaleDetail(ledger)));
+skipSkuLedger(ledger) += skipReceiptSaleDetail(ledger);
 
 @implementSkuLedgerInLIFO(ReceiptReturnDetail, sku, departmentStore);
 quantityInLIFOSkuLedger (ledger) += quantityReceiptReturnDetail(ledger);
@@ -388,6 +394,7 @@ quantityInLIFOSkuLedger (ledger) += quantityReceiptReturnDetail(ledger);
 sumInSkuLedger (ledger) += sumReceiptReturnDetail(ledger);
 numberDataSkuLedger (ledger) += STRING[18](numberReceipt(receiptReceiptReturnDetail(ledger)));
 legalEntityDataSkuLedger (ledger) += legalEntityDiscountCard(discountCardReceipt(receiptReceiptReturnDetail(ledger)));
+skipSkuLedger(ledger) += skipReceiptReturnDetail(ledger);
 
 @implementSaleLedger(ReceiptSale, sku, departmentStore);
 quantitySaleLedger (ledger) += quantityReceiptSaleDetail(ledger);

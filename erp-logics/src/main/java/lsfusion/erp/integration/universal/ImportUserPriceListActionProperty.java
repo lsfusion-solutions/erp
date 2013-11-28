@@ -296,6 +296,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         if (dataAdjustment != null) {
 
             LM.findLAPByCompoundName("unpostAllUserAdjustment").execute(context.getSession());
+            LM.findLAPByCompoundName("overImportAdjustment").execute(context.getSession());
 
             DataObject userAdjustmentObject = context.addObject((ConcreteCustomClass) LM.findClassByCompoundName("UserAdjustment"));
 
