@@ -114,6 +114,7 @@ priceABasePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += price
 editPriceListType 'Редактировать' = ABSTRACT ACTION LIST (PriceListType) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM priceListType 'Вид цены'
+
     OBJECTS p = PriceListType
     PROPERTIES(p) READONLY idPriceListType SHOWIF showIDs(), namePriceListType, nameCurrencyPriceListType, nameRoundConditionPriceListType
     PROPERTIES(p) READONLY includeVATPriceListType, objectClassName
@@ -122,62 +123,20 @@ FORM priceListType 'Вид цены'
 ;
 
 FORM priceListTypes 'Виды цен'
-    OBJECTS dt = DATETIME FIXED PANEL
-    PROPERTIES(dt) objValue = OBJVALUE
-
-    OBJECTS s = Stock FIXED PANEL
-    PROPERTIES(s) SELECTOR nameStock
-    FILTERS isCompanyStock(s)
 
     OBJECTS pt = PriceListType
     PROPERTIES(pt) READONLY idPriceListType SHOWIF showIDs(), namePriceListType, idPriceListType SHOWIF showIDs(), nameCurrencyPriceListType, nameRoundConditionPriceListType, objectClassName
     PROPERTIES(pt) editPriceListType, DELETE
     ORDER BY objectClassName
-
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY skuTreeName = nameSkuGroup(sg)
-    ORDER BY skuTreeName
-    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
-
-    OBJECTS sk = Sku
-    PROPERTIES(sk) READONLY nameSku, idBarcodeSku
-    PROPERTIES(sk, s, dt) READONLY balanceASkuStockDateTime
-    ORDER BY nameSku
-    FILTERS isParentSkuGroupSku(sg, sk)
-
-    TREE skuTree2 sg2 = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY skuTreeName2 = nameSkuGroup(sg2)
-    ORDER BY skuTreeName2
-    FILTERGROUP inactive1 FILTER 'Активные' 'F5' activeSkuGroup(sg2) DEFAULT
-
-    OBJECTS b = Batch
-    PROPERTIES(b) READONLY isPostedBatch, dateBatch, timeBatch, nameSkuBatch, nameStockBatch, nameBatch, costBatch
-    PROPERTIES(b, s, dt) READONLY balanceABatchStockDateTime
-    ORDER BY dateBatch, timeBatch
-    FILTERGROUP filters
-        FILTER 'Проведенные партии' 'F10' isPostedBatch(b) DEFAULT
-    FILTERS isParentSkuGroupBatch(sg2, b)
-
-    PROPERTIES(pt, sk, s, dt) READONLY priceAPriceListTypeSkuStockDateTime
-    PROPERTIES(pt, b, s, dt) READONLY priceAPriceListTypeBatchStockDateTime
-    FILTERS priceAPriceListTypeSkuStockDateTime(pt, sk, s, dt),
-            priceAPriceListTypeBatchStockDateTime(pt, b, s, dt)
-;
-@extendFormFilterStockAccess(Stock, s, priceListTypes);
+;   
 
 DESIGN priceListTypes FROM DEFAULT{
     NEW pane {
         fill = 1;
         type = SPLITV;
-
         ADD pt.box;
         NEW firstContainer{
             fill = 3;
-            NEW topContainer{
-                type = CONTAINERH;
-                ADD s.box;
-                ADD dt.box{caption = 'Дата/время';}
-            }
             NEW priceContainer{
                 fill = 1;
                 caption = 'Текущие цены';
@@ -188,19 +147,6 @@ DESIGN priceListTypes FROM DEFAULT{
                         fill = 1;
                         caption = 'Товары';
                         type = SPLITH;
-                        ADD skuTree.tree.box;
-                        ADD sk.box {
-                            fill = 3;
-                        }
-                    }
-                    NEW batchContainer {
-                        fill = 1;
-                        caption = 'Партии';
-                        type = SPLITH;
-                        ADD skuTree2.tree.box;
-                        ADD b.box {
-                            fill = 3;
-                        }
                     }
                 }
             }
@@ -209,15 +155,135 @@ DESIGN priceListTypes FROM DEFAULT{
     ADD functions.box;
 }
 
+// -------------------------- Текущие цены -------------------- //
+
+FORM currentPrices 'Текущие цены'
+    
+    OBJECTS pt = PriceListType
+    PROPERTIES(pt) READONLY namePriceListType
+     
+    OBJECTS s = Stock FIXED PANEL
+    PROPERTIES(s) nameStock SELECTOR    
+        
+    OBJECTS dt = DATETIME FIXED PANEL
+    PROPERTIES(dt) OBJVALUE
+
+    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY skuTreeName = nameSkuGroup(sg)
+    ORDER BY skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
+     
+    OBJECTS sk = Sku 
+    PROPERTIES(sk) READONLY nameSku, idBarcodeSku
+    PROPERTIES(sk, s, dt) READONLY balanceASkuStockDateTime
+    PROPERTIES(pt, sk, s, dt) READONLY priceAPriceListTypeSkuStockDateTime
+    ORDER BY nameSku
+    FILTERS isParentSkuGroupSku(sg, sk),
+            priceAPriceListTypeSkuStockDateTime(pt, sk, s, dt)
+           
+    OBJECTS pp = PriceListType
+    PROPERTIES(pp) READONLY namePriceListType, nameCurrencyPriceListType 
+    PROPERTIES(pp, sk, s, dt) READONLY priceAPriceListTypeSkuStockDateTime
+    FILTERS  priceAPriceListTypeSkuStockDateTime(pp, sk, s, dt)
+    
+    TREE skuTree2 sg2 = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY skuTreeName2 = nameSkuGroup(sg2)
+    ORDER BY skuTreeName2
+    FILTERGROUP inactive1 FILTER 'Активные' 'F5' activeSkuGroup(sg2) DEFAULT
+
+    OBJECTS b = Batch
+    PROPERTIES(b) READONLY isPostedBatch, dateBatch, timeBatch, nameSkuBatch, nameStockBatch, nameBatch, costBatch
+    PROPERTIES(b, s, dt) READONLY balanceABatchStockDateTime
+    ORDER BY dateBatch, timeBatch
+    PROPERTIES(pt, b, s, dt) READONLY priceAPriceListTypeBatchStockDateTime
+    FILTERGROUP filters
+    FILTER 'Проведенные партии' 'F10' isPostedBatch(b) DEFAULT
+    FILTERS isParentSkuGroupBatch(sg2, b),
+            priceAPriceListTypeBatchStockDateTime(pt, b, s, dt)
+    
+    OBJECTS pb = PriceListType
+    PROPERTIES(pb) READONLY namePriceListType, nameCurrencyPriceListType
+    PROPERTIES(pb, sk, s, dt) READONLY priceAPriceListTypeSkuStockDateTime
+    FILTERS  priceAPriceListTypeSkuStockDateTime(pb, sk, s, dt)
+;
+@extendFormFilterStockAccess(Stock, s, currentPrices);
+
+DESIGN currentPrices FROM DEFAULT{
+     NEW pane {
+         fill = 1;
+         type = CONTAINERV;
+             NEW firstContainer{
+                type = CONTAINERV;
+                NEW topContainer{
+                    type = CONTAINERH;
+                    ADD s.box;
+                    ADD dt.box{
+                        caption = 'Дата/время';
+                    }
+                }
+             }
+             NEW rightContainer {
+                 fill = 1;
+                 type = CONTAINERV;
+                 NEW bottomConteiner {
+                     fill = 1;
+                     type = CONTAINERH;
+                     NEW leftPriceType {
+                         type = CONTAINERH;
+                         fill = 0.2;
+                         ADD pt.box {
+                            caption = 'Виды цен';
+                         }
+                     }
+                     NEW priceContainer{
+                         fill = 1;
+                         caption = 'Текущие цены';
+                         NEW currentPriceContainer {
+                             fill = 1;
+                             type = TABBED;
+                             NEW skuContainer {
+                                 fill = 1;
+                                 caption = 'Товары';
+                                 type = CONTAINERH;
+                                 ADD skuTree.tree.box;
+                                 ADD sk.box {
+                                     fill = 3;
+                                     ADD pp.box;
+                                 }
+                             }
+                             NEW batchContainer {
+                                fill = 1;
+                                caption = 'Партии';
+                                type = SPLITH;
+                                ADD skuTree2.tree.box;
+                                ADD b.box {
+                                   fill = 3;
+                                   ADD pb.box;
+                                }
+                             }
+                         }
+                     }
+                 }   
+             }
+             
+         
+     }
+     ADD functions.box;
+ }
+
+
 NAVIGATOR {
     NEW priceListNavigator 'Цены' BEFORE administration TO toolbar IMAGE '/images/label.png' {
-        NEW priceListDocuments 'Документы';
+        NEW priceListDocuments 'Документы' {
+            ADD currentPrices;
+        }
         NEW priceListMasterData 'Справочники' {
             ADD priceListTypes;
             ADD priceIntervals;
         }
     }
 }
+
 
 // ---------------------- Макросы по добавлению видов цен в документы ------------------------------------ //
 
