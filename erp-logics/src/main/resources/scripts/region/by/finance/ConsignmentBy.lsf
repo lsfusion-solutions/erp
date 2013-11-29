@@ -98,22 +98,24 @@ fullNamePayerConsignment 'Наим-ие для накладных заказчи
 GROUP carConsignment 'Автомобиль' : base;
 
 truckConsignment = ABSTRACT Truck(Consignment);
-dataNameTruckConsignment = ABSTRACT VARSTRING[70] (Consignment);
+dataTruckConsignment = ABSTRACT Truck(Consignment);
+//dataNameTruckConsignment = ABSTRACT VARSTRING[70] (Consignment);
 nameTruckConsignment 'Автомобиль' (consignment) = OVERRIDE nameTruck(truckConsignment(consignment)),
-                                                           dataNameTruckConsignment(consignment) IN carConsignment;
+                                                           nameTruck(dataTruckConsignment(consignment)) IN carConsignment;
 
-dataOwnerConsignment = ABSTRACT VARSTRING[100] (Consignment);
+//dataOwnerConsignment = ABSTRACT VARSTRING[100] (Consignment);
 ownerTruckConsignment 'Владелец автомобиля' (consignment) = OVERRIDE ownerTruck(truckConsignment(consignment)),
-                                                                     dataOwnerConsignment(consignment) IN carConsignment;
+                                                                     ownerTruck(dataTruckConsignment(consignment)) IN carConsignment;
 
 dataTrailerConsignment = ABSTRACT VARSTRING[100] (Consignment);
 trailerConsignment 'Прицеп' (consignment) = OVERRIDE trailerTruck(truckConsignment(consignment)),
                                                      dataTrailerConsignment(consignment) IN carConsignment;
 
 driverConsignment = ABSTRACT Driver(Consignment);
-dataNameDriverConsignment 'Водитель' = ABSTRACT VARSTRING[40] (Consignment);
+dataEmployeeConsignment = ABSTRACT Employee(Consignment);
+//dataNameDriverConsignment 'Водитель' = ABSTRACT VARSTRING[40] (Consignment);
 nameDriverConsignment 'Водитель' (consignment) = OVERRIDE nameContact(driverConsignment(consignment)),
-                                                          dataNameDriverConsignment(consignment) IN carConsignment;
+                                                          nameContact(dataEmployeeConsignment(consignment)) IN carConsignment;
 
 dataWaybillConsignment 'Путевой лист' (consignment) = ABSTRACT VARSTRING[20] (Consignment) IN carConsignment;
 
@@ -669,10 +671,12 @@ END
 META defineConsignmentHeaderInner (object, class)
     payer###object (object) = DATA LegalEntity (class) IN carConsignment;
 
-    dataNameTruck###object 'Автомобиль' (object) = DATA VARSTRING[30] (class) IN carConsignment;
-    dataOwner###object 'Владелец автомобиля' (object) = DATA VARSTRING[100] (class) IN carConsignment;
+    dataTruck###object (object) = DATA Truck (class);
+    nameDataTruck###object 'Автомобиль' (object) = nameTruck(dataTruck###object(object)) IN carConsignment;
+//    dataOwner###object 'Владелец автомобиля' (object) = DATA VARSTRING[100] (class) IN carConsignment;
     dataTrailer###object 'Прицеп' (object) = DATA VARSTRING[50] (class) IN carConsignment;
-    dataNameDriver###object 'Водитель' (object) = DATA VARSTRING[40] (class) IN carConsignment;
+    dataEmployee###object (object) = DATA Employee (class);
+    nameDataEmployee###object 'Водитель' (object) = nameContact(dataEmployee###object(object)) IN carConsignment;
     waybill###object 'Путевой лист' (object) = DATA VARSTRING[20] (class) IN carConsignment;
 
     dataAddressSupplierStock###object 'Пункт погрузки' (object) = DATA VARSTRING[50] (class);
@@ -716,10 +720,13 @@ META defineConsignmentAbstractHeaderInner(object, class)
 
     payer###object 'Заказчик перевозки (ИД)' (object) = ABSTRACT LegalEntity (class) IN carConsignment;
 
-    dataNameTruck###object 'Автомобиль' (object) = ABSTRACT VARSTRING[30] (class) IN carConsignment;
-    dataOwner###object 'Владелец автомобиля' (object) = ABSTRACT VARSTRING[100] (class) IN carConsignment;
+    dataTruck###object 'Автомобиль' (object) = ABSTRACT Truck (class);
+    nameDataTruck###object 'Автомобиль' (object) = nameTruck(dataTruck###object(object)) IN carConsignment;
+    
+//    dataOwner###object 'Владелец автомобиля' (object) = ABSTRACT VARSTRING[100] (class) IN carConsignment;
     dataTrailer###object 'Прицеп' (object) = ABSTRACT VARSTRING[100] (class) IN carConsignment;
-    dataNameDriver###object 'Водитель' (object) = ABSTRACT VARSTRING[40] (class) IN carConsignment;
+    dataEmployee###object (object) = ABSTRACT Employee (class);
+    nameDataEmployee###object 'Водитель' (object) = nameContact(dataEmployee###object(object)) IN carConsignment;
     waybill###object 'Путевой лист' (object) = ABSTRACT VARSTRING[20] (class) IN carConsignment;
 
     dataAddressSupplierStock###object 'Пункт погрузки' (object) = ABSTRACT VARSTRING[50] (class);
@@ -775,10 +782,10 @@ META implementConsignmentHeader (concrete)
 
     payerConsignment (consignment) += payer###concrete (consignment);
 
-    dataNameTruckConsignment (consignment) += dataNameTruck###concrete (consignment);
-    dataOwnerConsignment (consignment) += dataOwner###concrete (consignment);
+    dataTruckConsignment (consignment) += dataTruck###concrete (consignment);
+//    dataOwnerConsignment (consignment) += dataOwner###concrete (consignment);
     dataTrailerConsignment (consignment) += dataTrailer###concrete (consignment);
-    dataNameDriverConsignment (consignment) += dataNameDriver###concrete (consignment);
+    dataEmployeeConsignment (consignment) += dataEmployee###concrete (consignment);
     dataWaybillConsignment (consignment) += waybill###concrete (consignment);
 
     dataAddressSupplierStockConsignment (consignment) += dataAddressSupplierStock###concrete (consignment);
@@ -817,11 +824,11 @@ END
 META implementConsignmentDocumentHeader (concrete, object, prefix)
 
     prefix###payer###concrete (concrete) += payer###object (concrete);
-
-    prefix###dataNameTruck###concrete (concrete) += dataNameTruck###object (concrete);
-    prefix###dataOwner###concrete (concrete) += dataOwner###object (concrete);
+                                                                                  
+    prefix###dataTruck###concrete (concrete) += dataTruck###object (concrete);
+//    prefix###dataOwner###concrete (concrete) += dataOwner###object (concrete);
     prefix###dataTrailer###concrete (concrete) += dataTrailer###object (concrete);
-    prefix###dataNameDriver###concrete (concrete) += dataNameDriver###object (concrete);
+    prefix###dataEmployee###concrete (concrete) += dataEmployee###object (concrete);
     prefix###waybill###concrete (concrete) += waybill###object (concrete);
 
     prefix###dataAddressSupplierStock###concrete (concrete) += dataAddressSupplierStock###object (concrete);
@@ -868,10 +875,10 @@ META implementConsignmentDocumentHeaderPrefix (concrete, object, NS)
 
     NS.payer###concrete (concrete) += payer###object (concrete);
 
-    NS.dataNameTruck###concrete (concrete) += dataNameTruck###object (concrete);
-    NS.dataOwner###concrete (concrete) += dataOwner###object (concrete);
+    NS.dataTruck###concrete (concrete) += dataTruck###object (concrete);
+//    NS.dataOwner###concrete (concrete) += dataOwner###object (concrete);
     NS.dataTrailer###concrete (concrete) += dataTrailer###object (concrete);
-    NS.dataNameDriver###concrete (concrete) += dataNameDriver###object (concrete);
+    NS.dataEmployee###concrete (concrete) += dataEmployee###object (concrete);
     NS.waybill###concrete (concrete) += waybill###object (concrete);
 
     NS.dataAddressSupplierStock###concrete (concrete) += dataAddressSupplierStock###object (concrete);
