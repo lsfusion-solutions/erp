@@ -131,7 +131,7 @@ META defineOrderInvoice(sign, stockProp)
             priceUserInvoiceDetail(id) <- priceOrderDetail(od);
             invoicePriceUserInvoiceDetail(id) <- invoicePriceOrderDetail(od);
         }
-        data###stockProp###userInvoiceDetail(id) <- data###stockProp###orderDetail(od);
+        data###stockProp###stockUserInvoiceDetail(id) <- data###stockProp###stockOrderDetail(od);
     }
 
     toInvoiceBatchOrderDetail (batch, orderDetail) = PARTITION UNGROUP toInvoiceOrderDetail
@@ -140,7 +140,7 @@ META defineOrderInvoice(sign, stockProp)
                                                                ORDER orderBatch(batch);
 
     createDetailUserInvoiceOrder = ACTION (userInvoice, order) {
-        IF useExplicitBatchDetailUserInvoiceOrder(order) AND explicitBatchLedgerStock(stockProp##Order(order)) THEN {
+        IF useExplicitBatchDetailUserInvoiceOrder(order) AND explicitBatchLedgerStock(stockProp###stockOrder(order)) THEN {
             // проходим по строкам, для которых не задана партия
             FOR orderOrderDetail(orderDetail) == order AND toInvoiceBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail)
                 ADDOBJ d = UserInvoiceDetail DO {
@@ -325,11 +325,11 @@ META defineOrderInvoice(sign, stockProp)
         PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
         PROPERTIES (d) READONLY quantityOrderDetail, invoicedOrderDetail, priceOrderDetail, sumOrderDetail,
                         numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
-                        name###stockProp###orderDetail
+                        name###stockProp###stockOrderDetail
         FILTERS orderOrderDetail(d) == o
 //        FILTERGROUP orderDetail
-//            FILTER 'Строки с невыписанными товарами со склада' 'F10' stockProp###orderDetail(d) == stockProp###invoiceOrder() AND toInvoiceOrderDetail(d) > 0 DEFAULT
-//            FILTER 'Строки со склада' 'F9' stockProp###orderDetail(d) == stockProp###invoiceOrder()
+//            FILTER 'Строки с невыписанными товарами со склада' 'F10' stockProp###stockOrderDetail(d) == stockProp###stockInvoiceOrder() AND toInvoiceOrderDetail(d) > 0 DEFAULT
+//            FILTER 'Строки со склада' 'F9' stockProp###stockOrderDetail(d) == stockProp###stockInvoiceOrder()
     ;
 
     DESIGN invoiceOrders FROM DEFAULT {

@@ -336,7 +336,7 @@ valueItemAttribute = ABSTRACT VARISTRING[255] (Item, ItemAttribute) PERSISTENT;
 
 META implementItemAttribute(property, caption, itemType, attributeClass)
     EXTEND CLASS itemType##ItemAttribute { attributeClass caption }
-    value###itemType##ItemAttribute(i, a) += WHEN a == itemType##ItemAttribute.##attributeClass THEN property(i);
+    value###itemType##ItemAttribute(i, a) += WHEN a == itemType##ItemAttribute.##attributeClass THEN property###item(i);
 END
 
 META defineItemAttribute(attribute, formProperty, caption, group, itemType, attributeClass)
@@ -344,14 +344,14 @@ META defineItemAttribute(attribute, formProperty, caption, group, itemType, attr
 
     EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute##ItemGroup;
     EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() show###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
-    EXTEND FORM item PROPERTIES(i) formProperty SHOWIF show###attribute##Item(i);
-    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty SHOWIF show###attribute##ItemGroup(g);
+    EXTEND FORM item PROPERTIES(i) formProperty###item SHOWIF show###attribute##Item(i);
+    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty###item SHOWIF show###attribute##ItemGroup(g);
 END
 
 // Примитивный тип
 META definePrimitiveItemAttribute(attribute, type, caption, group, itemType)
     attribute##Item caption = DATA type (Item) IN group;
-    @defineItemAttribute(attribute, attribute##Item, caption, group, itemType, item###attribute);
+    @defineItemAttribute(attribute, attribute, caption, group, itemType, item###attribute);
 END
 
 // Расширяем формы настройки
@@ -373,15 +373,15 @@ META defineItemAttributeBatch (attribute, formProperty, caption)
     show###attribute##Batch caption (batch)= show###attribute##Item(skuBatch(batch));
     attribute##Batch caption (batch) = attribute##Item(skuBatch(batch));
 
-    EXTEND FORM batches PROPERTIES(bt) READONLY FORCE GRID formProperty SHOWIF show###attribute##ItemGroup(sk);
+    EXTEND FORM batches PROPERTIES(bt) READONLY FORCE GRID formProperty###Batch SHOWIF show###attribute##ItemGroup(sk);
 END
 META defineItemAttributeBatch (attribute, caption)
-    @defineItemAttributeBatch (attribute, attribute##Batch, caption);
+    @defineItemAttributeBatch (attribute, attribute, caption);
 END
 
 META defineObjectItemAttributeBatch(attribute, identity, caption)
     identity##Batch caption (batch) = identity##Item(skuBatch(batch));
-    @defineItemAttributeBatch(attribute, identity##Batch, caption);
+    @defineItemAttributeBatch(attribute, identity, caption);
 END
 
 // -------------------------------------------- Формирование наименования ----------------------------------- //
@@ -442,7 +442,7 @@ END
 META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
     attribute##Item = DATA attributeClass (Item);
     identity##Item caption (item) = identity(attribute##Item(item)) IN group;
-    @defineItemAttribute(attribute, identity##Item, caption, group, String, item###attribute);
+    @defineItemAttribute(attribute, identity, caption, group, String, item###attribute);
 END
 
 // ---------------------------- Конкретные свойства -------------------------------- //
@@ -466,14 +466,14 @@ EXTEND FORM dialogItemGroups
 
 
 // Группа
-@implementItemAttribute(nameItemGroupItem, 'Группа товаров', String, itemItemGroup);
+@implementItemAttribute(nameItemGroup, 'Группа товаров', String, itemItemGroup);
 
 // ------ Базовые свойства товара ------ //
 
 // Название
 @defineStringItemAttribute(caption, VARISTRING[100], 'Название', itemBase);
 @defineItemAttributeBatch (caption, 'Название');
-@implementItemAttribute(captionItem, 'Название', String, itemCaption);
+@implementItemAttribute(caption, 'Название', String, itemCaption);
 
 @defineStringItemAttribute(originalCaption, VARISTRING[100], 'Название (ориг.)', itemOriginal);
 
@@ -485,7 +485,7 @@ shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMIt
 UOMSku(item) += UOMItem(item);
 
 //@implementObjectShortItemAttribute(UOM, 'Единица измерения (сокр.)');
-@implementItemAttribute(shortNameUOMItem, 'Единица измерения (сокр.)', String, itemShortUOM);
+@implementItemAttribute(shortNameUOM, 'Единица измерения (сокр.)', String, itemShortUOM);
 
 // Брэнд
 CLASS Brand 'Бренд';
@@ -512,12 +512,12 @@ DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(brand, Brand, nameBrand, 'Бренд', itemBase);
 @defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
-@implementItemAttribute(nameBrandItem, 'Бренд', String, itemBrand);
+@implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
 
 // Страна
 @defineObjectItemAttribute(country, Country, nameCountry, 'Страна', itemBase);
 @defineObjectItemAttributeBatch (country, nameCountry, 'Страна');
-@implementItemAttribute(nameCountryItem, 'Страна', String, itemCountry);
+@implementItemAttribute(nameCountry, 'Страна', String, itemCountry);
 
 residentItem 'Отечественное производство' (item) = residentCountry(countryItem(item)) IN itemBase;
 countrySku(sku) += countryItem(sku);
@@ -555,7 +555,7 @@ DESIGN manufacturerDialog FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(manufacturer, Manufacturer, nameManufacturer, 'Производитель', itemBase);
 @defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
-@implementItemAttribute(nameManufacturerItem, 'Производитель', String, itemManufacturer);
+@implementItemAttribute(nameManufacturer, 'Производитель', String, itemManufacturer);
 
 //  Состав
 @defineStringItemAttribute(composition, VARSTRING[255], 'Состав', itemBase);
@@ -618,7 +618,7 @@ GROUP itemSize 'Габариты товара' : public;
 // Вес нетто
 @defineDoubleItemAttribute(netWeight, NUMERIC[9,3], 'Вес нетто, кг', itemSize);
 @defineItemAttributeBatch (netWeight, 'Вес нетто, кг');
-@implementItemAttribute(netWeightItem, 'Вес нетто, кг', Double, itemNetWeight);
+@implementItemAttribute(netWeight, 'Вес нетто, кг', Double, itemNetWeight);
 netWeightSku(sku) += netWeightItem(sku);
 
 // Вес брутто

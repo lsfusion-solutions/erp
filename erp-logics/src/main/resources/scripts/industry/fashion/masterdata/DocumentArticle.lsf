@@ -26,42 +26,42 @@ nameQuantitySize (size) = CONCAT ' ', nameSize(size), ' (кол-во)';
 //----------- Изменение кол-ва для строки при изменении кол-ва для Артикула (несколько складов)---------------//
 
 META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
-    detail###ArticleColorSize###object###stockProp (article, color, size, object, stock) =  GROUP MAX detail###Sku###object###stockProp (sku, object, stock)
+    detail###ArticleColorSize###object###stockProp###stock (article, color, size, object, stock) =  GROUP MAX detail###Sku###object###stockProp###stock (sku, object, stock)
         BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object, stock;
 
-    quantityArticleColorSize###object###stockProp 'Кол-во товара в документе' (article, color, size, object, stock) = GROUP SUM quantitySku###object###stockProp(sku, object, stock)
+    quantityArticleColorSize###object###stockProp###stock 'Кол-во товара в документе' (article, color, size, object, stock) = GROUP SUM quantitySku###object###stockProp###stock(sku, object, stock)
         BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object, stock;
 
-    quantityArticle###object###stockProp 'Кол-во товара в документе' (article, object, stock) = GROUP SUM quantitySku###object###stockProp(sku, object, stock)
+    quantityArticle###object###stockProp###stock 'Кол-во товара в документе' (article, object, stock) = GROUP SUM quantitySku###object###stockProp###stock(sku, object, stock)
         BY articleItem(sku), object, stock;        
 
-    calcQuantitySkuGroup###object###stockProp 'Кол-во товара в документе' (skuGroup, object, stock) = GROUP SUM quantitySku###object###stockProp(sku, object, stock)
+    calcQuantitySkuGroup###object###stockProp###stock 'Кол-во товара в документе' (skuGroup, object, stock) = GROUP SUM quantitySku###object###stockProp###stock(sku, object, stock)
         BY skuGroupSku(sku), object, stock; 
         
-    recQuantitySkuGroup###object###stockProp 'Кол-во товара в документе рек.' (skuGroup, object, stock) = GROUP SUM calcQuantitySkuGroup###object###stockProp(group, object, stock) 
+    recQuantitySkuGroup###object###stockProp###stock 'Кол-во товара в документе рек.' (skuGroup, object, stock) = GROUP SUM calcQuantitySkuGroup###object###stockProp###stock(group, object, stock) 
         IF isParentSkuGroupSkuGroup(group, parent) BY parent, object, stock;
                                                  
 
     priceBalanceArticleColorSizeStock###object  (article, color, size, stock, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stock), priceSkuStock###object(defaultSkuColorSizeStock (article,color,size), stock, object);
 
 
-    backgroundQuantityArticleColorSize###object###Stock 'Цвет' (article, color, size, object, stock) = RGB(255,128,128) IF quantityArticleColorSize###object###stockProp(article, color, size, object, stock) AND NOT
-        (quantityArticleColorSize###object###stockProp(article, color, size, object, stock) <= prevCurrentBalanceArticleColorSizeStock(article, color, size, stock));
+    backgroundQuantityArticleColorSize###object###Stock 'Цвет' (article, color, size, object, stock) = RGB(255,128,128) IF quantityArticleColorSize###object###stockProp###stock(article, color, size, object, stock) AND NOT
+        (quantityArticleColorSize###object###stockProp###stock(article, color, size, object, stock) <= prevCurrentBalanceArticleColorSizeStock(article, color, size, stock));
 
     changeQuantityValueArticleColorSize###object###Stock = ACTION (article, color, size, object, stock) {
 
-        IF detail###ArticleColorSize###object###stockProp(article, color, size, object, stock) THEN {
+        IF detail###ArticleColorSize###object###stockProp###stock(article, color, size, object, stock) THEN {
             IF requestedNumeric() THEN {
-                ASSIGN quantity###detail(d) <- requestedNumeric() WHERE d == detail###ArticleColorSize###object###stockProp(article, color, size, object, stock);
+                ASSIGN quantity###detail(d) <- requestedNumeric() WHERE d == detail###ArticleColorSize###object###stockProp###stock(article, color, size, object, stock);
             } ELSE {
-                DELETE d WHERE d==detail###ArticleColorSize###object###stockProp(article, color, size, object, stock);
+                DELETE d WHERE d==detail###ArticleColorSize###object###stockProp###stock(article, color, size, object, stock);
             }
 
         } ELSE {
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
                    ASSIGN object###detail(d) <- object;
-                   ASSIGN data###stockProp###detail (d) <- stock;
+                   ASSIGN data###stockProp###stock###detail (d) <- stock;
                    ASSIGN skuProp###detail(d) <- defaultSkuColorSizeStock(article, color, size);
                    ASSIGN quantity###detail (d) <- requestedNumeric();
                 }

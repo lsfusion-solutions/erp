@@ -6,7 +6,7 @@ NAMESPACE Purchase;
 
 //----------------------------------------------- Поставка ---------------------------------------------------//
 
-@defineShipment('Поставки', ' (закупка)', customerStock, supplier, company, company);
+@defineShipment('Поставки', ' (закупка)', customer, supplier, company, company);
 @extendFormFilterAccessStock(Shipment, s, shipments, customerStock, company);
 @extendFormFilterAccessStock(Shipment, s, shipments, supplierStock, supplier);
 @extendFormFilterAccessLegalEntity(Shipment, s, shipments, customer, company);
@@ -52,10 +52,10 @@ EXTEND FORM invoices
 @deriveDocumentOperationLegalEntity(userShipment, supplier, userShipment);
 @defineDocumentOperationLegalEntity(userShipment, customer, 'Покупатель');
 @deriveDocumentOperationLegalEntity(userShipment, customer, userShipment);
-@defineDocumentOperationStock(userShipment, supplierStock, 'Склад поставщика');
-@deriveDocumentOperationStock(userShipment, supplierStock, userShipment);
-@defineDocumentOperationStock(userShipment, customerStock, 'Склад покупателя');
-@deriveDocumentOperationStock(userShipment, customerStock, userShipment);
+@defineDocumentOperationStock(userShipment, supplier, 'Склад поставщика');
+@deriveDocumentOperationStock(userShipment, supplier, userShipment);
+@defineDocumentOperationStock(userShipment, customer, 'Склад покупателя');
+@deriveDocumentOperationStock(userShipment, customer, userShipment);
 
 @defineDocumentOperationRole(userShipment);
 
@@ -174,7 +174,7 @@ createBatchShipmentDetail (detail) = (detail IS ShipmentDetail OR overCreateBatc
 
 // Создаем партию
 CLASS ShipmentBatch 'Партия на основе закупки';
-@defineAggregation(shipmentDetail, shipmentBatch, createBatchShipmentDetail);
+@defineAggregation(shipmentDetail, shipmentBatch, createBatch);
 
 @defineSkuLedgerAggregation(shipmentDetail, shipmentBatch, sku, customerStock);
 priceShipmentBatch (batch) = priceShipmentDetail(shipmentDetailShipmentBatch(batch));
@@ -203,7 +203,7 @@ supplierShipmentBatch (ledger) = supplierShipmentDetail(shipmentDetailShipmentBa
 createSkuLedgerShipmentDetail (detail) = detail IS ShipmentDetail AND NOT createBatchShipmentDetail(detail);
 
 CLASS ShipmentSkuLedger 'Изменение остатка на основе закупки';
-@defineAggregation(shipmentDetail, shipmentSkuLedger, createSkuLedgerShipmentDetail);
+@defineAggregation(shipmentDetail, shipmentSkuLedger, createSkuLedger);
 
 @defineSkuLedgerAggregation(shipmentDetail, shipmentSkuLedger, sku, customerStock);
 priceShipmentSkuLedger (ledger) = priceShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));

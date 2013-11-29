@@ -153,10 +153,10 @@ END
 
 META defineDocumentHeaderStockInner (object, stockClass, stockClassUpper, stockCaption, prefix)
     prefix###stockClass###object = DATA stockClassUpper(###object);
-    name###prefix###stockClass###object stockCaption (object) = nameStock(prefix###stockClass###object(object)) IN documentHeader
+    name###prefix###stockClass###object stockCaption (object) = name###stockClass(prefix###stockClass###object(object)) IN documentHeader
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
-    prefix###legalEntityStock###object (object) = legalEntityStock(prefix###stockClass###object(object));
+    prefix###legalEntityStock###object (object) = legalEntity###stockClass(prefix###stockClass###object(object));
     name###prefix###legalEntityStock###object 'Компания ('###stockCaption###')' (object) = nameLegalEntity(prefix###legalEntityStock###object (object));
     fullName###prefix###legalEntityStock###object 'Компания ('###stockCaption###') полное наим-ие' (object) = fullNameLegalEntity(prefix###legalEntityStock###object (object));       
     address###prefix###legalEntityStock###object 'Адрес компании ('###stockCaption###')' (object) = addressLegalEntity(prefix###legalEntityStock###object (object));
@@ -172,10 +172,10 @@ END
 
 META defineDocumentAbstractHeaderStockInner (object, stockClass, stockClassUpper, stockCaption, prefix)
     prefix###stockClass###object = ABSTRACT stockClassUpper(###object) PERSISTENT;
-    name###prefix###stockClass###object stockCaption (object) = nameStock(prefix###stockClass###object(object)) IN documentHeader
+    name###prefix###stockClass###object stockCaption (object) = name###stockClass(prefix###stockClass###object(object)) IN documentHeader
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
-    prefix###legalEntityStock###object (object) = legalEntityStock(prefix###stockClass###object(object));
+    prefix###legalEntityStock###object (object) = legalEntity###stockClass(prefix###stockClass###object(object));
     name###prefix###legalEntityStock###object 'Компания ('###stockCaption###')' (object) = nameLegalEntity(prefix###legalEntityStock###object (object));
     fullName###prefix###legalEntityStock###object 'Компания ('###stockCaption###') полное наим-ие' (object) = fullNameLegalEntity(prefix###legalEntityStock###object (object));
     address###prefix###legalEntityStock###object 'Адрес компании ('###stockCaption###')' (object) = addressLegalEntity(prefix###legalEntityStock###object (object));
@@ -199,16 +199,16 @@ META defineDocumentInterfaceHeaderStock (object, stockClass, stockCaption)
     @defineDocumentInterfaceHeaderStock(object, stockClass, stockCaption, );
 END
 
-META defineDocumentDetailStock (object, detail, stockProp, stockCaption)
+META defineDocumentDetailStock (object, detail, stockClass, stockProp, stockCaption)
     stockProp###detail (idetail) = stockProp###object(object###detail(idetail));
-    name###stockProp###detail stockCaption (idetail) = nameStock(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+    name###stockProp###detail stockCaption (idetail) = name###stockClass(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
     country###stockProp###detail (idetail) = countryStock(stockProp###detail(idetail));
-    legalEntity###stockProp###detail (idetail) = legalEntityStock(stockProp###detail(idetail));
+    legalEntity###stockProp###detail (idetail) = legalEntity###stockClass(stockProp###detail(idetail));
     name###legalEntity###stockProp###detail 'Компания ('###stockCaption###')' (idetail) = nameLegalEntity(legalEntity###stockProp###detail (idetail));
     fullName###legalEntity###stockProp###detail 'Компания ('###stockCaption###') полное наим-ие' (idetail) = fullNameLegalEntity(legalEntity###stockProp###detail (idetail));
 END
 META defineDocumentDetailStock (object, stockProp, stockCaption)
-    @defineDocumentDetailStock (object, object##Detail, stockProp, stockCaption);
+    @defineDocumentDetailStock (object, object##Detail, stock, stockProp, stockCaption);
 END
 
 META defineDocumentDetailDataStock (object, detail, stockClass, stockProp, stockCaption)
@@ -218,9 +218,9 @@ END
 META defineDocumentDetailDataStockInner (object, detail, stockClass, stockClassUpper, stockProp, stockCaption)
     data###stockProp###detail = DATA stockClassUpper(###detail);
     stockProp###detail (idetail) = OVERRIDE stockProp###object(object###detail(idetail)), data###stockProp###detail(idetail) PERSISTENT;
-    name###stockProp###detail stockCaption (idetail) = nameStock(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+    name###stockProp###detail stockCaption (idetail) = name###stockClass(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
     country###stockProp###detail (idetail) = countryStock(stockProp###detail(idetail));
-    legalEntity###stockProp###detail (idetail) = legalEntityStock(stockProp###detail(idetail));
+    legalEntity###stockProp###detail (idetail) = legalEntity###stockClass(stockProp###detail(idetail));
     name###legalEntity###stockProp###detail 'Компания ('###stockCaption###')' (idetail) = nameLegalEntity(legalEntity###stockProp###detail (idetail));
     fullName###legalEntity###stockProp###detail 'Компания ('###stockCaption###') полное наим-ие' (idetail) = fullNameLegalEntity(legalEntity###stockProp###detail (idetail));
     
@@ -306,12 +306,12 @@ END
 // ---------------------------------------------- Агрегированные документы -------------------------------------------- //
 
 // Склады
-META defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockProp, stockCaption, prefixP, prefixA)
-    prefixA###stockProp###aggrObject (object) = prefixP###stockProp###primObject(primObject###aggrObject(object)) PERSISTENT;
-    name###prefixA###stockProp###aggrObject stockCaption (object) = nameStock(prefixA###stockProp###aggrObject(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+META defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockClass, stockProp, stockCaption, prefixP, prefixA)
+    prefixA###stockProp###stockClass###aggrObject (object) = prefixP###stockProp###stockClass###primObject(primObject###aggrObject(object)) PERSISTENT;
+    name###prefixA###stockProp###stockClass###aggrObject stockCaption (object) = nameStock(prefixA###stockProp###stockClass###aggrObject(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 END
-META defineDocumentAggregationHeaderStock (primObject, aggrObject, stockProp, stockCaption)
-    @defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockProp, stockCaption, , );
+META defineDocumentAggregationHeaderStock (primObject, aggrObject, stockClass, stockProp, stockCaption)
+    @defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockClass, stockProp, stockCaption, , );
 END
 
 META defineDocumentAggregationDetailStockPrefix (primObject, aggrObject, stockProp, stockCaption, prefixP, prefixA)
@@ -322,8 +322,8 @@ META defineDocumentAggregationDetailStock (primObject, aggrObject, stockProp, st
 END
 
 META defineDocumentAggregationStockPrefix (primObject, aggrObject, stockProp, stockCaption, prefixP, prefixA)
-    @defineDocumentAggregationHeaderStockPrefix(primObject, aggrObject, stockProp, stockCaption, prefixP, prefixA);
-    @defineDocumentAggregationDetailStockPrefix(primObject, aggrObject, stockProp, stockCaption, prefixP, prefixA);
+    @defineDocumentAggregationHeaderStockPrefix(primObject, aggrObject, stock, stockProp, stockCaption, prefixP, prefixA);
+    @defineDocumentAggregationDetailStockPrefix(primObject, aggrObject, stockProp###stock, stockCaption, prefixP, prefixA);
 END
 META defineDocumentAggregationStock (primObject, aggrObject, stockProp, stockCaption)
     @defineDocumentAggregationStockPrefix(primObject, aggrObject, stockProp, stockCaption, , );

@@ -162,8 +162,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     closeDateOrderDetail 'Дата автоматического закрытия' (detail) = OVERRIDE closeDateOrder(orderOrderDetail(detail)), closeDataDateOrderDetail(detail) PERSISTENT;
     closeDateUserOrderDetail 'Дата автоматического закрытия' (detail) = OVERRIDE closeDateUserOrder(userOrderUserOrderDetail(detail)), closeDataDateUserOrderDetail(detail) PERSISTENT;
 
-    closeDataDateUserOrderDetail(detail) <- sumDate(shipmentDateUserOrderDetail(detail), quantityDaysCloseOrdersStock(stockProp###userOrderDetail(detail)))
-        WHEN CHANGED(shipmentDateUserOrderDetail(detail)) OR CHANGED(stockProp###userOrderDetail(detail));
+    closeDataDateUserOrderDetail(detail) <- sumDate(shipmentDateUserOrderDetail(detail), quantityDaysCloseOrdersStock(stockProp###stock###userOrderDetail(detail)))
+        WHEN CHANGED(shipmentDateUserOrderDetail(detail)) OR CHANGED(stockProp###stock###userOrderDetail(detail));
 
 //    isDataClosedOrder 'Закрыт' = ABSTRACT BOOLEAN(Order);
 //    isDataClosedUserOrder 'Закрыт' = DATA BOOLEAN(UserOrder);
@@ -196,7 +196,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceDescription(order, 'Заказ'###sign);
 
     @defineDocumentInterfaceCurrency(order);
-    @deriveDocumentCurrency(userOrder, stockProp);
+    @deriveDocumentCurrency(userOrder, stockProp###stock);
     Order.currencyOrder(order) += currencyOrder(order);
 
     @defineDocumentInterfaceHeaderAgreement(order);
@@ -211,7 +211,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceDetailPrice(order); // объявляем цену без НДС
     Order.priceOrderDetail(detail) += priceOrderDetail(detail);
 
-    @defineDocumentInterfaceDetailVAT(order, country###stockProp, , ); // объявляем шкалу
+    @defineDocumentInterfaceDetailVAT(order, country###stockProp###stock, , ); // объявляем шкалу
     
     overVATUserOrderDetail = ABSTRACT Range (UserOrderDetail); 
     WHEN SESSION
@@ -230,7 +230,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     // объявляем Action'ы для ON CHANGE
     @defineDocumentDetailPriceVATOnChange(userOrder);
-    @defineDocumentDetailNumberVATOnChange(userOrder, stockProp);
+    @defineDocumentDetailNumberVATOnChange(userOrder, stockProp###stock);
     @defineDocumentDetailValueVATOnChange(userOrder);
     @defineDocumentDetailInvoicePriceVATOnChange(userOrder);
 
@@ -260,12 +260,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentHeaderSkuQuantity(userOrder, sku);
     @defineDocumentInterfaceHeaderSum(order);
 
-    @defineAddDetailDialogSkuStock(userOrder, sku, stockProp, dialogSku);
+    @defineAddDetailDialogSkuStock(userOrder, sku, stockProp###stock, dialogSku);
     @defineAddDetailDialogBarcode(userOrder, sku);
 
     noAgreementUserOrder (order) = order IS UserOrder AND NOT agreementUserOrder(order);
 
-    countOrderDetailStockOrder 'Кол-во строк по складу '(stock, order) = GROUP SUM 1 BY stockProp###orderDetail(orderDetail), orderOrderDetail(orderDetail);
+    countOrderDetailStockOrder 'Кол-во строк по складу '(stock, order) = GROUP SUM 1 BY stockProp###stock###orderDetail(orderDetail), orderOrderDetail(orderDetail);
 
 //-- Дата следующей поставки
     @defineDocumentInterfaceDatePrefix (order, nextShipment, ' следующей поставки');
@@ -273,13 +273,13 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     fromShipmentDateUserOrder 'Начало периода' (userOrder) = subtractDate(dateUserOrder(userOrder), quantityDaysNextShipmentUserOrder(userOrder));
 
     @implementDocumentSupplierCustomer(order);
-    @defineMovementSku(orderDetail, stockProp); //-- показываем по нажатию правой клавиши движение товара
-    @defineMovementSku(userOrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(orderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(userOrderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
     @defineBalancesSku(orderDetail); //-- показываем по нажатию правой клавиши остатки товара
     @defineBalancesSku(userOrderDetail); //-- показываем по нажатию правой клавиши остатки товара
 
-    @defineMovementPriceSku(orderDetail, stockProp); //-- показываем по нажатию правой клавиши изменение цены товара
-    @defineMovementPriceSku(userOrderDetail, stockProp); //-- показываем по нажатию правой клавиши  изменение цены товара
+    @defineMovementPriceSku(orderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши изменение цены товара
+    @defineMovementPriceSku(userOrderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши  изменение цены товара
 
     @defineDocumentDialogSupplierCustomerStock(userOrder, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerStockDetail(userOrderDetail, supplierFilter, customerFilter);
@@ -315,7 +315,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        valueVATUserOrderDetail ON CHANGE changeValueVATUserOrderDetail(d),
                        invoicePriceUserOrderDetail ON CHANGE changeInvoicePriceUserOrderDetail(d),
                        VATSumUserOrderDetail, invoiceSumUserOrderDetail,
-                       name###stockProp###userOrderDetail ON CHANGE changeData###stockProp###filter###userOrderDetail(d), shipmentDateUserOrderDetail,
+                       name###stockProp###stock###userOrderDetail ON CHANGE changeData###stockProp###stock###filter###userOrderDetail(d), shipmentDateUserOrderDetail,
                        shipmentTimeUserOrderDetail, closeDateUserOrderDetail, ADDOBJ, DELETESESSION
         ORDER BY indexUserOrderDetail
 
@@ -484,7 +484,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                     ASSIGN userOrderUserOrderDetail(d) <- o;
                     ASSIGN skuUserOrderDetail(d) <- skuOrderDetail(orderDetail);
                     ASSIGN quantityUserOrderDetail(d) <- quantityOrderDetail(orderDetail);
-                    ASSIGN data###stockProp###userOrderDetail(d) <- data###stockProp###orderDetail(orderDetail);
+                    ASSIGN data###stockProp###stock###userOrderDetail(d) <- data###stockProp###stock###orderDetail(orderDetail);
                     
                     EXEC overCopyOrderDetail(d, orderDetail);
                 }
@@ -504,7 +504,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
             skuUserOrderDetail(d) <- skuUserOrderDetail(detail);
             quantityUserOrderDetail(d) <- quantityUserOrderDetail(detail);
             priceUserOrderDetail(d) <- priceUserOrderDetail(detail);
-            data###stockProp###userOrderDetail(d) <- data###stockProp###userOrderDetail(detail);
+            data###stockProp###stock###userOrderDetail(d) <- data###stockProp###stock###userOrderDetail(detail);
             priceListType###userOrderDetail(d) <- priceListType###userOrderDetail(detail);      
             shipmentDataDate###userOrderDetail(d) <- shipmentDataDate###userOrderDetail(detail);         
             shipmentDataTime###userOrderDetail(d) <- shipmentDataTime###userOrderDetail(detail);        
@@ -539,7 +539,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
         PROPERTIES (d) READONLY quantityOrderDetail, namePriceListTypeOrderDetail, priceOrderDetail, sumOrderDetail,
                        numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
-                       name###stockProp###orderDetail, shipmentDateOrderDetail, shipmentTimeOrderDetail
+                       name###stockProp###stock###orderDetail, shipmentDateOrderDetail, shipmentTimeOrderDetail
         ORDER BY indexOrderDetail
 
         FILTERS orderOrderDetail(d) == o
@@ -620,13 +620,13 @@ META defineOrderBatch(legalEntityProp, stockProp)
         batchUserOrderDetail(d) <- batchOrderDetail(detail);
     } 
     // Пишем в цену заказа из вида цен в зависимости от партии
-    @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp, userOrder);
+    @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, stockProp###stock, userOrder);
 
     // История по правой кнопке
     @defineBalancesBatch(orderDetail); //-- показываем по нажатию правой клавиши остатки партии
     @defineBalancesBatch(userOrderDetail); //-- показываем по нажатию правой клавиши остатки партии
-    @defineMovementBatch(orderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
-    @defineMovementBatch(userOrderDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
+    @defineMovementBatch(orderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии
+    @defineMovementBatch(userOrderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии
 
     // Подбор
     @defineDocumentBatchStockPriceListTypeAgreement(userOrder, stockProp);

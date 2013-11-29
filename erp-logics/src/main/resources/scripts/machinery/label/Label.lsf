@@ -375,24 +375,24 @@ WHEN SESSION FORMS customLabelTransaction
 createAttributeLabelTransactionDetail = ABSTRACT ACTION LIST (LabelTransactionDetail);
 
 // -------------------------------- Добавление новых атрибутов -------------------------- //
-META defineLabelTransactionAttributeAction(object, skuProp)
+META defineLabelTransactionAttributeAction(object, skuClass, skuProp)
     createAttributeLabelTransactionDetail(d) +=
-        ACTION object##LabelTransactionDetail(d) <- skuProp(skuLabelTransactionDetail(d));
+        ACTION object##LabelTransactionDetail(d) <- skuProp##skuClass(skuLabelTransactionDetail(d));
 
     EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY object##LabelTransactionDetail;
     EXTEND FORM customLabelTransaction PROPERTIES(d) object##LabelTransactionDetail;
     EXTEND FORM labelTransactions PROPERTIES(dt) READONLY object##LabelTransactionDetail;
 END
 
-META defineLabelTransactionAttribute(object, caption, type, skuProp)
+META defineLabelTransactionAttribute(object, caption, type, skuClass, skuProp)
     object##LabelTransactionDetail caption  = DATA type (LabelTransactionDetail);
-    @defineLabelTransactionAttributeAction(object, skuProp);
+    @defineLabelTransactionAttributeAction(object, skuClass, skuProp);
 END
 
 // ---------- Атрибуты по умолчанию ------ //
 
-@defineLabelTransactionAttribute(shortNameUOM, 'Ед. изм.', VARISTRING[10], shortNameUOMSku);
-@defineLabelTransactionAttribute(country, 'Страна', VARSTRING[255], nameCountrySku);
+@defineLabelTransactionAttribute(shortNameUOM, 'Ед. изм.', VARISTRING[10], Sku, shortNameUOM);
+@defineLabelTransactionAttribute(country, 'Страна', VARSTRING[255], Sku, nameCountry);
 
 // ------------------------- Подключение печати ценников в документ --------------------- //
 META defineDocumentLabelTransaction (document, skuProp, stockProp)

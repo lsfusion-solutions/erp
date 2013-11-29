@@ -7,11 +7,11 @@ NAMESPACE Stock;
 // ----------- Подбор (товар / один склад)---------------//     Не забывать имплементить цвет, если нужно!!!!!!!!
 
 META defineDocumentSkuPriceListTypeAgreement(object, stockProp)
-    @defineDocumentSku(object, sku, stockProp);
+    @defineDocumentSku(object, sku, stock, stockProp);
     priceListType###object###sku(object, sku) = OVERRIDE priceListType###object(object) IF sku IS Sku, priceListTypeAgreementSku(agreement###object(object), sku);
 
 //    priceSku###object 'Цена' (sku, object) = prevPriceBPriceListTypeSkuStockDateTime(priceListType###object###sku(object, sku), sku, stockProp###object(object), dateTime###object(object));
-    ledgerPriceSku###object 'Цена (базовая)' (sku, object) = prevPriceBPriceListTypeSkuStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###sku(object, sku)), sku, stockProp###object(object), dateTime###object(object));
+    ledgerPriceSku###object 'Цена (базовая)' (sku, object) = prevPriceBPriceListTypeSkuStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###sku(object, sku)), sku, stockProp###stock###object(object), dateTime###object(object));
 
     viewPriceSku###object 'Цена' (sku, object) = DATA SESSION NUMERIC[14,2] (Sku, ###object);
 
@@ -19,21 +19,21 @@ META defineDocumentSkuPriceListTypeAgreement(object, stockProp)
 
     updateViewPriceSku###object (sku, object) = ACTION {
         FOR pt == priceListType###object###sku(object, sku) NOINLINE (pt) DO
-            viewPriceSku###object(sku, object) <- prevPriceBPriceListTypeSkuStockDateTime(pt, sku, stockProp###object(object), dateTime###object(object));
+            viewPriceSku###object(sku, object) <- prevPriceBPriceListTypeSkuStockDateTime(pt, sku, stockProp###stock###object(object), dateTime###object(object));
     }
 END
-META defineDocumentSkuPriceListTypeSystemLedger(object, priceListTypeProp, stockProp)
-    @defineDocumentSku(object, sku, stockProp);
-    priceSku###object 'Цена' (sku, object) = prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp###object(object), dateTime###object(object));
+META defineDocumentSkuPriceListTypeSystemLedger(object, priceListTypeProp, stockClass, stockProp)
+    @defineDocumentSku(object, sku, stockClass, stockProp);
+    priceSku###object 'Цена' (sku, object) = prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp###stockClass###object(object), dateTime###object(object));
 END
 
-META defineDocumentSku(object, detail, skuProp, stockProp)
-    detail###Sku###object###stockProp (sku, object, stock) =  GROUP MAX detail
-        BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail);
-    detail###Sku###object (sku, object) = detail###Sku###object###stockProp(sku, object, stockProp###object(object));
+META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
+    detail###Sku###object###stockProp###stockClass (sku, object, stock) =  GROUP MAX detail
+        BY skuProp###detail(detail), object###detail(detail), stockProp###stockClass###detail(detail);
+    detail###Sku###object (sku, object) = detail###Sku###object###stockProp###stockClass(sku, object, stockProp###stockClass###object(object));
 
-    currentBalanceSku###object 'Остаток' (sku, object) = currentBalanceSkuStock(sku, stockProp###object(object));
-    prevCurrentBalanceSku###object 'Остаток' (sku, object) = prevCurrentBalanceSkuStock(sku, stockProp###object(object));
+    currentBalanceSku###object 'Остаток' (sku, object) = currentBalanceSkuStock(sku, stockProp###stockClass###object(object));
+    prevCurrentBalanceSku###object 'Остаток' (sku, object) = prevCurrentBalanceSkuStock(sku, stockProp###stockClass###object(object));
 //    backgroundQuantitySku###object 'Цвет' (sku, object) = RGB(255,128,128) IF quantity###detail###skuProp###object(sku, object) AND NOT
 //        (quantity###detail###skuProp###object(sku, object) <= currentBalanceSku###object(sku, object));
     backgroundQuantitySku###object 'Цвет' (sku, object) = ABSTRACT CASE COLOR (Sku, ###object);  
@@ -52,7 +52,7 @@ META defineDocumentSku(object, detail, skuProp, stockProp)
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
                     object###detail(d) <- object;
-                    stockProp###detail(d) <- stockProp###object(object);
+                    stockProp###stockClass###detail(d) <- stockProp###stockClass###object(object);
                     skuProp###detail(d) <- sku;
                     quantity###detail (d) <- requestedNumeric();
                     overChangeQuantityValueSku###object##Detail(d);
@@ -83,8 +83,8 @@ META defineDocumentSku(object, detail, skuProp, stockProp)
     }
 
 END
-META defineDocumentSku(object, skuProp, stockProp)
-    @defineDocumentSku(object, object##Detail, skuProp, stockProp);
+META defineDocumentSku(object, skuProp, stockClass, stockProp)
+    @defineDocumentSku(object, object##Detail, skuProp, stockClass, stockProp);
 END
 
 META extendFormDocumentSku(object, detail, form, concrete, skuProp)
@@ -166,11 +166,11 @@ END
 // ----------- Подбор (партий / один склад)---------------//    Не забывать имплементить цвет, если нужно!!!!!!!!
 
 META defineDocumentBatchPriceListTypeAgreement(object, stockProp)
-    @defineDocumentBatch(object, batch, sku, stockProp);
+    @defineDocumentBatch(object, batch, sku, stock, stockProp);
     priceListType###object###batch(object, batch) = OVERRIDE priceListType###object(object) IF batch IS Batch, priceListTypeAgreementSku(agreement###object(object), skuBatch(batch));
 
 //    priceBatch###object 'Цена' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(priceListType###object###batch(object, batch), batch, stockProp###object(object), dateTime###object(object));
-    ledgerPriceBatch###object 'Цена (базовая)' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###batch(object, batch)), batch, stockProp###object(object), dateTime###object(object));
+    ledgerPriceBatch###object 'Цена (базовая)' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###batch(object, batch)), batch, stockProp###stock###object(object), dateTime###object(object));
 
     viewPriceBatch###object 'Цена' (batch, object) = DATA SESSION NUMERIC[14,2] (Batch, ###object);
 
@@ -178,22 +178,22 @@ META defineDocumentBatchPriceListTypeAgreement(object, stockProp)
 
     updateViewPriceBatch###object (batch, object) = ACTION {
         FOR pt == priceListType###object###batch(object, batch) NOINLINE (pt) DO
-            viewPriceBatch###object(batch, object) <- prevPriceBPriceListTypeBatchStockDateTime(pt, batch, stockProp###object(object), dateTime###object(object));
+            viewPriceBatch###object(batch, object) <- prevPriceBPriceListTypeBatchStockDateTime(pt, batch, stockProp###stock###object(object), dateTime###object(object));
     }
 END
 
-META defineDocumentBatchPriceListTypeSystemLedger(object, priceListTypeProp, stockProp)
-    @defineDocumentBatch(object, batch, sku, stockProp);
-    priceBatch###object 'Цена' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp###object(object), dateTime###object(object));
+META defineDocumentBatchPriceListTypeSystemLedger(object, priceListTypeProp, stockClass, stockProp)
+    @defineDocumentBatch(object, batch, sku, stockClass, stockProp);
+    priceBatch###object 'Цена' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp###stockClass###object(object), dateTime###object(object));
 END
 
-META defineDocumentBatch(object, detail, batchProp, skuProp, stockProp)
-    detail###batch###object###stockProp (batch, object, stock) =  GROUP MAX detail
-        BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail);
-    detail###batch###object (batch, object) = detail###batch###object###stockProp(batch, object, stockProp###object(object));
+META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockProp)
+    detail###batch###object###stockProp###stockClass (batch, object, stock) =  GROUP MAX detail
+        BY batchProp###detail(detail), object###detail(detail), stockProp###stockClass###detail(detail);
+    detail###batch###object (batch, object) = detail###batch###object###stockProp###stockClass(batch, object, stockProp###stockClass###object(object));
 
-    currentBalanceBatch###object 'Остаток' (batch, object) = currentBalanceBatchStock(batch, stockProp###object(object));
-    prevCurrentBalanceBatch###object 'Остаток' (batch, object) = prevCurrentBalanceBatchStock(batch, stockProp###object(object));
+    currentBalanceBatch###object 'Остаток' (batch, object) = currentBalanceBatchStock(batch, stockProp###stockClass###object(object));
+    prevCurrentBalanceBatch###object 'Остаток' (batch, object) = prevCurrentBalanceBatchStock(batch, stockProp###stockClass###object(object));
 
     quantity###detail###batchProp###object 'Кол-во товара в документе' (batch, object) = GROUP SUM quantity###detail(detail)
         BY batchProp###detail(detail), object###detail(detail);
@@ -216,7 +216,7 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockProp)
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
                     object###detail(d) <- object;
-                    stockProp###detail (d) <- stockProp###object(object);
+                    stockProp###stockClass###detail (d) <- stockProp###stockClass###object(object);
                     skuProp###detail(d) <- skuBatch(batch);
                     batchProp###detail(d) <- batch;
                     quantity###detail (d) <- requestedNumeric();
@@ -249,8 +249,8 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockProp)
 
 END
 
-META defineDocumentBatch(object, batchProp, skuProp, stockProp)
-    @defineDocumentBatch(object, object##Detail, batchProp, skuProp, stockProp);
+META defineDocumentBatch(object, batchProp, skuProp, stockClass, stockProp)
+    @defineDocumentBatch(object, object##Detail, batchProp, skuProp, stockClass, stockProp);
 END
 
 META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
@@ -308,7 +308,7 @@ META extendFormDocumentPriceSku (object, priceListTypeProp, stockProp, caption, 
     price###priceListTypeProp###Sku###object 'Цена'##caption (sku, object) = prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp###object(object), dateTime###object(object));
 
     EXTEND FORM form
-        PROPERTIES(ks, char) READONLY price###priceListTypeProp###Sku###object SHOWIF showif(char)
+        PROPERTIES(ks, char) READONLY price###priceListTypeProp###Sku###object SHOWIF showif###object(char)
     ;
 END
 
@@ -316,7 +316,7 @@ META extendFormDocumentPriceBatch (object, priceListTypeProp, stockProp, caption
     price###priceListTypeProp###Batch###object 'Цена'##caption (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp###object(object), dateTime###object(object));
 
     EXTEND FORM form
-        PROPERTIES(b, char) READONLY price###priceListTypeProp###Batch###object SHOWIF showif(char)
+        PROPERTIES(b, char) READONLY price###priceListTypeProp###Batch###object SHOWIF showif###object(char)
     ;
 END
 
@@ -344,11 +344,11 @@ META defineDocumentSkuStockPriceListTypeSystemLedger(object, priceListTypeProp, 
 END
 
 META defineDocumentSkuStock(object, detail, skuProp, stockProp)
-    detail###Sku###object###stockProp (sku, object, stock) =  GROUP MAX detail
-        BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail);
+    detail###Sku###object###stockProp###stock (sku, object, stock) =  GROUP MAX detail
+        BY skuProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
 
-    quantitySku###object###stockProp 'Кол-во товара в документе' (sku, object, stock) = GROUP SUM quantity###detail(detail)
-        BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail);
+    quantitySku###object###stockProp###stock 'Кол-во товара в документе' (sku, object, stock) = GROUP SUM quantity###detail(detail)
+        BY skuProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
 
 //    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = RGB(255,128,128) IF quantitySku###object###stockProp(sku, object, stock) AND NOT
 //        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
@@ -357,19 +357,19 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
     overChangeQuantityValueSku###object##Detail = ABSTRACT ACTION LIST (###detail);
 
     changeQuantityValueSku###object###Stock = ACTION (sku, object, stock) {
-        IF detail###Sku###object###stockProp(sku, object, stock) THEN {
+        IF detail###Sku###object###stockProp###stock(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
-                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
-                overChangeQuantityValueSku###object##Detail(detail###Sku###object###stockProp(sku, object, stock));
+                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
+                overChangeQuantityValueSku###object##Detail(detail###Sku###object###stockProp###stock(sku, object, stock));
             } ELSE {
-                DELETE d WHERE d == detail###Sku###object###stockProp(sku, object, stock);
+                DELETE d WHERE d == detail###Sku###object###stockProp###stock(sku, object, stock);
             }
 
         } ELSE {
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
                    object###detail(d) <- object;
-                   stockProp###detail (d) <- stock;
+                   stockProp###stock###detail (d) <- stock;
                    skuProp###detail(d) <- sku;
                    quantity###detail (d) <- requestedNumeric();
                    overChangeQuantityValueSku###object##Detail(d);
@@ -403,7 +403,7 @@ META defineDocumentSkuStock(object, skuProp, stockProp)
 END
 
 META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockProp)
-    not###stockProp###object (o) = NOT stockProp###object(o);
+    not###stockProp###stock###object (o) = NOT stockProp###stock###object(o);
     EXTEND FORM form
 
         TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
@@ -419,12 +419,12 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
 
         OBJECTS           sts=(st=Stock, ks=Sku) FIXED GRID
         PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks)
-        PROPERTIES        READONLY stockName = nameStock(st) SHOWIF not###stockProp###object(concrete)
+        PROPERTIES        READONLY stockName = nameStock(st) SHOWIF not###stockProp###stock###object(concrete)
         PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
 
         FILTERS           isParentSkuGroupSku(sk, ks),
-                          (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
-                          st == stockProp###object(concrete) AND NOT sg AND NOT ts
+                          (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
+                          st == stockProp###stock###object(concrete) AND NOT sg AND NOT ts
 
         FILTERGROUP stockFilters
             FILTER 'Собственные склады' 'F6' legalEntityStock(st) == legalEntityProp###object(concrete) DEFAULT
@@ -432,7 +432,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
         FILTERS           nameSku(ks)
         ORDER BY          nameSku
 
-        PROPERTIES        quantitySku###object###stockProp(ks, concrete, st) ON CHANGE changeQuantitySku###object###stock(ks, concrete, st) 
+        PROPERTIES        quantitySku###object###stockProp###stock(ks, concrete, st) ON CHANGE changeQuantitySku###object###stock(ks, concrete, st) 
                                 BACKGROUND backgroundQuantitySku###object###Stock(ks, concrete, st)
                                 QUICKFILTER nameSku,
                           prevCurrentBalanceSkuStock(ks, st) READONLY,
@@ -512,11 +512,11 @@ META defineDocumentBatchStockPriceListTypeSystemLedger(object, priceListTypeProp
 END
 
 META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
-    detail###batch###object###stockProp (batch, object, stock) =  GROUP MAX detail
-        BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail);
+    detail###batch###object###stockProp###stock (batch, object, stock) =  GROUP MAX detail
+        BY batchProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
 
-    quantityBatch###object###stockProp 'Кол-во товара в документе' (batch, object, stockProp) = GROUP SUM quantity###detail(detail)
-        BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail);
+    quantityBatch###object###stockProp###stock 'Кол-во товара в документе' (batch, object, stockProp###stock) = GROUP SUM quantity###detail(detail)
+        BY batchProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
 
 //    backgroundQuantityBatch###object###Stock 'Цвет' (batch, object, stock) = RGB(255,128,128) IF quantityBatch###object###stockProp(batch, object, stock) AND NOT
 //        quantityBatch###object###stockProp(batch, object, stock) <= currentBalanceBatchStock(batch, stock);
@@ -525,18 +525,18 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
     overChangeQuantityValueBatch###object##Detail = ABSTRACT ACTION LIST (###detail);
 
     changeQuantityValueBatch###object###Stock = ACTION (batch, object, stock) {
-        IF detail###batch###object###stockProp(batch, object, stock) THEN {
+        IF detail###batch###object###stockProp###stock(batch, object, stock) THEN {
             IF requestedNumeric() THEN {
-                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object###stockProp(batch, object, stock);
-                overChangeQuantityValueBatch###object##Detail(detail###batch###object###stockProp(batch, object, stock));
+                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object###stockProp###stock(batch, object, stock);
+                overChangeQuantityValueBatch###object##Detail(detail###batch###object###stockProp###stock(batch, object, stock));
             } ELSE {
-                DELETE d WHERE d == detail###batch###object###stockProp(batch, object, stock);
+                DELETE d WHERE d == detail###batch###object###stockProp###stock(batch, object, stock);
             }
         } ELSE {
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
                     object###detail(d) <- object;
-                    stockProp###detail (d) <- stock;
+                    stockProp###stock###detail (d) <- stock;
                     skuProp###detail(d) <- skuBatch(batch);
                     batchProp###detail(d) <- batch;
                     quantity###detail (d) <- requestedNumeric();
@@ -577,17 +577,17 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
 
         OBJECTS           stb=(sto=Stock, b=Batch)
         PROPERTIES(b) READONLY   prevNameSkuBatch, idBarcodeSkuBatch, shortNameUOMBatch, idBatch SHOWIF showIDs(), nameBatch
-        PROPERTIES(sto) READONLY stockName = nameStock SHOWIF not###stockProp###object(concrete)
+        PROPERTIES(sto) READONLY stockName = nameStock SHOWIF not###stockProp###stock###object(concrete)
 
         FILTERS           isParentSkuGroupBatch(sk, b),
-                          (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
-                          sto == stockProp###object(concrete) AND NOT sg AND NOT ts
+                          (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
+                          sto == stockProp###stock###object(concrete) AND NOT sg AND NOT ts
 
         FILTERGROUP stockFilters
             FILTER 'Собственные склады' 'F6' legalEntityStock(sto) == legalEntityProp###object(concrete) DEFAULT
         ORDER BY          prevNameSkuBatch
 
-        PROPERTIES        quantityBatch###object###stockProp(b, concrete, sto) ON CHANGE changeQuantityBatch###object###stock(b, concrete, sto) 
+        PROPERTIES        quantityBatch###object###stockProp###stock(b, concrete, sto) ON CHANGE changeQuantityBatch###object###stock(b, concrete, sto) 
                                     BACKGROUND backgroundQuantityBatch###object###Stock(b, concrete, sto)
                                     QUICKFILTER prevNameSkuBatch,
                           prevCurrentBalanceBatchStock(b, sto) READONLY,

@@ -100,7 +100,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineDocumentInterfaceDescription(shipment, 'Поставка'###sign);
 
     @defineDocumentInterfaceCurrency(shipment);
-    @deriveDocumentCurrency(userShipment, stockProp);
+    @deriveDocumentCurrency(userShipment, stockProp###stock);
 
     @defineDocumentInterfaceDetailSku(shipment, sku);
     Shipment.skuShipmentDetail(detail) += skuShipmentDetail(detail);
@@ -123,20 +123,20 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
     @defineDocumentInterfaceHeaderItemSum (shipment, , );
 
-    @defineAddDetailDialogSkuStock(userShipment, sku, stockProp, dialogSku);
+    @defineAddDetailDialogSkuStock(userShipment, sku, stockProp###stock, dialogSku);
 //    @defineAddDetailDialogBarcode(userShipment, sku);
 
     @implementDocumentSupplierCustomer(shipment);
-    @defineMovementSku(shipmentDetail, stockProp); //-- показываем по нажатию правой клавиши движение товара
-    @defineMovementSku(userShipmentDetail, stockProp); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(shipmentDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(userShipmentDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
     @defineBalancesSku(shipmentDetail); //-- показываем по нажатию правой клавиши остатки товара
     @defineBalancesSku(userShipmentDetail); //-- показываем по нажатию правой клавиши остатки товара
     @defineDocumentDialogSupplierCustomerStock(userShipment, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerStockDetail(userShipmentDetail, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerLegalEntity(userShipment, supplierFilter, customerFilter);
 
-    @defineMovementPriceSku(shipmentDetail, stockProp); //-- показываем по нажатию правой клавиши изменение цены товара
-    @defineMovementPriceSku(userShipmentDetail, stockProp); //-- показываем по нажатию правой клавиши  изменение цены товара
+    @defineMovementPriceSku(shipmentDetail, stockProp###stock); //-- показываем по нажатию правой клавиши изменение цены товара
+    @defineMovementPriceSku(userShipmentDetail, stockProp###stock); //-- показываем по нажатию правой клавиши  изменение цены товара
 
 // ------------------------------------ Добавление сканированием строк в документ ----------------------//
 
@@ -233,7 +233,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTIES (d) indexUserShipmentDetail
         PROPERTIES (d) ON EDIT editSkuUserShipmentDetail(d) idBarcodeSkuUserShipmentDetail, nameSkuUserShipmentDetail, shortNameUOMSkuUserShipmentDetail
         PROPERTIES (d) quantityUserShipmentDetail, priceUserShipmentDetail, sumUserShipmentDetail, manufactureDateUserShipmentDetail, expiryDateUserShipmentDetail,
-                       name###stockProp###shipmentDetail ON CHANGE changeData###stockProp###filter###userShipmentDetail(d), ADDOBJ, deletesd=DELETESESSION
+                       name###stockProp###stock###shipmentDetail ON CHANGE changeData###stockProp###stock###filter###userShipmentDetail(d), ADDOBJ, deletesd=DELETESESSION
         ORDER BY indexUserShipmentDetail
 
         PROPERTIES(s) TODRAW d fillDocumentShipment, addDetailDialogSkuStockUserShipmentDetailUserShipment,
@@ -334,7 +334,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTY(sumUserShipmentDetailUserShipment) { preferredCharWidth = 13;}      
     }
 
-    @defineDocumentSkuPriceListTypeSystemLedger(userShipment, accountPriceListType, stockProp);
+    @defineDocumentSkuPriceListTypeSystemLedger(userShipment, accountPriceListType, stock, stockProp);
     @extendFormDocumentSku(userShipment, userShipment, s);
 
     addUserShipment 'Добавить' = ACTION ADDFORM UserShipment;
@@ -362,7 +362,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                     ASSIGN priceUserShipmentDetail(d) <- priceShipmentDetail(shipmentDetail);
                     ASSIGN expiryDateUserShipmentDetail(d) <- expiryDateShipmentDetail(shipmentDetail);
                     ASSIGN manufactureDateUserShipmentDetail(d) <- manufactureDateShipmentDetail(shipmentDetail);
-                    ASSIGN data###stockProp###userShipmentDetail(d) <- data###stockProp###shipmentDetail(shipmentDetail);
+                    ASSIGN data###stockProp###stock###userShipmentDetail(d) <- data###stockProp###stock###shipmentDetail(shipmentDetail);
                     
                     EXEC overCopyShipmentDetail(d, shipmentDetail);
                 }
@@ -382,7 +382,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
             ASSIGN skuUserShipmentDetail(d) <- skuUserShipmentDetail(detail);
             ASSIGN quantityUserShipmentDetail(d) <- quantityUserShipmentDetail(detail);
             ASSIGN priceUserShipmentDetail(d) <- priceUserShipmentDetail(detail);
-            ASSIGN data###stockProp###userShipmentDetail(d) <- data###stockProp###userShipmentDetail(detail);
+            ASSIGN data###stockProp###stock###userShipmentDetail(d) <- data###stockProp###stock###userShipmentDetail(detail);
             ASSIGN expiryDateUserShipmentDetail(d) <- expiryDateUserShipmentDetail(detail);
             ASSIGN manufactureDateUserShipmentDetail(d) <- manufactureDateUserShipmentDetail(detail);
             
@@ -413,7 +413,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
         OBJECTS d = ShipmentDetail
         PROPERTIES (d) READONLY indexShipmentDetail, idBarcodeSkuShipmentDetail, nameSkuShipmentDetail, shortNameUOMSkuShipmentDetail
-        PROPERTIES (d) READONLY quantityShipmentDetail, priceShipmentDetail, sumShipmentDetail, manufactureDateShipmentDetail, expiryDateShipmentDetail, name###stockProp###shipmentDetail
+        PROPERTIES (d) READONLY quantityShipmentDetail, priceShipmentDetail, sumShipmentDetail, manufactureDateShipmentDetail, expiryDateShipmentDetail, name###stockProp###stock###shipmentDetail
         ORDER BY indexShipmentDetail
         FILTERS shipmentShipmentDetail(d) == s
 
@@ -481,7 +481,7 @@ META defineShipmentBatch(stockProp)
     @defineMovementBatch(userShipmentDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
 
     // Подбор по партиям
-    @defineDocumentBatchPriceListTypeSystemLedger(userShipment, accountPriceListType, supplierStock);
+    @defineDocumentBatchPriceListTypeSystemLedger(userShipment, accountPriceListType, stock, supplier);
     @extendFormDocumentBatch(userShipment, userShipment, s);
 END
 

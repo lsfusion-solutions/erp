@@ -7,7 +7,7 @@ NAMESPACE Pricing;
 META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, captionPost, stockProp, prefix)
 
     // Комиссия
-    @defineDocumentInterfaceHeaderPricingCommittee(invoice, stockProp);
+    @defineDocumentInterfaceHeaderPricingCommittee(invoice, stockProp###stock);
 
     // Кол-во расценено
     @defineDocumentInterfaceDetailQuantityPrefix (invoice, pricing, ' (расценено)');
@@ -29,7 +29,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     @defineDocumentInterfaceDetailMarkupPrefix (invoice, retail, );
 
     // НДС
-    @defineDocumentInterfaceDetailVAT(invoice, country###stockProp, retail, ' розничный');
+    @defineDocumentInterfaceDetailVAT(invoice, country###stockProp###stock, retail, ' розничный');
     // Не проставляется НДС, поскольку для прихода он равен НДС поставщика
     @deriveDocumentDetailValueVAT(userInvoice, retail);
 
@@ -62,7 +62,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     // Создание акта расценки
     @defineDocumentInterfaceProperty (invoice, createPricing, 'Создать акт расценки');
 
-    showCreatePricingInvoice (invoice) = stockProp###invoice(invoice) IS DepartmentStore AND NOT costLedgerDepartmentStore(stockProp###invoice(invoice));
+    showCreatePricingInvoice (invoice) = stockProp###stock###invoice(invoice) IS DepartmentStore AND NOT costLedgerDepartmentStore(stockProp###stock###invoice(invoice));
     showPricingInvoice (invoice) = showCreatePricingInvoice (invoice) AND NOT createPricingInvoice(invoice);
     toShowPricingInvoice (invoice) = showCreatePricingInvoice (invoice) AND createPricingInvoice(invoice);
 
@@ -114,7 +114,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     needToPricingInvoice (invoice)= GROUP SUM 1 IF needToPricingInvoiceDetail(invoiceDetail)
         BY invoiceInvoiceDetail(invoiceDetail) PERSISTENT;
 
-    @defineDocumentAggregation(invoice, concrete###pricing, needToPricingInvoice);
+    @defineDocumentAggregation(invoice, concrete###pricing, needToPricing);
 
 
     printPricingInvoice 'Акт расценки' (invoice) = printPricing(concrete###pricingInvoice(invoice)) IMAGE 'print.png' IN print;
@@ -130,9 +130,9 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     timePricing(pricing) += time###concrete###pricing(pricing);
 
     @defineDocumentAggregationStockPrefix(invoice, concrete###pricing, stockProp, 'Склад', , );
-    departmentStorePricing(pricing) += stockProp###concrete###pricing(pricing) IF stockProp###concrete###pricing(pricing) IS DepartmentStore;
-    dataDepartmentStorePricingDetail(pricingDetail) += data###stockProp###invoiceDetail(invoiceDetail###concrete###pricingDetail(pricingDetail))
-                                                       IF data###stockProp###invoiceDetail(invoiceDetail###concrete###pricingDetail(pricingDetail)) IS DepartmentStore;
+    departmentStorePricing(pricing) += stockProp###stock###concrete###pricing(pricing) IF stockProp###stock###concrete###pricing(pricing) IS DepartmentStore;
+    dataDepartmentStorePricingDetail(pricingDetail) += data###stockProp###stock###invoiceDetail(invoiceDetail###concrete###pricingDetail(pricingDetail))
+                                                       IF data###stockProp###stock###invoiceDetail(invoiceDetail###concrete###pricingDetail(pricingDetail)) IS DepartmentStore;
 
     @defineDocumentAggregationLegalEntityPrefix(invoice, concrete###pricing, supplier, 'Поставщик', , );
     supplierPricing(pricing) += supplier###concrete###pricing(pricing);

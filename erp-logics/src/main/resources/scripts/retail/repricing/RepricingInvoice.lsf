@@ -8,11 +8,11 @@ META defineRepricingAggregation(sign, stockProp)
 //-- аггр.объект
 
     // Комиссия
-    @defineDocumentInterfaceHeaderRepricingCommittee (invoice, stockProp);
+    @defineDocumentInterfaceHeaderRepricingCommittee (invoice, stockProp###stock);
 
     // Кол-во
     @defineDocumentInterfaceDetailSkuBalance (invoice);
-    @deriveDocumentDetailSkuBalance (userInvoice, sku, stockProp);
+    @deriveDocumentDetailSkuBalance (userInvoice, sku, stockProp###stock);
 
     // -- До
     @defineDocumentInterfaceDetailPricePrefix(invoice, cur, ' поставщика до');
@@ -26,15 +26,15 @@ META defineRepricingAggregation(sign, stockProp)
 
     @defineDocumentInterfaceDetailMarkupPrefix (invoice, cur, ' до');
 
-    @defineDocumentInterfaceDetailVAT(invoice, country###stockProp, cur, ' до');
-    @deriveDocumentDetailVAT (userInvoice, cur, beforeDate, sku, stockProp);
+    @defineDocumentInterfaceDetailVAT(invoice, country###stockProp###stock, cur, ' до');
+    @deriveDocumentDetailVAT (userInvoice, cur, beforeDate, sku, stockProp###stock);
     @deriveDocumentDetailValueVAT(userInvoice, cur);
 
     @defineDocumentInterfaceDetailPricePrefix(invoice, curRetail, ' розничная до');
 
     // Автоматическое заполнение цен до
-    @deriveDocumentDetailPriceSystemLedgerPriceListType(userInvoice, supplierPricingPriceListType, cur, sku, stockProp);
-    @deriveDocumentDetailPriceSystemLedgerPriceListType(userInvoice, retailPricingPriceListType, curRetail, sku, stockProp);
+    @deriveDocumentDetailPriceSystemLedgerPriceListType(userInvoice, supplierPricingPriceListType, cur, sku, stockProp###stock);
+    @deriveDocumentDetailPriceSystemLedgerPriceListType(userInvoice, retailPricingPriceListType, curRetail, sku, stockProp###stock);
 
     // Расчет надбавки обратным счетом
     curMarkupUserInvoiceDetail(userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
@@ -91,12 +91,12 @@ META defineRepricingAggregation(sign, stockProp)
     // ---- Суммы по документу ---- //
     @defineDocumentInterfaceHeaderSumPrefix (invoice, diffRetail, ' дооценки');
 
-    showCreateRepricingInvoice (invoice) = stockProp###invoice(invoice) IS DepartmentStore AND NOT costLedgerDepartmentStore(stockProp###invoice(invoice));
+    showCreateRepricingInvoice (invoice) = stockProp###stock###invoice(invoice) IS DepartmentStore AND NOT costLedgerDepartmentStore(stockProp###stock###invoice(invoice));
     @defineDocumentInterfaceProperty (invoice, createRepricing, 'Создать акт дооценки');
 
     needToRepricingInvoiceDetail (invoiceDetail) = curRetailPriceInvoiceDetail(invoiceDetail) != retailPriceInvoiceDetail(invoiceDetail)
-                                                   AND balanceBSkuInvoiceDetail(invoiceDetail) != 0 AND stockProp###InvoiceDetail(invoiceDetail) IS DepartmentStore
-                                                   AND NOT costLedgerDepartmentStore(stockProp###InvoiceDetail(invoiceDetail))
+                                                   AND balanceBSkuInvoiceDetail(invoiceDetail) != 0 AND stockProp###stock###InvoiceDetail(invoiceDetail) IS DepartmentStore
+                                                   AND NOT costLedgerDepartmentStore(stockProp###stock###InvoiceDetail(invoiceDetail))
                                                    AND createRepricingInvoiceDetail(invoiceDetail)
                                                    AND isStockSkuInvoiceDetail(invoiceDetail) PERSISTENT;// AND isPostedInvoiceDetail(invoiceDetail) ;
 
@@ -108,7 +108,7 @@ META defineRepricingAggregation(sign, stockProp)
 
     @defineDocumentTables(invoiceRepricing);
 
-    @defineDocumentAggregation(invoice, invoiceRepricing, needToRepricingInvoice);
+    @defineDocumentAggregation(invoice, invoiceRepricing, needToRepricing);
     @defineDocumentAggregationTimePrefix(invoice, invoiceRepricing, before);
 
     repricingRepricingDetail(detail) += invoiceRepricingInvoiceRepricingDetail(detail);
@@ -124,9 +124,9 @@ META defineRepricingAggregation(sign, stockProp)
     beforeTimeRepricing(repricing) += beforeTimeInvoiceRepricing(repricing);
 
     @defineDocumentAggregationStockPrefix(invoice, invoiceRepricing, stockProp, 'Склад', , );
-    departmentStoreRepricing(repricing) += stockProp###invoiceRepricing(repricing) IF stockProp###invoiceRepricing(repricing) IS DepartmentStore;
-    dataDepartmentStoreRepricingDetail(repricingDetail) += data###stockProp###InvoiceDetail(invoiceDetailInvoiceRepricingDetail(repricingDetail))
-                                                           IF data###stockProp###InvoiceDetail(invoiceDetailInvoiceRepricingDetail(repricingDetail)) IS DepartmentStore;
+    departmentStoreRepricing(repricing) += stockProp###stock###invoiceRepricing(repricing) IF stockProp###stock###invoiceRepricing(repricing) IS DepartmentStore;
+    dataDepartmentStoreRepricingDetail(repricingDetail) += data###stockProp###stock###InvoiceDetail(invoiceDetailInvoiceRepricingDetail(repricingDetail))
+                                                           IF data###stockProp###stock###InvoiceDetail(invoiceDetailInvoiceRepricingDetail(repricingDetail)) IS DepartmentStore;
 
     @defineDocumentAggregationPosted(invoice, invoiceRepricing);
     isPostedRepricing(repricing) += isPostedInvoiceRepricing(repricing);
@@ -173,12 +173,12 @@ META defineRepricingAggregation(sign, stockProp)
         PROPERTIES(i)   BACKGROUND backgroundCurInvoice(i) SHOWIF createRepricingUserInvoice(i) nameRepricingCommitteeUserInvoice, numberDisposalUserInvoice, beforeDateUserInvoice
         PROPERTIES(i)   BACKGROUND backgroundAfterInvoice(i) SHOWIF createRepricingUserInvoice(i) diffRetailSumUserInvoiceDetailUserInvoice
 
-        PROPERTIES(d)   BACKGROUND backgroundCurInvoice(i) SHOWIF createRepricingUserInvoice(i) BEFORE name###stockProp###userInvoiceDetail(d)
+        PROPERTIES(d)   BACKGROUND backgroundCurInvoice(i) SHOWIF createRepricingUserInvoice(i) BEFORE name###stockProp###stock###userInvoiceDetail(d)
                         balanceBSkuUserInvoiceDetail, curPriceUserInvoiceDetail, curSumUserInvoiceDetail,
                         curMarkupUserInvoiceDetail ON CHANGE changeCurMarkupUserInvoiceDetail(d), curMarkupSumUserInvoiceDetail,
                         numberCurVATUserInvoiceDetail, valueCurVATUserInvoiceDetail, curVATSumUserInvoiceDetail,
                         curRetailPriceUserInvoiceDetail ON CHANGE changeCurRetailPriceUserInvoiceDetail(d), curRetailSumUserInvoiceDetail
-        PROPERTIES(d)   BACKGROUND backgroundAfterInvoice(i) SHOWIF createRepricingUserInvoice(i) BEFORE name###stockProp###userInvoiceDetail(d)
+        PROPERTIES(d)   BACKGROUND backgroundAfterInvoice(i) SHOWIF createRepricingUserInvoice(i) BEFORE name###stockProp###stock###userInvoiceDetail(d)
                         afterSumUserInvoiceDetail, afterRetailVATSumUserInvoiceDetail, afterRetailMarkupSumUserInvoiceDetail, afterRetailSumUserInvoiceDetail
 
     ;

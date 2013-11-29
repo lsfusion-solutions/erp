@@ -270,52 +270,52 @@ END
 META defineOperationStock(prop, object, tabcaption)
 
     // Отметка для групп
-    all###prop##sOperation 'Отм' = DATA BOOLEAN (Operation);
+    all###prop##StocksOperation 'Отм' = DATA BOOLEAN (Operation);
 
-    dataIn###prop##GroupOperation 'Отм.' = DATA BOOLEAN (StockGroup, Operation);
+    dataIn###prop##StockGroupOperation 'Отм.' = DATA BOOLEAN (StockGroup, Operation);
 
-    levelParent###prop##OperationStockGroup (operation, stockGroup) =
-        GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataIn###prop##GroupOperation(parent, operation)
+    levelParent###prop##StockOperationStockGroup (operation, stockGroup) =
+        GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataIn###prop##StockGroupOperation(parent, operation)
               BY operation, stockGroup PERSISTENT;
-    nearestParent###prop##GroupStockGroup (operation, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParent###prop##OperationStockGroup(operation, stockGroup));
-    nearestIn###prop##GroupOperation (stockGroup, operation) =
-        dataIn###prop##GroupOperation(nearestParent###prop##GroupStockGroup(operation, stockGroup), operation) PERSISTENT;
+    nearestParent###prop##StockGroupStockGroup (operation, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParent###prop##StockOperationStockGroup(operation, stockGroup));
+    nearestIn###prop##StockGroupOperation (stockGroup, operation) =
+        dataIn###prop##StockGroupOperation(nearestParent###prop##StockGroupStockGroup(operation, stockGroup), operation) PERSISTENT;
 
-    in###prop##GroupOperation 'Отм' (stockGroup, operation) =
-        OVERRIDE all###prop##sOperation(operation) AND stockGroup IS StockGroup,
-                 nearestIn###prop##GroupOperation(stockGroup, operation),
-                 dataIn###prop##GroupOperation(stockGroup, operation);
+    in###prop##StockGroupOperation 'Отм' (stockGroup, operation) =
+        OVERRIDE all###prop##StocksOperation(operation) AND stockGroup IS StockGroup,
+                 nearestIn###prop##StockGroupOperation(stockGroup, operation),
+                 dataIn###prop##StockGroupOperation(stockGroup, operation);
 
     // Отметка для складов
-    dataIn###prop##Operation 'Отм.' = DATA BOOLEAN (Stock, Operation);
-    in###prop##Operation 'Отм' (stock, operation) =
-        OVERRIDE all###prop##sOperation(operation) AND stock IS Stock,
-                 nearestIn###prop##GroupOperation(stockGroupStock(stock), operation),
-                 dataIn###prop##Operation(stock, operation);
+    dataIn###prop##StockOperation 'Отм.' = DATA BOOLEAN (Stock, Operation);
+    in###prop##StockOperation 'Отм' (stock, operation) =
+        OVERRIDE all###prop##StocksOperation(operation) AND stock IS Stock,
+                 nearestIn###prop##StockGroupOperation(stockGroupStock(stock), operation),
+                 dataIn###prop##StockOperation(stock, operation);
 
     EXTEND FORM operation
-        TREE prop###groupTree object##a=STRING[3], object##g = StockGroup PARENT parentStockGroup
+        TREE prop###stockGroupTree object##a=STRING[3], object##g = StockGroup PARENT parentStockGroup
         PROPERTIES READONLY OBJVALUE(object##a), stgTreeName = nameStockGroup(object##g)
-        PROPERTIES(o) all###prop##sOperation TODRAW object##a FORCE GRID
-        PROPERTIES in###prop###GroupOperation(object##g, o)
+        PROPERTIES(o) all###prop##StocksOperation TODRAW object##a FORCE GRID
+        PROPERTIES in###prop###StockGroupOperation(object##g, o)
         FILTERS stringEqualsAll(object##a)
 
         OBJECTS object = Stock
-        PROPERTIES(object, o) in###prop##Operation
+        PROPERTIES(object, o) in###prop##StockOperation
         PROPERTIES(object) READONLY nameStock###object = nameStock, nameStockGroupStock
         ORDER BY nameStock###object
         FILTERS object IS Stock AND NOT object##g IS StockGroup OR
                 isParentStockGroupStock(object##g, object)
         FILTERGROUP filters3
-                FILTER 'Показывать отмеченные' 'F10' in###prop##Operation(object, o)
+                FILTER 'Показывать отмеченные' 'F10' in###prop##StockOperation(object, o)
     ;
 
     EXTEND DESIGN operation {
         tabContainer {
-            NEW prop###Container{
+            NEW prop###stockContainer{
                 type = SPLITH;
                 caption = tabcaption;
-                ADD prop###groupTree.tree.box;
+                ADD prop###stockGroupTree.tree.box;
                 ADD object.box {
                     fill = 3;
                 }
@@ -325,9 +325,9 @@ META defineOperationStock(prop, object, tabcaption)
 END
 
 META defineDocumentOperationStock(object, prop, caption)
-    CONSTRAINT operation###object(object) AND prop###object(object) 
-               AND NOT in###prop##Operation(prop###object(object), operation###object(object))
-        CHECKED BY prop###object
+    CONSTRAINT operation###object(object) AND prop###stock###object(object) 
+               AND NOT in###prop##Stock##Operation(prop###stock###object(object), operation###object(object))
+        CHECKED BY prop###stock###object
         MESSAGE caption##' должен совпадать с отмеченными в операции';
 END
 
@@ -347,8 +347,8 @@ END
 
 META deriveDocumentOperationStock(objectClass, prop, form)
     WHEN SESSION FORMS form CHANGED(operation###objectClass(o)) NOINLINE DO {
-        prop###objectClass(o) <- default###prop###operation(operation###objectClass(o))
-            WHERE count###prop###operation(operation###objectClass(o)) == 1;
+        prop###stock###objectClass(o) <- default###prop###stock###operation(operation###objectClass(o))
+            WHERE count###prop###stock###operation(operation###objectClass(o)) == 1;
     }
 END
 

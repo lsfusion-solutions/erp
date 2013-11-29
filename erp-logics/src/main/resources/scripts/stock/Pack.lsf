@@ -117,23 +117,23 @@ END
 // --------------------------- Макрос по добавлению упаковки в документы (подбор по нескольким складам) ---------------------- //
 
 META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
-    packQuantitySku###object###stockProp 'Кол-во упаковок в документе' (sku, object, stock) = GROUP SUM packQuantity###detail(detail)
-        BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail);
+    packQuantitySku###object###stockProp###stock 'Кол-во упаковок в документе' (sku, object, stock) = GROUP SUM packQuantity###detail(detail)
+        BY skuProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
 
     changePackQuantitySku###object###Stock = ACTION (sku, object, stock) {
         REQUEST NUMERIC[14,3] INPUT;
-        IF detail###Sku###object###stockProp(sku, object, stock) THEN {
+        IF detail###Sku###object###stockProp###stock(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
-                ASSIGN packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
-                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
+                ASSIGN packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
+                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
             } ELSE {
-                DELETE d WHERE d==detail###Sku###object###stockProp(sku, object, stock);
+                DELETE d WHERE d==detail###Sku###object###stockProp###stock(sku, object, stock);
             }
         } ELSE {
             IF requestedNumeric() THEN  {
                 FOR ADDOBJ d = ###detail DO {
                    ASSIGN object###detail(d) <- object;
-                   ASSIGN data###stockProp###detail (d) <- stock;
+                   ASSIGN data###stockProp###stock###detail (d) <- stock;
                    ASSIGN skuProp###detail(d) <- sku;
                    ASSIGN packQuantity###detail (d) <- requestedNumeric();
                    ASSIGN quantity###detail(detail) <- packQuantity###detail(detail) * amountPack###detail(detail);
@@ -146,12 +146,12 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
 
     changeAmountPackSku###object###Stock = ACTION (sku, object, stock) {
         REQUEST NUMERIC[14,3] INPUT;
-        IF detail###Sku###object###stockProp(sku, object, stock) THEN {
+        IF detail###Sku###object###stockProp###stock(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
-                ASSIGN amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
-                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object###stockProp(sku, object, stock) AND packQuantity###detail(detail);
+                ASSIGN amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
+                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock) AND packQuantity###detail(detail);
             } ELSE {
-                ASSIGN amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object###stockProp(sku, object, stock);
+                ASSIGN amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
             }
 
         }
@@ -166,10 +166,10 @@ END
 
 META extendFormDocumentPackSkuStock(object, form, concrete, stockProp)
     EXTEND FORM form
-        PROPERTIES SHOWIF showPack###object(concrete) BEFORE quantitySku###object###stockProp(ks, concrete, st)
+        PROPERTIES SHOWIF showPack###object(concrete) BEFORE quantitySku###object###stockProp###stock(ks, concrete, st)
                    idBarcodePackSku(ks) READONLY, shortNameUOMPackSku(ks) READONLY,
                    amountPackSku(ks) ON CHANGE changeAmountPackSku###object###Stock(ks, concrete, st),
-                   packQuantitySku###object###stockProp(ks, concrete, st) ON CHANGE changePackQuantitySku###object###Stock(ks, concrete, st)
+                   packQuantitySku###object###stockProp###stock(ks, concrete, st) ON CHANGE changePackQuantitySku###object###stock(ks, concrete, st)
     ;
 END
 

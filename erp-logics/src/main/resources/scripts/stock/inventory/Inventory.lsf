@@ -201,7 +201,7 @@ TABLE pageInventoryDetail (PageInventoryDetail);
 listInventoryPageInventoryDetail(pageInventoryDetail) = listInventoryPageInventory(pageInventoryPageInventoryDetail(pageInventoryDetail)) PERSISTENT;
 inventoryPageInventoryDetail(pageInventoryDetail) = inventoryListInventory(listInventoryPageInventoryDetail(pageInventoryDetail)) PERSISTENT;
 
-@defineDocumentDetailStock(listInventory, pageInventoryDetail, stock, 'Склад');
+@defineDocumentDetailStock(listInventory, pageInventoryDetail, stock, stock, 'Склад');
 @defineDocumentDetailTime(inventory, PageInventoryDetail);
 
 @defineDocumentDetailCurrency(listInventory, pageInventoryDetail);
@@ -604,19 +604,19 @@ sumContainerOutStockDocumentLedger (ledger) += sumContainerShortageCollationShee
 includeRegisterStockInventory(stock, inventory) =
     includeStockInventory(stock, inventory) AND typeOfAdditionStockInventory(stock, inventory) == TypeOfAddition.register;
 
-@defineAggregationCustom(stockCollationSheet, inventoryCollationSheet, stock, inventory, registerCollationSheet, includeRegisterStockInventory);
+@defineAggregationCustom(stockCollationSheet, inventoryCollationSheet, stock, inventory, registerCollationSheet, includeRegister);
 
 // автоматическое создание сличительной ведомости (по остаткам) //
 includeRemainsStockInventory(stock, inventory) =
     includeStockInventory(stock, inventory) AND typeOfAdditionStockInventory(stock, inventory) == TypeOfAddition.remains;
 
-@defineAggregationCustom(stockCollationSheet, inventoryCollationSheet, stock, inventory, remainsCollationSheet, includeRemainsStockInventory);
+@defineAggregationCustom(stockCollationSheet, inventoryCollationSheet, stock, inventory, remainsCollationSheet, includeRemains);
 
 // автоматическое создание сличительной ведомости (по множеству товаров) //
 includeManyStockInventory(stock, inventory) =
     includeStockInventory(stock, inventory) AND typeOfAdditionStockInventory(stock, inventory) == TypeOfAddition.many;
 
-@defineAggregationCustom(stockCollationSheet, inventoryCollationSheet, stock, inventory, manyCollationSheet, includeManyStockInventory);
+@defineAggregationCustom(stockCollationSheet, inventoryCollationSheet, stock, inventory, manyCollationSheet, includeMany);
 
 //---------------------------- Изменение остатка инвентаризации sku----------------------------//
 
@@ -632,8 +632,8 @@ needToOutLedgerCollationSheetSku (collationSheet, sku) = quantityShortageCollati
 needToInLedgerCollationSheetSku (collationSheet, sku) = quantityShortageCollationSheetSku(collationSheet, sku) < 0
     AND includeCollationSheetSku(collationSheet, sku) AND isPostedCollationSheet(collationSheet) AND NOT isBatchCollationSheet(collationSheet);
 
-@defineAggregation(collationSheet, sku, outInventorySkuDetail, needToOutLedgerCollationSheetSku);
-@defineAggregation(collationSheet, sku, inInventorySkuDetail, needToInLedgerCollationSheetSku);
+@defineAggregation(collationSheet, sku, outInventorySkuDetail, needToOutLedger);
+@defineAggregation(collationSheet, sku, inInventorySkuDetail, needToInLedger);
 
 collationSheetInventorySkuDetail(inventorySkuDetail) = MULTI collationSheetOutInventorySkuDetail(inventorySkuDetail),
                                                              collationSheetInInventorySkuDetail(inventorySkuDetail);
@@ -643,7 +643,7 @@ inventoryInventorySkuDetail(inventorySkuDetail) = inventoryCollationSheet(collat
 @defineDocumentDetailTime(inventory, InventorySkuDetail);
 @defineDocumentDetailPosted(inventory, InventorySkuDetail);
 
-@defineDocumentDetailStock(collationSheet, inventorySkuDetail, stock, 'Склад');
+@defineDocumentDetailStock(collationSheet, inventorySkuDetail, stock, stock, 'Склад');
 stockInInventorySkuDetail(detail) = stockInventorySkuDetail(detail) IF detail IS InInventorySkuDetail;
 stockOutInventorySkuDetail(detail) = stockInventorySkuDetail(detail) IF detail IS OutInventorySkuDetail;
 
@@ -697,8 +697,8 @@ needToOutLedgerCollationSheetBatch (collationSheet, batch) = quantityShortageCol
 needToInLedgerCollationSheetBatch (collationSheet, batch) = quantityShortageCollationSheetBatch(collationSheet, batch) < 0
     AND includeCollationSheetBatch(collationSheet, batch) AND isPostedCollationSheet(collationSheet) AND isBatchCollationSheet(collationSheet);
 
-@defineAggregation(collationSheet, batch, outInventoryBatchDetail, needToOutLedgerCollationSheetBatch);
-@defineAggregation(collationSheet, batch, inInventoryBatchDetail, needToInLedgerCollationSheetBatch);
+@defineAggregation(collationSheet, batch, outInventoryBatchDetail, needToOutLedger);
+@defineAggregation(collationSheet, batch, inInventoryBatchDetail, needToInLedger);
 
 collationSheetInventoryBatchDetail(inventoryBatchDetail) = MULTI collationSheetOutInventoryBatchDetail(inventoryBatchDetail),
                                                                  collationSheetInInventoryBatchDetail(inventoryBatchDetail);
@@ -708,7 +708,7 @@ inventoryInventoryBatchDetail(inventoryBatchDetail) = inventoryCollationSheet(co
 @defineDocumentDetailTime(inventory, InventoryBatchDetail);
 @defineDocumentDetailPosted(inventory, InventoryBatchDetail);
 
-@defineDocumentDetailStock(collationSheet, inventoryBatchDetail, stock, 'Склад');
+@defineDocumentDetailStock(collationSheet, inventoryBatchDetail, stock, stock, 'Склад');
 stockInInventoryBatchDetail(detail) = stockInventoryBatchDetail(detail) IF detail IS InInventoryBatchDetail;
 stockOutInventoryBatchDetail(detail) = stockInventoryBatchDetail(detail) IF detail IS OutInventoryBatchDetail;
 

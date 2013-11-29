@@ -164,7 +164,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     @defineDocumentInterfaceDetailPrice(invoice); // объявляем цену без НДС
     Invoice.priceInvoiceDetail(detail) += priceInvoiceDetail(detail);
 
-    @defineDocumentInterfaceDetailVAT(invoice, country###stockProp, , ); // объявляем шкалу
+    @defineDocumentInterfaceDetailVAT(invoice, country###stockProp###stock, , ); // объявляем шкалу
     overVATUserInvoiceDetail = ABSTRACT Range (UserInvoiceDetail); 
     WHEN SESSION
         (CHANGED(skuUserInvoiceDetail(detail)) OR CHANGED (supplierStockUserInvoiceDetail(detail)) OR 
@@ -181,7 +181,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 
     // объявляем Action'ы для ON CHANGE по изменению цен
     @defineDocumentDetailPriceVATOnChange(userInvoice);
-    @defineDocumentDetailNumberVATOnChange(userInvoice, stockProp);
+    @defineDocumentDetailNumberVATOnChange(userInvoice, stockProp###stock);
     @defineDocumentDetailValueVATOnChange(userInvoice);
     @defineDocumentDetailInvoicePriceVATOnChange(userInvoice);
 
@@ -214,19 +214,19 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 
     @defineDocumentInterfaceHeaderItemSumDouble (invoice, range, VAT, VAT, , VAT); //-- сумма НДС поставщика (с разбивкой по таре, товару...) по документу и по шкале
     @defineDocumentInterfaceHeaderItemSumDouble (invoice, range, , , , VAT);  //сумма без НДС поставщика (с разбивкой по таре, товару...) по документу и по шкале
-    @defineAddDetailDialogSkuStock(userInvoice, sku, stockProp, dialogSku);
+    @defineAddDetailDialogSkuStock(userInvoice, sku, stockProp###stock, dialogSku);
     @defineAddDetailDialogBarcode(userInvoice, sku);
 
-    countInvoiceDetailStockInvoice (stock, invoice) = GROUP SUM 1 BY stockProp###invoiceDetail(invoiceDetail), invoiceInvoiceDetail(invoiceDetail);
+    countInvoiceDetailStockInvoice (stock, invoice) = GROUP SUM 1 BY stockProp###stock###invoiceDetail(invoiceDetail), invoiceInvoiceDetail(invoiceDetail);
 
     @implementDocumentSupplierCustomer(invoice);
-    @defineMovementSku(invoiceDetail, stockProp); //-- показываем по нажатию правой клавиши движение товара
-    @defineMovementSku(userInvoiceDetail, stockProp); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(invoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(userInvoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
     @defineBalancesSku(invoiceDetail); //-- показываем по нажатию правой клавиши остатки товара
     @defineBalancesSku(userInvoiceDetail); //-- показываем по нажатию правой клавиши остатки товара
 
-    @defineMovementPriceSku(invoiceDetail, stockProp); //-- показываем по нажатию правой клавиши изменение цены товара
-    @defineMovementPriceSku(userInvoiceDetail, stockProp); //-- показываем по нажатию правой клавиши  изменение цены товара
+    @defineMovementPriceSku(invoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши изменение цены товара
+    @defineMovementPriceSku(userInvoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши  изменение цены товара
 //    fillDocumentInvoice 'Подбор документа' = ACTION (userInvoice) {
 //        FORM documents MODAL;
 //        IF formResult() == FormResult.ok THEN {
@@ -385,7 +385,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 
     // Добавляем подбор товаров / партий
     @defineDocumentSkuPriceListTypeAgreement(userInvoice, stockProp);
-    @extendFormDocumentSkuPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp);
+    @extendFormDocumentSkuPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp###stock);
 
     addUserInvoice 'Добавить' = ACTION ADDFORM UserInvoice;
     editUserInvoice 'Редактировать' (userInvoice) = ACTION EDITFORM UserInvoice;
@@ -416,7 +416,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                     ASSIGN skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
                     ASSIGN quantityUserInvoiceDetail(d) <- quantityInvoiceDetail(invoiceDetail);
                     ASSIGN priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
-                    ASSIGN data###stockProp###userInvoiceDetail(d) <- data###stockProp###invoiceDetail(invoiceDetail);
+                    ASSIGN data###stockProp###stock###userInvoiceDetail(d) <- data###stockProp###stock###invoiceDetail(invoiceDetail);
                     
                     EXEC overCopyInvoiceDetail(d, invoiceDetail);
                 }
@@ -436,7 +436,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
             skuUserInvoiceDetail(d) <- skuUserInvoiceDetail(detail);
             quantityUserInvoiceDetail(d) <- quantityUserInvoiceDetail(detail);
             priceUserInvoiceDetail(d) <- priceUserInvoiceDetail(detail);
-            data###stockProp###userInvoiceDetail(d) <- data###stockProp###userInvoiceDetail(detail);
+            data###stockProp###stock###userInvoiceDetail(d) <- data###stockProp###stock###userInvoiceDetail(detail);
             priceListType###userInvoiceDetail(d) <- priceListType###userInvoiceDetail(detail);
             invoicePrice###userInvoiceDetail(d) <- invoicePrice###userInvoiceDetail(detail);
             
@@ -544,7 +544,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                                descriptionInvoiceDetail,
                                quantityInvoiceDetail, priceInvoiceDetail, sumInvoiceDetail,
                                numberVATInvoiceDetail, valueVATInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail,
-                               name###stockProp###invoiceDetail
+                               name###stockProp###stock###invoiceDetail
 
         DIALOG InvoiceDetail OBJECT d
     ;
@@ -564,17 +564,17 @@ META defineInvoiceBatch(stockProp)
     }  
     
     // Пишем в цену инвойса из вида цен в зависимости от партии
-    @deriveDocumentDetailPricePriceListTypeVATBatch(userInvoice, stockProp, userInvoice);
+    @deriveDocumentDetailPricePriceListTypeVATBatch(userInvoice, stockProp###stock, userInvoice);
 
     // История по правой кнопке
     @defineBalancesBatch(invoiceDetail); //-- показываем по нажатию правой клавиши остатки партии
     @defineBalancesBatch(userInvoiceDetail); //-- показываем по нажатию правой клавиши остатки партии
-    @defineMovementBatch(invoiceDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
-    @defineMovementBatch(userInvoiceDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
+    @defineMovementBatch(invoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии
+    @defineMovementBatch(userInvoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии
 
     // Подбор по партиям
     @defineDocumentBatchPriceListTypeAgreement(userInvoice, stockProp);
-    @extendFormDocumentBatchPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp);
+    @extendFormDocumentBatchPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp###stock);
 END
 
 // Партии с диалогом по складам

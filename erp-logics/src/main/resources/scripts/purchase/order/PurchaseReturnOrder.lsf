@@ -6,13 +6,13 @@ PRIORITY Purchase, Operation;
 
 NAMESPACE PurchaseReturn;
 
-@defineOrder(' (закупка-возврат)', customer, customerStock, supplier, company, company);
+@defineOrder(' (закупка-возврат)', customer, customer, supplier, company, company);
 @extendFormFilterAccessStock(Order, o, orders, customerStock, company);
 @extendFormFilterAccessStock(Order, o, orders, supplierStock, supplier);
 @extendFormFilterAccessLegalEntity(Order, o, orders, customer, company);
 @extendFormFilterAccessLegalEntity(Order, o, orders, supplier, supplier);
 
-@defineOrderBatch(customer, customerStock);
+@defineOrderBatch(customer, customer);
 @defineOrderBatchDialogStock(customerStock);
 
 @implementOrderDestination(customer, supplier);
@@ -27,10 +27,10 @@ Order.operationOrder(order) += operationOrder(order);
 @deriveDocumentOperationLegalEntity(userOrder, supplier, userOrder);
 @defineDocumentOperationLegalEntity(userOrder, customer, 'Покупатель');
 @deriveDocumentOperationLegalEntity(userOrder, customer, userOrder);
-@defineDocumentOperationStock(userOrder, supplierStock, 'Склад поставщика');
-@deriveDocumentOperationStock(userOrder, supplierStock, userOrder);
-@defineDocumentOperationStock(userOrder, customerStock, 'Склад покупателя');
-@deriveDocumentOperationStock(userOrder, customerStock, userOrder);
+@defineDocumentOperationStock(userOrder, supplier, 'Склад поставщика');
+@deriveDocumentOperationStock(userOrder, supplier, userOrder);
+@defineDocumentOperationStock(userOrder, customer, 'Склад покупателя');
+@deriveDocumentOperationStock(userOrder, customer, userOrder);
 
 @defineDocumentOperationRole(userOrder);
 
@@ -62,8 +62,8 @@ EXTEND DESIGN userOrder {
     }
 }
 
-@defineDocumentPackSkuStock(userOrder, sku, customerStock);
-@extendFormDocumentPackSkuStock(userOrder, userOrder, o, customerStock);
+@defineDocumentPackSkuStock(userOrder, sku, customer);
+@extendFormDocumentPackSkuStock(userOrder, userOrder, o, customer);
 
 overChangeQuantityValueSkuUserOrderDetail(detail) += ACTION (detail) {
     IF packBarcodeSku(skuUserOrderDetail(detail)) THEN {
