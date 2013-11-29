@@ -142,14 +142,17 @@ EXTEND FORM userInvoice
 
 // --------------- Заполнение кода партии ----------------- //
 
-idBatchInvoiceDetail 'Код партии' = idBatch(batchInvoiceDetail(invoiceDetail)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatchInvoiceDetail 'Код партии' (d) = idBatch(batchInvoiceDetail(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatchUserInvoiceDetail 'Код партии' (d) = idBatch(batchUserInvoiceDetail(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-@defineMovementIdBatch(invoiceDetail, batch, customerStock);
+@defineMovementIdBatch(invoiceDetail, batch, supplierStock);
 @defineBalancesIdBatch(invoiceDetail, batch);
+@defineMovementIdBatch(userInvoiceDetail, batch, supplierStock);
+@defineBalancesIdBatch(userInvoiceDetail, batch);
 
 EXTEND FORM userInvoice
     PROPERTIES(d) READONLYIF batchUserInvoiceDetail(d) SHOWIF showIDs()
-                  idBatchInvoiceDetail AFTER nameBatchUserInvoiceDetail(d)
+                  idBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) BEFORE nameBatchUserInvoiceDetail(d)
 ;
 EXTEND FORM invoices
     PROPERTIES(d) READONLY SHOWIF showIDs()
