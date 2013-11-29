@@ -44,7 +44,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
             importUserPriceListTypeQuery.addProperty("startRowImportUserPriceListType", LM.findLCPByCompoundName("startRowImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             importUserPriceListTypeQuery.addProperty("isPostedImportUserPriceListType", LM.findLCPByCompoundName("isPostedImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             importUserPriceListTypeQuery.addProperty("separatorImportUserPriceListType", LM.findLCPByCompoundName("separatorImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("captionImportUserPriceListKeyTypeImportUserPriceListType", LM.findLCPByCompoundName("captionImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("nameImportUserPriceListKeyTypeImportUserPriceListType", LM.findLCPByCompoundName("nameImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
            
             importUserPriceListTypeQuery.and(isImportUserPriceListType.getExpr(importUserPriceListTypeKey).getWhere());
             importUserPriceListTypeQuery.and(LM.findLCPByCompoundName("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
@@ -63,8 +63,10 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
                 Boolean isPosted = (Boolean) entryValue.get("isPostedImportUserPriceListType").getValue();
                 String csvSeparator = (String) entryValue.get("separatorImportUserPriceListType").getValue();
                 csvSeparator = csvSeparator == null ? null : csvSeparator.trim();
-                String keyType = (String) entryValue.get("captionImportUserPriceListKeyTypeImportUserPriceListType").getValue();
-
+                String itemKeyType = (String) LM.findLCPByCompoundName("nameImportUserPriceListKeyTypeImportUserPriceListType").read(context, importUserPriceListTypeObject);
+                String[] parts = itemKeyType == null ? null : itemKeyType.split("\\.");
+                itemKeyType = parts == null ? null : parts[parts.length - 1].trim();
+                
                 ImportColumns importColumns = ImportUserPriceListActionProperty.readImportColumns(context, LM, importUserPriceListTypeObject);
 
                 if (directory != null && fileExtension != null) {
@@ -80,7 +82,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
 
                                     boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
                                             userPriceListObject, importColumns, IOUtils.getFileBytes(f), fileExtension.trim(),
-                                            startRow, isPosted, csvSeparator, keyType, true);
+                                            startRow, isPosted, csvSeparator, itemKeyType, true);
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());
