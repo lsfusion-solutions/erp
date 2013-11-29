@@ -142,6 +142,8 @@ addressCustomerStockConsignment 'Пункт разгрузки' (consignment) = 
 
 readdressingConsignment 'Переадресовка' (consignment) = ABSTRACT VARSTRING[50] (Consignment) IN carConsignment;
 
+countPagesConsignment 'Кол-во листов в приложении' (consignment) = DATA  INTEGER (Consignment);
+
 // ------------------------------------- Отпуск товара --------------------------------- //
 
 GROUP issuanceConsignment 'Отпуск' : base;
@@ -351,7 +353,7 @@ META defineConsignmentFormSimple(form, caption)
                        UNPCustomerConsignment, UNPSupplierConsignment, addressSupplierConsignment, addressCustomerConsignment,
                        fullNameSupplierConsignment, fullNameCustomerConsignment, numberConsignment, seriesConsignment, countConsignmentDetailConsignment,
                        isWareConsignment, isCustomsFlowConsignment, isCurrencyConsignment, shortNameCurrencyConsignment,
-                       noteConsignment, documentNameCurrencyConsignment
+                       noteConsignment, documentNameCurrencyConsignment, countPagesConsignment
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
 
@@ -417,7 +419,8 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##seriesConsignment=seriesConsignment, prefix##numberConsignment=numberConsignment, prefix##seriesNumberConsignment=seriesNumberConsignment, 
                        prefix##isCustomsFlowConsignment=isCustomsFlowConsignment, 
                        prefix##isCurrencyConsignment=isCurrencyConsignment, prefix##shortNameCurrencyConsignment=shortNameCurrencyConsignment,
-                       prefix##noteConsignment=noteConsignment, prefix##documentNameCurrencyConsignment=documentNameCurrencyConsignment    
+                       prefix##noteConsignment=noteConsignment, prefix##documentNameCurrencyConsignment=documentNameCurrencyConsignment,    
+                       prefix##countPagesConsignment=countPagesConsignment 
         PROPERTIES()   TODRAW prefix prefix##countRowsVerticalA=countRowsVerticalA, prefix##countRowsVerticalAB=countRowsVerticalAB, 
                        prefix##countRowsHorizontal=countRowsHorizontal
  
@@ -512,7 +515,7 @@ FORM consignment 'Атрибуты накладной'
                    arrivalTimeConsignment, departureTimeConsignment, downtimeConsignment, raceQuantityConsignment,
                    quantityConsignmentDetailConsignment, overPackQuantityConsignmentDetailConsignment, grossWeightConsignmentDetailConsignment,
                    sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment, sumInvoiceConsignmentDetailConsignment,
-                   countConsignmentDetailConsignment, noteConsignment, shortNameCurrencyConsignment//, SHOWIF isCustomsFlowConsignment(c)
+                   countConsignmentDetailConsignment, noteConsignment, shortNameCurrencyConsignment, countPagesConsignment//, SHOWIF isCustomsFlowConsignment(c)
 
 
     OBJECTS d=ConsignmentDetail
@@ -576,15 +579,22 @@ DESIGN consignment FROM DEFAULT {
         ADD c.loadingConsignment {
             columns = 4;
         }
-        ADD c.sumConsignment {
-            columns = 4;
-            ADD PROPERTY(countConsignmentDetailConsignment);
-            ADD PROPERTY(quantityConsignmentDetailConsignment);
-            ADD PROPERTY(overPackQuantityConsignmentDetailConsignment);
-            ADD PROPERTY(grossWeightConsignmentDetailConsignment);
-            ADD PROPERTY(sumConsignmentDetailConsignment);
-            ADD PROPERTY(sumVATConsignmentDetailConsignment);
-            ADD PROPERTY(sumInvoiceConsignmentDetailConsignment);
+        NEW sum {
+            type = CONTAINERH;
+            ADD c.sumConsignment {
+                columns = 4;
+                ADD PROPERTY(countConsignmentDetailConsignment);
+                ADD PROPERTY(quantityConsignmentDetailConsignment);
+                ADD PROPERTY(overPackQuantityConsignmentDetailConsignment);
+                ADD PROPERTY(grossWeightConsignmentDetailConsignment);
+                ADD PROPERTY(sumConsignmentDetailConsignment);
+                ADD PROPERTY(sumVATConsignmentDetailConsignment);
+                ADD PROPERTY(sumInvoiceConsignmentDetailConsignment);
+            }
+            NEW columnReight{
+                caption = 'Приложение';
+                ADD PROPERTY(countPagesConsignment);
+            }
         }
     }
         
