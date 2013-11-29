@@ -194,33 +194,33 @@ META defineDocumentOperationContainer(object, char)
 END
 // -------------------------------------- Организации ---------------------------------- //
 
-META defineOperationLegalEntity(prop, object, tabcaption)
+META defineOperationLegalEntity(prop, propPostfix, object, tabcaption)
 
     // Отметка для групп
-    dataIn###prop##GroupOperation 'Отм.' = DATA BOOLEAN (LegalEntityGroup, Operation);
+    dataIn###prop###propPostfix##GroupOperation 'Отм.' = DATA BOOLEAN (LegalEntityGroup, Operation);
 
-    levelParent###prop##OperationLegalEntityGroup (operation, legalEntityGroup) =
-        GROUP MIN levelLegalEntityGroupLegalEntityGroup(legalEntityGroup, parent) IF dataIn###prop##GroupOperation(parent, operation)
+    levelParent###prop###propPostfix##OperationLegalEntityGroup (operation, legalEntityGroup) =
+        GROUP MIN levelLegalEntityGroupLegalEntityGroup(legalEntityGroup, parent) IF dataIn###prop###propPostfix##GroupOperation(parent, operation)
               BY operation, legalEntityGroup PERSISTENT;
-    nearestParent###prop##GroupLegalEntityGroup (operation, legalEntityGroup) = legalEntityGroupLegalEntityGroupLevel(legalEntityGroup, levelParent###prop##OperationLegalEntityGroup(operation, legalEntityGroup));
-    nearestIn###prop##GroupOperation (legalEntityGroup, operation) =
-        dataIn###prop##GroupOperation(nearestParent###prop##GroupLegalEntityGroup(operation, legalEntityGroup), operation) PERSISTENT;
+    nearestParent###prop###propPostfix##GroupLegalEntityGroup (operation, legalEntityGroup) = legalEntityGroupLegalEntityGroupLevel(legalEntityGroup, levelParent###prop###propPostfix##OperationLegalEntityGroup(operation, legalEntityGroup));
+    nearestIn###prop###propPostfix##GroupOperation (legalEntityGroup, operation) =
+        dataIn###prop###propPostfix##GroupOperation(nearestParent###prop###propPostfix##GroupLegalEntityGroup(operation, legalEntityGroup), operation) PERSISTENT;
 
-    in###prop##GroupOperation 'Отм' (legalEntityGroup, operation) =
-        OVERRIDE nearestIn###prop##GroupOperation(legalEntityGroup, operation), dataIn###prop##GroupOperation(legalEntityGroup, operation);
+    in###prop###propPostfix##GroupOperation 'Отм' (legalEntityGroup, operation) =
+        OVERRIDE nearestIn###prop###propPostfix##GroupOperation(legalEntityGroup, operation), dataIn###prop###propPostfix##GroupOperation(legalEntityGroup, operation);
 
     // Отметка для организаций
-    dataIn###prop##Operation 'Отм.' = DATA BOOLEAN (LegalEntity, Operation);
-    in###prop##Operation 'Отм' (legalEntity, operation) =
-        OVERRIDE nearestIn###prop##GroupOperation(legalEntityGroupLegalEntity(legalEntity), operation), dataIn###prop##Operation(legalEntity, operation);
+    dataIn###prop###propPostfix##Operation 'Отм.' = DATA BOOLEAN (LegalEntity, Operation);
+    in###prop###propPostfix##Operation 'Отм' (legalEntity, operation) =
+        OVERRIDE nearestIn###prop###propPostfix##GroupOperation(legalEntityGroupLegalEntity(legalEntity), operation), dataIn###prop###propPostfix##Operation(legalEntity, operation);
 
     EXTEND FORM operation
-        TREE prop###groupTree object##g = LegalEntityGroup PARENT parentLegalEntityGroup
+        TREE prop###propPostfix###groupTree object##g = LegalEntityGroup PARENT parentLegalEntityGroup
         PROPERTIES READONLY sgTreeName = nameLegalEntityGroup(object##g)
-        PROPERTIES in###prop###GroupOperation(object##g, o)
+        PROPERTIES in###prop###propPostfix###GroupOperation(object##g, o)
 
         OBJECTS object = LegalEntity
-        PROPERTIES(object, o) in###prop##Operation
+        PROPERTIES(object, o) in###prop###propPostfix##Operation
         PROPERTIES(object) READONLY nameLegalEntity, fullNameLegalEntity, shortNameOwnershipLegalEntity, nameLegalEntityGroupLegalEntity,
                                addressLegalEntity, phoneLegalEntity,
                                isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
@@ -228,15 +228,15 @@ META defineOperationLegalEntity(prop, object, tabcaption)
                 object IS LegalEntity AND NOT object##g IS LegalEntityGroup OR
                 (object IS LegalEntity AND object##g IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(object))
         FILTERGROUP filters2
-                FILTER 'Показывать отмеченные' 'F10' in###prop##Operation(object, o)
+                FILTER 'Показывать отмеченные' 'F10' in###prop###propPostfix##Operation(object, o)
     ;
 
     EXTEND DESIGN operation {
         tabContainer {
-            NEW prop###Container{
+            NEW prop###propPostfix###Container{
                 type = SPLITH;
                 caption = tabcaption;
-                ADD prop###groupTree.tree.box;
+                ADD prop###propPostfix###groupTree.tree.box;
                 ADD object.box {
                     fill = 3;
                 }
