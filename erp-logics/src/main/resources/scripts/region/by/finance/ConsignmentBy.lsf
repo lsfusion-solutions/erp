@@ -148,15 +148,20 @@ countPagesConsignment 'Кол-во листов в приложении' (consig
 
 GROUP issuanceConsignment 'Отпуск' : base;
 
-shipmentBaseConsignment 'Основание отпуска' (consignment) = ABSTRACT VARSTRING[100] (Consignment) IN issuanceConsignment;
+dataShipmentBaseConsignment 'Основание отпуска' (consignment) = ABSTRACT VARSTRING[100] (Consignment);
+overShipmentBaseConsignment 'Основание отпуска' (consignment) = ABSTRACT VARSTRING[100] (Consignment);
+shipmentBaseConsignment 'Основание отпуска' (consignment) = OVERRIDE  dataShipmentBaseConsignment(consignment),
+                                                                      overShipmentBaseConsignment(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
 issuanceAllowedConsignment (consignment) = ABSTRACT Employee (Consignment);
-nameIssuanceAllowedConsignment 'Отпуск разрешил' (consignment) = positionNameEmployee(issuanceAllowedConsignment(consignment)) IN issuanceConsignment;
+nameIssuanceAllowedConsignment 'Отпуск разрешил' (consignment) = positionNameEmployee(issuanceAllowedConsignment(consignment)) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
 issuanceExecutedConsignment (consignment) = ABSTRACT Employee(Consignment);
-nameIssuanceExecutedConsignment 'Отпуск произвел' (consignment) = positionNameEmployee(issuanceExecutedConsignment(consignment)) IN issuanceConsignment;
+nameIssuanceExecutedConsignment 'Отпуск произвел' (consignment) = positionNameEmployee(issuanceExecutedConsignment(consignment)) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
-forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = ABSTRACT VARSTRING[40] (Consignment) IN issuanceConsignment;
+//forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = ABSTRACT VARSTRING[40] (Consignment) IN issuanceConsignment;
+dataForwarderConsignment  = ABSTRACT Employee (Consignment);
+forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = positionNameEmployee(dataForwarderConsignment(consignment)) IN issuanceConsignment MINCHARWIDTH 30 PREFCHARWIDTH 30;
 
 warrantConsignment 'По доверенности (номер, дата)' (consignment) = ABSTRACT VARSTRING[30] (Consignment) IN issuanceConsignment;
 warrantHolderConsignment 'По доверенности выданной (наименование орг-ии)' (consignment) = ABSTRACT VARSTRING[100] (Consignment) IN issuanceConsignment;
@@ -694,14 +699,16 @@ META defineConsignmentHeaderInner (object, class)
 
     readdressing###object 'Переадресовка' (object) = DATA VARSTRING[50] (class) IN carConsignment;
 
-    shipmentBase###object 'Основание отпуска' (object) = DATA VARSTRING[100] (class) IN issuanceConsignment;
+    overShipmentBase###object 'Основание отпуска' (object) = DATA VARSTRING[100] (class) IN issuanceConsignment;
 
     issuanceAllowed###object (object) = DATA Employee(class);
 
     issuanceExecuted###object (object) = DATA Employee(class);
 
-    forwarder###object 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (object) = DATA VARSTRING[40] (class) IN issuanceConsignment;
-
+//    forwarder###object 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (object) = DATA VARSTRING[40] (class) IN issuanceConsignment;
+    dataForwarder###object (object) = DATA Employee (class) IN issuanceConsignment;
+    forwarder###object 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (object)= nameContact(dataForwarder###object(object));
+    
     warrant###object 'По доверенности (номер, дата)' (object) = DATA VARSTRING[30] (class) IN issuanceConsignment;
     warrantHolder###object 'По доверенности выданной (наименование орг-ии)' (object) = DATA VARSTRING[100] (class) IN issuanceConsignment;
 
@@ -744,13 +751,14 @@ META defineConsignmentAbstractHeaderInner(object, class)
 
     readdressing###object 'Переадресовка' (object) = ABSTRACT VARSTRING[50] (class) IN carConsignment;
 
-    shipmentBase###object 'Основание отпуска' (object) = ABSTRACT VARSTRING[100] (class) IN issuanceConsignment;
+    overShipmentBase###object 'Основание отпуска' (object) = ABSTRACT VARSTRING[100] (class) IN issuanceConsignment;
 
     issuanceAllowed###object (object) = ABSTRACT Employee(class);
 
     issuanceExecuted###object (object) = ABSTRACT Employee(class);
 
-    forwarder###object 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (object) = ABSTRACT VARSTRING[40] (class) IN issuanceConsignment;
+    dataForwarder###object (object) = ABSTRACT Employee (class) IN issuanceConsignment;
+    forwarder###object 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (object)= nameContact(dataForwarder###object(object));
 
     warrant###object 'По доверенности (номер, дата)' (object) = ABSTRACT VARSTRING[30] (class) IN issuanceConsignment;
     warrantHolder###object 'По доверенности выданной (наименование орг-ии)' (object) = ABSTRACT VARSTRING[100] (class) IN issuanceConsignment;
@@ -803,13 +811,13 @@ META implementConsignmentHeader (concrete)
 
     readdressingConsignment (consignment) += readdressing###concrete (consignment);
 
-    shipmentBaseConsignment (consignment) += shipmentBase###concrete (consignment);
+    overShipmentBaseConsignment (consignment) += overShipmentBase###concrete (consignment);
 
     issuanceAllowedConsignment (consignment) += issuanceAllowed###concrete (consignment);
 
     issuanceExecutedConsignment (consignment) += issuanceExecuted###concrete (consignment);
 
-    forwarderConsignment (consignment) += forwarder###concrete (consignment);
+    dataForwarderConsignment (consignment) += dataForwarder###concrete (consignment);
 
     warrantConsignment (consignment) += warrant###concrete (consignment);
     warrantHolderConsignment (consignment) += warrantHolder###concrete (consignment);
@@ -846,13 +854,13 @@ META implementConsignmentDocumentHeader (concrete, object, prefix)
 
     prefix###readdressing###concrete (concrete) += readdressing###object (concrete);
 
-    prefix###shipmentBase###concrete (concrete) += shipmentBase###object (concrete);
+    prefix###overShipmentBase###concrete (concrete) += overShipmentBase###object (concrete);
 
     prefix###issuanceAllowed###concrete (concrete) += issuanceAllowed###object (concrete);
 
     prefix###issuanceExecuted###concrete (concrete) += issuanceExecuted###object (concrete);
 
-    prefix###forwarder###concrete (concrete) += forwarder###object (concrete);
+    prefix###dataForwarder###concrete (concrete) += dataForwarder###object (concrete);
 
     prefix###warrant###concrete (concrete) += warrant###object (concrete);
     prefix###warrantHolder###concrete (concrete) += warrantHolder###object (concrete);
@@ -896,13 +904,13 @@ META implementConsignmentDocumentHeaderPrefix (concrete, object, NS)
 
     NS.readdressing###concrete (concrete) += readdressing###object (concrete);
 
-    NS.shipmentBase###concrete (concrete) += shipmentBase###object (concrete);
+    NS.overShipmentBase###concrete (concrete) += overShipmentBase###object (concrete);
 
     NS.issuanceAllowed###concrete (concrete) += issuanceAllowed###object (concrete);
 
     NS.issuanceExecuted###concrete (concrete) += issuanceExecuted###object (concrete);
 
-    NS.forwarder###concrete (concrete) += forwarder###object (concrete);
+    NS.dataForwarder###concrete (concrete) += dataForwarder###object (concrete);
 
     NS.warrant###concrete (concrete) += warrant###object (concrete);
     NS.warrantHolder###concrete (concrete) += warrantHolder###object (concrete);

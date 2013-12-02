@@ -21,8 +21,15 @@ issuanceExecutedTrip = DATA Employee(Trip);
 nameIssuanceExecutedTrip 'Отпуск произвел' (trip) = nameContact(issuanceExecutedTrip(trip));
 @setTripPropTrip(issuanceExecuted);
 
-forwarderTrip 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы'= DATA VARSTRING[40](Trip);
-@setTripPropTrip(forwarder);
+dataForwarderTrip = DATA Employee(Trip);
+nameForwarderTrip 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (t)= nameContact(OVERRIDE driverTrip(t), dataForwarderTrip(t));
+
+overForwarderTrip= OVERRIDE  driverTrip(t), dataForwarderTrip(t);
+
+setTripForwarderTrip = ACTION (invoice) {
+    ASSIGN dataForwarderInvoice(invoice) <- overForwarderTrip(tripInvoice(invoice));
+}
+WHEN CHANGED(overForwarderTrip(tripInvoice(invoice))) DO EXEC setTripForwarderTrip(invoice);
 
 loadingExecuterTrip = DATA Employee(Trip);
 nameLoadingExecuterTrip 'Исполнитель погрузки' (trip) = nameContact(loadingExecuterTrip(trip));
@@ -65,7 +72,7 @@ printVerticalConsignmentTrip 'Печать ТТН-1 (верт.)' (trip) = ACTION
 } TOOLBAR;
 
 EXTEND FORM trip
-    PROPERTIES (t) nameIssuanceAllowedTrip, nameIssuanceExecutedTrip, forwarderTrip, nameLoadingExecuterTrip, 
+    PROPERTIES (t) nameIssuanceAllowedTrip, nameIssuanceExecutedTrip, nameForwarderTrip, nameLoadingExecuterTrip, 
                    nameWayOfLoadingTrip, nameUnloadingExecuterTrip, nameWayOfUnloadingTrip, codeLoadingTrip, documentNameCurrencyTrip
     PROPERTIES createConsignmentTrip(t) TODRAW i
     PROPERTIES printHorizontalConsignmentTrip(t) TODRAW i
@@ -82,7 +89,7 @@ EXTEND DESIGN trip {
                 caption = 'Отпуск';
                 ADD PROPERTY(nameIssuanceAllowedTrip);
                 ADD PROPERTY(nameIssuanceExecutedTrip);
-                ADD PROPERTY(forwarderTrip);
+                ADD PROPERTY(nameForwarderTrip);
             }
             NEW loadingContainer {
                 caption = 'ППР';
@@ -100,7 +107,3 @@ EXTEND DESIGN trip {
         };
     }
 }
-
-nameForwarderTrip(trip) = VARSTRING[40] (CONCAT ' ', 'Водитель ' + nameDriverTrip(trip));
-
-forwarderTrip (trip) <- nameForwarderTrip(trip) WHEN CHANGED(driverTrip(trip)); 

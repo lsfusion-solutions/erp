@@ -77,8 +77,12 @@ countAccessCustomerEmployeeLegalEntityGroup 'Кол-во доступных по
                 AND isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(legalEntity), legalEntityGroup)
           BY employee, legalEntityGroup PERSISTENT;
 
-EXTEND FORM employee
 
+legalEntityEmployee = DATA LegalEntity (Employee);
+nameLegalEntityEmployee 'Организация' (e) = nameLegalEntity(legalEntityEmployee(e));
+
+EXTEND FORM employee
+    PROPERTIES(e) nameLegalEntityEmployee
     TREE legalEntityTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
     PROPERTIES READONLY  lgTreeName = nameLegalEntityGroup(lg)
     ORDER BY lgTreeName
@@ -92,6 +96,9 @@ EXTEND FORM employee
     PROPERTIES(e,l) accessSupplierEmployeeLegalEntity, accessCompanyEmployeeLegalEntity, accessCustomerEmployeeLegalEntity
 ;
 EXTEND DESIGN employee {
+    personal {
+        ADD PROPERTY(nameLegalEntityEmployee) AFTER PROPERTY(firstNameContact);
+    }
     pane {
         NEW legalEntityContainer {
             caption = 'Организации';
@@ -99,13 +106,23 @@ EXTEND DESIGN employee {
             ADD legalEntityTree.tree.box;
             ADD l.box {
                 l.grid {
-                    defaultComponent = TRUE;
+//                    defaultComponent = TRUE;
                 }
             }
         }
     }
 }
 
+EXTEND FORM  legalEntity
+    OBJECTS e = Employee
+    PROPERTIES(e) READONLY nameContact, objectClassName
+    FILTERS  legalEntityEmployee(e) == l
+;
+EXTEND DESIGN  legalEntity {
+    extendContainer {
+        ADD e.box;
+    }
+}
 // ------------------------------------ Доступные организации для пользователей -------------------------- //
 
 countAccessSupplierEmployee (employee) = GROUP SUM 1 IF isSupplierLegalEntity(legalEntity) AND accessSupplierEmployeeLegalEntity(employee, legalEntity)

@@ -36,15 +36,14 @@ TABLE employee(Employee);
 
 namePositionEmployee 'Должность сотрудника' (employee) = namePosition(positionEmployee(employee)) IN base MINCHARWIDTH 15 PREFCHARWIDTH 15;
 
-positionNameEmployee 'Должность ФИО' (employee) = [= FORMULA VARSTRING[40] ' CAST($1 AS TEXT) || \' \' || CAST($2 AS TEXT)']
-                                                         (namePositionEmployee(employee), nameContact(employee));
+positionNameEmployee 'Должность ФИО' (employee) =  CONCAT ' ', namePositionEmployee(employee), nameContact(employee) IF employee IS Employee;
 
 limitAccessEmployee 'Ограничить доступ' = DATA BOOLEAN (Employee);
 
 
 FORM employee 'Сотрудник'
     OBJECTS e=Employee FIXED PANEL
-    PROPERTIES(e)      objectClassName, firstNameContact, lastNameContact, idEmployee SHOWIF showIDs(), namePositionEmployee,
+    PROPERTIES(e)      objectClassName, lastNameContact, firstNameContact, idEmployee SHOWIF showIDs(), namePositionEmployee,
                        loginCustomUser, 
                        sha256PasswordCustomUser ON CHANGE changeSHA256PasswordCustomUser(e),
                        emailContact, nameMainRoleUser, limitAccessEmployee
@@ -61,8 +60,8 @@ DESIGN employee FROM DEFAULT {
                 caption = 'Личные данные';
                 type = COLUMNS;
                 columns = 1;
-                ADD PROPERTY(firstNameContact(e));
                 ADD PROPERTY(lastNameContact(e));
+                ADD PROPERTY(firstNameContact(e));                  
                 ADD PROPERTY(idEmployee(e));
                 ADD PROPERTY(objectClassName);
                 ADD PROPERTY(namePositionEmployee(e));
@@ -93,7 +92,7 @@ DESIGN employee FROM DEFAULT {
 
 FORM employees 'Сотрудники'
     OBJECTS e=Employee
-    PROPERTIES(e) READONLY firstNameContact, lastNameContact, idEmployee SHOWIF showIDs(), namePositionEmployee
+    PROPERTIES(e) READONLY lastNameContact, firstNameContact, idEmployee SHOWIF showIDs(), namePositionEmployee
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE
     DIALOG Employee OBJECT e
 ;
