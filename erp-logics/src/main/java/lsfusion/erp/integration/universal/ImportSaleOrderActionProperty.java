@@ -49,8 +49,6 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         try {
 
             DataSession session = context.getSession(); 
-            
-            this.saleManufacturingPriceLM = (ScriptingLogicsModule) context.getBL().getModule("SaleManufacturingPrice");
 
             DataObject orderObject = context.getDataKeyValue(orderInterface);
 
@@ -110,6 +108,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                               String secondaryKeyType, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject) 
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException {
+
+        this.saleManufacturingPriceLM = (ScriptingLogicsModule) context.getBL().getModule("SaleManufacturingPrice");
         
         List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(context.getSession(), (Integer) orderObject.object,
                 importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType, secondaryKeyType);

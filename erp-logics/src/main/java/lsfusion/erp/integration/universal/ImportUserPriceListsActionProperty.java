@@ -63,7 +63,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
                 Boolean isPosted = (Boolean) entryValue.get("isPostedImportUserPriceListType").getValue();
                 String csvSeparator = (String) entryValue.get("separatorImportUserPriceListType").getValue();
                 csvSeparator = csvSeparator == null ? null : csvSeparator.trim();
-                String itemKeyType = (String) LM.findLCPByCompoundName("nameImportUserPriceListKeyTypeImportUserPriceListType").read(context, importUserPriceListTypeObject);
+                String itemKeyType = (String) entryValue.get("nameImportUserPriceListKeyTypeImportUserPriceListType").getValue();
                 String[] parts = itemKeyType == null ? null : itemKeyType.split("\\.");
                 itemKeyType = parts == null ? null : parts[parts.length - 1].trim();
                 

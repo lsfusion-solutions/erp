@@ -56,8 +56,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
 
-        this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
-
         try {
 
             DataObject userPriceListObject = context.getDataKeyValue(userPriceListInterface);
@@ -112,6 +110,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                               boolean apply)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
+        this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
+        
         List<UserPriceListDetail> userPriceListDetailList;
 
         if (fileExtension.equals("DBF"))
