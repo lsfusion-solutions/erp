@@ -797,7 +797,7 @@ public class ImportActionProperty {
                 keys.add(itemKey);
                 if(userInvoiceCreateNewItems)
                     props.add(new ImportProperty(idItemField, LM.findLCPByCompoundName("idItem").getMapping(itemKey)));
-                props.add(new ImportProperty(idItemField, LM.findLCPByCompoundName("Purchase.skuInvoiceDetail").getMapping(userInvoiceDetailKey),
+                props.add(new ImportProperty(idItemField, LM.findLCPByCompoundName("Purchase.skuUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                         LM.object(LM.findClassByCompoundName("Sku")).getMapping(itemKey)));
                 fields.add(idItemField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
@@ -818,16 +818,16 @@ public class ImportActionProperty {
                     data.get(i).add(dataUserInvoiceDetail.get(i).price);
 
                 if (showField(dataUserInvoiceDetail, "shipmentPrice")) {
-                    ImportField shipmentPriceInvoiceDetail = new ImportField(LM.findLCPByCompoundName("Purchase.shipmentPriceInvoiceDetail"));
-                    props.add(new ImportProperty(shipmentPriceInvoiceDetail, LM.findLCPByCompoundName("Purchase.shipmentPriceInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    ImportField shipmentPriceInvoiceDetail = new ImportField(LM.findLCPByCompoundName("Purchase.shipmentPriceUserInvoiceDetail"));
+                    props.add(new ImportProperty(shipmentPriceInvoiceDetail, LM.findLCPByCompoundName("Purchase.shipmentPriceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
                     fields.add(shipmentPriceInvoiceDetail);
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                         data.get(i).add(dataUserInvoiceDetail.get(i).shipmentPrice);
                 }
 
                 if (showField(dataUserInvoiceDetail, "shipmentSum")) {
-                    ImportField shipmentSumInvoiceDetail = new ImportField(LM.findLCPByCompoundName("Purchase.shipmentSumInvoiceDetail"));
-                    props.add(new ImportProperty(shipmentSumInvoiceDetail, LM.findLCPByCompoundName("Purchase.shipmentSumInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    ImportField shipmentSumInvoiceDetail = new ImportField(LM.findLCPByCompoundName("Purchase.shipmentSumUserInvoiceDetail"));
+                    props.add(new ImportProperty(shipmentSumInvoiceDetail, LM.findLCPByCompoundName("Purchase.shipmentSumUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
                     fields.add(shipmentSumInvoiceDetail);
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                         data.get(i).add(dataUserInvoiceDetail.get(i).shipmentSum);

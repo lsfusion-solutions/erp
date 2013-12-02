@@ -2,10 +2,12 @@ package lsfusion.erp.integration.universal;
 
 
 import java.math.BigDecimal;
+import java.sql.Date;
 
 public class SaleOrderDetail {
     public Boolean isPosted;
     public String numberOrder;
+    public Date dateOrder;
     public String idOrderDetail;
     public String idBarcodeSku;
     public String idBatch;
@@ -22,12 +24,13 @@ public class SaleOrderDetail {
     public BigDecimal invoiceSum;
     public BigDecimal manufacturingPrice;
 
-    public SaleOrderDetail(Boolean isPosted, String numberOrder, String idOrderDetail, String idBarcodeSku, String idBatch, 
+    public SaleOrderDetail(Boolean isPosted, String numberOrder, Date dateOrder, String idOrderDetail, String idBarcodeSku, String idBatch, 
                            Integer dataIndex, String idItem, String idManufacturer, String idCustomer, String idCustomerStock, 
                            BigDecimal quantity, BigDecimal price, BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, 
                            BigDecimal invoiceSum, BigDecimal manufacturingPrice) {
         this.isPosted = isPosted;
         this.numberOrder = numberOrder;
+        this.dateOrder = dateOrder;
         this.idOrderDetail = idOrderDetail;
         this.idBarcodeSku = idBarcodeSku;
         this.idBatch = idBatch;
