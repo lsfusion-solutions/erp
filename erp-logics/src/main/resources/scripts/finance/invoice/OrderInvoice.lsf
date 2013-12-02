@@ -139,10 +139,13 @@ META defineOrderInvoice(sign, stockProp)
                                                                BY orderDetail
                                                                ORDER orderBatch(batch);
 
+    orderCreateUserInvoiceOrderDetail = ABSTRACT STRING[100] (OrderDetail);
+
     createDetailUserInvoiceOrder = ACTION (userInvoice, order) {
         IF useExplicitBatchDetailUserInvoiceOrder(order) AND explicitBatchLedgerStock(stockProp###stockOrder(order)) THEN {
             // проходим по строкам, для которых не задана партия
             FOR orderOrderDetail(orderDetail) == order AND toInvoiceBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail)
+                ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoiceUserInvoiceDetail(d) <- userInvoice;
                     orderUserInvoiceDetail(d) <- order;
@@ -155,6 +158,7 @@ META defineOrderInvoice(sign, stockProp)
             }
             // проходим по строкам, для которых задана партия
             FOR orderOrderDetail(orderDetail) == order AND PREV(toInvoiceOrderDetail(orderDetail)) AND batchOrderDetail(orderDetail)
+                ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoiceUserInvoiceDetail(d) <- userInvoice;
                     orderUserInvoiceDetail(d) <- order;
@@ -169,6 +173,7 @@ META defineOrderInvoice(sign, stockProp)
             FOR orderOrderDetail(orderDetail) == order AND
                 toInvoiceOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
                 AND inOrderDetailUserInvoice(orderDetail, userInvoice)
+                ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoiceUserInvoiceDetail(d) <- userInvoice;
                     orderUserInvoiceDetail(d) <- order;

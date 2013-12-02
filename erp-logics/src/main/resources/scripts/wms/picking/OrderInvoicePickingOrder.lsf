@@ -16,6 +16,7 @@ META defineOrderInvoicePickingOrder (sign)
     createPickingDetailUserInvoiceOrder = ACTION (userInvoice, order) {
         IF useExplicitBatchDetailUserInvoiceOrder(order) AND explicitBatchLedgerStock(fromStockOrder(order)) THEN {
             FOR orderOrderDetail(orderDetail) == order AND pickingBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail)
+                ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
                 userInvoiceUserInvoiceDetail(d) <- userInvoice;
                 orderUserInvoiceDetail(d) <- order;
@@ -27,6 +28,7 @@ META defineOrderInvoicePickingOrder (sign)
                 overFillUserInvoiceDetailOrderDetail(d, orderDetail);
             }
             FOR orderOrderDetail(orderDetail) == order AND PREV(pickingQuantityOrderDetail(orderDetail)) AND batchOrderDetail(orderDetail)
+                ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
                 userInvoiceUserInvoiceDetail(d) <- userInvoice;
                 orderUserInvoiceDetail(d) <- order;
@@ -41,6 +43,7 @@ META defineOrderInvoicePickingOrder (sign)
             FOR orderOrderDetail(orderDetail) == order AND
                 pickingQuantityOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
                 AND inOrderDetailUserInvoice(orderDetail, userInvoice)
+                ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoiceUserInvoiceDetail(d) <- userInvoice;
                     orderUserInvoiceDetail(d) <- order;
