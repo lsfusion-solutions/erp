@@ -55,6 +55,19 @@ shortNameCurrencyTrip 'Валюта' (trip) = shortNameCurrency(currencyTrip(tri
 documentNameCurrencyTrip 'Валюта в накладной сокр.' (trip) = documentNameCurrency(currencyTrip(trip));
 @setTripPropTrip(currency);
 
+//Время прибытия                              
+timeOfArrivalTrip 'Время прибытия' = DATA TIME (Trip);
+setTripDateTimeTrip = ACTION (invoice) {
+    ASSIGN arrivalTimeInvoice(invoice) <- dateTimeToDateTime(dateTrip(tripInvoice(invoice)), timeOfArrivalTrip(tripInvoice(invoice)));
+}
+WHEN CHANGED(dateTimeTrip(tripInvoice(invoice))) DO EXEC setTripDateTimeTrip(invoice);
+
+downtimeTrip 'Время простоя для накладной (мин.)' = DATA  INTEGER (Trip);
+setTripDowntimeTrip = ACTION (invoice) {
+    ASSIGN downtimeInvoice(invoice) <- downtimeTrip(tripInvoice(invoice));
+}
+WHEN CHANGED(downtimeTrip(tripInvoice(invoice))) DO EXEC setTripDowntimeTrip(invoice);
+
 printHorizontalConsignmentTrip 'Печать ТТН-1 (гор.)' (trip) = ACTION (trip) {
     FOR inTripInvoice(trip, invoice) DO {
         EXEC printConsignmentHorizontalA(invoice);
@@ -73,7 +86,8 @@ printVerticalConsignmentTrip 'Печать ТТН-1 (верт.)' (trip) = ACTION
 
 EXTEND FORM trip
     PROPERTIES (t) nameIssuanceAllowedTrip, nameIssuanceExecutedTrip, nameForwarderTrip, nameLoadingExecuterTrip, 
-                   nameWayOfLoadingTrip, nameUnloadingExecuterTrip, nameWayOfUnloadingTrip, codeLoadingTrip, documentNameCurrencyTrip
+                   nameWayOfLoadingTrip, nameUnloadingExecuterTrip, nameWayOfUnloadingTrip, codeLoadingTrip, documentNameCurrencyTrip,
+                   timeOfArrivalTrip, downtimeTrip
     PROPERTIES createConsignmentTrip(t) TODRAW i
     PROPERTIES printHorizontalConsignmentTrip(t) TODRAW i
     PROPERTIES printVerticalConsignmentTrip(t) TODRAW i
@@ -97,7 +111,9 @@ EXTEND DESIGN trip {
                 ADD PROPERTY(nameWayOfLoadingTrip);
                 ADD PROPERTY(nameUnloadingExecuterTrip);
                 ADD PROPERTY(nameWayOfUnloadingTrip);
-                ADD PROPERTY(codeLoadingTrip);
+                ADD PROPERTY(codeLoadingTrip);           
+                ADD PROPERTY(timeOfArrivalTrip);
+                ADD PROPERTY(downtimeTrip);
             }
             NEW dopContainer {
                 caption = 'Дополнительно';
