@@ -16,10 +16,10 @@ invoicedInvoiceDetailOrderSku 'Выписано накладных' (order, sku)
 invoicedOrderDetail 'Кол-во (выписано)' (orderDetail) = PARTITION UNGROUP invoicedInvoiceDetailOrderSku
                                                           LIMIT STRICT quantityOrderDetail (orderDetail)
                                                           BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
-                                                          ORDER orderDetail;
+                                                          ORDER orderDetail PERSISTENT;
 
 toInvoiceOrderDetail 'Не выписано' (orderDetail) = quantityOrderDetail (orderDetail) (-) invoicedOrderDetail(orderDetail);
-toInvoiceOrder (order) = GROUP SUM toInvoiceOrderDetail(orderDetail) IF toInvoiceOrderDetail(orderDetail) >0 BY orderOrderDetail(orderDetail);
+toInvoiceOrder (order) = GROUP SUM toInvoiceOrderDetail(orderDetail) IF toInvoiceOrderDetail(orderDetail) >0 BY orderOrderDetail(orderDetail) PERSISTENT;
 
 quantityOrderInvoice (order, invoice) = GROUP SUM quantityInvoiceDetail(invoiceDetail)
                                                BY orderInvoiceDetail(invoiceDetail),

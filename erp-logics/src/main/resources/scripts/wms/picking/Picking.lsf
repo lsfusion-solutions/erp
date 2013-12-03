@@ -247,7 +247,7 @@ CONSTRAINT stockUserPicking(picking) != stockPickingOrder(pickingOrderUserPickin
 
 notePickingOrderPicking 'Примечание (заказ)' (p) = notePickingOrder(pickingOrderPicking(p)); 
 
-quantityPickingsPickingOrder 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 BY pickingOrderPicking(picking);
+quantityPickingsPickingOrder 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 BY pickingOrderPicking(picking) PERSISTENT;
 relationPickingOrderPicking 'Количество комплектаций' (pickingOrder, picking) = GROUP SUM 1 BY pickingOrderPicking(picking), picking;
 
 pickingsPickingOrder 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255](descriptionPicking(picking)) IF relationPickingOrderPicking(pickingOrder, picking) , ', '
@@ -347,7 +347,7 @@ countPickingOrderSkuPickingOrder 'Кол-во наименований' (picking
 quantityPickingDetailSkuPickingOrder 'Кол-во в комплектациях' (sku, pickingOrder) = GROUP SUM quantityPickingDetailSkuPicking(sku, picking) BY sku, pickingOrderPicking(picking);
 countEqualPickingOrderSkuPickingOrder 'Кол-во наименований с равным кол-ом товара' (pickingOrder) = GROUP SUM 1 IF quantityPickingDetailSkuPickingOrder(sku, pickingOrder) == quantityPickingOrderDetailSkuPickingOrder(sku, pickingOrder) BY pickingOrder;
 
-calcFullPickingOrder 'Полностью собран' (pickingOrder) = countPickingOrderSkuPickingOrder(pickingOrder) == countEqualPickingOrderSkuPickingOrder(pickingOrder);
+calcFullPickingOrder 'Полностью собран' (pickingOrder) = countPickingOrderSkuPickingOrder(pickingOrder) == countEqualPickingOrderSkuPickingOrder(pickingOrder) PERSISTENT;
 calcPartPickingOrder 'Частично собран' (pickingOrder) = quantityPickingsPickingOrder(pickingOrder) AND NOT calcFullPickingOrder(pickingOrder);
 
 packQuantityPickingOrder 'Кол-во собранных мест' (pickingOrder) = GROUP SUM packQuantityPicking(picking) BY pickingOrderPicking(picking);
