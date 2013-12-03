@@ -7,6 +7,7 @@ import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 
 public class DefaultExportActionProperty extends ScriptingActionProperty {
@@ -37,5 +38,11 @@ public class DefaultExportActionProperty extends ScriptingActionProperty {
     
     protected String upper(String value) {
         return value == null ? null : value.toUpperCase(); 
+    }
+
+    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 }
