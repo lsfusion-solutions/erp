@@ -45,4 +45,14 @@ public class DefaultExportActionProperty extends ScriptingActionProperty {
             return null;
         else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
+
+    protected BigDecimal safeMultiply(BigDecimal operand1, int operand2) {
+        return safeMultiply(operand1, BigDecimal.valueOf(operand2));
+    }
+
+    protected BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
+            return null;
+        else return operand1.multiply(operand2);
+    }
 }
