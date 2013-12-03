@@ -31,23 +31,23 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = LM.findLCPByCompoundName("receiptReceiptDetail").readClasses(session, receiptDetailObject);
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(session);
+            ObjectValue receiptObject = getLCP("receiptReceiptDetail").readClasses(session, receiptDetailObject);
+            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(session);
+            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(session);
 
-            String name = (String) LM.findLCPByCompoundName("nameSkuReceiptDetail").read(session, receiptDetailObject);
+            String name = (String) getLCP("nameSkuReceiptDetail").read(session, receiptDetailObject);
             name = name == null ? "" : name.trim();
-            String barcode = (String) LM.findLCPByCompoundName("idBarcodeReceiptDetail").read(session, receiptDetailObject);
-            BigDecimal quantityValue = (BigDecimal) LM.findLCPByCompoundName("quantityReceiptDetail").read(session, receiptDetailObject);
+            String barcode = (String) getLCP("idBarcodeReceiptDetail").read(session, receiptDetailObject);
+            BigDecimal quantityValue = (BigDecimal) getLCP("quantityReceiptDetail").read(session, receiptDetailObject);
             double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue(); 
-            BigDecimal priceValue = (BigDecimal) LM.findLCPByCompoundName("priceReceiptDetail").read(session, receiptDetailObject);
+            BigDecimal priceValue = (BigDecimal) getLCP("priceReceiptDetail").read(session, receiptDetailObject);
             long price = priceValue == null ? 0 : priceValue.longValue();
-            BigDecimal sumValue = (BigDecimal) LM.findLCPByCompoundName("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
+            BigDecimal sumValue = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
             long sum = sumValue == null ? 0 : sumValue.longValue();
-            BigDecimal articleDiscSumValue = (BigDecimal) LM.findLCPByCompoundName("discountSumReceiptDetail").read(session, receiptDetailObject);
+            BigDecimal articleDiscSumValue = (BigDecimal) getLCP("discountSumReceiptDetail").read(session, receiptDetailObject);
             long articleDiscSum = articleDiscSumValue == null ? 0 : articleDiscSumValue.longValue();
             
-            String result = (String)context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(baudRate, comPort, new ReceiptItem(price, quantity, barcode, name, sum, articleDiscSum)));
+            String result = (String)context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(baudRate, comPort, new ReceiptItem(false, price, quantity, barcode, name, sum, articleDiscSum)));
             if(result!=null)
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
         } catch (SQLException e) {

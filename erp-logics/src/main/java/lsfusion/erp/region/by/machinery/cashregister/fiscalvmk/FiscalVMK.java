@@ -145,6 +145,12 @@ public class FiscalVMK {
         return vmkDLL.vmk.vmk_oplat(1, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
+    public static boolean totalGiftCard(BigDecimal sum) {
+        if (sum == null)
+            return true;
+        return vmkDLL.vmk.vmk_oplat(2, Math.abs(sum.intValue()), 0/*"00000000"*/);
+    }
+
     public static void xReport() {
         if (!vmkDLL.vmk.vmk_xotch())
             checkErrors(true);
@@ -179,7 +185,8 @@ public class FiscalVMK {
     public static void displayText(ReceiptItem item) {
         try {
             String firstLine = " " + toStr(item.quantity) + "x" + String.valueOf(item.price);
-            firstLine = item.name.substring(0, 16 - Math.min(16, firstLine.length())) + firstLine;
+            int length = 16 - Math.min(16, firstLine.length());
+            firstLine = item.name.substring(0, Math.min(length, item.name.length())) + firstLine;
             String secondLine = String.valueOf(item.sumPos);
             while (secondLine.length() < 11)
                 secondLine = " " + secondLine;
@@ -193,7 +200,7 @@ public class FiscalVMK {
 
     public static boolean registerItem(ReceiptItem item) {
         try {
-            return vmkDLL.vmk.vmk_sale(item.barcode, (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), 1 /*отдел*/, item.quantity, 0);
+            return vmkDLL.vmk.vmk_sale(item.barcode, (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
         } catch (UnsupportedEncodingException e) {
             return false;
         }

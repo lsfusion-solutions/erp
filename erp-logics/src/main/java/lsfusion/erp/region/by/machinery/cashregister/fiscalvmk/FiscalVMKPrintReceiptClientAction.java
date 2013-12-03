@@ -76,6 +76,8 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         if (!FiscalVMK.subtotal())
             return false;
 
+        if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard))
+            return false;
         if (!FiscalVMK.totalCard(receipt.sumCard))
             return false;
         if (!FiscalVMK.totalCash(receipt.sumCash))
