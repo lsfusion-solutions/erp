@@ -44,7 +44,7 @@ public class DefaultExportTXTActionProperty extends DefaultExportActionProperty 
     }
 
     protected String formatString(String input, String encoding, int length, int position, boolean newLine) throws UnsupportedEncodingException {
-        input = input == null ? "" : input;
+        input = input == null ? "" : input.substring(0, Math.min(input.length(), length));
         while (input.length() < length) {
             switch (position) {
                 case LEFT:
