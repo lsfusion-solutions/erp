@@ -23,19 +23,19 @@ public class FiscalDatecsZReportActionProperty extends ScriptingActionProperty {
         try {
             DataSession session = context.getSession();
 
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
 
             if (context.checkApply()) {
                 Object VATSumReceipt = context.requestUserInteraction(new FiscalDatecsCustomOperationClientAction(2, baudRate, comPort));
                 if (VATSumReceipt instanceof Double[]) {
-                    ObjectValue zReportObject = LM.findLCPByCompoundName("currentZReport").readClasses(session);
+                    ObjectValue zReportObject = LM.findLCPByCompoundOldName("currentZReport").readClasses(session);
                     if (!zReportObject.isNull()) {
-                        LM.findLCPByCompoundName("VATSumSaleZReport").change(((Object[]) VATSumReceipt)[0], session, (DataObject) zReportObject);
-                        LM.findLCPByCompoundName("VATSumReturnZReport").change(((Object[]) VATSumReceipt)[1], session, (DataObject) zReportObject);
+                        LM.findLCPByCompoundOldName("VATSumSaleZReport").change(((Object[]) VATSumReceipt)[0], session, (DataObject) zReportObject);
+                        LM.findLCPByCompoundOldName("VATSumReturnZReport").change(((Object[]) VATSumReceipt)[1], session, (DataObject) zReportObject);
                     }
                     context.apply();
-                    LM.findLAPByCompoundName("closeCurrentZReport").execute(session);
+                    LM.findLAPByCompoundOldName("closeCurrentZReport").execute(session);
                 } else if (VATSumReceipt != null)
                     context.requestUserInteraction(new MessageClientAction((String) VATSumReceipt, "Ошибка"));
             }

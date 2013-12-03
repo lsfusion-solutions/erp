@@ -41,16 +41,16 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
 
         try {
 
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
-            Integer pass = (Integer) LM.findLCPByCompoundName("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
+            Integer pass = (Integer) LM.findLCPByCompoundOldName("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
             int password = pass==null ? 30000 : pass * 1000;
 
-            String cashierName = (String) LM.findLCPByCompoundName("nameUserReceipt").read(context, receiptObject);
+            String cashierName = (String) LM.findLCPByCompoundOldName("nameUserReceipt").read(context, receiptObject);
             cashierName = cashierName == null ? "" : cashierName.trim();
-            String holderDiscountCard = (String) LM.findLCPByCompoundName("nameLegalEntityDiscountCardReceipt").read(context, receiptObject);
+            String holderDiscountCard = (String) LM.findLCPByCompoundOldName("nameLegalEntityDiscountCardReceipt").read(context, receiptObject);
             holderDiscountCard = holderDiscountCard == null ? "" : holderDiscountCard.trim();
-            String numberDiscountCard = (String) LM.findLCPByCompoundName("numberDiscountCardReceipt").read(context, receiptObject);
+            String numberDiscountCard = (String) LM.findLCPByCompoundOldName("numberDiscountCardReceipt").read(context, receiptObject);
             numberDiscountCard = numberDiscountCard == null ? "" : numberDiscountCard.trim();
 
             BigDecimal sumCard = null;
@@ -62,11 +62,11 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
             ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
             QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
-            paymentQuery.addProperty("sumPayment", LM.findLCPByCompoundName("sumPayment").getExpr(context.getModifier(), paymentExpr));
-            paymentQuery.addProperty("paymentMeansPayment", LM.findLCPByCompoundName("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
+            paymentQuery.addProperty("sumPayment", LM.findLCPByCompoundOldName("sumPayment").getExpr(context.getModifier(), paymentExpr));
+            paymentQuery.addProperty("paymentMeansPayment", LM.findLCPByCompoundOldName("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
             if (giftCardLM != null)
-                paymentQuery.addProperty("seriesNumberGiftCardPaymentGiftCard", giftCardLM.findLCPByCompoundName("seriesNumberGiftCardPaymentGiftCard").getExpr(context.getModifier(), paymentExpr));
-            paymentQuery.and(LM.findLCPByCompoundName("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                paymentQuery.addProperty("seriesNumberGiftCardPaymentGiftCard", giftCardLM.findLCPByCompoundOldName("seriesNumberGiftCardPaymentGiftCard").getExpr(context.getModifier(), paymentExpr));
+            paymentQuery.and(LM.findLCPByCompoundOldName("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context.getSession().sql);
             for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
@@ -94,8 +94,8 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
                     "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
                     "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail"};
             for (String rdProperty : rdProperties)
-                receiptDetailQuery.addProperty(rdProperty, LM.findLCPByCompoundName(rdProperty).getExpr(context.getModifier(), receiptDetailExpr));
-            receiptDetailQuery.and(LM.findLCPByCompoundName("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                receiptDetailQuery.addProperty(rdProperty, LM.findLCPByCompoundOldName(rdProperty).getExpr(context.getModifier(), receiptDetailExpr));
+            receiptDetailQuery.and(LM.findLCPByCompoundOldName("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context.getSession().sql);
             List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
@@ -145,7 +145,7 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
                                             isReturn ? receiptReturnItemList : receiptSaleItemList)));
                     if (result == null) {
                         context.apply();
-                        LM.findLAPByCompoundName("createCurrentReceipt").execute(context);
+                        LM.findLAPByCompoundOldName("createCurrentReceipt").execute(context);
                     } else
                         context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
                 }

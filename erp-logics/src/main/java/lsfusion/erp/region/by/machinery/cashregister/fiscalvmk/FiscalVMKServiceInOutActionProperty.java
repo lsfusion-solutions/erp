@@ -27,15 +27,15 @@ public class FiscalVMKServiceInOutActionProperty extends ScriptingActionProperty
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
-            Boolean isDone = LM.findLCPByCompoundName("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
-            BigDecimal sum = (BigDecimal)LM.findLCPByCompoundName("sumCashOperation").read(context.getSession(), cashOperationObject);
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
+            Boolean isDone = LM.findLCPByCompoundOldName("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
+            BigDecimal sum = (BigDecimal)LM.findLCPByCompoundOldName("sumCashOperation").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(baudRate, comPort, sum));
                 if (result == null){
-                    LM.findLCPByCompoundName("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
+                    LM.findLCPByCompoundOldName("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
                 }
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

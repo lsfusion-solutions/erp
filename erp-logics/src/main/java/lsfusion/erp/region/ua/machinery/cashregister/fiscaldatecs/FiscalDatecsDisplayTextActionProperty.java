@@ -30,17 +30,17 @@ public class FiscalDatecsDisplayTextActionProperty extends ScriptingActionProper
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = LM.findLCPByCompoundName("receiptReceiptDetail").readClasses(session, receiptDetailObject);
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(session);
+            ObjectValue receiptObject = LM.findLCPByCompoundOldName("receiptReceiptDetail").readClasses(session, receiptDetailObject);
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(session);
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(session);
 
-            String name = (String) LM.findLCPByCompoundName("nameSkuReceiptDetail").read(session, receiptDetailObject);
-            String barcode = (String) LM.findLCPByCompoundName("idBarcodeReceiptDetail").read(session, receiptDetailObject);
-            Double quantity = (Double) LM.findLCPByCompoundName("quantityReceiptDetail").read(session, receiptDetailObject);
-            Double price = (Double) LM.findLCPByCompoundName("priceReceiptDetail").read(session, receiptDetailObject);
-            Double sum = (Double) LM.findLCPByCompoundName("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
-            Double articleDisc = (Double) LM.findLCPByCompoundName("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
-            Double articleDiscSum = (Double) LM.findLCPByCompoundName("discountSumReceiptDetail").read(session, receiptDetailObject);
+            String name = (String) LM.findLCPByCompoundOldName("nameSkuReceiptDetail").read(session, receiptDetailObject);
+            String barcode = (String) LM.findLCPByCompoundOldName("idBarcodeReceiptDetail").read(session, receiptDetailObject);
+            Double quantity = (Double) LM.findLCPByCompoundOldName("quantityReceiptDetail").read(session, receiptDetailObject);
+            Double price = (Double) LM.findLCPByCompoundOldName("priceReceiptDetail").read(session, receiptDetailObject);
+            Double sum = (Double) LM.findLCPByCompoundOldName("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
+            Double articleDisc = (Double) LM.findLCPByCompoundOldName("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
+            Double articleDiscSum = (Double) LM.findLCPByCompoundOldName("discountSumReceiptDetail").read(session, receiptDetailObject);
 
 
             String result = (String)context.requestUserInteraction(new FiscalDatecsDisplayTextClientAction(baudRate, comPort, new ReceiptItem(price, quantity, barcode, name, sum, articleDisc, articleDiscSum, 0, 0)));

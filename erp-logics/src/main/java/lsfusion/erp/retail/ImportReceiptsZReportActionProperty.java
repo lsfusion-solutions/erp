@@ -75,15 +75,15 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                     Document doc = dBuilder.parse(new ByteArrayInputStream(file));
                     doc.getDocumentElement().normalize();
 
-                    String numberZReport = (String) LM.findLCPByCompoundName("numberZReport").read(session, zReportObject);
-                    String numberCashRegisterZReport = (String) LM.findLCPByCompoundName("numberCashRegisterZReport").read(session, zReportObject);
+                    String numberZReport = (String) LM.findLCPByCompoundOldName("numberZReport").read(session, zReportObject);
+                    String numberCashRegisterZReport = (String) LM.findLCPByCompoundOldName("numberCashRegisterZReport").read(session, zReportObject);
 
                     Integer numberReceipt = 0;
                     KeyExpr receiptExpr = new KeyExpr("receipt");
                     ImRevMap<Object, KeyExpr> receiptKeys = MapFact.singletonRev((Object)"receipt", receiptExpr);
                     QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<Object, Object>(receiptKeys);
-                    receiptQuery.addProperty("numberReceipt", LM.findLCPByCompoundName("numberReceipt").getExpr(context.getModifier(), receiptExpr));
-                    receiptQuery.and(LM.findLCPByCompoundName("zReportReceipt").getExpr(context.getModifier(), receiptQuery.getMapExprs().get("receipt")).compare(zReportObject.getExpr(), Compare.EQUALS));
+                    receiptQuery.addProperty("numberReceipt", LM.findLCPByCompoundOldName("numberReceipt").getExpr(context.getModifier(), receiptExpr));
+                    receiptQuery.and(LM.findLCPByCompoundOldName("zReportReceipt").getExpr(context.getModifier(), receiptQuery.getMapExprs().get("receipt")).compare(zReportObject.getExpr(), Compare.EQUALS));
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptResult = receiptQuery.execute(session.sql);
                     for (ImMap<Object, Object> receiptRows : receiptResult.valueIt()) {
                         Integer number = (Integer) receiptRows.get("numberReceipt");
@@ -199,50 +199,50 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 List<ImportKey<?>> returnKeys = new ArrayList<ImportKey<?>>();
                 List<ImportKey<?>> paymentKeys = new ArrayList<ImportKey<?>>();
                 
-                ImportField numberCashRegisterField = new ImportField(LM.findLCPByCompoundName("numberCashRegister"));
-                ImportField numberZReportField = new ImportField(LM.findLCPByCompoundName("numberZReport"));
-                ImportField numberReceiptField = new ImportField(LM.findLCPByCompoundName("numberReceipt"));
-                ImportField numberReceiptDetailField = new ImportField(LM.findLCPByCompoundName("numberReceiptDetail"));
+                ImportField numberCashRegisterField = new ImportField(LM.findLCPByCompoundOldName("numberCashRegister"));
+                ImportField numberZReportField = new ImportField(LM.findLCPByCompoundOldName("numberZReport"));
+                ImportField numberReceiptField = new ImportField(LM.findLCPByCompoundOldName("numberReceipt"));
+                ImportField numberReceiptDetailField = new ImportField(LM.findLCPByCompoundOldName("numberReceiptDetail"));
                 
-                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("CashRegister"), LM.findLCPByCompoundName("cashRegisterNumber").getMapping(numberCashRegisterField));
+                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("CashRegister"), LM.findLCPByCompoundOldName("cashRegisterNumber").getMapping(numberCashRegisterField));
                 saleKeys.add(cashRegisterKey);
                 returnKeys.add(cashRegisterKey);
                 paymentKeys.add(cashRegisterKey);
                 
-                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ZReport"), LM.findLCPByCompoundName("zReportNumberCashRegister").getMapping(numberZReportField, numberCashRegisterField));
+                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ZReport"), LM.findLCPByCompoundOldName("zReportNumberCashRegister").getMapping(numberZReportField, numberCashRegisterField));
                 saleKeys.add(zReportKey);
                 returnKeys.add(zReportKey);
                 
-                ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Receipt"), LM.findLCPByCompoundName("receiptZReportNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberCashRegisterField));
+                ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Receipt"), LM.findLCPByCompoundOldName("receiptZReportNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberCashRegisterField));
                 saleKeys.add(receiptKey);
                 returnKeys.add(receiptKey);
                 paymentKeys.add(receiptKey);
                 
-                ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ReceiptSaleDetail"), LM.findLCPByCompoundName("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
+                ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ReceiptSaleDetail"), LM.findLCPByCompoundOldName("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
                 saleKeys.add(receiptSaleDetailKey);
                 
-                ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ReceiptReturnDetail"), LM.findLCPByCompoundName("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
+                ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ReceiptReturnDetail"), LM.findLCPByCompoundOldName("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
                 returnKeys.add(receiptReturnDetailKey);
                 
-                saleProperties.add(new ImportProperty(numberCashRegisterField, LM.findLCPByCompoundName("cashRegisterZReport").getMapping(zReportKey),
+                saleProperties.add(new ImportProperty(numberCashRegisterField, LM.findLCPByCompoundOldName("cashRegisterZReport").getMapping(zReportKey),
                         LM.baseLM.object(LM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
-                saleProperties.add(new ImportProperty(numberZReportField, LM.findLCPByCompoundName("numberZReport").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(numberZReportField, LM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
+                saleProperties.add(new ImportProperty(numberZReportField, LM.findLCPByCompoundOldName("numberZReport").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(numberZReportField, LM.findLCPByCompoundOldName("zReportReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundName("numberReceipt").getMapping(receiptKey)));
-                saleProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundName("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
+                saleProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundOldName("numberReceipt").getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundOldName("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
                         LM.baseLM.object(LM.findClassByCompoundName("Receipt")).getMapping(receiptKey)));
-                saleProperties.add(new ImportProperty(numberReceiptDetailField, LM.findLCPByCompoundName("numberReceiptDetail").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(numberReceiptDetailField, LM.findLCPByCompoundOldName("numberReceiptDetail").getMapping(receiptSaleDetailKey)));
                 
-                returnProperties.add(new ImportProperty(numberCashRegisterField, LM.findLCPByCompoundName("cashRegisterZReport").getMapping(zReportKey),
+                returnProperties.add(new ImportProperty(numberCashRegisterField, LM.findLCPByCompoundOldName("cashRegisterZReport").getMapping(zReportKey),
                         LM.baseLM.object(LM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
-                returnProperties.add(new ImportProperty(numberZReportField, LM.findLCPByCompoundName("numberZReport").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(numberZReportField, LM.findLCPByCompoundName("zReportReceipt").getMapping(receiptKey),
+                returnProperties.add(new ImportProperty(numberZReportField, LM.findLCPByCompoundOldName("numberZReport").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(numberZReportField, LM.findLCPByCompoundOldName("zReportReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));                
-                returnProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundName("numberReceipt").getMapping(receiptKey)));                
-                returnProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundName("receiptReceiptDetail").getMapping(receiptReturnDetailKey),
+                returnProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundOldName("numberReceipt").getMapping(receiptKey)));                
+                returnProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundOldName("receiptReceiptDetail").getMapping(receiptReturnDetailKey),
                         LM.baseLM.object(LM.findClassByCompoundName("Receipt")).getMapping(receiptKey)));               
-                returnProperties.add(new ImportProperty(numberReceiptDetailField, LM.findLCPByCompoundName("numberReceiptDetail").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(numberReceiptDetailField, LM.findLCPByCompoundOldName("numberReceiptDetail").getMapping(receiptReturnDetailKey)));
                 
                 saleImportFields.add(numberCashRegisterField);
                 saleImportFields.add(numberZReportField);
@@ -258,21 +258,21 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 paymentImportFields.add(numberCashRegisterField);
 
                                 
-                ImportField dateField = new ImportField(LM.findLCPByCompoundName("dateReceipt"));
-                ImportField idBarcodeReceiptDetailField = new ImportField(LM.findLCPByCompoundName("idBarcodeReceiptDetail"));                
-                ImportKey<?> skuKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Sku"), LM.findLCPByCompoundName("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateField));
+                ImportField dateField = new ImportField(LM.findLCPByCompoundOldName("dateReceipt"));
+                ImportField idBarcodeReceiptDetailField = new ImportField(LM.findLCPByCompoundOldName("idBarcodeReceiptDetail"));                
+                ImportKey<?> skuKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Sku"), LM.findLCPByCompoundOldName("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateField));
                 saleKeys.add(skuKey);
                 returnKeys.add(skuKey);
                 
-                saleProperties.add(new ImportProperty(dateField, LM.findLCPByCompoundName("dateZReport").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(dateField, LM.findLCPByCompoundName("dateReceipt").getMapping(receiptKey)));
-                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, LM.findLCPByCompoundName("idBarcodeReceiptDetail").getMapping(receiptSaleDetailKey)));
-                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, LM.findLCPByCompoundName("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
+                saleProperties.add(new ImportProperty(dateField, LM.findLCPByCompoundOldName("dateZReport").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(dateField, LM.findLCPByCompoundOldName("dateReceipt").getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, LM.findLCPByCompoundOldName("idBarcodeReceiptDetail").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, LM.findLCPByCompoundOldName("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
                         LM.baseLM.object(LM.findClassByCompoundName("Sku")).getMapping(skuKey)));
-                returnProperties.add(new ImportProperty(dateField, LM.findLCPByCompoundName("dateZReport").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(dateField, LM.findLCPByCompoundName("dateReceipt").getMapping(receiptKey)));
-                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, LM.findLCPByCompoundName("idBarcodeReceiptDetail").getMapping(receiptReturnDetailKey)));
-                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, LM.findLCPByCompoundName("skuReceiptReturnDetail").getMapping(receiptReturnDetailKey),
+                returnProperties.add(new ImportProperty(dateField, LM.findLCPByCompoundOldName("dateZReport").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(dateField, LM.findLCPByCompoundOldName("dateReceipt").getMapping(receiptKey)));
+                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, LM.findLCPByCompoundOldName("idBarcodeReceiptDetail").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, LM.findLCPByCompoundOldName("skuReceiptReturnDetail").getMapping(receiptReturnDetailKey),
                         LM.baseLM.object(LM.findClassByCompoundName("Sku")).getMapping(skuKey)));
                 saleImportFields.add(dateField);
                 saleImportFields.add(idBarcodeReceiptDetailField);
@@ -280,123 +280,123 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 returnImportFields.add(idBarcodeReceiptDetailField);
 
                 
-                ImportField timeField = new ImportField(LM.findLCPByCompoundName("timeReceipt"));
-                saleProperties.add(new ImportProperty(timeField, LM.findLCPByCompoundName("timeZReport").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(timeField, LM.findLCPByCompoundName("timeReceipt").getMapping(receiptKey)));
-                returnProperties.add(new ImportProperty(timeField, LM.findLCPByCompoundName("timeZReport").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(timeField, LM.findLCPByCompoundName("timeReceipt").getMapping(receiptKey)));
+                ImportField timeField = new ImportField(LM.findLCPByCompoundOldName("timeReceipt"));
+                saleProperties.add(new ImportProperty(timeField, LM.findLCPByCompoundOldName("timeZReport").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(timeField, LM.findLCPByCompoundOldName("timeReceipt").getMapping(receiptKey)));
+                returnProperties.add(new ImportProperty(timeField, LM.findLCPByCompoundOldName("timeZReport").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(timeField, LM.findLCPByCompoundOldName("timeReceipt").getMapping(receiptKey)));
                 saleImportFields.add(timeField);
                 returnImportFields.add(timeField);
 
-                ImportField quantityReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundName("quantityReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, LM.findLCPByCompoundName("quantityReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField quantityReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundOldName("quantityReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, LM.findLCPByCompoundOldName("quantityReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(quantityReceiptSaleDetailField);
 
-                ImportField quantityReceiptReturnDetailField = new ImportField(LM.findLCPByCompoundName("quantityReceiptReturnDetail"));
-                returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, LM.findLCPByCompoundName("quantityReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
+                ImportField quantityReceiptReturnDetailField = new ImportField(LM.findLCPByCompoundOldName("quantityReceiptReturnDetail"));
+                returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, LM.findLCPByCompoundOldName("quantityReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnImportFields.add(quantityReceiptReturnDetailField);
 
-                ImportField priceReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundName("priceReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, LM.findLCPByCompoundName("priceReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField priceReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundOldName("priceReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, LM.findLCPByCompoundOldName("priceReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(priceReceiptSaleDetailField);
 
-                ImportField priceReceiptReturnDetailField = new ImportField(LM.findLCPByCompoundName("priceReceiptReturnDetail"));
-                returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, LM.findLCPByCompoundName("priceReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
+                ImportField priceReceiptReturnDetailField = new ImportField(LM.findLCPByCompoundOldName("priceReceiptReturnDetail"));
+                returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, LM.findLCPByCompoundOldName("priceReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnImportFields.add(priceReceiptReturnDetailField);
                 
-                ImportField sumReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundName("sumReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, LM.findLCPByCompoundName("sumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField sumReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundOldName("sumReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, LM.findLCPByCompoundOldName("sumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(sumReceiptSaleDetailField);
 
-                ImportField retailSumReceiptReturnDetailField = new ImportField(LM.findLCPByCompoundName("sumReceiptReturnDetail"));
-                returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, LM.findLCPByCompoundName("sumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
+                ImportField retailSumReceiptReturnDetailField = new ImportField(LM.findLCPByCompoundOldName("sumReceiptReturnDetail"));
+                returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, LM.findLCPByCompoundOldName("sumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnImportFields.add(retailSumReceiptReturnDetailField);
                 
-                ImportField discountSumReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundName("discountSumReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, LM.findLCPByCompoundName("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField discountSumReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundOldName("discountSumReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, LM.findLCPByCompoundOldName("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(discountSumReceiptSaleDetailField);
 
-                ImportField discountSumReceiptReturnDetailField = new ImportField(LM.findLCPByCompoundName("discountSumReceiptReturnDetail"));
-                returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, LM.findLCPByCompoundName("discountSumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
+                ImportField discountSumReceiptReturnDetailField = new ImportField(LM.findLCPByCompoundOldName("discountSumReceiptReturnDetail"));
+                returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, LM.findLCPByCompoundOldName("discountSumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnImportFields.add(discountSumReceiptReturnDetailField);
 
-                ImportField discountPercentReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundName("discountPercentReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(discountPercentReceiptSaleDetailField, LM.findLCPByCompoundName("discountPercentReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField discountPercentReceiptSaleDetailField = new ImportField(LM.findLCPByCompoundOldName("discountPercentReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(discountPercentReceiptSaleDetailField, LM.findLCPByCompoundOldName("discountPercentReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(discountPercentReceiptSaleDetailField);
 
-                ImportField discountSumReturnReceiptField = new ImportField(LM.findLCPByCompoundName("discountSumReturnReceipt"));
-                returnProperties.add(new ImportProperty(discountSumReturnReceiptField, LM.findLCPByCompoundName("discountSumReturnReceipt").getMapping(receiptKey)));
+                ImportField discountSumReturnReceiptField = new ImportField(LM.findLCPByCompoundOldName("discountSumReturnReceipt"));
+                returnProperties.add(new ImportProperty(discountSumReturnReceiptField, LM.findLCPByCompoundOldName("discountSumReturnReceipt").getMapping(receiptKey)));
                 returnImportFields.add(discountSumReturnReceiptField);
 
-                ImportField discountSumSaleReceiptField = new ImportField(LM.findLCPByCompoundName("discountSumSaleReceipt"));
-                saleProperties.add(new ImportProperty(discountSumSaleReceiptField, LM.findLCPByCompoundName("discountSumSaleReceipt").getMapping(receiptKey)));
+                ImportField discountSumSaleReceiptField = new ImportField(LM.findLCPByCompoundOldName("discountSumSaleReceipt"));
+                saleProperties.add(new ImportProperty(discountSumSaleReceiptField, LM.findLCPByCompoundOldName("discountSumSaleReceipt").getMapping(receiptKey)));
                 saleImportFields.add(discountSumSaleReceiptField);
 
-                ImportField seriesNumberDiscountCardField = new ImportField(LM.findLCPByCompoundName("seriesNumberDiscountCard"));
-                ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("DiscountCard"), LM.findLCPByCompoundName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
+                ImportField seriesNumberDiscountCardField = new ImportField(LM.findLCPByCompoundOldName("seriesNumberDiscountCard"));
+                ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("DiscountCard"), LM.findLCPByCompoundOldName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
                 saleKeys.add(discountCardKey);
                 returnKeys.add(discountCardKey);
                 
-                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
+                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
+                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
-                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundName("discountCardReceipt").getMapping(receiptKey),
+                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
+                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, LM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
                         LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
                 saleImportFields.add(seriesNumberDiscountCardField);
                 returnImportFields.add(seriesNumberDiscountCardField);
 
-                ImportField noteReceiptField = new ImportField(LM.findLCPByCompoundName("noteReceipt"));
-                saleProperties.add(new ImportProperty(noteReceiptField, LM.findLCPByCompoundName("noteReceipt").getMapping(receiptKey)));
-                returnProperties.add(new ImportProperty(noteReceiptField, LM.findLCPByCompoundName("noteReceipt").getMapping(receiptKey)));
+                ImportField noteReceiptField = new ImportField(LM.findLCPByCompoundOldName("noteReceipt"));
+                saleProperties.add(new ImportProperty(noteReceiptField, LM.findLCPByCompoundOldName("noteReceipt").getMapping(receiptKey)));
+                returnProperties.add(new ImportProperty(noteReceiptField, LM.findLCPByCompoundOldName("noteReceipt").getMapping(receiptKey)));
                 saleImportFields.add(noteReceiptField);
                 returnImportFields.add(noteReceiptField);
 
-                ImportField idPromotionConditionField = new ImportField(LM.findLCPByCompoundName("idPromotionCondition"));
+                ImportField idPromotionConditionField = new ImportField(LM.findLCPByCompoundOldName("idPromotionCondition"));
                 ImportKey<?> promotionConditionKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("PromotionCondition"),
-                        LM.findLCPByCompoundName("promotionConditionId").getMapping(idPromotionConditionField));
+                        LM.findLCPByCompoundOldName("promotionConditionId").getMapping(idPromotionConditionField));
                 saleKeys.add(promotionConditionKey);
                 saleImportFields.add(idPromotionConditionField);
 
-                ImportField quantityReceiptSaleDetailPromotionConditionField = new ImportField(LM.findLCPByCompoundName("quantityReceiptSaleDetailPromotionCondition"));
-                saleProperties.add(new ImportProperty(quantityReceiptSaleDetailPromotionConditionField, LM.findLCPByCompoundName("quantityReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
+                ImportField quantityReceiptSaleDetailPromotionConditionField = new ImportField(LM.findLCPByCompoundOldName("quantityReceiptSaleDetailPromotionCondition"));
+                saleProperties.add(new ImportProperty(quantityReceiptSaleDetailPromotionConditionField, LM.findLCPByCompoundOldName("quantityReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
                 saleImportFields.add(quantityReceiptSaleDetailPromotionConditionField);
 
-                ImportField promotionSumReceiptSaleDetailPromotionConditionField = new ImportField(LM.findLCPByCompoundName("promotionSumReceiptSaleDetailPromotionCondition"));
-                saleProperties.add(new ImportProperty(promotionSumReceiptSaleDetailPromotionConditionField, LM.findLCPByCompoundName("promotionSumReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
+                ImportField promotionSumReceiptSaleDetailPromotionConditionField = new ImportField(LM.findLCPByCompoundOldName("promotionSumReceiptSaleDetailPromotionCondition"));
+                saleProperties.add(new ImportProperty(promotionSumReceiptSaleDetailPromotionConditionField, LM.findLCPByCompoundOldName("promotionSumReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
                 saleImportFields.add(promotionSumReceiptSaleDetailPromotionConditionField);
 
                 if(POSVostrovLM != null) {
-                    ImportField isInvoiceReceiptField = new ImportField(POSVostrovLM.findLCPByCompoundName("isInvoiceReceipt"));
-                    saleProperties.add(new ImportProperty(isInvoiceReceiptField, POSVostrovLM.findLCPByCompoundName("isInvoiceReceipt").getMapping(receiptKey)));
-                    returnProperties.add(new ImportProperty(isInvoiceReceiptField, POSVostrovLM.findLCPByCompoundName("isInvoiceReceipt").getMapping(receiptKey)));
+                    ImportField isInvoiceReceiptField = new ImportField(POSVostrovLM.findLCPByCompoundOldName("isInvoiceReceipt"));
+                    saleProperties.add(new ImportProperty(isInvoiceReceiptField, POSVostrovLM.findLCPByCompoundOldName("isInvoiceReceipt").getMapping(receiptKey)));
+                    returnProperties.add(new ImportProperty(isInvoiceReceiptField, POSVostrovLM.findLCPByCompoundOldName("isInvoiceReceipt").getMapping(receiptKey)));
                     saleImportFields.add(isInvoiceReceiptField);
                     returnImportFields.add(isInvoiceReceiptField);
                 }
 
-                ImportField numberPaymentField = new ImportField(LM.findLCPByCompoundName("numberPayment"));
-                ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Payment"), LM.findLCPByCompoundName("paymentZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberPaymentField, numberCashRegisterField));
+                ImportField numberPaymentField = new ImportField(LM.findLCPByCompoundOldName("numberPayment"));
+                ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Payment"), LM.findLCPByCompoundOldName("paymentZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberPaymentField, numberCashRegisterField));
                 paymentKeys.add(paymentKey);
-                paymentProperties.add(new ImportProperty(numberPaymentField, LM.findLCPByCompoundName("numberPayment").getMapping(paymentKey)));
+                paymentProperties.add(new ImportProperty(numberPaymentField, LM.findLCPByCompoundOldName("numberPayment").getMapping(paymentKey)));
                 paymentImportFields.add(numberPaymentField);
                 
-                paymentProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundName("receiptPayment").getMapping(paymentKey),
+                paymentProperties.add(new ImportProperty(numberReceiptField, LM.findLCPByCompoundOldName("receiptPayment").getMapping(paymentKey),
                         LM.baseLM.object(LM.findClassByCompoundName("Receipt")).getMapping(receiptKey)));
                 paymentImportFields.add(numberReceiptField);
                 
-                ImportField sidTypePaymentField = new ImportField(LM.findLCPByCompoundName("sidPaymentType"));
-                ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("PaymentType"), LM.findLCPByCompoundName("typePaymentSID").getMapping(sidTypePaymentField));
+                ImportField sidTypePaymentField = new ImportField(LM.findLCPByCompoundOldName("sidPaymentType"));
+                ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("PaymentType"), LM.findLCPByCompoundOldName("typePaymentSID").getMapping(sidTypePaymentField));
                 paymentKeys.add(paymentTypeKey);
-                paymentProperties.add(new ImportProperty(sidTypePaymentField, LM.findLCPByCompoundName("paymentTypePayment").getMapping(paymentKey),
+                paymentProperties.add(new ImportProperty(sidTypePaymentField, LM.findLCPByCompoundOldName("paymentTypePayment").getMapping(paymentKey),
                         LM.baseLM.object(LM.findClassByCompoundName("PaymentType")).getMapping(paymentTypeKey)));
                 paymentImportFields.add(sidTypePaymentField);
                 
-                ImportField sumPaymentField = new ImportField(LM.findLCPByCompoundName("sumPayment"));
-                paymentProperties.add(new ImportProperty(sumPaymentField, LM.findLCPByCompoundName("sumPayment").getMapping(paymentKey)));
+                ImportField sumPaymentField = new ImportField(LM.findLCPByCompoundOldName("sumPayment"));
+                paymentProperties.add(new ImportProperty(sumPaymentField, LM.findLCPByCompoundOldName("sumPayment").getMapping(paymentKey)));
                 paymentImportFields.add(sumPaymentField);
                 
                 ImportField paymentMeansPaymentField = new ImportField(LM.baseLM.staticCaption);
-                paymentProperties.add(new ImportProperty(paymentMeansPaymentField, LM.findLCPByCompoundName("paymentMeansPayment").getMapping(paymentKey)));
+                paymentProperties.add(new ImportProperty(paymentMeansPaymentField, LM.findLCPByCompoundOldName("paymentMeansPayment").getMapping(paymentKey)));
                 paymentImportFields.add(paymentMeansPaymentField);
 
                 new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);

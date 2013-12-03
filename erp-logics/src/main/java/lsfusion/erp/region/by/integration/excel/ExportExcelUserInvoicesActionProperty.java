@@ -115,14 +115,14 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     if (purchaseInvoiceWholesaleLM != null) {
                         String[] purchaseInvoiceWholesaleUserInvoiceDetailProperties = new String[]{"Purchase.wholesalePriceUserInvoiceDetail", "Purchase.wholesaleMarkupUserInvoiceDetail"};
                         for (String uidProperty : purchaseInvoiceWholesaleUserInvoiceDetailProperties) {
-                            userInvoiceDetailQuery.addProperty(uidProperty, purchaseInvoiceWholesaleLM.findLCPByCompoundName(uidProperty).getExpr(context.getModifier(), userInvoiceDetailExpr));
+                            userInvoiceDetailQuery.addProperty(uidProperty, purchaseInvoiceWholesaleLM.findLCPByCompoundOldName(uidProperty).getExpr(context.getModifier(), userInvoiceDetailExpr));
                         }
                     }
 
                     if (pricingPurchaseLM != null) {
                         String[] pricingPurchaseUserInvoiceDetailProperties = new String[]{"Purchase.retailPriceUserInvoiceDetail", "Purchase.retailMarkupUserInvoiceDetail"};
                         for (String uidProperty : pricingPurchaseUserInvoiceDetailProperties) {
-                            userInvoiceDetailQuery.addProperty(uidProperty, pricingPurchaseLM.findLCPByCompoundName(uidProperty).getExpr(context.getModifier(), userInvoiceDetailExpr));
+                            userInvoiceDetailQuery.addProperty(uidProperty, pricingPurchaseLM.findLCPByCompoundOldName(uidProperty).getExpr(context.getModifier(), userInvoiceDetailExpr));
                         }
                     }
 

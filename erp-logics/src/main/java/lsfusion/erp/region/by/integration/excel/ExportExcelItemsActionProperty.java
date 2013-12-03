@@ -62,8 +62,8 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
         DataSession session = context.getSession();
 
         try {
-            ObjectValue retailCPLT = LM.findLCPByCompoundName("idCalcPriceListType").readClasses(session, new DataObject("retail", StringClass.get(100)));
-            ObjectValue wholesaleCPLT = LM.findLCPByCompoundName("idCalcPriceListType").readClasses(session, new DataObject("wholesale", StringClass.get(100)));
+            ObjectValue retailCPLT = LM.findLCPByCompoundOldName("idCalcPriceListType").readClasses(session, new DataObject("retail", StringClass.get(100)));
+            ObjectValue wholesaleCPLT = LM.findLCPByCompoundOldName("idCalcPriceListType").readClasses(session, new DataObject("wholesale", StringClass.get(100)));
 
             KeyExpr itemExpr = new KeyExpr("Item");
             ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "Item", itemExpr);
@@ -107,15 +107,15 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 String shortNameUOM = null;
                 if (uomItem != null) {
                     DataObject uomItemObject = new DataObject(uomItem, (ConcreteClass) LM.findClassByCompoundName("UOM"));
-                    nameUOM = (String) LM.findLCPByCompoundName("nameUOM").read(session, uomItemObject);
-                    shortNameUOM = (String) LM.findLCPByCompoundName("shortNameUOM").read(session, uomItemObject);
+                    nameUOM = (String) LM.findLCPByCompoundOldName("nameUOM").read(session, uomItemObject);
+                    shortNameUOM = (String) LM.findLCPByCompoundOldName("shortNameUOM").read(session, uomItemObject);
                 }
 
                 Object brandItem = itemValue.get("brandItem");
                 String nameBrand = null;
                 if (brandItem != null) {
                     DataObject brandObject = new DataObject(brandItem, (ConcreteClass) LM.findClassByCompoundName("Brand"));
-                    nameBrand = (String) LM.findLCPByCompoundName("nameBrand").read(session, brandObject);
+                    nameBrand = (String) LM.findLCPByCompoundOldName("nameBrand").read(session, brandObject);
                 }
 
                 Object wareItem = itemValue.get("wareItem");
@@ -123,8 +123,8 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 BigDecimal vatWare = null;
                 if (wareItem != null) {
                     DataObject wareObject = new DataObject(wareItem, (ConcreteClass) LM.findClassByCompoundName("Ware"));
-                    priceWare = (BigDecimal) LM.findLCPByCompoundName("warePrice").read(session, wareObject);
-                    vatWare = (BigDecimal) LM.findLCPByCompoundName("valueCurrentRateRangeWare").read(session, wareObject);
+                    priceWare = (BigDecimal) LM.findLCPByCompoundOldName("warePrice").read(session, wareObject);
+                    vatWare = (BigDecimal) LM.findLCPByCompoundOldName("valueCurrentRateRangeWare").read(session, wareObject);
                 }
 
 
@@ -132,13 +132,13 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 Object countryItem = itemValue.get("countryItem");
                 DataObject countryObject = countryItem == null ? null : new DataObject(countryItem, (ConcreteClass) LM.findClassByCompoundName("Country"));
                 DataObject dateObject = new DataObject(new Date(System.currentTimeMillis()), DateClass.instance);
-                BigDecimal vatItem = countryObject == null ? null : (BigDecimal) LM.findLCPByCompoundName("valueVATItemCountryDate").read(session, itemObject, countryObject, dateObject);
-                String nameCountry = countryObject == null ? null : (String) LM.findLCPByCompoundName("nameCountry").read(session, countryObject);
+                BigDecimal vatItem = countryObject == null ? null : (BigDecimal) LM.findLCPByCompoundOldName("valueVATItemCountryDate").read(session, itemObject, countryObject, dateObject);
+                String nameCountry = countryObject == null ? null : (String) LM.findLCPByCompoundOldName("nameCountry").read(session, countryObject);
 
-                Integer writeOffRateID = (writeOffRateItemLM == null || countryObject == null) ? null : (Integer) LM.findLCPByCompoundName("writeOffRateCountryItem").read(session, countryObject, itemObject);
+                Integer writeOffRateID = (writeOffRateItemLM == null || countryObject == null) ? null : (Integer) LM.findLCPByCompoundOldName("writeOffRateCountryItem").read(session, countryObject, itemObject);
 
-                Double retailMarkup = retailCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundName("markupCalcPriceListTypeSku").read(session, retailCPLT, itemObject);
-                Double wholesaleMarkup = wholesaleCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundName("markupCalcPriceListTypeSku").read(session, wholesaleCPLT, itemObject);
+                Double retailMarkup = retailCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundOldName("markupCalcPriceListTypeSku").read(session, retailCPLT, itemObject);
+                Double wholesaleMarkup = wholesaleCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundOldName("markupCalcPriceListTypeSku").read(session, wholesaleCPLT, itemObject);
 
                 data.add(Arrays.asList(trimNotNull(itemID), trimNotNull(itemGroupID), trimNotNull(name), trimNotNull(nameUOM),
                         trimNotNull(shortNameUOM), trimNotNull(uomItem), trimNotNull(nameBrand), trimNotNull(brandItem),

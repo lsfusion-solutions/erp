@@ -37,9 +37,9 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
         DataSession session = context.getSession();
 
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(session);
-            Integer pass = (Integer) LM.findLCPByCompoundName("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(session);
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(session);
+            Integer pass = (Integer) LM.findLCPByCompoundOldName("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
             int password = pass == null ? 30000 : pass * 1000;
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
@@ -64,7 +64,7 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
             }
 
             List<UpdateDataTaxRate> taxRateList = new ArrayList<UpdateDataTaxRate>();
-            ObjectValue countryObject = LM.findLCPByCompoundName("countryCurrentCashRegister").readClasses(session);
+            ObjectValue countryObject = LM.findLCPByCompoundOldName("countryCurrentCashRegister").readClasses(session);
             DataObject taxVATObject = ((ConcreteCustomClass) LM.findClassByCompoundName("Tax")).getDataObject("taxVAT");
             KeyExpr rangeExpr = new KeyExpr("range");
             KeyExpr taxExpr = new KeyExpr("tax");

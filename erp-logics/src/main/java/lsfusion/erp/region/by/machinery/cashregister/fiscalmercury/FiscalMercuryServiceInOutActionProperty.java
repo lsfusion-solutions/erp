@@ -27,13 +27,13 @@ public class FiscalMercuryServiceInOutActionProperty extends ScriptingActionProp
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            Boolean isDone = LM.findLCPByCompoundName("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
-            BigDecimal sum = (BigDecimal)LM.findLCPByCompoundName("sumCashOperation").read(context.getSession(), cashOperationObject);
+            Boolean isDone = LM.findLCPByCompoundOldName("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
+            BigDecimal sum = (BigDecimal)LM.findLCPByCompoundOldName("sumCashOperation").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalMercuryServiceInOutClientAction(sum));
                 if (result == null){
-                    LM.findLCPByCompoundName("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
+                    LM.findLCPByCompoundOldName("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
                 }
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

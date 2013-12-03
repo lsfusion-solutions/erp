@@ -18,8 +18,8 @@ public class FiscalVMKCancelReceiptActionProperty extends ScriptingActionPropert
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
 
             String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(4, baudRate, comPort));
             if (result != null)

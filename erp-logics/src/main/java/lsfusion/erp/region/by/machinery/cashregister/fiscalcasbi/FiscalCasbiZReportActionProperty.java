@@ -24,8 +24,8 @@ public class FiscalCasbiZReportActionProperty extends ScriptingActionProperty {
         try {
             DataSession session = context.getSession();
 
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context.getSession());
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
 
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalCasbiCustomOperationClientAction(2, comPort, baudRate));
@@ -38,7 +38,7 @@ public class FiscalCasbiZReportActionProperty extends ScriptingActionProperty {
                         if (result != null)
                             context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
                         else
-                            LM.findLAPByCompoundName("closeCurrentZReport").execute(session);
+                            LM.findLAPByCompoundOldName("closeCurrentZReport").execute(session);
                     }
                 }
             }

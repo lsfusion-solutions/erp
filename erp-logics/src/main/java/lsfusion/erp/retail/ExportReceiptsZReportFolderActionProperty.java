@@ -25,7 +25,7 @@ public class ExportReceiptsZReportFolderActionProperty extends ScriptingActionPr
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
 
         try {
-            String pathExportReceipts = (String) LM.findLCPByCompoundName("pathExportReceipts").read(context);
+            String pathExportReceipts = (String) LM.findLCPByCompoundOldName("pathExportReceipts").read(context);
 
             if (pathExportReceipts != null) {
                 if (!new File(pathExportReceipts).exists() && !new File(pathExportReceipts).mkdir())

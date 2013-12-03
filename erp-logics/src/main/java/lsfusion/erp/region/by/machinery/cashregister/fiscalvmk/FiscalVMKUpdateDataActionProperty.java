@@ -28,8 +28,8 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
         DataSession session = context.getSession();
 
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(session);
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(session);
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(session);
 
 
             KeyExpr customUserExpr = new KeyExpr("customUser");

@@ -36,17 +36,17 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
 
         try {
 
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentPaymentTerminalModelCashRegister").read(context);
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentPaymentTerminalModelCashRegister").read(context);
             BigDecimal sumCard = null;
 
             KeyExpr paymentExpr = new KeyExpr("payment");
             ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
             QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
-            paymentQuery.addProperty("sumPayment", LM.findLCPByCompoundName("sumPayment").getExpr(context.getModifier(), paymentExpr));
-            paymentQuery.addProperty("paymentMeansPayment", LM.findLCPByCompoundName("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
+            paymentQuery.addProperty("sumPayment", LM.findLCPByCompoundOldName("sumPayment").getExpr(context.getModifier(), paymentExpr));
+            paymentQuery.addProperty("paymentMeansPayment", LM.findLCPByCompoundOldName("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
 
-            paymentQuery.and(LM.findLCPByCompoundName("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
+            paymentQuery.and(LM.findLCPByCompoundOldName("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context.getSession().sql);
             for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
@@ -60,8 +60,8 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
             ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
 
             QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
-            receiptDetailQuery.addProperty("quantityReceiptSaleDetail", LM.findLCPByCompoundName("quantityReceiptSaleDetail").getExpr(context.getModifier(), receiptDetailExpr));
-            receiptDetailQuery.and(LM.findLCPByCompoundName("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
+            receiptDetailQuery.addProperty("quantityReceiptSaleDetail", LM.findLCPByCompoundOldName("quantityReceiptSaleDetail").getExpr(context.getModifier(), receiptDetailExpr));
+            receiptDetailQuery.and(LM.findLCPByCompoundOldName("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
             boolean isSale = true;
 
@@ -74,7 +74,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
 
             String result = sumCard == null || sumCard.abs().equals(BigDecimal.ZERO) ? null : (String) context.requestUserInteraction(new TerminalJadeEKOPaymentTerminalReceiptClientAction(comPort, sumCard.abs(), isSale, null));
 
-            LM.findLCPByCompoundName("postPaymentTerminalReceiptResult").change(result, context.getSession());
+            LM.findLCPByCompoundOldName("postPaymentTerminalReceiptResult").change(result, context.getSession());
 
         } catch (SQLException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.

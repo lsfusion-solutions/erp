@@ -39,13 +39,13 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
         ScriptingLogicsModule giftCardLM = (ScriptingLogicsModule) context.getBL().getModule("GiftCard");
 
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(context);
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(context);
-            Integer placeNumber = (Integer) LM.findLCPByCompoundName("nppMachineryCurrentCashRegister").read(context);
-            ObjectValue userObject = LM.findLCPByCompoundName("userReceipt").readClasses(context, receiptObject);
-            Object operatorNumber = userObject.isNull() ? 0 : LM.findLCPByCompoundName("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
-            BigDecimal sumTotal = (BigDecimal) LM.findLCPByCompoundName("sumReceiptDetailReceipt").read(context, receiptObject);
-            BigDecimal sumDisc = (BigDecimal) LM.findLCPByCompoundName("discountSumReceiptDetailReceipt").read(context, receiptObject);
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context);
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context);
+            Integer placeNumber = (Integer) LM.findLCPByCompoundOldName("nppMachineryCurrentCashRegister").read(context);
+            ObjectValue userObject = LM.findLCPByCompoundOldName("userReceipt").readClasses(context, receiptObject);
+            Object operatorNumber = userObject.isNull() ? 0 : LM.findLCPByCompoundOldName("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
+            BigDecimal sumTotal = (BigDecimal) LM.findLCPByCompoundOldName("sumReceiptDetailReceipt").read(context, receiptObject);
+            BigDecimal sumDisc = (BigDecimal) LM.findLCPByCompoundOldName("discountSumReceiptDetailReceipt").read(context, receiptObject);
 
             BigDecimal sumCard = null;
             BigDecimal sumCash = null;
@@ -130,7 +130,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                         sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList)));
                 if (result == null) {
                     context.apply();
-                    LM.findLAPByCompoundName("createCurrentReceipt").execute(context);
+                    LM.findLAPByCompoundOldName("createCurrentReceipt").execute(context);
                 } else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }

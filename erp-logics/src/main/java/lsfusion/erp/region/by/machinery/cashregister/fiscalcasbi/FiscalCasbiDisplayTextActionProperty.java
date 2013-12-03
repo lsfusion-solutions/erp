@@ -31,18 +31,18 @@ public class FiscalCasbiDisplayTextActionProperty extends ScriptingActionPropert
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = LM.findLCPByCompoundName("receiptReceiptDetail").readClasses(session, receiptDetailObject);
-            Integer comPort = (Integer) LM.findLCPByCompoundName("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) LM.findLCPByCompoundName("baudRateCurrentCashRegister").read(session);
+            ObjectValue receiptObject = LM.findLCPByCompoundOldName("receiptReceiptDetail").readClasses(session, receiptDetailObject);
+            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(session);
+            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(session);
 
-            String name = (String) LM.findLCPByCompoundName("nameSkuReceiptDetail").read(session, receiptDetailObject);
-            String barcode = (String) LM.findLCPByCompoundName("idBarcodeReceiptDetail").read(session, receiptDetailObject);
-            BigDecimal quantity = (BigDecimal) LM.findLCPByCompoundName("quantityReceiptDetail").read(session, receiptDetailObject);
-            BigDecimal price = (BigDecimal) LM.findLCPByCompoundName("priceReceiptDetail").read(session, receiptDetailObject);
-            BigDecimal sum = (BigDecimal) LM.findLCPByCompoundName("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
-            BigDecimal articleDisc = (BigDecimal) LM.findLCPByCompoundName("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
+            String name = (String) LM.findLCPByCompoundOldName("nameSkuReceiptDetail").read(session, receiptDetailObject);
+            String barcode = (String) LM.findLCPByCompoundOldName("idBarcodeReceiptDetail").read(session, receiptDetailObject);
+            BigDecimal quantity = (BigDecimal) LM.findLCPByCompoundOldName("quantityReceiptDetail").read(session, receiptDetailObject);
+            BigDecimal price = (BigDecimal) LM.findLCPByCompoundOldName("priceReceiptDetail").read(session, receiptDetailObject);
+            BigDecimal sum = (BigDecimal) LM.findLCPByCompoundOldName("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
+            BigDecimal articleDisc = (BigDecimal) LM.findLCPByCompoundOldName("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
 
-            String typeReceiptDetail = (String) LM.findLCPByCompoundName("typeReceiptDetail").read(session, receiptDetailObject);
+            String typeReceiptDetail = (String) LM.findLCPByCompoundOldName("typeReceiptDetail").read(session, receiptDetailObject);
             Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
 
             if (sum == null) sum = BigDecimal.ZERO;
