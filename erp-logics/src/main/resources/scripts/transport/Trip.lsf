@@ -305,11 +305,21 @@ showPointOrders 'Показать отобранные заказы' () = ACTION
 EXTEND FORM trip
     PROPERTIES showPointOrders() TODRAW o
 ;
+overCopyTrip = ABSTRACT ACTION LIST (Trip, Trip);
+copyTrip 'Копировать' = ACTION (trip) NEWSESSION {
+    FOR ADDOBJ t = Trip DO {
+        ASSIGN driverTrip(t) <- driverTrip(trip);
+        ASSIGN truckTrip(t) <- truckTrip(trip);
+
+        EXEC overCopyTrip(t, trip);
+        FORM trip OBJECTS t = t MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
 
 FORM trips 'Рейсы'
     OBJECTS t=Trip
     PROPERTIES(t) READONLY numberTrip, seriesTrip, dateTrip, timeTrip, nameDriverTrip, sidTruckTrip, nameTruckModelTruckTrip, trailerTruckTrip, weightTruckTrip, grossWeightOrderedTrip, grossWeightShippedTrip
-    PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM, copyTrip, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS o=Order
     PROPERTIES(o) READONLY numberOrder, seriesOrder, dateOrder, nameSupplierOrder, nameFromStockOrder, nameCustomerOrder, nameToStockOrder, grossWeightOrderDetailOrder

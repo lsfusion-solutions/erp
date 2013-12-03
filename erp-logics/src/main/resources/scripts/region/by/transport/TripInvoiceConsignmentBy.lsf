@@ -62,11 +62,25 @@ setTripDateTimeTrip = ACTION (invoice) {
 }
 WHEN CHANGED(dateTimeTrip(tripInvoice(invoice))) DO EXEC setTripDateTimeTrip(invoice);
 
-downtimeTrip 'Время простоя для накладной (мин.)' = DATA  INTEGER (Trip);
+downtimeTrip 'Время простоя (мин.)' = DATA  INTEGER (Trip);
 setTripDowntimeTrip = ACTION (invoice) {
     ASSIGN downtimeInvoice(invoice) <- downtimeTrip(tripInvoice(invoice));
 }
 WHEN CHANGED(downtimeTrip(tripInvoice(invoice))) DO EXEC setTripDowntimeTrip(invoice);
+
+overCopyTrip(t, trip) += ACTION(t, trip) {
+    ASSIGN issuanceAllowedTrip(t) <- issuanceAllowedTrip(trip);         
+    ASSIGN issuanceExecutedTrip(t) <- issuanceExecutedTrip(trip);        
+    ASSIGN dataForwarderTrip(t) <- dataForwarderTrip(trip);        
+    ASSIGN loadingExecuterTrip(t) <- loadingExecuterTrip(trip);        
+    ASSIGN unloadingExecuterTrip(t) <- unloadingExecuterTrip(trip);
+    ASSIGN wayOfLoadingTrip(t) <- wayOfLoadingTrip(trip);
+    ASSIGN wayOfUnloadingTrip(t) <- wayOfUnloadingTrip(trip);
+    ASSIGN codeLoadingTrip(t) <- codeLoadingTrip(trip);
+    ASSIGN currencyTrip(t) <- currencyTrip(trip);
+    ASSIGN timeOfArrivalTrip(t) <- timeOfArrivalTrip(trip);
+    ASSIGN downtimeTrip(t) <- downtimeTrip(trip);
+}
 
 printHorizontalConsignmentTrip 'Печать ТТН-1 (гор.)' (trip) = ACTION (trip) {
     FOR inTripInvoice(trip, invoice) DO {
