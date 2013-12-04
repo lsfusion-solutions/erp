@@ -46,6 +46,7 @@ cancelTripOrder 'Отменить' = ACTION (order) {
     EXEC apply();
 } TOOLBAR EDITKEY 'ctrl DELETE';
 
+hideInCreatingTripOrder = TRUE AND NOT (calcPartOrder(o) OR calcFullOrder(o));
 
 FORM tripDashboard 'Загрузка транспорта' AUTOREFRESH 60
 
@@ -53,12 +54,13 @@ FORM tripDashboard 'Загрузка транспорта' AUTOREFRESH 60
     PROPERTIES(d) date = OBJVALUE
 
     OBJECTS o = Order FIXED GRID
-    PROPERTIES(o) inCreatingTripOrder READONLYIF tripOrder(o)
+    PROPERTIES(o) inCreatingTripOrder READONLYIF hideInCreatingTripOrder(o)
     PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingOrder(o) nameDriverTripOrder, numberOrder, dateOrder,
                             nameToStockOrder, addressToStockOrder, packQuantityOrder, quantityOrderDetailOrder,
-                            startDateTimeOrder, finishDateTimeOrder
+                            namePerformerOrder, startDateTimeOrder, finishDateTimeOrder
     PROPERTIES() createTripOrder SHOWIF countInCreatingTripOrder() TODRAW o
-    FILTERS calcPartOrder(o) AND NOT tripOrder(o)
+    //FILTERS calcPartOrder(o) AND NOT tripOrder(o)
+    FILTERS countPickingOrderOrder(o) AND NOT tripOrder(o)
 
     OBJECTS to = Order FIXED GRID
     PROPERTIES(to) READONLY nameDriverTripOrder, dateTripOrder, numberTripOrder,
@@ -66,7 +68,7 @@ FORM tripDashboard 'Загрузка транспорта' AUTOREFRESH 60
                             nameToStockOrder, addressToStockOrder, packQuantityOrder, quantityOrderDetailOrder
                             
     PROPERTIES(to) cancelTripOrder
-    FILTERS tripOrder(to)
+    FILTERS tripOrder(to) AND driverTripOrder(to) == currentUser()
     FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=d DEFAULT
     FILTERGROUP filters1 FILTER 'Рейсы на дату' 'F5' dateTripOrder(to)==d DEFAULT
 
@@ -113,6 +115,9 @@ DESIGN tripDashboard FROM DEFAULT {
                 PROPERTY(dateOrder(o)) {
                     caption = 'Дата заказа';
                     }
+                PROPERTY(namePerformerOrder(o)) {
+                    minimumCharWidth = 25;
+                    }    
                 PROPERTY(inCreatingTripOrder) {
                     editKey = 'SPACE';
                     }
