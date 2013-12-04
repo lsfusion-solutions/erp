@@ -22,6 +22,8 @@ FORM agreementPaymentTypes 'Порядок оплаты'
     DIALOG AgreementPaymentType OBJECT t
 ;
 
+bankingDaysPaymentCondition 'Банковских дней' = DATA BOOLEAN (PaymentCondition);
+
 typePaymentCondition = DATA AgreementPaymentType (PaymentCondition);
 nameTypePaymentCondition 'Тип оплаты' (paymentCondition) = staticCaption(typePaymentCondition(paymentCondition));
 
@@ -34,9 +36,12 @@ TABLE paymentPeriod(PaymentPeriod);
 
 countDaysPaymentPeriod 'Кол-во дней' = DATA INTEGER (PaymentPeriod);
 percentPaymentPeriod 'Процент' = DATA NUMERIC[8,3] (PaymentPeriod);
-descriptionPaymentPeriod(paymentPeriod) =
-    countDaysPaymentPeriod(paymentPeriod) + ' дн.'+  ' ( ' + percentPaymentPeriod(paymentPeriod) + ' %)';
 paymentConditionPaymentPeriod 'Условия оплаты периода рассрочки' = DATA PaymentCondition(PaymentPeriod);
+bankingDaysPaymentPeriod 'Банковских дней'(p) = bankingDaysPaymentCondition(paymentConditionPaymentPeriod(p));
+
+descriptionPaymentPeriod(paymentPeriod) =
+    countDaysPaymentPeriod(paymentPeriod) + (IF bankingDaysPaymentPeriod(paymentPeriod) THEN ' банковских дн.' ELSE ' календарных дн.')+  ' ( ' + percentPaymentPeriod(paymentPeriod) + ' %)';
+
 
 descriptionPeriodPaymentCondition 'Условия оплаты' (paymentCondition) =
     GROUP CONCAT descriptionPaymentPeriod(paymentPeriod) IF paymentConditionPaymentPeriod(paymentPeriod) == paymentCondition, ', '
@@ -66,7 +71,7 @@ CONSTRAINT sumPercentPaymentCondition(paymentCondition) != 100.0 CHECKED BY sumP
 FORM paymentCondition 'Условие оплаты'
 
     OBJECTS pc = PaymentCondition FIXED PANEL
-    PROPERTIES(pc) idPaymentCondition SHOWIF showIDs(), nameTypePaymentCondition
+    PROPERTIES(pc) idPaymentCondition SHOWIF showIDs(), nameTypePaymentCondition, bankingDaysPaymentCondition 
 
     OBJECTS pp = PaymentPeriod FIXED GRID
     PROPERTIES(pp) countDaysPaymentPeriod SHOWIF isPrepaymentTypePaymentCondition(pc),
