@@ -36,6 +36,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     // "xxx^(1,6) - substring(1,6)
     // "xxx+yyy" - concatenate
     // "xxx/yyy" - divide (for numbers)
+    // "xxx | yyy" - yyy == null ? xxx : yyy
     // пока нет поддержки одновременно divide и substring
     public ImportUniversalActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
@@ -72,6 +73,16 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
                 }
                 value = String.valueOf(dividedValue);
+            } else if (isOrValue(cell)) {
+                value = "";
+                String[] splittedField = cell.split("\\|");
+                for (int i = splittedField.length - 1; i >= 0; i--) {
+                    String orValue = getCSVFieldValue(values, parseIndex(splittedField[i]), null, null, null);
+                    if (orValue != null) {
+                        value = orValue;
+                        break;
+                    }
+                }
             } else if (cell.matches(substringPattern)) {
                 String[] splittedCell = cell.split(splitPattern);
                 value = getCSVFieldValue(values, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
@@ -130,6 +141,16 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
                 }
                 value = String.valueOf(dividedValue);
+            } else if (isOrValue(cell)) {
+                value = "";
+                String[] splittedField = cell.split("\\|");
+                for (int i = splittedField.length - 1; i >= 0; i--) {
+                    String orValue = getXLSFieldValue(sheet, row, parseIndex(splittedField[i]), null, null, null);
+                    if (orValue != null) {
+                        value = orValue;
+                        break;
+                    }
+                }
             } else if (cell.matches(substringPattern)) {
                 String[] splittedCell = cell.split(splitPattern);
                 value = getXLSFieldValue(sheet, row, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
@@ -221,6 +242,16 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
                 }
                 value = String.valueOf(dividedValue);
+            } else if (isOrValue(cell)) {
+                value = "";
+                String[] splittedField = cell.split("\\|");
+                for (int i = splittedField.length - 1; i >= 0; i--) {
+                    String orValue = getXLSXFieldValue(sheet, row, parseIndex(splittedField[i]), null, null, null);
+                    if (orValue != null) {
+                        value = orValue;
+                        break;
+                    }
+                }
             } else if (cell.matches(substringPattern)) {
                 String[] splittedCell = cell.split(splitPattern);
                 value = getXLSXFieldValue(sheet, row, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
@@ -311,6 +342,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return getDBFFieldValue(importFile, fields, charset, null);
     }
 
+    protected String getDBFFieldValue(DBF importFile, String field, String charset, String defaultValue) throws UnsupportedEncodingException {
+        return getDBFFieldValue(importFile, new String[]{field}, charset, defaultValue);
+    }
+
     protected String getDBFFieldValue(DBF importFile, String[] fields, String charset, String defaultValue) throws UnsupportedEncodingException {
         try {
             if (fields == null) return defaultValue;
@@ -324,10 +359,20 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = field.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, new String[]{arg.trim()}, charset, null);
+                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, arg.trim(), charset, null);
                         dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
                     }
                     value = String.valueOf(dividedValue);
+                } else if (isOrValue(field)) {
+                    value = "";
+                    String[] splittedField = field.split("\\|");
+                    for (int i = splittedField.length - 1; i >= 0; i--) {
+                        String orValue = getDBFFieldValue(importFile, splittedField[i], charset, null);
+                        if (orValue != null) {
+                            value = orValue;
+                            break;
+                        }
+                    }
                 } else if (field.matches(substringPattern)) {
                     String[] splittedField = field.split(splitPattern);
                     value = getSubstring(new String(importFile.getField(splittedField[0]).getBytes(), charset).trim(),
@@ -348,7 +393,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String field) throws UnsupportedEncodingException {
-        return getDBFBigDecimalFieldValue(importFile, new String[]{field}, "cp866", null);
+        return getDBFBigDecimalFieldValue(importFile, field, "cp866", null);
+    }
+
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String field, String charset, String defaultValue) throws UnsupportedEncodingException {
+        return getDBFBigDecimalFieldValue(importFile, new String[]{field}, charset, defaultValue);
     }
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String[] fields, String charset, String defaultValue) throws UnsupportedEncodingException {
@@ -426,6 +475,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     private boolean isDivisionValue(String input) {
         return input != null && input.contains("/");
+    }
+
+    private boolean isOrValue(String input) {
+        return input != null && input.contains("|");
     }
 
     protected String trim(String input) {
