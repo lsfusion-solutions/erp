@@ -45,13 +45,34 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
             BigDecimal sumValue = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
             long sum = sumValue == null ? 0 : sumValue.longValue();
 
-            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(new ReceiptItem(price, quantity, name, sum), baudRateBoard, comPortBoard));
+            String[] lines = generateText(price, quantity, sum, name, 20);
+            
+            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard));
 
 
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
+    }
+
+    private static String[] generateText(long price, double quantity, long sum, String nameItem, int len) {
+        String firstLine = " " + toStr(quantity) + "x" + String.valueOf(price);
+        int length = len - Math.min(len, firstLine.length());
+        String name = nameItem.substring(0, Math.min(length, nameItem.length()));
+        while ((name + firstLine).length() < 20)
+            name = name + " ";
+        firstLine = name + firstLine;
+        String secondLine = String.valueOf(sum);
+        while (secondLine.length() < (len - 5))
+            secondLine = " " + secondLine;
+        secondLine = "ИТОГ:" + secondLine;
+        return new String[]{firstLine, secondLine};
+    }
+
+    private static String toStr(double value) {
+        boolean isInt = (value - (int) value) == 0;
+        return isInt ? String.valueOf((int) value) : String.valueOf(value);
     }
 }
