@@ -58,6 +58,22 @@ changeTripOrder = ACTION (order){
     }        
 }
 
+changeNumberInvoice (invoice) = ACTION (invoice) {
+    REQUEST STRING[18] INPUT;
+    IF requestedString() THEN {
+        numberInvoice(invoice) <- requestedString();
+        apply();
+    }    
+}
+
+changeSeriesInvoice (invoice) = ACTION (invoice) {
+    REQUEST STRING[18] INPUT;
+    IF requestedString() THEN {
+        seriesInvoice(invoice) <- requestedString();
+        apply();
+    }    
+}
+
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
 
     OBJECTS d = DATE FIXED PANEL
@@ -76,8 +92,9 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
     FILTERS outOrder (o)
 
     OBJECTS i = Invoice FIXED GRID
+    PROPERTIES (i) FORCE PANEL numInv=numberInvoice ON CHANGE changeNumberInvoice(i), serInv=seriesInvoice ON CHANGE changeSeriesInvoice(i)
     PROPERTIES (i) READONLY isPostedInvoice 
-    PROPERTIES (i) numberInvoice, seriesInvoice
+    PROPERTIES (i) READONLY numberInvoice, seriesInvoice
     PROPERTIES (i) READONLY dateInvoice, timeInvoice, nameToInvoice, nameToStockInvoice, addressToStockInvoice, countInvoiceDetailInvoice, 
                    quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
                    VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice, grossWeightInvoiceDetailInvoice, noteInvoice, noteOrderInvoice
@@ -88,6 +105,8 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
                                 printConsignmentVerticalB, printConsignmentHorizontalB,
                                 printConsignmentAttach, printConsignmentSimpleHorizontal, editConsignment,
                                 printConsignmentSimpleVertical, printConsignmentSimpleAttach, printConsignmentAttachXLS
+                                
+                               
     FILTERS outInvoice (i)                            
     FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=d DEFAULT
     FILTERGROUP filters1 FILTER 'Накладные на дату' 'F5' dateInvoice(i)==d DEFAULT
@@ -110,6 +129,12 @@ DESIGN consignmentDashboard FROM DEFAULT {
                             }
                             PROPERTY(nameToStockInvoice){
                                 minimumCharWidth = 45;
+                            }
+                            PROPERTY(numInv) {
+                                font = 'bold 18';
+                            }
+                            PROPERTY(serInv) {
+                                font = 'bold 18';
                             }
                         }
                     }
