@@ -687,6 +687,15 @@ closedCurrentZReportMessage '' = 'Не открыт Z-отчет';
 posExplicitBatchLedgerReceipt(r) = explicitBatchLedgerReceipt(r) AND currentZReport();
 posNotExplicitBatchLedgerReceipt(r) = notExplicitBatchLedgerReceipt(r) AND currentZReport();
 
+changeQuantityReceiptDetail 'Изменить кол-во строки чека' = ACTION (detail) {
+    REQUEST NUMERIC[14,3] INPUT;
+    IF requestedNumeric() THEN {
+        quantityReceiptDetail(detail) <- requestedNumeric();
+    } ELSE {
+        DELETE detail; 
+    }
+}
+
 FORM POS
     PROPERTIES() READONLY hostnameCurrentComputer, currentDateTime, currentUserName
 
@@ -705,7 +714,7 @@ FORM POS
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID indexReceiptDetail, typeReceiptDetail, idBarcodeGrid = idBarcodeReceiptDetail, nameSkuGrid = nameSkuReceiptDetail,
                                                               prevCurrentBalanceSkuReceiptDetail SHOWIF posNotExplicitBatchLedgerReceipt(r),
                                                               prevCurrentBalanceBatchReceiptDetail SHOWIF posExplicitBatchLedgerReceipt(r)
-    PROPERTIES(d) SHOWIF currentZReport() FORCE GRID quantityGrid = quantityReceiptDetail, priceGrid = priceReceiptDetail, sumGrid = sumReceiptDetail, discountPercentReceiptSaleDetail,
+    PROPERTIES(d) SHOWIF currentZReport() FORCE GRID quantityGrid = quantityReceiptDetail ON CHANGE changeQuantityReceiptDetail(d), priceGrid = priceReceiptDetail, sumGrid = sumReceiptDetail, discountPercentReceiptSaleDetail,
                                                      discountSumReceiptDetail, numberVATReceiptDetail, valueVATReceiptDetail, deleted=DELETESESSION
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE PANEL idBarcodePanel = idBarcodeReceiptDetail,
                                                                nameSkuPanel = nameSkuReceiptDetail,
@@ -948,6 +957,9 @@ EXTEND FORM operationCashRegister
     PROPERTIES() READONLY numberCurrentZReport SHOWIF departmentStoreCurrentCashRegister()
     PROPERTIES() fiscalZReport SHOWIF currentZReportDepartmentStore()
     PROPERTIES() openCurrentZReport SHOWIF closedCurrentZReportDepartmentStore()
+    
+    PROPERTIES addIncomeCashOperationForm() TODRAW c FORCE PANEL TOOLBAR  SHOWIF currentZReportDepartmentStore()
+    PROPERTIES addOutcomeCashOperationForm() TODRAW c FORCE PANEL TOOLBAR SHOWIF currentZReportDepartmentStore()
 
     OBJECTS z = ZReport
     PROPERTIES(z) READONLY isPostedZReport, numberZReport, dateZReport, timeZReport, nameDepartmentStoreZReport,
