@@ -72,7 +72,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 ObjectValue customerObject = LM.findLCPByCompoundOldName("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerStockObject = LM.findLCPByCompoundOldName("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
 
-                Map<String, String[]> importColumns = readImportColumns(context, LM, importTypeObject);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, LM, importTypeObject);
 
                 if (importColumns != null && fileExtension != null) {
 
@@ -104,7 +104,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         }
     }
 
-    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, String[]> importColumns,
+    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String primaryKeyType,
                               String secondaryKeyType, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject) 
@@ -350,7 +350,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return false;
     }
 
-    public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Integer orderObject, Map<String, String[]> importColumns,
+    public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Integer orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             byte[] file, String fileExtension, Integer startRow, Boolean isPosted, 
                                                             String csvSeparator, String primaryKeyType, String secondaryKeyType)
             throws SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, ParseException, IOException, BiffException {
@@ -374,7 +374,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return orderDetailsList;
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, byte[] importFile, Map<String, String[]> importColumns, 
+    private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns, 
                                                             String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Boolean isPosted, Integer orderObject) 
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
@@ -422,7 +422,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
+    private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                       String primaryKeyColumn, String secondaryKeyColumn,  Integer startRow, Boolean isPosted,
                                                       String csvSeparator, Integer orderObject)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
@@ -478,7 +478,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
+    private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                        String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, 
                                                        Boolean isPosted, Integer orderObject) 
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
@@ -526,7 +526,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, byte[] importFile, Map<String, String[]> importColumns,
+    private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                       String primaryKeyColumn, String secondaryKeyColumn, Integer startRow,
                                                       Boolean isPosted, Integer orderObject) 
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {

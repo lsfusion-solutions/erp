@@ -6,7 +6,7 @@ import java.util.Map;
 
 public class ImportColumns {
 
-    private Map<String, String[]> columns;
+    private Map<String, ImportColumnDetail> columns;
     private Map<DataObject, String[]> priceColumns;
     private String quantityAdjustmentColumn;
     private Integer dateRow;
@@ -15,7 +15,7 @@ public class ImportColumns {
     private DataObject stockObject;
     private DataObject defaultItemGroupObject;
 
-    public ImportColumns(Map<String, String[]> columns, Map<DataObject, String[]> priceColumns, String quantityAdjustmentColumn,
+    public ImportColumns(Map<String, ImportColumnDetail> columns, Map<DataObject, String[]> priceColumns, String quantityAdjustmentColumn,
                          Integer dateRow, Integer dateColumn, DataObject operationObject, DataObject stockObject,
                          DataObject defaultItemGroupObject) {
         this.columns = columns;
@@ -28,7 +28,7 @@ public class ImportColumns {
         this.defaultItemGroupObject = defaultItemGroupObject;
     }
 
-    public Map<String, String[]> getColumns() {
+    public Map<String, ImportColumnDetail> getColumns() {
         return columns;
     }
 

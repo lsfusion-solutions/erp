@@ -34,15 +34,16 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
     }
 
-    protected static Map<String, String[]> readImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    protected static Map<String, ImportColumnDetail> readImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
 
-        Map<String, String[]> importColumns = new HashMap<String, String[]>();
+        Map<String, ImportColumnDetail> importColumns = new HashMap<String, ImportColumnDetail>();
 
         LCP<?> isImportTypeDetail = LM.is(LM.findClassByCompoundName("ImportTypeDetail"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isImportTypeDetail.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
         query.addProperty("staticName", LM.findLCPByCompoundOldName("staticName").getExpr(context.getModifier(), key));
+        query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("replaceOnlyNullImportTypeImportTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
         query.addProperty("indexImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("indexImportTypeImportTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
         query.and(isImportTypeDetail.getExpr(key).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context.getSession().sql);
@@ -50,12 +51,13 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         for (ImMap<Object, Object> entry : result.valueIt()) {
 
             String[] field = ((String) entry.get("staticName")).trim().split("\\.");
+            boolean replaceOnlyNull = entry.get("replaceOnlyNullImportTypeImportTypeDetail") != null;
             String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
             if (indexes != null) {
                 String[] splittedIndexes = indexes.split("\\+");
                 for (int i = 0; i < splittedIndexes.length; i++)
                     splittedIndexes[i] = splittedIndexes[i].trim();
-                importColumns.put(field[field.length - 1], splittedIndexes);
+                importColumns.put(field[field.length - 1], new ImportColumnDetail(splittedIndexes, replaceOnlyNull));
             }
         }
         return importColumns.isEmpty() ? null : importColumns;
