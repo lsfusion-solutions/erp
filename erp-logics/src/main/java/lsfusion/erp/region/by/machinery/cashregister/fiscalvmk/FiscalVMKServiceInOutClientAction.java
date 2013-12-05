@@ -27,6 +27,8 @@ public class FiscalVMKServiceInOutClientAction implements ClientAction {
 
             FiscalVMK.openPort(comPort, baudRate);
 
+            FiscalVMK.opensmIfClose();
+
             if (!FiscalVMK.inOut(sum.longValue()))
                 return "Недостаточно наличных в кассе";
             else {
