@@ -143,7 +143,7 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
                 String captionItem = (String) businessLogics.getModule("Item").getLCPByOldName("captionItem").read(session, skuObject);
                 BigDecimal price = (BigDecimal) businessLogics.getModule("PriceListType").getLCPByOldName("priceAPriceListTypeSkuStockDateTime").read(session,
                         priceListTypeObject, skuObject, stockObject, new DataObject(new Timestamp(date.getTime()), DateTimeClass.instance));
-                String priceMessage = new DecimalFormat("#.#####").format(price.doubleValue());
+                String priceMessage = new DecimalFormat("###,###.#").format(price.doubleValue());
                 while (captionItem.length() + priceMessage.length() < (length - 1)) {
                     priceMessage = " " + priceMessage;
                 }
