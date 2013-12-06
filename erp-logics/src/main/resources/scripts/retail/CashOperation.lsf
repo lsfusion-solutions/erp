@@ -427,6 +427,7 @@ addIncomeCashOperationForm 'Внесение денег' () = ACTION () NEWSESSI
     ASSIGN sessionDepartmentStore() <- departmentStoreCashRegister(currentCashRegister());
     FORM addIncomeCashOperation OBJECTS d = sessionDepartmentStore() MODAL;
     IF formResult() == FormResult.ok THEN {
+        LOCAL fail = BOOLEAN();
         FOR sumCashForIncomeCashOperation(cashRegister) DO {
             FOR ADDOBJ c = IncomeCashOperation DO {
                 cashRegisterIncomeCashOperation(c) <- cashRegister;
@@ -434,9 +435,12 @@ addIncomeCashOperationForm 'Внесение денег' () = ACTION () NEWSESSI
                 sumCashIncomeCashOperation(c) <- sumCashForIncomeCashOperation(cashRegister);
                 generateSeriesNumberIncomeCashOperation(c);
                 fiscalServiceCashRegisterCashOperation(c);
+                IF NOT isCompleteCashOperation(c) THEN
+                    fail() <- TRUE;
             }
         }
-        EXEC apply();
+        IF NOT fail() THEN
+            apply();
     }
     ASSIGN sessionDepartmentStore() <- NULL;
 } TOOLBAR;
@@ -522,14 +526,18 @@ addOutcomeCashOperationForm 'Изъятие денег' () = ACTION () NEWSESSIO
     ASSIGN sessionDepartmentStore() <- departmentStoreCashRegister(currentCashRegister());
     FORM addOutcomeCashOperation OBJECTS d = sessionDepartmentStore() MODAL;
     IF formResult() == FormResult.ok THEN {
+        LOCAL fail = BOOLEAN();
         FOR sumCashForOutcomeCashOperation(cashRegister) ADDOBJ c = OutcomeCashOperation DO {
             cashRegisterOutcomeCashOperation(c) <- cashRegister;
             departmentStoreOutcomeCashOperation(c) <- departmentStoreCashRegister(cashRegister);
             sumCashOutcomeCashOperation(c) <- sumCashForOutcomeCashOperation(cashRegister);
             generateSeriesNumberOutcomeCashOperation(c);
             fiscalServiceCashRegisterCashOperation(c);
+            IF NOT isCompleteCashOperation(c) THEN
+                fail() <- TRUE;
         }
-        EXEC apply();
+         IF NOT fail() THEN
+            apply();
     }
     ASSIGN sessionDepartmentStore() <- NULL;
 } TOOLBAR;
