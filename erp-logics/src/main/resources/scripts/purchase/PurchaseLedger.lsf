@@ -10,6 +10,10 @@ datePurchaseLedger 'Дата' (ledger) = toDate(dateTimePurchaseLedger(ledger)) 
 
 isPostedPurchaseLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
 
+skipPurchaseLedger 'Не проводить' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
+
+activePurchaseLedger (ledger) = isPostedPurchaseLedger(ledger) AND NOT skipPurchaseLedger(ledger);
+
 skuPurchaseLedger (ledger) = ABSTRACT Sku (PurchaseLedger) PERSISTENT INDEXED;
 nameSkuPurchaseLedger 'SKU' (ledger) = nameSku(skuPurchaseLedger(ledger));
 
@@ -27,7 +31,7 @@ sumPurchaseLedger 'Сумма покупки' (ledger) = ABSTRACT NUMERIC[16,2] 
 supplierPurchaseLedger  (ledger) = ABSTRACT LegalEntity (PurchaseLedger) PERSISTENT;
 nameSupplierPurchaseLedger 'Поставщик' (ledger) = nameLegalEntity(supplierPurchaseLedger (ledger));
 
-quantityPurchaseSupplierSku 'Кол-во закуплено' = GROUP SUM quantityPurchaseLedger(ledger) IF isPostedPurchaseLedger(ledger)
+quantityPurchaseSupplierSku 'Кол-во закуплено' = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY supplierPurchaseLedger(ledger), skuPurchaseLedger(ledger) PERSISTENT;
 
 inSupplierSku 'Были поставки' (legalEntity, sku) = TRUE IF quantityPurchaseSupplierSku(legalEntity, sku) PERSISTENT;
@@ -47,23 +51,23 @@ sumVATPurchaseLedger 'Сумма НДС' (ledger) = NUMERIC[16,2]([= X*Y/(100+Y)
         sumPurchaseLedger(ledger), valueVATPurchaseLedger(ledger)));
 
 //по складу и SKU
-quantityPurchaseSkuStockDate (sku, stock, date) = GROUP SUM quantityPurchaseLedger(ledger) IF isPostedPurchaseLedger(ledger)
+quantityPurchaseSkuStockDate (sku, stock, date) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT;
 
-sumVATPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumVATPurchaseLedger(ledger) IF isPostedPurchaseLedger(ledger)
+sumVATPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumVATPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT;
 
-sumPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumPurchaseLedger(ledger) IF isPostedPurchaseLedger(ledger)
+sumPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT;
 
 //по складу, покупателю и SKU
-quantityPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM quantityPurchaseLedger(ledger) IF isPostedPurchaseLedger(ledger)
+quantityPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierPurchaseLedger(ledger), datePurchaseLedger(ledger);  // PERSISTENT
 
-sumVATPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM sumVATPurchaseLedger(ledger) IF isPostedPurchaseLedger(ledger)
+sumVATPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM sumVATPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierPurchaseLedger(ledger), datePurchaseLedger(ledger);  // PERSISTENT
 
-sumPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM sumPurchaseLedger(ledger) IF isPostedPurchaseLedger(ledger)
+sumPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM sumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierPurchaseLedger(ledger), datePurchaseLedger(ledger);   // PERSISTENT
 
 quantityPurchaseSkuStockWeekDateFromTo 'Закуплено за неделю (кол-во)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
@@ -184,7 +188,7 @@ FORM purchaseLedger 'Регистр поступлений'
                            canonicalNameSkuGroupPurchaseLedger, nameSkuPurchaseLedger, descriptionPurchaseLedger,
                            quantityPurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
     PROPERTIES    READONLY sumPurchaseTypeExchangePurchaseLedger (te, s)
-    FILTERS isPostedPurchaseLedger(s)
+    FILTERS activePurchaseLedger(s)
 
     FILTERS datePurchaseLedger(s) >= dFrom, datePurchaseLedger(s) <= dTo
 ;

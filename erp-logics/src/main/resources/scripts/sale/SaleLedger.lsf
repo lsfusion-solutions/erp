@@ -10,6 +10,10 @@ dateSaleLedger 'Дата' (ledger) = toDate(dateTimeSaleLedger(ledger)) PERSISTE
 
 isPostedSaleLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (SaleLedger) PERSISTENT;
 
+skipSaleLedger 'Не проводить' (ledger) = ABSTRACT BOOLEAN (SaleLedger) PERSISTENT; 
+
+activeSaleLedger (ledger) = isPostedSaleLedger(ledger) AND NOT skipSaleLedger(ledger);
+
 skuSaleLedger (ledger) = ABSTRACT Sku (SaleLedger) PERSISTENT INDEXED;
 nameSkuSaleLedger 'SKU' (ledger) = nameSku(skuSaleLedger(ledger));
 
@@ -29,7 +33,7 @@ costSumSaleLedger 'Себестоимость продажи' (ledger) = ABSTRAC
 customerSaleLedger (ledger) = ABSTRACT LegalEntity (SaleLedger) PERSISTENT INDEXED;
 nameCustomerSaleLedger 'Покупатель' (ledger) = nameLegalEntity(customerSaleLedger(ledger));
 
-inCustomerSku 'Кол-во продано' (legalEntity, sku)= GROUP SUM quantitySaleLedger(ledger) IF isPostedSaleLedger(ledger)
+inCustomerSku 'Кол-во продано' (legalEntity, sku)= GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger)
     BY customerSaleLedger(ledger), skuSaleLedger(ledger) PERSISTENT;
 prevInCustomerSku 'Были продажи (пред.)' (legalEntity, sku) = PREV(inCustomerSku(legalEntity, sku));
 
@@ -50,35 +54,35 @@ sumVATSaleLedger 'Сумма НДС' (ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
 markupSumSaleLedger 'Надбавка' (ledger) = sumSaleLedger(ledger) (-) sumVATSaleLedger(ledger) (-) costSumSaleLedger(ledger);
 
 //по складу и SKU
-quantitySoldSkuStockDate (sku, stock, date) = GROUP SUM quantitySaleLedger(ledger) IF isPostedSaleLedger(ledger)
+quantitySoldSkuStockDate (sku, stock, date) = GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-costSumSoldSkuStockDate (sku, stock, date) = GROUP SUM costSumSaleLedger(ledger) IF isPostedSaleLedger(ledger)
+costSumSoldSkuStockDate (sku, stock, date) = GROUP SUM costSumSaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-markupSumSoldSkuStockDate (sku, stock, date) = GROUP SUM markupSumSaleLedger(ledger) IF isPostedSaleLedger(ledger)
+markupSumSoldSkuStockDate (sku, stock, date) = GROUP SUM markupSumSaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-sumVATSoldSkuStockDate (sku, stock, date) = GROUP SUM sumVATSaleLedger(ledger) IF isPostedSaleLedger(ledger)
+sumVATSoldSkuStockDate (sku, stock, date) = GROUP SUM sumVATSaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
-sumSoldSkuStockDate (sku, stock, date) = GROUP SUM sumSaleLedger(ledger) IF isPostedSaleLedger(ledger)
+sumSoldSkuStockDate (sku, stock, date) = GROUP SUM sumSaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
 
 //по складу, покупателю и SKU
-quantitySoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM quantitySaleLedger(ledger) IF isPostedSaleLedger(ledger)
+quantitySoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
 
-costSumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM costSumSaleLedger(ledger) IF isPostedSaleLedger(ledger)
+costSumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM costSumSaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
 
-markupSumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM markupSumSaleLedger(ledger) IF isPostedSaleLedger(ledger)
+markupSumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM markupSumSaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
 
-sumVATSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM sumVATSaleLedger(ledger) IF isPostedSaleLedger(ledger)
+sumVATSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM sumVATSaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
 
-sumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM sumSaleLedger(ledger) IF isPostedSaleLedger(ledger)
+sumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM sumSaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
 
 quantitySoldSkuStockWeekDateFromTo 'Продано за неделю (кол-во)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
@@ -218,7 +222,7 @@ FORM saleLedger 'Регистр продаж'
                            quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
                            sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger
     PROPERTIES    READONLY sumSoldTypeExchangeSaleLedger (te, s)
-    FILTERS isPostedSaleLedger(s)
+    FILTERS activeSaleLedger(s)
     FILTERS dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo
 ;
 @extendFormFilterAccessStock(SaleLedger, s, saleLedger, stock, company);

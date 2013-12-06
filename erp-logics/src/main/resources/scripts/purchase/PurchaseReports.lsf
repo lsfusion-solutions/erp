@@ -21,18 +21,18 @@ sessionConcatGroups 'Группы' (groupType) =
 
 //суммы поступлений по группе
 sumVATPurchasesGroupStockDateDate 'Сумма НДС (по группе)'(group, stock, dateFrom, dateTo) =
-    GROUP SUM sumVATPurchaseLedger(purchaseLedger) IF isPostedPurchaseLedger(purchaseLedger) AND
+    GROUP SUM sumVATPurchaseLedger(purchaseLedger) IF activePurchaseLedger(purchaseLedger) AND
                                                       datePurchaseLedger(purchaseLedger) >= dateFrom AND
                                                       datePurchaseLedger(purchaseLedger) <= dateTo
     BY groupGroupTypeSku(groupType, skuPurchaseLedger(purchaseLedger)), stockPurchaseLedger(purchaseLedger), dateFrom, dateTo;
 sumPurchasesSkuGroupStockDateDate 'Сумма поступлений (по группе)' (group, stock, dateFrom, dateTo) =
-    GROUP SUM sumPurchaseLedger(purchaseLedger) IF isPostedPurchaseLedger(purchaseLedger) AND
+    GROUP SUM sumPurchaseLedger(purchaseLedger) IF activePurchaseLedger(purchaseLedger) AND
                                                    datePurchaseLedger(purchaseLedger) >= dateFrom AND
                                                    datePurchaseLedger(purchaseLedger) <= dateTo
     BY groupGroupTypeSku(groupType, skuPurchaseLedger(purchaseLedger)), stockPurchaseLedger(purchaseLedger), dateFrom, dateTo;
 sumRecPurchasesSkuGroupStockDateDate 'Сумма поступлений (всего)' (group, stock, dateFrom, dateTo) =
     GROUP SUM sumPurchaseLedger(purchaseLedger) IF isParentGroupSku(group, skuPurchaseLedger(purchaseLedger)) AND
-                                                   isPostedPurchaseLedger(purchaseLedger) AND
+                                                   activePurchaseLedger(purchaseLedger) AND
                                                    datePurchaseLedger(purchaseLedger) >= dateFrom AND
                                                    datePurchaseLedger(purchaseLedger) <= dateTo
     BY group, stockPurchaseLedger(purchaseLedger), dateFrom, dateTo;
@@ -40,13 +40,13 @@ sumRecPurchasesSkuGroupStockDateDate 'Сумма поступлений (все�
 //суммы поступлений по поставщику
 
 sumVATPurchasesGroupTypeSupplierStockDateDate 'Сумма НДС (по поставщику)'(groupType, supplier, stock, dateFrom, dateTo) =
-    GROUP SUM sumVATPurchaseLedger(purchaseLedger) IF isPostedPurchaseLedger(purchaseLedger) AND
+    GROUP SUM sumVATPurchaseLedger(purchaseLedger) IF activePurchaseLedger(purchaseLedger) AND
                                                       inSessionGroup(groupGroupTypeSku(groupType, skuPurchaseLedger(purchaseLedger))) AND
                                                       datePurchaseLedger(purchaseLedger) >= dateFrom AND
                                                       datePurchaseLedger(purchaseLedger) <= dateTo
     BY groupType, supplierPurchaseLedger(purchaseLedger), stockPurchaseLedger(purchaseLedger), dateFrom, dateTo;
 sumPurchasesGroupTypeSupplierStockDateDate 'Сумма поступлений (по поставщику)' (groupType, supplier, stock, dateFrom, dateTo) =
-    GROUP SUM sumPurchaseLedger(purchaseLedger) IF isPostedPurchaseLedger(purchaseLedger) AND
+    GROUP SUM sumPurchaseLedger(purchaseLedger) IF activePurchaseLedger(purchaseLedger) AND
                                                    inSessionGroup(groupGroupTypeSku(groupType, skuPurchaseLedger(purchaseLedger))) AND
                                                    datePurchaseLedger(purchaseLedger) >= dateFrom AND
                                                    datePurchaseLedger(purchaseLedger) <= dateTo
@@ -55,13 +55,13 @@ sumPurchasesGroupTypeSupplierStockDateDate 'Сумма поступлений (�
 //итоговые суммы поступлений
 sumVATPurchasesGroupTypeStockDateDate 'Итоговая сумма НДС поступлений' (groupType, stock, dateFrom, dateTo) =
     GROUP SUM sumVATPurchaseLedger(purchaseLedger) IF inSessionGroup(groupGroupTypeSku(groupType, skuPurchaseLedger(purchaseLedger))) AND
-                                                       isPostedPurchaseLedger(purchaseLedger) AND
+                                                       activePurchaseLedger(purchaseLedger) AND
                                                        datePurchaseLedger(purchaseLedger) >= dateFrom AND
                                                        datePurchaseLedger(purchaseLedger) <= dateTo
     BY groupType, stockPurchaseLedger(purchaseLedger), dateFrom, dateTo PREFCHARWIDTH 15;
 sumPurchasesGroupTypeStockDateDate 'Итоговая сумма поступлений' (groupType, stock, dateFrom, dateTo) =
     GROUP SUM sumPurchaseLedger(purchaseLedger) IF inSessionGroup(groupGroupTypeSku(groupType, skuPurchaseLedger(purchaseLedger))) AND
-                                                   isPostedPurchaseLedger(purchaseLedger) AND
+                                                   activePurchaseLedger(purchaseLedger) AND
                                                    datePurchaseLedger(purchaseLedger) >= dateFrom AND
                                                    datePurchaseLedger(purchaseLedger) <= dateTo
     BY groupType, stockPurchaseLedger(purchaseLedger), dateFrom, dateTo PREFCHARWIDTH 15;
@@ -88,7 +88,7 @@ FORM printListPurchasesReport 'Отчет по поступлениям'
     PROPERTIES(p) READONLY dateTimePurchaseLedger, nameSupplierPurchaseLedger, nameSkuPurchaseLedger, descriptionPurchaseLedger,
                            quantityPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
     ORDER BY nameSkuPurchaseLedger
-    FILTERS isPostedPurchaseLedger(p),
+    FILTERS activePurchaseLedger(p),
             stockPurchaseLedger(p) == st,
             datePurchaseLedger(p) >= df,
             datePurchaseLedger(p) <= dt,
@@ -156,7 +156,7 @@ FORM printPurchasesReport 'Отчет по поступлениям'
     PROPERTIES(p) READONLY dateTimePurchaseLedger, nameSupplierPurchaseLedger, nameSkuPurchaseLedger, descriptionPurchaseLedger,
                            quantityPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
     ORDER BY nameSkuPurchaseLedger
-    FILTERS isPostedPurchaseLedger(p),
+    FILTERS activePurchaseLedger(p),
             stockPurchaseLedger(p) == st,
             datePurchaseLedger(p) >= df,
             datePurchaseLedger(p) <= dt,
@@ -258,7 +258,7 @@ FORM printGroupSupplierPurchasesReport 'Отчет по поступлениям
     PROPERTIES(p) READONLY dateTimePurchaseLedger, nameSupplierPurchaseLedger, nameSkuPurchaseLedger, descriptionPurchaseLedger,
                            quantityPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
     ORDER BY nameSkuPurchaseLedger
-    FILTERS isPostedPurchaseLedger(p),
+    FILTERS activePurchaseLedger(p),
             inSessionGroup(groupGroupTypeSku(gt, skuPurchaseLedger(p))),
             stockPurchaseLedger(p) == st,
             datePurchaseLedger(p) >= df,
@@ -361,7 +361,7 @@ FORM purchasesReport 'Отчет по поступлениям'
                            quantityPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
     ORDER BY nameSkuPurchaseLedger
     FILTERS isParentGroupSku(sk, skuPurchaseLedger(p)),
-            isPostedPurchaseLedger(p),
+            activePurchaseLedger(p),
             stockPurchaseLedger(p) == st,
             datePurchaseLedger(p) >= df,
             datePurchaseLedger(p) <= dt
