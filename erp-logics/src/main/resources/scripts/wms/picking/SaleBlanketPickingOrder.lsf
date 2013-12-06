@@ -4,7 +4,15 @@ REQUIRE SalePickingOrder, SaleBlanketOrder;
 
 NAMESPACE Sale;
 
-                 
-createPickingOrderOrder(o) += createPickingOrderOperation(operationBlanketOrderStock(blanketOrderBlanketOrderOrder(o), stockBlanketOrderOrder(o)));
+
+createPickingOrderBlanketOrderStock 'Заказ на комплектацию' = DATA BOOLEAN (BlanketOrder, Stock);
+
+createPickingOrderBlanketOrderStock (o, st) <- createPickingOrderOperation(operationBlanketOrderStock(o, st)) IF inBlanketOrderStock(o,st)  
+    WHEN CHANGED(createPickingOrderOperation(operationBlanketOrderStock(o, st))) OR CHANGED(inBlanketOrderStock(o,st));
+ 
+EXTEND FORM blanketOrder
+    PROPERTIES(o,c) createPickingOrderBlanketOrderStock AFTER nameOperationBlanketOrderStock      
+;
+createPickingOrderOrder(o) += createPickingOrderBlanketOrderStock(blanketOrderBlanketOrderOrder(o), stockBlanketOrderOrder(o));
 pickingNumberOrderDetail(d) +=  1 IF d IS BlanketOrderOrderDetail;
 
