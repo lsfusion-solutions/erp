@@ -1,0 +1,57 @@
+MODULE ShipmentOrderLedger;
+
+REQUIRE OrderLedger, PurchaseShipment;
+
+NAMESPACE Purchase;
+
+@defineDocumentInterfaceProperty (invoice, createOrderLedger, 'Создать резерв');
+
+EXTEND FORM userInvoice 
+    PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) SHOWIF createShipmentUserInvoice(i) createOrderLedgerUserInvoice
+;
+
+EXTEND DESIGN userInvoice {
+    headerCreateShipment {
+        ADD PROPERTY(createOrderLedgerUserInvoice);       
+    }
+}
+
+@defineDocumentInterfaceProperty (shipment, createOrderLedger, 'Создать резерв');
+
+EXTEND FORM userShipment 
+    PROPERTIES(s)  createOrderLedgerUserShipment
+;
+
+EXTEND DESIGN userShipment {
+    headerCreateDocuments {
+        NEW headerCreateCreditNote {
+            caption = 'Резерв';
+            ADD PROPERTY(createOrderLedgerUserShipment);
+        }            
+    }          
+}
+
+createOrderLedgerShipment(s) += createOrderLedgerInvoice(invoiceInvoiceShipment(s));
+
+//--Резерв
+
+CLASS ShipmentOrderLedger 'Резерв на основе поставки (закупка)' : OrderLedger;
+TABLE shipmentOrderLedger (ShipmentOrderLedger);
+
+@defineAggregation (shipmentDetail, shipmentOrderLedger, createOrderLedger);
+
+//--------------------- Проводим по регистру резерва ------------------//
+
+dateTimeOrderLedger (ledger) += dateTimeShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+isPostedOrderLedger (ledger) += isPostedShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+isClosedOrderLedger (ledger) += isClosedShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+skuOrderLedger (ledger) += skuShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+batchOrderLedger (ledger) += ledgerBatchShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+stockOrderLedger (ledger) += customerStockShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+descriptionOrderLedger (ledger) += descriptionShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+quantityOrderLedger (ledger) += quantityShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+contactOrderLedger (ledger) += customerShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+toShipQuantityOrderLedger (ledger) += quantityShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
+    
+
+
