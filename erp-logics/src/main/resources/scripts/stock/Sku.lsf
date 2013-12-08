@@ -40,7 +40,7 @@ TABLE group(Group);
 nameGroup 'Наименование' = ABSTRACT VARISTRING[150](Group) PERSISTENT INDEXED;
 
 TABLE groupGroup(Group, Group);
-@defineHierarchyAbstract(group, Group);
+@defineHierarchyAbstract(group);
 
 CLASS ABSTRACT GroupType 'Тип классификатора SKU';
 nameGroupType 'Наименование' = ABSTRACT VARISTRING[100](GroupType);
@@ -180,7 +180,8 @@ nameSkuGroup 'Наименование' = ABSTRACT VARISTRING[150](SkuGroup) PER
 nameGroup(group) += nameSkuGroup(group) IF group IS SkuGroup;
 
 TABLE skuGroupSkuGroup(SkuGroup, SkuGroup);
-@defineHierarchyAbstract(skuGroup, SkuGroup);
+@defineHierarchyAbstract(skuGroup);
+@defineHierarchyPlain(skuGroup);
 
 EXTEND CLASS SystemGroupType { skuGroupType 'Основной' }
 
@@ -216,6 +217,21 @@ TABLE countrySku(Country, Sku);
 
 skuGroupSku (sku) = ABSTRACT SkuGroup (Sku) PERSISTENT INDEXED;
 nameSkuGroupSku 'Группа' (sku)= nameSkuGroup(skuGroupSku(sku));
+
+skuGroup1Sku 'Категория' (sku) = skuGroup1SkuGroup(skuGroupSku(sku));
+nameSkuGroup1Sku 'Категория' (sku) = nameSkuGroup(skuGroup1Sku(sku));
+ 
+skuGroup2Sku 'Направление' (sku) = skuGroup2SkuGroup(skuGroupSku(sku));
+nameSkuGroup2Sku 'Направление' (sku) = nameSkuGroup(skuGroup2Sku(sku));
+
+skuGroup3Sku 'Группа' (sku) = skuGroup3SkuGroup(skuGroupSku(sku));
+nameSkuGroup3Sku 'Группа' (sku) = nameSkuGroup(skuGroup3Sku(sku));
+
+skuGroup4Sku 'Подгруппа' (sku) = skuGroup4SkuGroup(skuGroupSku(sku));
+nameSkuGroup4Sku 'Подгруппа' (sku) = nameSkuGroup(skuGroup4Sku(sku));
+
+skuGroup5Sku 'Субгруппа' (sku) = skuGroup5SkuGroup(skuGroupSku(sku));
+nameSkuGroup5Sku 'Субгруппа' (sku) = nameSkuGroup(skuGroup5Sku(sku));
 
 groupTypeGroup(group) += SystemGroupType.skuGroupType IF group IS SkuGroup;
 groupGroupTypeSku(type, sku) += WHEN CLASS(skuGroupSku(sku)) AND type == SystemGroupType.skuGroupType THEN skuGroupSku(sku);

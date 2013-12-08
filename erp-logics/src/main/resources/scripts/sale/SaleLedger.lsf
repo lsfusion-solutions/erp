@@ -6,7 +6,10 @@ CLASS ABSTRACT SaleLedger 'Продажа товара';
 TABLE saleLedger(SaleLedger);
 
 dateTimeSaleLedger 'Дата/время' (ledger) = ABSTRACT DATETIME (SaleLedger) PERSISTENT INDEXED;
+hourSaleLedger 'Час' (ledger) = extractHour(dateTimeSaleLedger(ledger));  
 dateSaleLedger 'Дата' (ledger) = toDate(dateTimeSaleLedger(ledger)) PERSISTENT INDEXED;
+nameDOWSaleLedger 'День недели' (ledger) = extractDOWName(dateSaleLedger(ledger));
+nameMonthSaleLedger 'Месяц' (ledger) = extractMonthName(dateSaleLedger(ledger));
 
 isPostedSaleLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (SaleLedger) PERSISTENT;
 
@@ -17,7 +20,12 @@ activeSaleLedger (ledger) = isPostedSaleLedger(ledger) AND NOT skipSaleLedger(le
 skuSaleLedger (ledger) = ABSTRACT Sku (SaleLedger) PERSISTENT INDEXED;
 nameSkuSaleLedger 'SKU' (ledger) = nameSku(skuSaleLedger(ledger));
 
-canonicalNameSkuGroupSaleLedger 'Каноническое имя' (ledger) = canonicalNameGroup(skuGroupSku(skuSaleLedger(ledger)));
+canonicalNameSkuGroupSaleLedger 'Группа (полная)' (ledger) = canonicalNameGroup(skuGroupSku(skuSaleLedger(ledger)));
+nameSkuGroup1SkuSaleLedger 'Категория' = nameSkuGroup1Sku(skuSaleLedger(ledger));
+nameSkuGroup2SkuSaleLedger 'Направление' = nameSkuGroup2Sku(skuSaleLedger(ledger));
+nameSkuGroup3SkuSaleLedger 'Группа' = nameSkuGroup3Sku(skuSaleLedger(ledger));
+nameSkuGroup4SkuSaleLedger 'Подгруппа' = nameSkuGroup4Sku(skuSaleLedger(ledger));
+nameSkuGroup5SkuSaleLedger 'Субгруппа' = nameSkuGroup5Sku(skuSaleLedger(ledger));
 
 stockSaleLedger (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT INDEXED;
 nameStockSaleLedger 'Склад' (ledger) = nameStock(stockSaleLedger(ledger));
@@ -87,11 +95,11 @@ sumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM sumSaleLedg
 
 quantitySoldSkuStockWeekDateFromTo 'Продано за неделю (кол-во)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
         quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
-        BY sku, stock, weekInDate(date), dateFrom, dateTo;
+        BY sku, stock, extractWeek(date), dateFrom, dateTo;
 
 sumSoldSkuStockWeekDateFromTo 'Продано за неделю (сумма)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
         sumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
-        BY sku, stock, weekInDate(date), dateFrom, dateTo;
+        BY sku, stock, extractWeek(date), dateFrom, dateTo;
 
 averagePriceSoldSkuStockWeekDateFromTo 'Средняя цена за неделю' (sku, stock, week, dateFrom, dateTo)=  round2(sumSoldSkuStockWeekDateFromTo(sku, stock, week, dateFrom, dateTo) /
         quantitySoldSkuStockWeekDateFromTo(sku, stock, week, dateFrom, dateTo));
@@ -217,7 +225,9 @@ FORM saleLedger 'Регистр продаж'
     PROPERTIES nameType = nameTypeExchange(te) SELECTOR, nameCurrencyTypeExchange(te) READONLY
 
     OBJECTS s = SaleLedger
-    PROPERTIES(s) READONLY dateSaleLedger, dateTimeSaleLedger, nameStockSaleLedger, nameCustomerSaleLedger,
+    PROPERTIES(s) READONLY nameMonthSaleLedger, nameDOWSaleLedger, dateSaleLedger, hourSaleLedger, dateTimeSaleLedger, 
+                           nameStockSaleLedger, nameCustomerSaleLedger,
+                           nameSkuGroup1SkuSaleLedger, nameSkuGroup2SkuSaleLedger, nameSkuGroup3SkuSaleLedger, nameSkuGroup4SkuSaleLedger, nameSkuGroup5SkuSaleLedger, 
                            canonicalNameSkuGroupSaleLedger, nameSkuSaleLedger, descriptionSaleLedger,
                            quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
                            sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger
