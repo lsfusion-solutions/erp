@@ -16,3 +16,46 @@ EXTEND FORM blanketOrder
 createPickingOrderOrder(o) += createPickingOrderBlanketOrderStock(blanketOrderBlanketOrderOrder(o), stockBlanketOrderOrder(o));
 pickingNumberOrderDetail(d) +=  1 IF d IS BlanketOrderOrderDetail;
 
+countOrdersBlanketOrder 'К-во заказов' (blanketOrder) = GROUP SUM 1 BY blanketOrderBlanketOrderOrder(order);
+countBlanketOrderOrder 'К-во заказов' (blanketOrder, order) = GROUP SUM 1 BY blanketOrderBlanketOrderOrder(order), order;
+
+namePerformerBlanketOrder 'Комплектовщики' (blanketOrder) = GROUP CONCAT namePerformerOrder(o) IF countBlanketOrderOrder(blanketOrder, o), ',' BY blanketOrder;
+
+countFullBlanketOrder 'К-во полностью собранных' (blanketOrder) = GROUP SUM 1 IF calcFullOrder(order) BY blanketOrderBlanketOrderOrder(order);
+countPartBlanketOrder 'К-во частично собранных' (blanketOrder) = GROUP SUM 1 IF calcPartOrder(order) BY blanketOrderBlanketOrderOrder(order);
+countPartFullBlanketOrder 'К-во частично/полностью собранных' (blanketOrder) = GROUP SUM 1 IF (calcPartOrder(order) OR calcFullOrder(order))  BY blanketOrderBlanketOrderOrder(order);
+countAcceptedBlanketOrder 'К-во в комплектации' (blanketOrder) = GROUP SUM 1 IF acceptedOrder(order) BY blanketOrderBlanketOrderOrder(order);
+countPickingBlanketOrder 'К-во ожидает комплектации' (blanketOrder) = GROUP SUM 1 IF countPickingOrderOrder(order) BY blanketOrderBlanketOrderOrder(order);
+
+packQuantityBlanketOrder 'Кол-во собранных мест' (order) = GROUP SUM packQuantityOrder(order) BY blanketOrderBlanketOrderOrder(order);
+
+statusPickingBlanketOrder 'Статус комплектации' (order) = CASE
+    WHEN countOrdersBlanketOrder(order) == countFullBlanketOrder(order) THEN 'Полностью собран'
+    WHEN countOrdersBlanketOrder(order) == countPartFullBlanketOrder(order) THEN 'Частично собран'
+    WHEN countAcceptedBlanketOrder(order)  THEN 'В комплектации'
+    WHEN countPickingBlanketOrder(order) THEN 'Ожидает комплектацию' 
+    WHEN order IS BlanketOrder THEN 'Без комплектации';
+
+backgroundStatusPickingBlanketOrder 'Цвет' (order) = CASE
+    WHEN countOrdersBlanketOrder(order) == countFullBlanketOrder(order) THEN RGB(212,255,212)
+    WHEN countOrdersBlanketOrder(order) == countPartFullBlanketOrder(order) THEN RGB(255,238,165)
+    WHEN countAcceptedBlanketOrder(order) THEN RGB(255,238,165)
+    WHEN countPickingBlanketOrder(order) THEN RGB(212,212,255) 
+    WHEN order IS BlanketOrder THEN RGB(255,200,216);
+
+EXTEND FORM blanketOrders
+    PROPERTIES(o) READONLY FORCE PANEL countOrdersBlanketOrder, namePerformerBlanketOrder, statusPickingBlanketOrder BACKGROUND backgroundStatusPickingBlanketOrder(o), 
+                  packQuantityBlanketOrder
+;
+EXTEND DESIGN blanketOrders {
+    documentHistory {
+        NEW picking {
+            caption = 'Комплектация';
+            type = CONTAINERV;
+            ADD PROPERTY(countOrdersBlanketOrder);             
+            ADD PROPERTY(statusPickingBlanketOrder);
+            ADD PROPERTY(packQuantityBlanketOrder);
+            ADD PROPERTY(namePerformerBlanketOrder);
+        }
+    }
+}
