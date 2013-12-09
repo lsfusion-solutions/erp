@@ -38,6 +38,8 @@ public class FiscalVMK {
 
         Boolean vmk_prnch(String message);
 
+        Boolean vmk_repeat();
+
         Boolean vmk_oplat(Integer type, Integer sum, Integer flagByte);
 
         Boolean vmk_xotch();
@@ -131,6 +133,10 @@ public class FiscalVMK {
 
     public static boolean printFiscalText(String msg) {
         return vmkDLL.vmk.vmk_prnch(msg);
+    }
+
+    public static boolean repeatReceipt() {
+        return vmkDLL.vmk.vmk_repeat();
     }
 
     public static boolean totalCash(BigDecimal sum) {
