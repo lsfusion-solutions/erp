@@ -141,24 +141,25 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
                 ObjectValue priceListTypeObject = businessLogics.getModule("PriceListType").getLCPByOldName("priceListTypeId").readClasses(session, new DataObject(idPriceListType));
                 ObjectValue stockObject = businessLogics.getModule("Stock").getLCPByOldName("stockId").readClasses(session, new DataObject(idStock));
                 String captionItem = (String) businessLogics.getModule("Item").getLCPByOldName("captionItem").read(session, skuObject);
-                if (!(priceListTypeObject instanceof NullValue) && !(stockObject instanceof NullValue)) {
+                if (priceListTypeObject instanceof NullValue || stockObject instanceof NullValue) {
+                    String notFound = "Неверные параметры сервера";
+                    while (notFound.length() < length)
+                        notFound += " ";
+                    return notFound.getBytes("cp1251");
+                } else {
                     BigDecimal price = (BigDecimal) businessLogics.getModule("PriceListType").getLCPByOldName("priceAPriceListTypeSkuStockDateTime").read(session,
                             priceListTypeObject, skuObject, stockObject, new DataObject(new Timestamp(date.getTime()), DateTimeClass.instance));
                     String priceMessage = new DecimalFormat("###,###.#").format(price.doubleValue());
                     while (captionItem.length() + priceMessage.length() < (length - 1)) {
                         priceMessage = " " + priceMessage;
                     }
+                    captionItem = captionItem.substring(0, Math.min(captionItem.length(), (length - priceMessage.length() - 1)));
                     String message = captionItem + " " + priceMessage;
                     String gap = "";
                     for (int i = 0; i < gapLength; i++) {
                         gap += " ";
                     }
-                    return (message.substring(0, 22) + gap + message.substring(22, 44) + gap).getBytes("cp1251");
-                } else {
-                    String notFound = "Неверные параметры сервера";
-                    while (notFound.length() < length)
-                        notFound += " ";
-                    return notFound.getBytes("cp1251");
+                    return (message.substring(0, length / 2) + gap + message.substring(length / 2, length) + gap).getBytes("cp1251");
                 }
             }
         }
