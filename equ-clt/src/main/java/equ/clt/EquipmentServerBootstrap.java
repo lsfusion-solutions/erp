@@ -1,9 +1,9 @@
 package equ.clt;
 
-import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
+import lsfusion.base.SystemUtils;
 
 import java.io.IOException;
 
@@ -21,7 +21,7 @@ public class EquipmentServerBootstrap {
     public static void start() throws IOException {
         logger.info("Server is starting...");
 
-        RMIUtils.installRmiErrorHandler();
+        SystemUtils.initRMICompressedSocketFactory();
 
         initSpringContext();
 

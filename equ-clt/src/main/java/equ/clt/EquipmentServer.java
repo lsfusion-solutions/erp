@@ -1,20 +1,14 @@
 package equ.clt;
 
 import equ.api.*;
-import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
-import java.rmi.ConnectException;
-import java.rmi.NoSuchObjectException;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
-import java.rmi.registry.Registry;
+import java.rmi.*;
 import java.sql.SQLException;
+import java.text.MessageFormat;
 import java.util.*;
 
 public class EquipmentServer {
@@ -26,17 +20,6 @@ public class EquipmentServer {
     EquipmentServerSettings equipmentServerSettings;
 
     public EquipmentServer(final String equServerID, final String serverUrl, final String serverDB) {
-        final String serverHost;
-        final int serverPort;
-        int dotIndex = serverUrl.indexOf(":");
-        if (dotIndex > 0) {
-            serverHost = serverUrl.substring(0, dotIndex);
-            serverPort = Integer.parseInt(serverUrl.substring(dotIndex + 1));
-        } else {
-            serverHost = serverUrl;
-            //default port
-            serverPort = Registry.REGISTRY_PORT;
-        }
 
         thread = new Thread(new Runnable() {
 
@@ -51,7 +34,7 @@ public class EquipmentServer {
                     try {
                         if (remote == null) {
                             try {
-                                remote = RMIUtils.rmiLookup(serverHost, serverPort, serverDB, "EquipmentServer");
+                                remote = (EquipmentServerInterface) Naming.lookup(MessageFormat.format("rmi://{0}/{1}/EquipmentServer", serverUrl, serverDB));
                             } catch (ConnectException e) {
                                 logger.error("Naming lookup error : ", e);
                             } catch (NoSuchObjectException e) {
