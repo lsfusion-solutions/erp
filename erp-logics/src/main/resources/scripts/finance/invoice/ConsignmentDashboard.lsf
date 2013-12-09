@@ -1,6 +1,6 @@
 MODULE ConsignmentDashboard;
 
-REQUIRE Dashboard, ConsignmentBy, OrderInvoice, TripInvoice,  OrderInvoicePickingOrder; 
+REQUIRE Dashboard, ConsignmentBy, OrderInvoice, TripInvoice,  OrderInvoicePickingOrder, OrderTishas; 
 
 NAMESPACE Order;
 
@@ -61,7 +61,7 @@ changeTripOrder = ACTION (order){
 changeNumberInvoice (invoice) = ACTION (invoice) {
     REQUEST STRING[18] INPUT;
     IF requestedString() THEN {
-        numberInvoice(invoice) <- requestedString();
+        numberInvoice(invoice) <- requestedString();         
         apply();
     }    
 }
@@ -76,8 +76,8 @@ changeSeriesInvoice (invoice) = ACTION (invoice) {
 
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
 
-    OBJECTS d = DATE FIXED PANEL
-    PROPERTIES(d) date = OBJVALUE
+    OBJECTS dt = DATE FIXED PANEL
+    PROPERTIES(dt) date = OBJVALUE
 
     OBJECTS o=Order FIXED GRID
     PROPERTIES(o) inConsignmentPrintOrder
@@ -90,6 +90,10 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
     FILTERS isPostedOrder (o) 
     FILTERGROUP toInvoiced FILTER 'Не выписаны' 'F6' toInvoicedPickedOrder(o) DEFAULT  
     FILTERS outOrder (o)
+    
+    OBJECTS d = OrderDetail FIXED GRID
+    PROPERTIES(d) READONLY nameSkuOrderDetail, descriptionComplianceOrderDetail 
+    FILTERS orderOrderDetail(d) == o
 
     OBJECTS i = Invoice FIXED GRID
     PROPERTIES (i) FORCE PANEL numInv=numberInvoice ON CHANGE changeNumberInvoice(i), serInv=seriesInvoice ON CHANGE changeSeriesInvoice(i)
@@ -108,8 +112,8 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
                                 
                                
     FILTERS outInvoice (i)                            
-    FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=d DEFAULT
-    FILTERGROUP filters1 FILTER 'Накладные на дату' 'F5' dateInvoice(i)==d DEFAULT
+    FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=dt DEFAULT
+    FILTERGROUP filters1 FILTER 'Накладные на дату' 'F5' dateInvoice(i)==dt DEFAULT
 ;
 
 DESIGN consignmentDashboard FROM DEFAULT {
@@ -120,7 +124,8 @@ DESIGN consignmentDashboard FROM DEFAULT {
              NEW base2Container {
                 fill = 4;
                 type = SPLITV;
-                    NEW firstContainer {
+                    NEW tabContainer{
+                        type = TABBED;
                         fill = 1;
                         ADD i.box{
                             caption = 'Накладные';
@@ -130,7 +135,7 @@ DESIGN consignmentDashboard FROM DEFAULT {
                             PROPERTY(addressToStockOrder){
                                 caption = 'Адрес получателя';
                             }
-                            PROPERTY(nameToStockInvoice){
+                            PROPERTY(nameToStockInvoice){                  
                                 minimumCharWidth = 45;
                             }
                             PROPERTY(numInv) {
@@ -140,8 +145,11 @@ DESIGN consignmentDashboard FROM DEFAULT {
                                 font = 'bold 18';
                             }
                         }
+                        ADD d.box{
+                            caption = 'Сертификаты'; 
+                        }
                     }
-                    NEW secondContainer BEFORE firstContainer {
+                    NEW secondContainer BEFORE tabContainer {
                         fill = 1;
                         ADD o.box{
                             caption = 'Скомплектованные заказы';
