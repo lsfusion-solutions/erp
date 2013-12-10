@@ -1,0 +1,351 @@
+MODULE PurchaseSaleReturnInvoice;
+
+REQUIRE SaleReturnInvoice, PurchaseReturnInvoice, PurchaseSaleReturnOperation;
+
+PRIORITY PurchaseReturn;
+
+//----------------------------------------------------------------------------//
+
+//Создание накладной на основе накладной //
+
+FORM invoiceInvoices 'Накладные (закупка-возврат)'
+    OBJECTS s = LegalEntity FIXED PANEL
+    PROPERTIES (s) READONLY nameLegalEntity
+    OBJECTS c = LegalEntity FIXED PANEL
+    PROPERTIES (c) READONLY nameLegalEntity
+
+    OBJECTS ss = Stock FIXED PANEL
+    PROPERTIES (ss) READONLY nameStock
+    OBJECTS cs = Stock FIXED PANEL
+    PROPERTIES (cs) READONLY nameStock
+
+    OBJECTS t=DATE FIXED PANEL
+    PROPERTIES(t) OBJVALUE
+
+    OBJECTS o = Invoice
+    PROPERTIES (o) READONLY isPostedInvoice, numberInvoice, seriesInvoice, dateInvoice, timeInvoice, nameCurrencyInvoice,
+                            countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
+                            noteInvoice
+    FILTERS supplierInvoice(o) == s,
+            customerInvoice(o) == c,
+            supplierStockInvoice(o) == ss,
+            customerStockInvoice(o) == cs,
+            isPostedInvoice(o)
+
+    FILTERGROUP filters1
+        FILTER 'Только этой даты' 'F11' dateInvoice(o) == t DEFAULT
+
+    OBJECTS d = InvoiceDetail
+
+    PROPERTIES (d) READONLY indexInvoiceDetail, idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail
+    PROPERTIES (d) READONLY SHOWIF showPackInvoice(o) idBarcodePackInvoiceDetail, shortNameUOMPackInvoiceDetail, amountPackInvoiceDetail, packQuantityInvoiceDetail
+    PROPERTIES (d) READONLY quantityInvoiceDetail, priceInvoiceDetail, sumInvoiceDetail, numberVATInvoiceDetail, valueVATInvoiceDetail,
+                            VATSumInvoiceDetail, invoiceSumInvoiceDetail, nameSupplierStockInvoiceDetail
+
+    FILTERS invoiceInvoiceDetail(d) == o
+;
+
+DESIGN invoiceInvoices FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+        NEW documentContainer BEFORE functions.box {
+
+            type = CONTAINERV;
+            NEW headerBox1 {
+                type = CONTAINERH;
+                NEW headerBox11 {
+                    type = CONTAINERH;
+                    caption = 'Поставщик';
+                    ADD s.box;
+                    ADD ss.box;
+                }
+                NEW headerBox12 {
+                    type = CONTAINERH;
+                    caption = 'Покупатель';
+                    ADD c.box;
+                    ADD cs.box;
+                }
+            }
+            NEW headerBox2 {
+                type = CONTAINERH;
+                ADD t.box;
+            }
+            ADD o.box;
+            NEW documentDetail {
+                type = TABBED;
+
+                ADD d.box {
+                    caption = 'Спецификация';
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+fillInvoiceUserInvoice 'Заполнить на основе накладной (закупка-возврат)' =  ACTION (userInvoice) {
+    FORM invoiceInvoices OBJECTS s = SaleReturn.supplierUserInvoice(userInvoice), c = SaleReturn.customerUserInvoice(userInvoice),
+                                   ss = SaleReturn.supplierStockUserInvoice(userInvoice), cs = SaleReturn.customerStockUserInvoice(userInvoice),
+                                   t = SaleReturn.dateUserInvoice(userInvoice) MODAL;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL saleReturnInvoice = Invoice();
+        ASSIGN saleReturnInvoice() <- chosenObject('o');
+
+        FOR invoiceInvoiceDetail(invoiceDetail) == saleReturnInvoice() ADDOBJ d = SaleReturn.UserInvoiceDetail DO {
+            ASSIGN SaleReturn.userInvoiceUserInvoiceDetail(d) <- userInvoice;
+            ASSIGN SaleReturn.skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
+            ASSIGN SaleReturn.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail);
+            ASSIGN SaleReturn.barcodePackUserInvoiceDetail(d) <- barcodePackInvoiceDetail(invoiceDetail);
+            ASSIGN SaleReturn.amountPackUserInvoiceDetail(d) <- amountPackInvoiceDetail(invoiceDetail);
+            ASSIGN SaleReturn.packQuantityUserInvoiceDetail(d) <- packQuantityInvoiceDetail(invoiceDetail);
+            ASSIGN SaleReturn.quantityUserInvoiceDetail (d) <- quantityInvoiceDetail(invoiceDetail);
+            ASSIGN SaleReturn.VATUserInvoiceDetail(d) <- VATInvoiceDetail(invoiceDetail);
+            ASSIGN SaleReturn.valueVATUserInvoiceDetail(d) <- valueVATInvoiceDetail(invoiceDetail);
+            ASSIGN SaleReturn.priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
+            ASSIGN SaleReturn.invoicePriceUserInvoiceDetail(d) <- invoicePriceInvoiceDetail(invoiceDetail);
+        }
+    }
+} IN SaleReturn.invoice;
+
+//----------------------------------------------------------------------------//
+
+GROUP invoice 'Информация о накладной' : base;
+
+createSaleReturnInvoiceInvoice 'Создать накладную (продажа-возврат)' = ABSTRACT BOOLEAN (Invoice) PERSISTENT;
+createSaleReturnInvoiceUserInvoice 'Создать накладную (продажа-возврат)' = DATA BOOLEAN (UserInvoice) PERSISTENT;
+createSaleReturnInvoiceInvoice(invoice) += createSaleReturnInvoiceUserInvoice(invoice);
+
+createSaleReturnInvoiceInvoiceDetail 'Создать накладную (продажа-возврат)' (invoiceDetail) = createSaleReturnInvoiceInvoice(invoiceInvoiceDetail(invoiceDetail))PERSISTENT;
+createSaleReturnInvoiceUserInvoiceDetail 'Создать накладную (продажа-возврат)' (userInvoiceDetail) = createSaleReturnInvoiceUserInvoice(userInvoiceUserInvoiceDetail(userInvoiceDetail));
+backgroundSaleReturnInvoice 'Цвет' (invoice) = RGB(255, 255, 190) IF invoice IS Invoice;
+
+isCompanyCustomerUserInvoice (userInvoice) =  isCompanyLegalEntity(customerUserInvoice(userInvoice));
+EXTEND FORM userInvoice
+    PROPERTIES(i) BACKGROUND backgroundSaleReturnInvoice(i) SHOWIF isCompanyCustomerUserInvoice(i) createSaleReturnInvoiceUserInvoice
+;
+EXTEND DESIGN userInvoice {
+    headerCreateDocuments {
+        NEW headerCreateSaleReturn {
+            caption = 'Накладная (продажа-возврат)';
+            ADD PROPERTY(createSaleReturnInvoiceUserInvoice);
+        }
+    }
+}
+
+//--  Связь поставки с поставкой
+
+invoiceDetailInvoiceDetail = ABSTRACT InvoiceDetail (SaleReturn.InvoiceDetail) PERSISTENT;
+invoiceDetailUserInvoiceDetail = DATA InvoiceDetail (SaleReturn.UserInvoiceDetail);
+invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailUserInvoiceDetail(invoiceDetail);
+
+CONSTRAINT SaleReturn.supplierInvoiceDetail(detail) != supplierInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
+           SaleReturn.supplierStockInvoiceDetail(detail) != supplierStockInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
+           SaleReturn.customerInvoiceDetail(detail) != customerInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
+           SaleReturn.customerStockInvoiceDetail(detail) != customerStockInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
+           SaleReturn.skuInvoiceDetail(detail) != skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
+    CHECKED BY invoiceDetailUserInvoiceDetail
+        MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на осове накладной должны соответствовать друг другу';
+
+
+descriptionIndexInvoiceDetailInvoiceDetail 'Строка накладной (закупка-возврат)' (detail) = descriptionIndexInvoiceDetail(invoiceDetailInvoiceDetail(detail));
+descriptionIndexInvoiceDetailUserInvoiceDetail 'Строка накладной (закупка-возврат)' (detail) = descriptionIndexInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+
+quantityInvoiceDetailInvoiceInvoice (purchaseReturn, saleReturn) = GROUP SUM SaleReturn.quantityInvoiceDetail(detail) BY invoiceInvoiceDetail(invoiceDetailInvoiceDetail(detail)), SaleReturn.invoiceInvoiceDetail(detail);
+
+purchaseReturnInvoicesInvoice 'Накладные (закупка-возврат)' (saleReturn) = GROUP CONCAT VARSTRING[255](descriptionInvoice(purchaseReturn)) IF quantityInvoiceDetailInvoiceInvoice (purchaseReturn, saleReturn), ', '
+                                                        BY saleReturn
+                                                        ORDER purchaseReturn IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+
+relationSaleReturnInvoice 'Связь' (saleReturn) = GROUP SUM quantityInvoiceDetailInvoiceInvoice (purchaseReturn, saleReturn) BY saleReturn PERSISTENT;
+
+invoicedInvoiceDetail 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM SaleReturn.quantityInvoiceDetail(detail) IF SaleReturn.isPostedInvoiceDetail(detail)
+                                                                   BY invoiceDetailInvoiceDetail(detail) PERSISTENT;
+
+toInvoicedInvoiceDetail 'Не выписано' (invoiceDetail) = quantityInvoiceDetail (invoiceDetail) (-) invoicedInvoiceDetail(invoiceDetail);
+
+EXTEND FORM SaleReturn.userInvoice
+    PROPERTIES(i) fillInvoiceUserInvoice, purchaseReturnInvoicesInvoice READONLY
+;
+EXTEND DESIGN SaleReturn.userInvoice { headerCreateDetail{ ADD i.invoice { type = CONTAINERV; }}}
+
+
+
+CLASS SaleReturnInvoice 'Накладная возврат на основе накладной возврат': SaleReturn.Invoice;
+CLASS SaleReturnInvoiceDetail 'Строка накладной возврат на основе накладной возврат' : SaleReturn.InvoiceDetail;
+
+@defineDocumentTables(saleReturnInvoice);
+
+@defineDocumentAggregation(invoice, saleReturnInvoice, createSaleReturnInvoice);
+SaleReturn.invoiceInvoiceDetail(detail) += saleReturnInvoiceSaleReturnInvoiceDetail(detail);
+
+@defineDocumentDetailIndex(saleReturnInvoice);
+
+SaleReturn.dateInvoice(invoice) += dateSaleReturnInvoice(invoice);
+SaleReturn.timeInvoice(invoice) += timeSaleReturnInvoice(invoice);
+
+@defineDocumentAggregationStockPrefix(invoice, saleReturnInvoice, supplier, 'Склад поставщика', , );
+SaleReturn.supplierStockInvoice(invoice) += supplierStockSaleReturnInvoice(invoice);
+SaleReturn.dataSupplierStockInvoiceDetail(invoiceDetail) += dataSupplierStockInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+@defineDocumentAggregationStockPrefix(invoice, saleReturnInvoice, customer, 'Склад покупателя', , );
+SaleReturn.customerStockInvoice(invoice) += customerStockSaleReturnInvoice(invoice);
+SaleReturn.dataCustomerStockInvoiceDetail(invoiceDetail) += dataCustomerStockInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+
+@defineDocumentAggregationLegalEntityPrefix(invoice, saleReturnInvoice, supplier, 'Поставщик', , );
+SaleReturn.supplierInvoice(invoice) += supplierSaleReturnInvoice(invoice);
+@defineDocumentAggregationLegalEntityPrefix(invoice, saleReturnInvoice, customer, 'Покупатель', , );
+SaleReturn.customerInvoice(invoice) += customerSaleReturnInvoice(invoice);
+
+@defineDocumentAggregationPosted(invoice, saleReturnInvoice);
+SaleReturn.isPostedInvoice(invoice) += isPostedSaleReturnInvoice(invoice);
+
+@defineDocumentAggregationClosed(invoice, saleReturnInvoice);
+SaleReturn.isClosedInvoice(invoice) += isClosedSaleReturnInvoice(invoice);
+
+SaleReturn.numberInvoice(invoice) += numberInvoice(invoiceSaleReturnInvoice(invoice));
+SaleReturn.seriesInvoice(invoice) += seriesInvoice(invoiceSaleReturnInvoice(invoice));
+seriesNumberSaleReturnInvoice 'Серия/номер документа' (saleReturnInvoice) = seriesNumberInvoice(invoiceSaleReturnInvoice(saleReturnInvoice));
+
+noteInvoiceSaleReturnInvoice 'Примечание' (saleReturnInvoice) = noteInvoice(invoiceSaleReturnInvoice(saleReturnInvoice));
+SaleReturn.noteInvoice(invoice) += noteInvoiceSaleReturnInvoice(invoice);
+
+currencySaleReturnInvoice  (saleReturnInvoice) = currencyInvoice(invoiceSaleReturnInvoice(saleReturnInvoice));
+SaleReturn.currencyInvoice (invoice) += currencySaleReturnInvoice(invoice);
+
+agreementSaleReturnInvoice  (saleReturnInvoice) = agreementInvoice(invoiceSaleReturnInvoice(saleReturnInvoice));
+SaleReturn.agreementInvoice (invoice) += agreementSaleReturnInvoice(invoice);
+
+priceListTypeSaleReturnInvoice  (saleReturnInvoice) = priceListTypeInvoice(invoiceSaleReturnInvoice(saleReturnInvoice));
+SaleReturn.priceListTypeInvoice (invoice) += priceListTypeSaleReturnInvoice(invoice);
+
+@defineDocumentDescription(saleReturnInvoice, SaleReturnInvoiceDetail, 'Накладная возврат на основе накладной возврат');
+SaleReturn.descriptionInvoice (invoice) += descriptionSaleReturnInvoice(invoice);
+
+SaleReturn.contractSkuInvoice (invoice) += contractSkuInvoice(invoiceSaleReturnInvoice(invoice));
+SaleReturn.isCommissionInvoice (invoice) += isCommissionInvoice(invoiceSaleReturnInvoice(invoice));
+
+@defineDocumentAggregationDetailSku(invoice, saleReturnInvoice, sku);
+SaleReturn.skuInvoiceDetail(invoiceDetail) +=  skuSaleReturnInvoiceDetail(invoiceDetail);
+
+@defineDocumentAggregationDetailBatch(invoice, saleReturnInvoice);
+SaleReturn.batchInvoiceDetail(invoiceDetail) += batchSaleReturnInvoiceDetail(invoiceDetail);
+
+SaleReturn.quantityInvoiceDetail(invoiceDetail) += quantityInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+SaleReturn.priceListTypeInvoiceDetail(invoiceDetail) += priceListTypeInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+
+SaleReturn.priceInvoiceDetail(invoiceDetail) += priceInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+SaleReturn.sumInvoiceDetail(invoiceDetail) += sumInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+SaleReturn.VATInvoiceDetail(invoiceDetail) += VATInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+SaleReturn.valueVATInvoiceDetail(invoiceDetail) += valueVATInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+SaleReturn.invoicePriceInvoiceDetail(invoiceDetail) += invoicePriceInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+SaleReturn.VATSumInvoiceDetail(invoiceDetail) += VATSumInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+SaleReturn.invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+
+SaleReturn.editInvoice(invoice) += ACTION EXEC editInvoice(invoiceSaleReturnInvoice(invoice));
+
+SaleReturn.showPackInvoice(invoice) +=  showPackInvoice(invoiceSaleReturnInvoice(invoice));
+SaleReturn.barcodePackInvoiceDetail(invoiceDetail) += barcodePackInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+SaleReturn.amountPackInvoiceDetail(invoiceDetail) +=  amountPackInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+SaleReturn.packQuantityInvoiceDetail(invoiceDetail) +=  packQuantityInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(invoiceDetail));
+
+invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailSaleReturnInvoiceDetail(invoiceDetail);
+
+//------------------------------ Создание аггрегированных объектов через операции -----------------------------//
+
+// -- Операция
+createSaleReturnInvoiceOperation 'Накладная (продажа-возврат) ' = DATA BOOLEAN (Purchase.Operation);
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) createSaleReturnInvoiceOperation
+;
+EXTEND DESIGN Purchase.operation {
+    saleReturnContainer {
+        ADD PROPERTY(createSaleReturnInvoiceOperation) BEFORE PROPERTY(nameSaleReturnOperationOperation);
+    }
+}
+
+@deriveDocumentOperationProperty(UserInvoice, createSaleReturnInvoice);
+
+@defineDocumentInterfaceOperationPrefix (invoice, saleReturn, Sale, ' (продажа-возврат)');
+
+// Записываем операцию для закупки по умолчанию из операции
+saleReturnOperationUserInvoice (invoice) <- saleReturnOperationOperation(operationUserInvoice(invoice))
+    WHEN CHANGED(operationUserInvoice(invoice));
+
+SaleReturn.operationInvoice(invoice) += saleReturnOperationInvoice(invoiceSaleReturnInvoice(invoice));
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) BACKGROUND backgroundSaleReturnInvoice(i) SHOWIF createSaleReturnInvoiceUserInvoice(i) nameSaleReturnOperationUserInvoice
+
+;
+EXTEND DESIGN userInvoice {
+    headerCreateSaleReturn {
+        ADD PROPERTY(nameSaleReturnOperationUserInvoice) AFTER PROPERTY(createSaleReturnInvoiceUserInvoice);
+    }
+}
+
+//-- Действие
+
+overFillInvoiceUserInvoiceInvoice = ABSTRACT ACTION LIST (SaleReturn.UserInvoice, Invoice);
+overFillInvoiceUserInvoiceDetailInvoiceDetail = ABSTRACT ACTION LIST (SaleReturn.UserInvoiceDetail, InvoiceDetail);
+
+moveUserInvoiceInvoice 'Накладная (продажа-возврат)' =  ACTION (invoice) NEWSESSION{
+
+    FOR ADDOBJ i = SaleReturn.UserInvoice DO {
+
+        ASSIGN SaleReturn.agreementUserInvoice(i) <- agreementInvoice(invoice);
+        ASSIGN SaleReturn.priceListTypeUserInvoice(i) <- priceListTypeInvoice(invoice);
+        ASSIGN SaleReturn.supplierUserInvoice(i) <- supplierInvoice(invoice);
+        ASSIGN SaleReturn.customerUserInvoice(i) <- customerInvoice(invoice);
+        ASSIGN SaleReturn.supplierStockUserInvoice(i) <- supplierStockInvoice(invoice);
+        ASSIGN SaleReturn.customerStockUserInvoice(i) <- customerStockInvoice(invoice);
+        ASSIGN numberUserInvoice(i) <- numberInvoice(invoice);
+        ASSIGN seriesUserInvoice(i) <- seriesInvoice(invoice);
+        ASSIGN SaleReturn.noteUserInvoice(i) <- noteInvoice(invoice);
+        ASSIGN SaleReturn.currencyUserInvoice(i) <- currencyInvoice(invoice);
+        ASSIGN SaleReturn.contractSkuUserInvoice(i) <- contractSkuInvoice(invoice);
+        ASSIGN SaleReturn.isCommissionUserInvoice(i) <- isCommissionInvoice(invoice);
+        ASSIGN SaleReturn.showPackUserInvoice(i) <- showPackInvoice(invoice);
+        ASSIGN SaleReturn.operationUserInvoice(i) <- operationInvoice(invoice);
+        EXEC overFillInvoiceUserInvoiceInvoice(i, invoice);
+
+        FOR invoiceInvoiceDetail(detail)==invoice ADDOBJ d = SaleReturn.UserInvoiceDetail DO {
+
+            ASSIGN SaleReturn.userInvoiceUserInvoiceDetail(d) <- i;
+
+            ASSIGN SaleReturn.priceListTypeUserInvoiceDetail(d) <- priceListTypeInvoiceDetail(detail);
+            ASSIGN SaleReturn.dataSupplierStockUserInvoiceDetail(d) <- dataSupplierStockInvoiceDetail(detail);
+            ASSIGN SaleReturn.dataCustomerStockUserInvoiceDetail(d) <- dataCustomerStockInvoiceDetail(detail);
+
+            ASSIGN SaleReturn.skuUserInvoiceDetail(d) <- skuInvoiceDetail(detail);
+            ASSIGN SaleReturn.quantityUserInvoiceDetail (d) <- quantityInvoiceDetail(detail);
+            ASSIGN SaleReturn.VATUserInvoiceDetail (d) <- VATInvoiceDetail(detail);
+            ASSIGN SaleReturn.priceUserInvoiceDetail (d) <- priceInvoiceDetail(detail);
+            ASSIGN SaleReturn.invoicePriceUserInvoiceDetail (d) <- invoicePriceInvoiceDetail(detail);
+
+            ASSIGN SaleReturn.barcodePackUserInvoiceDetail (d) <- barcodePackInvoiceDetail(detail);
+            ASSIGN SaleReturn.amountPackUserInvoiceDetail (d) <- amountPackInvoiceDetail(detail);
+            ASSIGN SaleReturn.packQuantityUserInvoiceDetail (d) <- packQuantityInvoiceDetail(detail);
+
+            ASSIGN SaleReturn.batchUserInvoiceDetail(d) <- batchInvoiceDetail(detail);
+            EXEC overFillInvoiceUserInvoiceDetailInvoiceDetail(d,detail);
+        }
+
+    FORM SaleReturn.userInvoice OBJECTS i = i MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+EXTEND FORM invoices
+    PROPERTIES(i) moveUserInvoiceInvoice
+;
+EXTEND DESIGN invoices {
+    createdContainer{
+        ADD PROPERTY(moveUserInvoiceInvoice);
+    }
+}
+

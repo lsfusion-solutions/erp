@@ -1,0 +1,96 @@
+MODULE PurchaseSaleReturnInvoiceShipment;
+
+REQUIRE SaleReturnShipment, PurchaseSaleReturnInvoice, PurchaseReturnShipment;
+
+PRIORITY PurchaseReturn;
+
+//----------------------------------------------------------------------------//
+
+GROUP shipment 'Информация о поставке' : base;
+
+// Галочка по созданию акта расценки на закупке
+@defineDocumentInterfaceProperty (invoice, createSaleReturnShipment, 'Создать поставку (продажа-возврат)');
+
+// -- Операция
+createSaleReturnShipmentOperation 'Поставка (продажа-возврат)' = DATA BOOLEAN (Purchase.Operation);
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) createSaleReturnShipmentOperation
+;
+EXTEND DESIGN Purchase.operation {
+    saleReturnContainer {
+        ADD PROPERTY(createSaleReturnShipmentOperation);
+    }
+}
+@deriveDocumentOperationProperty(UserInvoice, createSaleReturnShipment);
+
+backgroundSaleReturnShipmentInvoice 'Цвет' (invoice) = RGB(238, 250, 200) IF invoice IS Invoice;
+//--
+SaleReturn.createShipmentInvoice(invoice) += createSaleReturnShipmentInvoice(invoiceSaleReturnInvoice(invoice));
+
+@defineDocumentInterfaceDetailPricePrefix(invoice, saleReturnShipment, ' учетная (продажа-возврат)');
+@defineDocumentInterfaceDetailQuantityPrefix (invoice, saleReturnShipment, ' поставлено (продажа-возврат)');
+saleReturnShipmentQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail) WHEN CHANGED(quantityUserInvoiceDetail(detail));
+
+@defineDocumentInterfaceDetailExpiryDatePrefix(invoice, saleReturn);
+saleReturnExpiryDateUserInvoiceDetail(detail) <- prevExpiryDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
+SaleReturn.expiryDateInvoiceDetail(detail) += saleReturnExpiryDateUserInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
+
+@defineDocumentInterfaceDetailManufactureDatePrefix(invoice, saleReturn);
+saleReturnManufactureDateUserInvoiceDetail(detail) <- prevExpiryDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
+SaleReturn.manufactureDateInvoiceDetail(detail) += saleReturnManufactureDateUserInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
+
+@defineDocumentInterfaceHeaderTimePrefix(Invoice, saleReturnShipment, ' поставки (продажа-возврат)');
+WHEN SESSION SET(createSaleReturnShipmentUserInvoice(i)) DO {
+    saleReturnShipmentDateUserInvoice(i) <- shipmentDateUserInvoice(i);    
+    saleReturnShipmentTimeUserInvoice(i) <- shipmentTimeUserInvoice(i);    
+}
+
+@defineDocumentInterfaceDetailDataSumPrefix (invoice, saleReturnShipment, ' учетная (продажа-возврат)');
+@deriveDocumentDetailSumPrefix(userInvoice, saleReturnShipment, currency, saleReturnShipmentQuantity);
+
+@defineDocumentInterfaceHeaderCreateShipment (invoice);
+@defineDocumentInterfaceHeaderSumPrefix (invoice, saleReturnShipment, ' учетная (продажа-возврат)');
+
+SaleReturn.shipmentDateInvoice(invoice) += saleReturnShipmentDateInvoice(invoiceSaleReturnInvoice(invoice));
+SaleReturn.shipmentTimeInvoice(invoice) += saleReturnShipmentTimeInvoice(invoiceSaleReturnInvoice(invoice));
+
+SaleReturn.shipmentQuantityInvoiceDetail(detail) += saleReturnShipmentQuantityInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
+SaleReturn.shipmentPriceInvoiceDetail(detail) += saleReturnShipmentPriceInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
+SaleReturn.shipmentSumInvoiceDetail (detail) += saleReturnShipmentSumInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
+
+showSaleReturnShipmentUserInvoice(i) = createSaleReturnShipmentUserInvoice(i) OR createSaleReturnInvoiceUserInvoice(i); 
+showSaleReturnShipmentUserInvoiceDetail(d) = showSaleReturnShipmentUserInvoice(userInvoiceUserInvoiceDetail(d)); 
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i) SHOWIF createSaleReturnInvoiceUserInvoice(i) createSaleReturnShipmentUserInvoice
+    PROPERTIES(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i) SHOWIF createSaleReturnShipmentUserInvoice(i) saleReturnShipmentSumUserInvoiceDetailUserInvoice,
+                  saleReturnShipmentDateUserInvoice, saleReturnShipmentTimeUserInvoice
+    PROPERTIES(d) BEFORE deleteid SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
+                  saleReturnExpiryDateUserInvoiceDetail, nameCustomerStockUserInvoiceDetail, saleReturnShipmentSumUserInvoiceDetail
+    PROPERTIES(d) BEFORE saleReturnShipmentSumUserInvoiceDetail SHOWIF showSaleReturnShipmentUserInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i) 
+                  saleReturnShipmentPriceUserInvoiceDetail  
+    PROPERTIES(d) saleReturnShipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
+;
+EXTEND DESIGN userInvoice {
+    headerCreateDocuments{
+        NEW headerCreateSaleReturnShipment {
+            caption = 'Поставка (продажа-возврат)';
+            type = CONTAINERH;
+            ADD PROPERTY(createSaleReturnShipmentUserInvoice);
+            ADD PROPERTY(saleReturnShipmentDateUserInvoice);
+            ADD PROPERTY(saleReturnShipmentTimeUserInvoice);
+        }
+    }
+}
+
+EXTEND FORM invoices
+    PROPERTIES(i) READONLY BACKGROUND backgroundSaleReturnShipmentInvoice(i) saleReturnShipmentSumInvoiceDetailInvoice BEFORE ordersInvoice
+    PROPERTIES(d) READONLY SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
+                  saleReturnExpiryDateInvoiceDetail, nameCustomerStockInvoiceDetail, saleReturnShipmentPriceInvoiceDetail, saleReturnShipmentSumInvoiceDetail
+    PROPERTIES(d) READONLY saleReturnShipmentQuantityInvoiceDetail AFTER quantityInvoiceDetail SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
+;
+
+// ------------------------------- Расчет учетной цены для поставки ------------------------ //
+
+@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, saleReturnShipment, , sku, supplierStock);
