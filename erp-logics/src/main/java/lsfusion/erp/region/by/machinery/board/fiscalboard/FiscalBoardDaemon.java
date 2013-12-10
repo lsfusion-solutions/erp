@@ -108,7 +108,6 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
                 while (true) {
                     try {
                         Socket socket = serverSocket.accept();
-                        logger.error("accepted");
                         executorService.submit(new SocketCallable(businessLogics, socket));
                     } catch (IOException e) {
                         logger.error(e);
@@ -129,8 +128,6 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
 
         @Override
         public Object call() {
-
-            logger.error("call called");
             
             ThreadLocalContext.set(instanceContext);
             try {
@@ -151,9 +148,7 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
                 
                 Thread.sleep(3000);
                 outToClient.close();
-                inFromClient.close();
-                
-                logger.error("finished");
+                inFromClient.close();              
                 
                 return null;
             } catch (InterruptedException e) {
