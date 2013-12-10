@@ -1,14 +1,11 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
-import lsfusion.interop.action.ClientAction;
-import lsfusion.interop.action.LogMessageClientAction;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
-import lsfusion.server.WrapperContext;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.DateTimeClass;
 import lsfusion.server.context.Context;
 import lsfusion.server.context.ContextAwareDaemonThreadFactory;
+import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.lifecycle.LifecycleAdapter;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
@@ -24,11 +21,13 @@ import java.math.BigDecimal;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.DecimalFormat;
 import java.util.Calendar;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -68,7 +67,7 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
         logger.info("Starting Board Daemon.");
 
         try {
-            setupDaemon(dbManager.createSession());
+            setupDaemon(dbManager);
         } catch (SQLException e) {
             throw new RuntimeException("Error starting Board Daemon: ", e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
@@ -76,112 +75,135 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
         }
     }
 
-    public void setupDaemon(DataSession session) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    public void setupDaemon(DBManager dbManager) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (daemonTasksExecutor != null)
             daemonTasksExecutor.shutdown();
 
-        daemonTasksExecutor = Executors.newSingleThreadExecutor(new ContextAwareDaemonThreadFactory(new SchedulerContext(), "board-daemon"));
-        daemonTasksExecutor.submit(new DaemonTask(session));
+        daemonTasksExecutor = Executors.newSingleThreadExecutor(new ContextAwareDaemonThreadFactory(instanceContext, "board-daemon"));
+        daemonTasksExecutor.submit(new DaemonTask(dbManager));
     }
 
     class DaemonTask implements Runnable {
-        DataSession session;
+        DBManager dbManager;
 
-        public DaemonTask(DataSession session) {
-            this.session = session;
+        public DaemonTask(DBManager dbManager) {
+            this.dbManager = dbManager;
         }
 
         public void run() {
 
-            ServerSocket socket = null;
+            ServerSocket serverSocket = null;
+            ExecutorService executorService = Executors.newFixedThreadPool(10);
             try {
-                socket = new ServerSocket(serverPort, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
+                serverSocket = new ServerSocket(2004, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
+            } catch (UnknownHostException e) {
+                logger.error(e);
+                executorService.shutdownNow();
             } catch (IOException e) {
                 logger.error(e);
+                executorService.shutdownNow();
             }
-
-            int length = 60;
-            if (socket != null) {
+            if (serverSocket != null)
                 while (true) {
                     try {
-                        Socket connectionSocket = socket.accept();
-                        BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-                        DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-                        String barcode = inFromClient.readLine();
-
-                        byte[] message = readMessage(session, barcode);
-                        byte[] answer = new byte[length + 3];
-                        answer[0] = (byte) 0xAB; //command
-                        answer[1] = 0; //error code
-                        answer[2] = (byte) length; //message length
-                        System.arraycopy(message, 0, answer, 3, message.length);
-                        outToClient.write(answer);
+                        Socket socket = serverSocket.accept();
+                        logger.error("accepted");
+                        executorService.submit(new SocketCallable(businessLogics, socket));
                     } catch (IOException e) {
-                        logger.error(e);
-                    } catch (SQLException e) {
                         logger.error(e);
                     }
                 }
-            }
+        }
+    }
 
+    public class SocketCallable implements Callable {
+
+        private BusinessLogics BL;
+        private Socket socket;
+
+        public SocketCallable(BusinessLogics BL, Socket socket) {
+            this.BL = BL;
+            this.socket = socket;
         }
 
-        private byte[] readMessage(DataSession session, String idBarcode) throws SQLException, UnsupportedEncodingException {
-            int length = 44;
+        @Override
+        public Object call() {
+
+            logger.error("call called");
+            
+            ThreadLocalContext.set(instanceContext);
+            try {
+
+                int length = 60;
+                BufferedReader inFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                DataOutputStream outToClient = new DataOutputStream(socket.getOutputStream());
+                String barcode = inFromClient.readLine();
+                
+                DataSession session = dbManager.createSession();
+                byte[] message = readMessage(BL, session, barcode);
+                byte[] answer = new byte[length + 3];
+                answer[0] = (byte) 0xAB; //command
+                answer[1] = 0; //error code
+                answer[2] = (byte) length; //message length
+                System.arraycopy(message, 0, answer, 3, message.length);
+                outToClient.write(answer);
+                
+                Thread.sleep(3000);
+                outToClient.close();
+                inFromClient.close();
+                
+                logger.error("finished");
+                
+                return null;
+            } catch (InterruptedException e) {
+                logger.error(e);
+            } catch (SQLException e) {
+                logger.error(e);
+            } catch (UnsupportedEncodingException e) {
+                logger.error(e);
+            } catch (IOException e) {
+                logger.error(e);
+            }
+            ThreadLocalContext.set(null);
+            return null;
+        }
+
+        private byte[] readMessage(BusinessLogics BL, DataSession session, String idBarcode) throws SQLException, UnsupportedEncodingException {
+            int textLength = 44;
             int gapLength = 8; //передаётся 2 строки по 30 символов, но показывается только по 22
             Date date = new Date(Calendar.getInstance().getTime().getTime());
-            ObjectValue skuObject = businessLogics.getModule("Barcode").getLCPByOldName("skuBarcodeIdDate").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
+            ObjectValue skuObject = BL.getModule("Barcode").getLCPByOldName("skuBarcodeIdDate").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
             if (skuObject instanceof NullValue) {
                 String notFound = "Штрихкод не найден";
-                while (notFound.length() < length)
+                while (notFound.length() < textLength)
                     notFound += " ";
                 return notFound.getBytes("cp1251");
             } else {
-                ObjectValue priceListTypeObject = businessLogics.getModule("PriceListType").getLCPByOldName("priceListTypeId").readClasses(session, new DataObject(idPriceListType));
-                ObjectValue stockObject = businessLogics.getModule("Stock").getLCPByOldName("stockId").readClasses(session, new DataObject(idStock));
-                String captionItem = (String) businessLogics.getModule("Item").getLCPByOldName("captionItem").read(session, skuObject);
+                ObjectValue priceListTypeObject = BL.getModule("PriceListType").getLCPByOldName("priceListTypeId").readClasses(session, new DataObject(idPriceListType));
+                ObjectValue stockObject = BL.getModule("Stock").getLCPByOldName("stockId").readClasses(session, new DataObject(idStock));
+                String captionItem = (String) BL.getModule("Item").getLCPByOldName("captionItem").read(session, skuObject);
                 if (priceListTypeObject instanceof NullValue || stockObject instanceof NullValue) {
                     String notFound = "Неверные параметры сервера";
-                    while (notFound.length() < length)
+                    while (notFound.length() < textLength)
                         notFound += " ";
                     return notFound.getBytes("cp1251");
                 } else {
-                    BigDecimal price = (BigDecimal) businessLogics.getModule("PriceListType").getLCPByOldName("priceAPriceListTypeSkuStockDateTime").read(session,
+                    BigDecimal price = (BigDecimal) BL.getModule("PriceListType").getLCPByOldName("priceAPriceListTypeSkuStockDateTime").read(session,
                             priceListTypeObject, skuObject, stockObject, new DataObject(new Timestamp(date.getTime()), DateTimeClass.instance));
                     String priceMessage = new DecimalFormat("###,###.#").format(price.doubleValue());
-                    while (captionItem.length() + priceMessage.length() < (length - 1)) {
+                    while (captionItem.length() + priceMessage.length() < (textLength - 1)) {
                         priceMessage = " " + priceMessage;
                     }
-                    captionItem = captionItem.substring(0, Math.min(captionItem.length(), (length - priceMessage.length() - 1)));
+                    captionItem = captionItem.substring(0, Math.min(captionItem.length(), (textLength - priceMessage.length() - 1)));
                     String message = captionItem + " " + priceMessage;
                     String gap = "";
                     for (int i = 0; i < gapLength; i++) {
                         gap += " ";
                     }
-                    return (message.substring(0, length / 2) + gap + message.substring(length / 2, length) + gap).getBytes("cp1251");
+                    return (message.substring(0, textLength / 2) + gap + message.substring(textLength / 2, textLength) + gap).getBytes("cp1251");
                 }
             }
-        }
-    }
-
-    public class SchedulerContext extends WrapperContext {
-        public SchedulerContext() {
-            super(instanceContext);
-        }
-
-        @Override
-        public void delayUserInteraction(ClientAction action) {
-            String message = null;
-            if (action instanceof LogMessageClientAction) {
-                message = ((LogMessageClientAction) action).message;
-            } else if (action instanceof MessageClientAction) {
-                message = ((MessageClientAction) action).message;
-            }
-            if (message != null) {
-                //можно записывать в лог
-            }
-            super.delayUserInteraction(action);
         }
     }
 }
