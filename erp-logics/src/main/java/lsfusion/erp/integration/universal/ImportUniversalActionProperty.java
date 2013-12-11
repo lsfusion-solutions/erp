@@ -51,7 +51,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     String splitPattern = "\\^\\(|\\)|,";
-    String substringPattern = ".*\\^\\(\\d+,\\d+\\)";
+    String substringPattern = ".*\\^\\(\\d+,(?:\\d+)?\\)";
 
     protected String getCSVFieldValue(String[] values, ImportColumnDetail importColumnDetail) throws ParseException {
         return getCSVFieldValue(values, importColumnDetail, null);
@@ -376,7 +376,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 } else if (field.matches(substringPattern)) {
                     String[] splittedField = field.split(splitPattern);
                     value = getSubstring(new String(importFile.getField(splittedField[0]).getBytes(), charset).trim(),
-                            parseIndex(splittedField[1]), parseIndex(splittedField[2]));
+                            parseIndex(splittedField[1]), splittedField.length > 2 ? parseIndex(splittedField[2]) : null);
                 } else {
                     value = new String(importFile.getField(field).getBytes(), charset).trim();
                 }
@@ -436,7 +436,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     private String getSubstring(String value, Integer from, Integer to) {
         return (value == null || from == null || from < 0 || from > value.length()) ? value :
-                ((to == null || to > value.length())) ? value.substring(from) : value.substring(from, to + 1);
+                ((to == null || to > value.length())) ? value.substring(Math.min(value.length(), from)) : value.substring(from, Math.min(value.length(), to + 1));
     }
 
     static final Locale RU_LOCALE = new Locale("ru");
