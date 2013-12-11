@@ -459,11 +459,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             } else if (value.length() == 8 && !value.contains(".") && Integer.parseInt(value.substring(4, 6)) > 12) {
                 //чит для отличия ddMMyyyy от yyyyMMdd
                 return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
-            } else if (value.length() > 12) {
+            } else if (value.contains("г")) {
                 //чит для даты с месяцем прописью
                 return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
             }
-            return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy"}).getTime());
+            return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy hh:mm:ss", "dd.MM.yyyy", "dd/MM/yyyy"}).getTime());
         } catch (ParseException e) {
             return null;
         }

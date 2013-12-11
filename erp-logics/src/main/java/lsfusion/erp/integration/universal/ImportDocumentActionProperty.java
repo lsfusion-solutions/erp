@@ -7,6 +7,10 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
+import lsfusion.server.integration.ImportField;
+import lsfusion.server.integration.ImportKey;
+import lsfusion.server.integration.ImportProperty;
+import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -18,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public abstract class ImportDocumentActionProperty extends ImportUniversalActionProperty {
@@ -86,6 +91,29 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
                 charset = "cp866";
         }
         return charset;
+    }
+
+    protected boolean getReplaceOnlyNull(Map<String, ImportColumnDetail> importColumns, String columnName) {
+        ImportColumnDetail column = importColumns.get(columnName);
+        return column != null && column.replaceOnlyNull;
+    }
+
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, String sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
+        ImportField field = new ImportField(getLCP(sidProperty));
+        props.add(new ImportProperty(field, getLCP(sidProperty).getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
+        fields.add(field);
+    }
+
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, String sidProperty, String nameField, DataObject dataObject) throws ScriptingErrorLog.SemanticErrorException {
+        ImportField field = new ImportField(getLCP(sidProperty));
+        props.add(new ImportProperty(field, getLCP(sidProperty).getMapping(dataObject), getReplaceOnlyNull(importColumns, nameField)));
+        fields.add(field);
+    }
+
+    protected void addDataField(ScriptingLogicsModule LM, List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, String sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
+        ImportField field = new ImportField(LM.findLCPByCompoundOldName(sidProperty));
+        props.add(new ImportProperty(field, LM.findLCPByCompoundOldName(sidProperty).getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
+        fields.add(field);
     }
 }
 
