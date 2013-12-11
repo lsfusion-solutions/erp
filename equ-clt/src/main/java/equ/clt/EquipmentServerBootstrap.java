@@ -21,7 +21,7 @@ public class EquipmentServerBootstrap {
     public static void start() throws IOException {
         logger.info("Server is starting...");
 
-        RMIUtils.installRmiErrorHandler();
+        RMIUtils.initRMI();
 
         initSpringContext();
 
