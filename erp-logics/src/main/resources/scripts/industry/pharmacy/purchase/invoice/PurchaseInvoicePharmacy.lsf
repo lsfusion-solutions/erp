@@ -53,17 +53,11 @@ EXTEND FORM invoices
 
 
 WHEN SESSION FORMS userInvoice (CHANGED (batchUserInvoiceDetail(detail)) OR
-                               CHANGED (skuUserInvoiceDetail(detail)) OR
-                               CHANGED (customerStockUserInvoiceDetail(detail))) AND NOT CHANGED(seriesPharmacyUserInvoiceDetail(detail)) DO {
-    seriesPharmacyUserInvoiceDetail(detail) <- IF batchUserInvoiceDetail(detail) 
-                                                    THEN seriesPharmacyBatch(batchUserInvoiceDetail(detail))
-                                                    ELSE seriesPharmacyBatch(lastOrderBatchSkuStock(skuUserInvoiceDetail(detail), customerStockUserInvoiceDetail(detail)));
+                               CHANGED (customerStockUserInvoiceDetail(detail))) AND batchUserInvoiceDetail(detail) AND NOT CHANGED(seriesPharmacyUserInvoiceDetail(detail)) DO {
+    seriesPharmacyUserInvoiceDetail(detail) <- seriesPharmacyBatch(batchUserInvoiceDetail(detail));
 }
 
 WHEN SESSION FORMS userInvoice (CHANGED (batchUserInvoiceDetail(detail)) OR
-                               CHANGED (skuUserInvoiceDetail(detail)) OR
-                               CHANGED (customerStockUserInvoiceDetail(detail))) AND NOT CHANGED(contractPriceUserInvoiceDetail(detail)) DO {
-    contractPriceUserInvoiceDetail(detail) <- IF batchUserInvoiceDetail(detail) 
-                                                    THEN contractPriceBatch(batchUserInvoiceDetail(detail))
-                                                    ELSE contractPriceBatch(lastOrderBatchSkuStock(skuUserInvoiceDetail(detail), customerStockUserInvoiceDetail(detail)));
+                               CHANGED (customerStockUserInvoiceDetail(detail))) AND batchUserInvoiceDetail(detail) AND NOT CHANGED(contractPriceUserInvoiceDetail(detail)) DO {
+    contractPriceUserInvoiceDetail(detail) <- contractPriceBatch(batchUserInvoiceDetail(detail));
 }
