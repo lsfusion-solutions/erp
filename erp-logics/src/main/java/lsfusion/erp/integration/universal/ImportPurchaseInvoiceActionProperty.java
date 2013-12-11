@@ -429,6 +429,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     addDataField(props, fields, importColumns, "dateCompliance", "dateCompliance", complianceKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
+
+                    addDataField(props, fields, importColumns, "fromDateCompliance", "dateCompliance", complianceKey);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
                 }
             }
 
