@@ -93,14 +93,14 @@ FORM articles 'Артикулы'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeItemGroup(g) DEFAULT
 
     OBJECTS a=Article
-    PROPERTIES(a) READONLYIF isReadonly() captionArticle, originalCaptionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, nameBrandArticle, nameManufacturerArticle
+    PROPERTIES(a) READONLYIF isReadonly() captionArticle, originalCaptionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, 
+                  nameBrandArticle, nameManufacturerArticle, imageArticle FORCE PANEL 
     PROPERTIES(a) ADDFORM, EDITFORM, deletea=DELETE FORCE PANEL TOOLBAR
     ORDER BY captionArticle
-
     FILTERGROUP groupFilters
         FILTER 'С группами' 'F9' isParentGroupArticle(g, a) DEFAULT
-        FILTER 'Без групп' 'F8' captionArticle(a) IF NOT itemGroupArticle(a)
-
+        FILTER 'Без групп' 'F8' captionArticle(a) IF NOT itemGroupArticle(a)   
+    
     DIALOG Article OBJECT a
 ;
 
@@ -110,8 +110,15 @@ DESIGN articles FROM DEFAULT {
         NEW rootContainer {
             fill = 1;
             type = SPLITH;
-
-            ADD groupTree.tree.box;
+            NEW articleImage {
+                fill = 1;
+                type = SPLITV;
+                ADD groupTree.tree.box;
+                ADD PROPERTY (imageArticle) {
+                    fill = 1; 
+                    caption = ''; 
+                }
+            }           
             NEW articleItemBox {
                 fill = 3;
                 ADD a.box {
@@ -134,6 +141,7 @@ idArticleItem 'Артикул' (item) = idArticle(articleItem(item)) IN itemArti
 
 captionArticleItem 'Название артикула' (item) = captionArticle(articleItem(item));
 imageArticleItem 'Изображение (артикул)' (item) = imageArticle(articleItem(item));
+overImageItem (item) += imageArticleItem (item);
 
 // Цвет
 CLASS Color 'Цвет товара';

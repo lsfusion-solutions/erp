@@ -120,8 +120,10 @@ CONSTRAINT customGroupTypeCustomGroup(customGroupCustomGroupTypeItem(type, item)
            MESSAGE 'Выбранный объект классификатора SKU имеет неправильный тип';
 
 // Атрибуты
-imageItem 'Изображение' = DATA IMAGEFILE (Item);
-loadImageItem 'Загрузить изображение' (item) = ACTION LOADFILE imageItem(item);
+dataImageItem 'Изображение' = DATA IMAGEFILE (Item);
+loadImageItem 'Загрузить изображение' (item) = ACTION LOADFILE dataImageItem(item);
+overImageItem '' = ABSTRACT IMAGEFILE (Item);
+imageItem (item) = OVERRIDE dataImageItem (item), overImageItem (item);
 
 // -------------------------------- Надбавки для расчетных видов цен --------------------------------//
 
@@ -135,7 +137,7 @@ FORM item 'Товар'
     OBJECTS i=Item FIXED PANEL
 
     PROPERTIES(i) canonicalNameItemGroupItem, idBarcodeSku READONLY,
-                  imageItem, loadImageItem, idItem SHOWIF showIDs()
+                  dataImageItem, loadImageItem, idItem SHOWIF showIDs()
 
     OBJECTS b=Barcode
     PROPERTIES(b)       idBarcode, dateBarcode, shortNameUOMBarcode,
@@ -216,7 +218,7 @@ DESIGN item FROM DEFAULT {
             NEW itemImage {
                 type = CONTAINERV;
                 caption = 'Изображение';
-                ADD PROPERTY(imageItem) {
+                ADD PROPERTY(dataImageItem) {
                     caption = '';
                     fill = 1;
                 }
@@ -250,28 +252,35 @@ FORM items 'Товары'
     FILTERS groupTypeGroup(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
     ORDER BY nameGroup(g)
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(g) DEFAULT
-
-    OBJECTS i=Item
-    PROPERTIES(i) READONLY idBarcodeSku, idItem SHOWIF showIDs()
+    
+    OBJECTS i=Item  
+    PROPERTIES(i) READONLY idBarcodeSku, imageItem FORCE PANEL, idItem SHOWIF showIDs()
     PROPERTIES(i) ADDFORM, EDITFORM, deletei=DELETE FORCE PANEL TOOLBAR
     PROPERTIES seekBarcode()
-    ON CHANGE seekSkuBarcode()
-    DIALOG Item OBJECT i
+    ON CHANGE seekSkuBarcode() 
+    
+    DIALOG Item OBJECT i  
 ;
 
 DESIGN items FROM DEFAULT {
     NEW rootContainer {
         type = SPLITH;
         fill = 1;
-
         NEW row1 {
             fill = 1;
             caption = 'Классификатор';
             type = CONTAINERV;
             ADD gt.box;
-            ADD groupTree.tree.box;
+            NEW itemImage {               
+                fill = 1;
+                type = SPLITV;
+                ADD groupTree.tree.box;               
+                ADD PROPERTY (imageItem) {
+                    fill = 1;
+                    caption = '';
+                }
+            }  
         }
-
         NEW row2 {
             fill = 3;
             type = CONTAINERV;
@@ -771,7 +780,7 @@ copyDataItem = ACTION (item, i) {
     netWeightItem(i) <- netWeightItem(item);
     grossWeightItem(i) <- grossWeightItem(item);
     countryItem(i) <- countryItem(item);
-    imageItem(i) <- imageItem(item);
+    dataImageItem(i) <- dataImageItem(item);
     skuTypeItem(i) <- skuTypeItem(item);
     isWeightItem(i) <- isWeightItem(item);
     inactiveItem(i) <- inactiveItem(item);
