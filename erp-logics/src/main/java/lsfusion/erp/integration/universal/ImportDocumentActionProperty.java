@@ -93,11 +93,6 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return charset;
     }
 
-    protected boolean getReplaceOnlyNull(Map<String, ImportColumnDetail> importColumns, String columnName) {
-        ImportColumnDetail column = importColumns.get(columnName);
-        return column != null && column.replaceOnlyNull;
-    }
-
     protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, String sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
         ImportField field = new ImportField(getLCP(sidProperty));
         props.add(new ImportProperty(field, getLCP(sidProperty).getMapping(key), getReplaceOnlyNull(importColumns, nameField)));

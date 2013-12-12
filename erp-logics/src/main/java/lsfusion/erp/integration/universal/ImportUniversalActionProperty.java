@@ -28,6 +28,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.Map;
 
 public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
 
@@ -487,6 +488,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     protected String trim(String input, Integer length) {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
+    }
+
+    protected boolean getReplaceOnlyNull(Map<String, ImportColumnDetail> importColumns, String columnName) {
+        ImportColumnDetail column = importColumns.get(columnName);
+        return column != null && column.replaceOnlyNull;
     }
 }
 

@@ -58,19 +58,19 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             DataObject userPriceListObject = context.getDataKeyValue(userPriceListInterface);
 
-            ObjectValue importUserPriceListTypeObject = LM.findLCPByCompoundOldName("importUserPriceListTypeUserPriceList").readClasses(context, userPriceListObject);
+            ObjectValue importUserPriceListTypeObject = getLCP("importUserPriceListTypeUserPriceList").readClasses(context, userPriceListObject);
 
             if (!(importUserPriceListTypeObject instanceof NullValue)) {
 
-                String fileExtension = (String) LM.findLCPByCompoundOldName("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").read(context, importUserPriceListTypeObject);
-                String itemKeyType = (String) LM.findLCPByCompoundOldName("nameImportUserPriceListKeyTypeImportUserPriceListType").read(context, importUserPriceListTypeObject);
+                String fileExtension = (String) getLCP("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").read(context, importUserPriceListTypeObject);
+                String itemKeyType = (String) getLCP("nameImportUserPriceListKeyTypeImportUserPriceListType").read(context, importUserPriceListTypeObject);
                 String[] parts = itemKeyType == null ? null : itemKeyType.split("\\.");
                 itemKeyType = parts == null ? null : parts[parts.length - 1].trim();
-                String csvSeparator = (String) LM.findLCPByCompoundOldName("separatorImportUserPriceListType").read(context, importUserPriceListTypeObject);
+                String csvSeparator = (String) getLCP("separatorImportUserPriceListType").read(context, importUserPriceListTypeObject);
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator;
-                Integer startRow = (Integer) LM.findLCPByCompoundOldName("startRowImportUserPriceListType").read(context, importUserPriceListTypeObject);
+                Integer startRow = (Integer) getLCP("startRowImportUserPriceListType").read(context, importUserPriceListTypeObject);
                 startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
-                Boolean isPosted = (Boolean) LM.findLCPByCompoundOldName("isPostedImportUserPriceListType").read(context, importUserPriceListTypeObject);
+                Boolean isPosted = (Boolean) getLCP("isPostedImportUserPriceListType").read(context, importUserPriceListTypeObject);
 
                 ImportColumns importColumns = readImportColumns(context, LM, importUserPriceListTypeObject);
 
@@ -123,17 +123,20 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         else
             userPriceListDetailList = null;
 
-        return importUserPriceListDetails(context, userPriceListDetailList, importColumns.getOperationObject(), importColumns.getDefaultItemGroupObject(),
-                userPriceListObject, importColumns.getPriceColumns().keySet(), itemKeyType, apply)
+        return importUserPriceListDetails(context, userPriceListDetailList, importColumns, userPriceListObject, itemKeyType, apply)
                 && (importColumns.getQuantityAdjustmentColumn() == null || importAdjustmentDetails(context, userPriceListDetailList, importColumns.getStockObject(), itemKeyType, apply));
 
     }
 
     private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailsList,
-                                               DataObject operationObject, DataObject defaultItemGroupObject,
-                                               DataObject userPriceListObject, Set<DataObject> dataPriceListTypeObjectList,
+                                               ImportColumns importColumnProperties, DataObject userPriceListObject,
                                                String itemKeyType, boolean apply) throws ScriptingErrorLog.SemanticErrorException, SQLException {
 
+        Map<String, ImportColumnDetail> importColumns = importColumnProperties.getColumns();
+        DataObject operationObject = importColumnProperties.getOperationObject();
+        DataObject defaultItemGroupObject = importColumnProperties.getDefaultItemGroupObject();
+        Set<DataObject> dataPriceListTypeObjectList = importColumnProperties.getPriceColumns().keySet();
+        
         if (userPriceListDetailsList != null) {
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
@@ -143,20 +146,20 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             List<List<Object>> data = initData(userPriceListDetailsList.size());
 
             if (operationObject != null) {
-                props.add(new ImportProperty(operationObject, LM.findLCPByCompoundOldName("operationUserPriceList").getMapping(userPriceListObject)));
+                props.add(new ImportProperty(operationObject, getLCP("operationUserPriceList").getMapping(userPriceListObject)));
             }
 
-            ImportField idItemField = new ImportField(LM.findLCPByCompoundOldName("idItem"));
+            ImportField idItemField = new ImportField(getLCP("idItem"));
             fields.add(idItemField);
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
                 data.get(i).add(userPriceListDetailsList.get(i).idItem);
 
-            ImportField idBarcodeSkuField = new ImportField(LM.findLCPByCompoundOldName("idBarcodeSku"));
+            ImportField idBarcodeSkuField = new ImportField(getLCP("idBarcodeSku"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Barcode"),
-                    LM.findLCPByCompoundOldName("extBarcodeId").getMapping(idBarcodeSkuField));
+                    getLCP("extBarcodeId").getMapping(idBarcodeSkuField));
             keys.add(barcodeKey);
-            props.add(new ImportProperty(idBarcodeSkuField, LM.findLCPByCompoundOldName("idBarcode").getMapping(barcodeKey)));
-            props.add(new ImportProperty(idBarcodeSkuField, LM.findLCPByCompoundOldName("extIdBarcode").getMapping(barcodeKey)));
+            props.add(new ImportProperty(idBarcodeSkuField, getLCP("idBarcode").getMapping(barcodeKey), getReplaceOnlyNull(importColumns, "barcodeItem")));
+            props.add(new ImportProperty(idBarcodeSkuField, getLCP("extIdBarcode").getMapping(barcodeKey), getReplaceOnlyNull(importColumns, "barcodeItem")));
             fields.add(idBarcodeSkuField);
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
                 data.get(i).add(userPriceListDetailsList.get(i).barcodeItem);
@@ -164,7 +167,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String iGroupAggr = (itemKeyType == null || itemKeyType.equals("item")) ? "itemId" : "skuIdBarcode";
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Item"),
-                    LM.findLCPByCompoundOldName(iGroupAggr).getMapping(iField));
+                    getLCP(iGroupAggr).getMapping(iField));
             keys.add(itemKey);
 
             if (itemArticleLM != null && showField(userPriceListDetailsList, "articleItem")) {
@@ -181,87 +184,87 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             }
 
             if (showField(userPriceListDetailsList, "idUserPriceList")) {
-                ImportField idUserPriceListField = new ImportField(LM.findLCPByCompoundOldName("idUserPriceList"));
-                props.add(new ImportProperty(idUserPriceListField, LM.findLCPByCompoundOldName("numberUserPriceList").getMapping(userPriceListObject)));
+                ImportField idUserPriceListField = new ImportField(getLCP("idUserPriceList"));
+                props.add(new ImportProperty(idUserPriceListField, getLCP("numberUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(importColumns, "idUserPriceList")));
                 fields.add(idUserPriceListField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(userPriceListDetailsList.get(i).idUserPriceList);
 
-                ImportField isPostedUserPriceListField = new ImportField(LM.findLCPByCompoundOldName("isPostedUserPriceList"));
-                props.add(new ImportProperty(isPostedUserPriceListField, LM.findLCPByCompoundOldName("isPostedUserPriceList").getMapping(userPriceListObject)));
+                ImportField isPostedUserPriceListField = new ImportField(getLCP("isPostedUserPriceList"));
+                props.add(new ImportProperty(isPostedUserPriceListField, getLCP("isPostedUserPriceList").getMapping(userPriceListObject)));
                 fields.add(isPostedUserPriceListField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(true);
             }
 
-            ImportField idUserPriceListDetailField = new ImportField(LM.findLCPByCompoundOldName("idUserPriceListDetail"));
+            ImportField idUserPriceListDetailField = new ImportField(getLCP("idUserPriceListDetail"));
             ImportKey<?> userPriceListDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UserPriceListDetail"),
-                    LM.findLCPByCompoundOldName("userPriceListDetailIdUserPriceList").getMapping(idUserPriceListDetailField, userPriceListObject));
+                    getLCP("userPriceListDetailIdUserPriceList").getMapping(idUserPriceListDetailField, userPriceListObject));
             keys.add(userPriceListDetailKey);
-            props.add(new ImportProperty(userPriceListObject, LM.findLCPByCompoundOldName("userPriceListUserPriceListDetail").getMapping(userPriceListDetailKey)));
-            props.add(new ImportProperty(idUserPriceListDetailField, LM.findLCPByCompoundOldName("idUserPriceListDetail").getMapping(userPriceListDetailKey)));
-            props.add(new ImportProperty(idItemField, LM.findLCPByCompoundOldName("idItem").getMapping(itemKey)));
-            props.add(new ImportProperty(iField, LM.findLCPByCompoundOldName("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
+            props.add(new ImportProperty(userPriceListObject, getLCP("userPriceListUserPriceListDetail").getMapping(userPriceListDetailKey)));
+            props.add(new ImportProperty(idUserPriceListDetailField, getLCP("idUserPriceListDetail").getMapping(userPriceListDetailKey)));
+            props.add(new ImportProperty(idItemField, getLCP("idItem").getMapping(itemKey)));
+            props.add(new ImportProperty(iField, getLCP("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
                     LM.object(LM.findClassByCompoundName("Sku")).getMapping(itemKey)));
-            props.add(new ImportProperty(iField, LM.findLCPByCompoundOldName("skuBarcode").getMapping(barcodeKey),
+            props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(barcodeKey),
                     LM.object(LM.findClassByCompoundName("Item")).getMapping(itemKey)));
             fields.add(idUserPriceListDetailField);
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
                 data.get(i).add(userPriceListDetailsList.get(i).idUserPriceListDetail);
 
             if (defaultItemGroupObject != null) {
-                props.add(new ImportProperty(defaultItemGroupObject, LM.findLCPByCompoundOldName("itemGroupItem").getMapping(itemKey)));
+                props.add(new ImportProperty(defaultItemGroupObject, getLCP("itemGroupItem").getMapping(itemKey)));
             }
 
             if (showField(userPriceListDetailsList, "captionItem")) {
-                ImportField captionItemField = new ImportField(LM.findLCPByCompoundOldName("captionItem"));
-                props.add(new ImportProperty(captionItemField, LM.findLCPByCompoundOldName("captionItem").getMapping(itemKey)));
+                ImportField captionItemField = new ImportField(getLCP("captionItem"));
+                props.add(new ImportProperty(captionItemField, getLCP("captionItem").getMapping(itemKey), getReplaceOnlyNull(importColumns, "captionItem")));
                 fields.add(captionItemField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(userPriceListDetailsList.get(i).captionItem);
             }
 
             if (showField(userPriceListDetailsList, "idUOMItem")) {
-                ImportField idUOMField = new ImportField(LM.findLCPByCompoundOldName("idUOM"));
+                ImportField idUOMField = new ImportField(getLCP("idUOM"));
                 ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UOM"),
-                        LM.findLCPByCompoundOldName("UOMId").getMapping(idUOMField));
+                        getLCP("UOMId").getMapping(idUOMField));
                 keys.add(UOMKey);
-                props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundOldName("idUOM").getMapping(UOMKey)));
-                props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundOldName("shortNameUOM").getMapping(UOMKey)));
-                props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundOldName("UOMItem").getMapping(itemKey),
-                        LM.object(LM.findClassByCompoundName("UOM")).getMapping(UOMKey)));
+                props.add(new ImportProperty(idUOMField, getLCP("idUOM").getMapping(UOMKey), getReplaceOnlyNull(importColumns, "idUOMItem")));
+                props.add(new ImportProperty(idUOMField, getLCP("shortNameUOM").getMapping(UOMKey), getReplaceOnlyNull(importColumns, "idUOMItem")));
+                props.add(new ImportProperty(idUOMField, getLCP("UOMItem").getMapping(itemKey),
+                        LM.object(LM.findClassByCompoundName("UOM")).getMapping(UOMKey), getReplaceOnlyNull(importColumns, "idUOMItem")));
                 fields.add(idUOMField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(userPriceListDetailsList.get(i).idUOMItem);
             }
 
             for (DataObject dataPriceListTypeObject : dataPriceListTypeObjectList) {
-                ImportField pricePriceListDetailDataPriceListTypeField = new ImportField(LM.findLCPByCompoundOldName("pricePriceListDetailDataPriceListType"));
-                props.add(new ImportProperty(pricePriceListDetailDataPriceListTypeField, LM.findLCPByCompoundOldName("pricePriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
+                ImportField pricePriceListDetailDataPriceListTypeField = new ImportField(getLCP("pricePriceListDetailDataPriceListType"));
+                props.add(new ImportProperty(pricePriceListDetailDataPriceListTypeField, getLCP("pricePriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
                 fields.add(pricePriceListDetailDataPriceListTypeField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(userPriceListDetailsList.get(i).prices.get(dataPriceListTypeObject));
             }
 
             if (showField(userPriceListDetailsList, "date")) {
-                ImportField dateUserPriceListField = new ImportField(LM.findLCPByCompoundOldName("dateUserPriceList"));
-                props.add(new ImportProperty(dateUserPriceListField, LM.findLCPByCompoundOldName("dateUserPriceList").getMapping(userPriceListObject)));
-                props.add(new ImportProperty(dateUserPriceListField, LM.findLCPByCompoundOldName("fromDateUserPriceList").getMapping(userPriceListObject)));
+                ImportField dateUserPriceListField = new ImportField(getLCP("dateUserPriceList"));
+                props.add(new ImportProperty(dateUserPriceListField, getLCP("dateUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(importColumns, "date")));
+                props.add(new ImportProperty(dateUserPriceListField, getLCP("fromDateUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(importColumns, "date")));
                 fields.add(dateUserPriceListField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(userPriceListDetailsList.get(i).date);
 
-                ImportField timeUserPriceListField = new ImportField(LM.findLCPByCompoundOldName("timeUserPriceList"));
-                props.add(new ImportProperty(timeUserPriceListField, LM.findLCPByCompoundOldName("timeUserPriceList").getMapping(userPriceListObject)));
-                props.add(new ImportProperty(timeUserPriceListField, LM.findLCPByCompoundOldName("fromTimeUserPriceList").getMapping(userPriceListObject)));
+                ImportField timeUserPriceListField = new ImportField(getLCP("timeUserPriceList"));
+                props.add(new ImportProperty(timeUserPriceListField, getLCP("timeUserPriceList").getMapping(userPriceListObject)));
+                props.add(new ImportProperty(timeUserPriceListField, getLCP("fromTimeUserPriceList").getMapping(userPriceListObject)));
                 fields.add(timeUserPriceListField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(new Time(0, 0, 0));
             }
 
             if (showField(userPriceListDetailsList, "isPosted")) {
-                ImportField isPostedUserPriceListField = new ImportField(LM.findLCPByCompoundOldName("isPostedUserPriceList"));
-                props.add(new ImportProperty(isPostedUserPriceListField, LM.findLCPByCompoundOldName("isPostedUserPriceList").getMapping(userPriceListObject)));
+                ImportField isPostedUserPriceListField = new ImportField(getLCP("isPostedUserPriceList"));
+                props.add(new ImportProperty(isPostedUserPriceListField, getLCP("isPostedUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(importColumns, "isPosted")));
                 fields.add(isPostedUserPriceListField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
                     data.get(i).add(userPriceListDetailsList.get(i).isPosted);
@@ -305,17 +308,17 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             List<List<Object>> data = initData(dataAdjustment.size());
 
             if (stockObject != null) {
-                props.add(new ImportProperty(stockObject, LM.findLCPByCompoundOldName("stockUserAdjustment").getMapping(userAdjustmentObject)));
+                props.add(new ImportProperty(stockObject, getLCP("stockUserAdjustment").getMapping(userAdjustmentObject)));
             }
 
-            ImportField idItemField = new ImportField(LM.findLCPByCompoundOldName("idItem"));
+            ImportField idItemField = new ImportField(getLCP("idItem"));
             fields.add(idItemField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).idItem);
 
-            ImportField idBarcodeSkuField = new ImportField(LM.findLCPByCompoundOldName("idBarcodeSku"));
+            ImportField idBarcodeSkuField = new ImportField(getLCP("idBarcodeSku"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Barcode"),
-                    LM.findLCPByCompoundOldName("extBarcodeId").getMapping(idBarcodeSkuField));
+                    getLCP("extBarcodeId").getMapping(idBarcodeSkuField));
             keys.add(barcodeKey);
             fields.add(idBarcodeSkuField);
             for (int i = 0; i < dataAdjustment.size(); i++)
@@ -324,45 +327,45 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String iGroupAggr = (itemKeyType == null || itemKeyType.equals("item")) ? "itemId" : "skuIdBarcode";
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) LM.findClassByCompoundName("Item"),
-                    LM.findLCPByCompoundOldName(iGroupAggr).getMapping(iField));
+                    getLCP(iGroupAggr).getMapping(iField));
             keys.add(itemKey);
 
-            ImportField idUserAdjustmentDetailField = new ImportField(LM.findLCPByCompoundOldName("idUserAdjustmentDetail"));
+            ImportField idUserAdjustmentDetailField = new ImportField(getLCP("idUserAdjustmentDetail"));
             ImportKey<?> userAdjustmentDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UserAdjustmentDetail"),
-                    LM.findLCPByCompoundOldName("userAdjustmentDetailIdUserAdjustment").getMapping(idUserAdjustmentDetailField, userAdjustmentObject));
+                    getLCP("userAdjustmentDetailIdUserAdjustment").getMapping(idUserAdjustmentDetailField, userAdjustmentObject));
             keys.add(userAdjustmentDetailKey);
-            props.add(new ImportProperty(userAdjustmentObject, LM.findLCPByCompoundOldName("userAdjustmentUserAdjustmentDetail").getMapping(userAdjustmentDetailKey)));
-            props.add(new ImportProperty(idUserAdjustmentDetailField, LM.findLCPByCompoundOldName("idUserAdjustmentDetail").getMapping(userAdjustmentDetailKey)));
-            props.add(new ImportProperty(iField, LM.findLCPByCompoundOldName("skuUserAdjustmentDetail").getMapping(userAdjustmentDetailKey),
+            props.add(new ImportProperty(userAdjustmentObject, getLCP("userAdjustmentUserAdjustmentDetail").getMapping(userAdjustmentDetailKey)));
+            props.add(new ImportProperty(idUserAdjustmentDetailField, getLCP("idUserAdjustmentDetail").getMapping(userAdjustmentDetailKey)));
+            props.add(new ImportProperty(iField, getLCP("skuUserAdjustmentDetail").getMapping(userAdjustmentDetailKey),
                     LM.object(LM.findClassByCompoundName("Sku")).getMapping(itemKey)));
-            props.add(new ImportProperty(iField, LM.findLCPByCompoundOldName("skuBarcode").getMapping(barcodeKey),
+            props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(barcodeKey),
                     LM.object(LM.findClassByCompoundName("Item")).getMapping(itemKey)));
             fields.add(idUserAdjustmentDetailField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).idUserPriceListDetail);
 
-            ImportField quantityUserAdjustmentDetailField = new ImportField(LM.findLCPByCompoundOldName("quantityUserAdjustmentDetail"));
-            props.add(new ImportProperty(quantityUserAdjustmentDetailField, LM.findLCPByCompoundOldName("quantityUserAdjustmentDetail").getMapping(userAdjustmentDetailKey)));
+            ImportField quantityUserAdjustmentDetailField = new ImportField(getLCP("quantityUserAdjustmentDetail"));
+            props.add(new ImportProperty(quantityUserAdjustmentDetailField, getLCP("quantityUserAdjustmentDetail").getMapping(userAdjustmentDetailKey)));
             fields.add(quantityUserAdjustmentDetailField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).quantityAdjustment);
 
             if (showField(dataAdjustment, "date")) {
-                ImportField dateUserAdjustmentField = new ImportField(LM.findLCPByCompoundOldName("dateUserAdjustment"));
-                props.add(new ImportProperty(dateUserAdjustmentField, LM.findLCPByCompoundOldName("dateUserAdjustment").getMapping(userAdjustmentObject)));
+                ImportField dateUserAdjustmentField = new ImportField(getLCP("dateUserAdjustment"));
+                props.add(new ImportProperty(dateUserAdjustmentField, getLCP("dateUserAdjustment").getMapping(userAdjustmentObject)));
                 fields.add(dateUserAdjustmentField);
                 for (int i = 0; i < dataAdjustment.size(); i++)
                     data.get(i).add(dataAdjustment.get(i).date);
 
-                ImportField timeUserAdjustmentField = new ImportField(LM.findLCPByCompoundOldName("timeUserAdjustment"));
-                props.add(new ImportProperty(timeUserAdjustmentField, LM.findLCPByCompoundOldName("timeUserAdjustment").getMapping(userAdjustmentObject)));
+                ImportField timeUserAdjustmentField = new ImportField(getLCP("timeUserAdjustment"));
+                props.add(new ImportProperty(timeUserAdjustmentField, getLCP("timeUserAdjustment").getMapping(userAdjustmentObject)));
                 fields.add(timeUserAdjustmentField);
                 for (int i = 0; i < dataAdjustment.size(); i++)
                     data.get(i).add(new Time(0, 0, 0));
             }
 
-            ImportField isPostedAdjustmentField = new ImportField(LM.findLCPByCompoundOldName("isPostedAdjustment"));
-            props.add(new ImportProperty(isPostedAdjustmentField, LM.findLCPByCompoundOldName("isPostedAdjustment").getMapping(userAdjustmentObject)));
+            ImportField isPostedAdjustmentField = new ImportField(getLCP("isPostedAdjustment"));
+            props.add(new ImportProperty(isPostedAdjustmentField, getLCP("isPostedAdjustment").getMapping(userAdjustmentObject)));
             fields.add(isPostedAdjustmentField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(true);
