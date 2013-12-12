@@ -6,6 +6,10 @@ NAMESPACE Shipment;
 
 GROUP invoices 'Приемка по накладным' : base;
 
+@defineDocumentAbstractDetailPricePrefix(invoice, shipment, ' учетная');
+@defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, shipment, ' учетная');
+@defineDocumentHeaderSumPrefix(invoice, shipment, ' учетная');
+
 META defineInvoiceShipment(sign, stockProp, filter)
 
     invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT;
@@ -211,6 +215,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
 //-- аггр.объект
 
     @defineDocumentInterfaceDetailPricePrefix(invoice, shipment, ' (учетная)');
+    Shipment.shipmentPriceInvoiceDetail(detail) += shipmentPriceInvoiceDetail(detail);
     @defineDocumentInterfaceDetailQuantityPrefix (invoice, shipment, ' (поставлено)');
     @defineDocumentInterfaceHeaderQuantityCustomPrefix (invoice, invoiceDetail, shipment, ' (поставлено)');
     
@@ -218,7 +223,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
 
     @defineDocumentInterfaceDetailDataSumPrefix (invoice, shipment, ' (учетная)');
     @deriveDocumentDetailSumPrefix(userInvoice, shipment, currency, shipmentQuantity);
-
+    Shipment.shipmentSumInvoiceDetail(detail) += shipmentSumInvoiceDetail(detail);
     @defineDocumentInterfaceHeaderCreateShipment (invoice);
     @defineDocumentInterfaceHeaderSumPrefix (invoice, shipment, ' (учетная)');
 

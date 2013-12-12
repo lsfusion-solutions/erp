@@ -71,7 +71,12 @@ extraDescriptionInvoiceDetail 'Доп. наименование' (invoiceDetail)
 editInvoice 'Редактировать' = ABSTRACT ACTION LIST (Invoice) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 inInvoice 'Приходная' = ABSTRACT BOOLEAN (Invoice);
+inInvoiceDetail 'Приходная' (d) = inInvoice(invoiceInvoiceDetail(d)); 
 outInvoice 'Расходная' (invoice) = invoice IS Invoice AND NOT inInvoice(invoice);
+outInvoiceDetail 'Расходная' (d) = outInvoice(invoiceInvoiceDetail(d)); 
+// наш склад
+stockInvoiceDetail = ABSTRACT Stock(InvoiceDetail) PERSISTENT;   
+nameStockInvoiceDetail 'Склад' (d) = nameStock(stockInvoiceDetail(d));
 
 operationInvoice = ABSTRACT Operation.Operation(Invoice);
 nameOperationInvoice 'Операция' (invoice) = Operation.nameOperation(operationInvoice(invoice));
@@ -117,7 +122,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     Invoice.customerStockInvoice(invoice) += customerStockInvoice(invoice);
     Invoice.dataSupplierStockInvoiceDetail(detail) += dataSupplierStockInvoiceDetail(detail);
     Invoice.dataCustomerStockInvoiceDetail(detail) += dataCustomerStockInvoiceDetail(detail);
-
+    Invoice.stockInvoiceDetail(detail) += stockProp###StockInvoiceDetail(detail);
     CONSTRAINT supplierUserInvoice(userInvoice) AND supplierStockUserInvoice(userInvoice) AND NOT
     inLegalEntityStock(supplierUserInvoice(userInvoice), supplierStockUserInvoice(userInvoice))
         CHECKED BY supplierStockUserInvoice
