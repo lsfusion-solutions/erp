@@ -147,18 +147,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             if (showField(userInvoiceDetailsList, "numberUserInvoice")) {
                 addDataField(props, fields, importColumns, "numberUserInvoice", "numberUserInvoice", userInvoiceObject);
-                //ImportField numberUserInvoiceField = new ImportField(getLCP("numberUserInvoice"));
-                //props.add(new ImportProperty(numberUserInvoiceField, getLCP("numberUserInvoice").getMapping(userInvoiceObject), getReplaceOnlyNull(importColumns, "numberUserInvoice")));
-                //fields.add(numberUserInvoiceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).numberUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "dateUserInvoice")) {
                 addDataField(props, fields, importColumns, "dateUserInvoice", "dateUserInvoice", userInvoiceObject);
-                //ImportField dateUserInvoiceField = new ImportField(getLCP("dateUserInvoice"));
-                //props.add(new ImportProperty(dateUserInvoiceField, getLCP("dateUserInvoice").getMapping(userInvoiceObject), getReplaceOnlyNull(importColumns, "dateUserInvoice")));
-                //fields.add(dateUserInvoiceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).dateUserInvoice);
             }
@@ -242,9 +236,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     data.get(i).add(userInvoiceDetailsList.get(i).idBox);
 
                 if (showField(userInvoiceDetailsList, "nameBox")) {
-                    //ImportField nameBoxField = new ImportField(purhcaseShipmentBoxLM.findLCPByCompoundOldName("nameBox"));
-                    //props.add(new ImportProperty(nameBoxField, purhcaseShipmentBoxLM.findLCPByCompoundOldName("nameBox").getMapping(boxKey), getReplaceOnlyNull(importColumns, "nameBox")));
-                    //fields.add(nameBoxField);
                     addDataField(purhcaseShipmentBoxLM, props, fields, importColumns, "nameBox", "nameBox", boxKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).nameBox);
@@ -523,9 +514,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             if (showField(userInvoiceDetailsList, "isPosted")) {
                 addDataField(props, fields, importColumns, "isPostedUserInvoice", "isPosted", userInvoiceObject);
-                //ImportField isPostedUserInvoiceField = new ImportField(getLCP("isPostedUserInvoice"));
-                //props.add(new ImportProperty(isPostedUserInvoiceField, getLCP("isPostedUserInvoice").getMapping(userInvoiceObject), getReplaceOnlyNull(importColumns, "isPosted")));
-                //fields.add(isPostedUserInvoiceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).isPosted);
             }
@@ -666,15 +654,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     fields.add(idSizeField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).idSize);
-
-//                    if (showField(userInvoiceDetailsList, "nameSize")) {
-//                        ImportField nameSizeField = new ImportField(itemArticleLM.findLCPByCompoundOldName("nameSize"));
-//                        props.add(new ImportProperty(nameSizeField, itemArticleLM.findLCPByCompoundOldName("nameSize").getMapping(sizeKey), getReplaceOnlyNull(importColumns, "nameSize")));
-//                        props.add(new ImportProperty(nameSizeField, itemArticleLM.findLCPByCompoundOldName("shortNameSize").getMapping(sizeKey), getReplaceOnlyNull(importColumns, "nameSize")));
-//                        fields.add(nameSizeField);
-//                        for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-//                            data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
-//                    }
 
                     if (showField(userInvoiceDetailsList, "nameSize")) {
                         addDataField(itemArticleLM, props, fields, importColumns, "nameSize", "nameSize", sizeKey);

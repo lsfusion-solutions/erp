@@ -396,9 +396,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
 
-        //HSSFWorkbook Wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
-        //HSSFSheet sheet = Wb.getSheetAt(0);
-
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
         Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
