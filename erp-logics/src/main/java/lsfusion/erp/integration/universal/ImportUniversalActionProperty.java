@@ -480,19 +480,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     private boolean isOrValue(String input) {
         return input != null && input.contains("|");
-    }
-
-    protected String trim(String input) {
-        return input == null ? null : trim(input, input.trim().length());
-    }
-
-    protected String trim(String input, Integer length) {
-        return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
-    }
+    }  
 
     protected boolean getReplaceOnlyNull(Map<String, ImportColumnDetail> importColumns, String columnName) {
         ImportColumnDetail column = importColumns.get(columnName);
         return column != null && column.replaceOnlyNull;
     }
 }
-
