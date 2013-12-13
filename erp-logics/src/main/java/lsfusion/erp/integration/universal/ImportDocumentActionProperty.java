@@ -48,6 +48,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
         query.addProperty("staticName", LM.findLCPByCompoundOldName("staticName").getExpr(context.getModifier(), key));
+        query.addProperty("staticCaption", LM.findLCPByCompoundOldName("staticCaption").getExpr(context.getModifier(), key));
         query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("replaceOnlyNullImportTypeImportTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
         query.addProperty("indexImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("indexImportTypeImportTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
         query.and(isImportTypeDetail.getExpr(key).getWhere());
@@ -56,13 +57,15 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         for (ImMap<Object, Object> entry : result.valueIt()) {
 
             String[] field = ((String) entry.get("staticName")).trim().split("\\.");
+            String captionProperty = (String) entry.get("staticCaption");
+            captionProperty = captionProperty == null ? null : captionProperty.trim();
             boolean replaceOnlyNull = entry.get("replaceOnlyNullImportTypeImportTypeDetail") != null;
             String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
             if (indexes != null) {
                 String[] splittedIndexes = indexes.split("\\+");
                 for (int i = 0; i < splittedIndexes.length; i++)
                     splittedIndexes[i] = splittedIndexes[i].trim();
-                importColumns.put(field[field.length - 1], new ImportColumnDetail(splittedIndexes, replaceOnlyNull));
+                importColumns.put(field[field.length - 1], new ImportColumnDetail(captionProperty, indexes, splittedIndexes, replaceOnlyNull));
             }
         }
         return importColumns.isEmpty() ? null : importColumns;
