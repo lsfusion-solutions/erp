@@ -11,6 +11,9 @@ tripInvoice = DATA Trip(Invoice);
 inTripInvoice 'Включен' (trip, invoice) = tripInvoice(invoice)==trip;
 filterTripInvoice(trip, invoice) = tripInvoice(invoice)==trip OR (trip IS Trip AND invoice IS Invoice AND NOT tripInvoice(invoice));
 
+countInvoiceTrip 'Кол-во накладных в рейсе' (trip) = GROUP SUM 1 IF inTripInvoice(trip, invoice) BY trip PERSISTENT;
+diffCountOrderInvoiceTrip 'Кол-во заказов без накладных'(trip) = countOrderTrip(trip) (-) countInvoiceTrip(trip);
+
 quantityInvoicedTripSku 'Кол-во в накладных' (trip, sku) = GROUP SUM quantityInvoiceDetail(invoiceDetail) BY tripInvoice(invoiceInvoiceDetail(invoiceDetail)), skuInvoiceDetail(invoiceDetail);
 
 grossWeightInvoicedTrip 'Суммарный вес накладных' (trip) = GROUP SUM grossWeightInvoiceDetailInvoice(invoice) BY tripInvoice(invoice);
