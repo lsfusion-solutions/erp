@@ -1,6 +1,6 @@
 MODULE SaleManufacturingPrice;
 
-REQUIRE SaleInvoice, PriceListLedger;
+REQUIRE SaleInvoice, PriceListLedger, OrderManufacturingPrice;
 
 NAMESPACE Sale;
 
@@ -12,6 +12,7 @@ NAMESPACE Sale;
 @deriveDocumentOperationProperty(UserOrder, showManufacturingPrice);
 
 @defineDocumentInterfaceDetailPriceCustomPrefix(orderDetail, manufacturing, ' изготовителя');
+Order.manufacturingPriceOrderDetail(d) += manufacturingPriceOrderDetail(d);
 @defineDocumentInterfaceDetailInclVATCustomPrefix (orderDetail);
 includeVATUserOrderDetail(detail) <-  fixedPriceSku(skuUserOrderDetail(detail)) WHEN CHANGED (skuUserOrderDetail(detail));
 @defineDocumentInterfaceDetailMPVATCustomPrefix (orderDetail, manufacturing, );
@@ -20,6 +21,7 @@ includeVATUserOrderDetail(detail) <-  fixedPriceSku(skuUserOrderDetail(detail)) 
 
 wholesaleMarkupOrderDetail 'Оптовая надбавка (от цены изг.)' (detail) = round2([= ((X*100.0)/Y-100.0)](priceOrderDetail(detail),manufacturingMVATPriceOrderDetail(detail) IF manufacturingMVATPriceOrderDetail(detail) != 0.0));
 wholesaleMarkupUserOrderDetail 'Оптовая надбавка (от цены изг.)' (detail) = round2([= ((X*100.0)/Y-100.0)](priceUserOrderDetail(detail),manufacturingMVATPriceUserOrderDetail(detail) IF manufacturingMVATPriceUserOrderDetail(detail) != 0.0 ));
+Order.wholesaleMarkupOrderDetail(d) += wholesaleMarkupOrderDetail(d);
 
 @defineDocumentInterfaceDetailDataSumPrefix (order, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
 @deriveDocumentDetailSumPrefix(userOrder, manufacturing, currency, quantity); // записываем сумму изготовителя

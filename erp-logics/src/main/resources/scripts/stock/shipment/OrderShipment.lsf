@@ -4,6 +4,8 @@ REQUIRE Order, Shipment;
 
 NAMESPACE Shipment;
 
+shippedOrderDetail 'Кол-во (поставлено)' (orderDetail) = ABSTRACT NUMERIC[14,3] (OrderDetail);
+
 META defineOrderShipment(sign, stockProp)
 
     orderShipmentDetail = ABSTRACT Order (ShipmentDetail) PERSISTENT;
@@ -37,7 +39,8 @@ META defineOrderShipment(sign, stockProp)
                                                               LIMIT STRICT quantityOrderDetail (orderDetail) IF isPostedOrderDetail(orderDetail)
                                                               BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
                                                               ORDER orderDetail PERSISTENT;
-
+                                                              
+    Shipment.shippedOrderDetail(d) += shippedOrderDetail(d);
     toShipOrderDetail 'Не поставлено' (orderDetail) = quantityOrderDetail (orderDetail) (-) shippedOrderDetail(orderDetail);
 
     toShipOrderDetailStockOrder 'Не поставлено по складу' (stock, order) = GROUP SUM toShipOrderDetail(orderDetail) IF toShipOrderDetail(orderDetail) > 0

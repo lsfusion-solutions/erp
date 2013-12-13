@@ -1,11 +1,63 @@
 MODULE PurchaseReturnManufacturingPrice;
 
-REQUIRE PurchaseReturnInvoice, PurchaseManufacturingPrice;
+REQUIRE PurchaseReturnInvoice, PurchaseManufacturingPrice, OrderManufacturingPrice;
 
 NAMESPACE PurchaseReturn;
 
 //---------------------------------Цена изготовителя ----------------------------------//
 
+//----------------------------- Накладная -------------------------//
+
+@defineDocumentInterfaceProperty (order, showManufacturingPrice, 'Цена изготовителя');
+@deriveDocumentOperationProperty(UserOrder, showManufacturingPrice);
+
+@defineDocumentInterfaceDetailPriceCustomPrefix(orderDetail, manufacturing, ' изготовителя');
+Order.manufacturingPriceOrderDetail(d) += manufacturingPriceOrderDetail(d);
+@defineDocumentInterfaceDetailInclVATCustomPrefix (orderDetail);
+includeVATUserOrderDetail(detail) <-  fixedPriceSku(skuUserOrderDetail(detail)) WHEN CHANGED (skuUserOrderDetail(detail));
+@defineDocumentInterfaceDetailMPVATCustomPrefix (orderDetail, manufacturing, );
+
+@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userOrder, manufacturingPriceStockPriceListType, manufacturing, sku, customerStock);
+
+wholesaleMarkupOrderDetail 'Оптовая надбавка (от цены изг.)' (detail) = round2([= ((X*100.0)/Y-100.0)](priceOrderDetail(detail),manufacturingMVATPriceOrderDetail(detail) IF manufacturingMVATPriceOrderDetail(detail) != 0.0));
+wholesaleMarkupUserOrderDetail 'Оптовая надбавка (от цены изг.)' (detail) = round2([= ((X*100.0)/Y-100.0)](priceUserOrderDetail(detail),manufacturingMVATPriceUserOrderDetail(detail) IF manufacturingMVATPriceUserOrderDetail(detail) != 0.0 ));
+Order.wholesaleMarkupOrderDetail(d) += wholesaleMarkupOrderDetail(d);
+
+@defineDocumentInterfaceDetailDataSumPrefix (order, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
+@deriveDocumentDetailSumPrefix(userOrder, manufacturing, currency, quantity); // записываем сумму изготовителя
+
+@defineDocumentInterfaceHeaderItemSum (order, manufacturing, manufacturing);
+
+//overChangeManufacturingPriceUserOrderDetail = ABSTRACT ACTION LIST (OrderDetail);
+//changeManufacturingPriceUserOrderDetail (detail) = ACTION (detail) {
+//  REQUEST NUMERIC[14,2] INPUT;
+//  IF requestedNumeric() THEN {
+//      ASSIGN manufacturingPriceUserOrderDetail(detail) <- requestedNumeric();   
+//      overChangeManufacturingPriceUserOrderDetail(detail);
+//  }
+//}
+
+EXTEND FORM userOrder
+    PROPERTIES(o)  showManufacturingPriceUserOrder
+    PROPERTIES(d)  SHOWIF showManufacturingPriceUserOrder(o) AFTER invoiceSumUserOrderDetail  manufacturingSumUserOrderDetail, includeVATUserOrderDetail,
+                   wholesaleMarkupUserOrderDetail READONLY, manufacturingPriceUserOrderDetail// ON CHANGE changeManufacturingPriceUserOrderDetail(d)
+
+;
+EXTEND DESIGN userOrder {
+    headerExtraParams {
+        NEW headerManufacturing {
+            caption = 'Цена изготовителя';
+            ADD PROPERTY(showManufacturingPriceUserOrder);
+        }
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES(d) READONLY  SHOWIF showManufacturingPriceOrder(o) AFTER invoiceSumOrderDetail manufacturingSumOrderDetail, includeVATOrderDetail,
+                  wholesaleMarkupOrderDetail, manufacturingPriceOrderDetail
+;
+
+//----------------------------- Накладная -------------------------//
 @defineDocumentInterfaceProperty (invoice, showManufacturingPrice, 'Цена изготовителя');
 
 // -- Операция

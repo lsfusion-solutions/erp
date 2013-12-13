@@ -80,6 +80,11 @@ nameStockInvoiceDetail 'Склад' (d) = nameStock(stockInvoiceDetail(d));
 
 operationInvoice = ABSTRACT Operation.Operation(Invoice);
 nameOperationInvoice 'Операция' (invoice) = Operation.nameOperation(operationInvoice(invoice));
+
+createdTimeInvoice 'Время создания'= ABSTRACT DATETIME (Invoice) IN created;
+createdUserInvoice = ABSTRACT CustomUser (Invoice);
+createdNameUserInvoice 'Создан пользователем' (o) = nameContact(createdUserInvoice(o)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
 //----------------------------------------------- Накладная ---------------------------------------------------//
 
 META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
@@ -95,9 +100,12 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     @defineDocumentInterface(invoice);
     @deriveDocumentHeaderTimePrefix(UserInvoice, );
     
+    Invoice.createdTimeInvoice (invoice) += createdTimeUserInvoice(invoice) IF invoice IS UserInvoice;
+    Invoice.createdUserInvoice (invoice) += createdUserUserInvoice(invoice) IF invoice IS UserInvoice;    
+    
     @defineExternalizable(userInvoice, VARSTRING[100]);
     @defineExternalizable(userInvoiceDetail, VARSTRING[100]);
-
+                                                               
     Invoice.invoiceInvoiceDetail (detail) += invoiceInvoiceDetail(detail);
     Invoice.dateInvoice (invoice) += dateInvoice(invoice);
     Invoice.timeInvoice (invoice) += timeInvoice(invoice);
