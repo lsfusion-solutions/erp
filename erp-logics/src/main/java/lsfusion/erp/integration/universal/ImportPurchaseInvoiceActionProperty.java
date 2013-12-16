@@ -86,7 +86,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
 
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, LM, importTypeObject);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(session, LM, importTypeObject);
 
                 if (importColumns != null && fileExtension != null) {
 

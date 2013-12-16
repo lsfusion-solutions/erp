@@ -11,6 +11,7 @@ import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.integration.*;
+import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
@@ -73,7 +74,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
 
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(context, LM, importTypeObject);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(session, LM, importTypeObject);
 
                 if (importColumns != null && fileExtension != null) {
 
@@ -84,7 +85,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                         for (byte[] file : fileList) {
 
-                            makeImport(context, orderObject, importColumns, file, fileExtension, startRow, isPosted, csvSeparator,
+                            makeImport(context.getBL(), session, orderObject, importColumns, file, fileExtension, startRow, isPosted, csvSeparator,
                                     primaryKeyType, secondaryKeyType, operationObject, supplierObject, supplierStockObject,
                                     customerObject, customerStockObject);
 
@@ -108,32 +109,33 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         }
     }
 
-    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
+    public boolean makeImport(BusinessLogics BL, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String primaryKeyType,
                               String secondaryKeyType, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException {
 
-        this.saleManufacturingPriceLM = (ScriptingLogicsModule) context.getBL().getModule("SaleManufacturingPrice");
+        this.saleManufacturingPriceLM = (ScriptingLogicsModule) BL.getModule("SaleManufacturingPrice");
 
-        List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(context.getSession(), (Integer) orderObject.object,
+        List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(session, (Integer) orderObject.object,
                 importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType, secondaryKeyType);
 
         boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0),
-                context, orderObject, importColumns, primaryKeyType, operationObject, supplierObject, supplierStockObject,
+                BL, session, orderObject, importColumns, primaryKeyType, operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
         boolean importResult2 = (orderDetailsList != null && orderDetailsList.size() >= 2) && importOrders(orderDetailsList.get(1),
-                context, orderObject, importColumns, secondaryKeyType, operationObject, supplierObject, supplierStockObject,
+                BL, session, orderObject, importColumns, secondaryKeyType, operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
-        LM.findLAPByCompoundOldName("formRefresh").execute(context);
+        LM.findLAPByCompoundOldName("formRefresh").execute(session);
 
         return importResult1 && importResult2;
     }
 
-    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
-                                String keyType, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
+    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, BusinessLogics BL, DataSession session, 
+                                DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType, 
+                                ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
                                 ObjectValue customerObject, ObjectValue customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
 
@@ -147,18 +149,13 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             if (showField(orderDetailsList, "numberOrder")) {
                 addDataField(props, fields, importColumns, "Sale.numberUserOrder", "numberOrder", orderObject);
-                //ImportField numberOrderField = new ImportField(getLCP("Sale.numberUserOrder"));
-                //props.add(new ImportProperty(numberOrderField, getLCP("Sale.numberUserOrder").getMapping(orderObject), getReplaceOnlyNull(importColumns, "numberOrder")));
-                //fields.add(numberOrderField);
+                addDataField(props, fields, importColumns, "Sale.numberUserOrder", "numberOrder", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).numberOrder);
             }
 
             if (showField(orderDetailsList, "dateOrder")) {
                 addDataField(props, fields, importColumns, "Sale.dateUserOrder", "dateOrder", orderObject);
-                //ImportField dateOrderField = new ImportField(getLCP("Sale.dateUserOrder"));
-                //props.add(new ImportProperty(dateOrderField, getLCP("Sale.dateUserOrder").getMapping(orderObject), getReplaceOnlyNull(importColumns, "dateOrder")));
-                //fields.add(dateOrderField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).dateOrder);
             }
@@ -275,27 +272,18 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             if (showField(orderDetailsList, "quantity")) {
                 addDataField(props, fields, importColumns, "Sale.quantityUserOrderDetail", "quantity", orderDetailKey);
-                //ImportField quantityOrderDetailField = new ImportField(getLCP("Sale.quantityUserOrderDetail"));
-                //props.add(new ImportProperty(quantityOrderDetailField, getLCP("Sale.quantityUserOrderDetail").getMapping(orderDetailKey), getReplaceOnlyNull(importColumns, "quantity")));
-                //fields.add(quantityOrderDetailField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).quantity);
             }
 
             if (showField(orderDetailsList, "price")) {
                 addDataField(props, fields, importColumns, "Sale.priceUserOrderDetail", "price", orderDetailKey);
-                //ImportField priceOrderDetail = new ImportField(getLCP("Sale.priceUserOrderDetail"));
-                //props.add(new ImportProperty(priceOrderDetail, getLCP("Sale.priceUserOrderDetail").getMapping(orderDetailKey), getReplaceOnlyNull(importColumns, "price")));
-                //fields.add(priceOrderDetail);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).price);
             }
 
             if (showField(orderDetailsList, "sum")) {
                 addDataField(props, fields, importColumns, "Sale.sumUserOrderDetail", "sum", orderDetailKey);
-                //ImportField sumOrderDetail = new ImportField(getLCP("Sale.sumUserOrderDetail"));
-                //props.add(new ImportProperty(sumOrderDetail, getLCP("Sale.sumUserOrderDetail").getMapping(orderDetailKey), getReplaceOnlyNull(importColumns, "sum")));
-                //fields.add(sumOrderDetail);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).sum);
             }
@@ -314,47 +302,34 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             if (showField(orderDetailsList, "sumVAT")) {
                 addDataField(props, fields, importColumns, "Sale.VATSumUserOrderDetail", "sumVAT", orderDetailKey);
-                //ImportField VATSumOrderDetailField = new ImportField(getLCP("Sale.VATSumUserOrderDetail"));
-                //props.add(new ImportProperty(VATSumOrderDetailField, getLCP("Sale.VATSumUserOrderDetail").getMapping(orderDetailKey), getReplaceOnlyNull(importColumns, "sumVAT")));
-                //fields.add(VATSumOrderDetailField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).sumVAT);
             }
 
             if (showField(orderDetailsList, "invoiceSum")) {
                 addDataField(props, fields, importColumns, "Sale.invoiceSumUserOrderDetail", "invoiceSum", orderDetailKey);
-                //ImportField invoiceSumOrderDetailField = new ImportField(getLCP("Sale.invoiceSumUserOrderDetail"));
-                //props.add(new ImportProperty(invoiceSumOrderDetailField, getLCP("Sale.invoiceSumUserOrderDetail").getMapping(orderDetailKey), getReplaceOnlyNull(importColumns, "invoiceSum")));
-                //fields.add(invoiceSumOrderDetailField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).invoiceSum);
             }
 
             if ((saleManufacturingPriceLM != null) && showField(orderDetailsList, "manufacturingPrice")) {
                 addDataField(saleManufacturingPriceLM, props, fields, importColumns, "Sale.manufacturingPriceUserOrderDetail", "manufacturingPrice", orderDetailKey);
-                //ImportField manufacturingPriceOrderDetailField = new ImportField(saleManufacturingPriceLM.findLCPByCompoundOldName("Sale.manufacturingPriceUserOrderDetail"));
-                //props.add(new ImportProperty(manufacturingPriceOrderDetailField, saleManufacturingPriceLM.findLCPByCompoundOldName("Sale.manufacturingPriceUserOrderDetail").getMapping(orderDetailKey), getReplaceOnlyNull(importColumns, "manufacturingPrice")));
-                //fields.add(manufacturingPriceOrderDetailField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).manufacturingPrice);
             }
 
             if (showField(orderDetailsList, "isPosted")) {
                 addDataField(props, fields, importColumns, "Sale.isPostedUserOrder", "isPosted", orderObject);
-                //ImportField isPostedOrderField = new ImportField(getLCP("Sale.isPostedUserOrder"));
-                //props.add(new ImportProperty(isPostedOrderField, getLCP("Sale.isPostedUserOrder").getMapping(orderObject), getReplaceOnlyNull(importColumns, "isPosted")));
-                //fields.add(isPostedOrderField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).isPosted);
             }
 
             ImportTable table = new ImportTable(fields, data);
 
-            DataSession session = context.getSession();
             session.sql.pushVolatileStats(null);
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
-            String result = session.applyMessage(context.getBL());
+            String result = session.applyMessage(BL);
             session.sql.popVolatileStats(null);
             session.close();
 
