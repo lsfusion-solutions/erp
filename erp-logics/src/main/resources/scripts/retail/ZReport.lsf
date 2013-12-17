@@ -138,22 +138,37 @@ dateTimeReceiptDetail 'Дата/время' = ABSTRACT DATETIME (ReceiptDetail) 
 dateTimeReceiptDetail(detail) += dateTimeReceiptReturnDetail(detail);
 dateTimeReceiptDetail(detail) += dateTimeReceiptSaleDetail(detail);
 
+// ------------ Проведен --------------- // 
+
+isPostedReceiptDetail 'Проведен' (receiptDetail) = ABSTRACT BOOLEAN (ReceiptDetail) PERSISTENT;
+
 @defineDocumentDetailPosted(receipt, ReceiptSaleDetail);
+isPostedReceiptDetail(d) += isPostedReceiptSaleDetail(d); 
+
 @defineDocumentDetailPosted(receipt, ReceiptReturnDetail);
+isPostedReceiptDetail(d) += isPostedReceiptReturnDetail(d); 
+
+// ------------ Закрыт --------------- // 
+isClosedReceiptDetail 'Закрыт' (receiptDetail) = ABSTRACT BOOLEAN (ReceiptDetail) PERSISTENT;
 
 @defineDocumentDetailClosed(receipt, ReceiptSaleDetail);
+isClosedReceiptDetail(d) += isClosedReceiptSaleDetail(d);
+ 
 @defineDocumentDetailClosed(receipt, ReceiptReturnDetail);
+isClosedReceiptDetail(d) += isClosedReceiptReturnDetail(d);
 
 skipReceiptSaleDetail 'Не проводить по регистру' (receiptDetail) = skipReceipt(receiptReceiptSaleDetail(receiptDetail)); 
 skipReceiptReturnDetail 'Не проводить по регистру' (receiptDetail) = skipReceipt(receiptReceiptReturnDetail(receiptDetail)); 
 
-isPostedReceiptDetail 'Проведен' (receiptDetail) = MULTI isPostedReceiptReturnDetail(receiptDetail), isPostedReceiptSaleDetail(receiptDetail) PERSISTENT;
-isClosedReceiptDetail 'Проведен' (receiptDetail) = MULTI isClosedReceiptReturnDetail(receiptDetail), isClosedReceiptSaleDetail(receiptDetail) PERSISTENT;
+// --------------- Магазин --------------- //
+departmentStoreReceiptDetail (receiptDetail) = ABSTRACT DepartmentStore (ReceiptDetail) PERSISTENT;
+storeReceiptDetail (receiptDetail) = storeDepartmentStore(departmentStoreReceiptDetail(receiptDetail));
 
 @defineDocumentDetailDepartmentStoreCustom(receipt, receiptSaleDetail);
+departmentStoreReceiptDetail (d) += departmentStoreReceiptSaleDetail(d);
+ 
 @defineDocumentDetailDepartmentStoreCustom(receipt, receiptReturnDetail);
-departmentStoreReceiptDetail (receiptDetail) = MULTI departmentStoreReceiptReturnDetail(receiptDetail), departmentStoreReceiptSaleDetail(receiptDetail) PERSISTENT;
-storeReceiptDetail (receiptDetail) = storeDepartmentStore(departmentStoreReceiptDetail(receiptDetail));
+departmentStoreReceiptDetail (d) += departmentStoreReceiptReturnDetail(d); 
 
 @defineDocumentDetailSku(receiptSale, sku);
 @defineDocumentDetailSku(receiptReturn, sku);
@@ -267,7 +282,9 @@ sumReceiptDetail 'Сумма' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTEN
 sumReceiptDetail(detail) += sumReceiptReturnDetail(detail);
 sumReceiptDetail(detail) += sumReceiptSaleDetail(detail);
 
-discountSumReceiptDetail 'Сумма скидки' (receiptDetail) = MULTI discountSumReceiptReturnDetail(receiptDetail), discountSumReceiptSaleDetail(receiptDetail) PERSISTENT;
+discountSumReceiptDetail 'Сумма скидки' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT;
+discountSumReceiptDetail(d) += discountSumReceiptSaleDetail(d);
+discountSumReceiptDetail(d) += discountSumReceiptReturnDetail(d);
 
 sumReceiptSaleDetailReceipt 'Сумма продажи' (receipt) = GROUP SUM sumReceiptSaleDetail(receiptDetail)
     BY receiptReceiptSaleDetail (receiptDetail) IN documentSum PERSISTENT;
@@ -356,9 +373,12 @@ CONSTRAINT taxRange(VATReceiptReturnDetail(detail)) != Tax.taxVAT OR
 
 VATSumReturnZReport 'Сумма НДС по возвратам' (zReport) = DATA NUMERIC[16,2] (ZReport) IN documentSum;
 
-VATReceiptDetail (receiptDetail) = MULTI VATReceiptReturnDetail(receiptDetail), VATReceiptSaleDetail(receiptDetail) PERSISTENT;
+VATReceiptDetail 'НДС' = ABSTRACT Range(ReceiptDetail) PERSISTENT;
 numberVATReceiptDetail 'НДС, номер' (receiptDetail) = numberRange(VATReceiptDetail(receiptDetail));
 valueVATReceiptDetail 'НДС, %' (receiptDetail) = valueRateRangeDate(VATReceiptDetail(receiptDetail), dateReceiptDetail(receiptDetail));
+
+VATReceiptDetail(d) += VATReceiptSaleDetail(d);
+VATReceiptDetail(d) += VATReceiptReturnDetail(d);
 
 // используется только для приема реализации из внешних касс
 numberReceiptDetail 'Номер позиции чека' = DATA INTEGER (ReceiptDetail);
@@ -404,6 +424,12 @@ quantitySaleLedger (ledger) += quantityReceiptSaleDetail(ledger);
 VATSaleLedger (ledger) += VATReceiptSaleDetail(ledger);
 sumSaleLedger (ledger) += sumReceiptSaleDetail(ledger);
 costSumSaleLedger (ledger) += costSumSkuLedger(ledger) IF ledger IS ReceiptSaleDetail;
+
+@implementSaleLedger(ReceiptReturn, sku, departmentStore);
+quantitySaleLedger (ledger) += -quantityReceiptReturnDetail(ledger);
+VATSaleLedger (ledger) += VATReceiptReturnDetail(ledger);
+sumSaleLedger (ledger) += -sumReceiptReturnDetail(ledger);
+costSumSaleLedger (ledger) += -costSumSkuLedger(ledger) IF ledger IS ReceiptReturnDetail;
 
 // ----------------- Оплаты по чеку ------------------------------
 
