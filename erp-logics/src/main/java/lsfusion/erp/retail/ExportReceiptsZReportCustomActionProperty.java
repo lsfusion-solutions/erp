@@ -1,6 +1,5 @@
 package lsfusion.erp.retail;
 
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -14,7 +13,7 @@ public class ExportReceiptsZReportCustomActionProperty extends ScriptingActionPr
     private final ClassPropertyInterface zReportInterface;
 
     public ExportReceiptsZReportCustomActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("ZReport")});
+        super(LM, LM.findClassByCompoundName("ZReport"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         zReportInterface = i.next();
