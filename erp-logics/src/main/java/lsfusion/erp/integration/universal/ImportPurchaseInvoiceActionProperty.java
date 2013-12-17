@@ -10,6 +10,7 @@ import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.classes.DateClass;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
@@ -27,6 +28,7 @@ import org.xBaseJ.xBaseJException;
 import java.io.*;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
@@ -393,6 +395,22 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 fields.add(valueVATUserInvoiceDetailField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).valueVAT);
+
+                ImportField dateField = new ImportField(DateClass.instance);
+                props.add(new ImportProperty(dateField, LM.findLCPByCompoundOldName("dataDateBarcode").getMapping(barcodeKey)));
+                fields.add(dateField);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).dateVAT);
+
+                ImportField countryVATField = new ImportField(getLCP("nameCountry"));
+                ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Country"),
+                        getLCP("countryName").getMapping(countryVATField));
+                keys.add(countryKey);
+                props.add(new ImportProperty(valueVATUserInvoiceDetailField, getLCP("dataVATItemCountryDate").getMapping(itemKey, countryKey, dateField),
+                        LM.object(LM.findClassByCompoundName("Range")).getMapping(VATKey), getReplaceOnlyNull(importColumns, "valueVAT")));
+                fields.add(countryVATField);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).countryVAT);               
             }
 
             if (showField(userInvoiceDetailsList, "sumVAT")) {
@@ -781,6 +799,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         Workbook wb =  Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
         Sheet sheet = wb.getSheet(0);
 
+        Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+        
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
             String numberDocument = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
             Date dateDocument = getXLSDateFieldValue(sheet, i, importColumns.get("dateDocument"));
@@ -811,6 +831,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
             BigDecimal valueVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("valueVAT"));
             BigDecimal sumVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
+            Date dateVAT = dateDocument == null ? currentDate : dateDocument;
             BigDecimal invoiceSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
             BigDecimal manufacturingPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
             String contractPrice = getXLSFieldValue(sheet, i, importColumns.get("contractPrice"));
@@ -853,7 +874,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem,
                     captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry,
                     importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
-                    sumVAT, invoiceSum, manufacturingPrice, contractPrice, numberCompliance, dateCompliance, declaration,
+                    sumVAT, dateVAT, "БЕЛАРУСЬ", invoiceSum, manufacturingPrice, contractPrice, numberCompliance, dateCompliance, declaration,
                     expiryDate, manufactureDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle,
                     originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize,
                     nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox, idTheme,
@@ -882,6 +903,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         String line;
         int count = 0;
 
+        Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+        
         while ((line = br.readLine()) != null) {
 
             count++;
@@ -919,6 +942,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns.get("sum"), count);
                 BigDecimal valueVAT = getCSVBigDecimalFieldValue(values, importColumns.get("valueVAT"), count);
                 BigDecimal sumVAT = getCSVBigDecimalFieldValue(values, importColumns.get("sumVAT"), count);
+                Date dateVAT = dateDocument == null ? currentDate : dateDocument;
                 BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, importColumns.get("invoiceSum"), count);
                 BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, importColumns.get("manufacturingPrice"), count);
                 String contractPrice = getCSVFieldValue(values, importColumns.get("contractPrice"), count);
@@ -961,7 +985,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup,
                         originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer, 
                         nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer, 
-                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum,
+                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, "БЕЛАРУСЬ", invoiceSum,
                         manufacturingPrice, contractPrice, numberCompliance, dateCompliance, declaration, expiryDate,
                         manufactureDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, 
                         originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize, 
@@ -993,6 +1017,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
 
+        Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+        
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
 
             String numberDocument = getXLSXFieldValue(sheet, i, importColumns.get("numberDocument"));
@@ -1024,6 +1050,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
             BigDecimal valueVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("valueVAT"));
             BigDecimal sumVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
+            Date dateVAT = dateDocument == null ? currentDate : dateDocument;
             BigDecimal invoiceSum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
             BigDecimal manufacturingPrice = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
             String contractPrice = getXLSXFieldValue(sheet, i, importColumns.get("contractPrice"));
@@ -1066,7 +1093,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup,
                     originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer,
                     nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock,
-                    quantity, price, sum, VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice, contractPrice, 
+                    quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, "БЕЛАРУСЬ", invoiceSum, manufacturingPrice, contractPrice, 
                     numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem,
                     seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection,
                     nameCollection, idSize, nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand,
@@ -1095,12 +1122,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         File tempFile = File.createTempFile("dutiesTNVED", ".dbf");
         IOUtils.putFileBytes(tempFile, importFile);
 
-
         DBF file = new DBF(tempFile.getPath());
         String charset = getDBFCharset(tempFile);
 
         int totalRecordCount = file.getRecordCount();
 
+        Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+        
         for (int i = 0; i < startRow - 1; i++) {
             file.read();
         }
@@ -1138,6 +1166,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), i);
             BigDecimal valueVAT = getDBFBigDecimalFieldValue(file, importColumns.get("valueVAT"), i);
             BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns.get("sumVAT"), i);
+            Date dateVAT = dateDocument == null ? currentDate : dateDocument;
             BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"), i);
             BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns.get("manufacturingPrice"), i);
             String numberCompliance = getDBFFieldValue(file, importColumns.get("numberCompliance"), i, charset);
@@ -1180,7 +1209,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem,
                     captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry,
                     importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT),
-                    sumVAT, invoiceSum, manufacturingPrice, contractPrice, numberCompliance, dateCompliance, declaration,
+                    sumVAT, dateVAT, "БЕЛАРУСЬ", invoiceSum, manufacturingPrice, contractPrice, numberCompliance, dateCompliance, declaration,
                     expiryDate, manufactureDate, pharmacyPriceGroup, seriesPharmacy, idArticle, captionArticle, 
                     originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize, nameSize, 
                     nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox, idTheme,

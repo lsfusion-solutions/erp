@@ -2,7 +2,7 @@ package lsfusion.erp.integration.universal;
 
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.sql.Date;
 
 public class PurchaseInvoiceDetail {
     public Boolean isPosted;
@@ -31,6 +31,8 @@ public class PurchaseInvoiceDetail {
     public BigDecimal sum;
     public BigDecimal valueVAT;
     public BigDecimal sumVAT;
+    public Date dateVAT;
+    public String countryVAT;
     public BigDecimal invoiceSum;
     public BigDecimal manufacturingPrice;
     public String contractPrice;
@@ -73,7 +75,7 @@ public class PurchaseInvoiceDetail {
                                  String originalCaptionItem, String idUOM, String idManufacturer, String nameManufacturer, 
                                  String nameCountry, String nameOriginCountry, String nameImportCountry, String idCustomer, 
                                  String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
-                                 BigDecimal valueVAT, BigDecimal sumVAT, BigDecimal invoiceSum,
+                                 BigDecimal valueVAT, BigDecimal sumVAT, Date dateVAT, String countryVAT, BigDecimal invoiceSum,
                                  BigDecimal manufacturingPrice, String contractPrice, String numberCompliance, Date dateCompliance, 
                                  String numberDeclaration, Date expiryDate, Date manufactureDate, String idPharmacyPriceGroup, 
                                  String seriesPharmacy, String idArticle, String captionArticle, 
@@ -109,6 +111,8 @@ public class PurchaseInvoiceDetail {
         this.sum = sum;
         this.valueVAT = valueVAT;
         this.sumVAT = sumVAT;
+        this.dateVAT = dateVAT;
+        this.countryVAT = countryVAT;
         this.invoiceSum = invoiceSum;
         this.manufacturingPrice = manufacturingPrice;
         this.contractPrice = contractPrice;
