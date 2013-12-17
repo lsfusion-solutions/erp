@@ -24,14 +24,14 @@ public class FiscalMercuryZReportActionProperty extends ScriptingActionProperty 
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(2));
                 if (result == null)
-                    LM.findLAPByCompoundOldName("closeCurrentZReport").execute(session);
+                    getLAP("closeCurrentZReport").execute(session);
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 }

@@ -11,6 +11,10 @@ EXTEND FORM groupCashRegister
 
 // ----------------------------- Кассовый модуль ---------------- //
 
+fiscalSkipReceipt 'Отключить ФР' (receipt) = DATA BOOLEAN (Receipt);
+
+EXTEND FORM zReports PROPERTIES(b) fiscalSkipReceipt;
+
 POSPriceListTypeReceipt (receipt) = OVERRIDE priceListTypeGroupMachinery(groupCashRegisterReceipt(receipt)), priceListTypeDiscountCard(discountCardReceipt(receipt));
 
 POSPriceSkuReceiptDateTime 'Цена в кассе' (sku, receipt, dateTime) =
@@ -57,6 +61,10 @@ createCurrentReceipt 'Создать новый чек' = ACTION () {
 // Вывод на дисплей
 
 fiscalDisplayTextReceiptDetail 'Вывести текст на дисплей'(receiptDetail) = ABSTRACT ACTION LIST (ReceiptDetail);
+
+//Отмена чека
+
+fiscalCancelReceipt 'Отменить чек' = ABSTRACT ACTION LIST(Receipt);
 
 // Проведение чека
 
@@ -189,7 +197,7 @@ cancelReceipt 'Отменить чек' = ACTION (receipt) {
         cancel();
         createCurrentReceipt();
     }
-    EXEC fiscalCancelReceipt();
+    EXEC fiscalCancelReceipt(receipt);
 } EDITKEY 'shift F11' CONFIRM IN receiptAction;
 
 // Операции по добавлению строк в чек
@@ -708,7 +716,7 @@ FORM POS
                                           searchSkuReturnReceipt, scanBarcodeReturnReceipt,
                                           postReceipt, postCardReceipt, postCashReceipt, cancelReceipt,
                                           numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt,
-                                          inputDiscountCardNumberReceipt, clearDiscountCardReceipt
+                                          inputDiscountCardNumberReceipt, clearDiscountCardReceipt, fiscalSkipReceipt
 
     OBJECTS d = ReceiptDetail FIXED GRID
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID indexReceiptDetail, typeReceiptDetail, idBarcodeGrid = idBarcodeReceiptDetail, nameSkuGrid = nameSkuReceiptDetail,
@@ -738,7 +746,7 @@ FORM POS
     PROPERTIES(d, pcu) SHOWIF currentZReport() quantityReceiptSaleDetailPromotionCondition, promotionSumReceiptSaleDetailPromotionCondition, setUserPromotionReceiptSaleDetailPromotionCondition
     FILTERS userSetPromotionCondition(pcu) AND inReceiptSaleDetailPromotionCondition(d, pcu)
 
-    PROPERTIES() fiscalPrintCopyReceipt, fiscalAdvancePaper, fiscalCutReceipt
+    PROPERTIES() fiscalPrintCopyReceipt READONLYIF fiscalSkipReceipt(r), fiscalAdvancePaper READONLYIF fiscalSkipReceipt(r), fiscalCutReceipt READONLYIF fiscalSkipReceipt(r)
     
     OBJECTS s = DepartmentStore FIXED GRID
     PROPERTIES(s) READONLY SHOWIF currentZReport() nameStoreDepartmentStore
@@ -890,6 +898,7 @@ DESIGN POS FROM DEFAULT {
                     caption = 'Действия с кассой';
                     type = CONTAINERH;
                     alignment = STRETCH;
+                    ADD PROPERTY(fiscalSkipReceipt) { alignment = STRETCH; panelLabelAbove = TRUE; };
                     ADD PROPERTY(fiscalPrintCopyReceipt) { alignment = STRETCH; focusable = FALSE; }
                     ADD PROPERTY(fiscalAdvancePaper) { alignment = STRETCH; focusable = FALSE; }
                     ADD PROPERTY(fiscalCutReceipt) { alignment = STRETCH; focusable = FALSE; }

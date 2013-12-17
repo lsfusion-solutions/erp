@@ -1,6 +1,5 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -18,7 +17,7 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalBoardDisplayTextActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("ReceiptDetail")});
+        super(LM, LM.findClassByCompoundName("ReceiptDetail"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptDetailInterface = i.next();
@@ -28,28 +27,28 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
 
         DataSession session = context.getSession();
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
-        
+
         try {
-
-            Integer comPortBoard = (Integer) getLCP("comPortBoardCurrentCashRegister").read(context);
-            Integer baudRateBoard = (Integer) getLCP("baudRateBoardCurrentCashRegister").read(context);
-
             ObjectValue receiptObject = getLCP("receiptReceiptDetail").readClasses(session, receiptDetailObject);
+            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            if (!skipReceipt) {
+                Integer comPortBoard = (Integer) getLCP("comPortBoardCurrentCashRegister").read(context);
+                Integer baudRateBoard = (Integer) getLCP("baudRateBoardCurrentCashRegister").read(context);
 
-            String name = (String) getLCP("nameSkuReceiptDetail").read(session, receiptDetailObject);
-            name = name == null ? "" : name.trim();
-            BigDecimal quantityValue = (BigDecimal) getLCP("quantityReceiptDetail").read(session, receiptDetailObject);
-            double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
-            BigDecimal priceValue = (BigDecimal) getLCP("priceReceiptDetail").read(session, receiptDetailObject);
-            long price = priceValue == null ? 0 : priceValue.longValue();
-            BigDecimal sumValue = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
-            long sum = sumValue == null ? 0 : sumValue.longValue();
+                String name = (String) getLCP("nameSkuReceiptDetail").read(session, receiptDetailObject);
+                name = name == null ? "" : name.trim();
+                BigDecimal quantityValue = (BigDecimal) getLCP("quantityReceiptDetail").read(session, receiptDetailObject);
+                double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
+                BigDecimal priceValue = (BigDecimal) getLCP("priceReceiptDetail").read(session, receiptDetailObject);
+                long price = priceValue == null ? 0 : priceValue.longValue();
+                BigDecimal sumValue = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(session, (DataObject) receiptObject);
+                long sum = sumValue == null ? 0 : sumValue.longValue();
 
-            String[] lines = generateText(price, quantity, sum, name, 20);
-            
-            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard));
+                String[] lines = generateText(price, quantity, sum, name, 20);
 
+                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard));
 
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {

@@ -24,7 +24,7 @@ public class FiscalMercuryXReportActionProperty extends ScriptingActionProperty 
             else
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 }

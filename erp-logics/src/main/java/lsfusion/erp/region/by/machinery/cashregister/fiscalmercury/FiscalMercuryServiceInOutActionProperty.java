@@ -17,7 +17,7 @@ public class FiscalMercuryServiceInOutActionProperty extends ScriptingActionProp
     private final ClassPropertyInterface cashOperationInterface;
 
     public FiscalMercuryServiceInOutActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("CashOperation")});
+        super(LM, LM.findClassByCompoundName("CashOperation"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         cashOperationInterface = i.next();
@@ -27,22 +27,22 @@ public class FiscalMercuryServiceInOutActionProperty extends ScriptingActionProp
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            Boolean isDone = LM.findLCPByCompoundOldName("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
-            BigDecimal sum = (BigDecimal)LM.findLCPByCompoundOldName("sumCashOperation").read(context.getSession(), cashOperationObject);
+            Boolean isDone = getLCP("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
+            BigDecimal sum = (BigDecimal)getLCP("sumCashOperation").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalMercuryServiceInOutClientAction(sum));
                 if (result == null){
-                    LM.findLCPByCompoundOldName("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
+                    getLCP("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
                 }
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 }

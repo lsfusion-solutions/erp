@@ -23,26 +23,26 @@ public class FiscalDatecsZReportActionProperty extends ScriptingActionProperty {
         try {
             DataSession session = context.getSession();
 
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
+            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context.getSession());
 
             if (context.checkApply()) {
                 Object VATSumReceipt = context.requestUserInteraction(new FiscalDatecsCustomOperationClientAction(2, baudRate, comPort));
                 if (VATSumReceipt instanceof Double[]) {
-                    ObjectValue zReportObject = LM.findLCPByCompoundOldName("currentZReport").readClasses(session);
+                    ObjectValue zReportObject = getLCP("currentZReport").readClasses(session);
                     if (!zReportObject.isNull()) {
-                        LM.findLCPByCompoundOldName("VATSumSaleZReport").change(((Object[]) VATSumReceipt)[0], session, (DataObject) zReportObject);
-                        LM.findLCPByCompoundOldName("VATSumReturnZReport").change(((Object[]) VATSumReceipt)[1], session, (DataObject) zReportObject);
+                        getLCP("VATSumSaleZReport").change(((Object[]) VATSumReceipt)[0], session, (DataObject) zReportObject);
+                        getLCP("VATSumReturnZReport").change(((Object[]) VATSumReceipt)[1], session, (DataObject) zReportObject);
                     }
                     context.apply();
-                    LM.findLAPByCompoundOldName("closeCurrentZReport").execute(session);
+                    getLAP("closeCurrentZReport").execute(session);
                 } else if (VATSumReceipt != null)
                     context.requestUserInteraction(new MessageClientAction((String) VATSumReceipt, "Ошибка"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 }

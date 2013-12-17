@@ -37,9 +37,9 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
         DataSession session = context.getSession();
 
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(session);
-            Integer pass = (Integer) LM.findLCPByCompoundOldName("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(session);
+            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(session);
+            Integer pass = (Integer) getLCP("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
             int password = pass == null ? 30000 : pass * 1000;
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
@@ -64,7 +64,7 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
             }
 
             List<UpdateDataTaxRate> taxRateList = new ArrayList<UpdateDataTaxRate>();
-            ObjectValue countryObject = LM.findLCPByCompoundOldName("countryCurrentCashRegister").readClasses(session);
+            ObjectValue countryObject = getLCP("countryCurrentCashRegister").readClasses(session);
             DataObject taxVATObject = ((ConcreteCustomClass) LM.findClassByCompoundName("Tax")).getDataObject("taxVAT");
             KeyExpr rangeExpr = new KeyExpr("range");
             KeyExpr taxExpr = new KeyExpr("tax");
@@ -104,9 +104,9 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
 
 

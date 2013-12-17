@@ -6,7 +6,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -24,7 +23,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
     private final ClassPropertyInterface receiptInterface;
 
     public TerminalJadeEKOPaymentTerminalReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("Receipt")});
+        super(LM, LM.findClassByCompoundName("Receipt"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptInterface = i.next();
@@ -35,51 +34,52 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
         try {
+            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            if (!skipReceipt) {
+                Integer comPort = (Integer) getLCP("comPortCurrentPaymentTerminalModelCashRegister").read(context);
+                BigDecimal sumCard = null;
 
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentPaymentTerminalModelCashRegister").read(context);
-            BigDecimal sumCard = null;
+                KeyExpr paymentExpr = new KeyExpr("payment");
+                ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
-            KeyExpr paymentExpr = new KeyExpr("payment");
-            ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
+                QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
+                paymentQuery.addProperty("sumPayment", getLCP("sumPayment").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("paymentMeansPayment", getLCP("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
 
-            QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
-            paymentQuery.addProperty("sumPayment", LM.findLCPByCompoundOldName("sumPayment").getExpr(context.getModifier(), paymentExpr));
-            paymentQuery.addProperty("paymentMeansPayment", LM.findLCPByCompoundOldName("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.and(getLCP("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
-            paymentQuery.and(LM.findLCPByCompoundOldName("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
-
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context.getSession().sql);
-            for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
-                DataObject paymentMeansCardObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCard");
-                if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
-                    sumCard = (BigDecimal) paymentValues.get("sumPayment");
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context.getSession().sql);
+                for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
+                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCard");
+                    if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
+                        sumCard = (BigDecimal) paymentValues.get("sumPayment");
+                    }
                 }
+
+                KeyExpr receiptDetailExpr = new KeyExpr("receiptDetail");
+                ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
+
+                QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
+                receiptDetailQuery.addProperty("quantityReceiptSaleDetail", getLCP("quantityReceiptSaleDetail").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.and(getLCP("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
+
+                boolean isSale = true;
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context.getSession().sql);
+                for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
+                    BigDecimal quantitySale = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
+                    isSale = quantitySale != null;
+                    break;
+                }
+
+                String result = sumCard == null || sumCard.abs().equals(BigDecimal.ZERO) ? null : (String) context.requestUserInteraction(new TerminalJadeEKOPaymentTerminalReceiptClientAction(comPort, sumCard.abs(), isSale, null));
+
+                getLCP("postPaymentTerminalReceiptResult").change(result, context.getSession());
             }
-
-            KeyExpr receiptDetailExpr = new KeyExpr("receiptDetail");
-            ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
-
-            QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
-            receiptDetailQuery.addProperty("quantityReceiptSaleDetail", LM.findLCPByCompoundOldName("quantityReceiptSaleDetail").getExpr(context.getModifier(), receiptDetailExpr));
-            receiptDetailQuery.and(LM.findLCPByCompoundOldName("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
-
-            boolean isSale = true;
-
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context.getSession().sql);
-            for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
-                BigDecimal quantitySale = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
-                isSale = quantitySale != null;
-                break;
-            }
-
-            String result = sumCard == null || sumCard.abs().equals(BigDecimal.ZERO) ? null : (String) context.requestUserInteraction(new TerminalJadeEKOPaymentTerminalReceiptClientAction(comPort, sumCard.abs(), isSale, null));
-
-            LM.findLCPByCompoundOldName("postPaymentTerminalReceiptResult").change(result, context.getSession());
-
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 }

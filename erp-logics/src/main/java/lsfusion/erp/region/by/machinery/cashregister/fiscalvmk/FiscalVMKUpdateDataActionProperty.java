@@ -28,8 +28,8 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
         DataSession session = context.getSession();
 
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(session);
+            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(session);
+            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(session);
 
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
@@ -54,9 +54,9 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
 
 

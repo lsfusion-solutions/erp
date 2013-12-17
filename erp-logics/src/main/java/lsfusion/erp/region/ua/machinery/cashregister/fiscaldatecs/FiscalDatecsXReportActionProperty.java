@@ -18,8 +18,8 @@ public class FiscalDatecsXReportActionProperty extends ScriptingActionProperty {
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
+            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context.getSession());
 
             String result = (String) context.requestUserInteraction(new FiscalDatecsCustomOperationClientAction(1, baudRate, comPort));
             if (result == null) {
@@ -28,9 +28,9 @@ public class FiscalDatecsXReportActionProperty extends ScriptingActionProperty {
             else
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 }

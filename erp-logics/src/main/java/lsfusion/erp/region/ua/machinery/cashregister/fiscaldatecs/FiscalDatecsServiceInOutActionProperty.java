@@ -1,7 +1,6 @@
 package lsfusion.erp.region.ua.machinery.cashregister.fiscaldatecs;
 
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -16,7 +15,7 @@ public class FiscalDatecsServiceInOutActionProperty extends ScriptingActionPrope
     private final ClassPropertyInterface cashOperationInterface;
 
     public FiscalDatecsServiceInOutActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("CashOperation")});
+        super(LM, LM.findClassByCompoundName("CashOperation"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         cashOperationInterface = i.next();
@@ -26,24 +25,24 @@ public class FiscalDatecsServiceInOutActionProperty extends ScriptingActionPrope
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
-            Boolean isDone = LM.findLCPByCompoundOldName("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
-            Double sum = (Double)LM.findLCPByCompoundOldName("sumCashOperation").read(context.getSession(), cashOperationObject);
+            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context.getSession());
+            Boolean isDone = getLCP("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
+            Double sum = (Double)getLCP("sumCashOperation").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalDatecsServiceInOutClientAction(baudRate, comPort, sum));
                 if (result == null){
-                    LM.findLCPByCompoundOldName("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
+                    getLCP("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
                 }
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 }

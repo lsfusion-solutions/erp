@@ -33,8 +33,8 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
         DataSession session = context.getSession();
 
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(session);
+            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(session);
+            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(session);
 
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
@@ -59,7 +59,7 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
             }
 
             List<UpdateDataTaxRate> taxRateList = new ArrayList<UpdateDataTaxRate>();
-            ObjectValue countryObject = LM.findLCPByCompoundOldName("countryCurrentCashRegister").readClasses(session);
+            ObjectValue countryObject = getLCP("countryCurrentCashRegister").readClasses(session);
             DataObject taxVATObject = ((ConcreteCustomClass) LM.findClassByCompoundName("Tax")).getDataObject("taxVAT");
             KeyExpr rangeExpr = new KeyExpr("range");
             KeyExpr taxExpr = new KeyExpr("tax");
@@ -90,9 +90,9 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
 
 

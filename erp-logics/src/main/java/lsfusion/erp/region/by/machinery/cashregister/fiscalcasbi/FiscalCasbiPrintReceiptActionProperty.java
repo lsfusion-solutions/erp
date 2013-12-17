@@ -7,7 +7,6 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -28,7 +27,7 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalCasbiPrintReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("Receipt")});
+        super(LM, LM.findClassByCompoundName("Receipt"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptInterface = i.next();
@@ -39,13 +38,19 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context);
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context);
-            Integer placeNumber = (Integer) LM.findLCPByCompoundOldName("nppMachineryCurrentCashRegister").read(context);
-            ObjectValue userObject = LM.findLCPByCompoundOldName("userReceipt").readClasses(context, receiptObject);
-            Object operatorNumber = userObject.isNull() ? 0 : LM.findLCPByCompoundOldName("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
-            BigDecimal sumTotal = (BigDecimal) LM.findLCPByCompoundOldName("sumReceiptDetailReceipt").read(context, receiptObject);
-            BigDecimal sumDisc = (BigDecimal) LM.findLCPByCompoundOldName("discountSumReceiptDetailReceipt").read(context, receiptObject);
+
+            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            if (skipReceipt) {
+                context.apply();
+                getLAP("createCurrentReceipt").execute(context);
+            } else {            
+            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context);
+            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context);
+            Integer placeNumber = (Integer) getLCP("nppMachineryCurrentCashRegister").read(context);
+            ObjectValue userObject = getLCP("userReceipt").readClasses(context, receiptObject);
+            Object operatorNumber = userObject.isNull() ? 0 : getLCP("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
+            BigDecimal sumTotal = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(context, receiptObject);
+            BigDecimal sumDisc = (BigDecimal) getLCP("discountSumReceiptDetailReceipt").read(context, receiptObject);
             BigDecimal sumCard = null;
             BigDecimal sumCash = null;
 
@@ -114,15 +119,15 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
                 String result = (String) context.requestUserInteraction(new FiscalCasbiPrintReceiptClientAction(baudRate, comPort, placeNumber, operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash, sumTotal, receiptSaleItemList, receiptReturnItemList)));
                 if (result == null) {
                     context.apply();
-                    LM.findLAPByCompoundOldName("createCurrentReceipt").execute(context);
+                    getLAP("createCurrentReceipt").execute(context);
                 }
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
-            }
+            }   }
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
 
 

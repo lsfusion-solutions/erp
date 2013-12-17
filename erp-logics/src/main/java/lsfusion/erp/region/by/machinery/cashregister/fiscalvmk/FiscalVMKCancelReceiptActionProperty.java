@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.ValueClass;
+import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -9,26 +9,35 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.sql.SQLException;
+import java.util.Iterator;
 
 public class FiscalVMKCancelReceiptActionProperty extends ScriptingActionProperty {
+    private final ClassPropertyInterface receiptInterface;
 
-    public FiscalVMKCancelReceiptActionProperty(ScriptingLogicsModule LM) {
-        super(LM, new ValueClass[]{});
+    public FiscalVMKCancelReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, LM.findClassByCompoundName("Receipt"));
+
+        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        receiptInterface = i.next();
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
         try {
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
+            DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(4, baudRate, comPort));
-            if (result != null)
-                context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            if (!skipReceipt) {
+                Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());
+                Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context.getSession());
 
+                String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(4, baudRate, comPort));
+                if (result != null)
+                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+            }
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 }

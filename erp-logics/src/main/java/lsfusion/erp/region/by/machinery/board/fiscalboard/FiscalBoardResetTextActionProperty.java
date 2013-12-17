@@ -1,6 +1,5 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -15,7 +14,7 @@ public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty 
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalBoardResetTextActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("Receipt")});
+        super(LM, LM.findClassByCompoundName("Receipt"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptInterface = i.next();
@@ -24,19 +23,20 @@ public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
 
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
-        
+
         try {
+            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            if (!skipReceipt) {
+                Integer comPortBoard = (Integer) getLCP("comPortBoardCurrentCashRegister").read(context);
+                Integer baudRateBoard = (Integer) getLCP("baudRateBoardCurrentCashRegister").read(context);
 
-            Integer comPortBoard = (Integer) getLCP("comPortBoardCurrentCashRegister").read(context);
-            Integer baudRateBoard = (Integer) getLCP("baudRateBoardCurrentCashRegister").read(context);
+                String line = "";
+                for (int i = 0; i < 20; i++)
+                    line += " ";
 
-            String line = "";
-            for(int i = 0; i<20; i++)
-                line += " ";
-            
-            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(line, line, baudRateBoard, comPortBoard));
+                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(line, line, baudRateBoard, comPortBoard));
 
-
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {

@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalcasbi;
 
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -19,7 +18,7 @@ public class FiscalCasbiDisplayTextActionProperty extends ScriptingActionPropert
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalCasbiDisplayTextActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, new ValueClass[]{LM.findClassByCompoundName("ReceiptDetail")});
+        super(LM, LM.findClassByCompoundName("ReceiptDetail"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptDetailInterface = i.next();
@@ -31,28 +30,31 @@ public class FiscalCasbiDisplayTextActionProperty extends ScriptingActionPropert
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = LM.findLCPByCompoundOldName("receiptReceiptDetail").readClasses(session, receiptDetailObject);
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(session);
+            ObjectValue receiptObject = getLCP("receiptReceiptDetail").readClasses(session, receiptDetailObject);
+            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            if (!skipReceipt) {
+                Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(session);
+                Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(session);
 
-            String name = (String) LM.findLCPByCompoundOldName("nameSkuReceiptDetail").read(session, receiptDetailObject);
-            String barcode = (String) LM.findLCPByCompoundOldName("idBarcodeReceiptDetail").read(session, receiptDetailObject);
-            BigDecimal quantity = (BigDecimal) LM.findLCPByCompoundOldName("quantityReceiptDetail").read(session, receiptDetailObject);
-            BigDecimal price = (BigDecimal) LM.findLCPByCompoundOldName("priceReceiptDetail").read(session, receiptDetailObject);
-            BigDecimal sum = (BigDecimal) LM.findLCPByCompoundOldName("sumReceiptDetailReceipt").read(session, (DataObject)receiptObject);
-            BigDecimal articleDisc = (BigDecimal) LM.findLCPByCompoundOldName("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
+                String name = (String) getLCP("nameSkuReceiptDetail").read(session, receiptDetailObject);
+                String barcode = (String) getLCP("idBarcodeReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal quantity = (BigDecimal) getLCP("quantityReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal price = (BigDecimal) getLCP("priceReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal sum = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(session, (DataObject) receiptObject);
+                BigDecimal articleDisc = (BigDecimal) getLCP("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
 
-            String typeReceiptDetail = (String) LM.findLCPByCompoundOldName("typeReceiptDetail").read(session, receiptDetailObject);
-            Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
+                String typeReceiptDetail = (String) getLCP("typeReceiptDetail").read(session, receiptDetailObject);
+                Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
 
-            if (sum == null) sum = BigDecimal.ZERO;
-            String result = (String)context.requestUserInteraction(new FiscalCasbiDisplayTextClientAction(comPort, baudRate, new ReceiptItem(isGiftCard, price, quantity, barcode, name, sum, articleDisc)));
-            if(result!=null)
-                context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                if (sum == null) sum = BigDecimal.ZERO;
+                String result = (String) context.requestUserInteraction(new FiscalCasbiDisplayTextClientAction(comPort, baudRate, new ReceiptItem(isGiftCard, price, quantity, barcode, name, sum, articleDisc)));
+                if (result != null)
+                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+            }
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
 
 

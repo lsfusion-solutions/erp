@@ -24,8 +24,8 @@ public class FiscalCasbiZReportActionProperty extends ScriptingActionProperty {
         try {
             DataSession session = context.getSession();
 
-            Integer comPort = (Integer) LM.findLCPByCompoundOldName("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) LM.findLCPByCompoundOldName("baudRateCurrentCashRegister").read(context.getSession());
+            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context.getSession());
 
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalCasbiCustomOperationClientAction(2, comPort, baudRate));
@@ -38,14 +38,14 @@ public class FiscalCasbiZReportActionProperty extends ScriptingActionProperty {
                         if (result != null)
                             context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
                         else
-                            LM.findLAPByCompoundOldName("closeCurrentZReport").execute(session);
+                            getLAP("closeCurrentZReport").execute(session);
                     }
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            throw new RuntimeException(e);
         }
     }
 }
