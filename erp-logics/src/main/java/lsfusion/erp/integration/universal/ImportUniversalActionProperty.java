@@ -89,7 +89,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (cell.matches(substringPattern)) {
                     String[] splittedCell = cell.split(splitPattern);
-                    value = getCSVFieldValue(values, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
+                    value = getCSVFieldValue(values, parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, "");
                 } else if (cell.matches(datePatternPattern)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
@@ -177,7 +177,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (cell.matches(substringPattern)) {
                     String[] splittedCell = cell.split(splitPattern);
-                    value = getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
+                    value = getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, "");
                 } else if (cell.matches(datePatternPattern)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
@@ -303,7 +303,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (cell.matches(substringPattern)) {
                     String[] splittedCell = cell.split(splitPattern);
-                    value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), parseIndex(splittedCell[2]), "");
+                    value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, "");
                 } else if (cell.matches(datePatternPattern)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
@@ -445,7 +445,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 } else if (column.matches(substringPattern)) {
                     String[] splittedField = column.split(splitPattern);
                     value = getSubstring(new String(importFile.getField(splittedField[0]).getBytes(), charset).trim(),
-                            parseIndex(splittedField[1]), splittedField.length > 2 ? parseIndex(splittedField[2]) : null);
+                            splittedField.length > 1 ? parseIndex(splittedField[1]) : null, splittedField.length > 2 ? parseIndex(splittedField[2]) : null);
                 } else if (column.matches(datePatternPattern)) {
                     String[] splittedField = column.split("~");
                     Calendar calendar = Calendar.getInstance();
