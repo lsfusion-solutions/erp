@@ -411,18 +411,15 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset) throws UniversalImportException {
-        return getDBFFieldValue(importFile, importColumnDetail, row, charset, null);
+        if (importColumnDetail == null) return null;
+        return getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, null);
     }
 
-    protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, String column, int row, String charset, String defaultValue) throws UniversalImportException {
-        return getDBFFieldValue(importFile, importColumnDetail, row, charset, defaultValue);
-    }
-
-    protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, String defaultValue) throws UniversalImportException {
+    protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, String[] columns, int row, String charset, String defaultValue) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
             String result = "";
-            for (String column : importColumnDetail.indexes) {
+            for (String column : columns) {
                 if (column == null) return defaultValue;
                 String value;
                 if (isConstantValue(column))
@@ -439,7 +436,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = "";
                     String[] splittedField = column.split("\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getDBFFieldValue(importFile, importColumnDetail, splittedField[i], i, charset, null);
+                        String orValue = getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[i]}, i, charset, null);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -481,15 +478,14 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, String defaultValue) throws UniversalImportException {
-        String value = getDBFFieldValue(importFile, importColumnDetail, row, charset, defaultValue);
-        if (value == null) return null;
-        BigDecimal result;
         try {
-            result = new BigDecimal(value.trim());
+            if (importColumnDetail == null) return parseBigDecimal(defaultValue);
+            String value = getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, defaultValue);
+            if (value == null) return parseBigDecimal(defaultValue);
+            return parseBigDecimal(value.trim());
         } catch (NumberFormatException e) {
-            throw new UniversalImportException(importColumnDetail.field, importColumnDetail.getFullIndex(), row, e);
+            throw new UniversalImportException(importColumnDetail == null ? null : importColumnDetail.field, importColumnDetail == null ? null : importColumnDetail.getFullIndex(), row, e);
         }
-        return result;
     }
 
     protected Date getDBFDateFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
@@ -501,7 +497,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected Date getDBFDateFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, Date defaultValue) throws UniversalImportException {
-        String dateString = getDBFFieldValue(importFile, importColumnDetail, row, charset, null);
+        if (importColumnDetail == null) return null;
+        String dateString = getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, null);
         try {
             return dateString == null ? defaultValue : parseDate(dateString);
         } catch (ParseException e) {
@@ -541,7 +538,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             //чит для даты с месяцем прописью
             return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
         }
-        switch(value.length()) {
+        switch (value.length()) {
             case 4:
                 return new Date(DateUtils.parseDate(value, new String[]{"MMyy"}).getTime());
             case 6:
@@ -597,5 +594,13 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     protected boolean getReplaceOnlyNull(Map<String, ImportColumnDetail> importColumns, String columnName) {
         ImportColumnDetail column = importColumns.get(columnName);
         return column != null && column.replaceOnlyNull;
+    }
+
+    private BigDecimal parseBigDecimal(String value) {
+        try {
+            return value == null ? null : new BigDecimal(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }
