@@ -127,9 +127,15 @@ DESIGN postReceiptPayment FROM DEFAULT {
 
 allowPaymentGiftCard = DATA SESSION BOOLEAN();
 
-postReceipt 'Смешанный платеж' = ACTION (receipt) {
+prePostReceipt = ACTION (receipt) {
     allowPaymentGiftCard() <- TRUE;
     DELETE payment WHERE receiptPayment(payment) == receipt;
+    dateReceipt(receipt) <- currentDate();
+    timeReceipt(receipt) <- currentTime();
+}
+
+postReceipt 'Смешанный платеж' = ACTION (receipt) {
+    prePostReceipt(receipt);
     IF sumReceiptDetailReceipt(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
             receiptPayment(p) <- receipt;
@@ -154,8 +160,7 @@ postReceipt 'Смешанный платеж' = ACTION (receipt) {
 } EDITKEY 'F9' IN receiptAction;
 
 postCardReceipt 'Карточкой' = ACTION (receipt) {
-    allowPaymentGiftCard() <- NULL;
-    DELETE payment WHERE receiptPayment(payment) == receipt;
+    prePostReceipt(receipt);
     IF sumReceiptDetailReceipt(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
             ASSIGN receiptPayment(p) <- receipt;
@@ -172,8 +177,7 @@ postCardReceipt 'Карточкой' = ACTION (receipt) {
 } EDITKEY 'F10' CONFIRM IN receiptAction;
 
 postCashReceipt 'Наличными' = ACTION (receipt) {
-    allowPaymentGiftCard() <- NULL;
-    DELETE payment WHERE receiptPayment(payment) == receipt;
+    prePostReceipt(receipt);
     IF sumReceiptDetailReceipt(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
             receiptPayment(p) <- receipt;
