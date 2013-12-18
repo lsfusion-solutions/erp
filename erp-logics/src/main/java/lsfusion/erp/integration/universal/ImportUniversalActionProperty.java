@@ -516,7 +516,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     private String getSubstring(String value, Integer from, Integer to) {
         return (value == null || from == null || from < 0 || from > value.length()) ? value :
-                ((to == null || to > value.length())) ? value.substring(Math.min(value.length(), from)) : value.substring(from, Math.min(value.length(), to + 1));
+                ((to == null || to > value.length())) ? value.substring(Math.min(value.length(), from)).trim() : value.substring(from, Math.min(value.length(), to + 1)).trim();
     }
 
     static final Locale RU_LOCALE = new Locale("ru");
