@@ -1,6 +1,6 @@
 MODULE Label;
 
-REQUIRE System, Store, Stock, Barcode, PriceListType, Machinery;
+REQUIRE System, Store, Stock, Barcode, PriceListType, Machinery, PriceRoundStore;
 
 // Ориентация страницы
 CLASS PrintOrientation 'Ориентация' {
@@ -361,7 +361,10 @@ calcPriceLabelTransactionDetail (d) =
 
 WHEN SESSION FORMS customLabelTransaction
     CHANGED(labelTypeLabelTransactionDetail(d)) DO {
-        priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
+        priceLabelTransactionDetail(d) <- OVERRIDE 
+            calcPriceLabelTransactionDetail(d), 
+            (roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)))) IF dataAmountBarcode(barcodeLabelTransactionDetail(d)), 
+            documentPriceLabelTransactionDetail(d);
 }
 
 WHEN SESSION FORMS customLabelTransaction
@@ -427,7 +430,11 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
                     quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
                                                             THEN INTEGER(quantity###document##Detail(dd))
                                                          ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
-                    priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+                    IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
+                        priceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
+                    } ELSE {
+                        priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+                    }    
                 } 
                 // вызываем печатную форму для каждого из них
                 FORM printLabelTransaction OBJECTS l = t PRINT;
@@ -456,6 +463,10 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
 
                     nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
                     documentQuantityLabelTransactionDetail(d) <- quantity###document##Detail(dd); 
+                    
+//                    IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
+//                        documentPriceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
+//                    }                                                         
                     createAttributeLabelTransactionDetail(d);
             }
             FORM customLabelTransaction OBJECTS l = t MODAL;
