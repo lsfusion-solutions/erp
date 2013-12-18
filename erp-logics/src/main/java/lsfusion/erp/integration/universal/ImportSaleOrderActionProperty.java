@@ -128,7 +128,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 BL, session, orderObject, importColumns, secondaryKeyType, operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
-        LM.findLAPByCompoundOldName("formRefresh").execute(session);
+        getLAP("formRefresh").execute(session);
 
         return importResult1 && importResult2;
     }

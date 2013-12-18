@@ -287,7 +287,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 session.close();
             }
 
-            LM.findLAPByCompoundOldName("formRefresh").execute(context);
+            getLAP("formRefresh").execute(context);
 
             return result == null;
         }
@@ -300,8 +300,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         if (dataAdjustment != null) {
 
-            LM.findLAPByCompoundOldName("unpostAllUserAdjustment").execute(context.getSession());
-            LM.findLAPByCompoundOldName("overImportAdjustment").execute(context.getSession());
+            getLAP("unpostAllUserAdjustment").execute(context.getSession());
+            getLAP("overImportAdjustment").execute(context.getSession());
 
             DataObject userAdjustmentObject = context.addObject((ConcreteCustomClass) LM.findClassByCompoundName("UserAdjustment"));
 
@@ -388,7 +388,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 session.close();
             }
 
-            LM.findLAPByCompoundOldName("formRefresh").execute(context);
+            getLAP("formRefresh").execute(context);
 
             return result == null;
         }
