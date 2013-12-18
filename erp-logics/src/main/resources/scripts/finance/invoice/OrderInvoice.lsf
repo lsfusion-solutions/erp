@@ -42,7 +42,7 @@ quantityInvoiceDetailOrderInvoice (order, invoice) = GROUP SUM quantityInvoiceDe
 selectedOrder 'Отм.' = DATA SESSION BOOLEAN (Order); 
 minSelectedOrder = GROUP MIN o IF selectedOrder(o); 
 
-createMultiUserInvoiceOrder = ABSTRACT ACTION LIST (Order);
+overCreateMultiUserInvoiceOrder = ABSTRACT ACTION LIST (Order);
 
 countSelectedOrder 'Кол-во отм.' = GROUP SUM 1 IF selectedOrder(order);
 countSelectedClass 'Кол-во классов' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY objectClassName(order)](name);
@@ -59,7 +59,7 @@ createMultiUserInvoice 'Создать накладную' = ACTION (order) {
             MESSAGE 'Выбраны заказы с разными покупателями, поставщиками или их складами';               
         } ELSE {
             IF countSelectedClass()==1 THEN {
-                createMultiUserInvoiceOrder(minSelectedOrder());
+                overCreateMultiUserInvoiceOrder(minSelectedOrder());
             } ELSE {
                 MESSAGE 'Выбраны заказы с разными классами';
             }        
