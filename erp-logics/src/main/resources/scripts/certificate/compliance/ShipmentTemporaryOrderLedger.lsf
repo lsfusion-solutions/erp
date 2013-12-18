@@ -1,0 +1,35 @@
+MODULE ShipmentTemporaryOrderLedger;
+
+REQUIRE ShipmentOrderLedger, PurchaseCompliance, ComplianceType;
+
+NAMESPACE Purchase;
+
+@defineDocumentInterfaceProperty (invoice, createTemporaryOrderLedger, 'Только временные сертификаты');
+
+EXTEND FORM userInvoice 
+    PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) SHOWIF createOrderLedgerUserInvoice(i) createTemporaryOrderLedgerUserInvoice
+;
+
+EXTEND DESIGN userInvoice {
+    headerCreateShipment {
+        ADD PROPERTY(createTemporaryOrderLedgerUserInvoice);       
+    }
+}
+
+@defineDocumentInterfaceProperty (shipment, createTemporaryOrderLedger, 'Только временные сертификаты');
+
+EXTEND FORM userShipment 
+    PROPERTIES(s)  createTemporaryOrderLedgerUserShipment SHOWIF createOrderLedgerUserShipment(s)
+;
+
+EXTEND DESIGN userShipment {
+    headerCreateDocuments {
+        headerCreateOrderLedger {
+            ADD PROPERTY(createTemporaryOrderLedgerUserShipment);
+        }            
+    }          
+}
+
+createTemporaryOrderLedgerShipment(s) += createTemporaryOrderLedgerInvoice(invoiceInvoiceShipment(s));
+
+excludeOrderLedgerShipmentDetail(d) += createTemporaryOrderLedgerShipmentDetail(d) AND NOT (complianceTypeCompliance(complianceShipmentDetail(d)) == ComplianceType.temporary) ;
