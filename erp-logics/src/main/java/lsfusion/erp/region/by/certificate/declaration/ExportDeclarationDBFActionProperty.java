@@ -133,7 +133,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         String[] exportProperties = new String[]{"extraNameDeclarationDetail", "markinDeclarationDetail",
                 "numberDeclarationDetail", "codeCustomsGroupDeclarationDetail", "sidOrigin2CountryDeclarationDetail",
-                "sumGrossWeightDeclarationDetail", "overComponentsQuantityDeclarationDetail", "sumDeclarationDetail",
+                "sumGrossWeightDeclarationDetail", "extraComponentsQuantityDeclarationDetail", "sumDeclarationDetail",
                 "nameCustomsDeclarationDetail", "quantityDeclarationDetail", "sumNetWeightDeclarationDetail",
                 "shortNameUOMDeclarationDetail", "customsCodeUOMDeclarationDetail", "isVATCustomsExceptionDeclarationDetail", "VATCustomsExceptionDeclarationDetail", "homeSumDeclarationDetail",
                 "baseVATSumDeclarationDetail", "isWeightDutyDeclarationDetail", "weightDutyDeclarationDetail",
@@ -161,7 +161,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             String codeCustomsGroupDeclarationDetail = (String) values.get("codeCustomsGroupDeclarationDetail"); //G33
             String sidOrigin2CountryDeclarationDetail = (String) values.get("sidOrigin2CountryDeclarationDetail"); //G34
             BigDecimal sumGrossWeightDeclarationDetail = (BigDecimal) values.get("sumGrossWeightDeclarationDetail"); //G35
-            BigDecimal overComponentsQuantityDeclarationDetail = (BigDecimal) values.get("overComponentsQuantityDeclarationDetail"); //G41
+            BigDecimal extraComponentsQuantityDeclarationDetail = (BigDecimal) values.get("extraComponentsQuantityDeclarationDetail"); //G41
             BigDecimal sumDeclarationDetail = (BigDecimal) values.get("sumDeclarationDetail");  //G42
             String nameCustomsDeclarationDetail = (String) values.get("nameCustomsDeclarationDetail"); //G312, G31_NT
             BigDecimal quantityDeclarationDetail = (BigDecimal) values.get("quantityDeclarationDetail"); //G315A, G31_KT            
@@ -188,7 +188,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                     sumDeclarationDetail, homeSumDeclarationDetail, baseVATSumDeclarationDetail,
                     isWeightDutyDeclarationDetail, weightDutyDeclarationDetail, percentDutyDeclarationDetail,
                     percentVATDeclarationDetail, dutySumDeclarationDetail, VATSumDeclarationDetail,
-                    isVATCustomsExceptionDeclarationDetail, VATCustomsExceptionDeclarationDetail, overComponentsQuantityDeclarationDetail, extraNameDeclarationDetail,
+                    isVATCustomsExceptionDeclarationDetail, VATCustomsExceptionDeclarationDetail, extraComponentsQuantityDeclarationDetail, extraNameDeclarationDetail,
                     markinDeclarationDetail, nameSupplierDeclarationDetail, nameBrandDeclarationDetail, nameManufacturerDeclarationDetail));
         }
         return new Declaration(numberDeclaration, dateDeclaration, UNPLegalEntityDeclaration, fullNameLegalEntityDeclaration,
