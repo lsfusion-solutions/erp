@@ -502,6 +502,18 @@ changePaymentReceipt 'Сдача' (receipt) = sumPaymentReceipt(receipt) - sumRe
 sumCashPaymentReceipt (receipt) = sumInCashPaymentReceipt(receipt) - changePaymentReceipt(receipt);
 sumCardPaymentReceipt (receipt) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment) == PaymentMeans.paymentMeansCard BY receiptPayment(payment);
 
+sumPositiveCashPaymentReceipt 'Сумма продажа (наличные)' (receipt) =  sumCashPaymentReceipt (receipt) IF sumCashPaymentReceipt (receipt) >= 0.0 IN documentSum;
+sumNegativeCashPaymentReceipt 'Сумма возврата (наличные)' (receipt) =  sumCashPaymentReceipt (receipt) IF sumCashPaymentReceipt (receipt) < 0.0 IN documentSum;
+
+sumPositiveCardPaymentReceipt 'Сумма продажа (карточка)' (receipt) =  sumCardPaymentReceipt (receipt) IF sumCardPaymentReceipt (receipt) >= 0.0 IN documentSum;
+sumNegativeCardPaymentReceipt 'Сумма возврата (карточка)' (receipt) =  sumCardPaymentReceipt (receipt) IF sumCardPaymentReceipt (receipt) < 0.0 IN documentSum;
+
+sumPositiveCashPaymentZReport 'Сумма продажа (наличные)' (zReport) = GROUP SUM sumPositiveCashPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
+sumNegativeCashPaymentZReport 'Сумма возврата (наличные)' (zReport) = GROUP SUM sumNegativeCashPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
+
+sumPositiveCardPaymentZReport 'Сумма продажа (карточка)' (zReport) = GROUP SUM sumPositiveCardPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
+sumNegativeCardPaymentZReport 'Сумма возврата (карточка)' (zReport) = GROUP SUM sumNegativeCardPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
+
 CONSTRAINT receipt IS Receipt AND NOT sumPaymentReceipt(receipt) MESSAGE 'По чеку не указаны платежи';
 CONSTRAINT sumReceiptDetailReceipt(receipt) > sumPaymentReceipt(receipt) MESSAGE 'Сумма платежей по чеку меньше суммы чека';
 CONSTRAINT sumReceiptDetailReceipt(receipt) < sumCardPaymentReceipt(receipt) MESSAGE 'Сумма платежей по безналичному расчету больше суммы чека';
@@ -551,9 +563,11 @@ setUserPromotionReceiptSaleDetailPromotionCondition 'Применить скид
 
 FORM zReport 'Z-отчет'
     OBJECTS z=ZReport FIXED PANEL
-    PROPERTIES (z) numberCashRegisterZReport, nameDepartmentStoreZReport READONLY, dateZReport, timeZReport, numberZReport,
-                   basisZReport, countReceiptZReport, quantityReceiptDetailZReport, sumCashZReport, sumReceiptDetailZReport,
-                   discountSumReceiptDetailZReport, VATSumSaleZReport, VATSumReturnZReport
+    PROPERTIES (z) numberCashRegisterZReport, nameDepartmentStoreZReport READONLY, dateZReport, timeZReport, numberZReport, //sumCashZReport
+                   basisZReport, countReceiptZReport, quantityReceiptDetailZReport, 
+                   sumPositiveCashPaymentZReport, sumPositiveCardPaymentZReport, discountSumReceiptDetailZReport, VATSumSaleZReport,
+                   sumNegativeCashPaymentZReport, sumNegativeCardPaymentZReport, VATSumReturnZReport,
+                   sumReceiptDetailZReport
 
     OBJECTS b=Receipt, d=ReceiptDetail
     PROPERTIES(b) numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
@@ -614,8 +628,11 @@ isDraftOpenedZReport (z)= isDraftZReport(z) AND isOpenedZReport(z);
 FORM zReports 'Z-отчеты'
     OBJECTS z=ZReport
     PROPERTIES (z) READONLY isClosedZReport, isPostedZReport, numberZReport, dateZReport, timeZReport, nameDepartmentStoreZReport, 
-                            numberCashRegisterZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport, sumCashZReport,
-                            sumReceiptDetailZReport, discountSumReceiptDetailZReport, VATSumSaleZReport, VATSumReturnZReport 
+                            numberCashRegisterZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport,                               
+                           sumPositiveCashPaymentZReport, sumPositiveCardPaymentZReport, discountSumReceiptDetailZReport, VATSumSaleZReport,
+                           sumNegativeCashPaymentZReport, sumNegativeCardPaymentZReport, VATSumReturnZReport,
+                           sumReceiptDetailZReport                            
+                                                        
     PROPERTIES (z) ADDFORM, EDITFORM SHOWIF isDraftOpenedZReport(z) 
     PROPERTIES (z) closeZReport SHOWIF isOpenedZReport(z), openZReport SHOWIF isClosedZReport(z)
 
