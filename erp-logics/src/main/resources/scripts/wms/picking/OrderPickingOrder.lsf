@@ -128,8 +128,13 @@ editPickingOrder(pickingOrder) += ACTION EXEC editOrder(orderOrderPickingOrder(p
 acceptedOrder 'Принят в работу' (order) = GROUP SUM 1 IF acceptedPickingOrder(o) BY orderPickingOrder(o);
 namePerformerOrder 'Комплектовщики' (order) = GROUP CONCAT namePerformerPickingOrder(o), ',' BY orderPickingOrder(o);
 
+diffQuantityPickingDetailSkuPickingOrder 'Расхождение' = quantityPickingDetailSkuPickingOrder(sku, order) (-) quantityPickingOrderDetailSkuPickingOrder(sku, order) PERSISTENT;
+diffQuantityPickingDetailPickingOrder 'Расхождение' = GROUP SUM diffQuantityPickingDetailSkuPickingOrder(sku, order) BY order PERSISTENT;
+diffQuantityPickingDetailOrder 'Расхождение' = GROUP SUM diffQuantityPickingDetailPickingOrder(o) BY orderPickingOrder(o) PERSISTENT;
+
 calcPartOrder 'Частично собран' (order) = GROUP SUM 1 IF quantityPickingsPickingOrder(o) BY orderPickingOrder(o);
-calcFullOrder 'Полностью собран' (order) = [= GROUP SUM 1 IF calcFullPickingOrder(o) BY orderPickingOrder(o)](order) == countPickingOrderOrder(order);
+//calcFullOrder 'Полностью собран' (order) = [= GROUP SUM 1 IF calcFullPickingOrder(o) BY orderPickingOrder(o)](order) == countPickingOrderOrder(order);
+calcFullOrder 'Полностью собран' (order) = order IS Order AND NOT diffQuantityPickingDetailOrder(order); 
 
 startDateTimeOrder 'Начало комплектации' (order) = GROUP MIN startDateTimePickingOrder(o) BY orderPickingOrder(o);
 finishDateTimeOrder 'Завершение комплектации' (order) = GROUP MAX finishDateTimePickingOrder(o) BY orderPickingOrder(o);
