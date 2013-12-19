@@ -10,7 +10,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.apache.commons.lang.time.DateUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -20,12 +19,10 @@ import org.xBaseJ.DBF;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.text.DateFormatSymbols;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Locale;
 import java.util.Map;
 
 public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
@@ -517,42 +514,6 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     private String getSubstring(String value, Integer from, Integer to) {
         return (value == null || from == null || from < 0 || from > value.length()) ? value :
                 ((to == null || to > value.length())) ? value.substring(Math.min(value.length(), from)).trim() : value.substring(from, Math.min(value.length(), to + 1)).trim();
-    }
-
-    static final Locale RU_LOCALE = new Locale("ru");
-    static final DateFormatSymbols RU_SYMBOLS = new DateFormatSymbols(RU_LOCALE);
-    static final String[] RU_MONTHS = {"января", "февраля", "марта", "апреля", "мая",
-            "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"};
-
-    static {
-        RU_SYMBOLS.setMonths(RU_MONTHS);
-    }
-
-    private Date parseDate(String value) throws ParseException {
-        if (value == null || value.trim().isEmpty())
-            return null;
-        if (value.length() == 8 && !value.contains(".") && Integer.parseInt(value.substring(4, 6)) > 12) {
-            //чит для отличия ddMMyyyy от yyyyMMdd
-            return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
-        } else if (value.contains("г")) {
-            //чит для даты с месяцем прописью
-            return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
-        }
-        switch (value.length()) {
-            case 4:
-                return new Date(DateUtils.parseDate(value, new String[]{"MMyy"}).getTime());
-            case 6:
-                return new Date(DateUtils.parseDate(value, new String[]{"MM,yy_"}).getTime());
-            case 7:
-                return new Date(DateUtils.parseDate(value, new String[]{"MM.yyyy", "MM-yyyy"}).getTime());
-            case 8:
-                return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy"}).getTime());
-            case 10:
-                return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy", "dd/MM/yyyy"}).getTime());
-            case 19:
-                return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy hh:mm:ss"}).getTime());
-        }
-        return new Date(DateUtils.parseDate(value, new String[]{"MM,yy_", "MM.yyyy", "MM-yyyy", "MMyy", "yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy hh:mm:ss"}).getTime());
     }
 
     private String parseDatePattern(String[] splittedField, Calendar calendar) {

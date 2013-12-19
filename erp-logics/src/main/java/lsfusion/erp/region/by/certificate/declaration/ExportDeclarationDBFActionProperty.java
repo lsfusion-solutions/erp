@@ -644,23 +644,4 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         }
         return charset;
     }
-
-    private java.sql.Date parseDate(String value) throws ParseException {
-        try {
-            if (value.length() == 4 || value.length() == 7) {
-                //чит для даты в формате MMyy / MM.yyyy / MM-yyyy (без дня) : выставляем последний день месяца 
-                Calendar dateWithoutDay = Calendar.getInstance();
-                dateWithoutDay.setTime(DateUtils.parseDate(value, new String[]{"MMyy", "MM.yyyy", "MM-yyyy"}));
-                dateWithoutDay.set(Calendar.DAY_OF_MONTH, dateWithoutDay.getActualMaximum(Calendar.DAY_OF_MONTH));
-                return new java.sql.Date(dateWithoutDay.getTime().getTime());
-            } else if (value.length() == 8 && !value.contains(".") && Integer.parseInt(value.substring(4, 6)) > 12) {
-                //чит для отличия ddMMyyyy от yyyyMMdd
-                return new java.sql.Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
-            }
-            return new java.sql.Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy"}).getTime());
-        } catch (ParseException e) {
-            return null;
-        }
-    }
-
 }

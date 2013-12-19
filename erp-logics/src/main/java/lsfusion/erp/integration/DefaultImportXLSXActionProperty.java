@@ -5,7 +5,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.apache.commons.lang.time.DateUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -16,7 +15,6 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.ParseException;
-import java.util.Calendar;
 
 public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty {
 
@@ -68,7 +66,11 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
             case Cell.CELL_TYPE_STRING:
             default:
                 String result = xssfCell.getStringCellValue().trim();
-                return result.isEmpty() ? defaultValue : new BigDecimal(result);
+                try {
+                    return result.isEmpty() ? defaultValue : new BigDecimal(result);
+                } catch (Exception e) {
+                    return null;
+                }
         }
     }
 
@@ -83,22 +85,4 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
         else
             return parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue)));
     }
-
-    protected Date parseDate(String value) throws ParseException {
-        try {
-            if (value.length() == 4 || value.length() == 7) {
-                //чит для даты в формате MMyy / MM.yyyy / MM-yyyy (без дня) : выставляем последний день месяца 
-                Calendar dateWithoutDay = Calendar.getInstance();
-                dateWithoutDay.setTime(DateUtils.parseDate(value, new String[]{"MMyy", "MM.yyyy", "MM-yyyy"}));
-                dateWithoutDay.set(Calendar.DAY_OF_MONTH, dateWithoutDay.getActualMaximum(Calendar.DAY_OF_MONTH));
-                return new Date(dateWithoutDay.getTime().getTime());
-            } else if (value.length() == 8 && !value.contains(".") && Integer.parseInt(value.substring(4, 6)) > 12) {
-                //чит для отличия ddMMyyyy от yyyyMMdd
-                return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
-            } 
-            return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy HH:mm"}).getTime());
-        } catch (ParseException e) {
-            return null;
-        }
-    }          
 }
