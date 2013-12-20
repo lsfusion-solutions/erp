@@ -292,7 +292,7 @@ EXTEND DESIGN priceListDashboard {
 }
 
 // -------------------- Изменение согласованных и розничных цен одновременно --------------------------- //
-createRetailCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, retailPriceListType, stock) NEWSESSION {
+createRetailCompanyPriceListStock = ACTION (company, dateTime, dataPriceListType, retailPriceListType, stock) NEWSESSION {
     FOR ADDOBJ u = UserPriceList DO {
         fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
 
@@ -303,7 +303,7 @@ createRetailCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType
     }
 }
 
-createRetailPriceCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, retailPriceListType, stock) NEWSESSION {
+createRetailPricesCompanyPriceListStock = ACTION (company, dateTime, dataPriceListType, retailPriceListType, stock) NEWSESSION {
     FOR ADDOBJ u = UserPriceList DO {
         fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
         priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
@@ -323,7 +323,7 @@ createRetailPriceCompanyStockPriceList = ACTION (company, dateTime, dataPriceLis
 // Изменение цен
 modifySessionDateTimeDataPriceListTypePriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, retailPriceListType, stock) {
     FOR [= GROUP SUM 1 IF inSkuCustomUser(s, currentUser()) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
-        createRetailPriceCompanyStockPriceList(company, dateTime, dataPriceListType, retailPriceListType, stock);
+        createRetailPricesCompanyPriceListStock(company, dateTime, dataPriceListType, retailPriceListType, stock);
     }
 }
 
@@ -336,7 +336,7 @@ modifyDateTimeDataPriceListTypePriceListTypeStock 'Изменить' = ACTION (d
 // Исключение из ассортимента
 excludeSessionDateTimeDataPriceListTypePriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, retailPriceListType, stock) {
     FOR [= GROUP SUM 1 IF inSkuCustomUser(s, currentUser()) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
-        createRetailCompanyStockPriceList(company, dateTime, dataPriceListType, retailPriceListType, stock);
+        createRetailCompanyPriceListStock(company, dateTime, dataPriceListType, retailPriceListType, stock);
     }
 }
 
