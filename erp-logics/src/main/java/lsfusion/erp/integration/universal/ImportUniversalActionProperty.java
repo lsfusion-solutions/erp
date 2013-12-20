@@ -28,7 +28,7 @@ import java.util.Map;
 public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
 
     // syntax : 
-    // "=xxx" - constant value                                         
+    // "=xxx" - constant value; \s means space                                    
     // "xxx^(1,6) - substring(1,6)
     // "xxx+yyy" - concatenate
     // "xxx/yyy" - divide (for numbers)
@@ -65,7 +65,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 if (cell == null) return defaultValue;
                 String value;
                 if (isConstantValue(cell))
-                    return cell.substring(1);
+                    value = parseConstantFieldPattern(cell);
                 if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = BigDecimal.ZERO;
@@ -99,7 +99,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = getCSVFieldValue(values, parseIndex(cell), null, null, "");
                 }
                 if (value != null && !value.isEmpty())
-                    result += (result.isEmpty() ? "" : " ") + value;
+                    result += value;
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
@@ -154,7 +154,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 if (cell == null) return defaultValue;
                 String value;
                 if (isConstantValue(cell))
-                    return cell.substring(1);
+                    value = parseConstantFieldPattern(cell);
                 if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = BigDecimal.ZERO;
@@ -188,7 +188,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(cell), null, null, "");
                 }
                 if (value != null && !value.isEmpty())
-                    result += (result.isEmpty() ? "" : " ") + value;
+                    result += value;
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
@@ -255,7 +255,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         return getXLSXFieldValue(sheet, row, importColumnDetail, false, null);
     }
-    
+
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, boolean isDate, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         return getXLSXFieldValue(sheet, row, importColumnDetail, isDate, null);
     }
@@ -269,7 +269,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 if (cell == null) return defaultValue;
                 String value;
                 if (isConstantValue(cell))
-                    return cell.substring(1);
+                   value = parseConstantFieldPattern(cell);
                 if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = BigDecimal.ZERO;
@@ -303,7 +303,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(cell), null, null, isDate, "");
                 }
                 if (value != null && !value.isEmpty())
-                    result += (result.isEmpty() ? "" : " ") + value;
+                    result += value;
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
@@ -397,8 +397,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 if (column == null) return defaultValue;
                 String value;
                 if (isConstantValue(column))
-                    return column.substring(1);
-                if (isDivisionValue(column)) {
+                    value = parseConstantFieldPattern(column);
+                else if (isDivisionValue(column)) {
                     String[] splittedField = column.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
@@ -432,7 +432,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = new String(importFile.getField(column).getBytes(), charset).trim();
                 }
                 if (value != null && !value.isEmpty())
-                    result += (result.isEmpty() ? "" : " ") + value;
+                    result += value;
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
@@ -516,6 +516,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         } catch (Exception e) {
             return defaultValue;
         }
+    }
+
+    private String parseConstantFieldPattern(String value) {
+        return value.substring(1).replace("\\s", " ");
     }
 
     private boolean isConstantValue(String input) {
