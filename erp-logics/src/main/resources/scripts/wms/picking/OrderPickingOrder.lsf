@@ -135,13 +135,14 @@ diffQuantityPickingDetailSkuPickingOrder 'Расхождение' = quantityPick
 diffQuantityPickingDetailPickingOrder 'Расхождение' = GROUP SUM diffQuantityPickingDetailSkuPickingOrder(sku, order) BY order PERSISTENT;
 diffQuantityPickingDetailOrder 'Расхождение' = GROUP SUM diffQuantityPickingDetailPickingOrder(o) BY orderPickingOrder(o) PERSISTENT;
 
-calcPartOrder 'Частично собран' (order) = GROUP SUM 1 IF quantityPickingsPickingOrder(o) BY orderPickingOrder(o);
+countPickingPickingOrder 'Кол-во комплектаций' = GROUP SUM 1 IF relationPickingOrderPicking(pickingOrder, picking) BY orderPickingOrder(pickingOrder) PERSISTENT;
+//calcPartOrder 'Частично собран' (order) = GROUP SUM 1 IF quantityPickingsPickingOrder(o) BY orderPickingOrder(o);
 //calcFullOrder 'Полностью собран' (order) = [= GROUP SUM 1 IF calcFullPickingOrder(o) BY orderPickingOrder(o)](order) == countPickingOrderOrder(order);
+calcPartOrder 'Частично собран' (order) = countPickingOrderOrder(order)==countPickingPickingOrder(order) AND diffQuantityPickingDetailOrder(order);
 calcFullOrder 'Полностью собран' (order) = countPickingOrderOrder(order) AND NOT diffQuantityPickingDetailOrder(order); 
 
 startDateTimeOrder 'Начало комплектации' (order) = GROUP MIN startDateTimePickingOrder(o) BY orderPickingOrder(o);
 finishDateTimeOrder 'Завершение комплектации' (order) = GROUP MAX finishDateTimePickingOrder(o) BY orderPickingOrder(o);
-
 
 statusPickingOrder 'Статус комплектации' (order) = CASE
     WHEN calcFullOrder(order) THEN 'Полностью собран'
