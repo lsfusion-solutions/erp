@@ -506,8 +506,11 @@ END
 
 META deriveDocumentHeaderAgreement (object, supplier, customer)
 
-    agreement###object (o) <- defaultAgreementSupplierCustomer(supplier(o), customer(o))
-        IF currency###object(o) == currencyAgreement(defaultAgreementSupplierCustomer(supplier(o), customer(o)))
+    defaultAgreement###object = ABSTRACT Agreement (###object);
+    overDefaultAgreement###object = 
+        OVERRIDE defaultAgreementSupplierCustomer(supplier(o), customer(o)) IF currency###object(o) == currencyAgreement(defaultAgreementSupplierCustomer(supplier(o), customer(o))), 
+        defaultAgreement###object(o);
+    agreement###object (o) <- overDefaultAgreement###object(o)
     WHEN CHANGED(currency###object(o)) OR
          CHANGED(customer(o)) OR
          CHANGED(supplier(o));
