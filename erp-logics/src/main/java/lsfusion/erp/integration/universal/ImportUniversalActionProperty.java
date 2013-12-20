@@ -28,7 +28,7 @@ import java.util.Map;
 public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
 
     // syntax : 
-    // "=xxx" - constant value; \s means space                                    
+    // "=xxx" - constant value                                  
     // "xxx^(1,6) - substring(1,6)
     // "xxx+yyy" - concatenate
     // "xxx/yyy" - divide (for numbers)
@@ -519,7 +519,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private String parseConstantFieldPattern(String value) {
-        return value.substring(1).replace("\\s", " ");
+        return value.substring(1);
     }
 
     private boolean isConstantValue(String input) {
