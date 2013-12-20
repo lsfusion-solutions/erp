@@ -40,9 +40,6 @@ nameToStockPickingOrderDetail 'Склад получателя' (d) = nameStock(
 
 addressToStockPickingOrder 'Пункт разгрузки' = addressStock(toStockPickingOrder(pickingOrder));
 
-indexOrderPickingOrder 'Номер комплектации (в заказе)' (pickingOrder) = PARTITION SUM 1 BY orderPickingOrder(pickingOrder) ORDER pickingOrder MINCHARWIDTH 4 PREFCHARWIDTH 4;
-numberIndexPickingOrder 'Комплектации заказа' (pickingOrder) = CONCAT '/', numberPickingOrder(pickingOrder), indexOrderPickingOrder(pickingOrder); 
-
 // ------------------------------ Свойства для комплектации ---------------------------- //
 
 toPicking = toPickingOrder(pickingOrderPicking(picking));
@@ -103,7 +100,12 @@ datePickingOrder(order) += dateOrderPickingOrder(order);
 timePickingOrder(order) += timeOrderPickingOrder(order);
 
 stockPickingOrder(order) += fromStockOrder(orderOrderPickingOrder(order));
-numberPickingOrder(order) += numberOrder(orderOrderPickingOrder(order));
+
+indexOrderPickingOrder 'Номер комплектации (в заказе)' (pickingOrder) = PARTITION SUM 1 BY orderOrderPickingOrder(pickingOrder) ORDER pickingOrder MINCHARWIDTH 4 PREFCHARWIDTH 4;
+numberIndexPickingOrder 'Комплектации заказа' (pickingOrder) = STRING[18] (CONCAT '/', numberOrder(orderOrderPickingOrder(pickingOrder)), 
+    indexOrderPickingOrder(pickingOrder) IF countPickingOrderOrder(orderOrderPickingOrder(pickingOrder))>1);
+     
+numberPickingOrder(order) += numberIndexPickingOrder(order);
 seriesPickingOrder(order) += seriesOrder(orderOrderPickingOrder(order));
 
 seriesNumberOrderPickingOrder 'Серия/номер документа' (order) = seriesNumberOrder(orderOrderPickingOrder(order));
