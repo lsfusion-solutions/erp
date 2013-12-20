@@ -406,7 +406,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         Sheet sheet = wb.getSheet(0);
 
         Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ?
-                null : getXLSDateFieldValue(sheet, new ImportColumnDetail("date", String.valueOf(importColumns.getDateRow()), false), importColumns.getDateRow(), importColumns.getDateColumn());
+                null : getXLSDateFieldValue(sheet, importColumns.getDateRow(), new ImportColumnDetail(importColumns.getDateColumn(), String.valueOf(importColumns.getDateRow()), false));
 
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
             String idUserPriceList = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idUserPriceList"));
@@ -484,7 +484,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ?
-                null : getXLSXDateFieldValue(sheet, new ImportColumnDetail("date", String.valueOf(importColumns.getDateRow()), false), importColumns.getDateRow(), importColumns.getDateColumn());
+                null : getXLSXDateFieldValue(sheet, importColumns.getDateRow(), new ImportColumnDetail(importColumns.getDateColumn(), String.valueOf(importColumns.getDateRow()), false));
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
 

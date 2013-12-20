@@ -34,7 +34,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     // "xxx/yyy" - divide (for numbers)
     // "xxx | yyy" - yyy == null ? xxx : yyy
     // "xxx~d=1~m=12~y=2006" - value ~ d= default value for day ~ m= for month ~ y= for year
-    // пока нет поддержки одновременно divide и substring
+
     public ImportUniversalActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
     }
@@ -90,7 +90,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 } else if (cell.matches(datePatternPattern)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = getCSVDateFieldValue(values, importColumnDetail, parseIndex(splittedCell[0]));
+                    Date date = parseDate(getCSVFieldValue(values, importColumnDetail, parseIndex(splittedCell[0])));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedCell, calendar);
@@ -98,7 +98,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 } else {
                     value = getCSVFieldValue(values, parseIndex(cell), null, null, "");
                 }
-                result += ((result.isEmpty() || value.isEmpty()) ? "" : " ") + value;
+                if (value != null && !value.isEmpty())
+                    result += (result.isEmpty() ? "" : " ") + value;
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
@@ -178,7 +179,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 } else if (cell.matches(datePatternPattern)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = getXLSDateFieldValue(sheet, parseIndex(splittedCell[0]), importColumnDetail);
+                    Date date = parseDate(getXLSFieldValue(sheet, row, new ImportColumnDetail(splittedCell[0], splittedCell[0], importColumnDetail.replaceOnlyNull)));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedCell, calendar);
@@ -186,7 +187,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 } else {
                     value = getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(cell), null, null, "");
                 }
-                result += ((result.isEmpty() || value.isEmpty()) ? "" : " ") + value;
+                if (value != null && !value.isEmpty())
+                    result += (result.isEmpty() ? "" : " ") + value;
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
@@ -243,35 +245,23 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     //Пока разрешено склеивать несколько ячеек только как строки
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         if (importColumnDetail == null) return null;
-        return getXLSDateFieldValue(sheet, importColumnDetail, row, parseIndex(importColumnDetail.indexes[0]), null);
-    }
-
-    protected Date getXLSDateFieldValue(Sheet sheet, ImportColumnDetail importColumnDetail, Integer row, String cell) throws UniversalImportException {
-        if (cell == null) return null;
-        return getXLSDateFieldValue(sheet, importColumnDetail, row, parseIndex(cell), null);
-    }
-
-    protected Date getXLSDateFieldValue(Sheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer column, Date defaultValue) throws UniversalImportException {
         try {
-            if (column == null) return defaultValue;
-            jxl.Cell cell = sheet.getCell(column, row);
-            if (cell == null) return defaultValue;
-            if (cell.getType().equals(CellType.NUMBER)) {
-                return new Date((long) ((NumberCell) cell).getValue());
-            } else
-                return parseDate(cell.getContents());
-        } catch (Exception e) {
+            return parseDate(getXLSFieldValue(sheet, row, importColumnDetail));
+        } catch (ParseException e) {
             throw new UniversalImportException(importColumnDetail.field, importColumnDetail.getFullIndex(), row, e);
         }
-
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
-        return getXLSXFieldValue(sheet, row, importColumnDetail, null);
+        return getXLSXFieldValue(sheet, row, importColumnDetail, false, null);
+    }
+    
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, boolean isDate, ImportColumnDetail importColumnDetail) throws UniversalImportException {
+        return getXLSXFieldValue(sheet, row, importColumnDetail, isDate, null);
     }
 
     //Пока подстроку разрешено брать только для строковых полей
-    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue) throws UniversalImportException {
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean isDate, String defaultValue) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
             String result = "";
@@ -292,7 +282,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = "";
                     String[] splittedField = cell.split("\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedField[i]), null, null, null);
+                        String orValue = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedField[i]), null, null, isDate, null);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -300,19 +290,20 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (cell.matches(substringPattern)) {
                     String[] splittedCell = cell.split(splitPattern);
-                    value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, "");
+                    value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, isDate, "");
                 } else if (cell.matches(datePatternPattern)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = getXLSXDateFieldValue(sheet, parseIndex(splittedCell[0]), importColumnDetail);
+                    Date date = parseDate(getXLSXFieldValue(sheet, row, isDate, new ImportColumnDetail(splittedCell[0], splittedCell[0], importColumnDetail.replaceOnlyNull)));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedCell, calendar);
                     } else return null;
                 } else {
-                    value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(cell), null, null, "");
+                    value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(cell), null, null, isDate, "");
                 }
-                result += (result.isEmpty() || value.isEmpty() ? "" : " ") + value;
+                if (value != null && !value.isEmpty())
+                    result += (result.isEmpty() ? "" : " ") + value;
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
@@ -320,7 +311,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
-    protected String getXLSXFieldValue(XSSFSheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer cell, Integer from, Integer to, String defaultValue) throws UniversalImportException {
+    protected String getXLSXFieldValue(XSSFSheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer cell, Integer from, Integer to, boolean isDate, String defaultValue) throws UniversalImportException {
         try {
             if (cell == null) return defaultValue;
             XSSFRow xssfRow = sheet.getRow(row);
@@ -330,8 +321,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             String result;
             switch (xssfCell.getCellType()) {
                 case Cell.CELL_TYPE_NUMERIC:
-                    result = new DecimalFormat("#.#####").format(xssfCell.getNumericCellValue());
-                    result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
+                    if (isDate)
+                        result = String.valueOf(new Date(xssfCell.getDateCellValue().getTime()));
+                    else {
+                        result = new DecimalFormat("#.#####").format(xssfCell.getNumericCellValue());
+                        result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
+                    }
                     break;
                 case Cell.CELL_TYPE_STRING:
                 default:
@@ -376,29 +371,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
-    //Пока разрешено склеивать несколько ячеек только как строки
     protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         if (importColumnDetail == null) return null;
-        return getXLSXDateFieldValue(sheet, importColumnDetail, row, parseIndex(importColumnDetail.indexes[0]), null);
-    }
-
-    protected Date getXLSXDateFieldValue(XSSFSheet sheet, ImportColumnDetail importColumnDetail, Integer row, String cell) throws UniversalImportException {
-        if (cell == null) return null;
-        return getXLSXDateFieldValue(sheet, importColumnDetail, row, parseIndex(cell), null);
-    }
-
-    protected Date getXLSXDateFieldValue(XSSFSheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer cell, Date defaultValue) throws UniversalImportException {
         try {
-            if (cell == null) return defaultValue;
-            XSSFRow xssfRow = sheet.getRow(row);
-            if (xssfRow == null) return defaultValue;
-            XSSFCell xssfCell = xssfRow.getCell(cell);
-            if (xssfCell == null) return defaultValue;
-            if (xssfCell.getCellType() == Cell.CELL_TYPE_NUMERIC)
-                return new Date(xssfCell.getDateCellValue().getTime());
-            else
-                return parseDate(getXLSXFieldValue(sheet, importColumnDetail, row, cell, null, null, String.valueOf(defaultValue)));
-        } catch (Exception e) {
+            return parseDate(getXLSXFieldValue(sheet, row, true, importColumnDetail));
+        } catch (ParseException e) {
             throw new UniversalImportException(importColumnDetail.field, importColumnDetail.getFullIndex(), row, e);
         }
     }
@@ -441,12 +418,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (column.matches(substringPattern)) {
                     String[] splittedField = column.split(splitPattern);
-                    value = getSubstring(new String(importFile.getField(splittedField[0]).getBytes(), charset).trim(),
+                    value = getSubstring(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, defaultValue),
                             splittedField.length > 1 ? parseIndex(splittedField[1]) : null, splittedField.length > 2 ? parseIndex(splittedField[2]) : null);
                 } else if (column.matches(datePatternPattern)) {
                     String[] splittedField = column.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(new String(importFile.getField(splittedField[0]).getBytes(), charset).trim());
+                    Date date = parseDate(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, defaultValue));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedField, calendar);
@@ -454,7 +431,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 } else {
                     value = new String(importFile.getField(column).getBytes(), charset).trim();
                 }
-                result += ((result.isEmpty() || value.isEmpty()) ? "" : " ") + value;
+                if (value != null && !value.isEmpty())
+                    result += (result.isEmpty() ? "" : " ") + value;
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {

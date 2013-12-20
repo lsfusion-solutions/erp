@@ -484,7 +484,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String idOrderDetail = String.valueOf(orderObject) + i;
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
-            Integer dataIndex = Integer.parseInt(getXLSXFieldValue(sheet, i, importColumns.get("idItem"), String.valueOf(primaryList.size() + secondaryList.size() + 1)));
+            Integer dataIndex = Integer.parseInt(getXLSXFieldValue(sheet, i, importColumns.get("idItem"), false, String.valueOf(primaryList.size() + secondaryList.size() + 1)));
             String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
             String manufacturerItem = getXLSXFieldValue(sheet, i, importColumns.get("manufacturerItem"));
             String idCustomerStock = getXLSXFieldValue(sheet, i, importColumns.get("idCustomerStock"));
