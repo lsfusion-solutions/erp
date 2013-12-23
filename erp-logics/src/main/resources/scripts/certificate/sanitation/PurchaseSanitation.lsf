@@ -10,6 +10,11 @@ NAMESPACE Purchase;
 @defineDocumentCertificate(sanitation, shipment, s, 'ГГР');
 @deriveDocumentPurchaseCertificate(sanitation, shipment, customerStock, data);
 
+// Проставляем автоматически ГГР от строки инвойса
+WHEN CHANGED(sanitationInvoiceDetail(invoiceDetailUserShipmentDetail(d))) AND 
+     NOT CHANGED(sanitationUserShipmentDetail(d)) DO
+     dataSanitationUserShipmentDetail(d) <- sanitationInvoiceDetail(invoiceDetailUserShipmentDetail(d)); 
+
 sanitationShipmentDetail(detail) += sanitationInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
 overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
     ASSIGN dataSanitationUserShipmentDetail(s) <- sanitationInvoiceDetail(i);

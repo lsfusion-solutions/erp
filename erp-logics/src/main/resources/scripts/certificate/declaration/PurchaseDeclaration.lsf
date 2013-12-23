@@ -34,6 +34,11 @@ WHEN SESSION FORMS userInvoice
 @defineDocumentCertificate(declaration, shipment, s, 'Таможенная декларация');
 @deriveDocumentPurchaseCertificate(declaration, shipment, customerStock, data);
 
+// Проставляем автоматически декларацию от строки инвойса
+WHEN CHANGED(declarationInvoiceDetail(invoiceDetailUserShipmentDetail(d))) AND 
+     NOT CHANGED(declarationUserShipmentDetail(d)) DO
+     dataDeclarationUserShipmentDetail(d) <- declarationInvoiceDetail(invoiceDetailUserShipmentDetail(d)); 
+
 declarationShipmentDetail(detail) += declarationInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
 
 overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
