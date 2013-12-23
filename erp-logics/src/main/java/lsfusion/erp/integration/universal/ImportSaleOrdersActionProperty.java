@@ -88,7 +88,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                         for (File f : dir.listFiles()) {
                             if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
                                 DataSession currentSession = context.createSession();
-                                DataObject orderObject = currentSession.addObject((ConcreteCustomClass) LM.findClassByCompoundName("Sale.UserOrder"));
+                                DataObject orderObject = currentSession.addObject((ConcreteCustomClass) getClass("Sale.UserOrder"));
 
                                 try {
 

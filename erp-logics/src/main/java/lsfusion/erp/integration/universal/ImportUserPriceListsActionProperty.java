@@ -36,16 +36,16 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
             ImRevMap<Object, KeyExpr> importUserPriceListTypeKeys = (ImRevMap<Object, KeyExpr>) isImportUserPriceListType.getMapKeys();
             KeyExpr importUserPriceListTypeKey = importUserPriceListTypeKeys.singleValue();
             QueryBuilder<Object, Object> importUserPriceListTypeQuery = new QueryBuilder<Object, Object>(importUserPriceListTypeKeys);
-            importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", LM.findLCPByCompoundOldName("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("captionImportUserPriceListTypeFileExtensionImportUserPriceListType", LM.findLCPByCompoundOldName("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("startRowImportUserPriceListType", LM.findLCPByCompoundOldName("startRowImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("isPostedImportUserPriceListType", LM.findLCPByCompoundOldName("isPostedImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("separatorImportUserPriceListType", LM.findLCPByCompoundOldName("separatorImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("nameImportUserPriceListKeyTypeImportUserPriceListType", LM.findLCPByCompoundOldName("nameImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", getLCP("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("captionImportUserPriceListTypeFileExtensionImportUserPriceListType", getLCP("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("startRowImportUserPriceListType", getLCP("startRowImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("isPostedImportUserPriceListType", getLCP("isPostedImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("separatorImportUserPriceListType", getLCP("separatorImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("nameImportUserPriceListKeyTypeImportUserPriceListType", getLCP("nameImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
            
             importUserPriceListTypeQuery.and(isImportUserPriceListType.getExpr(importUserPriceListTypeKey).getWhere());
-            importUserPriceListTypeQuery.and(LM.findLCPByCompoundOldName("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
-            importUserPriceListTypeQuery.and(LM.findLCPByCompoundOldName("autoImportDirectoryImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
+            importUserPriceListTypeQuery.and(getLCP("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
+            importUserPriceListTypeQuery.and(getLCP("autoImportDirectoryImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> importUserPriceListTypeResult = importUserPriceListTypeQuery.executeClasses(context);
 
             for (int i = 0, size = importUserPriceListTypeResult.size(); i < size; i++) {
@@ -73,7 +73,7 @@ public class ImportUserPriceListsActionProperty extends ScriptingActionProperty 
 
                         for (File f : dir.listFiles()) {
                             if (f.getName().toLowerCase().endsWith(fileExtension.trim().toLowerCase())) {
-                                DataObject userPriceListObject = context.addObject((ConcreteCustomClass) LM.findClassByCompoundName("UserPriceList"));
+                                DataObject userPriceListObject = context.addObject((ConcreteCustomClass) getClass("UserPriceList"));
 
                                 try {
 

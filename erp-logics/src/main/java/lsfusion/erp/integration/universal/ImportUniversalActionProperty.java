@@ -66,14 +66,14 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(cell))
                     value = parseConstantFieldPattern(cell);
-                if (isDivisionValue(cell)) {
+                else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
-                    BigDecimal dividedValue = BigDecimal.ZERO;
+                    BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
                         BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail, arg.trim(), row, null);
-                        dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
+                        dividedValue = dividedValue == null ? argument : (argument == null ? null : safeDivide(dividedValue, argument));
                     }
-                    value = String.valueOf(dividedValue);
+                    value = dividedValue == null ? null : String.valueOf(dividedValue);
                 } else if (isOrValue(cell)) {
                     value = "";
                     String[] splittedField = cell.split("\\|");
@@ -112,7 +112,6 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return values.length <= index ? defaultValue : getSubstring(values[index], from, to);
     }
 
-    //Пока разрешено склеивать несколько ячеек только как строки
     protected BigDecimal getCSVBigDecimalFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
         if (importColumnDetail == null) return null;
         return getCSVBigDecimalFieldValue(values, importColumnDetail, importColumnDetail.indexes[0], row, null);
@@ -121,13 +120,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     protected BigDecimal getCSVBigDecimalFieldValue(String[] values, ImportColumnDetail importColumnDetail, String index, int row, BigDecimal defaultValue) throws UniversalImportException {
         try {
             String value = getCSVFieldValue(values, parseIndex(index), null, null, null);
-            return value == null ? defaultValue : new BigDecimal(value);
+            return value == null ? defaultValue : parseBigDecimal(value);
         } catch (Exception e) {
             throw new UniversalImportException(importColumnDetail.field, index, row, e);
         }
     }
 
-    //Пока разрешено склеивать несколько ячеек только как строки
     protected Date getCSVDateFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
         if (importColumnDetail == null) return null;
         return getCSVDateFieldValue(values, importColumnDetail, importColumnDetail.indexes[0], row, null);
@@ -155,14 +153,14 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(cell))
                     value = parseConstantFieldPattern(cell);
-                if (isDivisionValue(cell)) {
+                else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
-                    BigDecimal dividedValue = BigDecimal.ZERO;
+                    BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
                         BigDecimal argument = getXLSBigDecimalFieldValue(sheet, importColumnDetail, row, parseIndex(arg.trim()), null);
-                        dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
+                        dividedValue = dividedValue == null ? argument : (argument == null ? null : safeDivide(dividedValue, argument));
                     }
-                    value = String.valueOf(dividedValue);
+                    value = dividedValue == null ? null : String.valueOf(dividedValue);
                 } else if (isOrValue(cell)) {
                     value = "";
                     String[] splittedField = cell.split("\\|");
@@ -196,7 +194,6 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
-    //Пока подстроку разрешено брать только для строковых полей
     protected String getXLSFieldValue(Sheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer column, Integer from, Integer to, String defaultValue) throws UniversalImportException {
         try {
             if (column == null) return defaultValue;
@@ -217,10 +214,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
-    //Пока разрешено склеивать несколько ячеек только как строки
     protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         if (importColumnDetail == null) return null;
-        return getXLSBigDecimalFieldValue(sheet, importColumnDetail, row, parseIndex(importColumnDetail.indexes[0]), null);
+        return parseBigDecimal(getXLSFieldValue(sheet, row, importColumnDetail));
     }
 
     protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer column, BigDecimal defaultValue) throws UniversalImportException {
@@ -242,7 +238,6 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
-    //Пока разрешено склеивать несколько ячеек только как строки
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         if (importColumnDetail == null) return null;
         try {
@@ -260,7 +255,6 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return getXLSXFieldValue(sheet, row, importColumnDetail, isDate, null);
     }
 
-    //Пока подстроку разрешено брать только для строковых полей
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean isDate, String defaultValue) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
@@ -270,14 +264,14 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(cell))
                    value = parseConstantFieldPattern(cell);
-                if (isDivisionValue(cell)) {
+                else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
-                    BigDecimal dividedValue = BigDecimal.ZERO;
+                    BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
                         BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, importColumnDetail, row, parseIndex(arg.trim()), null);
-                        dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
+                        dividedValue = dividedValue == null ? argument : (argument == null ? null : safeDivide(dividedValue, argument));
                     }
-                    value = String.valueOf(dividedValue);
+                    value = dividedValue == null ? null : String.valueOf(dividedValue);
                 } else if (isOrValue(cell)) {
                     value = "";
                     String[] splittedField = cell.split("\\|");
@@ -339,10 +333,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
-    //Пока разрешено склеивать несколько ячеек только как строки
     protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         if (importColumnDetail == null) return null;
-        return getXLSXBigDecimalFieldValue(sheet, importColumnDetail, row, parseIndex(importColumnDetail.indexes[0]), null);
+        return parseBigDecimal(getXLSXFieldValue(sheet, row, importColumnDetail));
     }
 
     protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, ImportColumnDetail importColumnDetail, Integer row, String cell) throws UniversalImportException {
@@ -403,9 +396,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
                         BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail, arg.trim(), row, charset, null);
-                        dividedValue = dividedValue == null ? argument : (argument == null ? BigDecimal.ZERO : safeDivide(dividedValue, argument));
+                        dividedValue = dividedValue == null ? argument : (argument == null ? null : safeDivide(dividedValue, argument));
                     }
-                    value = String.valueOf(dividedValue);
+                    value = dividedValue == null ? null : String.valueOf(dividedValue);
                 } else if (isOrValue(column)) {
                     value = "";
                     String[] splittedField = column.split("\\|");
