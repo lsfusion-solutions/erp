@@ -6,10 +6,12 @@ REQUIRE System,
         PurchaseInvoice;
 
 importPurchaseInvoiceDataAction 'Импортировать накладную' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportPurchaseInvoiceActionProperty';
-
 importTypeUserInvoice = DATA ImportType(UserInvoice);
 nameImportTypeUserInvoice 'Тип импорта' (userInvoice) = nameImportType(importTypeUserInvoice(userInvoice));
 
+importPurchaseInvoicesDataAction 'Импортировать накладные' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportPurchaseInvoicesActionProperty';
+importTypeUserInvoices = DATA ImportType();
+nameImportTypeUserInvoices 'Тип импорта' () = nameImportType(importTypeUserInvoices());
 
 originalInvoice 'Файл оригинала накладной'  = DATA CUSTOMFILE (Purchase.Invoice);
 
@@ -41,6 +43,20 @@ EXTEND DESIGN userInvoice{
     }
 }
 
+EXTEND FORM invoices
+    PROPERTIES() importPurchaseInvoicesDataAction TODRAW d TOOLBAR
+    PROPERTIES() nameImportTypeUserInvoices
+;
+
+EXTEND DESIGN invoices{
+    documentDetail {
+        NEW importUniversal {
+            caption = 'Импорт';
+            ADD PROPERTY(nameImportTypeUserInvoices);
+            ADD PROPERTY(importPurchaseInvoicesDataAction); 
+        }
+    }
+}
 
 CONSTRAINT importTypeUserInvoice(invoice) AND (supplierUserInvoice(invoice) != autoImportSupplierImportType(importTypeUserInvoice(invoice)))
     CHECKED BY importTypeUserInvoice MESSAGE 'У накладной и типа импорта не совпадают поставщики';
