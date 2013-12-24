@@ -167,6 +167,54 @@ sumSoldSkuDateFromTo 'Продано за интервал (сумма)' (sku, d
 quantityDaysDateToFrom 'Кол-во дней' (dateTo, dateFrom) = subtractInteger(dateTo, dateFrom) + 1;
 averageSoldInDaySkuStockDateFromTo 'Продаж в день' (sku, stock, dateFrom, dateTo) =  quantitySoldSkuStockDateFromTo(sku, stock, dateFrom, dateTo) / quantityDaysDateToFrom(dateTo, dateFrom);
 
+//------------------------------ Партии --------------------------------//
+
+TABLE saleLedgerBatch (SaleLedger, Batch);
+
+costSaleLedgerBatch 'Расписано из партии' = ABSTRACT NUMERIC[14,3] (SaleLedger, Batch) PERSISTENT;
+
+coeffSaleLedgerBatch 'Удельный вес' (ledger, batch) =
+    NUMERIC[22,8](costSaleLedgerBatch(ledger, batch)/quantitySaleLedger(ledger));
+    
+//по складу и Batch на дату
+quantitySoldBatchStockDate (batch, stock, date) = GROUP SUM costSaleLedgerBatch(ledger, batch) IF activeSaleLedger(ledger)
+    BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
+
+costSumSoldBatchStockDate (batch, stock, date) = GROUP SUM costSumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch) 
+    IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
+
+markupSumSoldBatchStockDate (batch, stock, date) = GROUP SUM markupSumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch) 
+    IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
+
+sumVATSoldBatchStockDate (batch, stock, date) = GROUP SUM sumVATSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch)  
+    IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
+
+sumSoldBatchStockDate (batch, stock, date) = GROUP SUM sumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch)  
+    IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;       
+    
+//по складу и Batch за интервал
+    
+quantitySoldBatchStockDateFromTo 'Продано за интервал (кол-во)' (batch, stock, dateFrom, dateTo)= GROUP SUM quantitySoldBatchStockDate(batch, stock, date) 
+    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo; 
+    
+costSumSoldBatchStockDateFromTo 'Себестоимость проданного за интервал' (batch, stock, dateFrom, dateTo)= GROUP SUM  costSumSoldBatchStockDate(batch, stock, date) 
+    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo;   
+        
+markupSumSoldBatchStockDateFromTo 'Надбавка проданного за интервал' (batch, stock, dateFrom, dateTo)= GROUP SUM  markupSumSoldBatchStockDate(batch, stock, date) 
+    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo;  
+     
+sumVATSoldBatchStockDateFromTo 'Сумма НДС проданного за интервал' (batch, stock, dateFrom, dateTo)= GROUP SUM  sumVATSoldBatchStockDate(batch, stock, date) 
+    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo;   
+                       
+sumSoldBatchStockDateFromTo 'Продано за интервал (сумма)' (batch, stock, dateFrom, dateTo)= GROUP SUM  sumSoldBatchStockDate(batch, stock, date) 
+    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo;    
+
+
+averagePriceSoldBatchStockDateFromTo 'Цена за интервал' (batch, stock, dateFrom, dateTo) = sumSoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo)/
+    quantitySoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo);
+averageMarkupSoldBatchStockDateFromTo 'Средний процент надбавки' (batch, stock, dateFrom, dateTo) = markupSumSoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo)/
+    costSumSoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo)*100.0;    
+    
 //---------------------------------Тип обмена---------------------------------------//
 
 sumSoldTypeExchangeSkuStockDate (typeExchange, sku, stock, date)= roundPriceCurrency((sumSoldSkuStockDate (sku, stock, date)/ rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stock), date)), currencyTypeExchange(typeExchange));
