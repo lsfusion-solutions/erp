@@ -170,6 +170,9 @@ departmentStoreReceiptDetail (d) += departmentStoreReceiptSaleDetail(d);
 @defineDocumentDetailDepartmentStoreCustom(receipt, receiptReturnDetail);
 departmentStoreReceiptDetail (d) += departmentStoreReceiptReturnDetail(d); 
 
+// Валюта
+@defineDocumentDetailCurrency(receipt, receiptDetail);
+
 @defineDocumentDetailSku(receiptSale, sku);
 @defineDocumentDetailSku(receiptReturn, sku);
 skuReceiptDetail (receiptDetail) = OVERRIDE skuReceiptReturnDetail(receiptDetail), skuReceiptSaleDetail(receiptDetail);
@@ -376,6 +379,8 @@ VATSumReturnZReport 'Сумма НДС по возвратам' (zReport) = DATA
 VATReceiptDetail 'НДС' = ABSTRACT Range(ReceiptDetail) PERSISTENT;
 numberVATReceiptDetail 'НДС, номер' (receiptDetail) = numberRange(VATReceiptDetail(receiptDetail));
 valueVATReceiptDetail 'НДС, %' (receiptDetail) = valueRateRangeDate(VATReceiptDetail(receiptDetail), dateReceiptDetail(receiptDetail));
+
+sumVATReceiptDetail 'Сумма НДС' (d) = roundPriceCurrency(sumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d)); 
 
 VATReceiptDetail(d) += VATReceiptSaleDetail(d);
 VATReceiptDetail(d) += VATReceiptReturnDetail(d);
