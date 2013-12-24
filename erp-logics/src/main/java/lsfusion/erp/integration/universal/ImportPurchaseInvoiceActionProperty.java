@@ -58,12 +58,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             DataSession session = context.getSession();
 
-            this.purchaseManufacturingPriceLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseManufacturingPrice");
-            this.itemPharmacyByLM = (ScriptingLogicsModule) context.getBL().getModule("ItemPharmacyBy");
-            this.purchaseInvoicePharmacyLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoicePharmacy");
-            this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
-            this.customsGroupArticleLM = (ScriptingLogicsModule) context.getBL().getModule("CustomsGroupArticle");
-            this.purhcaseShipmentBoxLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseShipmentBox");
+            initModules(context);
 
             DataObject userInvoiceObject = context.getDataKeyValue(userInvoiceInterface);
 
@@ -137,6 +132,15 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         }
     }
 
+    public void initModules(ExecutionContext context) {
+        this.purchaseManufacturingPriceLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseManufacturingPrice");
+        this.itemPharmacyByLM = (ScriptingLogicsModule) context.getBL().getModule("ItemPharmacyBy");
+        this.purchaseInvoicePharmacyLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoicePharmacy");
+        this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
+        this.customsGroupArticleLM = (ScriptingLogicsModule) context.getBL().getModule("CustomsGroupArticle");
+        this.purhcaseShipmentBoxLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseShipmentBox");
+    }
+    
     public void importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, DataSession session, Map<String, ImportColumnDetail> importColumns,
                                    DataObject userInvoiceObject, String keyType, ObjectValue operationObject, ObjectValue supplierObject,
                                    ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)

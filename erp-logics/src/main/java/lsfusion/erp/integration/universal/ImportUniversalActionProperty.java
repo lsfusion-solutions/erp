@@ -534,7 +534,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     private BigDecimal parseBigDecimal(String value) {
         try {
-            return value == null ? null : new BigDecimal(value);
+            return value == null ? null : new BigDecimal(value.replace(",", "."));
         } catch (NumberFormatException e) {
             return null;
         }

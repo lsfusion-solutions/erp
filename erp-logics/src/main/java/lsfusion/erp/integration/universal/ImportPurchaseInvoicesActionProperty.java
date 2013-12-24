@@ -32,6 +32,10 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
             DataSession session = context.getSession();
 
+            ImportPurchaseInvoiceActionProperty imp = new ImportPurchaseInvoiceActionProperty(LM);
+            
+            imp.initModules(context);
+
             ObjectValue importTypeObject = getLCP("importTypeUserInvoices").readClasses(session);
 
             if (!(importTypeObject instanceof NullValue)) {
@@ -63,8 +67,6 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                         List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
 
                         for (byte[] file : fileList) {
-
-                            ImportPurchaseInvoiceActionProperty imp = new ImportPurchaseInvoiceActionProperty(LM);
                             
                             List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = imp.importUserInvoicesFromFile(session,
                                     null, importColumns, file, fileExtension, startRow,
