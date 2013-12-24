@@ -539,4 +539,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             return null;
         }
     }
+    
+    //чит для того, чтобы обрабатывать "без НДС" как 0
+    protected BigDecimal parseVAT(String value) {
+        if(value == null) return null;
+        if(value.toLowerCase().replace(" ", "").equals("безндс"))
+            return BigDecimal.ZERO;
+        else return parseBigDecimal(value.replace("%", ""));
+    }
 }

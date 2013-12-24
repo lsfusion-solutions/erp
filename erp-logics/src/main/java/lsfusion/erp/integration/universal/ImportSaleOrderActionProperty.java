@@ -390,7 +390,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
             BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("price"));
             BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
-            BigDecimal valueVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("valueVAT"));
+            BigDecimal valueVAT = parseVAT(getXLSFieldValue(sheet, i, importColumns.get("valueVAT")));
             BigDecimal sumVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
             BigDecimal invoiceSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
             BigDecimal manufacturingPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
@@ -445,7 +445,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 BigDecimal quantity = getCSVBigDecimalFieldValue(values, importColumns.get("quantity"), count);
                 BigDecimal price = getCSVBigDecimalFieldValue(values, importColumns.get("price"), count);
                 BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns.get("sum"), count);
-                BigDecimal valueVAT = getCSVBigDecimalFieldValue(values, importColumns.get("valueVAT"), count);
+                BigDecimal valueVAT = parseVAT(getCSVFieldValue(values, importColumns.get("valueVAT"), count));
                 BigDecimal sumVAT = getCSVBigDecimalFieldValue(values, importColumns.get("sumVAT"), count);
                 BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, importColumns.get("invoiceSum"), count);
                 BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, importColumns.get("manufacturingPrice"), count);
@@ -494,7 +494,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
             BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("price"));
             BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
-            BigDecimal valueVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("valueVAT"));
+            BigDecimal valueVAT = parseVAT(getXLSXFieldValue(sheet, i, importColumns.get("valueVAT")));
             BigDecimal sumVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
             BigDecimal invoiceSum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
             BigDecimal manufacturingPrice = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
@@ -549,7 +549,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns.get("quantity"), i);
             BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns.get("price"), i);
             BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), i);
-            BigDecimal valueVAT = getDBFBigDecimalFieldValue(file, importColumns.get("valueVAT"), i);
+            BigDecimal valueVAT = parseVAT(getDBFFieldValue(file, importColumns.get("valueVAT"), i));
             BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns.get("sumVAT"), i);
             BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"), i);
             BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns.get("manufacturingPrice"), i);
