@@ -270,20 +270,15 @@ CONSTRAINT stockUserPicking(picking) != stockPickingOrder(pickingOrderUserPickin
     CHECKED BY pickingOrderUserPicking
         MESSAGE 'Склад в заказе на комплектацию и в комплектации должны соответствовать друг другу';
 
+descriptionPickingOrderPicking 'Заказ' (picking) = descriptionPickingOrder(pickingOrderPicking(picking)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 notePickingOrderPicking 'Примечание (заказ)' (p) = notePickingOrder(pickingOrderPicking(p)); 
 
 quantityPickingsPickingOrder 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 BY pickingOrderPicking(picking) PERSISTENT;
-relationPickingOrderPicking 'Количество комплектаций' (pickingOrder, picking) = GROUP SUM 1 BY pickingOrderPicking(picking), picking;
 
-pickingsPickingOrder 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255](descriptionPicking(picking)) IF relationPickingOrderPicking(pickingOrder, picking) , ', '
-                                         BY pickingOrder
+pickingsPickingOrder 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255](descriptionPicking(picking)), ', '
+                                         BY pickingOrderPicking(picking)
                                          ORDER picking
 //                                         IN order
-                                         MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
-pickingOrdersPicking 'Заказы на комплектацию' (picking) = GROUP CONCAT VARSTRING[255](descriptionPickingOrder(pickingOrder)) IF relationPickingOrderPicking(pickingOrder, picking) , ', '
-                                         BY picking
-                                         ORDER pickingOrder
-                                         IN pickingOrders
                                          MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 moveUserPickingPickingOrder 'Комплектация' = ACTION (pickingOrder) NEWSESSION {
@@ -349,7 +344,7 @@ fillUserPickingOrderPicking 'Заполнить на основании зака
 
 
 EXTEND FORM userPicking
-    PROPERTIES(o) fillUserPickingOrderPicking, pickingOrdersPicking READONLY
+    PROPERTIES(o) fillUserPickingOrderPicking, descriptionPickingOrderPicking
 ;
 EXTEND DESIGN userPicking {
     headerRow1 {
@@ -362,7 +357,7 @@ EXTEND DESIGN userPicking {
 }
 
 EXTEND FORM pickings
-    PROPERTIES(o) READONLY BEFORE deleteo pickingOrdersPicking
+    PROPERTIES(o) READONLY BEFORE deleteo descriptionPickingOrderPicking
 ;
 
 //------------------------- Определение стадий комплектации--------------------//
