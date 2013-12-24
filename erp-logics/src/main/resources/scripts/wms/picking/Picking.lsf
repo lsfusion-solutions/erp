@@ -7,6 +7,8 @@ REQUIRE System,
         Bin,
         Stock,
         PickingOrder,
+        OrderLedger,
+        PurchaseLedger,
         StockMovement;
 
 CLASS ABSTRACT Picking 'Комплектация': Document ;
@@ -21,7 +23,7 @@ CLASS UserPickingDetail 'Комплектации (польз.)': PickingDetail;
 @defineDocumentInterfaceNumber(picking);
 overNumberPicking = ABSTRACT STRING[18](Picking);
 @defineNumeratedDefault(UserPicking, 'Комплектации', 'КК');
-@defineDocumentInterfaceStock(picking, stock, 'Склад ');
+@defineDocumentInterfaceDataStock(picking, stock, 'Склад', );
 
 @defineDocumentInterfaceDescription(picking, 'Комплектация');
 
@@ -239,6 +241,24 @@ DESIGN pickings FROM DEFAULT {
     }
 }
 @extendFormEditable(pickings);
+
+//-- Подбор товар/партии
+
+@defineDocumentSkuPriceListTypeSystemLedger(userPicking, accountPriceListType, stock, );
+@extendFormDocumentSku(userPicking, userPicking, o);
+
+@defineDocumentBatchPriceListTypeSystemLedger(userPicking, accountPriceListType, stock, );
+@extendFormDocumentBatch(userPicking, userPicking, o);
+
+// Резервы
+@extendFormDocumentSkuOrderLedger(userPicking, userPicking, o, stock);
+@extendFormDocumentSkuOrderLedgerAll(userPicking, userPicking, o);                                                 
+
+@extendFormDocumentBatchOrderLedger(userPicking, userPicking, o, stock);
+@extendFormDocumentBatchOrderLedgerAll(userPicking, userPicking, o);
+
+@defineDocumentSkuStockSupplier (userPicking, userPicking, o);
+@defineDocumentBatchStockSupplier(userPicking, userPicking, o);
 
 //-------------------------- Связь комплектаций с заказами-комплектациями ------------------------------------//
 
