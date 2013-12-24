@@ -68,8 +68,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context.getSession());
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
-                    DataObject paymentMeansCashObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCash");
-                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCard");
+                    DataObject paymentMeansCashObject = ((ConcreteCustomClass) getClass("PaymentMeans")).getDataObject("paymentMeansCash");
+                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) getClass("PaymentMeans")).getDataObject("paymentMeansCard");
                     BigDecimal sumPayment = (BigDecimal) paymentValues.get("sumPayment");
                     //DataObject paymentMeansGiftCardObject = giftCardLM == null ? null : ((ConcreteCustomClass) giftCardLM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansGiftCard");
                     if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
@@ -132,14 +132,15 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 }
 
                 if (context.checkApply()) {
-                    String result = (String) context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(baudRate, comPort, placeNumber,
+                    Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(baudRate, comPort, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList)));
-                    if (result == null) {
+                    if (result instanceof Integer) {
+                        getLCP("numberReceipt").change(result, context, receiptObject);
                         context.apply();
                         getLAP("createCurrentReceipt").execute(context);
                     } else
-                        context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                        context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                 }
             }
         } catch (SQLException e) {
