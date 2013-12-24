@@ -28,11 +28,11 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
-        if(receipt.sumTotal != null && receipt.sumTotal.doubleValue() > 15000000) {
+        if (receipt.sumTotal != null && receipt.sumTotal.doubleValue() > 15000000) {
             new MessageClientAction("Сумма чека превышает 15.000.000 рублей", "Ошибка!");
             return "Сумма чека превышает 15.000.000 рублей";
         }
-                    
+
         if (receipt.receiptSaleList.size() != 0 && receipt.receiptReturnList.size() != 0) {
             new MessageClientAction("В одном чеке обнаружены продажи и возврат одновременно", "Ошибка!");
             return "В одном чеке обнаружены продажи и возврат одновременно";
@@ -42,60 +42,69 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         else if (receipt.sumGiftCard != null && receipt.sumCard != null && receipt.sumTotal != null && receipt.sumGiftCard.add(receipt.sumCard).doubleValue() > receipt.sumTotal.doubleValue()) {
             new MessageClientAction("Сумма сертификата и сумма оплаты по карточке больше общей суммы чека", "Ошибка!");
             return "Сумма сертификата и сумма оплаты по карточке больше общей суммы чека";
-        }
-
-        else {
+        } else {
             try {
                 FiscalVMK.init();
 
                 FiscalVMK.openPort(comPort, baudRate);
                 FiscalVMK.opensmIfClose();
-                if (receipt.receiptSaleList.size() != 0)
-                    if (!printReceipt(receipt.receiptSaleList, true)) {
+                
+                Integer numberReceipt = null;
+                
+                if (receipt.receiptSaleList.size() != 0) {
+                    numberReceipt = printReceipt(receipt.receiptSaleList, true);
+                    if (numberReceipt == null) {
                         String error = FiscalVMK.getError(false);
                         FiscalVMK.cancelReceipt();
                         return error;
                     }
-                if (receipt.receiptReturnList.size() != 0)
-                    if (!printReceipt(receipt.receiptReturnList, false)) {
+                }
+                    
+                if (receipt.receiptReturnList.size() != 0) {
+                    numberReceipt = printReceipt(receipt.receiptReturnList, false);
+                    if (numberReceipt == null) {
                         String error = FiscalVMK.getError(false);
                         FiscalVMK.cancelReceipt();
                         return error;
                     }
+                }
+                    
 
                 FiscalVMK.closePort();
 
+                return numberReceipt;
             } catch (RuntimeException e) {
                 FiscalVMK.cancelReceipt();
                 return FiscalVMK.getError(true);
             }
         }
-        return null;
     }
 
-    private boolean printReceipt(List<ReceiptItem> receiptList, boolean sale) {
+    private Integer printReceipt(List<ReceiptItem> receiptList, boolean sale) {
 
         if (!FiscalVMK.getFiscalClosureStatus())
-            return false;
+            return null;
         if (!FiscalVMK.openReceipt(sale ? 0 : 1))
-            return false;
+            return null;
+
+        Integer receiptNumber = FiscalVMK.getReceiptNumber(true);
 
         for (ReceiptItem item : receiptList) {
             if (!FiscalVMK.registerItem(item))
-                return false;
+                return null;
             if (!FiscalVMK.discountItem(item))
-                return false;
+                return null;
         }
 
         if (!FiscalVMK.subtotal())
-            return false;
+            return null;
 
         if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard))
-            return false;
+            return null;
         if (!FiscalVMK.totalCard(receipt.sumCard))
-            return false;
+            return null;
         if (!FiscalVMK.totalCash(receipt.sumCash))
-            return false;
-        return true;
+            return null;
+        return receiptNumber;
     }
 }

@@ -57,6 +57,8 @@ public class FiscalVMK {
         Boolean vmk_indik(byte[] firstLine, byte[] secondLine);
 
         Boolean vmk_ksastat(ByReference rej, ByReference stat);
+
+        Boolean vmk_ksainfo(byte[] buffer, int buflen);
     }
 
     static void init() {
@@ -231,6 +233,14 @@ public class FiscalVMK {
                 throw new RuntimeException("VMK Exception: " + lastError);
         }
         return lastError;
+    }
+
+    public static int getReceiptNumber(Boolean throwException) {
+        byte[] buffer = new byte[50];
+        if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
+            checkErrors(throwException);
+        String result = Native.toString(buffer, "cp1251");
+        return Integer.parseInt(result.split(",")[0]);
     }
 }
 
