@@ -1,6 +1,6 @@
 MODULE SaleLedger;
 
-REQUIRE System, Stock, Tax, EmployeeStock, Sale, PriceRound, StockSkuDocument;
+REQUIRE System, Stock, Tax, EmployeeStock, Sale, PriceRound, StockSkuDocument, SaleOperation;
 
 CLASS ABSTRACT SaleLedger 'Продажа товара';
 TABLE saleLedger(SaleLedger);
@@ -29,6 +29,9 @@ nameSkuGroup5SkuSaleLedger 'Субгруппа' = nameSkuGroup5Sku(skuSaleLedger
 
 stockSaleLedger (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT INDEXED;
 nameStockSaleLedger 'Склад' (ledger) = nameStock(stockSaleLedger(ledger));
+
+operationSaleLedger  (ledger) = ABSTRACT Sale.Operation (SaleLedger) PERSISTENT;
+nameOperationSaleLedger 'Операция' (ledger) = nameOperation(operationSaleLedger (ledger));
 
 descriptionSaleLedger 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (SaleLedger) PERSISTENT;
 
@@ -264,7 +267,18 @@ EXTEND DESIGN options {
 }
 
 //---------------------------------------------- Формы продаж -------------------------------------//
+saleOperation 'Операция' = DATA SESSION Sale.Operation ();
+nameSaleOperation 'Операция' = nameOperation(saleOperation());
+
+filterSaleOperationSaleLedger = operationSaleLedger(ledger)==saleOperation() OR (ledger IS SaleLedger AND NOT saleOperation());
+
+saleCustomer 'Покупатель' = DATA SESSION LegalEntity ();
+nameSaleCustomer 'Покупатель' = nameLegalEntity(saleCustomer());
+
+filterSaleCustomerSaleLedger = customerSaleLedger(ledger)==saleCustomer() OR (ledger IS SaleLedger AND NOT saleCustomer());
+
 FORM saleLedger 'Регистр продаж'
+    PROPERTIES() nameSaleOperation, nameSaleCustomer
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
@@ -274,13 +288,13 @@ FORM saleLedger 'Регистр продаж'
 
     OBJECTS s = SaleLedger
     PROPERTIES(s) READONLY nameMonthSaleLedger, nameDOWSaleLedger, dateSaleLedger, hourSaleLedger, dateTimeSaleLedger, 
-                           nameStockSaleLedger, nameCustomerSaleLedger,
+                           nameStockSaleLedger, nameCustomerSaleLedger, nameOperationSaleLedger,
                            nameSkuGroup1SkuSaleLedger, nameSkuGroup2SkuSaleLedger, nameSkuGroup3SkuSaleLedger, nameSkuGroup4SkuSaleLedger, nameSkuGroup5SkuSaleLedger, 
                            canonicalNameSkuGroupSaleLedger, nameSkuSaleLedger, descriptionSaleLedger,
                            quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
                            sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger
     PROPERTIES    READONLY sumSoldTypeExchangeSaleLedger (te, s)
-    FILTERS activeSaleLedger(s)
+    FILTERS activeSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s)
     FILTERS dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo
 ;
 @extendFormFilterAccessStock(SaleLedger, s, saleLedger, stock, company);
@@ -292,6 +306,13 @@ DESIGN saleLedger FROM DEFAULT {
         ADD dates.box {
             type = CONTAINERH;
         }
+        NEW operationContainer{
+            type = COLUMNS;
+            columns = 3;
+            caption = 'Фильтры';
+            ADD PROPERTY(nameSaleOperation);
+            ADD PROPERTY(nameSaleCustomer);
+        }            
         ADD te.box {
             type = CONTAINERH;
             PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
@@ -419,6 +440,7 @@ META implementSaleLedgerCustom(concrete, skuProp, stockProp)
     isPostedSaleLedger (ledger) += isPosted###concrete##Detail(ledger);
     skuSaleLedger (ledger) += skuProp###concrete##Detail(ledger);
     stockSaleLedger (ledger) += stockProp###concrete##Detail(ledger);
+    operationSaleLedger (ledger) += operation###concrete##Detail(ledger);
     descriptionSaleLedger (ledger) += description###concrete##Detail(ledger);
 END
 META implementSaleLedger(concrete, skuProp, stockProp)
