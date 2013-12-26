@@ -872,7 +872,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String numberDocument = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
             Date dateDocument = getXLSDateFieldValue(sheet, i, importColumns.get("dateDocument"));
             String currencyDocument = getXLSFieldValue(sheet, i, importColumns.get("currencyDocument"));
-            String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
+            String idUserInvoiceDetail = (numberDocument == null ? String.valueOf(userInvoiceObject) : numberDocument) + i;
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String originalCustomsGroupItem = getXLSFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
             String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
@@ -984,7 +984,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String numberDocument = getCSVFieldValue(values, importColumns.get("numberDocument"), count);
                 Date dateDocument = getCSVDateFieldValue(values, importColumns.get("dateDocument"), count);
                 String currencyDocument = getCSVFieldValue(values, importColumns.get("currencyDocument"), count);
-                String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + count;
+                String idUserInvoiceDetail = (numberDocument == null ? String.valueOf(userInvoiceObject) : numberDocument) + count;
                 String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.get("barcodeItem"), count));
                 String idBatch = getCSVFieldValue(values, importColumns.get("idBatch"), count);
                 String dataIndexValue = getCSVFieldValue(values, importColumns.get("idItem"), count, String.valueOf(primaryList.size() + secondaryList.size() + 1));
@@ -1093,7 +1093,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String numberDocument = getXLSXFieldValue(sheet, i, importColumns.get("numberDocument"));
             Date dateDocument = getXLSXDateFieldValue(sheet, i, importColumns.get("dateDocument"));
             String currencyDocument = getXLSXFieldValue(sheet, i, importColumns.get("currencyDocument"));
-            String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
+            String idUserInvoiceDetail = (numberDocument == null ? String.valueOf(userInvoiceObject) : numberDocument) + i;
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
             String dataIndexValue = getXLSXFieldValue(sheet, i, importColumns.get("dataIndex"), false, String.valueOf(primaryList.size() + secondaryList.size() + 1));
@@ -1210,7 +1210,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String numberDocument = getDBFFieldValue(file, importColumns.get("numberDocument"), i, charset);
             Date dateDocument = getDBFDateFieldValue(file, importColumns.get("dateDocument"), i, charset);
             String currencyDocument = getDBFFieldValue(file, importColumns.get("currencyDocument"), i, charset);
-            String idUserInvoiceDetail = String.valueOf(userInvoiceObject) + i;
+            String idUserInvoiceDetail = (numberDocument == null ? String.valueOf(userInvoiceObject) : numberDocument) + i;
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, importColumns.get("barcodeItem"), i, charset));
             String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), i, charset);
             BigDecimal dataIndexValue = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), i, charset, String.valueOf(primaryList.size() + secondaryList.size() + 1));

@@ -32,6 +32,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     // "xxx^(1,6) - substring(1,6)
     // "xxx+yyy" - concatenate
     // "xxx/yyy" - divide (for numbers)
+    // "xxx*yyy" - multiply (for numbers)
     // "xxx | yyy" - yyy == null ? xxx : yyy
     // "xxx~d=1~m=12~y=2006" - value ~ d= default value for day ~ m= for month ~ y= for year
 
@@ -70,10 +71,18 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail, arg.trim(), row, null);
+                        BigDecimal argument = getCSVBigDecimalFieldValue(values, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull), row);
                         dividedValue = dividedValue == null ? argument : (argument == null ? null : safeDivide(dividedValue, argument));
                     }
                     value = dividedValue == null ? null : String.valueOf(dividedValue);
+                } else if (isMultiplyValue(cell)) {
+                    String[] splittedField = cell.split("\\*");
+                    BigDecimal multipliedValue = null;
+                    for (String arg : splittedField) {
+                        BigDecimal argument = getCSVBigDecimalFieldValue(values, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull), row);
+                        multipliedValue = multipliedValue == null ? argument : (argument == null ? null : safeMultiply(multipliedValue, argument));
+                    }
+                    value = multipliedValue == null ? null : String.valueOf(multipliedValue);
                 } else if (isOrValue(cell)) {
                     value = "";
                     String[] splittedField = cell.split("\\|");
@@ -157,10 +166,18 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, importColumnDetail, row, parseIndex(arg.trim()), null);
+                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull));
                         dividedValue = dividedValue == null ? argument : (argument == null ? null : safeDivide(dividedValue, argument));
                     }
                     value = dividedValue == null ? null : String.valueOf(dividedValue);
+                } else if (isMultiplyValue(cell)) {
+                    String[] splittedField = cell.split("\\*");
+                    BigDecimal multipliedValue = null;
+                    for (String arg : splittedField) {
+                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull));
+                        multipliedValue = multipliedValue == null ? argument : (argument == null ? null : safeMultiply(multipliedValue, argument));
+                    }
+                    value = multipliedValue == null ? null : String.valueOf(multipliedValue);
                 } else if (isOrValue(cell)) {
                     value = "";
                     String[] splittedField = cell.split("\\|");
@@ -219,25 +236,6 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return parseBigDecimal(getXLSFieldValue(sheet, row, importColumnDetail));
     }
 
-    protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer column, BigDecimal defaultValue) throws UniversalImportException {
-        try {
-            if (column == null) return defaultValue;
-            jxl.Cell cell = sheet.getCell(column, row);
-            if (cell == null) return defaultValue;
-            CellType cellType = cell.getType();
-            if (cellType.equals(CellType.NUMBER))
-                return new BigDecimal(((NumberCell) cell).getValue());
-            else if (cellType.equals(CellType.NUMBER_FORMULA))
-                return new BigDecimal(((NumberFormulaCell) cell).getValue());
-            else {
-                String result = cell.getContents().trim();
-                return result.isEmpty() ? defaultValue : new BigDecimal(result);
-            }
-        } catch (Exception e) {
-            throw new UniversalImportException(importColumnDetail.field, importColumnDetail.getFullIndex(), row, e);
-        }
-    }
-
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         if (importColumnDetail == null) return null;
         try {
@@ -263,15 +261,23 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 if (cell == null) return defaultValue;
                 String value;
                 if (isConstantValue(cell))
-                   value = parseConstantFieldPattern(cell);
+                    value = parseConstantFieldPattern(cell);
                 else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, importColumnDetail, row, parseIndex(arg.trim()), null);
+                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull));
                         dividedValue = dividedValue == null ? argument : (argument == null ? null : safeDivide(dividedValue, argument));
                     }
                     value = dividedValue == null ? null : String.valueOf(dividedValue);
+                } else if (isMultiplyValue(cell)) {
+                    String[] splittedField = cell.split("\\*");
+                    BigDecimal multipliedValue = null;
+                    for (String arg : splittedField) {
+                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull));
+                        multipliedValue = multipliedValue == null ? argument : (argument == null ? null : safeMultiply(multipliedValue, argument));
+                    }
+                    value = multipliedValue == null ? null : String.valueOf(multipliedValue);
                 } else if (isOrValue(cell)) {
                     value = "";
                     String[] splittedField = cell.split("\\|");
@@ -395,10 +401,18 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = column.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail, arg.trim(), row, charset, null);
+                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull), row);
                         dividedValue = dividedValue == null ? argument : (argument == null ? null : safeDivide(dividedValue, argument));
                     }
                     value = dividedValue == null ? null : String.valueOf(dividedValue);
+                } else if (isMultiplyValue(column)) {
+                    String[] splittedField = column.split("\\*");
+                    BigDecimal multipliedValue = null;
+                    for (String arg : splittedField) {
+                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull), row);
+                        multipliedValue = multipliedValue == null ? argument : (argument == null ? null : safeMultiply(multipliedValue, argument));
+                    }
+                    value = multipliedValue == null ? null : String.valueOf(multipliedValue);
                 } else if (isOrValue(column)) {
                     value = "";
                     String[] splittedField = column.split("\\|");
@@ -523,6 +537,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return input != null && input.contains("/");
     }
 
+    private boolean isMultiplyValue(String input) {
+        return input != null && input.contains("*");
+    }
+
     private boolean isOrValue(String input) {
         return input != null && input.contains("|");
     }
@@ -539,11 +557,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             return null;
         }
     }
-    
+
     //чит для того, чтобы обрабатывать "без НДС" как 0
     protected BigDecimal parseVAT(String value) {
-        if(value == null) return null;
-        if(value.toLowerCase().replace(" ", "").equals("безндс"))
+        if (value == null) return null;
+        if (value.toLowerCase().replace(" ", "").equals("безндс"))
             return BigDecimal.ZERO;
         else return parseBigDecimal(value.replace("%", ""));
     }
