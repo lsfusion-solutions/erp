@@ -49,11 +49,11 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
                 FiscalVMK.openPort(comPort, baudRate);
                 FiscalVMK.opensmIfClose();
                 
-                Integer numberReceipt = null;
+                Integer[] numberReceiptZReport = null;
                 
                 if (receipt.receiptSaleList.size() != 0) {
-                    numberReceipt = printReceipt(receipt.receiptSaleList, true);
-                    if (numberReceipt == null) {
+                    numberReceiptZReport = printReceipt(receipt.receiptSaleList, true);
+                    if (numberReceiptZReport == null) {
                         String error = FiscalVMK.getError(false);
                         FiscalVMK.cancelReceipt();
                         return error;
@@ -61,8 +61,8 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
                 }
                     
                 if (receipt.receiptReturnList.size() != 0) {
-                    numberReceipt = printReceipt(receipt.receiptReturnList, false);
-                    if (numberReceipt == null) {
+                    numberReceiptZReport = printReceipt(receipt.receiptReturnList, false);
+                    if (numberReceiptZReport == null) {
                         String error = FiscalVMK.getError(false);
                         FiscalVMK.cancelReceipt();
                         return error;
@@ -72,7 +72,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
                 FiscalVMK.closePort();
 
-                return numberReceipt;
+                return numberReceiptZReport;
             } catch (RuntimeException e) {
                 FiscalVMK.cancelReceipt();
                 return FiscalVMK.getError(true);
@@ -80,13 +80,14 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         }
     }
 
-    private Integer printReceipt(List<ReceiptItem> receiptList, boolean sale) {
+    private Integer[] printReceipt(List<ReceiptItem> receiptList, boolean sale) {
 
         if (!FiscalVMK.getFiscalClosureStatus())
             return null;
         if (!FiscalVMK.openReceipt(sale ? 0 : 1))
             return null;
-
+        
+        Integer zReportNumber = FiscalVMK.getZReportNumber(true);
         Integer receiptNumber = FiscalVMK.getReceiptNumber(true);
 
         for (ReceiptItem item : receiptList) {
@@ -105,6 +106,6 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             return null;
         if (!FiscalVMK.totalCash(receipt.sumCash))
             return null;
-        return receiptNumber;
+        return new Integer[] {zReportNumber, receiptNumber};
     }
 }

@@ -242,5 +242,13 @@ public class FiscalVMK {
         String result = Native.toString(buffer, "cp1251");
         return Integer.parseInt(result.split(",")[0]);
     }
+
+    public static int getZReportNumber(Boolean throwException) {
+        byte[] buffer = new byte[50];
+        if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
+            checkErrors(throwException);
+        String result = Native.toString(buffer, "cp1251");
+        return Integer.parseInt(result.split(",")[1]);
+    }
 }
 
