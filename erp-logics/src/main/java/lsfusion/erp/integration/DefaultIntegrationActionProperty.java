@@ -27,6 +27,10 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
         super(LM, valueClass);
     }
 
+    public DefaultIntegrationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
+    }
+
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
     }

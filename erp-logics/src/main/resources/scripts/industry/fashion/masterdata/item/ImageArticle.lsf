@@ -1,0 +1,79 @@
+MODULE ImageArticle;
+
+REQUIRE ItemArticle;
+
+NAMESPACE Item;
+
+thumbnailImage 'Изображение' = DATA SESSION IMAGEFILE (INTEGER);
+urlImage 'Ссылка' = DATA SESSION TEXT (INTEGER);
+sizeImage 'Размер' = DATA SESSION VARSTRING[10] (INTEGER);
+startImage 'Страница поиска' = DATA SESSION INTEGER ();
+articleImage 'Артикул' = DATA SESSION Article ();
+
+searchImageArticle 'Искать изображение в сети' = ACTION CUSTOM 'lsfusion.erp.integration.image.SearchImageArticleActionProperty';  
+searchMoreImageArticle 'Следующие' = ACTION CUSTOM 'lsfusion.erp.integration.image.SearchMoreImageArticleActionProperty'; 
+loadImageArticle 'Загрузить изображение в артикул' = ACTION CUSTOM 'lsfusion.erp.integration.image.LoadImageArticleActionProperty'; 
+uploadImageArticle 'Загрузить изображение' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleActionProperty';
+
+idImageArticle 'Идентификатор изображения' = DATA VARSTRING[100] (Article);
+overIdImageArticle (article) = idArticle(article) OR idImageArticle(article);
+timeChangedImageArticle 'Время последнего изменения' = DATA DATETIME (Article);
+pathImageArticles 'Папка с изображениями' = DATA STRING[100] ();
+uploadAllImagesArticle 'Загрузить все изображения' () = ACTION {
+    FOR (overIdImageArticle(a)) DO {
+        EXEC uploadImageArticle(a);
+    }
+};
+
+EXTEND FORM article PROPERTIES(a) idImageArticle, searchImageArticle, uploadImageArticle;
+
+EXTEND DESIGN article {
+    imageBox {
+        ADD PROPERTY(idImageArticle);
+        NEW buttonsBox {
+            type = CONTAINERH;
+            ADD PROPERTY(searchImageArticle);
+            ADD PROPERTY(uploadImageArticle);
+        }
+    }
+}
+
+EXTEND FORM options PROPERTIES() pathImageArticles, uploadAllImagesArticle;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(pathImageArticles);
+        ADD PROPERTY(uploadAllImagesArticle);
+    }
+}
+
+FORM chooseImage 'Выбор изображения' 
+    OBJECTS i = INTEGER
+    PROPERTIES(i) READONLY thumbnailImage, urlImage, sizeImage FORCE PANEL
+    PROPERTIES() searchMoreImageArticle FORCE PANEL TODRAW i
+    FILTERS thumbnailImage(i)
+; 
+
+EXTEND DESIGN chooseImage {
+    NEW imageBox {
+        caption = '';
+        ADD PROPERTY(thumbnailImage) {
+                preferredHeight = 200;
+                preferredWidth = 300;
+        }
+        ADD PROPERTY(urlImage) {
+                preferredWidth = 400;
+        };
+        ADD PROPERTY(sizeImage);
+    }
+    ADD PROPERTY(searchMoreImageArticle);
+    ADD functions.box;
+}
+
+chooseImageAction 'Выбор изображения' (article) = ACTION {
+    FORM chooseImage MODAL;
+    IF formResult() == FormResult.ok THEN {
+        loadImageArticle(article, urlImage(chosenInteger('i')));
+        startImage() <- NULL;
+        articleImage() <- NULL;
+    }   
+}
