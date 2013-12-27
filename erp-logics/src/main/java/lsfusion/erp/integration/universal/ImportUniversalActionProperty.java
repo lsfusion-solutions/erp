@@ -93,10 +93,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             break;
                         }
                     }
-                } else if (cell.matches(substringPattern)) {
+                } else if (isSubstringValue(cell)) {
                     String[] splittedCell = cell.split(splitPattern);
                     value = getCSVFieldValue(values, parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, "");
-                } else if (cell.matches(datePatternPattern)) {
+                } else if (isDatePatternedValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
                     Date date = parseDate(getCSVFieldValue(values, importColumnDetail, parseIndex(splittedCell[0])));
@@ -188,10 +188,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             break;
                         }
                     }
-                } else if (cell.matches(substringPattern)) {
+                } else if (isSubstringValue(cell)) {
                     String[] splittedCell = cell.split(splitPattern);
                     value = getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, "");
-                } else if (cell.matches(datePatternPattern)) {
+                } else if (isDatePatternedValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
                     Date date = parseDate(getXLSFieldValue(sheet, row, new ImportColumnDetail(splittedCell[0], splittedCell[0], importColumnDetail.replaceOnlyNull)));
@@ -288,10 +288,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             break;
                         }
                     }
-                } else if (cell.matches(substringPattern)) {
+                } else if (isSubstringValue(cell)) {
                     String[] splittedCell = cell.split(splitPattern);
                     value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, isDate, "");
-                } else if (cell.matches(datePatternPattern)) {
+                } else if (isDatePatternedValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
                     Date date = parseDate(getXLSXFieldValue(sheet, row, isDate, new ImportColumnDetail(splittedCell[0], splittedCell[0], importColumnDetail.replaceOnlyNull)));
@@ -423,11 +423,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             break;
                         }
                     }
-                } else if (column.matches(substringPattern)) {
+                } else if (isSubstringValue(column)) {
                     String[] splittedField = column.split(splitPattern);
                     value = getSubstring(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, defaultValue),
                             splittedField.length > 1 ? parseIndex(splittedField[1]) : null, splittedField.length > 2 ? parseIndex(splittedField[2]) : null);
-                } else if (column.matches(datePatternPattern)) {
+                } else if (isDatePatternedValue(column)) {
                     String[] splittedField = column.split("~");
                     Calendar calendar = Calendar.getInstance();
                     Date date = parseDate(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, defaultValue));
@@ -530,7 +530,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private boolean isConstantValue(String input) {
-        return input != null && input.startsWith("=");
+        return input != null && input.startsWith("=") && !isDivisionValue(input) && !isMultiplyValue(input)
+                && !isOrValue(input) && !isSubstringValue(input) && !isDatePatternedValue(input);
     }
 
     private boolean isDivisionValue(String input) {
@@ -543,6 +544,14 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     private boolean isOrValue(String input) {
         return input != null && input.contains("|");
+    }
+
+    private boolean isSubstringValue(String input) {
+        return input.matches(substringPattern);
+    }
+
+    private boolean isDatePatternedValue(String input) {
+        return input.matches(datePatternPattern);
     }
 
     protected boolean getReplaceOnlyNull(Map<String, ImportColumnDetail> importColumns, String columnName) {
