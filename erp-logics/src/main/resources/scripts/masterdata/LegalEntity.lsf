@@ -76,8 +76,11 @@ contactsLegalEntity 'Дополнительная информация' = DATA V
 
 GROUP management 'Управление' : public;
 
-@defineHistorizable(manager, , 'Руководитель', VARSTRING[100], legalEntity, nameLegalEntity, management);
-@defineHistorizable(accountant, , 'Главный бухгалтер', VARSTRING[100], legalEntity, nameLegalEntity, management);
+@defineHistorizableCustom(chiefLegalEntity, 'Руководитель', Employee, nameContact, legalEntity, nameLegalEntity, management );
+@defineHistorizableCustom(bookerLegalEntity, 'Главный бухгалтер', Employee, nameContact, legalEntity, nameLegalEntity, management );
+// Должность ФИО
+positionNameManagerLegalEntity 'Руководитель' (legalEntity) = positionNameEmployee(chiefLegalEntity(legalEntity)) IN management; 
+positionNameAccountantLegalEntity 'Главный бухгалтер' (legalEntity) = positionNameEmployee(bookerLegalEntity(legalEntity)) IN management;
 
 GROUP doc 'Для договора' : public;
 
@@ -165,7 +168,7 @@ FORM legalEntity 'Организация'
     PROPERTIES(l)  nameLegalEntity, nameLegalEntityGroupLegalEntity, nameOwnershipLegalEntity, shortNameOwnershipLegalEntity,
                    nameCountryLegalEntity, nameLanguageLegalEntity, nameCurrencyLegalEntity
     PROPERTIES(l)  SHOWIF toShowLegalEntity(l) fullNameLegalEntity,
-                   addressLegalEntity, postAddressLegalEntity, managerLegalEntity, accountantLegalEntity, phoneLegalEntity,
+                   addressLegalEntity, postAddressLegalEntity, nameContactChiefLegalEntity, nameContactBookerLegalEntity, phoneLegalEntity,
                    emailLegalEntity, siteLegalEntity,
                    isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity, idLegalEntity SHOWIF showIDs()
     PROPERTIES(l)  differentStocksInDetailsLegalEntity SHOWIF isCompanyLegalEntity(l)
