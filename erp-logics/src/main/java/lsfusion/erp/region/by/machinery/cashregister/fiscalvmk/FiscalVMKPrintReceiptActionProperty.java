@@ -135,9 +135,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(baudRate, comPort, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList)));
-                    if (result instanceof Integer[]) {
-                        getLCP("numberZReport").change(String.valueOf(((Integer[])result)[0]), context, zReportObject);
-                        getLCP("numberReceipt").change(((Integer[])result)[1], context, receiptObject);
+                    if (result instanceof Integer) {
+                        getLCP("numberReceipt").change(result, context, receiptObject);
                         context.apply();
                         getLAP("createCurrentReceipt").execute(context);
                     } else
