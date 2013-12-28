@@ -53,13 +53,23 @@ operationShipment(shipment) += operationInvoice(invoiceInvoiceShipment(shipment)
 overCopyShipment(s, d) += ACTION(s, d) {
     ASSIGN operationUserShipment(d) <- operationShipment(s);
 }
+@defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
 CONSTRAINT supplierUserShipment(userShipment) AND NOT isSupplierLegalEntity(supplierUserShipment(userShipment))
     CHECKED BY supplierUserShipment MESSAGE 'Для поставки выбрано в качестве поставщика организация, не являющаяся поставщиком: закупка-возврат';
 CONSTRAINT customerUserShipment(userShipment) AND NOT isCompanyLegalEntity(customerUserShipment(userShipment))
     CHECKED BY customerUserShipment MESSAGE 'Для поставки выбрано в качестве покупателя организация, не являющаяся компанией: закупка-возврат';
-
+       
+CONSTRAINT filterShipmentSupplier() AND NOT isSupplierLegalEntity(filterShipmentSupplier())
+    CHECKED BY filterShipmentSupplier MESSAGE 'Для фильтра в поставке выбрана в качестве поставщика организация, не являющаяся поставщиком';
+CONSTRAINT filterShipmentCustomer() AND NOT isCompanyLegalEntity(filterShipmentCustomer())
+    CHECKED BY filterShipmentCustomer MESSAGE 'Для фильтра в поставке выбрана в качестве покупателя организация, не являющаяся компанией';  
+    
+CONSTRAINT filterShipmentSupplier() AND filterShipmentSupplierStock() AND NOT inLegalEntityStock(filterShipmentSupplier(), filterShipmentSupplierStock())
+    CHECKED BY filterShipmentSupplierStock MESSAGE 'Поставщик и склад поставщика в фильтре для поставки не имеют связи';
+CONSTRAINT filterShipmentCustomer() AND filterShipmentCustomerStock() AND NOT inLegalEntityStock(filterShipmentCustomer(), filterShipmentCustomerStock())
+    CHECKED BY filterShipmentCustomerStock MESSAGE 'Покупатель и склад покупателя в фильтре для поставки не имеют связи';      
 //------------------------------ Ввод в упаковках -----------------------------//
 
 @defineDocumentPack(shipment, s);

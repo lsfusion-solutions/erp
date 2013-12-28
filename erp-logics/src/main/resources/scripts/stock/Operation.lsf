@@ -474,3 +474,28 @@ META deriveDocumentOperationProperty(objectClass, property)
     property###objectClass (o) <- property###operation(operation###objectClass(o))
         WHEN CHANGED(operation###objectClass(o));
 END
+
+
+META defineOperationFilterProperty(object, objectClass, concrete, form, container, befProp)
+    
+    filter###object###operation  = DATA SESSION Operation ();
+    nameFilter###object###operation 'Операция' = nameOperation(filter###object###operation()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterOperation###object (concrete) = operation###object(concrete) == filter###object###operation() OR (concrete IS objectClass AND NOT filter###object###operation());   
+
+
+    EXTEND FORM form
+        PROPERTIES() nameFilter###object###operation
+        
+        FILTERS filterOperation###object(concrete)
+    ;
+    EXTEND DESIGN form {
+        container {
+            ADD PROPERTY(nameFilter###object###operation) BEFORE PROPERTY(befProp);
+        }
+    }
+END
+
+META defineOperationFilterProperty(object, concrete, form, befProp)
+    @defineOperationFilterProperty(object, ###object, concrete, form, topFilters, befProp);
+END
+

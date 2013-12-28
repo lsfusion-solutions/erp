@@ -397,7 +397,33 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     ;   
      
     isUserOpenedShipment(s)=  isOpenedShipment(s) AND isUserShipment(s);
+    
+    filterShipmentDateFrom 'Дата с' = DATA DATE ();
+    filterDateFromShipment (s) = dateShipment(s) >= filterShipmentDateFrom() OR (s IS Shipment AND NOT filterShipmentDateFrom());      
+    
+    filterShipmentDateTo 'Дата по' = DATA DATE ();
+    filterDateToShipment (s) = dateShipment(s) <= filterShipmentDateTo() OR (s IS Shipment AND NOT filterShipmentDateTo());      
+    
+    filterShipmentCustomer  = DATA SESSION LegalEntity ();
+    nameFilterShipmentCustomer 'Покупатель' = nameLegalEntity(filterShipmentCustomer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomerShipment (s) = customerShipment(s) == filterShipmentCustomer() OR (s IS Shipment AND NOT filterShipmentCustomer());    
+
+    filterShipmentCustomerStock  = DATA SESSION Stock ();
+    nameFilterShipmentCustomerStock 'Склад покупателя' = nameStock(filterShipmentCustomerStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomerStockShipment (s) = customerStockShipment(s) == filterShipmentCustomerStock() OR (s IS Shipment AND NOT filterShipmentCustomerStock());  
+
+    filterShipmentSupplier = DATA SESSION LegalEntity ();
+    nameFilterShipmentSupplier 'Поставщик' = nameLegalEntity(filterShipmentSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterSupplierShipment (s) = supplierShipment(s) == filterShipmentSupplier() OR (s IS Shipment AND NOT filterShipmentSupplier());      
+
+    filterShipmentSupplierStock  = DATA SESSION Stock ();
+    nameFilterShipmentSupplierStock 'Склад поставщика' = nameStock(filterShipmentSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterSupplierStockShipment (s) = supplierStockShipment(s) == filterShipmentSupplierStock() OR (s IS Shipment AND NOT filterShipmentSupplierStock());      
+    
     FORM shipments captions TITLE captions###sign
+    
+        PROPERTIES() filterShipmentDateFrom, filterShipmentDateTo, nameFilterShipmentSupplier, nameFilterShipmentSupplierStock, nameFilterShipmentCustomer, nameFilterShipmentCustomerStock
+    
         OBJECTS s = Shipment
         PROPERTIES (s) READONLYIF isReadonly() isClosedShipment, isPostedShipment, numberShipment, seriesShipment, dateShipment, 
                        timeShipment, nameSupplierShipment, nameSupplierStockShipment, nameCustomerShipment,
@@ -418,7 +444,13 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTIES (d) READONLY quantityShipmentDetail, priceShipmentDetail, sumShipmentDetail, manufactureDateShipmentDetail, expiryDateShipmentDetail, name###stockProp###stock###shipmentDetail
         ORDER BY indexShipmentDetail
         FILTERS shipmentShipmentDetail(d) == s
-
+        FILTERS filterDateFromShipment(s), 
+                filterDateToShipment(s),
+                filterSupplierShipment(s),
+                filterSupplierStockShipment(s),
+                filterCustomerShipment(s),
+                filterCustomerStockShipment(s)
+                
         DIALOG Shipment OBJECT s
     ;
 
@@ -428,8 +460,21 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
             fill = 1;
             type = SPLITV;
 
-            ADD s.box {
-                fill = 2;
+            NEW filtersBox {                       
+                fill = 1;
+                NEW topFilters {
+                    caption = 'Фильтры';
+                    type = CONTAINERH;          
+                    ADD PROPERTY(filterShipmentDateFrom);
+                    ADD PROPERTY(filterShipmentDateTo);
+                    ADD PROPERTY(nameFilterShipmentSupplier);
+                    ADD PROPERTY(nameFilterShipmentSupplierStock);
+                    ADD PROPERTY(nameFilterShipmentCustomer);
+                    ADD PROPERTY(nameFilterShipmentCustomerStock);                   
+                }
+                ADD s.box {
+                    fill = 1;
+                }
             }
 
             NEW documentDetail {

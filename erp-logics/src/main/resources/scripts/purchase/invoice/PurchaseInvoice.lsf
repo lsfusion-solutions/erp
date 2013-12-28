@@ -66,6 +66,8 @@ Invoice.operationInvoice(o) += operationInvoice(o);
 overCopyInvoice(s, d) += ACTION(s, d) {
     ASSIGN operationUserInvoice(d) <- operationInvoice(s);
 }
+
+@defineOperationFilterProperty(invoice, i, invoices, nameFilterInvoiceSupplier);
 // -------------------------------------------- Инвойс на основе заказа -------------------------------------- //
 
 notFillPriceInvoiceOrderOperation 'Не использовать цены в накладной из заказа' = DATA BOOLEAN (Operation);
@@ -117,6 +119,16 @@ CONSTRAINT supplierUserInvoice(userInvoice) AND NOT isSupplierLegalEntity(suppli
     CHECKED BY supplierUserInvoice MESSAGE 'Для накладной выбрана в качестве поставщика организация, не являющаяся поставщиком';
 CONSTRAINT customerUserInvoice(userInvoice) AND NOT isCompanyLegalEntity(customerUserInvoice(userInvoice))
     CHECKED BY customerUserInvoice MESSAGE 'Для накладной выбрана в качестве покупателя организация, не являющаяся компанией';
+
+CONSTRAINT filterInvoiceSupplier() AND NOT isSupplierLegalEntity(filterInvoiceSupplier())
+    CHECKED BY filterInvoiceSupplier MESSAGE 'Для фильтра в накладной выбрана в качестве поставщика организация, не являющаяся поставщиком';
+CONSTRAINT filterInvoiceCustomer() AND NOT isCompanyLegalEntity(filterInvoiceCustomer())
+    CHECKED BY filterInvoiceCustomer MESSAGE 'Для фильтра в накладной выбрана в качестве покупателя организация, не являющаяся компанией';  
+    
+CONSTRAINT filterInvoiceSupplier() AND filterInvoiceSupplierStock() AND NOT inLegalEntityStock(filterInvoiceSupplier(), filterInvoiceSupplierStock())
+    CHECKED BY filterInvoiceSupplierStock MESSAGE 'Поставщик и склад поставщика в фильтре для накладной не имеют связи';
+CONSTRAINT filterInvoiceCustomer() AND filterInvoiceCustomerStock() AND NOT inLegalEntityStock(filterInvoiceCustomer(), filterInvoiceCustomerStock())
+    CHECKED BY filterInvoiceCustomerStock MESSAGE 'Покупатель и склад покупателя в фильтре для накладной не имеют связи';    
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 

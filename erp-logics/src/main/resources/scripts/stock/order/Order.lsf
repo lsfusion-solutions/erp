@@ -520,8 +520,35 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     EXTEND FORM userOrder 
         PROPERTIES(d) copyOrderDetail FORCE PANEL 
     ;    
+    
+    filterOrderDateFrom 'Дата с' = DATA DATE ();
+    filterDateFromOrder (o) = dateOrder(o) >= filterOrderDateFrom() OR (o IS Order AND NOT filterOrderDateFrom());      
+    
+    filterOrderDateTo 'Дата по' = DATA DATE ();
+    filterDateToOrder (o) = dateOrder(o) <= filterOrderDateTo() OR (o IS Order AND NOT filterOrderDateTo());      
+    
+    filterOrderCustomer  = DATA SESSION LegalEntity ();
+    nameFilterOrderCustomer 'Покупатель' = nameLegalEntity(filterOrderCustomer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomerOrder (o) = customerOrder(o) == filterOrderCustomer() OR (o IS Order AND NOT filterOrderCustomer());    
+
+    filterOrderCustomerStock  = DATA SESSION Stock ();
+    nameFilterOrderCustomerStock 'Склад покупателя' = nameStock(filterOrderCustomerStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomerStockOrder (o) = customerStockOrder(o) == filterOrderCustomerStock() OR (o IS Order AND NOT filterOrderCustomerStock());  
+
+    filterOrderSupplier = DATA SESSION LegalEntity ();
+    nameFilterOrderSupplier 'Поставщик' = nameLegalEntity(filterOrderSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterSupplierOrder (o) = supplierOrder(o) == filterOrderSupplier() OR (o IS Order AND NOT filterOrderSupplier());      
+
+    filterOrderSupplierStock  = DATA SESSION Stock ();
+    nameFilterOrderSupplierStock 'Склад поставщика' = nameStock(filterOrderSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterSupplierStockOrder (o) = supplierStockOrder(o) == filterOrderSupplierStock() OR (o IS Order AND NOT filterOrderSupplierStock());        
+    
          
     FORM orders 'Заказы' TITLE 'Заказы'###sign
+    
+        PROPERTIES() filterOrderDateFrom, filterOrderDateTo, nameFilterOrderSupplier, nameFilterOrderSupplierStock, nameFilterOrderCustomer, nameFilterOrderCustomerStock
+        FILTERS is###supplierFilter###legalEntity(filterOrderSupplier())    
+            
         OBJECTS o = Order
         PROPERTIES (o) READONLYIF isReadonly() isClosedOrder, isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
                                 nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder, nameCurrencyOrder,
@@ -546,6 +573,13 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         ORDER BY indexOrderDetail
 
         FILTERS orderOrderDetail(d) == o
+        FILTERS filterDateFromOrder(o), 
+                filterDateToOrder(o),
+                filterSupplierOrder(o),
+                filterSupplierStockOrder(o),
+                filterCustomerOrder(o),
+                filterCustomerStockOrder(o)        
+        
         DIALOG Order OBJECT o
     ;
 
@@ -556,12 +590,27 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
         NEW documentContainer BEFORE functions.box {
             fill = 1;
-            type = CONTAINERV;
             type = SPLITV;
 
-            ADD o.box {
-                fill = 2;
+            NEW filtersBox {                       
+                fill = 1;
+                NEW topFilters {
+                    caption = 'Фильтры';
+                    type = CONTAINERH;          
+                    ADD PROPERTY(filterOrderDateFrom);
+                    ADD PROPERTY(filterOrderDateTo);
+                    ADD PROPERTY(nameFilterOrderSupplier);
+                    ADD PROPERTY(nameFilterOrderSupplierStock);
+                    ADD PROPERTY(nameFilterOrderCustomer);
+                    ADD PROPERTY(nameFilterOrderCustomerStock);                      
+                }
+                ADD o.box {
+                    fill = 1;
+                }
             }
+//            ADD o.box {
+//                fill = 2;
+//            }
 
             NEW documentDetail {
                 fill = 1;

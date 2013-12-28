@@ -49,12 +49,24 @@ Invoice.operationInvoice(o) += operationInvoice(o);
 overCopyInvoice(s, d) += ACTION(s, d) {
     ASSIGN operationUserInvoice(d) <- operationInvoice(s);
 }
+
+@defineOperationFilterProperty(invoice, i, invoices, nameFilterInvoiceSupplier);
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
 CONSTRAINT supplierUserInvoice(userInvoice) AND NOT isCompanyLegalEntity(supplierUserInvoice(userInvoice))
     CHECKED BY supplierUserInvoice MESSAGE 'Для накладной выбрано в качестве поставщика организация, не являющаяся компанией: возврат';
 CONSTRAINT customerUserInvoice(userInvoice) AND NOT isCustomerLegalEntity(customerUserInvoice(userInvoice))
     CHECKED BY customerUserInvoice MESSAGE 'Для накладной выбрано в качестве покупателя организация, не являющаяся покупателем: возврат';
+    
+CONSTRAINT filterInvoiceSupplier() AND NOT isCompanyLegalEntity(filterInvoiceSupplier())
+    CHECKED BY filterInvoiceSupplier MESSAGE 'Для фильтра в накладной выбрана в качестве поставщика организация, не являющаяся компанией';
+CONSTRAINT filterInvoiceCustomer() AND NOT isCustomerLegalEntity(filterInvoiceCustomer())
+    CHECKED BY filterInvoiceCustomer MESSAGE 'Для фильтра в накладной выбрана в качестве покупателя организация, не являющаяся покупателем';  
+       
+CONSTRAINT filterInvoiceSupplier() AND filterInvoiceSupplierStock() AND NOT inLegalEntityStock(filterInvoiceSupplier(), filterInvoiceSupplierStock())
+    CHECKED BY filterInvoiceSupplierStock MESSAGE 'Поставщик и склад поставщика в фильтре для накладной не имеют связи';
+CONSTRAINT filterInvoiceCustomer() AND filterInvoiceCustomerStock() AND NOT inLegalEntityStock(filterInvoiceCustomer(), filterInvoiceCustomerStock())
+    CHECKED BY filterInvoiceCustomerStock MESSAGE 'Покупатель и склад покупателя в фильтре для накладной не имеют связи';         
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 
