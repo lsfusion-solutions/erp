@@ -1,32 +1,11 @@
-MODULE DocumentArticle;
+MODULE StockArticleDocument;
 
-REQUIRE ItemArticle;
+REQUIRE StockSkuDocument, StockArticle;
 
-//----------- Изменение кол-ва для строки при изменении кол-ва для товара (несколько складов)---------------//
-
-currentBalanceArticleColorSizeStock 'Текущий остаток' (article, color, size, stock)= GROUP SUM currentBalanceSkuStock(sku, stock)
-    BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), stock;
-prevCurrentBalanceArticleColorSizeStock 'Текущий остаток' (article, color, size, stock)= PREV(currentBalanceArticleColorSizeStock(article, color, size, stock));
-
-currentBalanceSkuGroupStock 'Текущий остаток' (skuGroup, stock)= GROUP SUM currentBalanceSkuStock(sku,stock) BY skuGroupSku(sku), stock;
-recCurrentBalanceSkuGroupStock 'Текущий остаток' (skuGroup, stock)= GROUP SUM currentBalanceSkuGroupStock(group, stock) IF isParentSkuGroupSkuGroup(group, parent) 
-    BY parent, stock;
-
-currentBalanceArticleStock 'Текущий остаток' (article, stock)= GROUP SUM currentBalanceSkuStock(sku,stock) BY articleItem(sku), stock;
-prevCurrentBalanceArticleStock 'Текущий остаток' (article, stock) = PREV(currentBalanceArticleStock(article, stock));
-prevCurrentBalanceArticle 'Текущий остаток' (article) = GROUP SUM prevCurrentBalanceArticleStock(article, stock) BY article;
-
-defaultSkuColorSizeStock (article, color, size)= GROUP MAX sku
-    BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku);
+NAMESPACE Stock;
 
 nameBalanceSize (size) = CONCAT ' ', nameSize(size), ' (остаток/цена)';
 nameQuantitySize (size) = CONCAT ' ', nameSize(size), ' (кол-во)';
-
-balanceBArticleStockDate 'Остаток на начало дня' (article, stock, date) = GROUP SUM balanceBSkuStockDate(sku,stock,date) BY articleItem(sku), stock, date;
-balanceAArticleStockDate 'Остаток на конец дня' (article, stock, date) = GROUP SUM balanceASkuStockDate(sku,stock,date) BY articleItem(sku), stock, date;
-
-quantityArticleStockDate (article, stock, date) = GROUP SUM quantitySkuStockDate(sku,stock,date) BY articleItem(sku), stock, date; 
-signedQuantityArticleStockDate (article, stock, date) = GROUP SUM signedQuantitySkuStockDate(sku,stock,date) BY articleItem(sku), stock, date; 
 
 nameBalanceStockB (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(остаток на начало)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;    
 nameBalanceStockA (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(остаток на конец)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;  
@@ -50,7 +29,7 @@ META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
         IF isParentSkuGroupSkuGroup(group, parent) BY parent, object, stock;
                                                  
 
-    priceBalanceArticleColorSizeStock###object  (article, color, size, stock, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stock), priceSkuStock###object(defaultSkuColorSizeStock (article,color,size), stock, object);
+    priceBalanceArticleColorSizeStock###object  (article, color, size, stock, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stock), priceSkuStock###object(maxSkuArticleColorSize (article,color,size), stock, object);
 
 
     backgroundQuantityArticleColorSize###object###Stock 'Цвет' (article, color, size, object, stock) = RGB(255,128,128) IF quantityArticleColorSize###object###stockProp###stock(article, color, size, object, stock) AND NOT
@@ -70,7 +49,7 @@ META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
                 FOR ADDOBJ d = ###detail DO {
                    ASSIGN object###detail(d) <- object;
                    ASSIGN data###stockProp###stock###detail (d) <- stock;
-                   ASSIGN skuProp###detail(d) <- defaultSkuColorSizeStock(article, color, size);
+                   ASSIGN skuProp###detail(d) <- maxSkuArticleColorSize(article, color, size);
                    ASSIGN quantity###detail (d) <- requestedNumeric();
                 }
             }
@@ -152,7 +131,7 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
     recQuantitySkuGroup###object 'Кол-во товара в документе рек.' (skuGroup, object) = GROUP SUM calcQuantitySkuGroup###object(group, object) 
         IF isParentSkuGroupSkuGroup(group, parent) BY parent, object;              
 
-    priceBalanceArticleColorSize###object  (article, color, size, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stockProp###object(object)),priceSku###object(defaultSkuColorSizeStock (article,color,size), object);
+    priceBalanceArticleColorSize###object  (article, color, size, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stockProp###object(object)),priceSku###object(maxSkuArticleColorSize (article,color,size), object);
 
 
     backgroundQuantityArticleColorSize###object 'Цвет' (article, color, size, object) = RGB(255,128,128) IF quantityArticleColorSize###object(article, color, size, object) AND NOT
@@ -172,7 +151,7 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
                 FOR ADDOBJ d = ###detail DO {
                    ASSIGN object###detail(d) <- object;
                    ASSIGN data###stockProp###detail (d) <- stockProp###object(object);
-                   ASSIGN skuProp###detail(d) <- defaultSkuColorSizeStock(article, color, size);
+                   ASSIGN skuProp###detail(d) <- maxSkuArticleColorSize(article, color, size);
                    ASSIGN quantity###detail (d) <- requestedNumeric();
                 }
             }
@@ -232,6 +211,3 @@ META extendFormDocumentArticleCustom(object, form, concrete, legalEntityProp, st
     }
 
 END
-
-
-
