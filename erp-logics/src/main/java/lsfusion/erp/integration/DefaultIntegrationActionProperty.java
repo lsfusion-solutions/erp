@@ -107,6 +107,10 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
         return safeDivide(dividend, quotient, 3);
     }
 
+    protected BigDecimal safeDivide(BigDecimal dividend, int quotient, int scale) {
+        return safeDivide(dividend, BigDecimal.valueOf(quotient), scale);
+    }
+    
     protected BigDecimal safeDivide(BigDecimal dividend, BigDecimal quotient, int scale) {
         if (dividend == null || quotient == null || quotient.doubleValue() == 0)
             return null;
@@ -115,6 +119,10 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
 
     protected String trim(String input) {
         return input == null ? null : input.trim();
+    }
+
+    protected String trim(String input, String defaultValue) {
+        return input == null ? defaultValue : input.trim();
     }
 
     protected String trim(String input, Integer length) {
