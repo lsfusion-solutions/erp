@@ -17,6 +17,8 @@ timePayment 'Время' (payment) = DATA TIME (Payment);
 timePayment(payment) <- currentTime() WHEN SET(payment IS Payment);
 dateTimePayment 'Дата время' (payment) = dateTimeToDateTime(datePayment(payment), timePayment(payment));
 
+orderPayment 'Порядок' (payment) = DATA INTEGER(Payment);
+
 payerPayment(payment) = DATA LegalEntity (Payment);
 namePayerPayment 'Плательщик' (payment) = nameLegalEntity(payerPayment(payment));
 accountFromPayment(payment) = DATA PaymentLedger.Account (Payment);
@@ -90,7 +92,7 @@ namePartyB 'Организация (покупатель)' = nameLegalEntity(par
 FORM payment 'Платеж'
 
     OBJECTS p = Payment FIXED PANEL
-    PROPERTIES(p) isPostedPayment, nameNumeratorPayment, numberPayment, seriesPayment, datePayment, timePayment, textPayment,
+    PROPERTIES(p) isPostedPayment, nameNumeratorPayment, orderPayment, numberPayment, seriesPayment, datePayment, timePayment, textPayment,
                   notePayment, namePayerPayment, nameBeneficiaryPayment, nameAccountToPayment, nameAccountFromPayment, sumPayment,
                   nameCurrencyAccountToPayment, nameCurrencyAccountFromPayment, nameOperationPayment
     EVENTS
@@ -115,6 +117,7 @@ DESIGN payment FROM DEFAULT{
             NEW second { 
                 type = CONTAINERH;
                 ADD PROPERTY(nameNumeratorPayment);
+                ADD PROPERTY(orderPayment);
                 ADD PROPERTY(numberPayment);
                 ADD PROPERTY(seriesPayment);
                 ADD PROPERTY(datePayment);
@@ -169,13 +172,13 @@ FORM payments 'Платежи'
     PROPERTIES() namePartyA, namePartyB
 
     OBJECTS p = Payment
-    PROPERTIES(p) BACKGROUND backgroundPaymentDate(p, d) READONLY isPostedPayment, numberPayment, seriesPayment, datePayment, timePayment,
-                  namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
+    PROPERTIES(p) BACKGROUND backgroundPaymentDate(p, d) READONLY isPostedPayment, orderPayment, numberPayment, seriesPayment,
+                  datePayment, timePayment, namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
                   nameCurrencyAccountToPayment, sumPayment, notePayment, nameOperationPayment 
 
     PROPERTIES(p) ADDFORM, EDITFORM, deletep=DELETE FORCE PANEL TOOLBAR
 
-    ORDER BY datePayment
+    ORDER BY orderPayment, datePayment
 
     FILTERS payerPayment(p) == partyB() OR (p IS Payment AND NOT partyB()),
             beneficiaryPayment(p) == partyA() OR (p IS Payment AND NOT partyA())
