@@ -539,15 +539,19 @@ balanceSkuStockDatePeriod (item, departmentStore, date, period) =
     movedSkuStockDatePeriod (item, departmentStore, date, period) OR balanceASkuStockDate(item, departmentStore, date);
 
 //----------------------------------------- По партиям ---------------------------------------------//
+
+signedQuantityBatchStockDate = GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger)
+                                     BY batch, stockSkuLedger(ledger), dateSkuLedger(ledger) PERSISTENT; 
+
 // без учета текущей даты/времени
 balanceBBatchStockDate 'Остаток на начало дня' (batch, stock, date) = currentBalanceBatchStock(batch, stock)
-    (-) [= GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateSkuLedger(ledger) >= date
-    BY batch, stockSkuLedger(ledger), date](batch, stock, date);
+    (-) [= GROUP SUM signedQuantityBatchStockDate(batch, stock, dateIn) IF dateIn >= date
+           BY batch, stock, date](batch, stock, date);
 
 // с учетом текущей даты/времени
 balanceABatchStockDate 'Остаток на конец дня' (batch, stock, date) = currentBalanceBatchStock(batch, stock)
-    (-) [= GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateSkuLedger(ledger) > date
-    BY batch, stockSkuLedger(ledger), date](batch, stock, date);
+    (-) [= GROUP SUM signedQuantityBatchStockDate(batch, stock, dateIn) IF dateIn > date
+           BY batch, stock, date](batch, stock, date);
 
 // без учета текущей даты/времени
 balanceBBatchStockDateTime 'Остаток (до)' (batch, stock, dateTime) = currentBalanceBatchStock(batch, stock)
@@ -586,7 +590,7 @@ FORM batches 'Партии'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameSkuBatch, idBatch SHOWIF showIDs(), nameBatch, nameStockBatch, shippedQuantityBatch, costBatch, expiryDateBatch
+    PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameSkuBatch, idBatch SHOWIF showIDs(), nameBatch, nameStockBatch, shippedQuantityBatch, costBatch, expiryDateBatch, shippedQuantityBatch, currentBalanceBatch
 
     FILTERS           isParentSkuGroupBatch(sk, bt)
     ORDER BY          dateTimeBatch
