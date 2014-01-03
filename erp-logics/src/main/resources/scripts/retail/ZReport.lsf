@@ -563,6 +563,7 @@ WHEN CHANGED(sumReceiptDetailReceipt(receipt)) OR CHANGED(sumCashPaymentReceipt(
     calculateSumReceiptDetailPaymentReceipt(receipt);        
 }
 
+// Продажи товаров
 calcSumVATReceiptDetailPayment (detail, payment) = sumReceiptDetailPayment(detail, payment) * valueVATReceiptDetail(detail) / (100 + valueVATReceiptDetail(detail));
 
 sumReceiptDetailZReportPaymentMeansRange 'Сумма по товарам' (zReport, paymentMeans, range) = GROUP SUM sumReceiptDetailPayment(detail, payment) 
@@ -581,6 +582,13 @@ sumCardReceiptDetailZReportRange 'Сумма (безнал.) по товарам
 sumVATCashReceiptDetailZReportRange 'Сумма НДС (нал.) по товарам' (zReport, range) = sumVATReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansCash, range);
 sumVATCardReceiptDetailZReportRange 'Сумма НДС (безнал.) по товарам' (zReport, range) = sumVATReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansCard, range);
 
+// Продажи сертификатов
+sumGifCardReceiptDetailZReportPaymentMeans 'Сумма проданных сертификатав' (zReport, paymentMeans) = GROUP SUM sumReceiptDetailPayment(detail, payment) 
+    IF NOT isItemSku(skuReceiptDetail(detail)) AND isPostedReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment));
+sumGifCardReceiptDetailZReport 'Сумма проданных сертификатав' (zReport) = GROUP SUM sumGifCardReceiptDetailZReportPaymentMeans(zReport, paymentMeans) BY zReport;    
+
+sumGifCardCashReceiptDetailZReport 'Сумма (нал.) проданных сертификатав' (zReport) = sumGifCardReceiptDetailZReportPaymentMeans(zReport, PaymentMeans.paymentMeansCash);
+sumGifCardCardReceiptDetailZReport 'Сумма (безнал.) проданных сертификатав' (zReport) = sumGifCardReceiptDetailZReportPaymentMeans(zReport, PaymentMeans.paymentMeansCard);   
 // Итоги по Z-отчету
 
 @defineDocumentHeaderQuantityCustom(zReport, receiptDetail);
