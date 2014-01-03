@@ -17,6 +17,7 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.xBaseJ.DBF;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
@@ -35,6 +36,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     // "xxx*yyy" - multiply (for numbers)
     // "xxx | yyy" - yyy == null ? xxx : yyy
     // "xxx~d=1~m=12~y=2006" - value ~ d= default value for day ~ m= for month ~ y= for year
+    // "xxx[-2]" - round up xxx with scale = -2 . [scale] is always at the end of numeric expression, it rounds the result of the whole expression
 
     public ImportUniversalActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
@@ -51,6 +53,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     String splitPattern = "\\^\\(|\\)|,";
     String substringPattern = ".*\\^\\(\\d+,(?:\\d+)?\\)";
     String datePatternPattern = "(.*)(~(.*))+";
+    String roundedPattern = "(.*)\\[(\\-?)\\d+\\]";
+    DecimalFormat decimalFormat = new DecimalFormat("#.#####");
 
     protected String getCSVFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
         return getCSVFieldValue(values, importColumnDetail, row, null);
@@ -67,7 +71,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(cell))
                     value = parseConstantFieldPattern(cell);
-                else if (isDivisionValue(cell)) {
+                else if (isRoundedValue(cell)) {
+                    String[] splittedCell = cell.split("\\[|\\]");
+                    value = getRoundedValue(getCSVFieldValue(values, parseIndex(splittedCell[0]), null, null, ""), splittedCell[1]);
+                } else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
@@ -162,7 +169,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(cell))
                     value = parseConstantFieldPattern(cell);
-                else if (isDivisionValue(cell)) {
+                else if (isRoundedValue(cell)) {
+                    String[] splittedCell = cell.split("\\[|\\]");
+                    value = getRoundedValue(getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), null, null, ""), splittedCell[1]);
+                } else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
@@ -219,9 +229,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             String result;
             CellType cellType = cell.getType();
             if (cellType.equals(CellType.NUMBER)) {
-                result = new DecimalFormat("#.#####").format(((NumberCell) cell).getValue());
+                result = decimalFormat.format(((NumberCell) cell).getValue());
             } else if (cellType.equals(CellType.NUMBER_FORMULA)) {
-                result = new DecimalFormat("#.#####").format(((NumberFormulaCell) cell).getValue());
+                result = decimalFormat.format(((NumberFormulaCell) cell).getValue());
             } else {
                 result = (cell.getContents().isEmpty()) ? defaultValue : cell.getContents().trim();
             }
@@ -262,7 +272,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(cell))
                     value = parseConstantFieldPattern(cell);
-                else if (isDivisionValue(cell)) {
+                else if (isRoundedValue(cell)) {
+                    String[] splittedCell = cell.split("\\[|\\]");
+                    value = getRoundedValue(getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), null, null, false, ""), splittedCell[1]);
+                } else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
@@ -324,7 +337,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     if (isDate)
                         result = String.valueOf(new Date(xssfCell.getDateCellValue().getTime()));
                     else {
-                        result = new DecimalFormat("#.#####").format(xssfCell.getNumericCellValue());
+                        result = decimalFormat.format(xssfCell.getNumericCellValue());
                         result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
                     }
                     break;
@@ -397,7 +410,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(column))
                     value = parseConstantFieldPattern(column);
-                else if (isDivisionValue(column)) {
+                else if (isRoundedValue(column)) {
+                    String[] splittedField = column.split("\\[|\\]");
+                    value = getRoundedValue(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, ""), splittedField[1]);
+                } else if (isDivisionValue(column)) {
                     String[] splittedField = column.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
@@ -501,6 +517,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 ((to == null || to > value.length())) ? value.substring(Math.min(value.length(), from)).trim() : value.substring(from, Math.min(value.length(), to + 1)).trim();
     }
 
+    private String getRoundedValue(String value, String scale) throws UniversalImportException {
+        return decimalFormat.format(new BigDecimal(value).setScale(Integer.parseInt(scale), RoundingMode.HALF_UP));
+    }
+
     private String parseDatePattern(String[] splittedField, Calendar calendar) {
         for (int i = 1; i < splittedField.length; i++) {
             String pattern = splittedField[i];
@@ -530,8 +550,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private boolean isConstantValue(String input) {
-        return input != null && input.startsWith("=") && !isDivisionValue(input) && !isMultiplyValue(input)
-                && !isOrValue(input) && !isSubstringValue(input) && !isDatePatternedValue(input);
+        return input != null && input.startsWith("=") && !isRoundedValue(input) && !isDivisionValue(input)
+                && !isMultiplyValue(input) && !isOrValue(input) && !isSubstringValue(input) && !isDatePatternedValue(input);
+    }
+
+    private boolean isRoundedValue(String input) {
+        return input.matches(roundedPattern);
     }
 
     private boolean isDivisionValue(String input) {
