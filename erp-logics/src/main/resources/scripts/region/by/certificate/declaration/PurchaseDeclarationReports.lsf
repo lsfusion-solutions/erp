@@ -1,0 +1,58 @@
+MODULE PurchaseDeclarationReports;
+
+REQUIRE PurchaseDeclarationDetailBy;
+
+NAMESPACE Purchase;
+
+// -------------------------------------------- Сбивка по декларации ------------------------------------- //
+
+left6 = FORMULA STRING[6] 'left($1, 6)';  
+
+quantityDeclarationCode 'Кол-во' (declaration, code)= GROUP SUM quantityDeclarationDetail(detail) 
+    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));
+    
+quantityCodeDeclarationDetail 'Кол-во' (code, detail)= GROUP SUM quantityDeclarationDetail(detail) 
+    BY left6(codeCustomsGroupDeclarationDetail(detail)), detail;    
+    
+nameCustomsDeclarationCode'Наименование' (declaration, code)= GROUP MIN nameCustomsDeclarationDetail(detail) 
+    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));    
+        
+sumDeclarationCode 'Стоимость' (declaration, code)= GROUP SUM sumDeclarationDetail(detail) 
+    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));
+sumNetWeightDeclarationCode 'Вес нетто, кг' (declaration, code)= GROUP SUM sumNetWeightDeclarationDetail(detail) 
+    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));
+sumGrossWeightDeclarationCode 'Вес брутто, кг' (declaration, code)= GROUP SUM sumGrossWeightDeclarationDetail(detail) 
+    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));
+        
+            
+FORM declarationReport 'Сбивка по декларации'
+
+    OBJECTS d = Declaration FIXED PANEL
+    PROPERTIES(d) numberDeclaration, seriesDeclaration, dateDeclaration, timeDeclaration, sumDeclarationDetailDeclaration,
+                  sumNetWeightDeclarationDetailDeclaration, sumGrossWeightDeclarationDetailDeclaration 
+                  
+    OBJECTS s=STRING[6]
+    PROPERTIES objS = OBJVALUE(s), nameCustomsDeclarationCode(d,s), sumDeclarationCode(d,s), sumNetWeightDeclarationCode(d,s),
+               sumGrossWeightDeclarationCode(d,s)
+    ORDER BY objS
+    FILTERS quantityDeclarationCode(d,s)
+    
+    OBJECTS dd=DeclarationDetail
+
+    PROPERTIES(dd) numberDeclarationDetail, invoicesDeclarationDetail READONLY, nameCustomsDeclarationDetail, shortNameUOMDeclarationDetail,
+                   nameCountryDeclarationDetail, sumNetWeightDeclarationDetail, sumGrossWeightDeclarationDetail,
+                   codeCustomsGroupDeclarationDetail, nameVATCustomsExceptionDeclarationDetail BACKGROUND backgroundVATCustomsExceptionDeclarationDetail(dd),
+                   quantityDeclarationDetail, priceDeclarationDetail, sumDeclarationDetail, deliverySumDeclarationDetail, chargeSumDeclarationDetail, homeSumDeclarationDetail,
+                   percentDutyDeclarationDetail, weightDutyDeclarationDetail, dutySumDeclarationDetail,
+                   numberVATDeclarationDetail, percentVATDeclarationDetail, VATSumDeclarationDetail
+                 
+
+    FILTERS declarationDeclarationDetail(dd) == d,
+            quantityCodeDeclarationDetail(s,dd)
+
+;
+printReportDeclaration 'Сбивка по декларации' (declaration) = ACTION FORM declarationReport OBJECTS d = declaration PRINT  IMAGE 'print.png' IN print;
+
+EXTEND FORM declarations
+    PROPERTIES (d) printReportDeclaration FORCE PANEL TOOLBAR
+;

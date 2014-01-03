@@ -477,6 +477,10 @@ nameCountryDeclarationDetail 'Страна' (declarationDetail) = nameCountry(co
 sidCountryDeclarationDetail 'Код страны' (declarationDetail) = sidCountry(countryDeclarationDetail(declarationDetail));
 sidOrigin2CountryDeclarationDetail 'Код страны' (declarationDetail) = sidOrigin2Country(countryDeclarationDetail(declarationDetail));
 
+quantityDeclarationDetail 'Кол-во' = DATA NUMERIC[14,3](DeclarationDetail);
+priceDeclarationDetail 'Цена' = DATA NUMERIC[14,2] (DeclarationDetail);
+sumDeclarationDetail 'Стоимость' (d) = priceDeclarationDetail(d) * quantityDeclarationDetail(d);
+
 sumNetWeightDeclarationDetail 'Вес нетто' = DATA NUMERIC[9,3] (DeclarationDetail);
 sumGrossWeightDeclarationDetail 'Вес брутто' = DATA NUMERIC[9,3] (DeclarationDetail);
 
@@ -485,9 +489,8 @@ sumNetWeightDeclarationDetailDeclaration 'Вес нетто' (declaration)= GROU
 sumGrossWeightDeclarationDetailDeclaration 'Вес брутто' (declaration)= GROUP SUM sumGrossWeightDeclarationDetail(detail) 
     BY declarationDeclarationDetail(detail);
     
-quantityDeclarationDetail 'Кол-во' = DATA NUMERIC[14,3](DeclarationDetail);
-priceDeclarationDetail 'Цена' = DATA NUMERIC[14,2] (DeclarationDetail);
-sumDeclarationDetail 'Стоимость' (d) = priceDeclarationDetail(d) * quantityDeclarationDetail(d);
+netWeightDeclarationDetail 'Вес нетто (за ед.)' (d)= sumNetWeightDeclarationDetail(d)/(quantityDeclarationDetail(d) IF quantityDeclarationDetail(d)!=0.0); 
+grossWeightDeclarationDetail 'Вес нетто (за ед.)' (d) = sumGrossWeightDeclarationDetail(d)/(quantityDeclarationDetail(d) IF quantityDeclarationDetail(d)!=0.0); 
 
 // ------ Дополнительные расходы ----- //
 
@@ -694,6 +697,9 @@ calcRegistrationSumDeclaration 'Таможенный сбор' (d) = roundPriceC
 
 declarationInvoiceDetailDeclarationDetail = DATA DeclarationInvoiceDetail(DeclarationDetail);
 inDeclarationInvoiceDetailDeclarationDetail 'Вкл.' (id, dd) = declarationInvoiceDetailDeclarationDetail(dd) == id;
+
+countDeclarationDetailDeclarationInvoiceDetail(did) = GROUP SUM 1 BY declarationInvoiceDetailDeclarationDetail(d);
+countDeclarationInvoiceDetailDeclarationDetail(dd) = countDeclarationDetailDeclarationInvoiceDetail(declarationInvoiceDetailDeclarationDetail(dd));
 
 //declarationDetailDeclarationInvoiceDetail = DATA DeclarationDetail(DeclarationInvoiceDetail);
 //inDeclarationInvoiceDetailDeclarationDetail 'Вкл.' (id, dd) = declarationDetailDeclarationInvoiceDetail(id) == dd;
