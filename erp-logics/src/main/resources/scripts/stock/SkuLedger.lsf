@@ -1,6 +1,6 @@
 MODULE SkuLedger;
 
-REQUIRE Stock, Sku, EmployeeStock;
+REQUIRE Stock, Sku, EmployeeStock, Operation;
 
 NAMESPACE Stock;
 
@@ -90,6 +90,12 @@ isContainerBatch 'Тара' (batch) = isContainerSku(skuBatch(batch));
 
 batchSkuLedger = ABSTRACT Batch (SkuLedger) PERSISTENT;
 
+operationSkuLedger  (ledger) = ABSTRACT Operation (SkuLedger) PERSISTENT;
+nameOperationSkuLedger 'Операция' (ledger) = nameOperation(operationSkuLedger (ledger));
+
+descriptionOperationSkuLedger 'Операция (авт.)' = ABSTRACT VARSTRING[200] (SkuLedger) PERSISTENT;
+overNameOperationSkuLedger 'Операция' (ledger) = OVERRIDE descriptionOperationSkuLedger(ledger), nameOperationSkuLedger(ledger);
+
 //---------------------------- Количественные регистры (конкретная реализация) ----------------------------------------//
 
 dateTimeDataSkuLedger 'Дата/время' = ABSTRACT DATETIME (DataSkuLedger) PERSISTENT INDEXED;
@@ -113,6 +119,7 @@ nameLegalEntityDataSkuLedger 'Контрагент' (ledger) = nameLegalEntity(l
 
 legalEntityStockDataSkuLedger = ABSTRACT Stock (DataSkuLedger) PERSISTENT;
 nameLegalEntityStockDataSkuLedger 'Склад контрагента' (ledger) = nameStock(legalEntityStockDataSkuLedger(ledger));
+
 // -------------------------------- Для всего ledger'а -------------------- //
 
 dateTimeSkuLedger 'Дата/время' (ledger) = MULTI dateTimeDataSkuLedger (ledger), dateTimeBatch (ledger) PERSISTENT INDEXED;
@@ -138,6 +145,7 @@ nameLegalEntityStockSkuLedger 'Склад контрагента' (ledger) = nam
 legalEntitySkuLedger (ledger) = MULTI legalEntityDataSkuLedger (ledger), supplierBatch (ledger) PERSISTENT;
 nameLegalEntitySkuLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntitySkuLedger(ledger));
 canonicalNameSkuGroupSkuLedger 'Каноническое имя' (ledger) = canonicalNameGroup(skuGroupSku(skuSkuLedger(ledger)));
+
 // -------------------------------- Количества ---------------------------- //
 
 quantityBatch 'Кол-во в партии' = ABSTRACT NUMERIC[14,3] (Batch) PERSISTENT;
@@ -1112,7 +1120,7 @@ FORM skuLedger 'Регистр движений'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
     OBJECTS s = SkuLedger
-    PROPERTIES(s) READONLY numberSkuLedger, seriesSkuLedger, dateSkuLedger, dateTimeSkuLedger, canonicalNameSkuGroupSkuLedger, nameSkuSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
+    PROPERTIES(s) READONLY numberSkuLedger, seriesSkuLedger, dateSkuLedger, dateTimeSkuLedger, canonicalNameSkuGroupSkuLedger, nameSkuSkuLedger, descriptionSkuLedger, nameOperationSkuLedger, nameStockSkuLedger,
                            nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, costSumSkuLedger
     FILTERS isPostedSkuLedger(s)
 

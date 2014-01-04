@@ -191,6 +191,8 @@ CLASS ShipmentBatch 'Партия на основе закупки';
 quantityShipmentBatch (batch) = quantityShipmentDetail(shipmentDetailShipmentBatch(batch));
 quantityBatch(b) += quantityShipmentBatch(b);
 priceShipmentBatch (batch) = priceShipmentDetail(shipmentDetailShipmentBatch(batch));
+operationShipmentBatch (batch) = operationShipmentDetail(shipmentDetailShipmentBatch(batch));
+operationSkuLedger (ledger) += operationShipmentBatch (ledger);
 
 @implementBatch(ShipmentBatch, sku, stock, price);
 manufactureDateBatch(batch) += manufactureDateShipmentDetail(shipmentDetailShipmentBatch(batch)); 
@@ -223,6 +225,7 @@ CLASS ShipmentSkuLedger 'Изменение остатка на основе з�
 quantityShipmentSkuLedger (ledger) = quantityShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 priceShipmentSkuLedger (ledger) = priceShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 batchShipmentSkuLedger (ledger) = batchShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
+operationShipmentSkuLedger(ledger) = operationShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 
 quantityShipmentSkuLedgerBatch (batch) = GROUP SUM quantityShipmentSkuLedger (ledger) 
                                                    IF NOT isCompanySupplierShipmentDetail(shipmentDetailShipmentSkuLedger(ledger)) 
@@ -234,6 +237,8 @@ quantityInLIFOSkuLedger (ledger) += quantityShipmentDetail(shipmentDetailShipmen
 limitInLIFOSkuLedgerBatch(ledger, batch) += quantityShipmentDetail(shipmentDetailShipmentSkuLedger(ledger)) IF batchShipmentSkuLedger(ledger) == batch;
 changedDataSkuLedger(ledger) += CHANGED(batchShipmentSkuLedger(ledger));
 sumInSkuLedger (ledger) += sumShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
+
+operationSkuLedger(ledger) += operationShipmentSkuLedger(ledger);
 
 batchSkuLedger(ledger) += batchShipmentSkuLedger(ledger);
 
