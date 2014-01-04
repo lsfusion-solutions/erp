@@ -933,6 +933,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
             BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("price"));
+            if(price != null && price.compareTo(new BigDecimal("100000000000"))>0)
+                price = null;
             BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
             BigDecimal valueVAT = parseVAT(getXLSFieldValue(sheet, i, importColumns.get("valueVAT")));
             BigDecimal sumVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
@@ -1051,6 +1053,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
                 BigDecimal quantity = getCSVBigDecimalFieldValue(values, importColumns.get("quantity"), count);
                 BigDecimal price = getCSVBigDecimalFieldValue(values, importColumns.get("price"), count);
+                if(price != null && price.compareTo(new BigDecimal("100000000000"))>0)
+                    price = null;
                 BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns.get("sum"), count);
                 BigDecimal valueVAT = parseVAT(getCSVFieldValue(values, importColumns.get("valueVAT"), count));
                 BigDecimal sumVAT = getCSVBigDecimalFieldValue(values, importColumns.get("sumVAT"), count);
@@ -1164,6 +1168,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
             BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("price"));
+            if(price != null && price.compareTo(new BigDecimal("100000000000"))>0)
+                price = null;
             BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
             BigDecimal valueVAT = parseVAT(getXLSXFieldValue(sheet, i, importColumns.get("valueVAT")));
             BigDecimal sumVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
@@ -1286,6 +1292,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns.get("quantity"), i);
             BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns.get("price"), i);
+            if(price != null && price.compareTo(new BigDecimal("100000000000"))>0)
+                price = null;
             BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), i);
             BigDecimal valueVAT = parseVAT(getDBFFieldValue(file, importColumns.get("valueVAT"), i));
             BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns.get("sumVAT"), i);
