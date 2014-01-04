@@ -164,15 +164,18 @@ DESIGN payment FROM DEFAULT{
     ADD functions.box;
 }
 
+filterPaymentDateFrom 'Дата с' = DATA DATE ();
+filterDateFromPayment (p) = datePayment(p) >= filterPaymentDateFrom() OR (p IS Payment AND NOT filterPaymentDateFrom());      
+
+filterPaymentDateTo 'Дата по' = DATA DATE ();
+filterDateToPayment (p) = datePayment(p) <= filterPaymentDateTo() OR (p IS Payment AND NOT filterPaymentDateTo());         
+    
 FORM payments 'Платежи'
 
-    OBJECTS d = DATE FIXED PANEL
-    PROPERTIES(d) date = OBJVALUE
-
-    PROPERTIES() namePartyA, namePartyB
+    PROPERTIES() filterPaymentDateFrom, filterPaymentDateTo, namePartyA, namePartyB
 
     OBJECTS p = Payment
-    PROPERTIES(p) BACKGROUND backgroundPaymentDate(p, d) READONLY isPostedPayment, orderPayment, numberPayment, seriesPayment,
+    PROPERTIES(p) READONLYIF isReadonly() isPostedPayment, orderPayment, numberPayment, seriesPayment,
                   datePayment, timePayment, namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
                   nameCurrencyAccountToPayment, sumPayment, notePayment, nameOperationPayment 
 
@@ -181,22 +184,26 @@ FORM payments 'Платежи'
     ORDER BY orderPayment, datePayment
 
     FILTERS payerPayment(p) == partyB() OR (p IS Payment AND NOT partyB()),
-            beneficiaryPayment(p) == partyA() OR (p IS Payment AND NOT partyA())
+            beneficiaryPayment(p) == partyA() OR (p IS Payment AND NOT partyA()),
+            filterDateFromPayment(p), filterDateToPayment(p)
 
 ;
-
+        
 DESIGN payments FROM DEFAULT{
 
     NEW headerContainer {
         type = CONTAINERH;
         caption = 'Шапка';
-        ADD PROPERTY(date);
+        ADD PROPERTY(filterPaymentDateFrom);
+        ADD PROPERTY(filterPaymentDateTo);
         ADD PROPERTY(namePartyA);
         ADD PROPERTY(namePartyB);
     }
     ADD p.box;
     ADD functions.box;
 }
+
+@extendFormEditable(payments);
 
 NAVIGATOR {
     paymentNavigator {
