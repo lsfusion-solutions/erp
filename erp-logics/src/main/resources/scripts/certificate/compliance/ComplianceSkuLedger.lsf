@@ -1,0 +1,39 @@
+MODULE ComplianceSkuLedger;
+
+REQUIRE Compliance;
+
+NAMESPACE Compliance;
+
+currentBalanceCompliance (compliance) = GROUP SUM  currentBalanceBatch(b) BY complianceBatch(b); 
+
+FORM complianceBatch 'Текущие остатки по сертификатам'
+    
+    OBJECTS c = Compliance
+    PROPERTIES(c) READONLY numberCompliance, seriesCompliance, dateCompliance, timeCompliance, fromDateCompliance, toDateCompliance,
+                           nameLegalEntityCompliance
+    FILTERGROUP filterBalanceCompliance
+        FILTER 'Сертификаты с остатком' 'F11' currentBalanceCompliance(c) DEFAULT    
+                   
+    FILTERGROUP filterCompliance
+        FILTER 'Сертификаты с истекшим сроком действия' 'F7' toDateCompliance(c) < currentDate()
+        FILTER 'Сертификаты со сроком действия, истекающим через 7 дней' 'F6'  toDateCompliance(c) < sumDate(currentDate(), 7)
+        FILTER 'Сертификаты со сроком действия, истекающим через 30 дней' 'F5' toDateCompliance(c) < sumDate(currentDate(), 30)
+        FILTER 'Сертификаты со сроком действия, истекающим через 90 дней' 'F4' toDateCompliance(c) < sumDate(currentDate(), 90)                           
+
+    OBJECTS b = Batch
+    PROPERTIES(b) READONLY nameSkuBatch, idBatch, nameBatch, numberBatch, seriesBatch, dateTimeBatch, shippedQuantityBatch,
+                  currentBalanceBatch, expiryDateBatch
+    
+    FILTERS complianceBatch(b) == c
+    
+    FILTERGROUP filterBalance
+        FILTER 'Партии с остатком' 'F10' currentBalanceBatch(b) DEFAULT
+;
+
+NAVIGATOR {
+    customsNavigator {
+        NEW customsReports 'Отчеты' AFTER customsMasterData {
+            ADD complianceBatch;    
+        }
+    }
+}
