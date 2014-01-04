@@ -42,6 +42,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
                                                                        
     shippedInvoice 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isPostedInvoiceDetail(detail)
                                                                        BY invoiceInvoiceDetail(detail) PERSISTENT;                                                                       
+    notShippedInvoice = NOT shippedInvoice(invoice);
 
     TABLE shipmentDetailBatch (ShipmentDetail, Batch);
     costShipmentDetailBatch = ABSTRACT NUMERIC[14,3] (ShipmentDetail, Batch) PERSISTENT;
@@ -401,7 +402,7 @@ END
 //-- Действие
 
 META defineInvoiceShipmentAction (sign)
-    moveUserShipmentInvoice 'Поставка'###sign =  ACTION (invoice) NEWSESSION{
+    addUserShipmentInvoice 'Поставка'###sign =  ACTION (invoice) NEWSESSION{
 
         FOR ADDOBJ s = UserShipment DO {
 
@@ -435,11 +436,11 @@ META defineInvoiceShipmentAction (sign)
     } TOOLBAR;
 
     EXTEND FORM invoices
-        PROPERTIES(i) moveUserShipmentInvoice
+        PROPERTIES(i) addUserShipmentInvoice
     ;
     EXTEND DESIGN invoices {
         createdContainer{
-            ADD PROPERTY(moveUserShipmentInvoice);
+            ADD PROPERTY(addUserShipmentInvoice);
         }
     }
 END

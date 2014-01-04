@@ -1,0 +1,106 @@
+MODULE PurchaseInvoiceShipmentDashboard;
+
+REQUIRE Dashboard, SalePurchaseInvoiceShipment;
+
+NAMESPACE Purchase;
+
+receiveShipmentInvoice 'Принять полностью' = ACTION (invoice) NEWSESSION AUTOAPPLY {
+    IF invoice IS PurchaseInvoice THEN {
+        createPurchaseShipmentInvoice(i) <- TRUE WHERE i == invoicePurchaseInvoice(invoice);
+        purchaseShipmentDateInvoice(i) <- dateInvoice(i) WHERE i == invoicePurchaseInvoice(invoice);
+        purchaseShipmentTimeInvoice(i) <- timeInvoice(i) WHERE i == invoicePurchaseInvoice(invoice);
+    } ELSE IF invoice IS UserInvoice THEN {
+        createShipmentUserInvoice(invoice) <- TRUE;           
+    }
+} CONFIRM TOOLBAR;
+
+deleteShipmentInvoice 'Удалить полностью' = ACTION (invoice) NEWSESSION AUTOAPPLY {
+    IF invoice IS PurchaseInvoice THEN {
+        createPurchaseShipmentInvoice(i) <- NULL WHERE i == invoicePurchaseInvoice(invoice);          
+    } ELSE IF invoice IS UserInvoice THEN{
+        createShipmentUserInvoice(invoice) <- NULL;           
+    }
+} TOOLBAR;
+
+notCreateShipmentInvoice = NOT createShipmentInvoice(invoice);
+  
+FORM invoiceShipmentDashboard 'Приемка по накладным' 
+
+    OBJECTS dt = DATE FIXED PANEL
+    PROPERTIES(dt) date = OBJVALUE
+    
+    OBJECTS i = Invoice
+    PROPERTIES (i) READONLY statusShippedInvoice BACKGROUND backgroundShipInvoice(i)
+    PROPERTIES (i) READONLY numberInvoice, seriesInvoice, dateInvoice, nameSupplierInvoice, nameSupplierStockInvoice, 
+                            nameCustomerInvoice, nameCustomerStockInvoice, 
+                            nameCurrencyInvoice, countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
+                            VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice, noteInvoice
+    PROPERTIES (i) receiveShipmentInvoice SHOWIF notShippedInvoice(i), addUserShipmentInvoice SHOWIF notCreateShipmentInvoice(i)
+    
+    FILTERS isPostedInvoice(i)
+        
+    FILTERGROUP shipped 
+        FILTER 'Не оприходованы' 'F11' i IS Invoice AND NOT isShippedInvoice(i) DEFAULT     
+        FILTER 'Оприходованы' 'F10' isShippedInvoice(i) 
+        
+    OBJECTS d = InvoiceDetail
+    PROPERTIES (d) READONLY indexInvoiceDetail, idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail
+    PROPERTIES (d) READONLY quantityInvoiceDetail, priceInvoiceDetail, sumInvoiceDetail,
+                   valueVATInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail        
+    FILTERS invoiceInvoiceDetail(d)==i
+        
+    OBJECTS s = Shipment
+    PROPERTIES (s) READONLY isPostedShipment FORCE GRID
+    PROPERTIES (s) READONLYIF isReadonly() numberShipment, seriesShipment, dateShipment, nameSupplierShipment,
+                            nameSupplierStockShipment, nameCustomerShipment, nameCustomerStockShipment 
+    PROPERTIES (s) READONLY countShipmentDetailShipment, quantityShipmentDetailShipment, sumShipmentDetailShipment, 
+                   noteShipment, invoicesShipment 
+    
+    PROPERTIES (i) TODRAW s deleteShipmentInvoice SHOWIF createShipmentInvoice(i)
+    PROPERTIES (s) editShipment SHOWIF isUserShipment(s)
+    PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF isUserShipment(s)   
+    
+    FILTERGROUP filters0 FILTER 'Накладные на дату' 'F5' dateInvoice(i)<=dt DEFAULT
+    FILTERGROUP filters1 FILTER 'Поставки на дату' 'F5' dateShipment(s)==dt DEFAULT
+;    
+
+DESIGN invoiceShipmentDashboard FROM DEFAULT {
+    main{
+        NEW dash BEFORE functions.box {
+            type = SPLITV;
+            fill = 1;
+            
+            ADD i.box {PROPERTY(addUserShipmentInvoice){ caption = 'Принять частично';}}
+            NEW details {
+                fill = 1;
+                type = TABBED;
+                ADD s.box;
+                ADD d.box {
+                    caption = 'Детализация';
+                }                    
+            }
+        }
+        NEW date BEFORE dash {
+            type = CONTAINERH;
+            caption = 'Шапка';
+            ADD PROPERTY(date);
+        }
+        
+    }
+}
+
+@extendFormFilterAccessStock(Invoice, i, invoiceShipmentDashboard, customerStock, company);
+@extendFormFilterAccessStock(Invoice, i, invoiceShipmentDashboard, supplierStock, supplier);
+@extendFormFilterAccessLegalEntity(Invoice, i, invoiceShipmentDashboard, customer, company);
+@extendFormFilterAccessLegalEntity(Invoice, i, invoiceShipmentDashboard, supplier, supplier);
+
+@extendFormFilterAccessStock(Shipment, s, invoiceShipmentDashboard, customerStock, company);
+@extendFormFilterAccessStock(Shipment, s, invoiceShipmentDashboard, supplierStock, supplier);
+@extendFormFilterAccessLegalEntity(Shipment, s, invoiceShipmentDashboard, customer, company);
+@extendFormFilterAccessLegalEntity(Shipment, s, invoiceShipmentDashboard, supplier, supplier);
+ 
+NAVIGATOR {
+    purchaseDashboardNavigator {
+        ADD invoiceShipmentDashboard;
+    }
+}    
