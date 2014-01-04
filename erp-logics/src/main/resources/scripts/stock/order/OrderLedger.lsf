@@ -22,13 +22,18 @@ nameStockOrderLedger 'Склад' (ledger) = nameStock(stockOrderLedger(ledger))
 descriptionOrderLedger 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (OrderLedger) PERSISTENT;
 
 quantityOrderLedger 'Кол-во (заказано)' (ledger) = ABSTRACT NUMERIC[14,3] (OrderLedger) PERSISTENT;
-toShipQuantityOrderLedger 'Кол-во (невыполнено)' (ledger) = ABSTRACT NUMERIC[14,3] (OrderLedger) PERSISTENT;
+toShipQuantityOrderLedger 'Кол-во (не выполнено)' (ledger) = ABSTRACT NUMERIC[14,3] (OrderLedger) PERSISTENT;
 
 isPurchaseOrderLedger 'Закупка' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
+statusReserveOrderLedger 'Статус резерва' (ledger) = IF isPurchaseOrderLedger(ledger) THEN 'Закупка' ELSE 'Продажа' MINCHARWIDTH 8 PREFCHARWIDTH 15;               
+backgroundReserveOrderLedger 'Статус резерва' (ledger) = IF isPurchaseOrderLedger(ledger) THEN RGB(204,255,204) ELSE RGB(189,227,255);               
 
 
 contactOrderLedger (ledger) = ABSTRACT LegalEntity (OrderLedger) PERSISTENT INDEXED;
 nameContactOrderLedger 'Контрагент' (ledger) = nameLegalEntity(contactOrderLedger(ledger));
+
+contactStockOrderLedger (ledger) = ABSTRACT Stock (OrderLedger) PERSISTENT INDEXED;
+nameContactStockOrderLedger 'Склад контрагента' (ledger) = nameStock(contactStockOrderLedger(ledger));
 
 inContactSku 'Связь' (legalEntity, sku)= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger)
     BY contactOrderLedger(ledger), skuOrderLedger(ledger) PERSISTENT;
@@ -192,12 +197,18 @@ FORM orderSkuLedger 'Резерв по позициям'
     PROPERTIES  SELECTOR nameSku(sk)
 
     OBJECTS s = OrderLedger
-    PROPERTIES(s) READONLY BACKGROUND backgroundOrderLedgerDateTime(s,t)  dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
-                           quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger
+    PROPERTIES(s) READONLY BACKGROUND backgroundOrderLedgerDateTime(s,t) dateOrderLedger, 
+                  dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
+                  toShipQuantityOrderLedger, quantityOrderLedger
+                  
+    ORDER BY statusReserveOrderLedger              
     FILTERS stockOrderLedger(s)==st,
             skuOrderLedger(s)==sk
 
     FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERGROUP toShipQuantityFilters
+        FILTER 'Не выполнено' 'F7' toShipQuantityOrderLedger(s) DEFAULT
 
     FILTERGROUP stockTimesFilters
         FILTER 'Резерв (закупки) всего' 'F11' isPurchaseOrderLedger(s)
@@ -235,13 +246,18 @@ FORM orderBatchLedger 'Резерв по партиям'
     PROPERTIES SELECTOR nameBatch(bt)
 
     OBJECTS s = OrderLedger
-    PROPERTIES(s) READONLY BACKGROUND backgroundOrderLedgerDateTime(s,t)  dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
-                           quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger     
+    PROPERTIES(s) READONLY BACKGROUND backgroundOrderLedgerDateTime(s,t) dateOrderLedger, 
+                  dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
+                  toShipQuantityOrderLedger, quantityOrderLedger
+    ORDER BY statusReserveOrderLedger               
     FILTERS stockOrderLedger(s)==st,
             batchOrderLedger(s)==bt
 
     FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
-
+    FILTERGROUP toShipQuantityFilters
+        FILTER 'Не выполнено' 'F7' toShipQuantityOrderLedger(s) DEFAULT
+        
     FILTERGROUP stockTimesFilters
         FILTER 'Резерв (закупки) всего' 'F11' isPurchaseOrderLedger(s)
         FILTER 'Резерв (продажи) всего' 'F10' TRUE AND NOT isPurchaseOrderLedger(s)
@@ -301,6 +317,7 @@ META implementSaleOrderLedgerCustom(concrete, skuProp, dateTimeProp, stockProp, 
     descriptionOrderLedger (ledger) += description###concrete##Detail(ledger);
     quantityOrderLedger (ledger) += quantity###concrete##Detail(ledger);
     contactOrderLedger (ledger) += contactProp###concrete##Detail(ledger);
+    contactStockOrderLedger (ledger) += contactProp###stock###concrete##Detail(ledger);    
 END
 META implementSaleOrderLedger(concrete, skuProp, dateTimeProp, stockProp, contactProp)
     EXTEND CLASS concrete##Detail : OrderLedger;
@@ -320,6 +337,7 @@ META implementPurchaseOrderLedgerCustom(concrete, skuProp, dateTimeProp, stockPr
     quantityOrderLedger (ledger) += quantity###concrete##Detail(ledger);
     isPurchaseOrderLedger (ledger) += ledger IS concrete##Detail;
     contactOrderLedger (ledger) += contactProp###concrete##Detail(ledger);
+    contactStockOrderLedger (ledger) += contactProp###stock###concrete##Detail(ledger);
 END
 META implementPurchaseOrderLedger(concrete, skuProp, dateTimeProp, stockProp, contactProp)
     EXTEND CLASS concrete##Detail : OrderLedger;
@@ -347,7 +365,7 @@ EXTEND FORM currentBalanceSkuStock
     PROPERTIES(s, st) currentReserveSkuStock READONLY AFTER currentBalanceSkuStock(s,st)
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
                   quantityOrderLedger, toShipQuantityOrderLedger
 
     FILTERS stockOrderLedger(l)==st,
@@ -356,7 +374,7 @@ EXTEND FORM currentBalanceSkuStock
     FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
                    quantityOrderLedger, toShipQuantityOrderLedger
 
     FILTERS stockOrderLedger(ll)==st,
@@ -378,7 +396,7 @@ EXTEND FORM currentBalanceBatchStock
     PROPERTIES(bt, st) currentReserveBatchStock READONLY AFTER currentBalanceBatchStock(bt,st)
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
                   quantityOrderLedger, toShipQuantityOrderLedger
 
     FILTERS stockOrderLedger(l)==st,
@@ -387,7 +405,7 @@ EXTEND FORM currentBalanceBatchStock
     FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
                    quantityOrderLedger, toShipQuantityOrderLedger
 
     FILTERS stockOrderLedger(ll)==st,
@@ -414,7 +432,7 @@ EXTEND FORM balanceSkuStock
     PROPERTIES(s, st, t) reserveASkuStockDateTime READONLY AFTER balanceASkuStockDateTime(s,st,t)
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
                   quantityOrderLedger, toShipQuantityOrderLedger
 
     FILTERS stockOrderLedger(l)==st,
@@ -424,7 +442,7 @@ EXTEND FORM balanceSkuStock
     FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
                    quantityOrderLedger, toShipQuantityOrderLedger
 
     FILTERS stockOrderLedger(ll)==st,
@@ -447,7 +465,7 @@ EXTEND FORM balanceBatchStock
     PROPERTIES(bt, st, t) reserveABatchStockDateTime READONLY AFTER balanceBBatchStockDateTime(bt,st,t)
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
                   quantityOrderLedger, toShipQuantityOrderLedger
 
     FILTERS stockOrderLedger(l)==st,
@@ -457,7 +475,7 @@ EXTEND FORM balanceBatchStock
     FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, descriptionOrderLedger,
+    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
                    quantityOrderLedger, toShipQuantityOrderLedger
 
     FILTERS stockOrderLedger(ll)==st,
@@ -487,19 +505,17 @@ META extendFormDocumentSkuOrderLedger(object, form, concrete, stockProp)
     prevReserveBSaleSku###object 'Резерв продажа' (sku, object) = prevReserveBSaleSkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
     prevCurrentReserveSaleSku###object 'Резерв продажа (всего)' (sku, object) = prevCurrentReserveSaleSkuStock(sku, stockProp###object(object));
 
-    reviewReserveSaleSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
-    reviewReservePurchaseSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
-    reviewReserveBSaleSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
-    reviewReserveBPurchaseSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
+    reviewReserveSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
 
     EXTEND FORM form
-        PROPERTIES READONLY BEFORE prevCurrentBalanceSku###object(ks, concrete) prevAvailableQuantitySku###object(ks, concrete)
+        PROPERTIES BEFORE prevCurrentBalanceSku###object(ks, concrete) 
+                   prevAvailableQuantitySku###object(ks, concrete) ON CHANGE reviewReserveSku###object(ks,concrete)
 
         PROPERTIES AFTER prevCurrentBalanceSku###object(ks, concrete)
-                   prevCurrentReserveSaleSku###object(ks,concrete) ON CHANGE reviewReserveSaleSku###object(ks,concrete),
-                   prevCurrentReservePurchaseSku###object(ks,concrete) ON CHANGE reviewReservePurchaseSku###object(ks,concrete),
-                   prevReserveBSaleSku###object(ks, concrete) ON CHANGE reviewReserveBSaleSku###object(ks,concrete),
-                   prevReserveBPurchaseSku###object(ks, concrete) ON CHANGE reviewReserveBPurchaseSku###object(ks,concrete)
+                   prevCurrentReserveSaleSku###object(ks,concrete) ON CHANGE reviewReserveSku###object(ks,concrete),
+                   prevCurrentReservePurchaseSku###object(ks,concrete) ON CHANGE reviewReserveSku###object(ks,concrete),
+                   prevReserveBSaleSku###object(ks, concrete) ON CHANGE reviewReserveSku###object(ks,concrete),
+                   prevReserveBPurchaseSku###object(ks, concrete) ON CHANGE reviewReserveSku###object(ks,concrete)
     ;
     EXTEND DESIGN form {
         PROPERTY(prevAvailableQuantitySku###object) { background = #F4FFBD; }
@@ -544,19 +560,17 @@ META extendFormDocumentBatchOrderLedger(object, form, concrete, stockProp)
     prevReserveBSaleBatch###object 'Резерв продажа' (batch, object) = prevReserveBSaleBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
     prevCurrentReserveSaleBatch###object 'Резерв продажа (всего)' (batch, object) = prevCurrentReserveSaleBatchStock(batch, stockProp###object(object));
 
-    reviewReserveSaleBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
-    reviewReservePurchaseBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
-    reviewReserveBSaleBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
-    reviewReserveBPurchaseBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
+    reviewReserveBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
 
     EXTEND FORM form
-        PROPERTIES READONLY BEFORE prevCurrentBalanceBatch###object(b, concrete) prevAvailableQuantityBatch###object(b, concrete)
+        PROPERTIES BEFORE prevCurrentBalanceBatch###object(b, concrete) 
+                   prevAvailableQuantityBatch###object(b, concrete) ON CHANGE reviewReserveBatch###object(b,concrete)
 
         PROPERTIES AFTER prevCurrentBalanceBatch###object(b, concrete)
-                   prevCurrentReserveSaleBatch###object(b,concrete) ON CHANGE reviewReserveSaleBatch###object(b,concrete),
-                   prevCurrentReservePurchaseBatch###object(b,concrete) ON CHANGE reviewReservePurchaseBatch###object(b,concrete),
-                   prevReserveBSaleBatch###object(b, concrete) ON CHANGE reviewReserveBSaleBatch###object(b,concrete),
-                   prevReserveBPurchaseBatch###object(b, concrete) ON CHANGE reviewReserveBPurchaseBatch###object(b,concrete)
+                   prevCurrentReserveSaleBatch###object(b,concrete) ON CHANGE reviewReserveBatch###object(b,concrete),
+                   prevCurrentReservePurchaseBatch###object(b,concrete) ON CHANGE reviewReserveBatch###object(b,concrete),
+                   prevReserveBSaleBatch###object(b, concrete) ON CHANGE reviewReserveBatch###object(b,concrete),
+                   prevReserveBPurchaseBatch###object(b, concrete) ON CHANGE reviewReserveBatch###object(b,concrete)
     ;
     EXTEND DESIGN form {
         PROPERTY(prevAvailableQuantityBatch###object) { background = #F4FFBD; }
@@ -598,19 +612,17 @@ META extendFormDocumentSkuStockOrderLedger(object, form, concrete)
     prevReserveBPurchaseSkuStock###object 'Резерв закупка' (sku, stock, object) = prevReserveBPurchaseSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
     prevReserveBSaleSkuStock###object 'Резерв продажа' (sku, stock, object) = prevReserveBSaleSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
 
-    reviewReserveSaleSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
-    reviewReservePurchaseSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
-    reviewReserveBSaleSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
-    reviewReserveBPurchaseSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
+    reviewReserveSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
 
     EXTEND FORM form
-        PROPERTIES READONLY BEFORE prevCurrentBalanceSkuStock(ks, st) prevAvailableQuantitySkuStock###object(ks, st, concrete)
+        PROPERTIES BEFORE prevCurrentBalanceSkuStock(ks, st) 
+                   prevAvailableQuantitySkuStock###object(ks, st, concrete) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete)
 
         PROPERTIES AFTER prevCurrentBalanceSkuStock(ks, st)
-                   prevCurrentReserveSaleSkuStock(ks,st) ON CHANGE reviewReserveSaleSkuStock###object(ks,st,concrete),
-                   prevCurrentReservePurchaseSkuStock(ks,st) ON CHANGE reviewReservePurchaseSkuStock###object(ks,st,concrete),
-                   prevReserveBSaleSkuStock###object(ks, st, concrete) ON CHANGE reviewReserveBSaleSkuStock###object(ks,st,concrete),
-                   prevReserveBPurchaseSkuStock###object(ks, st, concrete) ON CHANGE reviewReserveBPurchaseSkuStock###object(ks,st,concrete)
+                   prevCurrentReserveSaleSkuStock(ks,st) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete),
+                   prevCurrentReservePurchaseSkuStock(ks,st) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete),
+                   prevReserveBSaleSkuStock###object(ks, st, concrete) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete),
+                   prevReserveBPurchaseSkuStock###object(ks, st, concrete) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete)
     ;
     EXTEND DESIGN form {
         PROPERTY(prevAvailableQuantitySkuStock###object) { background = #F4FFBD; }
@@ -653,19 +665,17 @@ META extendFormDocumentBatchStockOrderLedger(object, form, concrete)
     prevReserveBPurchaseBatchStock###object 'Резерв закупка' (batch, stock, object) = prevReserveBPurchaseBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
     prevReserveBSaleBatchStock###object 'Резерв продажа' (batch, stock, object) = prevReserveBSaleBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
 
-    reviewReserveSaleBatchStock###object 'Резерв' (batch, stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
-    reviewReservePurchaseBatchStock###object 'Резерв' (batch, stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
-    reviewReserveBSaleBatchStock###object 'Резерв' (batch, stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
-    reviewReserveBPurchaseBatchStock###object 'Резерв' (batch, stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
+    reviewReserveBatchStock###object 'Резерв' (batch, stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
 
     EXTEND FORM form
-        PROPERTIES READONLY BEFORE prevCurrentBalanceBatchStock(b, sto) prevAvailableQuantityBatchStock###object(b, sto, concrete)
+        PROPERTIES BEFORE prevCurrentBalanceBatchStock(b, sto) 
+                   prevAvailableQuantityBatchStock###object(b, sto, concrete) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete)
 
         PROPERTIES AFTER prevCurrentBalanceBatchStock(b, sto)
-                   prevCurrentReserveSaleBatchStock(b, sto) ON CHANGE reviewReserveSaleBatchStock###object(b, sto, concrete),
-                   prevCurrentReservePurchaseBatchStock(b, sto) ON CHANGE reviewReservePurchaseBatchStock###object(b, sto, concrete),
-                   prevReserveBSaleBatchStock###object(b, sto, concrete) ON CHANGE reviewReserveBSaleBatchStock###object(b, sto, concrete),
-                   prevReserveBPurchaseBatchStock###object(b, sto, concrete) ON CHANGE reviewReserveBPurchaseBatchStock###object(b, sto, concrete)
+                   prevCurrentReserveSaleBatchStock(b, sto) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete),
+                   prevCurrentReservePurchaseBatchStock(b, sto) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete),
+                   prevReserveBSaleBatchStock###object(b, sto, concrete) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete),
+                   prevReserveBPurchaseBatchStock###object(b, sto, concrete) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete)
     ;
     EXTEND DESIGN form {
         PROPERTY(prevAvailableQuantityBatchStock###object) { background = #F4FFBD; }
