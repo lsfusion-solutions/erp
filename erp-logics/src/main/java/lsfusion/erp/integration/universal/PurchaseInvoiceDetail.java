@@ -8,6 +8,7 @@ public class PurchaseInvoiceDetail {
     public Boolean isPosted;
     public String numberUserInvoice;
     public Date dateUserInvoice;
+    public String idSupplier;
     public String currencyUserInvoice;
     public String idUserInvoiceDetail;
     public String idBarcodeSku;
@@ -36,6 +37,9 @@ public class PurchaseInvoiceDetail {
     public BigDecimal invoiceSum;
     public BigDecimal manufacturingPrice;
     public String contractPrice;
+    public BigDecimal shipmentPrice;
+    public BigDecimal shipmentSum;
+    public BigDecimal rateExchange;
     public String numberCompliance;
     public Date dateCompliance;
     public String numberDeclaration;
@@ -69,25 +73,29 @@ public class PurchaseInvoiceDetail {
     public String composition;
     public String originalComposition;
 
-    public PurchaseInvoiceDetail(Boolean isPosted, String numberUserInvoice, Date dateUserInvoice, String currencyUserInvoice, 
-                                 String idUserInvoiceDetail, String idBarcodeSku, String idBatch, Integer dataIndex, 
-                                 String idItem, String idItemGroup, String originalCustomsGroupItem, String captionItem, 
-                                 String originalCaptionItem, String idUOM, String idManufacturer, String nameManufacturer, 
-                                 String nameCountry, String nameOriginCountry, String nameImportCountry, String idCustomer, 
+    public PurchaseInvoiceDetail(Boolean isPosted, String numberUserInvoice, Date dateUserInvoice, String idSupplier, 
+                                 String currencyUserInvoice, String idUserInvoiceDetail, String idBarcodeSku, 
+                                 String idBatch, Integer dataIndex, String idItem, String idItemGroup, 
+                                 String originalCustomsGroupItem, String captionItem, String originalCaptionItem, 
+                                 String idUOM, String idManufacturer, String nameManufacturer, String nameCountry, 
+                                 String nameOriginCountry, String nameImportCountry, String idCustomer, 
                                  String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
-                                 BigDecimal valueVAT, BigDecimal sumVAT, Date dateVAT, String countryVAT, BigDecimal invoiceSum,
-                                 BigDecimal manufacturingPrice, String contractPrice, String numberCompliance, Date dateCompliance, 
-                                 String numberDeclaration, Date expiryDate, Date manufactureDate, String idPharmacyPriceGroup, 
-                                 String seriesPharmacy, String idArticle, String captionArticle, 
-                                 String originalCaptionArticle, String idColor, String nameColor, String idCollection,
-                                 String nameCollection, String idSize, String nameSize, String nameOriginalSize, 
-                                 String idSeasonYear, String idSeason, String nameSeason, String idBrand,
-                                 String nameBrand, String idBox, String nameBox, String idTheme, String nameTheme, 
-                                 BigDecimal netWeight, BigDecimal sumNetWeight, BigDecimal grossWeight, 
-                                 BigDecimal sumGrossWeight, String composition, String originalComposition) {
+                                 BigDecimal valueVAT, BigDecimal sumVAT, Date dateVAT, String countryVAT, 
+                                 BigDecimal invoiceSum, BigDecimal manufacturingPrice, String contractPrice, 
+                                 BigDecimal shipmentPrice, BigDecimal shipmentSum, BigDecimal rateExchange, 
+                                 String numberCompliance, Date dateCompliance, String numberDeclaration, Date expiryDate,
+                                 Date manufactureDate, String idPharmacyPriceGroup, String seriesPharmacy, 
+                                 String idArticle, String captionArticle, String originalCaptionArticle, String idColor,
+                                 String nameColor, String idCollection, String nameCollection, String idSize, 
+                                 String nameSize, String nameOriginalSize, String idSeasonYear, String idSeason, 
+                                 String nameSeason, String idBrand, String nameBrand, String idBox, String nameBox, 
+                                 String idTheme, String nameTheme, BigDecimal netWeight, BigDecimal sumNetWeight, 
+                                 BigDecimal grossWeight, BigDecimal sumGrossWeight, String composition, 
+                                 String originalComposition) {
         this.isPosted = isPosted;
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
+        this.idSupplier = idSupplier;
         this.currencyUserInvoice = currencyUserInvoice;
         this.idUserInvoiceDetail = idUserInvoiceDetail;
         this.idBarcodeSku = idBarcodeSku;
@@ -116,6 +124,9 @@ public class PurchaseInvoiceDetail {
         this.invoiceSum = invoiceSum;
         this.manufacturingPrice = manufacturingPrice;
         this.contractPrice = contractPrice;
+        this.shipmentPrice = shipmentPrice;
+        this.shipmentSum = shipmentSum;
+        this.rateExchange = rateExchange;
         this.numberCompliance = numberCompliance;
         this.dateCompliance = dateCompliance;
         this.numberDeclaration = numberDeclaration;

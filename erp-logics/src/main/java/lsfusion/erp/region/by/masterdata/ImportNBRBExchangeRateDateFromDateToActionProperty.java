@@ -31,9 +31,9 @@ public class ImportNBRBExchangeRateDateFromDateToActionProperty extends ImportNB
 
             DataObject currencyObject = context.getDataKeyValue(currencyInterface);
 
-            String shortNameCurrency = (String) LM.findLCPByCompoundOldName("shortNameCurrency").read(context, currencyObject);
-            Date nbrbDateFrom = (Date) LM.findLCPByCompoundOldName("importNBRBExchangeRateDateFrom").read(context);
-            Date nbrbDateTo = (Date) LM.findLCPByCompoundOldName("importNBRBExchangeRateDateTo").read(context);
+            String shortNameCurrency = (String) getLCP("shortNameCurrency").read(context, currencyObject);
+            Date nbrbDateFrom = (Date) getLCP("importNBRBExchangeRateDateFrom").read(context);
+            Date nbrbDateTo = (Date) getLCP("importNBRBExchangeRateDateTo").read(context);
 
             if (nbrbDateFrom != null && nbrbDateTo != null && shortNameCurrency != null)
                 importExchanges(nbrbDateFrom, nbrbDateTo, shortNameCurrency, context);

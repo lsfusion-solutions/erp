@@ -4,7 +4,7 @@ import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
@@ -21,7 +21,7 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import java.io.File;
 import java.sql.SQLException;
 
-public class ImportUserPriceListsActionProperty extends DefaultImportActionProperty {
+public class ImportUserPriceListsActionProperty extends DefaultIntegrationActionProperty {
 
     public ImportUserPriceListsActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
@@ -58,31 +58,30 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
                 Integer startRow = (Integer) entryValue.get("startRowImportUserPriceListType").getValue();
                 startRow = startRow == null ? 1 : startRow;
                 Boolean isPosted = (Boolean) entryValue.get("isPostedImportUserPriceListType").getValue();
-                String csvSeparator = (String) entryValue.get("separatorImportUserPriceListType").getValue();
-                csvSeparator = csvSeparator == null ? null : csvSeparator.trim();
+                String csvSeparator = trim((String) entryValue.get("separatorImportUserPriceListType").getValue());
                 String itemKeyType = (String) entryValue.get("nameImportUserPriceListKeyTypeImportUserPriceListType").getValue();
                 String[] parts = itemKeyType == null ? null : itemKeyType.split("\\.");
-                itemKeyType = parts == null ? null : parts[parts.length - 1].trim();
+                itemKeyType = parts == null ? null : trim(parts[parts.length - 1]);
                 
                 ImportColumns importColumns = ImportUserPriceListActionProperty.readImportColumns(context, LM, importUserPriceListTypeObject);
 
                 if (directory != null && fileExtension != null) {
-                    File dir = new File(directory.trim());
+                    File dir = new File(trim(directory));
 
                     if (dir.exists()) {
 
                         for (File f : dir.listFiles()) {
-                            if (f.getName().toLowerCase().endsWith(fileExtension.trim().toLowerCase())) {
+                            if (f.getName().toLowerCase().endsWith(trim(fileExtension).toLowerCase())) {
                                 DataObject userPriceListObject = context.addObject((ConcreteCustomClass) getClass("UserPriceList"));
 
                                 try {
 
                                     boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
-                                            userPriceListObject, importColumns, IOUtils.getFileBytes(f), fileExtension.trim(),
+                                            userPriceListObject, importColumns, IOUtils.getFileBytes(f), trim(fileExtension),
                                             startRow, isPosted, csvSeparator, itemKeyType, true);
 
                                     if (importResult)
-                                        renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension.trim());
+                                        renameImportedFile(context, f.getAbsolutePath(), "." + trim(fileExtension));
 
                                 } catch (Exception e) {
                                     ServerLoggers.systemLogger.error(e);
