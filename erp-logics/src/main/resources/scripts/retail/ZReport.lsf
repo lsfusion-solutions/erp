@@ -462,10 +462,10 @@ FORM paymentMeans
 CLASS PaymentType 'Тип платежа';
 TABLE paymentType (PaymentType);
 
-namePaymentType 'Наименование' = DATA VARISTRING[110](PaymentType);
+namePaymentType 'Наименование' = DATA VARISTRING[110](PaymentType) IN recognize;
 
 paymentMeansPaymentType (paymentType) = DATA PaymentMeans (PaymentType);
-namePaymentMeansPaymentType 'Форма оплаты' (paymentType) = staticCaption(paymentMeansPaymentType(paymentType)) IN base;
+namePaymentMeansPaymentType 'Форма оплаты' (paymentType) = staticCaption(paymentMeansPaymentType(paymentType)) IN recognize;
 
 sidPaymentType 'Идентификатор' = DATA STRING[10] (PaymentType) IN base;
 typePaymentSID (tp) = GROUP AGGR paymentType BY sidPaymentType(paymentType) WHERE paymentType IS PaymentType;
@@ -566,13 +566,14 @@ WHEN CHANGED(sumReceiptDetailReceipt(receipt)) OR CHANGED(sumCashPaymentReceipt(
 // Продажи товаров
 calcSumVATReceiptDetailPayment (detail, payment) = sumReceiptDetailPayment(detail, payment) * valueVATReceiptDetail(detail) / (100 + valueVATReceiptDetail(detail));
 
+TABLE zReportPaymentMeansRange(ZReport, PaymentMeans, Range);
 sumReceiptDetailZReportPaymentMeansRange 'Сумма по товарам' (zReport, paymentMeans, range) = GROUP SUM sumReceiptDetailPayment(detail, payment) 
-    IF isItemSku(skuReceiptDetail(detail)) AND isPostedReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail);
+    IF isItemSku(skuReceiptDetail(detail)) AND isPostedReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail) PERSISTENT;
 sumItemReceiptDetailZReport 'Сумма по товарам' (zReport) = GROUP SUM sumReceiptDetailZReportPaymentMeansRange(zReport, paymentMeans, range) BY zReport;   
     
 sumVATReceiptDetailZReportPaymentMeansRange 'Сумма НДС по товарам' (zReport, paymentMeans, range) = (round0(
     [= GROUP SUM calcSumVATReceiptDetailPayment(detail, payment) IF isItemSku(skuReceiptDetail(detail)) AND isPostedReceiptDetail(detail) 
-        BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail)](zReport, paymentMeans, range)));
+        BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail)](zReport, paymentMeans, range))) PERSISTENT;
 sumVATReceiptDetailZReportRange 'Сумма НДС по товарам' (zReport, range)= NUMERIC[16,2]([=GROUP SUM sumVATReceiptDetailZReportPaymentMeansRange(zReport, paymentMeans, range) BY zReport, range](zReport, range));
 sumVATReceiptDetailZReport 'Сумма НДС по товарам' (zReport)= GROUP SUM sumVATReceiptDetailZReportRange(zReport, range) BY zReport;
 
