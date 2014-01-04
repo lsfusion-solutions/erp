@@ -290,8 +290,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     getLCP("batchId").getMapping(idBatchField));
             props.add(new ImportProperty(idBatchField, getLCP("idBatch").getMapping(batchKey), getReplaceOnlyNull(importColumns, "idBatch")));
             props.add(new ImportProperty(idBatchField, getLCP("idBatchUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(importColumns, "idBatch")));
-            props.add(new ImportProperty(idBatchField, getLCP("batchUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                    LM.object(getClass("Batch")).getMapping(batchKey), getReplaceOnlyNull(importColumns, "idBatch")));
             fields.add(idBatchField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idBatch);
