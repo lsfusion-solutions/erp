@@ -263,12 +263,18 @@ retailSumSoldResidentByStatisticGroupDateFromTo 'Продано, сум.' (group
     [= GROUP SUM sumSoldSkuStockDateFromTo (sku, stock, dateFrom, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
     BY group, stock, dateFrom, dateTo](group, stock, dateFrom, dateTo)/
         (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+//-- на конец
+netWeightBalanceASkuLedgerDate 'Вес товара на конец , кг' (sku, stock, date) =
+    balanceASkuStockDate (sku, stock, date) * (OVERRIDE 1 IF sku IS Sku, netWeightSku(sku) IF NOT isWeightSku(sku));
+volumeBalanceASkuLedgerDate 'Объем товара на конец , л' (sku, stock, date) =
+    balanceASkuStockDate (sku, stock, date) * volumeSku(sku);
 
-netWeightBalanceASkuLedgerDate 'Вес товара на конец , кг' (sku, stock, dateTo) =
-    balanceASkuStockDate (sku, stock, dateTo) * (OVERRIDE 1 IF sku IS Sku, netWeightSku(sku) IF NOT isWeightSku(sku));
-volumeBalanceASkuLedgerDate 'Объем товара на конец , л' (sku, stock, dateTo) =
-    balanceASkuStockDate (sku, stock, dateTo) * volumeSku(sku);
-
+//-- на начало
+netWeightBalanceBSkuLedgerDate 'Вес товара на начало , кг' (sku, stock, date) =
+    balanceBSkuStockDate (sku, stock, date) * (OVERRIDE 1 IF sku IS Sku, netWeightSku(sku) IF NOT isWeightSku(sku));
+volumeBalanceBSkuLedgerDate 'Объем товара на начало , л' (sku, stock, date) =
+    balanceBSkuStockDate (sku, stock, date) * volumeSku(sku);
+    
 //sumASkuStockDate (sku, stock, dateTo) -  сумма на конец
 
 //retailSumBalanceASkuLedgerDate 'Сумма товара на конец , сум.' (sku, stock, dateTo) =
@@ -277,44 +283,87 @@ volumeBalanceASkuLedgerDate 'Объем товара на конец , л' (sku,
 
                                    //с коэффициентом пересчета на конец//
 // всего
-balanceByStatisticGroupDateTo 'Остаток на конец' (group, stock, dateTo)=
-    [= GROUP SUM balanceASkuStockDate (sku, stock, dateTo)/
+balanceAByStatisticGroupDate 'Остаток на конец' (group, stock, date)=
+    [= GROUP SUM balanceASkuStockDate (sku, stock, date)/
     (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
     isParentStatisticGroupSku(group, sku)
-        BY group, stock, dateTo](group, stock, dateTo)/
+        BY group, stock, date](group, stock, date)/
             (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
-netWeightByStatisticGroupDateTo 'Вес на конец, кг' (group, stock, dateTo)=
-    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
-    BY group, stock, dateTo](group, stock, dateTo)/
+netWeightAByStatisticGroupDate 'Вес на конец, кг' (group, stock, date)=
+    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
         (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
-volumeByStatisticGroupDateTo 'Объем на конец, л' (group, stock, dateTo)=
-    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
-    BY group, stock, dateTo](group, stock, dateTo)/
+volumeAByStatisticGroupDate 'Объем на конец, л' (group, stock, date)=
+    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
         (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
-retailSumByStatisticGroupDateTo 'Сумма на конец, сум.' (group, stock, dateTo)=
-    [= GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
-    BY group, stock, dateTo](group, stock, dateTo)/
+retailSumAByStatisticGroupDate 'Сумма на конец, сум.' (group, stock, date)=
+    [= GROUP SUM sumASkuStockDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
         (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
-
+        
 // отечеств. пр-ва
-balanceResidentByStatisticGroupDateTo 'Остаток на конец' (group, stock, dateTo)=
-    [= GROUP SUM balanceASkuStockDate (sku, stock, dateTo)/
+balanceResidentAByStatisticGroupDate 'Остаток на конец' (group, stock, date)=
+    [= GROUP SUM balanceASkuStockDate (sku, stock, date)/
     (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
     residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-        BY group, stock, dateTo](group, stock, dateTo)/
+        BY group, stock, date](group, stock, date)/
             (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
-netWeightResidentByStatisticGroupDateTo 'Вес на конец, кг' (group, stock, dateTo)=
-    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-    BY group, stock, dateTo](group, stock, dateTo)/
+netWeightResidentAByStatisticGroupDate 'Вес на конец, кг' (group, stock, date)=
+    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
         (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
-volumeResidentByStatisticGroupDateTo 'Объем на конец, л' (group, stock, dateTo)=
-    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-    BY group, stock, dateTo](group, stock, dateTo)/
+volumeResidentAByStatisticGroupDate 'Объем на конец, л' (group, stock, date)=
+    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
         (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
-retailSumResidentByStatisticGroupDateTo 'Сумма на конец, сум.' (group, stock, dateTo)=
-    [= GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-    BY group, stock, dateTo](group, stock, dateTo)/
+retailSumResidentAByStatisticGroupDate 'Сумма на конец, сум.' (group, stock, date)=
+    [= GROUP SUM sumASkuStockDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
+        (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));        
+        
+                                   //с коэффициентом пересчета на начало//
+// всего
+balanceBByStatisticGroupDate 'Остаток на начало' (group, stock, date)=
+    [= GROUP SUM balanceBSkuStockDate (sku, stock, date)/
+    (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
+    isParentStatisticGroupSku(group, sku)
+        BY group, stock, date](group, stock, date)/
+            (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));        
+netWeightBByStatisticGroupDate 'Вес на начало, кг' (group, stock, date)=
+    [= GROUP SUM netWeightBalanceBSkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
+        (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));   
+volumeBByStatisticGroupDate 'Объем на начало, л' (group, stock, date)=
+    [= GROUP SUM volumeBalanceBSkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
+        (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));   
+retailSumBByStatisticGroupDate 'Сумма на начало, сум.' (group, stock, date)=
+    [= GROUP SUM sumBSkuStockDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
+        (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));                  
+                  
+
+// отечеств. пр-ва
+balanceResidentBByStatisticGroupDate 'Остаток на начало' (group, stock, date)=
+    [= GROUP SUM balanceBSkuStockDate (sku, stock, date)/
+    (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
+    residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+        BY group, stock, date](group, stock, date)/
+            (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+netWeightResidentBByStatisticGroupDate 'Вес на начало, кг' (group, stock, date)=
+    [= GROUP SUM netWeightBalanceBSkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
         (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+volumeResidentBByStatisticGroupDate 'Объем на начало, л' (group, stock, date)=
+    [= GROUP SUM volumeBalanceBSkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
+        (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+retailSumResidentBByStatisticGroupDate 'Сумма на начало, сум.' (group, stock, date)=
+    [= GROUP SUM sumBSkuStockDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, stock, date](group, stock, date)/
+        (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));                                
+
 
 valueByStatisticGroupDateFromTo 'Продано' (group, stock, dateFrom, dateTo) =
     CASE
@@ -359,13 +408,13 @@ valueByStatisticGroupDateTo 'Остаток на конец' (group, stock, date
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceByStatisticGroupDateTo(group, stock, dateTo)
+            THEN balanceAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightByStatisticGroupDateTo(group, stock, dateTo)
+            THEN netWeightAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeByStatisticGroupDateTo(group, stock, dateTo)
+            THEN volumeAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumByStatisticGroupDateTo(group, stock, dateTo)
+            THEN retailSumAByStatisticGroupDate(group, stock, dateTo)
         ELSE 0 IF group IS StatisticGroup AND stock IS Stock AND dateTo IS DATE
     ;
 valueResidentByStatisticGroupDateTo 'Остаток на конец, бел. пр-ва' (group, stock, dateTo) =
@@ -376,13 +425,13 @@ valueResidentByStatisticGroupDateTo 'Остаток на конец, бел. п�
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceResidentByStatisticGroupDateTo(group, stock, dateTo)
+            THEN balanceResidentAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightResidentByStatisticGroupDateTo(group, stock, dateTo)
+            THEN netWeightResidentAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeResidentByStatisticGroupDateTo(group, stock, dateTo)
+            THEN volumeResidentAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumResidentByStatisticGroupDateTo(group, stock, dateTo)
+            THEN retailSumResidentAByStatisticGroupDate(group, stock, dateTo)
         ELSE 0 IF group IS StatisticGroup AND stock IS Stock AND dateTo IS DATE
     ;
 
@@ -512,49 +561,49 @@ retailSumSoldResidentByStatisticGroupRegionDateFromTo 'Продано, руб.' 
 
                              //с коэффициентом пересчета на коцен//
 // всего
-balanceByStatisticGroupRegionDateTo 'Остаток на конец' (group, legalEntity, region, dateTo)=
-    [= GROUP SUM balanceASkuStockDate (sku, stock, dateTo)/
+balanceAByStatisticGroupRegionDate 'Остаток на конец' (group, legalEntity, region, date)=
+    [= GROUP SUM balanceASkuStockDate (sku, stock, date)/
     (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
     isParentStatisticGroupSku(group, sku)
-        BY group,legalEntityStock(stock), regionStock(stock), dateTo]
-            (group, legalEntity, region, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+        BY group,legalEntityStock(stock), regionStock(stock), date]
+            (group, legalEntity, region, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-netWeightByStatisticGroupRegionDateTo 'Вес на конец, кг' (group, legalEntity, region, dateTo)=
-    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), regionStock(stock), dateTo]
-        (group, legalEntity, region, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+netWeightAByStatisticGroupRegionDate 'Вес на конец, кг' (group, legalEntity, region, date)=
+    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), regionStock(stock), date]
+        (group, legalEntity, region, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-volumeByStatisticGroupRegionDateTo 'Объем на конец, л' (group, legalEntity, region, dateTo)=
-    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), regionStock(stock), dateTo]
-        (group, legalEntity, region, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+volumeAByStatisticGroupRegionDate 'Объем на конец, л' (group, legalEntity, region, date)=
+    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), regionStock(stock), date]
+        (group, legalEntity, region, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-retailSumByStatisticGroupRegionDateTo 'Сумма на конец, руб' (group, legalEntity, region, dateTo)=
-    [= GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), regionStock(stock), dateTo]
-        (group, legalEntity, region, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+retailSumAByStatisticGroupRegionDate 'Сумма на конец, руб' (group, legalEntity, region, date)=
+    [= GROUP SUM sumASkuStockDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), regionStock(stock), date]
+        (group, legalEntity, region, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 // белорусского производства
-balanceResidentByStatisticGroupRegionDateTo 'Остаток на конец' (group, legalEntity, region, dateTo)=
-    [= GROUP SUM balanceASkuStockDate (sku, stock, dateTo)/
+balanceResidentAByStatisticGroupRegionDate 'Остаток на конец' (group, legalEntity, region, date)=
+    [= GROUP SUM balanceASkuStockDate (sku, stock, date)/
     (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
     residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-        BY group, legalEntityStock(stock), regionStock(stock), dateTo]
-            (group, legalEntity, region, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+        BY group, legalEntityStock(stock), regionStock(stock), date]
+            (group, legalEntity, region, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-netWeightResidentByStatisticGroupRegionDateTo 'Вес на конец, кг' (group, legalEntity, region, dateTo)=
-    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), regionStock(stock), dateTo]
-        (group, legalEntity, region, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+netWeightResidentAByStatisticGroupRegionDate 'Вес на конец, кг' (group, legalEntity, region, date)=
+    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), regionStock(stock), date]
+        (group, legalEntity, region, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-volumeResidentByStatisticGroupRegionDateTo 'Объем на конец, л' (group, legalEntity, region, dateTo)=
-    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), regionStock(stock), dateTo]
-        (group, legalEntity, region, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+volumeResidentAByStatisticGroupRegionDate 'Объем на конец, л' (group, legalEntity, region, date)=
+    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), regionStock(stock), date]
+        (group, legalEntity, region, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-retailSumResidentByStatisticGroupRegionDateTo 'Сумма на конец, руб' (group, legalEntity, region, dateTo)=
-    [= GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), regionStock(stock), dateTo]
-        (group, legalEntity, region, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+retailSumResidentAByStatisticGroupRegionDate 'Сумма на конец, руб' (group, legalEntity, region, date)=
+    [= GROUP SUM sumASkuStockDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), regionStock(stock), date]
+        (group, legalEntity, region, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
 valueByStatisticGroupLegalEntityRegionDateFromTo 'Продано всего' (group, legalEntity, region, dateFrom, dateTo) =
     CASE
@@ -582,13 +631,13 @@ valueByStatisticGroupLegalEntityRegionDateTo 'Остаток на конец в�
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceByStatisticGroupRegionDateTo(group, legalEntity, region, dateTo)
+            THEN balanceAByStatisticGroupRegionDate(group, legalEntity, region, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightByStatisticGroupRegionDateTo(group, legalEntity, region, dateTo)
+            THEN netWeightAByStatisticGroupRegionDate(group, legalEntity, region, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeByStatisticGroupRegionDateTo(group, legalEntity, region, dateTo)
+            THEN volumeAByStatisticGroupRegionDate(group, legalEntity, region, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumByStatisticGroupRegionDateTo(group, legalEntity, region, dateTo)
+            THEN retailSumAByStatisticGroupRegionDate(group, legalEntity, region, dateTo)
         ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity AND region IS Region AND dateTo IS DATE
     ;
 
@@ -618,13 +667,13 @@ valueResidentByStatisticGroupLegalEntityRegionDateTo 'Остаток на кон
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceResidentByStatisticGroupRegionDateTo(group, legalEntity, region, dateTo)
+            THEN balanceResidentAByStatisticGroupRegionDate(group, legalEntity, region, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightResidentByStatisticGroupRegionDateTo(group, legalEntity, region, dateTo)
+            THEN netWeightResidentAByStatisticGroupRegionDate(group, legalEntity, region, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeResidentByStatisticGroupRegionDateTo(group, legalEntity, region, dateTo)
+            THEN volumeResidentAByStatisticGroupRegionDate(group, legalEntity, region, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumResidentByStatisticGroupRegionDateTo(group, legalEntity, region, dateTo)
+            THEN retailSumResidentAByStatisticGroupRegionDate(group, legalEntity, region, dateTo)
         ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity AND region IS Region AND dateTo IS DATE
     ;
 
@@ -729,49 +778,95 @@ retailSumSoldResidentByStatisticGroupLegalEntityDateFromTo 'Продано, ру
 
                              //с коэффициентом пересчета на коцен//
 // всего
-balanceByStatisticGroupLegalEntityDateTo 'Остаток на конец' (group, legalEntity, dateTo)=
-    [= GROUP SUM balanceASkuStockDate (sku, stock, dateTo)/
+balanceAByStatisticGroupLegalEntityDate 'Остаток на конец' (group, legalEntity, date)=
+    [= GROUP SUM balanceASkuStockDate (sku, stock, date)/
     (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
     isParentStatisticGroupSku(group, sku)
-        BY group,legalEntityStock(stock), dateTo]
-            (group, legalEntity, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+        BY group,legalEntityStock(stock), date]
+            (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-netWeightByStatisticGroupLegalEntityDateTo 'Вес на конец, кг' (group, legalEntity, dateTo)=
-    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), dateTo]
-        (group, legalEntity, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+netWeightAByStatisticGroupLegalEntityDate 'Вес на конец, кг' (group, legalEntity, date)=
+    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-volumeByStatisticGroupLegalEntityDateTo 'Объем на конец, л' (group, legalEntity, dateTo)=
-    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), dateTo]
-        (group, legalEntity, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+volumeAByStatisticGroupLegalEntityDate 'Объем на конец, л' (group, legalEntity, date)=
+    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-retailSumByStatisticGroupLegalEntityDateTo 'Сумма на конец, руб' (group, legalEntity, dateTo)=
-    [= GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), dateTo]
-        (group, legalEntity, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+retailSumAByStatisticGroupLegalEntityDate 'Сумма на конец, руб' (group, legalEntity, date)=
+    [= GROUP SUM sumASkuStockDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 // белорусского производства
-balanceResidentByStatisticGroupLegalEntityDateTo 'Остаток на конец' (group, legalEntity, dateTo)=
-    [= GROUP SUM balanceASkuStockDate (sku, stock, dateTo)/
+balanceResidentAByStatisticGroupLegalEntityDate 'Остаток на конец' (group, legalEntity, date)=
+    [= GROUP SUM balanceASkuStockDate (sku, stock, date)/
     (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
     residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-        BY group, legalEntityStock(stock), dateTo]
-            (group, legalEntity, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+        BY group, legalEntityStock(stock), date]
+            (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-netWeightResidentByStatisticGroupLegalEntityDateTo 'Вес на конец, кг' (group, legalEntity, dateTo)=
-    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), dateTo]
-        (group, legalEntity, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+netWeightResidentAByStatisticGroupLegalEntityDate 'Вес на конец, кг' (group, legalEntity, date)=
+    [= GROUP SUM netWeightBalanceASkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-volumeResidentByStatisticGroupLegalEntityDateTo 'Объем на конец, л' (group, legalEntity, dateTo)=
-    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), dateTo]
-        (group, legalEntity, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+volumeResidentAByStatisticGroupLegalEntityDate 'Объем на конец, л' (group, legalEntity, date)=
+    [= GROUP SUM volumeBalanceASkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
-retailSumResidentByStatisticGroupLegalEntityDateTo 'Сумма на конец, руб' (group, legalEntity, dateTo)=
-    [= GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
-    BY group, legalEntityStock(stock), dateTo]
-        (group, legalEntity, dateTo) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+retailSumResidentAByStatisticGroupLegalEntityDate 'Сумма на конец, руб' (group, legalEntity, date)=
+    [= GROUP SUM sumASkuStockDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+
+                             //с коэффициентом пересчета на начало//
+// всего
+balanceBByStatisticGroupLegalEntityDate 'Остаток на начало' (group, legalEntity, date)=
+    [= GROUP SUM balanceBSkuStockDate (sku, stock, date)/
+    (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
+    isParentStatisticGroupSku(group, sku)
+        BY group,legalEntityStock(stock), date]
+            (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+
+netWeightBByStatisticGroupLegalEntityDate 'Вес на начало, кг' (group, legalEntity, date)=
+    [= GROUP SUM netWeightBalanceBSkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+
+volumeBByStatisticGroupLegalEntityDate 'Объем на начало, л' (group, legalEntity, date)=
+    [= GROUP SUM volumeBalanceBSkuLedgerDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+
+retailSumBByStatisticGroupLegalEntityDate 'Сумма на начало, руб' (group, legalEntity, date)=
+    [= GROUP SUM sumBSkuStockDate (sku, stock, date) IF isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+// белорусского производства
+balanceResidentBByStatisticGroupLegalEntityDate 'Остаток на начало' (group, legalEntity, date)=
+    [= GROUP SUM balanceBSkuStockDate (sku, stock, date)/
+    (OVERRIDE 1 IF group IS StatisticGroup AND sku IS Sku, factorGroupStaticUOM(unitMeasureStatisticGroup(group), UOMSku(sku))) IF
+    residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+        BY group, legalEntityStock(stock), date]
+            (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+
+netWeightResidentBByStatisticGroupLegalEntityDate 'Вес на начало, кг' (group, legalEntity, date)=
+    [= GROUP SUM netWeightBalanceBSkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+
+volumeResidentBByStatisticGroupLegalEntityDate 'Объем на начало, л' (group, legalEntity, date)=
+    [= GROUP SUM volumeBalanceBSkuLedgerDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
+
+retailSumResidentBByStatisticGroupLegalEntityDate 'Сумма на начало, руб' (group, legalEntity, date)=
+    [= GROUP SUM sumBSkuStockDate (sku, stock, date) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+    BY group, legalEntityStock(stock), date]
+        (group, legalEntity, date) / (OVERRIDE 1 IF group IS StatisticGroup, conversionFactorStatisticGroup(group));
 
 valueByStatisticGroupLegalEntityDateFromTo 'Продано, ЕИ' (group, legalEntity, dateFrom, dateTo) =
     CASE
@@ -799,13 +894,13 @@ valueByStatisticGroupLegalEntityDateFrom 'Остаток на начало, ЕИ
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceByStatisticGroupLegalEntityDateTo(group, legalEntity, dateFrom)
+            THEN balanceBByStatisticGroupLegalEntityDate(group, legalEntity, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightByStatisticGroupLegalEntityDateTo(group, legalEntity, dateFrom)
+            THEN netWeightBByStatisticGroupLegalEntityDate(group, legalEntity, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeByStatisticGroupLegalEntityDateTo(group, legalEntity, dateFrom)
+            THEN volumeBByStatisticGroupLegalEntityDate(group, legalEntity, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumByStatisticGroupLegalEntityDateTo(group, legalEntity, dateFrom)
+            THEN retailSumBByStatisticGroupLegalEntityDate(group, legalEntity, dateFrom)
         ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity AND dateFrom IS DATE
     ;
 
@@ -817,13 +912,13 @@ valueResidentByStatisticGroupLegalEntityDateFrom 'В т.ч. отеч., ЕИ' (gr
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceResidentByStatisticGroupLegalEntityDateTo(group, legalEntity, dateFrom)
+            THEN balanceResidentBByStatisticGroupLegalEntityDate(group, legalEntity, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightResidentByStatisticGroupLegalEntityDateTo(group, legalEntity, dateFrom)
+            THEN netWeightResidentBByStatisticGroupLegalEntityDate(group, legalEntity, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeResidentByStatisticGroupLegalEntityDateTo(group, legalEntity, dateFrom)
+            THEN volumeResidentBByStatisticGroupLegalEntityDate(group, legalEntity, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumResidentByStatisticGroupLegalEntityDateTo(group, legalEntity, dateFrom)
+            THEN retailSumResidentBByStatisticGroupLegalEntityDate(group, legalEntity, dateFrom)
         ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity AND dateFrom IS DATE
     ;
 
@@ -835,13 +930,13 @@ valueByStatisticGroupLegalEntityDateTo 'Остаток на конец, ЕИ' (g
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceByStatisticGroupLegalEntityDateTo(group, legalEntity, dateTo)
+            THEN balanceAByStatisticGroupLegalEntityDate(group, legalEntity, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightByStatisticGroupLegalEntityDateTo(group, legalEntity, dateTo)
+            THEN netWeightAByStatisticGroupLegalEntityDate(group, legalEntity, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeByStatisticGroupLegalEntityDateTo(group, legalEntity, dateTo)
+            THEN volumeAByStatisticGroupLegalEntityDate(group, legalEntity, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumByStatisticGroupLegalEntityDateTo(group, legalEntity, dateTo)
+            THEN retailSumAByStatisticGroupLegalEntityDate(group, legalEntity, dateTo)
         ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity AND dateTo IS DATE
     ;
 
@@ -871,13 +966,13 @@ valueResidentByStatisticGroupLegalEntityDateTo 'В т.ч. отеч., ЕИ' (grou
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceResidentByStatisticGroupLegalEntityDateTo(group, legalEntity, dateTo)
+            THEN balanceResidentAByStatisticGroupLegalEntityDate(group, legalEntity, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightResidentByStatisticGroupLegalEntityDateTo(group, legalEntity, dateTo)
+            THEN netWeightResidentAByStatisticGroupLegalEntityDate(group, legalEntity, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeResidentByStatisticGroupLegalEntityDateTo(group, legalEntity, dateTo)
+            THEN volumeResidentAByStatisticGroupLegalEntityDate(group, legalEntity, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumResidentByStatisticGroupLegalEntityDateTo(group, legalEntity, dateTo)
+            THEN retailSumResidentAByStatisticGroupLegalEntityDate(group, legalEntity, dateTo)
         ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity AND dateTo IS DATE
     ;
 
@@ -890,19 +985,19 @@ totalSumResidentSoldByStatisticGroupLegalEntityDateFromTo 'В т.ч.отеч., �
     BY group, legalEntityStock(stock), dateFrom, dateTo;
 
 // суммовые показатели
-sumBalanceByStatisticGroupLegalEntityDateFrom 'Сумма остатка на начало, руб.' (group, legalEntity, dateFrom) =
-    GROUP SUM sumASkuStockDate (sku, stock, dateFrom) IF isParentStatisticGroupSku(group, sku)
+sumBalanceBByStatisticGroupLegalEntityDate 'Сумма остатка на начало, руб.' (group, legalEntity, dateFrom) =
+    GROUP SUM sumBSkuStockDate (sku, stock, dateFrom) IF isParentStatisticGroupSku(group, sku)
     BY group,legalEntityStock(stock), dateFrom;
 
-sumResidentBalanceByStatisticGroupLegalEntityDateFrom 'В т.ч.отеч., руб.' (group, legalEntity, dateFrom) =
-    GROUP SUM sumASkuStockDate (sku, stock, dateFrom) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+sumResidentBalanceBByStatisticGroupLegalEntityDate 'В т.ч.отеч., руб.' (group, legalEntity, dateFrom) =
+    GROUP SUM sumBSkuStockDate (sku, stock, dateFrom) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
     BY group,legalEntityStock(stock), dateFrom;
 
-sumBalanceByStatisticGroupLegalEntityDateTo 'Сумма остатка на конец, руб.' (group, legalEntity, dateTo) =
+sumBalanceAByStatisticGroupLegalEntityDate 'Сумма остатка на конец, руб.' (group, legalEntity, dateTo) =
     GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
     BY group,legalEntityStock(stock), dateTo;
 
-sumResidentBalanceByStatisticGroupLegalEntityDateTo 'В т.ч.отеч., руб.' (group, legalEntity, dateTo) =
+sumResidentBalanceAByStatisticGroupLegalEntityDate 'В т.ч.отеч., руб.' (group, legalEntity, dateTo) =
     GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
     BY group,legalEntityStock(stock), dateTo;
 
@@ -927,11 +1022,11 @@ FORM statisticalLegalEntityReport 'Статистический отчет по 
     FILTERS groupTypeStatisticGroup(g) == c
 
     PROPERTIES(g, l, dFrom) READONLY valueByStatisticGroupLegalEntityDateFrom, valueResidentByStatisticGroupLegalEntityDateFrom,
-                                     sumBalanceByStatisticGroupLegalEntityDateFrom, sumResidentBalanceByStatisticGroupLegalEntityDateFrom
+                                     sumBalanceBByStatisticGroupLegalEntityDate, sumResidentBalanceBByStatisticGroupLegalEntityDate
     PROPERTIES(g, l, dFrom, dTo) READONLY valueByStatisticGroupLegalEntityDateFromTo, valueResidentByStatisticGroupLegalEntityDateFromTo,
                                           totalSumSoldByStatisticGroupLegalEntityDateFromTo, totalSumResidentSoldByStatisticGroupLegalEntityDateFromTo
     PROPERTIES(g, l, dTo) READONLY valueByStatisticGroupLegalEntityDateTo, valueResidentByStatisticGroupLegalEntityDateTo,
-                                   sumBalanceByStatisticGroupLegalEntityDateTo, sumResidentBalanceByStatisticGroupLegalEntityDateTo
+                                   sumBalanceAByStatisticGroupLegalEntityDate, sumResidentBalanceAByStatisticGroupLegalEntityDate
 ;
 
 DESIGN statisticalLegalEntityReport FROM DEFAULT {
@@ -1008,13 +1103,13 @@ valueByStatisticGroupStockDateFrom 'Остаток на начало, ЕИ' (gro
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceByStatisticGroupDateTo(group, stock, dateFrom)
+            THEN balanceBByStatisticGroupDate(group, stock, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightByStatisticGroupDateTo(group, stock, dateFrom)
+            THEN netWeightBByStatisticGroupDate(group, stock, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeByStatisticGroupDateTo(group, stock, dateFrom)
+            THEN volumeBByStatisticGroupDate(group, stock, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumByStatisticGroupDateTo(group, stock, dateFrom)
+            THEN retailSumBByStatisticGroupDate(group, stock, dateFrom)
         ELSE 0 IF group IS StatisticGroup AND stock IS Stock AND dateFrom IS DATE
     ;
 
@@ -1026,13 +1121,13 @@ valueResidentByStatisticGroupStockDateFrom 'В т.ч. отеч., ЕИ' (group, s
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceResidentByStatisticGroupDateTo(group, stock, dateFrom)
+            THEN balanceResidentBByStatisticGroupDate(group, stock, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightResidentByStatisticGroupDateTo(group, stock, dateFrom)
+            THEN netWeightResidentBByStatisticGroupDate(group, stock, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeResidentByStatisticGroupDateTo(group, stock, dateFrom)
+            THEN volumeResidentBByStatisticGroupDate(group, stock, dateFrom)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumResidentByStatisticGroupDateTo(group, stock, dateFrom)
+            THEN retailSumResidentBByStatisticGroupDate(group, stock, dateFrom)
         ELSE 0 IF group IS StatisticGroup AND stock IS Stock AND dateFrom IS DATE
     ;
 
@@ -1044,13 +1139,13 @@ valueByStatisticGroupStockDateTo 'Остаток на конец, ЕИ' (group, 
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceByStatisticGroupDateTo(group, stock, dateTo)
+            THEN balanceAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightByStatisticGroupDateTo(group, stock, dateTo)
+            THEN netWeightAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeByStatisticGroupDateTo(group, stock, dateTo)
+            THEN volumeAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumByStatisticGroupDateTo(group, stock, dateTo)
+            THEN retailSumAByStatisticGroupDate(group, stock, dateTo)
         ELSE 0 IF group IS StatisticGroup AND stock IS Stock AND dateTo IS DATE
     ;
 
@@ -1062,13 +1157,13 @@ valueResidentByStatisticGroupStockDateTo 'В т.ч. отеч., ЕИ' (group, sto
              unitMeasureStatisticGroup(group)==GroupStatic.statisticConditionalPiece OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticSquareMeters OR
              unitMeasureStatisticGroup(group)==GroupStatic.statisticCubicMeters)
-            THEN balanceResidentByStatisticGroupDateTo(group, stock, dateTo)
+            THEN balanceResidentAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticPounds
-            THEN netWeightResidentByStatisticGroupDateTo(group, stock, dateTo)
+            THEN netWeightResidentAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticLiter
-            THEN volumeResidentByStatisticGroupDateTo(group, stock, dateTo)
+            THEN volumeResidentAByStatisticGroupDate(group, stock, dateTo)
         WHEN unitMeasureStatisticGroup(group)==GroupStatic.statisticSum
-            THEN retailSumResidentByStatisticGroupDateTo(group, stock, dateTo)
+            THEN retailSumResidentAByStatisticGroupDate(group, stock, dateTo)
         ELSE 0 IF group IS StatisticGroup AND stock IS Stock AND dateTo IS DATE
     ;
 
@@ -1081,19 +1176,19 @@ totalSumResidentSoldByStatisticGroupStockDateFromTo 'В т.ч.отеч., руб.
     BY group, stock, dateFrom, dateTo;
 
 // суммовые показатели
-sumBalanceByStatisticGroupStockDateFrom 'Сумма остатка на начало, руб.' (group, stock, dateFrom) =
-    GROUP SUM sumASkuStockDate (sku, stock, dateFrom) IF isParentStatisticGroupSku(group, sku)
+sumBalanceBByStatisticGroupStockDate 'Сумма остатка на начало, руб.' (group, stock, dateFrom) =
+    GROUP SUM sumBSkuStockDate (sku, stock, dateFrom) IF isParentStatisticGroupSku(group, sku)
     BY group, stock, dateFrom;
 
-sumResidentBalanceByStatisticGroupStockDateFrom 'В т.ч.отеч., руб.' (group, stock, dateFrom) =
-    GROUP SUM sumASkuStockDate (sku, stock, dateFrom) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
+sumResidentBalanceBByStatisticGroupStockDate 'В т.ч.отеч., руб.' (group, stock, dateFrom) =
+    GROUP SUM sumBSkuStockDate (sku, stock, dateFrom) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
     BY group, stock, dateFrom;
 
-sumBalanceByStatisticGroupStockDateTo 'Сумма остатка на конец, руб.' (group, stock, dateTo) =
+sumBalanceAByStatisticGroupStockDate 'Сумма остатка на конец, руб.' (group, stock, dateTo) =
     GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF isParentStatisticGroupSku(group, sku)
     BY group, stock, dateTo;
 
-sumResidentBalanceByStatisticGroupStockDateTo 'В т.ч.отеч., руб.' (group, stock, dateTo) =
+sumResidentBalanceAByStatisticGroupStockDate 'В т.ч.отеч., руб.' (group, stock, dateTo) =
     GROUP SUM sumASkuStockDate (sku, stock, dateTo) IF residentStatisticGroupSku (group, sku) AND isParentStatisticGroupSku(group, sku)
     BY group, stock, dateTo;
 
@@ -1118,11 +1213,11 @@ FORM statisticalStockReport 'Статистический отчет по скл
     FILTERS groupTypeStatisticGroup(g) == c
 
     PROPERTIES(g, s, dFrom) READONLY valueByStatisticGroupStockDateFrom, valueResidentByStatisticGroupStockDateFrom,
-                                     sumBalanceByStatisticGroupStockDateFrom, sumResidentBalanceByStatisticGroupStockDateFrom
+                                     sumBalanceBByStatisticGroupStockDate, sumResidentBalanceBByStatisticGroupStockDate
     PROPERTIES(g, s, dFrom, dTo) READONLY valueByStatisticGroupDateFromTo, valueResidentByStatisticGroupDateFromTo,
                                           totalSumSoldByStatisticGroupStockDateFromTo, totalSumResidentSoldByStatisticGroupStockDateFromTo
     PROPERTIES(g, s, dTo) READONLY valueByStatisticGroupDateTo, valueResidentByStatisticGroupDateTo,
-                                   sumBalanceByStatisticGroupStockDateTo, sumResidentBalanceByStatisticGroupStockDateTo
+                                   sumBalanceAByStatisticGroupStockDate, sumResidentBalanceAByStatisticGroupStockDate
 ;
 
 DESIGN statisticalStockReport FROM DEFAULT {
