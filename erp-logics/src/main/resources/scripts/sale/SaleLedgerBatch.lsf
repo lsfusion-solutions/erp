@@ -1,0 +1,150 @@
+MODULE SaleLedgerBatch;
+
+REQUIRE SaleLedger, TaxItem;
+
+NAMESPACE SaleLedger;
+
+//------------------- Продажи по партиям -------------------------//
+
+nameBatchBalanceBStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(остаток на начало)\''](nameStock(stock));    
+nameBatchSumBStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(сумма на начало)\''](nameStock(stock));    
+nameBatchBalanceAStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(остаток на конец)\''](nameStock(stock));    
+nameBatchSumAStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(сумма на конец)\''](nameStock(stock));    
+nameBatchQuantitySoldStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(продано кол-во)\''](nameStock(stock));    
+nameBatchSumSoldStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(продано сумма)\''](nameStock(stock));    
+ 
+inBatchReportStock 'Отм.' = DATA SESSION BOOLEAN (Stock);
+
+nameSkuGroup3Batch 'Группа' (b) =  nameSkuGroup3Sku(skuBatch(b));
+nameSkuGroup4Batch 'Подгруппа' (b) =  nameSkuGroup4Sku(skuBatch(b));
+                   
+filterBalanceBatchDateFromTo 'С остатком' (b,dFrom, dTo) = GROUP SUM 1 IF inBatchReportStock(st) AND (balanceBBatchStockDate(b,st,dFrom) OR balanceABatchStockDate(b,st,dTo))
+    BY b,dFrom, dTo;
+filterSoldBatchDateFromTo 'С продажей' (b,dFrom,dTo) = GROUP SUM quantitySoldBatchStockDateFromTo(b,st,dFrom,dTo) IF inBatchReportStock(st) 
+    BY b,dFrom,dTo;           
+       
+//-------------------------------------------------------------------------//
+    
+valueVATStockBatch 'НДС, %' (batch) = valueRateRangeDate(VATItemCountryDate(skuBatch(batch), countryStock(stockBatch(batch)), currentDate()), currentDate());  
+
+//-- на начало   
+costSumBalanceBBatchStockDateFrom 'Себестоимость' (batch, stock, dateFrom) = balanceBBatchStockDate(batch, stock, dateFrom) * costBatch(batch);  
+
+//-- на конец  
+costSumBalanceABatchStockDateTo 'Себестоимость' (batch, stock, dateTo) = balanceABatchStockDate(batch, stock, dateTo) * costBatch(batch);          
+   
+backgroundLavenderBatch 'Розовато-лавандовый' (b) = RGB(255,238,238) IF b IS Batch;  
+backgroundGreenTeaBatch 'Зеленого чая' (b) = RGB(204,255,204) IF b IS Batch;  
+backgroundSkyBatch 'Небесный' (b) = RGB(127,199,255) IF b IS Batch;  
+        
+FORM saleBatch 'Продажи по партиям'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+       
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR nameGroupType    
+    
+    
+    TREE skuTree sk = Group PARENT parentGroup
+    PROPERTIES READONLY skuTreeName = nameGroup(sk)
+    ORDER BY skuTreeName
+    FILTERS groupTypeGroup(sk) == gt
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(sk) DEFAULT       
+     
+    OBJECTS ts = Stock
+    PROPERTIES tsTreeName = nameStock(ts) READONLY, nameLegalEntityStock(ts) READONLY, inBatchReportStock(ts)
+    ORDER BY tsTreeName
+    FILTERS isCompanyStock(ts)     
+      
+    OBJECTS st = Stock      
+    FILTERS inBatchReportStock(st)
+    OBJECTS b = Batch 
+    PROPERTIES(b)  READONLY nameSkuBatch, idBarcodeSkuBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch, costBatch,                     
+                   valueVATStockBatch                    
+                       
+    PROPERTIES(b)  READONLY imageBatch FORCE PANEL
+    PROPERTIES     READONLY BACKGROUND backgroundLavenderBatch(b) balanceBBatchStockDate(b,st,dFrom)  COLUMNS (st) HEADER nameBatchBalanceBStock(st)
+    PROPERTIES     READONLY BACKGROUND backgroundLavenderBatch(b) accountSumBBatchStockDate(b,st,dFrom)  COLUMNS (st) HEADER nameBatchSumBStock(st)
+    PROPERTIES     READONLY BACKGROUND backgroundGreenTeaBatch(b) quantitySoldBatchStockDateFromTo(b,st,dFrom,dTo)  COLUMNS (st) HEADER nameBatchQuantitySoldStock(st)  
+    PROPERTIES     READONLY BACKGROUND backgroundGreenTeaBatch(b) sumSoldBatchStockDateFromTo(b,st,dFrom,dTo)  COLUMNS (st) HEADER nameBatchSumSoldStock(st)                       
+    PROPERTIES     READONLY BACKGROUND backgroundSkyBatch(b) balanceABatchStockDate(b,st,dTo)  COLUMNS (st) HEADER nameBatchBalanceAStock(st)
+    PROPERTIES     READONLY BACKGROUND backgroundSkyBatch(b) accountSumABatchStockDate(b,st,dTo)  COLUMNS (st) HEADER nameBatchSumAStock(st)    
+                
+    FILTERS           isParentGroupBatch(sk, b)                
+                            
+    FILTERGROUP filtersSold
+        FILTER 'С движением' 'F11' filterSoldBatchDateFromTo(b,dFrom,dTo) OR filterBalanceBatchDateFromTo(b,dFrom,dTo) DEFAULT
+        FILTER 'С продажей' 'F10' filterSoldBatchDateFromTo(b,dFrom,dTo)
+        FILTER 'С остатком' 'F9' filterBalanceBatchDateFromTo(b,dFrom,dTo)      
+                             
+    OBJECTS stb = (sts=Stock, bb=Batch)                              
+    PROPERTIES(sts)READONLY stsName = nameStock                          
+    PROPERTIES(bb) READONLY nameSkuBatch, idBarcodeSkuBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch,  
+                   costBatch, valueVATStockBatch                                           
+                       
+    PROPERTIES(bb,sts,dFrom) READONLY READONLY BACKGROUND backgroundLavenderBatch(bb) balanceBBatchStockDate, 
+                   costSumBalanceBBatchStockDateFrom, accountSumBBatchStockDate         
+    PROPERTIES(bb,sts,dFrom,dTo) READONLY BACKGROUND backgroundGreenTeaBatch(bb) quantitySoldBatchStockDateFromTo, 
+                   costSumSoldBatchStockDateFromTo, markupSumSoldBatchStockDateFromTo
+    PROPERTIES(bb,sts,dFrom,dTo) READONLY BACKGROUND backgroundGreenTeaBatch(bb) sumVATSoldBatchStockDateFromTo, averagePriceSoldBatchStockDateFromTo,  
+                   sumSoldBatchStockDateFromTo, averageMarkupSoldBatchStockDateFromTo
+
+                                       
+    PROPERTIES(bb,sts,dTo) READONLY BACKGROUND backgroundSkyBatch(bb) balanceABatchStockDate, costSumBalanceABatchStockDateTo, accountSumABatchStockDate                 
+                             
+    FILTERS inBatchReportStock(sts),
+            isParentGroupBatch(sk, bb)  
+    FILTERGROUP filtersSold1
+        FILTER 'С движением' 'F11' quantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) OR balanceBBatchStockDate(bb,sts,dFrom) OR balanceABatchStockDate(bb,sts,dTo) DEFAULT
+        FILTER 'С продажей' 'F10' quantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo)
+        FILTER 'С остатком' 'F9' balanceBBatchStockDate(bb,sts,dFrom) OR balanceABatchStockDate(bb,sts,dTo)                                               
+                                         
+;
+
+
+DESIGN saleBatch FROM DEFAULT {
+    NEW top {
+        type = CONTAINERH;
+        ADD dates.box {
+            type = CONTAINERH;
+        }
+        ADD gt.box;
+    }
+    REMOVE st.box;
+    NEW article {
+        type = SPLITH;
+        fill = 1;
+        NEW skuFilters {
+            fill = 1;
+            type = SPLITV;
+            NEW column{
+                fill = 1.5;
+                type = SPLITV;
+                ADD ts.box;
+                ADD skuTree.tree.box { caption = 'Группы SKU'; }
+            }    
+            NEW imageBox {
+                fill = 1;
+                caption = 'Изображение';                     
+                ADD PROPERTY(imageBatch) {                           
+                    caption = '';
+                    fill = 1;
+                }
+            }
+        }
+        NEW insetContainer {
+            fill = 2.5;
+            type = TABBED;
+            ADD b.box; 
+            ADD stb.box { caption = 'Партия/склад';}
+        }            
+    } 
+    ADD functions.box;
+}
+
+NAVIGATOR {                                              
+    salesReports{
+        ADD saleBatch;
+    }
+}
