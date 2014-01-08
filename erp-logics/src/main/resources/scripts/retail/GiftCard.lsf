@@ -67,6 +67,8 @@ sumReceiptGiftCardSaleDetail 'Сумма' = DATA NUMERIC[16,2] (ReceiptGiftCardS
 sumReceiptDetail(detail) += sumReceiptGiftCardSaleDetail(detail);
 signedSumReceiptDetail(detail) += sumReceiptGiftCardSaleDetail(detail);
 
+sumReceiptDetailGiftCardZReport 'Сумма проданных сертификатов' (zReport)= GROUP SUM sumReceiptDetail(d) IF d IS ReceiptGiftCardSaleDetail BY zReportReceiptDetail(d);
+
 //имплемент в GiftCardLedger
 giftCardGiftCardLedger(detail) += giftCardReceiptGiftCardSaleDetail(detail);
 dateTimeGiftCardLedger(detail) += dateTimeReceipt(receiptReceiptGiftCardSaleDetail(detail));
@@ -220,6 +222,9 @@ overLoadDefaultPaymentTypes() += ACTION () {
     loadDefaultPaymentType('Подарочный сертификат', PaymentMeans.paymentMeansGiftCard, 'giftcard');
 }
 
+sumGiftCardPaymentReceipt 'Сумма продаж (сертификат)' (receipt) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment) == PaymentMeans.paymentMeansGiftCard BY receiptPayment(payment);
+sumGiftCardPaymentZReport 'Сумма продаж (сертификат)' (zReport) = GROUP SUM sumGiftCardPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
+
 minGiftCardPaymentType() = GROUP MIN paymentType IF paymentMeansPaymentType(paymentType) == PaymentMeans.paymentMeansGiftCard;
 
 addPaymentGiftCard 'Оплатить сертификатом' = ACTION (receipt) {
@@ -256,3 +261,7 @@ EXTEND DESIGN postReceiptPayment {
 sumGiftCardReceiptDetailZReportRange 'Сумма (сертификат) по товарам' (zReport, range) = sumReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansGiftCard, range);
 sumVATGiftCardReceiptDetailZReportRange 'Сумма НДС (сертификат) по товарам' (zReport, range) = sumVATReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansGiftCard, range);
 
+EXTEND FORM zReports
+    PROPERTIES (z) READONLY BEFORE sumNegativeCashPaymentZReport sumGiftCardPaymentZReport 
+    PROPERTIES (z) READONLY  sumReceiptDetailGiftCardZReport
+;
