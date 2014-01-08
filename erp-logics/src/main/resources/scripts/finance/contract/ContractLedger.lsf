@@ -105,7 +105,7 @@ META defineInOutContractLedgerPrefix(caption, prefix, classPrefix)
     contract###prefix##ContractLedger 'Договор' (prefix##ContractLedger) = ABSTRACT Contract (classPrefix##ContractLedger) PERSISTENT;
 
     description###prefix##ContractLedger 'Название документа' (prefix##ContractLedger) = ABSTRACT VARSTRING[200] (classPrefix##ContractLedger) PERSISTENT;
-    sum###prefix##ContractLedger 'Сумма' = ABSTRACT NUMERIC[22,8] (classPrefix##ContractLedger) PERSISTENT;
+    sum###prefix##ContractLedger 'Сумма' = ABSTRACT NUMERIC[22,8] (classPrefix##ContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 PERSISTENT;
 
     is###prefix##ContractLedger (prefix##ContractLedger) = prefix##ContractLedger IS classPrefix##ContractLedger;
 
@@ -146,10 +146,10 @@ costedInContractLedgerOutContractLedgerDate 'Расписано из докум�
     BY outContractLedger, date;
 
 debtInContractLedger 'Долг по документу' (inContractLedger) =
-    sumInContractLedger(inContractLedger) (-) costedOutContractLedgerInContractLedger(inContractLedger);
+    sumInContractLedger(inContractLedger) (-) costedOutContractLedgerInContractLedger(inContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12;
 
 debtInContractLedgerDate 'Долг по документу на дату' (inContractLedger, date) =
-    sumInContractLedger(inContractLedger) (-) costedOutContractLedgerInContractLedgerDate(inContractLedger, date);
+    sumInContractLedger(inContractLedger) (-) costedOutContractLedgerInContractLedgerDate(inContractLedger, date) MINCHARWIDTH 12 PREFCHARWIDTH 12;
 
 appliedInContractLedgerBonusPeriod(inContractLedger, bonusPeriod) =
     debtInContractLedgerDate(inContractLedger, sumDate(dateInContractLedger(inContractLedger), countDaysBonusPeriod(bonusPeriod))) <= 0.0
@@ -360,6 +360,10 @@ FORM contractLedger 'Управление задолженностями'
                                bonusDebtSumInContractLedgerDate BACKGROUND backgroundBonusSumInContractLedger(ic)
     ORDER BY dateInContractLedger
     FILTERS activeInContractLedger(ic)
+    FILTERGROUP filters1 
+        FILTER 'Неоплаченные' 'F6' debtInContractLedgerDate(ic, d) DEFAULT
+    FILTERGROUP filters2 
+        FILTER 'На дату' 'F5' dateInContractLedger(ic) <= d DEFAULT        
 
     OBJECTS icoc = OutContractLedger
     PROPERTIES(icoc) READONLY dateOutContractLedger, descriptionOutContractLedger, sumOutContractLedger
@@ -408,32 +412,31 @@ DESIGN contractLedger FROM DEFAULT{
         NEW documents {
             caption = 'Документы';
             type = SPLITV;
-            ADD c.box;
+            ADD c.box {
+                fill = 1;    
+            }
             NEW firstSecondContainer {
-                fill = 3;
-                type = SPLITV;
+                fill = 2;
+                type = TABBED;
+                NEW debt.box {
+                    type = CONTAINERH;
+                    caption = 'Долг по документу';
+                    ADD ic.box;
+                    ADD icoc.box;
+                }                
                 NEW firstThirdContainer {
                     fill = 1;
                     type = SPLITH;
                     type = CONTAINERH;
+                    caption = 'Изменения долга';
                     ADD cl.box;
                     ADD cal.box;
                 }
-                NEW secondContainer {
-                    fill = 1;
-                    type = TABBED;
-                    NEW debt.box {
-                        type = CONTAINERH;
-                        caption = 'Долг по документу';
-                        ADD ic.box;
-                        ADD icoc.box;
-                    }
-                    NEW cost.box {
-                        type = CONTAINERH;
-                        caption = 'Расписано по документу';
-                        ADD oc.box;
-                        ADD ocic.box;
-                    }
+                NEW cost.box {
+                    type = CONTAINERH;
+                    caption = 'Расписано по документу';
+                    ADD oc.box;
+                    ADD ocic.box;
                 }
             }
         }
@@ -452,8 +455,11 @@ namePartyBContractInContractLedger 'Организация (покупатель
 nameCurrencyContractInContractLedger 'Валюта договора' (inContractLedger) = nameCurrencyContract(contractInContractLedger(inContractLedger));  
 
 FORM unpaidDocuments 'Неоплаченные документы'
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES valDt = OBJVALUE(dt)
+    
     PROPERTIES() namePartyA, namePartyB, seriesNumberContractProp
-
+    
     OBJECTS i = InContractLedger
     PROPERTIES(i) READONLY isPostedInContractLedger, numberInContractLedger, seriesInContractLedger, dateInContractLedger, namePartyAContractInContractLedger, 
                            nameSupplierStockInContractLedger, namePartyBContractInContractLedger, nameCustomerStockInContractLedger, 
@@ -461,12 +467,16 @@ FORM unpaidDocuments 'Неоплаченные документы'
                            costedOutContractLedgerInContractLedger, debtInContractLedger, descriptionInContractLedger                             
                              
     ORDER BY dateInContractLedger, numberInContractLedger 
-    FILTERS activeInContractLedger(i),
+    FILTERS activeInContractLedger(i), contractInContractLedger(i),  
             contractInContractLedger(i) == contractProp() OR (i IS InContractLedger AND NOT seriesNumberContractProp()),
             partyBContractInContractLedger(i) == partyB() OR (i IS InContractLedger AND NOT partyB()),
             partyAContractInContractLedger(i) == partyA() OR (i IS InContractLedger AND NOT partyA())
-    FILTERGROUP filters
+    FILTERGROUP filters1
         FILTER 'Неоплаченные' 'F10' debtInContractLedger(i) DEFAULT
+    FILTERGROUP filters2        
+        FILTER 'С договором' 'F9' contractInContractLedger(i) DEFAULT
+    FILTERGROUP filters3
+        FILTER 'На дату' 'F5' dateInContractLedger(i) <= dt DEFAULT 
                        
     OBJECTS o = OutContractLedger
     PROPERTIES(o) READONLY dateOutContractLedger, descriptionOutContractLedger, sumOutContractLedger
@@ -478,6 +488,7 @@ DESIGN unpaidDocuments FROM DEFAULT{
     NEW header {
         type = CONTAINERH;
         caption = 'Шапка';
+        ADD PROPERTY(valDt);
         ADD PROPERTY(namePartyA);
         ADD PROPERTY(namePartyB);
         ADD PROPERTY(seriesNumberContractProp);
