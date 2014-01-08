@@ -9,6 +9,7 @@ public class PurchaseInvoiceDetail {
     public String numberUserInvoice;
     public Date dateUserInvoice;
     public String idSupplier;
+    public String idSupplierStock;
     public String currencyUserInvoice;
     public String idUserInvoiceDetail;
     public String idBarcodeSku;
@@ -74,8 +75,8 @@ public class PurchaseInvoiceDetail {
     public String originalComposition;
 
     public PurchaseInvoiceDetail(Boolean isPosted, String numberUserInvoice, Date dateUserInvoice, String idSupplier, 
-                                 String currencyUserInvoice, String idUserInvoiceDetail, String idBarcodeSku, 
-                                 String idBatch, Integer dataIndex, String idItem, String idItemGroup, 
+                                 String idSupplierStock, String currencyUserInvoice, String idUserInvoiceDetail, 
+                                 String idBarcodeSku, String idBatch, Integer dataIndex, String idItem, String idItemGroup, 
                                  String originalCustomsGroupItem, String captionItem, String originalCaptionItem, 
                                  String idUOM, String idManufacturer, String nameManufacturer, String nameCountry, 
                                  String nameOriginCountry, String nameImportCountry, String idCustomer, 
@@ -96,6 +97,7 @@ public class PurchaseInvoiceDetail {
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
         this.idSupplier = idSupplier;
+        this.idSupplierStock = idSupplierStock;
         this.currencyUserInvoice = currencyUserInvoice;
         this.idUserInvoiceDetail = idUserInvoiceDetail;
         this.idBarcodeSku = idBarcodeSku;
