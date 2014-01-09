@@ -56,6 +56,7 @@ soldGiftCard (giftCard) =
         BY giftCardReceiptGiftCardSaleDetail(detail) WHERE detail IS ReceiptGiftCardSaleDetail;
 isSoldGiftCard 'Продан' (giftCard) = TRUE IF soldGiftCard(giftCard);
 dateSoldGiftCard 'Дата продажи' (giftCard) = dateReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard)));
+nameDepartmentStoreSoldGiftCard 'Где продан' (giftCard) = nameDepartmentStoreReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard)));
 
 typeReceiptDetail(detail) += 'Сертификат' IF detail IS ReceiptGiftCardSaleDetail;
 quantityReceiptDetail(detail) += 1.0 IF detail IS ReceiptGiftCardSaleDetail;
@@ -166,8 +167,8 @@ DESIGN giftCard FROM DEFAULT {
 
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLY nameNumeratorGiftCard, numberGiftCard, seriesGiftCard, dateGiftCard, 
-                           dateSoldGiftCard, expiryDaysGiftCard, priceGiftCard
+    PROPERTIES(g) READONLY numberGiftCard, seriesGiftCard, dateGiftCard, 
+                           dateSoldGiftCard, nameDepartmentStoreSoldGiftCard, expiryDaysGiftCard, priceGiftCard
     PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
@@ -211,9 +212,17 @@ usedGiftCard (giftCard) =
 isUsedGiftCard 'Погашен' (giftCard) = TRUE IF usedGiftCard(giftCard);
 dateUsedGiftCard 'Дата использования' (giftCard) = toDate(dateTimeReceipt(receiptPayment(usedGiftCard(giftCard))));
 expireDateGiftCard 'Дата истечения' (giftCard) = sumDate(toDate(dateTimeReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard)))), expiryDaysGiftCard(giftCard));
+nameDepartmentStoreUsedGiftCard 'Где использован' (giftCard) = nameDepartmentStoreReceipt(receiptPayment(usedGiftCard(giftCard)));
+numberReceiptUsedGiftCard 'Номер чека' (giftCard) = numberReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard)));
+
+sumCardGiftCard 'Сумма (карточка)' (giftCard) = GROUP SUM sumReceiptDetailPayment(soldGiftCard(giftCard), payment) IF 
+    paymentMeansPaymentType(paymentTypePayment(payment))==  PaymentMeans.paymentMeansCard AND isPostedReceiptDetail(soldGiftCard(giftCard)) BY giftCard;
 
 EXTEND FORM giftCards
-    PROPERTIES(g) READONLY AFTER dateSoldGiftCard(g) expireDateGiftCard, dateUsedGiftCard
+    PROPERTIES(g) READONLY BEFORE expiryDaysGiftCard(g) dateUsedGiftCard, nameDepartmentStoreUsedGiftCard,
+                  numberReceiptUsedGiftCard 
+    PROPERTIES(g) READONLY AFTER expiryDaysGiftCard(g) expireDateGiftCard  
+    PROPERTIES(g) READONLY sumCardGiftCard                           
 ;
 
 EXTEND CLASS PaymentMeans { paymentMeansGiftCard 'Подарочный сертификат'}
