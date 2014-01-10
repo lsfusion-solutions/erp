@@ -36,17 +36,28 @@ sumContractPayment(payment) <- IF currencyContractPayment(payment) == currencyAc
 CONSTRAINT currencyTypeExchange(typeExchangeContractPayment(payment)) != currencyContractPayment(payment)
     CHECKED BY typeExchangeContractPayment MESSAGE 'Валюта договора должна совпадать с валютой типа обмена';
 
-CONSTRAINT contractPayment(payment) IS Contract AND NOT partyAContract(contractPayment(payment)) == beneficiaryPayment(payment)
+CONSTRAINT contractPayment(payment) IS Contract AND NOT isReturnPayment(payment) AND NOT partyAContract(contractPayment(payment)) == beneficiaryPayment(payment)
     CHECKED BY contractPayment MESSAGE 'Выбранный договор не действителен для бенефициара';
 
-CONSTRAINT contractPayment(payment) IS Contract AND NOT partyBContract(contractPayment(payment)) == payerPayment(payment)
+CONSTRAINT contractPayment(payment) IS Contract AND NOT isReturnPayment(payment) AND NOT partyBContract(contractPayment(payment)) == payerPayment(payment)
     CHECKED BY contractPayment MESSAGE 'Выбранный договор не действителен для плательщика';
-    
-@implementContractLedger( , Payment, contract);
-sumContractLedger(contractLedger) += -sumContractPayment(contractLedger);
 
-@implementContractLedger(a , Payment, contract);
-sumContractALedger(contractALedger) += -sumContractPayment(contractALedger);
+CONSTRAINT contractPayment(payment) IS Contract AND isReturnPayment(payment) AND NOT partyBContract(contractPayment(payment)) == beneficiaryPayment(payment)
+    CHECKED BY contractPayment MESSAGE 'Выбранный договор не действителен для бенефициара';
+
+CONSTRAINT contractPayment(payment) IS Contract AND isReturnPayment(payment) AND NOT partyAContract(contractPayment(payment)) == payerPayment(payment)
+    CHECKED BY contractPayment MESSAGE 'Выбранный договор не действителен для плательщика';
+        
+@implementContractLedger( , Payment, contract);
+
+overSumContractPayment(payment) = IF isReturnPayment(payment) 
+                                    THEN sumContractPayment(payment)
+                                    ELSE -sumContractPayment(payment);
+                                    
+sumContractLedger(contractLedger) += overSumContractPayment(contractLedger);
+
+@implementContractLedger(a , Payment, contract);                                   
+sumContractALedger(contractALedger) += overSumContractPayment(contractALedger);
 
 @implementOutContractLedger(Payment, contract);
 sumOutContractLedger(outContractLedger) += sumContractPayment(outContractLedger);

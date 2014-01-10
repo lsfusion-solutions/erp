@@ -19,6 +19,8 @@ dateTimePayment 'Дата время' (payment) = dateTimeToDateTime(datePayment
 
 orderPayment 'Порядок' (payment) = DATA INTEGER(Payment);
 
+isReturnPayment 'Возвратный' = DATA BOOLEAN (Payment);
+
 payerPayment(payment) = DATA LegalEntity (Payment);
 namePayerPayment 'Плательщик' (payment) = nameLegalEntity(payerPayment(payment));
 accountFromPayment(payment) = DATA PaymentLedger.Account (Payment);
@@ -94,7 +96,7 @@ FORM payment 'Платеж'
     OBJECTS p = Payment FIXED PANEL
     PROPERTIES(p) isPostedPayment, nameNumeratorPayment, orderPayment, numberPayment, seriesPayment, datePayment, timePayment, textPayment,
                   notePayment, namePayerPayment, nameBeneficiaryPayment, nameAccountToPayment, nameAccountFromPayment, sumPayment,
-                  nameCurrencyAccountToPayment, nameCurrencyAccountFromPayment, nameOperationPayment
+                  nameCurrencyAccountToPayment, nameCurrencyAccountFromPayment, nameOperationPayment, isReturnPayment 
     EVENTS
         ON OK prePostPayment(p)
 
@@ -113,6 +115,7 @@ DESIGN payment FROM DEFAULT{
                 type = CONTAINERH;
                 ADD PROPERTY(isPostedPayment);
                 ADD PROPERTY(nameOperationPayment);
+                ADD PROPERTY(isReturnPayment);
             }
             NEW second { 
                 type = CONTAINERH;
@@ -175,7 +178,7 @@ FORM payments 'Платежи'
     PROPERTIES() filterPaymentDateFrom, filterPaymentDateTo, namePartyA, namePartyB
 
     OBJECTS p = Payment
-    PROPERTIES(p) READONLYIF isReadonly() isPostedPayment, orderPayment, numberPayment, seriesPayment,
+    PROPERTIES(p) READONLYIF isReadonly() isPostedPayment, isReturnPayment, orderPayment, numberPayment, seriesPayment,
                   datePayment, timePayment, namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
                   nameCurrencyAccountToPayment, sumPayment, notePayment, nameOperationPayment 
 
