@@ -142,27 +142,24 @@ subtotalContainerIncStockDocumentStockDateInterval 'Итого с остатко
 
 // ------------------------------------------- Ответственные лица --------------------------------------------- //
 
-MRPStock 'Материально ответственное лицо (ИД)' = DATA Employee (Stock);
-nameMRPStock 'Материально ответственное лицо' (stock) =
-    nameContact (MRPStock(stock)) IN responsibility MINCHARWIDTH 20 PREFCHARWIDTH 30;
-namePositionMRPStock 'Материально ответственное лицо (должность)' =
-    namePositionEmployee(MRPStock(stock)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
-CONSTRAINT MRPStock(stock) AND NOT inStockEmployee(stock, MRPStock(stock))
-    CHECKED BY MRPStock MESSAGE 'МОЛ не сотрудник отдела';
+@defineHistorizableCustom(responsiblePersonStock, 'Материально ответственное лицо', Employee, nameContact, stock, nameStock, responsibility );
+// Должность ФИО
+positionNameResponsiblePersonStock 'Материально ответственное лицо' (stock) = positionNameEmployee(responsiblePersonStock(stock)) IN responsibility; 
+CONSTRAINT dataResponsiblePersonStockDate(stock, date) AND NOT inStockEmployee(stock, dataResponsiblePersonStockDate(stock, date))
+    CHECKED BY dataResponsiblePersonStockDate MESSAGE 'МОЛ не сотрудник отдела';
 
-accountantStock 'Бухгалтер, принимающий товарный отчет (ИД)' = DATA Employee (Stock);
-nameAccountantStock 'Бухгалтер, принимающий товарный отчет' (stock) = nameContact(accountantStock(stock)) IN responsibility MINCHARWIDTH 20 PREFCHARWIDTH 30;
-namePositionAccountantStock 'Бухгалтер, принимающий товарный отчет (должность)' =
-    namePositionEmployee(accountantStock(stock));
-CONSTRAINT accountantStock(stock) AND NOT inStockEmployee(stock, accountantStock(stock))
-    CHECKED BY accountantStock MESSAGE 'Бухгалтер не сотрудник отдела';
+@defineHistorizableCustom(bookerStock, 'Бухгалтер, принимающий товарный отчет', Employee, nameContact, stock, nameStock, responsibility );
+// Должность ФИО
+positionNameBookerStock 'Бухгалтер, принимающий товарный отчет' (stock) = positionNameEmployee(bookerStock(stock)) IN responsibility; 
+CONSTRAINT dataBookerStockDate(stock, date) AND NOT inStockEmployee(stock, dataBookerStockDate(stock, date))
+    CHECKED BY dataBookerStockDate MESSAGE 'Бухгалтер не сотрудник отдела';
 
-auditorStock 'Кто проверяет товарный отчет (ИД)' = DATA Employee (Stock);
-nameAuditorStock 'Кто проверяет товарный отчет' (stock) = nameContact(auditorStock(stock)) IN responsibility;
-namePositionAuditorStock 'Кто проверяет товарный отчет (должность)' =
-    namePositionEmployee(auditorStock(stock));
-CONSTRAINT auditorStock(stock) AND NOT inStockEmployee(stock, auditorStock(stock))
-    CHECKED BY auditorStock MESSAGE 'Проверяющий не сотрудник отдела';
+@defineHistorizableCustom(controllerStock, 'Кто проверяет товарный отчет', Employee, nameContact, stock, nameStock, responsibility );
+
+CONSTRAINT dataControllerStockDate(stock, date) AND NOT inStockEmployee(stock, dataControllerStockDate(stock, date))
+    CHECKED BY dataControllerStockDate MESSAGE 'Проверяющий не сотрудник отдела';
+// Должность ФИО
+positionNameControllerStock 'Кто проверяет товарный отчет' (stock) = positionNameEmployee(controllerStock(stock)) IN responsibility; 
 
 // -------------------------------------- Формы --------------------------------------------- //
 
@@ -278,6 +275,6 @@ END
 
 META extendStockFormStockDocumentLedger(form, object)
     EXTEND FORM form
-        PROPERTIES(object)   nameMRPStock, nameAccountantStock, nameAuditorStock
+        PROPERTIES(object)   nameContactResponsiblePersonStock, nameContactBookerStock, nameContactControllerStock
     ;
 END
