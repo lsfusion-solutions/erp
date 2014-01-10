@@ -441,8 +441,11 @@ declarationDeclarationDetail = DATA Declaration(DeclarationDetail);
 @defineDocumentPosted(declaration);
 @defineDocumentHeaderCount(declaration);
 
+isExportedDeclaration 'Экспортирован' = DATA BOOLEAN (Declaration); 
+isExportedDeclarationDetail 'Экспортирован' (d) = isExportedDeclaration(declarationDeclarationDetail(d));
+
 EXTEND FORM declaration
-    PROPERTIES(d) isPostedDeclaration
+    PROPERTIES(d) isPostedDeclaration, isExportedDeclaration
     EVENTS
         ON OK prePostDeclaration(d)
 ;
@@ -450,6 +453,7 @@ EXTEND FORM declaration
 EXTEND DESIGN declaration {
     header {
        ADD PROPERTY(isPostedDeclaration) FIRST;
+       ADD PROPERTY(isExportedDeclaration) AFTER PROPERTY(isPostedDeclaration); 
     }
     PROPERTY(formOk) {
         caption = 'Провести';
@@ -503,8 +507,8 @@ chargeSumDeclarationDetail 'Услуги' = DATA NUMERIC[14,2] (DeclarationDetai
 // Суммы в национальной валюте
 homeSumDeclarationDetail 'Стоимость (декл.)' = DATA NUMERIC[16,2](DeclarationDetail) MINCHARWIDTH 12;
 
-WHEN SESSION FORMS declaration CHANGED(sumDeclarationDetail(d)) OR CHANGED(rateExchangeDeclaration(declarationDeclarationDetail(d))) OR
-                               CHANGED(deliverySumDeclarationDetail(d)) OR CHANGED(chargeSumDeclarationDetail(d)) DO
+WHEN SESSION FORMS declaration (CHANGED(sumDeclarationDetail(d)) OR CHANGED(rateExchangeDeclaration(declarationDeclarationDetail(d))) OR
+                               CHANGED(deliverySumDeclarationDetail(d)) OR CHANGED(chargeSumDeclarationDetail(d))) AND NOT isExportedDeclarationDetail(d) DO
     homeSumDeclarationDetail(d) <- (sumDeclarationDetail(d) * rateExchangeDeclaration(declarationDeclarationDetail(d))) (+)
                                    deliverySumDeclarationDetail(d) (+) chargeSumDeclarationDetail(d);
 
@@ -514,7 +518,7 @@ WHEN SESSION FORMS declaration CHANGED(sumDeclarationDetail(d)) OR CHANGED(rateE
 percentDutyDeclarationDetail 'Пошлина, %' = DATA NUMERIC[14,3] (DeclarationDetail);
 weightDutyDeclarationDetail 'Пошлина, (мин.)' = DATA NUMERIC[14,3] (DeclarationDetail);
 
-WHEN SESSION FORMS declaration CHANGED(customsGroupDeclarationDetail(d)) OR CHANGED(dateDeclarationDetail(d)) DO {
+WHEN SESSION FORMS declaration (CHANGED(customsGroupDeclarationDetail(d)) OR CHANGED(dateDeclarationDetail(d))) AND NOT isExportedDeclarationDetail(d) DO {
     percentDutyDeclarationDetail(d) <- percentDutyCustomsGroupDate(customsGroupDeclarationDetail(d), dateDeclarationDetail(d));
     weightDutyDeclarationDetail(d) <- weightDutyCustomsGroupDate(customsGroupDeclarationDetail(d), dateDeclarationDetail(d));
 }
@@ -535,7 +539,7 @@ nameVATCustomsExceptionDeclarationDetail 'Льгота НДС' (d) = nameVATCust
 CONSTRAINT customsGroupDeclarationDetail(d) AND VATCustomsExceptionDeclarationDetail(d) AND NOT customsGroupVATCustomsException(VATCustomsExceptionDeclarationDetail(d)) == customsGroupDeclarationDetail(d)
     CHECKED BY VATCustomsExceptionDeclarationDetail MESSAGE 'Льгота НДС должна соответствовать ТН ВЭД';
 
-WHEN SESSION FORMS declaration CHANGED(customsGroupDeclarationDetail(d)) OR CHANGED(VATCustomsExceptionDeclarationDetail(d)) OR CHANGED(dateDeclarationDetail(d)) DO
+WHEN SESSION FORMS declaration (CHANGED(customsGroupDeclarationDetail(d)) OR CHANGED(VATCustomsExceptionDeclarationDetail(d)) OR CHANGED(dateDeclarationDetail(d))) AND NOT isExportedDeclarationDetail(d) DO
     VATDeclarationDetail(d) <- IF VATCustomsExceptionDeclarationDetail(d) THEN
                                    rangeVATCustomsException(VATCustomsExceptionDeclarationDetail(d))
                                ELSE
@@ -552,6 +556,11 @@ numberDefaultDeclarationDetail 'Номер' (d) =
 
 numberDeclarationDetail 'Номер' (declarationDetail) = OVERRIDE numberDefaultDeclarationDetail(declarationDetail), userNumberDeclarationDetail(declarationDetail) MINCHARWIDTH 4 PREFCHARWIDTH 4;
 
+fillExportedDeclaration (declaration) = ACTION (declaration) {
+    isExportedDeclaration(declaration) <- TRUE;
+    userNumberDeclarationDetail(d) <- numberDeclarationDetail(d) WHERE declarationDeclarationDetail(d)== declaration;
+}
+    
 // Делаем, чтобы номера были уникальными
 declarationDetailDeclarationNumber (declaration, number) = GROUP AGGR d BY declarationDeclarationDetail(d), numberDeclarationDetail(d) WHERE d IS DeclarationDetail;
 
@@ -635,7 +644,7 @@ coeffSumGrossWeightDeclarationDetail 'Удельный вес по весу бр
 
 calcDeliverySumDeclarationDetail = round(deliverySumDeclaration(declarationDeclarationDetail(d)) * coeffSumGrossWeightDeclarationDetail(d),
                                          roundDeclaration(declarationDeclarationDetail(d)));
-WHEN SESSION FORMS declaration CHANGED(calcDeliverySumDeclarationDetail(d)) DO {
+WHEN SESSION FORMS declaration CHANGED(calcDeliverySumDeclarationDetail(d)) AND NOT isExportedDeclarationDetail(d) DO {
     deliverySumDeclarationDetail(d) <- calcDeliverySumDeclarationDetail(d);
 }
 
@@ -645,7 +654,7 @@ coeffSumDeclarationDetail 'Удельный вес по стоимости' = NU
 
 calcChargeSumDeclarationDetail = round(chargeSumDeclaration(declarationDeclarationDetail(d)) * coeffSumDeclarationDetail(d),
                                        roundDeclaration(declarationDeclarationDetail(d)));
-WHEN SESSION FORMS declaration CHANGED(calcChargeSumDeclarationDetail(d)) DO {
+WHEN SESSION FORMS declaration CHANGED(calcChargeSumDeclarationDetail(d)) AND NOT isExportedDeclarationDetail(d) DO {
     chargeSumDeclarationDetail(d) <- calcChargeSumDeclarationDetail(d);
 }
 
@@ -664,7 +673,7 @@ calcDutySumDeclarationDetail 'Пошлина' (d) = roundPriceCurrency((MAX calc
                                                                      calcSumPriceDutyDeclarationDetail(d)),
                                                                 homeCurrencyDeclarationDetail(d)) MINCHARWIDTH 12;
 
-WHEN SESSION FORMS declaration CHANGED(calcDutySumDeclarationDetail(d)) DO
+WHEN SESSION FORMS declaration CHANGED(calcDutySumDeclarationDetail(d)) AND NOT isExportedDeclarationDetail(d) DO
     dutySumDeclarationDetail(d) <- calcDutySumDeclarationDetail(d);
 
 // -------------------------------- Расчет НДС -------------------------- //
@@ -677,8 +686,8 @@ calcVATSumDeclarationDetail 'НДС' (d) =
                        homeCurrencyDeclarationDetail(d)) MINCHARWIDTH 12;
 
 WHEN SESSION FORMS declaration
-    CHANGED(homeSumDeclarationDetail(d)) OR CHANGED(dutySumDeclarationDetail(d)) OR
-    CHANGED(VATDeclarationDetail(d)) OR CHANGED(homeCurrencyDeclarationDetail(d)) DO
+    (CHANGED(homeSumDeclarationDetail(d)) OR CHANGED(dutySumDeclarationDetail(d)) OR
+    CHANGED(VATDeclarationDetail(d)) OR CHANGED(homeCurrencyDeclarationDetail(d))) AND NOT isExportedDeclarationDetail(d) DO
     VATSumDeclarationDetail(d) <- calcVATSumDeclarationDetail(d);
 
 // ------------------------------ Таможенный сбор ----------------------------- //
