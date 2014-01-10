@@ -29,7 +29,8 @@ import java.util.Map;
 public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
 
     // syntax : 
-    // "=xxx" - constant value                                  
+    // "=xxx" - constant value  
+    // "=CDT" - currentDateTime
     // "xxx^(1,6) - substring(1,6)
     // "xxx+yyy" - concatenate
     // "xxx/yyy" - divide (for numbers)
@@ -546,7 +547,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private String parseConstantFieldPattern(String value) {
-        return value.substring(1);
+        return value.toLowerCase().contains("cdt") ? value.replaceAll("(\\=CDT)|(\\=cdt)", new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime())) : value.substring(1);
     }
 
     private boolean isConstantValue(String input) {

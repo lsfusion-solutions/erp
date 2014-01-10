@@ -6,6 +6,7 @@ import java.sql.Date;
 
 public class PurchaseInvoiceDetail {
     public Boolean isPosted;
+    public String idUserInvoice;
     public String numberUserInvoice;
     public Date dateUserInvoice;
     public String idSupplier;
@@ -74,8 +75,8 @@ public class PurchaseInvoiceDetail {
     public String composition;
     public String originalComposition;
 
-    public PurchaseInvoiceDetail(Boolean isPosted, String numberUserInvoice, Date dateUserInvoice, String idSupplier, 
-                                 String idSupplierStock, String currencyUserInvoice, String idUserInvoiceDetail, 
+    public PurchaseInvoiceDetail(Boolean isPosted, String idUserInvoice, String numberUserInvoice, Date dateUserInvoice,
+                                 String idSupplier, String idSupplierStock, String currencyUserInvoice, String idUserInvoiceDetail, 
                                  String idBarcodeSku, String idBatch, Integer dataIndex, String idItem, String idItemGroup, 
                                  String originalCustomsGroupItem, String captionItem, String originalCaptionItem, 
                                  String idUOM, String idManufacturer, String nameManufacturer, String nameCountry, 
@@ -94,6 +95,7 @@ public class PurchaseInvoiceDetail {
                                  BigDecimal grossWeight, BigDecimal sumGrossWeight, String composition, 
                                  String originalComposition) {
         this.isPosted = isPosted;
+        this.idUserInvoice = idUserInvoice;
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
         this.idSupplier = idSupplier;
