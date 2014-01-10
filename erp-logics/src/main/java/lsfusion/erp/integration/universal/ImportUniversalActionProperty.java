@@ -56,6 +56,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     String datePatternPattern = "(.*)(~(.*))+";
     String roundedPattern = "(.*)\\[(\\-?)\\d+\\]";
     DecimalFormat decimalFormat = new DecimalFormat("#.#####");
+    String currentTimestamp;
 
     protected String getCSVFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
         return getCSVFieldValue(values, importColumnDetail, row, null);
@@ -257,7 +258,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
-        return getXLSXFieldValue(sheet, row, importColumnDetail, false, null);
+        return getXLSXFieldValue(sheet, row, importColumnDetail, null);
+    }
+
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue) throws UniversalImportException {
+        return getXLSXFieldValue(sheet, row, importColumnDetail, false, defaultValue);
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, boolean isDate, ImportColumnDetail importColumnDetail) throws UniversalImportException {
@@ -398,8 +403,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset) throws UniversalImportException {
-        if (importColumnDetail == null) return null;
-        return getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, null);
+        return getDBFFieldValue(importFile, importColumnDetail, row, charset, null);
+    }
+
+    protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, String defaultValue) throws UniversalImportException {
+        if (importColumnDetail == null) return defaultValue;
+        return getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, defaultValue);
     }
 
     protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, String[] columns, int row, String charset, String defaultValue) throws UniversalImportException {
@@ -547,7 +556,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private String parseConstantFieldPattern(String value) {
-        return value.toLowerCase().contains("cdt") ? value.replaceAll("(\\=CDT)|(\\=cdt)", new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime())) : value.substring(1);
+        return (value.toLowerCase().contains("cdt") && currentTimestamp != null) ? value.replaceAll("(\\=CDT)|(\\=cdt)", currentTimestamp) : value.substring(1);
     }
 
     private boolean isConstantValue(String input) {

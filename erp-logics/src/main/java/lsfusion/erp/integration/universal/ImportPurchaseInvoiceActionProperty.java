@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionProperty {
@@ -923,15 +924,16 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         Sheet sheet = wb.getSheet(0);
 
         Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
-
+        currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+        
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
-            String idDocument = getXLSFieldValue(sheet, i, importColumns.get("idDocument"));
             String numberDocument = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
+            String idDocument = getXLSFieldValue(sheet, i, importColumns.get("idDocument"), numberDocument);
             Date dateDocument = getXLSDateFieldValue(sheet, i, importColumns.get("dateDocument"));
             String idSupplier = getXLSFieldValue(sheet, i, importColumns.get("idSupplier"));
             String idSupplierStock = getXLSFieldValue(sheet, i, importColumns.get("idSupplierStock"));
             String currencyDocument = getXLSFieldValue(sheet, i, importColumns.get("currencyDocument"));
-            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, numberDocument, userInvoiceObject, i);
+            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String originalCustomsGroupItem = getXLSFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
             String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
@@ -1021,6 +1023,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             else if (secondaryKeyColumnValue != null && !secondaryKeyColumnValue.isEmpty())
                 primaryList.add(purchaseInvoiceDetail);
         }
+        currentTimestamp = null;
 
         return Arrays.asList(primaryList, secondaryList);
     }
@@ -1038,7 +1041,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         int count = 0;
 
         Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
-
+        currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+        
         while ((line = br.readLine()) != null) {
 
             count++;
@@ -1047,13 +1051,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 String[] values = line.split(csvSeparator);
                 
-                String idDocument = getCSVFieldValue(values, importColumns.get("idDocument"), count);
                 String numberDocument = getCSVFieldValue(values, importColumns.get("numberDocument"), count);
+                String idDocument = getCSVFieldValue(values, importColumns.get("idDocument"), count, numberDocument);
                 Date dateDocument = getCSVDateFieldValue(values, importColumns.get("dateDocument"), count);
                 String idSupplier = getCSVFieldValue(values, importColumns.get("idSupplier"), count);
                 String idSupplierStock = getCSVFieldValue(values, importColumns.get("idSupplierStock"), count);
                 String currencyDocument = getCSVFieldValue(values, importColumns.get("currencyDocument"), count);
-                String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, numberDocument, userInvoiceObject, count);
+                String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, count);
                 String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.get("barcodeItem"), count));
                 String idBatch = getCSVFieldValue(values, importColumns.get("idBatch"), count);
                 String dataIndexValue = getCSVFieldValue(values, importColumns.get("idItem"), count, String.valueOf(primaryList.size() + secondaryList.size() + 1));
@@ -1145,6 +1149,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             }
         }
+        currentTimestamp = null;
 
         return Arrays.asList(primaryList, secondaryList);
     }
@@ -1161,16 +1166,17 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
-
+        currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+        
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
             
-            String idDocument = getXLSXFieldValue(sheet, i, importColumns.get("idDocument"));
             String numberDocument = getXLSXFieldValue(sheet, i, importColumns.get("numberDocument"));
+            String idDocument = getXLSXFieldValue(sheet, i, importColumns.get("idDocument"), numberDocument);
             Date dateDocument = getXLSXDateFieldValue(sheet, i, importColumns.get("dateDocument"));
             String idSupplier = getXLSXFieldValue(sheet, i, importColumns.get("idSupplier"));
             String idSupplierStock = getXLSXFieldValue(sheet, i, importColumns.get("idSupplierStock"));
             String currencyDocument = getXLSXFieldValue(sheet, i, importColumns.get("currencyDocument"));
-            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, numberDocument, userInvoiceObject, i);
+            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
             String dataIndexValue = getXLSXFieldValue(sheet, i, importColumns.get("dataIndex"), false, String.valueOf(primaryList.size() + secondaryList.size() + 1));
@@ -1260,6 +1266,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             else if (secondaryKeyColumnValue != null && !secondaryKeyColumnValue.isEmpty())
                 primaryList.add(purchaseInvoiceDetail);
         }
+        currentTimestamp = null;
 
         return Arrays.asList(primaryList, secondaryList);
     }
@@ -1281,7 +1288,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         int totalRecordCount = file.getRecordCount();
 
         Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
-
+        currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
         for (int i = 0; i < startRow - 1; i++) {
             file.read();
         }
@@ -1290,13 +1297,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             file.read();
 
-            String idDocument = getDBFFieldValue(file, importColumns.get("idDocument"), i, charset);
             String numberDocument = getDBFFieldValue(file, importColumns.get("numberDocument"), i, charset);
+            String idDocument = getDBFFieldValue(file, importColumns.get("idDocument"), i, charset, numberDocument);
             Date dateDocument = getDBFDateFieldValue(file, importColumns.get("dateDocument"), i, charset);
             String idSupplier = getDBFFieldValue(file, importColumns.get("idSupplier"), i, charset);
             String idSupplierStock = getDBFFieldValue(file, importColumns.get("idSupplierStock"), i, charset);
             String currencyDocument = getDBFFieldValue(file, importColumns.get("currencyDocument"), i, charset);
-            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, numberDocument, userInvoiceObject, i);
+            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, importColumns.get("barcodeItem"), i, charset));
             String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), i, charset);
             BigDecimal dataIndexValue = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), i, charset, String.valueOf(primaryList.size() + secondaryList.size() + 1));
@@ -1387,6 +1394,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 secondaryList.add(purchaseInvoiceDetail);
         }
 
+        currentTimestamp = null;
         file.close();
 
         return Arrays.asList(primaryList, secondaryList);
@@ -1408,8 +1416,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         return false;
     }
     
-    private String makeIdUserInvoiceDetail(String idDocument, String numberDocument, Integer userInvoiceObject, int i) {
-        return (idDocument != null ? idDocument : numberDocument != null ? numberDocument : String.valueOf(userInvoiceObject)) + i;
+    private String makeIdUserInvoiceDetail(String idDocument, Integer userInvoiceObject, int i) {
+        return (idDocument != null ? idDocument : String.valueOf(userInvoiceObject)) + i;
     }
 }
 
