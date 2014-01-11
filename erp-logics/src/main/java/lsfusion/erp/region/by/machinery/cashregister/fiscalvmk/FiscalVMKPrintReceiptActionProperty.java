@@ -52,6 +52,12 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 ObjectValue userObject = getLCP("userReceipt").readClasses(context, receiptObject);
                 Object operatorNumber = userObject.isNull() ? 0 : getLCP("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
                 BigDecimal sumTotal = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(context, receiptObject);
+                BigDecimal maxSum = (BigDecimal) getLCP("maxSumCurrentCashRegister").read(context);
+                if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
+                    context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
+                    return;
+                }
+                
                 BigDecimal sumDisc = (BigDecimal) getLCP("discountSumReceiptDetailReceipt").read(context, receiptObject);
 
                 BigDecimal sumCard = null;

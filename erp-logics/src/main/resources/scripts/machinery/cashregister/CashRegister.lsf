@@ -20,15 +20,17 @@ nameModel(model) += nameCashRegisterModel(model) IF model IS CashRegisterModel;
 
 dateToCashRegisterModel 'Дата, до которой модель внесена в реестр' = DATA DATE (CashRegisterModel) IN base;
 
+maxSumCashRegisterModel 'Максимальная сумма чека' = DATA NUMERIC[16,2] (CashRegisterModel) IN base;
+
 FORM cashRegisterModel 'Модель касс'
     OBJECTS c=CashRegisterModel FIXED PANEL
-    PROPERTIES(c) nameCashRegisterModel, sidModel, noteModel, handlerModel, dateToCashRegisterModel
+    PROPERTIES(c) nameCashRegisterModel, sidModel, noteModel, handlerModel, dateToCashRegisterModel, maxSumCashRegisterModel
     EDIT CashRegisterModel OBJECT c
 ;
 
 FORM cashRegistersModels 'Модели касс'
     OBJECTS c=CashRegisterModel
-    PROPERTIES(c) READONLY nameCashRegisterModel, sidModel, handlerModel, noteModel
+    PROPERTIES(c) READONLY nameCashRegisterModel, sidModel, handlerModel, noteModel, maxSumCashRegisterModel
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG CashRegisterModel OBJECT c
 ;
@@ -78,6 +80,7 @@ nppMachineryCurrentCashRegister 'Номер кассового места' = npp
 operatorNumberCurrentCashRegister (user) = operatorNumberGroupCashRegisterCustomUser(groupCashRegisterCashRegister(currentCashRegister()), user);
 operatorNumberCurrentCashRegisterCurrentUser () = operatorNumberCurrentCashRegister (currentUser());
 countryCurrentCashRegister 'Страна кассы' = countryCashRegister(currentCashRegister());
+maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSumCashRegisterModel(cashRegisterModelCashRegister(currentCashRegister()));
 
 paymentTerminalModelCashRegister 'Модель платёжного терминала' = DATA PaymentTerminalModel(CashRegister) IN base;
 namePaymentTerminalModelCashRegister 'Модель платёжного терминала' (cashRegister) = nameModel(paymentTerminalModelCashRegister(cashRegister));

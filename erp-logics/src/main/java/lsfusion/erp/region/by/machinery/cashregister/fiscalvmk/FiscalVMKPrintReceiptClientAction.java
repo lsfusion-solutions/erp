@@ -28,11 +28,6 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
-        if (receipt.sumTotal != null && receipt.sumTotal.doubleValue() > 15000000) {
-            new MessageClientAction("Сумма чека превышает 15.000.000 рублей", "Ошибка!");
-            return "Сумма чека превышает 15.000.000 рублей";
-        }
-
         if (receipt.receiptSaleList.size() != 0 && receipt.receiptReturnList.size() != 0) {
             new MessageClientAction("В одном чеке обнаружены продажи и возврат одновременно", "Ошибка!");
             return "В одном чеке обнаружены продажи и возврат одновременно";
