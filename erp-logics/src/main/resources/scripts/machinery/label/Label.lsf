@@ -394,8 +394,18 @@ END
 
 // ---------- Атрибуты по умолчанию ------ //
 
-@defineLabelTransactionAttribute(shortNameUOM, 'Ед. изм.', VARISTRING[10], Sku, shortNameUOM);
-@defineLabelTransactionAttribute(country, 'Страна', VARSTRING[255], Sku, nameCountry);
+@defineLabelTransactionAttribute(nameSkuGroupSku, 'Тов. группа', VARSTRING[100], Sku, nameSkuGroup);
+@defineLabelTransactionAttribute(shortNameUOMSku, 'Ед. изм.', VARISTRING[10], Sku, shortNameUOM);
+@defineLabelTransactionAttribute(nameCountrySku, 'Страна изготовления', VARSTRING[50], Sku, nameCountry);
+
+nameAddressPhoneLegalEntityLabelTransactionDetail 'Наименование/Адрес/Телефон юрлица' (d) = 
+    CONCAT ', ', 
+           fullNameLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransactionDetail(d))), 
+           addressLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransactionDetail(d))),
+           'Тел. ' + phoneLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransactionDetail(d)));
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressPhoneLegalEntityLabelTransactionDetail;
+EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressPhoneLegalEntityLabelTransactionDetail;
+EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressPhoneLegalEntityLabelTransactionDetail;
 
 // ------------------------- Подключение печати ценников в документ --------------------- //
 META defineDocumentLabelTransaction (document, skuProp, stockProp)

@@ -1,0 +1,298 @@
+MODULE ArticleCustomsDashboard;
+
+REQUIRE ArticleTranslateDashboard, 
+        CustomsGroupArticle, 
+        ComplianceGroupArticle;
+        
+NAMESPACE Item;
+
+// Обработка статуса
+
+completedCustomsItem 'Обработан' = DATA BOOLEAN (Item);
+notCompletedCustomsArticle 'Не обработан' (article) = GROUP SUM 1 IF i IS Item AND NOT completedCustomsItem(i) BY articleItem(i);
+completedCustomsArticle 'Обработан' = a IS Article AND NOT notCompletedCustomsArticle(a);
+
+changeCompletedCustomsArticle (article) = ACTION (article) {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        FOR articleItem(item) == article DO {
+            completedCustomsItem(item) <- TRUE;
+        }
+    } ELSE {
+        FOR articleItem(item) == article DO {
+            completedCustomsItem(item) <- NULL;
+        }                
+    }        
+}
+
+// Подсчет необработанных артикулов для групп
+countNotCompletedCustomsArticlesItemGroup 'Не обработано (к-во)' (group) = GROUP SUM 1 IF completedTranslateArticle(article) AND notCompletedCustomsArticle(article) BY itemGroupArticle(article);
+recCountNotCompletedCustomsArticlesItemGroup 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedCustomsArticlesItemGroup(child) IF isParentItemGroupItemGroup(child, parent) BY parent;
+
+// Не заполнены атрибуты
+nullCustomsCountryItem 'Без атрибутов' (country, item) =  item IS Item AND country IS Country AND NOT customsGroupCountryItem(country, item) AND NOT completedCustomsItem(item);
+nullCustomsCountryArticle 'Без атрибутов' (country, article) = GROUP SUM 1 IF item IS Item AND country IS Country AND NOT customsGroupCountryItem(country, item) AND NOT completedCustomsItem(item) BY country, articleItem(item);
+
+// todo : workaround, так как нельзя в сессионных событиях обращаться к форме
+dateArticleCustomsDashboardUser 'Дата' = DATA DATE (User);
+dateArticleCustomsDashboard 'Дата' () = dateArticleCustomsDashboardUser(currentUser());
+setDateArticleCustomsDashboard = ACTION() dateArticleCustomsDashboardUser(u) <- currentDate() WHERE u == currentUser();
+
+changeDateArticleCustomsDashboard = ACTION () {
+    REQUEST DATE INPUT;
+    dateArticleCustomsDashboardUser(u) <- requestedDate() WHERE u == currentUser();
+}
+
+FORM articleCustomsDashboard 'Заполнение ТНВЭД'
+
+    OBJECTS c=Country FIXED PANEL
+    PROPERTIES(c) SELECTOR nameCountry
+
+    PROPERTIES dateArticleCustomsDashboard() ON CHANGE changeDateArticleCustomsDashboard()
+
+    TREE groupTree g=ItemGroup PARENT parentItemGroup
+    PROPERTIES READONLY nameItemGroup(g), recCountNotCompletedCustomsArticlesItemGroup(g)
+    ORDER BY nameItemGroup(g)
+    FILTERS activeItemGroup(g)
+    FILTERGROUP notCustomsFilters
+        FILTER 'Не обработан' 'F6' recCountNotCompletedCustomsArticlesItemGroup(g)
+
+    OBJECTS a=Article
+    PROPERTIES(a) READONLY idArticle, canonicalNameItemGroupArticle FORCE PANEL, 
+                           captionArticle, compositionArticle, nameUOMArticle
+    PROPERTIES(c, a) BACKGROUND hintEditableBackground() codeCustomsGroupCountryArticle, nameCustomsGroupCountryArticle, nameComplianceGroupCountryArticle
+    PROPERTIES                                           completedCustomsArticle(a) ON CHANGE changeCompletedCustomsArticle(a)
+    PROPERTIES(a) EDITFORM
+    
+    FILTERGROUP attributesFilters
+        FILTER 'Без атрибутов' 'F7' nullCustomsCountryArticle(c,a)
+        FILTER 'С атрибутами' 'F6' NOT nullCustomsCountryArticle(c,a) 
+    FILTERGROUP groupFilters
+        FILTER 'Переведены' 'F10' completedTranslateArticle(a) DEFAULT
+
+    FILTERS isParentGroupArticle(g, a)
+//    FILTERGROUP groupFilters
+//        FILTER 'По группам' 'F11' isParentGroupArticle(g, a) DEFAULT
+//        FILTER 'Без групп' 'ctrl F11' captionArticle(a) IF NOT itemGroupArticle(a)
+
+    FILTERGROUP translateFilters
+        FILTER 'Не обработан' 'F9' notCompletedCustomsArticle(a) DEFAULT
+        FILTER 'Обработан' 'F8' completedCustomsArticle(a)
+
+    OBJECTS i=Item
+    PROPERTIES(i) READONLY idBarcodeSku, idItem, 
+                           originalCaptionItem, originalCompositionItem, originalCustomsGroupItem, 
+                           captionItem, compositionItem, nameUOMItem, canonicalNameItemGroupItem, idItemGroupItem, nameSizeItem,
+                           imageArticleItem FORCE PANEL
+    PROPERTIES(i) originalSizeItem READONLY
+    ORDER BY idItem
+    PROPERTIES BACKGROUND hintEditableBackground() codeCustomsGroupCountryItem(c, i), nameCustomsGroupCountryItem(c, i), nameComplianceGroupCountryItem(c, i)
+    PROPERTIES completedCustomsItem(i)
+    PROPERTIES(i) EDITFORM
+    
+    FILTERGROUP attributesFilters
+        FILTER 'Без атрибутов' 'F7' nullCustomsCountryItem(c,i)       
+        FILTER 'С атрибутами' 'F6' NOT nullCustomsCountryItem(c,i)       
+    FILTERGROUP itemFilters
+        FILTER 'По артикулам' 'F4' articleItem(i) == a DEFAULT
+        FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND completedTranslateItem(i) AND NOT completedCustomsItem(i)
+        FILTER 'По группам' 'ctrl F4' isParentItemGroupItem(g,i)
+        
+    EVENTS 
+        ON INIT setDateArticleCustomsDashboard()
+;
+
+DESIGN articleCustomsDashboard FROM DEFAULT {
+    NEW header {
+        type = CONTAINERH;
+        NEW dataContainer {     
+            caption = 'Дата';
+            ADD PROPERTY(dateArticleCustomsDashboard);
+        }
+        ADD c.box;
+    }
+
+    NEW pane {
+        type = SPLITH;
+        fill = 1;
+        NEW tree1{
+            type = SPLITV;
+            fill = 1;
+            ADD groupTree.tree.box {fill = 2;}
+            NEW imageBox1 {
+                fill = 3;
+                caption = 'Изображение';                     
+                ADD PROPERTY(imageArticleItem(i)) {                           
+                    caption = '';
+                    fill = 1;
+                }
+            }
+        }
+        NEW row211 {
+            fill = 3;
+            type = SPLITV;
+            ADD a.box {
+                defaultComponent = TRUE;
+                fill = 2;
+            }
+            ADD i.box;
+        }
+    }
+
+    PROPERTY(idArticle(a)) { minimumCharWidth = 6; preferredCharWidth = 10;}
+
+    PROPERTY(idItem(i)) { minimumCharWidth = 6; preferredCharWidth = 10;}
+    PROPERTY(compositionItem(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
+    PROPERTY(originalCustomsGroupItem(i)) { minimumCharWidth = 11; preferredCharWidth = 15;}
+    PROPERTY(originalCompositionItem(i)) { minimumCharWidth = 11; preferredCharWidth = 15;}
+    PROPERTY(captionItem(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
+    PROPERTY(originalCaptionItem(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
+    PROPERTY(compositionItem(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
+    PROPERTY(nameSizeItem(i)) { minimumCharWidth = 3; preferredCharWidth = 10;}
+    
+    ADD functions.box;
+}
+
+// -- Проставляем страну по умолчанию
+seekDefaultCountryArticleCustomsDashboard() = ACTION () {
+    IF defaultCountry() THEN {
+        SEEK articleCustomsDashboard.c defaultCountry();
+    }
+}
+EXTEND FORM articleCustomsDashboard
+    EVENTS ON INIT seekDefaultCountryArticleCustomsDashboard()
+;
+
+completeArticleCustomsDashboard 'Подтвердить все' = ACTION (country) {   
+    LOCAL k = INTEGER ();
+    k() <- 0;
+    
+    FOR [= FILTER articleCustomsDashboard.a](article) AND nullCustomsCountryArticle(country, article) DO {   
+        k() <- k() + 1;              
+    }    
+    IF k() > 0 THEN {
+        MESSAGE 'Для артикула не задан ТН ВЭД ('+k()+' шт.)';
+    } ELSE {
+        FOR [= FILTER articleCustomsDashboard.a](article) DO {
+            completedCustomsItem(item) <- TRUE WHERE articleItem(item) == article;
+        }
+    }      
+} TOOLBAR CONFIRM;
+
+EXTEND FORM articleCustomsDashboard
+    PROPERTIES(c) TODRAW a completeArticleCustomsDashboard FORCE PANEL
+;
+
+// ----------------------------- Заполнение атрибутов для товаров при изменении для товара ----------------- //
+
+// ТНВЭД
+WHEN SESSION FORMS articleCustomsDashboard
+    CHANGED(customsGroupCountryArticle(country, article)) DO {
+        customsGroupCountryItem (country, item) <- customsGroupCountryArticle(country, article) WHERE articleItem(item) == article AND NOT completedCustomsItem(item);
+        VATCustomsExceptionCountryItem(country, item) <- NULL WHERE articleItem(item) == article  AND NOT completedCustomsItem(item);
+    }
+
+WHEN SESSION FORMS articleCustomsDashboard
+    CHANGED(customsGroupCountryItem (country, item)) OR CHANGED(VATCustomsExceptionCountryItem(country, item)) DO {
+        dataVATItemCountryDate(item, country, dt) <- IF VATCustomsExceptionCountryItem(country, item) THEN
+                                                         rangeVATCustomsExceptionCountryItem(country, item)
+                                                     ELSE
+                                                         VATCountryItemDate(country, item, dt) WHERE dt == dateArticleCustomsDashboard();
+    }
+
+// Группы сертификации
+WHEN SESSION FORMS articleCustomsDashboard
+    CHANGED(complianceGroupCountryArticle(country, article)) DO {
+        complianceGroupCountryItem (country, item) <- complianceGroupCountryArticle(country, article) WHERE articleItem(item) == article AND NOT completedCustomsItem(item);
+    }
+
+// ------------------------- Автоматическое заполнение свойств --------------------------- //
+
+// ----- ТНВЭД
+countCustomsGroupCountryCaptionComposition (customsGroup, country, caption, composition) = GROUP SUM 1
+    BY customsGroupCountryItem(country,item), country, captionItem(item),  compositionItem(item);
+
+defaultCustomsGroupCountryCaptionComposition (country, caption, composition) =
+    GROUP LAST customsGroup
+        BY country, caption, composition
+        ORDER countCustomsGroupCountryCaptionComposition(customsGroup, country, caption, composition)
+        WHERE countCustomsGroupCountryCaptionComposition(customsGroup, country, caption, composition);
+
+// Артикулы
+fillDefaultCustomsGroupCountryArticle 'Заполнить ТН ВЭД' = ACTION (country, article) {
+    customsGroupCountryArticle(country,article) <- defaultCustomsGroupCountryCaptionComposition(
+                                                            country,
+                                                            captionArticle(article),
+                                                            compositionArticle(article))
+        WHERE defaultCustomsGroupCountryCaptionComposition(country, captionArticle(article), compositionArticle(article));
+
+} SHORTCUT codeCustomsGroupCountryArticle;
+
+fillDefaultCustomsGroupCountry 'Заполнить ТН ВЭД для всех' = ACTION (country) {
+   FOR [= FILTER articleCustomsDashboard.a](article) DO {
+       fillDefaultCustomsGroupCountryArticle(country,article);
+   }
+} SHORTCUT codeCustomsGroupCountryArticle;
+
+// Товары
+fillDefaultCustomsGroupCountryItem 'Заполнить ТН ВЭД' = ACTION (country, item) {
+    customsGroupCountryItem(country,item) <- defaultCustomsGroupCountryCaptionComposition(
+                                                            country,
+                                                            captionItem(item),
+                                                            compositionItem(item))                                                            
+        WHERE defaultCustomsGroupCountryCaptionComposition(country, captionItem(item), compositionItem(item));
+
+} SHORTCUT codeCustomsGroupCountryItem;
+
+fillDefaultCustomsGroupItemCountry 'Заполнить ТН ВЭД для всех' = ACTION (country) {
+    FOR [= FILTER articleCustomsDashboard.i](item) DO {
+        fillDefaultCustomsGroupCountryItem(country,item);
+    }
+} SHORTCUT codeCustomsGroupCountryItem;
+
+// ----- Группы сертификации
+countComplianceGroupCountryCaptionComposition (complianceGroup, country, caption, composition) = GROUP SUM 1
+    BY complianceGroupCountryItem(country,item), country, captionItem(item),  compositionItem(item);
+
+defaultComplianceGroupCountryCaptionComposition (country, caption, composition) =
+    GROUP LAST complianceGroup
+        BY country, caption, composition
+        ORDER countComplianceGroupCountryCaptionComposition(complianceGroup, country, caption, composition)
+        WHERE countComplianceGroupCountryCaptionComposition(complianceGroup, country, caption, composition);
+
+// Артикулы
+fillDefaultComplianceGroupCountryArticle 'Заполнить группу сертификации' = ACTION (country, article) {
+    complianceGroupCountryArticle(country,article) <- defaultComplianceGroupCountryCaptionComposition(
+                                                            country,
+                                                            captionArticle(article),
+                                                            compositionArticle(article))
+        WHERE defaultComplianceGroupCountryCaptionComposition(country, captionArticle(article), compositionArticle(article));
+
+} SHORTCUT nameComplianceGroupCountryArticle;
+
+fillDefaultComplianceGroupCountry 'Заполнить группу сертификации для всех' = ACTION (country) {
+   FOR [= FILTER articleCustomsDashboard.a](article) DO {
+       fillDefaultComplianceGroupCountryArticle(country,article);
+   }
+} SHORTCUT nameComplianceGroupCountryArticle;
+
+// Товары
+fillDefaultComplianceGroupCountryItem 'Заполнить группу сертификации' = ACTION (country, item) {
+    complianceGroupCountryItem(country,item) <- defaultComplianceGroupCountryCaptionComposition(
+                                                            country,
+                                                            captionItem(item),
+                                                            compositionItem(item))
+        WHERE defaultComplianceGroupCountryCaptionComposition(country, captionItem(item), compositionItem(item));
+} SHORTCUT nameComplianceGroupCountryItem;
+
+fillDefaultComplianceGroupItemCountry 'Заполнить группу сертификации для всех' = ACTION (country) {
+    FOR [= FILTER articleCustomsDashboard.i](item) DO {
+        fillDefaultComplianceGroupCountryItem(country,item);
+    }
+} SHORTCUT nameComplianceGroupCountryItem;
+
+NAVIGATOR {
+    customsDashboardNavigator {
+        ADD articleCustomsDashboard;
+    }
+}

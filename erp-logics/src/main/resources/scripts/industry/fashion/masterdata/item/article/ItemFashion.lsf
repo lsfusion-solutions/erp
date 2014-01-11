@@ -1,0 +1,190 @@
+MODULE ItemFashion;
+
+REQUIRE ItemArticle;
+
+NAMESPACE Item;
+
+GROUP itemFashion 'Одежда' : public;
+
+@defineStringItemAttribute(sizeHeight, VARISTRING[50], 'Рост', itemFashion);
+@defineItemAttributeBatch (sizeHeight, 'Рост');
+
+@defineStringItemAttribute(sizeChest, VARSTRING[100], 'Обхват груди/бюста', itemFashion);
+@defineItemAttributeBatch (sizeChest, 'Обхват груди/бюста');
+
+@defineStringItemAttribute(sizeUnderChest, VARSTRING[100], 'Обхват под грудью', itemFashion);
+@defineItemAttributeBatch (sizeUnderChest, 'Обхват под грудью');
+
+@defineStringItemAttribute(sizeCupBra, VARSTRING[100], 'Размер чашечки', itemFashion);
+@defineItemAttributeBatch (sizeCupBra, 'Размер чашечки');
+
+@defineStringItemAttribute(sizeHips, VARSTRING[100], 'Обхват бедер', itemFashion);
+@defineItemAttributeBatch (sizeHips, 'Обхват бедер');
+
+@defineStringItemAttribute(sizeWaist, VARSTRING[100], 'Обхват талии', itemFashion);
+@defineItemAttributeBatch (sizeWaist, 'Обхват талии');
+
+@defineStringItemAttribute(sizeNeck, VARSTRING[100], 'Обхват шеи', itemFashion);
+@defineItemAttributeBatch (sizeNeck, 'Обхват шеи');
+
+@defineStringItemAttribute(sizeHead, VARSTRING[100], 'Обхват головы', itemFashion);
+@defineItemAttributeBatch (sizeHead, 'Обхват головы');
+
+@defineStringItemAttribute(sizeHand, VARSTRING[100], 'Обхват кисти', itemFashion);
+@defineItemAttributeBatch (sizeHand, 'Обхват кисти');
+
+@defineStringItemAttribute(footLength, VARSTRING[100], 'Длина стопы', itemFashion);
+@defineItemAttributeBatch (footLength, 'Длина стопы');
+
+@defineStringItemAttribute(insoleLength, VARSTRING[100], 'Длина стельки', itemFashion);
+@defineItemAttributeBatch (insoleLength, 'Длина стельки');
+
+
+overCopyItem(s, d) += ACTION (s, d) {
+    sizeHeightItem(d) <- sizeHeightItem(s);
+    sizeChestItem(d) <- sizeChestItem(s);  
+    sizeUnderChestItem(d) <- sizeUnderChestItem(s);  
+    sizeCupBraItem(d) <- sizeCupBraItem(s);  
+    sizeHipsItem(d) <- sizeHipsItem(s);  
+    sizeWaistItem(d) <- sizeWaistItem(s);  
+    sizeNeckItem(d) <- sizeNeckItem(s);  
+    sizeHeadItem(d) <- sizeHeadItem(s);         
+    sizeHandItem(d) <- sizeHandItem(s);  
+    footLengthItem(d) <- footLengthItem(s);
+}
+
+EXTEND DESIGN item {
+    itemPrimaryColumn1 {
+        ADD i.itemFashion { columns = 3;}
+    }
+    
+    PROPERTY(sizeChestItem(i)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+    PROPERTY(sizeUnderChestItem(i)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+    PROPERTY(sizeCupBraItem(i)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+    PROPERTY(sizeHipsItem(i)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+    PROPERTY(sizeWaistItem(i)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+    PROPERTY(sizeNeckItem(i)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+    PROPERTY(sizeHeadItem(i)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+    PROPERTY(sizeHandItem(i)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+    PROPERTY(footLengthItem(i)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+}
+
+EXTEND DESIGN itemGroup {
+    itemGroupDetail {
+        ADD g.itemFashion {
+            columns = 6;
+        }
+    }
+}
+
+// --------------------------------- Атрибуты только для артикулов -------------------------- //
+
+// Год
+CLASS SeasonYear 'Год';
+TABLE seasonYear (SeasonYear);
+@defineExternalizable(seasonYear, VARSTRING[100]);
+
+nameSeasonYear 'Год' = DATA VARISTRING[50](SeasonYear);
+
+FORM seasonYear 'Год'
+    OBJECTS t=SeasonYear FIXED PANEL
+    PROPERTIES(t) nameSeasonYear, idSeasonYear SHOWIF showIDs()
+    EDIT SeasonYear OBJECT t
+;
+
+FORM seasonYears 'Годы'
+    OBJECTS t=SeasonYear
+    PROPERTIES(t) nameSeasonYear READONLY, idSeasonYear SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameSeasonYear
+    DIALOG SeasonYear OBJECT t
+;
+DESIGN seasonYears FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+seasonYearArticle = DATA SeasonYear (Article);
+nameSeasonYearArticle 'Год' (a) = nameSeasonYear(seasonYearArticle(a)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+seasonYearItem (item) = seasonYearArticle(articleItem(item));
+nameSeasonYearItem 'Год' (i) = nameSeasonYear(seasonYearItem(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameSeasonYearBatch 'Год' (b) =  nameSeasonYearItem(skuBatch(b));
+
+EXTEND FORM item PROPERTIES(i) nameSeasonYearItem;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() AFTER nameSizeItem(i) nameSeasonYearItem;
+
+EXTEND FORM article PROPERTIES(a)  nameSeasonYearArticle;
+EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  nameSeasonYearArticle;
+
+// Сезон
+CLASS Season 'Сезон';
+TABLE season (Season);
+@defineExternalizable(season, VARSTRING[100]);
+
+nameSeason 'Сезон' = DATA VARISTRING[50](Season);
+
+FORM season 'Сезон'
+    OBJECTS t=Season FIXED PANEL
+    PROPERTIES(t) nameSeason, idSeason SHOWIF showIDs()
+    EDIT Season OBJECT t
+;
+
+FORM seasons 'Сезоны'
+    OBJECTS t=Season
+    PROPERTIES(t) nameSeason READONLY, idSeason SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameSeason
+    DIALOG Season OBJECT t
+;
+DESIGN seasons FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+seasonArticle = DATA Season (Article);
+nameSeasonArticle 'Сезон' (a) = nameSeason(seasonArticle(a)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+seasonItem (item) = seasonArticle(articleItem(item));
+nameSeasonItem 'Сезон' (i) = nameSeason(seasonItem(i)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameSeasonBatch 'Сезон' (b) =  nameSeasonItem(skuBatch(b));
+ 
+EXTEND FORM item PROPERTIES(i) nameSeasonItem;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() AFTER nameSizeItem(i) nameSeasonItem;
+
+EXTEND FORM article PROPERTIES(a)  nameSeasonArticle;
+EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea nameSeasonArticle;
+
+// Коллекция
+CLASS Collection 'Коллекция';
+TABLE collection (Collection);
+
+@defineExternalizable(collection, VARSTRING[100]);
+nameCollection 'Наименование' = DATA VARISTRING[100](Collection);
+
+FORM collection 'Коллекция'
+    OBJECTS t=Collection FIXED PANEL
+    PROPERTIES(t) nameCollection, idCollection SHOWIF showIDs()
+    EDIT Collection OBJECT t
+;
+
+FORM collections 'Коллекции'
+    OBJECTS t=Collection
+    PROPERTIES(t) nameCollection READONLY, idCollection SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameCollection
+    DIALOG Collection OBJECT t
+;
+DESIGN collections FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+collectionArticle  = DATA Collection(Article);
+nameCollectionArticle 'Коллекция' (Article) = nameCollection(collectionArticle(Article)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
+collectionItem (item) = collectionArticle(articleItem(item));
+nameCollectionItem 'Коллекция' (i) = nameCollection(collectionItem(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameCollectionBatch 'Год' (b) =  nameCollectionItem(skuBatch(b));
+
+EXTEND FORM article PROPERTIES(a)  nameCollectionArticle;
+EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameCollectionArticle;
+
+NAVIGATOR {
+    itemAttributeNavigator {
+        ADD collections;
+        ADD seasons;
+        ADD seasonYears;
+    }
+}

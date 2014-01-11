@@ -1,0 +1,185 @@
+MODULE ArticleTranslateDashboard;
+
+REQUIRE ImageArticle, Dashboard, CustomsGroupArticle;
+
+NAMESPACE Item;
+
+// Обработка статуса
+
+completedTranslateItem 'Обработан' = DATA BOOLEAN (Item);
+notCompletedTranslateArticle 'Не обработан' (article) = GROUP SUM 1 IF i IS Item AND NOT completedTranslateItem(i) BY articleItem(i);
+completedTranslateArticle 'Обработан' = a IS Article AND NOT notCompletedTranslateArticle(a);
+
+changeCompletedTranslateArticle (article) = ACTION (article) {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        FOR articleItem(item) == article DO {
+            completedTranslateItem(item) <- TRUE;
+        }
+    } ELSE {
+        FOR articleItem(item) == article DO {
+            completedTranslateItem(item) <- NULL;
+        }                
+    }        
+}
+
+// Подсчет непереведенных артикулов для групп
+countNotCompletedTranslateArticlesItemGroup 'Не обработано (к-во)' (group) = GROUP SUM 1 IF notCompletedTranslateArticle(article) BY itemGroupArticle(article);
+recCountNotCompletedTranslateArticlesItemGroup 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedTranslateArticlesItemGroup(child) IF isParentItemGroupItemGroup(child, parent) BY parent;
+
+// Не заполнены атрибуты
+nullTranslateItem 'Без атрибутов' (item) = item IS Item AND NOT (captionItem(item) AND compositionItem(item)) AND NOT completedTranslateItem(item);
+nullTranslateArticle 'Без атрибутов' (article) = GROUP SUM 1 IF item IS Item AND NOT (captionItem(item) AND compositionItem(item)) AND NOT completedTranslateItem(item) BY articleItem(item);
+
+hintEditableBackground = RGB(224, 224, 255) IF TRUE;
+
+FORM articleTranslateDashboard 'Перевод'
+
+    TREE groupTree g=ItemGroup PARENT parentItemGroup
+    PROPERTIES READONLY nameItemGroup(g), recCountNotCompletedTranslateArticlesItemGroup(g)
+    ORDER BY nameItemGroup(g)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeItemGroup(g) DEFAULT
+    FILTERGROUP notTranslateFilters
+        FILTER 'Не обработан' 'F6' recCountNotCompletedTranslateArticlesItemGroup(g)
+
+    OBJECTS a=Article
+    PROPERTIES(a) READONLY          idArticle, canonicalNameItemGroupArticle FORCE PANEL
+    PROPERTIES(a) originalCaptionArticle, originalCompositionArticle, originalCustomsGroupArticle 
+    PROPERTIES(a) BACKGROUND hintEditableBackground() nameUOMArticle, captionArticle, compositionArticle,
+                                                      netWeightArticle, grossWeightArticle 
+    PROPERTIES(a) completedTranslateArticle ON CHANGE changeCompletedTranslateArticle(a)
+    PROPERTIES(a) EDITFORM
+    PROPERTIES(a) searchImageArticle FORCE PANEL
+
+    FILTERGROUP attributesFilters
+        FILTER 'Без атрибутов' 'F7' nullTranslateArticle(a) 
+        FILTER 'С атрибутами' 'F6' NOT nullTranslateArticle(a) 
+
+    FILTERS isParentGroupArticle(g, a) 
+//    FILTERGROUP groupFilters
+//        FILTER 'По группам' 'F11' isParentGroupArticle(g, a) DEFAULT
+//        FILTER 'Без групп' 'ctrl F11' captionArticle(a) IF NOT itemGroupArticle(a)
+
+    FILTERGROUP translateFilters
+        FILTER 'Не обработан' 'F9' notCompletedTranslateArticle(a) DEFAULT
+        FILTER 'Обработан' 'F8' completedTranslateArticle(a)
+
+    OBJECTS i=Item
+    PROPERTIES(i) READONLY idBarcodeSku, idItem, originalCaptionGrid = originalCaptionItem, originalCustomsGroupItem
+    PROPERTIES(i) BACKGROUND hintEditableBackground() nameUOMItem, captionItem, canonicalNameItemGroupItem, 
+                             compositionItem, netWeightItem, grossWeightItem,
+                             imageArticleItem FORCE PANEL
+    PROPERTIES(i) completedTranslateItem
+    ORDER BY idItem
+    PROPERTIES(i) EDITFORM
+    
+    FILTERGROUP attributesFilters
+        FILTER 'Без атрибутов' 'F7' nullTranslateItem(i)
+        FILTER 'С атрибутами' 'F6' NOT nullTranslateItem(i)
+             
+    FILTERGROUP itemFilters
+        FILTER 'По артикулам' 'F4' articleItem(i) == a DEFAULT
+        FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND NOT completedTranslateItem(i)
+        FILTER 'По группам' 'ctrl F4' isParentItemGroupItem(g,i)
+;
+
+DESIGN articleTranslateDashboard FROM DEFAULT {
+
+    NEW pane {
+        type = SPLITH;
+        fill = 1;
+        NEW tree {
+            type = SPLITV;
+            fill = 1;
+            ADD groupTree.tree.box {fill = 2;}
+            NEW imageBox {
+                fill = 3;
+                caption = 'Изображение';                     
+                ADD PROPERTY(imageArticleItem(i)) {                           
+                    caption = '';
+                    fill = 1;
+                }
+            }
+        }
+        NEW row11 {
+            fill = 3;
+            type = SPLITV;
+            ADD a.box {
+                defaultComponent = TRUE;
+                fill = 2;
+            }
+            ADD i.box;
+        }
+    }
+
+    PROPERTY(idArticle(a)) { minimumCharWidth = 6; preferredCharWidth = 10;}
+    PROPERTY(idItem(i)) { minimumCharWidth = 6; preferredCharWidth = 10;}
+    PROPERTY(compositionItem(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
+    PROPERTY(originalCustomsGroupItem(i)) { minimumCharWidth = 11; preferredCharWidth = 15;}
+    PROPERTY(captionItem(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
+    PROPERTY(compositionItem(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
+
+    ADD functions.box;
+}
+           
+completeArticleTranslateDashboard 'Подтвердить все' = ACTION () {   
+    LOCAL k = INTEGER ();
+    k() <- 0;
+    
+    FOR [= FILTER articleTranslateDashboard.a](article) AND nullTranslateArticle(article) DO{   
+        k() <- k() + 1;              
+    }    
+    IF k() > 0 THEN {
+        MESSAGE 'Для артикула не задано название или состав ('+k()+' шт.)';
+    } ELSE {
+        FOR [= FILTER articleTranslateDashboard.a](article) DO {
+            completedTranslateItem(item) <- TRUE WHERE articleItem(item) == article;
+        }
+    }      
+} TOOLBAR CONFIRM;
+
+EXTEND FORM  articleTranslateDashboard
+    PROPERTIES() FORCE PANEL TODRAW a completeArticleTranslateDashboard
+;
+
+// ------------------------- Автоматическое заполнение свойств --------------------------- //
+countArticleCaptionOriginal (string, original) = GROUP SUM 1 BY captionArticle(article), originalCaptionArticle(article);
+defaultCaptionArticleOriginalCaption (composition) = GROUP LAST caption 
+                                                           BY original
+                                                           ORDER countArticleCaptionOriginal(caption, original)
+                                                           WHERE countArticleCaptionOriginal(caption, original);
+
+fillDefaultCaptionArticle 'Перевести название' = ACTION (article) {
+    captionArticle(article) <- defaultCaptionArticleOriginalCaption(originalCaptionArticle(article))
+        WHERE defaultCaptionArticleOriginalCaption(originalCaptionArticle(article));
+} SHORTCUT captionArticle;
+
+fillDefaultCaptionArticles 'Перевести для всех название' = ACTION () {
+    FOR [= FILTER articleTranslateDashboard.a](article) DO {
+        fillDefaultCaptionArticle(article);
+    }
+} SHORTCUT captionArticle;
+
+//--
+countArticleCompositionOriginal (string, original) = GROUP SUM 1 BY compositionArticle(article), originalCompositionArticle(article);
+defaultCompositionArticleOriginalComposition (composition) = GROUP LAST composition 
+                                                                   BY original
+                                                                   ORDER countArticleCompositionOriginal(composition, original)
+                                                                   WHERE countArticleCompositionOriginal(composition, original);
+
+fillDefaultCompositionArticle 'Перевести состав' = ACTION (article) {
+    compositionArticle(article) <- defaultCompositionArticleOriginalComposition(originalCompositionArticle(article))
+        WHERE defaultCompositionArticleOriginalComposition(originalCompositionArticle(article));
+} SHORTCUT compositionArticle;
+
+fillDefaultCompositionArticles 'Перевести для всех состав' = ACTION () {
+   FOR [= FILTER articleTranslateDashboard.a](article) DO {
+        fillDefaultCompositionArticle(article);
+   }
+} SHORTCUT compositionArticle;
+
+NAVIGATOR {
+    customsDashboardNavigator {
+        ADD articleTranslateDashboard;
+    }
+}

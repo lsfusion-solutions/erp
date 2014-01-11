@@ -1,0 +1,71 @@
+MODULE ItemFashionSticker;
+
+REQUIRE ItemArticle;
+
+NAMESPACE Item;
+
+GROUP itemSticker 'Стикер' : base;
+
+servicePeriodArticle 'Срок службы'  = DATA TEXT (Article);
+servicePeriodItem 'Срок службы' (item) = servicePeriodArticle(articleItem(item));
+
+guaranteePeriodArticle 'Срок гарантии'  = DATA TEXT (Article);
+guaranteePeriodItem 'Срок гарантии' (item) = guaranteePeriodArticle(articleItem(item));
+
+additionalDescriptionArticle 'Дополнение к описанию'  = DATA TEXT (Article);
+additionalDescriptionItem 'Дополнение к описанию' (item) = additionalDescriptionArticle(articleItem(item));
+
+manualArticle 'Инструкция по использованию'  = DATA TEXT (Article);
+manualItem 'Инструкция по использованию' (item) = manualArticle(articleItem(item));
+
+extraInformationArticle 'Доп. информация'  = DATA TEXT (Article);
+extraInformationItem 'Доп. информация' (item) = extraInformationArticle(articleItem(item));
+
+safetyInformationArticle 'Сведения по безопасности'  = DATA TEXT (Article);
+safetyInformationItem 'Сведения по безопасности' (item) = safetyInformationArticle(articleItem(item));
+
+notRefundableArticle 'Не подлежит возврату' = DATA BOOLEAN (Article) IN itemSticker;
+notRefundableItem 'Не подлежит возврату' (item) = notRefundableArticle(articleItem(item));
+
+washingRequiredArticle 'Предварительная стирка обязательна' = DATA BOOLEAN (Article) IN itemSticker;
+washingRequiredItem 'Предварительная стирка обязательна' (item) = washingRequiredArticle(articleItem(item));
+
+EXTEND FORM article
+    PROPERTIES(a) servicePeriodArticle, guaranteePeriodArticle,
+                  additionalDescriptionArticle,manualArticle, extraInformationArticle, safetyInformationArticle,
+                  notRefundableArticle, washingRequiredArticle;
+;
+
+EXTEND DESIGN article {
+    articlePrimary {
+        ADD a.itemSticker;            
+    }
+}
+
+// ----------------------------------- Отдельный состав для стикера ------------------------------------ //
+
+compositionStickerArticle 'Состав (стикер)' = DATA VARSTRING[255] (Article) IN itemSticker MINCHARWIDTH 30 PREFCHARWIDTH 40;
+
+@defineStringItemAttribute(compositionSticker, VARSTRING[255], 'Состав (стикер)', itemSticker);
+@defineItemAttributeBatch (compositionSticker, 'Состав (стикер)');
+
+EXTEND FORM article PROPERTIES(a) compositionStickerArticle;
+EXTEND DESIGN article { articlePrimary { ADD a.itemSticker; } }
+EXTEND FORM articles PROPERTIES(a) READONLYIF isReadonly() BEFORE deletea compositionStickerArticle;
+
+overCopyItem(s, d) += ACTION (s, d) {
+    compositionStickerItem(d) <- compositionStickerItem(s);
+}                 
+
+// Автоматическое проставление состава для товара из артикула
+WHEN SESSION (CHANGED(compositionStickerArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(compositionStickerItem(i)) DO         
+    compositionStickerItem(i) <- compositionStickerArticle(article) WHERE articleItem(i)==article;   
+
+// Автоматическое проставление состава из основного состава в переводе
+WHEN CHANGED(compositionArticle(article)) AND NOT CHANGED(compositionStickerArticle(article)) DO {
+        compositionStickerArticle (article) <- compositionArticle(article);
+    }
+
+WHEN CHANGED(compositionItem(item)) AND NOT CHANGED(compositionStickerItem(item)) DO {
+        compositionStickerItem (item) <- compositionItem(item);
+    }

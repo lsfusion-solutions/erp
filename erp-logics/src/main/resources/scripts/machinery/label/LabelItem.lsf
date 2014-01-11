@@ -5,5 +5,12 @@ REQUIRE Label, Item;
 
 // ------------------------------ Добавляем атрибуты в ценники ----------------------------- //
 
-nameManufacturerItemBarcode = nameManufacturerItem(skuBarcode(barcode));
-@defineLabelTransactionAttribute(manufacturer, 'Производитель', VARSTRING[255], Item, nameManufacturer);
+@defineLabelTransactionAttribute(captionItem, 'Название', VARSTRING[100], Item, caption);
+
+@defineLabelTransactionAttribute(nameManufacturerItem, 'Производитель', VARSTRING[255], Item, nameManufacturer);
+@defineLabelTransactionAttribute(addressManufacturerItem, 'Адрес производителя', STRING[255], Item, addressManufacturer);
+
+nameAddressManufacturerItemLabelTransactionDetail (d) = CONCAT ', ', nameManufacturerItemLabelTransactionDetail(d), addressManufacturerItemLabelTransactionDetail(d);
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressManufacturerItemLabelTransactionDetail;
+EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressManufacturerItemLabelTransactionDetail;
+EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressManufacturerItemLabelTransactionDetail;

@@ -215,34 +215,6 @@ EXTEND DESIGN article {
 EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() netWeightArticle, grossWeightArticle;
 
 
-// Коллекция
-CLASS Collection 'Коллекция';
-TABLE collection (Collection);
-
-@defineExternalizable(collection, VARSTRING[100]);
-nameCollection 'Наименование' = DATA VARISTRING[100](Collection);
-
-FORM collection 'Коллекция'
-    OBJECTS t=Collection FIXED PANEL
-    PROPERTIES(t) nameCollection, idCollection SHOWIF showIDs()
-    EDIT Collection OBJECT t
-;
-
-FORM collections 'Коллекции'
-    OBJECTS t=Collection
-    PROPERTIES(t) nameCollection READONLY, idCollection SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameCollection
-    DIALOG Collection OBJECT t
-;
-DESIGN collections FROM DEFAULT { main{ preferredSize = (600, 400); } }
-
-collectionArticle  = DATA Collection(Article);
-nameCollectionArticle 'Коллекция' (Article) = nameCollection(collectionArticle(Article)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 20;
-
-EXTEND FORM article PROPERTIES(a)  nameCollectionArticle;
-EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameCollectionArticle;
-
 // Размер
 CLASS Size 'Размер товара';
 TABLE size(Size);
@@ -269,7 +241,11 @@ FORM sizes 'Размеры товара'
 DESIGN sizes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(size, Size, nameSize, 'Размер', itemArticle);
+
 nameOriginalSizeItem 'Размер (оригинальный)' (item) = nameOriginalSize(sizeItem(item)) IN itemArticle;
+dataOriginalSizeItem 'Размер (оригинальный)' = DATA VARISTRING[50](Item);
+originalSizeItem 'Размер (оригинальный)' (i) = OVERRIDE nameOriginalSizeItem(i), dataOriginalSizeItem(i) MINCHARWIDTH 3 PREFCHARWIDTH 5;
+@implementItemAttribute(originalSize, 'Размер (оригинальный)', String, itemOriginalSize);
 
 @defineObjectItemAttributeBatch (size, nameSize, 'Размер');
 @implementItemAttribute(nameSize, 'Размер', String, itemSize);
@@ -284,37 +260,10 @@ countSizeArticle 'Кол-во размеров для артикля' (size,arti
 maxSkuArticleColorSize (article, color, size) = GROUP MAX sku
     BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku);
 
-// Рост
-CLASS SizeHeight 'Рост товара';
-TABLE sizeHeight (SizeHeight);
-@defineExternalizable(sizeHeight, VARSTRING[100]);
-
-nameSizeHeight 'Рост' = DATA VARISTRING[50](SizeHeight);
-
-FORM sizeHeight 'Рост товара'
-    OBJECTS t=SizeHeight FIXED PANEL
-    PROPERTIES(t) nameSizeHeight, idSizeHeight SHOWIF showIDs()
-    EDIT SizeHeight OBJECT t
-;
-
-FORM sizeHeights 'Роста товара'
-    OBJECTS t=SizeHeight
-    PROPERTIES(t) nameSizeHeight READONLY, idSizeHeight SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameSizeHeight
-    DIALOG SizeHeight OBJECT t
-;
-DESIGN sizeHeights FROM DEFAULT { main{ preferredSize = (600, 400); } }
-
-@defineObjectItemAttribute(sizeHeight, SizeHeight, nameSizeHeight, 'Рост', itemArticle);
-@defineObjectItemAttributeBatch (sizeHeight, nameSizeHeight, 'Рост');
-@implementItemAttribute(nameSizeHeight, 'Рост', String, itemSizeHeight);
-
 overCopyItem(s, d) += ACTION (s, d) {
     articleItem(d) <- articleItem(s);
     colorItem(d) <- colorItem(s);
     sizeItem(d) <- sizeItem(s);
-    sizeHeightItem(d) <- sizeHeightItem(s);
 }
 
 EXTEND DESIGN item {
@@ -340,83 +289,12 @@ NAVIGATOR {
     }
 }
 
-// --------------------------------- Атрибуты только для артикулов -------------------------- //
-
-// Сезон
-CLASS Season 'Сезон';
-TABLE season (Season);
-@defineExternalizable(season, VARSTRING[100]);
-
-nameSeason 'Сезон' = DATA VARISTRING[50](Season);
-
-FORM season 'Сезон'
-    OBJECTS t=Season FIXED PANEL
-    PROPERTIES(t) nameSeason, idSeason SHOWIF showIDs()
-    EDIT Season OBJECT t
-;
-
-FORM seasons 'Сезоны'
-    OBJECTS t=Season
-    PROPERTIES(t) nameSeason READONLY, idSeason SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameSeason
-    DIALOG Season OBJECT t
-;
-DESIGN seasons FROM DEFAULT { main{ preferredSize = (600, 400); } }
-
-// Год
-CLASS SeasonYear 'Год';
-TABLE seasonYear (SeasonYear);
-@defineExternalizable(seasonYear, VARSTRING[100]);
-
-nameSeasonYear 'Год' = DATA VARISTRING[50](SeasonYear);
-
-FORM seasonYear 'Год'
-    OBJECTS t=SeasonYear FIXED PANEL
-    PROPERTIES(t) nameSeasonYear, idSeasonYear SHOWIF showIDs()
-    EDIT SeasonYear OBJECT t
-;
-
-FORM seasonYears 'Годы'
-    OBJECTS t=SeasonYear
-    PROPERTIES(t) nameSeasonYear READONLY, idSeasonYear SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameSeasonYear
-    DIALOG SeasonYear OBJECT t
-;
-DESIGN seasonYears FROM DEFAULT { main{ preferredSize = (600, 400); } }
-
-seasonArticle = DATA Season (Article);
-nameSeasonArticle 'Сезон' (a) = nameSeason(seasonArticle(a)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
-
-seasonYearArticle = DATA SeasonYear (Article);
-nameSeasonYearArticle 'Год' (a) = nameSeasonYear(seasonYearArticle(a)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
-
-seasonItem (item) = seasonArticle(articleItem(item));
-nameSeasonItem 'Сезон' (i) = nameSeason(seasonItem(i)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
- 
-seasonYearItem (item) = seasonYearArticle(articleItem(item));
-nameSeasonYearItem 'Год' (i) = nameSeasonYear(seasonYearItem(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
-
-EXTEND FORM item
-    PROPERTIES(i) nameSeasonYearItem, nameSeasonItem
-;
-EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() AFTER nameSizeHeightItem(i) nameSeasonYearItem, nameSeasonItem;
-
-EXTEND FORM article
-    PROPERTIES(a)  nameSeasonYearArticle, nameSeasonArticle
-;
-
-EXTEND FORM articles
-    PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  nameSeasonYearArticle, nameSeasonArticle
-;
-
 // ------------------ Добавляем на форму артикулов товары в отдельную вкладку ---------------------- //
 EXTEND FORM article
 
     OBJECTS i = Item
     PROPERTIES (i) captionItem, compositionItem, nameUOMItem, nameColorItem,                        
-                   nameSizeItem, nameSizeHeightItem     
+                   nameSizeItem     
     PROPERTIES (i) ADDOBJ, deletei = DELETESESSION   
                                                                     
     FILTERS articleItem(i) == a      
@@ -431,7 +309,7 @@ EXTEND FORM articles
 
     OBJECTS i = Item
     PROPERTIES (i) READONLY captionItem, compositionItem, nameUOMItem, nameColorItem, 
-                   nameSizeItem, nameSizeHeightItem       
+                   nameSizeItem       
     
     FILTERS articleItem(i) == a      
     
@@ -474,9 +352,6 @@ WHEN SESSION (CHANGED(grossWeightArticle(article)) OR CHANGED(articleItem(i))) A
 NAVIGATOR {
     itemAttributeNavigator {
         ADD colors;
-        ADD collections;
         ADD sizes;
-        ADD seasons;
-        ADD seasonYears;
     }
 }
