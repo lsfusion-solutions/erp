@@ -10,6 +10,31 @@ GROUP invoices 'Приемка по накладным' : base;
 @defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, shipment, ' учетная');
 @defineDocumentHeaderSumPrefix(invoice, shipment, ' учетная');
 
+invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail);
+descriptionIndexInvoiceDetailShipmentDetail 'Строка накладной' (detail) = descriptionIndexInvoiceDetail(invoiceDetailShipmentDetail(detail));
+
+quantityShipmentDetailInvoiceShipment (invoice, shipment) = GROUP SUM quantityShipmentDetail(shipmentDetail) BY invoiceInvoiceDetail(invoiceDetailShipmentDetail(shipmentDetail)), shipmentShipmentDetail(shipmentDetail);
+relationInvoiceShipment 'Связь' (shipment) = GROUP SUM 1 IF quantityShipmentDetailInvoiceShipment (invoice, shipment) BY shipment;
+
+invoicesShipment 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF quantityShipmentDetailInvoiceShipment(invoice, shipment) , ', '
+                                                BY shipment
+                                                ORDER invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;
+
+shippedInvoiceDetail 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantityShipmentDetail(shipmentDetail) IF isPostedShipmentDetail(shipmentDetail)
+                                                                   BY invoiceDetailShipmentDetail(shipmentDetail);
+                                                                   
+shippedInvoice 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isPostedInvoiceDetail(detail)
+                                                                   BY invoiceInvoiceDetail(detail);   
+                                                                                                                                       
+toShipInvoiceDetail 'Не поставлено' (invoiceDetail) = quantityInvoiceDetail (invoiceDetail) (-) shippedInvoiceDetail(invoiceDetail);
+
+toShipInvoiceDetailInvoice 'Не поставлено по накладной' (invoice) =
+    GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
+          BY invoiceInvoiceDetail(invoiceDetail);
+
+
+
+
 META defineInvoiceShipment(sign, stockProp, filter)
 
     invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT;
