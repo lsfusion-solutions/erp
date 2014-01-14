@@ -199,10 +199,20 @@ writeOutContractLedgerFIFO 'Расписать по FIFO' = ACTION (outContractL
     ASSIGN costOutContractLedgerInContractLedger(outContractLedger, inContractLedger) <- sumInFIFOOutContractLedgerInContractLedger(outContractLedger, inContractLedger);
 }
 
+writeOutContractLedgerFIFOApply 'Расписать по FIFO' = ACTION (outContractLedger) {
+    writeOutContractLedgerFIFO(outContractLedger);
+    apply();
+}
+
 writeOutContractLedgerLIFO 'Расписать по LIFO' = ACTION (outContractLedger) {
 
     ASSIGN costOutContractLedgerInContractLedger(outContractLedger, inContractLedger) <- NULL;
     ASSIGN costOutContractLedgerInContractLedger(outContractLedger, inContractLedger) <- sumInLIFOOutContractLedgerInContractLedger(outContractLedger, inContractLedger);
+}
+
+writeOutContractLedgerLIFOApply 'Расписать по LIFO' = ACTION (outContractLedger) {
+    writeOutContractLedgerLIFO(outContractLedger);
+    apply();
 }
 
 META implementInOutContractLedgerPrefix(prefix, objectClass, contractProp)
@@ -278,8 +288,8 @@ FORM costContractLedger 'Разнесение документов'
                            descriptionOutContractLedger BACKGROUND backgroundOutContractLedgerDate(o, d),
                            sumOutContractLedger BACKGROUND backgroundOutContractLedgerDate(o, d),
                            costedInContractLedgerOutContractLedger BACKGROUND backgroundOutContractLedgerDate(o, d)
-    PROPERTIES(o) writeOutContractLedgerFIFO TODRAW i FORCE PANEL TOOLBAR,
-                  writeOutContractLedgerLIFO TODRAW i FORCE PANEL TOOLBAR
+    PROPERTIES(o) writeOutContractLedgerFIFOApply TODRAW i FORCE PANEL TOOLBAR,
+                  writeOutContractLedgerLIFOApply TODRAW i FORCE PANEL TOOLBAR
     ORDER BY dateOutContractLedger
 
     PROPERTIES(i) READONLY dateInContractLedger BACKGROUND backgroundInContractLedgerDate(i, d),
