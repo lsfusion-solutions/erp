@@ -38,13 +38,13 @@ public class SearchImageArticleActionProperty extends DefaultImageArticleActionP
             for (int i = 0; i < 64; i++) {
 
                 DataObject currentObject = new DataObject(i);
-                getLCP("thumbnailImage").change(null, context, currentObject);
-                getLCP("urlImage").change(null, context, currentObject);
-                getLCP("sizeImage").change(null, context, currentObject);
+                getLCP("thumbnailImage").change((Object) null, context, currentObject);
+                getLCP("urlImage").change((Object)null, context, currentObject);
+                getLCP("sizeImage").change((Object)null, context, currentObject);
             }
 
-            getLCP("startImage").change(null, context);
-            getLCP("articleImage").change(null, context);
+            getLCP("startImage").change((Object)null, context);
+            getLCP("articleImage").change((Object)null, context);
 
         } catch (SQLException e) {
             throw Throwables.propagate(e);
