@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -33,7 +34,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
         receiptInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
       
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);

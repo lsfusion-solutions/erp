@@ -8,6 +8,7 @@ import jxl.write.WriteException;
 import lsfusion.base.IOUtils;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -55,7 +56,7 @@ public abstract class ExportExcelActionProperty extends ScriptingActionProperty 
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             context.delayUserInterfaction(new ExportFileClientAction(createFile(context)));
         } catch (IOException e) {

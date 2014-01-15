@@ -1,7 +1,9 @@
 package equ.srv;
 
+import com.google.common.base.Throwables;
 import equ.api.*;
 import lsfusion.server.context.ThreadLocalContext;
+import lsfusion.server.data.SQLHandledException;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
@@ -316,7 +318,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
             return transactionList;
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e.toString());
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -372,6 +376,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             return cashRegisterInfoList;
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e.toString());
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -425,7 +431,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
             return terminalInfoList;
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e.toString());
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -481,7 +489,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
             return terminalDocumentTypeInfoList;
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e.toString());
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -695,7 +705,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             return session.applyMessage(getBusinessLogics());
         } catch (Exception e) {
-            throw new RuntimeException(e.toString());
+            throw Throwables.propagate(e);
         }
     }
 
@@ -792,8 +802,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
 
             return session.applyMessage(getBusinessLogics());
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e.toString());
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -804,8 +814,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             equLM.findLCPByCompoundOldName("succeededMachineryPriceTransaction").change(true, session,
                     session.getDataObject(equLM.findClassByCompoundName("MachineryPriceTransaction"), transactionID));
             session.apply(getBusinessLogics());
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e.toString());
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -841,7 +851,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
             return fileLabelFormats;
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e.toString());
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -858,8 +870,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             equLM.findLCPByCompoundOldName("errorTraceMachineryPriceTransactionError").change(os.toString(), session, errorObject);
 
             session.apply(getBusinessLogics());
-        } catch (ScriptingErrorLog.SemanticErrorException e2) {
-            throw new RuntimeException(e2.toString());
+        } catch (Exception e2) {
+            throw Throwables.propagate(e2);
         }
     }
 
@@ -879,8 +891,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             equLM.findLCPByCompoundOldName("dateEquipmentServerError").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, errorObject);
 
             session.apply(getBusinessLogics());
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e.toString());
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -892,8 +904,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             Integer equipmentServerID = (Integer) equLM.findLCPByCompoundOldName("sidToEquipmentServer").read(session, new DataObject(equipmentServer, StringClass.get(20)));
             Integer delay = (Integer) equLM.findLCPByCompoundOldName("delayEquipmentServer").read(session, new DataObject(equipmentServerID, (ConcreteClass) equLM.findClassByCompoundName("EquipmentServer")));
             return new EquipmentServerSettings(delay);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e.toString());
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
         }
     }
 

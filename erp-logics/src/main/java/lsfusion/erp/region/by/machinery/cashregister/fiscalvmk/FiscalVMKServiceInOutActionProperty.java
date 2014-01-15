@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -22,7 +23,7 @@ public class FiscalVMKServiceInOutActionProperty extends ScriptingActionProperty
         cashOperationInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 

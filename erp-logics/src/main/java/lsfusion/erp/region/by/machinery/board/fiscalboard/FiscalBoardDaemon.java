@@ -6,6 +6,7 @@ import lsfusion.server.classes.DateTimeClass;
 import lsfusion.server.context.Context;
 import lsfusion.server.context.ContextAwareDaemonThreadFactory;
 import lsfusion.server.context.ThreadLocalContext;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.lifecycle.LifecycleAdapter;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
@@ -151,20 +152,14 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
                 inFromClient.close();              
                 
                 return null;
-            } catch (InterruptedException e) {
-                logger.error(e);
-            } catch (SQLException e) {
-                logger.error(e);
-            } catch (UnsupportedEncodingException e) {
-                logger.error(e);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 logger.error(e);
             }
             ThreadLocalContext.set(null);
             return null;
         }
 
-        private byte[] readMessage(BusinessLogics BL, DataSession session, String idBarcode) throws SQLException, UnsupportedEncodingException {
+        private byte[] readMessage(BusinessLogics BL, DataSession session, String idBarcode) throws SQLException, UnsupportedEncodingException, SQLHandledException {
             int textLength = 44;
             int gapLength = 8; //передаётся 2 строки по 30 символов, но показывается только по 22
             Date date = new Date(Calendar.getInstance().getTime().getTime());

@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import com.google.common.base.Throwables;
 import jxl.write.WriteException;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -152,10 +153,8 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
         }
 
         return data;

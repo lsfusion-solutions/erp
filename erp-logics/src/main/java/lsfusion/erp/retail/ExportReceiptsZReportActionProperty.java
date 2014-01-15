@@ -1,5 +1,6 @@
 package lsfusion.erp.retail;
 
+import com.google.common.base.Throwables;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -9,6 +10,7 @@ import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -46,7 +48,7 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
         super(LM, new ValueClass[]{});
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     public void export(ExecutionContext<ClassPropertyInterface> context, DataObject zReportObject, String filePath, boolean customPath) {
@@ -258,22 +260,10 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
             for (DataObject receiptObject : receiptObjectsList)
                 getLCP("exportedIncrementReceipt").change(true, context, receiptObject);
 
-            session.apply(context.getBL());
+            session.apply(context);
 
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (TransformerConfigurationException e) {
-            throw new RuntimeException(e);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ParserConfigurationException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (TransformerException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
         }
     }
 

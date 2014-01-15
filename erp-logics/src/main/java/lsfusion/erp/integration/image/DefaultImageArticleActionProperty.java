@@ -1,9 +1,11 @@
 package lsfusion.erp.integration.image;
 
+import com.google.common.base.Throwables;
 import lsfusion.base.IOUtils;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.erp.utils.geo.JsonReader;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -34,7 +36,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
 
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     public void loadImages(ExecutionContext context, DataObject articleObject, Integer start, Integer pageSize) {
@@ -73,14 +75,8 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
                 if (start == 0)
                     getLAP("chooseImageAction").execute(context, articleObject);
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
         }
     }
 

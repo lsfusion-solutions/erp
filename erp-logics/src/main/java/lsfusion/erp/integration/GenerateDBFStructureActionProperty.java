@@ -1,6 +1,7 @@
 package lsfusion.erp.integration;
 
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -22,7 +23,7 @@ public class GenerateDBFStructureActionProperty extends ScriptingActionProperty 
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
             String path = (String) LM.findLCPByCompoundOldName("generateDBFStructurePath").read(context);

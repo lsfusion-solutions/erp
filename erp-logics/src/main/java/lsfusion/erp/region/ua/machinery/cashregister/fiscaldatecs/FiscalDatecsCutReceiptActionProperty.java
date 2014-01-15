@@ -1,6 +1,7 @@
 package lsfusion.erp.region.ua.machinery.cashregister.fiscaldatecs;
 
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -15,7 +16,7 @@ public class FiscalDatecsCutReceiptActionProperty extends ScriptingActionPropert
         super(LM);
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
             Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());

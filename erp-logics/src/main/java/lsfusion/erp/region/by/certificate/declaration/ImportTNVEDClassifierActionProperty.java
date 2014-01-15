@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
+import lsfusion.server.data.SQLHandledException;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 import lsfusion.base.IOUtils;
@@ -30,13 +31,13 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
             Object countryBelarus = LM.findLCPByCompoundOldName("countrySID").read(context.getSession(), new DataObject("112", StringClass.get(3)));
             LM.findLCPByCompoundOldName("defaultCountry").change(countryBelarus, context.getSession());
-            context.getSession().apply(context.getBL());
+            context.getSession().apply(context);
 
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "DBF");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
@@ -57,7 +58,7 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         }
     }
 
-    private void importGroups(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException {
+    private void importGroups(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         File tempFile = File.createTempFile("tempTnved", ".dbf");
         IOUtils.putFileBytes(tempFile, fileBytes);
@@ -112,11 +113,11 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         IntegrationService service = new IntegrationService(session, table,
                 Arrays.asList(customsGroupKey, customsZoneKey, VATKey), properties);
         service.synchronize(true, false);
-        session.apply(context.getBL());
+        session.apply(context);
         session.close();
     }
 
-    private void importParents(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException {
+    private void importParents(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         File tempFile = File.createTempFile("tempTnved", ".dbf");
         IOUtils.putFileBytes(tempFile, fileBytes);
@@ -162,7 +163,7 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         IntegrationService service = new IntegrationService(session, table,
                 Arrays.asList(customsGroupKey, parentCustomsGroupKey), properties);
         service.synchronize(true, false);
-        session.apply(context.getBL());
+        session.apply(context);
         session.close();
     }
 }

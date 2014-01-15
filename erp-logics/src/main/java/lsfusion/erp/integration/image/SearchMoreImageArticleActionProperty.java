@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.image;
 
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -16,7 +17,7 @@ public class SearchMoreImageArticleActionProperty extends DefaultImageArticleAct
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
             ObjectValue articleObject = getLCP("articleImage").readClasses(context);

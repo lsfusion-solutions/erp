@@ -11,6 +11,7 @@ import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.DateClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
@@ -53,7 +54,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
@@ -109,7 +110,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                                         secondaryKeyType, operationObject, supplierObject, supplierStockObject,
                                         customerObject, customerStockObject);
 
-                            session.apply(context.getBL());
+                            session.apply(context);
                             session.close();
 
                             getLAP("formRefresh").execute(context);
@@ -145,7 +146,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     public void importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, DataSession session, Map<String, ImportColumnDetail> importColumns,
                                    DataObject userInvoiceObject, String keyType, ObjectValue operationObject, ObjectValue supplierObject,
                                    ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
 
         if (userInvoiceDetailsList != null) {
@@ -889,7 +890,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(DataSession session, Integer userInvoiceObject, Map<String, ImportColumnDetail> importColumns,
                                                                            byte[] file, String fileExtension, Integer startRow, Boolean isPosted,
                                                                            String csvSeparator, String primaryKeyType, String secondaryKeyType)
-            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException {
+            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
 
@@ -913,7 +914,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                                         String primaryKeyColumn, String secondaryKeyColumn, Integer startRow,
                                                                         Boolean isPosted, Integer userInvoiceObject)
-            throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException {
+            throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1031,7 +1032,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                                         String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Boolean isPosted,
                                                                         String csvSeparator, Integer userInvoiceObject)
-            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException {
+            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1157,7 +1158,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                                          String primaryKeyColumn, String secondaryKeyColumn, Integer startRow,
                                                                          Boolean isPosted, Integer userInvoiceObject)
-            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException {
+            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1274,7 +1275,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                                         String primaryKeyColumn, String secondaryKeyColumn, Integer startRow,
                                                                         Boolean isPosted, Integer userInvoiceObject)
-            throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
+            throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();

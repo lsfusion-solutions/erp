@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -17,7 +18,7 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
         super(LM, new ValueClass[]{});
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
             DataObject zReportObject = (DataObject) getLCP("currentZReport").readClasses(context);

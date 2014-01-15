@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.image;
 
 import com.google.common.base.Throwables;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -22,7 +23,7 @@ public class SearchImageArticleActionProperty extends DefaultImageArticleActionP
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         DataObject articleObject = context.getDataKeyValue(articleInterface);
 
@@ -31,7 +32,7 @@ public class SearchImageArticleActionProperty extends DefaultImageArticleActionP
         loadImages(context, articleObject, 0, 8);
     }
 
-    public void resetImages(ExecutionContext context) {
+    public void resetImages(ExecutionContext context) throws SQLHandledException {
 
         try {
 

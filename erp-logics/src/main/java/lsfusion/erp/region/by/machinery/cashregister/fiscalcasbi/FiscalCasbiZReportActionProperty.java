@@ -4,6 +4,7 @@ import lsfusion.interop.action.ConfirmClientAction;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.context.ThreadLocalContext;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -20,7 +21,7 @@ public class FiscalCasbiZReportActionProperty extends ScriptingActionProperty {
         super(LM, new ValueClass[]{});
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             DataSession session = context.getSession();
 

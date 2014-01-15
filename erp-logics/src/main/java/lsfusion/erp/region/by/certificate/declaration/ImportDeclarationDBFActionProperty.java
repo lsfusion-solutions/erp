@@ -4,6 +4,7 @@ import lsfusion.base.IOUtils;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
@@ -32,7 +33,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
         declarationInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
@@ -68,7 +69,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
         }
     }
 
-    private void importDeclaration(ExecutionContext context, DataObject declarationObject, DBF dbfFile) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException {
+    private void importDeclaration(ExecutionContext context, DataObject declarationObject, DBF dbfFile) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
         List<List<Object>> data = readDeclarationFromDBF(dbfFile);
 
@@ -101,7 +102,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
         session.sql.pushVolatileStats(null);
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
-        session.apply(context.getBL());
+        session.apply(context);
         session.sql.popVolatileStats(null);
         session.close();
     }

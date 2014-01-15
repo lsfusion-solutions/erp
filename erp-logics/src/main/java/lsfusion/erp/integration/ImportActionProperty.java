@@ -1,6 +1,8 @@
 package lsfusion.erp.integration;
 
+import lsfusion.base.ExceptionUtils;
 import lsfusion.server.classes.*;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
@@ -48,7 +50,7 @@ public class ImportActionProperty {
 
             Object countryBelarus = LM.findLCPByCompoundOldName("countrySID").read(context.getSession(), new DataObject("112", StringClass.get(3)));
             LM.findLCPByCompoundOldName("defaultCountry").change(countryBelarus, context.getSession());
-            context.getSession().apply(context.getBL());
+            context.getSession().apply(context);
 
             importItemGroups(importData.getItemGroupsList());
 
@@ -84,145 +86,133 @@ public class ImportActionProperty {
 
             importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys(), importData.getUserInvoiceCreateNewItems());
 
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            throw ExceptionUtils.propagate(e, SQLException.class);
         }
     }
 
-    private void importParentGroups(List<ItemGroup> parentGroupsList) throws ScriptingErrorLog.SemanticErrorException {
-        try {
-            if (parentGroupsList != null) {
+    private void importParentGroups(List<ItemGroup> parentGroupsList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        if (parentGroupsList != null) {
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-                List<List<Object>> data = initData(parentGroupsList.size());
+            List<List<Object>> data = initData(parentGroupsList.size());
 
-                ImportField idItemGroupField = new ImportField(LM.findLCPByCompoundOldName("idItemGroup"));
-                ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ItemGroup"),
-                        LM.findLCPByCompoundOldName("itemGroupId").getMapping(idItemGroupField));
-                keys.add(itemGroupKey);
-                fields.add(idItemGroupField);
-                for (int i = 0; i < parentGroupsList.size(); i++)
-                    data.get(i).add(parentGroupsList.get(i).sid);
+            ImportField idItemGroupField = new ImportField(LM.findLCPByCompoundOldName("idItemGroup"));
+            ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ItemGroup"),
+                    LM.findLCPByCompoundOldName("itemGroupId").getMapping(idItemGroupField));
+            keys.add(itemGroupKey);
+            fields.add(idItemGroupField);
+            for (int i = 0; i < parentGroupsList.size(); i++)
+                data.get(i).add(parentGroupsList.get(i).sid);
 
-                ImportField idParentGroupField = new ImportField(LM.findLCPByCompoundOldName("idItemGroup"));
-                ImportKey<?> parentGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ItemGroup"),
-                        LM.findLCPByCompoundOldName("itemGroupId").getMapping(idParentGroupField));
-                keys.add(parentGroupKey);
-                props.add(new ImportProperty(idParentGroupField, LM.findLCPByCompoundOldName("parentItemGroup").getMapping(itemGroupKey),
-                        LM.object(LM.findClassByCompoundName("ItemGroup")).getMapping(parentGroupKey)));
-                fields.add(idParentGroupField);
-                for (int i = 0; i < parentGroupsList.size(); i++)
-                    data.get(i).add(parentGroupsList.get(i).parent);
+            ImportField idParentGroupField = new ImportField(LM.findLCPByCompoundOldName("idItemGroup"));
+            ImportKey<?> parentGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ItemGroup"),
+                    LM.findLCPByCompoundOldName("itemGroupId").getMapping(idParentGroupField));
+            keys.add(parentGroupKey);
+            props.add(new ImportProperty(idParentGroupField, LM.findLCPByCompoundOldName("parentItemGroup").getMapping(itemGroupKey),
+                    LM.object(LM.findClassByCompoundName("ItemGroup")).getMapping(parentGroupKey)));
+            fields.add(idParentGroupField);
+            for (int i = 0; i < parentGroupsList.size(); i++)
+                data.get(i).add(parentGroupsList.get(i).parent);
 
-                ImportTable table = new ImportTable(fields, data);
+            ImportTable table = new ImportTable(fields, data);
 
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
         }
     }
 
-    private void importItemGroups(List<ItemGroup> itemGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importItemGroups(List<ItemGroup> itemGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        try {
-            if (itemGroupsList != null) {
+        if (itemGroupsList != null) {
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-                List<List<Object>> data = initData(itemGroupsList.size());
+            List<List<Object>> data = initData(itemGroupsList.size());
 
-                ImportField idItemGroupField = new ImportField(LM.findLCPByCompoundOldName("idItemGroup"));
-                ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ItemGroup"),
-                        LM.findLCPByCompoundOldName("itemGroupId").getMapping(idItemGroupField));
-                keys.add(itemGroupKey);
-                props.add(new ImportProperty(idItemGroupField, LM.findLCPByCompoundOldName("idItemGroup").getMapping(itemGroupKey)));
-                fields.add(idItemGroupField);
-                for (int i = 0; i < itemGroupsList.size(); i++)
-                    data.get(i).add(itemGroupsList.get(i).sid);
+            ImportField idItemGroupField = new ImportField(LM.findLCPByCompoundOldName("idItemGroup"));
+            ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("ItemGroup"),
+                    LM.findLCPByCompoundOldName("itemGroupId").getMapping(idItemGroupField));
+            keys.add(itemGroupKey);
+            props.add(new ImportProperty(idItemGroupField, LM.findLCPByCompoundOldName("idItemGroup").getMapping(itemGroupKey)));
+            fields.add(idItemGroupField);
+            for (int i = 0; i < itemGroupsList.size(); i++)
+                data.get(i).add(itemGroupsList.get(i).sid);
 
-                ImportField itemGroupNameField = new ImportField(LM.findLCPByCompoundOldName("nameItemGroup"));
-                props.add(new ImportProperty(itemGroupNameField, LM.findLCPByCompoundOldName("nameItemGroup").getMapping(itemGroupKey)));
-                fields.add(itemGroupNameField);
-                for (int i = 0; i < itemGroupsList.size(); i++)
-                    data.get(i).add(itemGroupsList.get(i).name);
+            ImportField itemGroupNameField = new ImportField(LM.findLCPByCompoundOldName("nameItemGroup"));
+            props.add(new ImportProperty(itemGroupNameField, LM.findLCPByCompoundOldName("nameItemGroup").getMapping(itemGroupKey)));
+            fields.add(itemGroupNameField);
+            for (int i = 0; i < itemGroupsList.size(); i++)
+                data.get(i).add(itemGroupsList.get(i).name);
 
-                ImportTable table = new ImportTable(fields, data);
+            ImportTable table = new ImportTable(fields, data);
 
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
         }
     }
 
-    private void importWares(List<Ware> waresList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importWares(List<Ware> waresList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        try {
-            if (warePurchaseInvoiceLM != null && waresList != null) {
+        if (warePurchaseInvoiceLM != null && waresList != null) {
 
-                DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
+            DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-                List<List<Object>> data = initData(waresList.size());
+            List<List<Object>> data = initData(waresList.size());
 
-                ImportField idWareField = new ImportField(warePurchaseInvoiceLM.findLCPByCompoundOldName("idWare"));
-                ImportKey<?> wareKey = new ImportKey((ConcreteCustomClass) warePurchaseInvoiceLM.findClassByCompoundName("Ware"),
-                        warePurchaseInvoiceLM.findLCPByCompoundOldName("wareId").getMapping(idWareField));
-                keys.add(wareKey);
-                props.add(new ImportProperty(idWareField, warePurchaseInvoiceLM.findLCPByCompoundOldName("idWare").getMapping(wareKey)));
-                fields.add(idWareField);
-                for (int i = 0; i < waresList.size(); i++)
-                    data.get(i).add(waresList.get(i).idWare);
+            ImportField idWareField = new ImportField(warePurchaseInvoiceLM.findLCPByCompoundOldName("idWare"));
+            ImportKey<?> wareKey = new ImportKey((ConcreteCustomClass) warePurchaseInvoiceLM.findClassByCompoundName("Ware"),
+                    warePurchaseInvoiceLM.findLCPByCompoundOldName("wareId").getMapping(idWareField));
+            keys.add(wareKey);
+            props.add(new ImportProperty(idWareField, warePurchaseInvoiceLM.findLCPByCompoundOldName("idWare").getMapping(wareKey)));
+            fields.add(idWareField);
+            for (int i = 0; i < waresList.size(); i++)
+                data.get(i).add(waresList.get(i).idWare);
 
-                ImportField nameWareField = new ImportField(warePurchaseInvoiceLM.findLCPByCompoundOldName("nameWare"));
-                props.add(new ImportProperty(nameWareField, warePurchaseInvoiceLM.findLCPByCompoundOldName("nameWare").getMapping(wareKey)));
-                fields.add(nameWareField);
-                for (int i = 0; i < waresList.size(); i++)
-                    data.get(i).add(waresList.get(i).nameWare);
+            ImportField nameWareField = new ImportField(warePurchaseInvoiceLM.findLCPByCompoundOldName("nameWare"));
+            props.add(new ImportProperty(nameWareField, warePurchaseInvoiceLM.findLCPByCompoundOldName("nameWare").getMapping(wareKey)));
+            fields.add(nameWareField);
+            for (int i = 0; i < waresList.size(); i++)
+                data.get(i).add(waresList.get(i).nameWare);
 
-                ImportField priceWareField = new ImportField(warePurchaseInvoiceLM.findLCPByCompoundOldName("warePrice"));
-                props.add(new ImportProperty(priceWareField, warePurchaseInvoiceLM.findLCPByCompoundOldName("dataWarePriceDate").getMapping(wareKey, defaultDate)));
-                fields.add(priceWareField);
-                for (int i = 0; i < waresList.size(); i++)
-                    data.get(i).add(waresList.get(i).priceWare);
+            ImportField priceWareField = new ImportField(warePurchaseInvoiceLM.findLCPByCompoundOldName("warePrice"));
+            props.add(new ImportProperty(priceWareField, warePurchaseInvoiceLM.findLCPByCompoundOldName("dataWarePriceDate").getMapping(wareKey, defaultDate)));
+            fields.add(priceWareField);
+            for (int i = 0; i < waresList.size(); i++)
+                data.get(i).add(waresList.get(i).priceWare);
 
-                ImportTable table = new ImportTable(fields, data);
+            ImportTable table = new ImportTable(fields, data);
 
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
         }
     }
 
-    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         try {
             Integer numAtATime = (numberOfItemsAtATime == null || numberOfItemsAtATime <= 0) ? 5000 : numberOfItemsAtATime;
@@ -239,12 +229,10 @@ public class ImportActionProperty {
             throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
         }
     }
 
-    private void importUOMs(List<UOM> uomsList) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    private void importUOMs(List<UOM> uomsList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (uomsList == null)
             return;
 
@@ -281,14 +269,14 @@ public class ImportActionProperty {
         session.sql.pushVolatileStats(null);
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
-        session.apply(context.getBL());
+        session.apply(context);
         session.sql.popVolatileStats(null);
         session.close();
     }
 
 
     private void importPackOfItems(ScriptingLogicsModule warePurchaseInvoiceLM, ScriptingLogicsModule writeOffItemLM, List<Item> itemsList, boolean skipKeys)
-            throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException {
+            throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         if (itemsList.size() == 0) return;
 
         List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
@@ -617,13 +605,13 @@ public class ImportActionProperty {
         session.sql.pushVolatileStats(null);
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
-        session.apply(context.getBL());
+        session.apply(context);
         session.sql.popVolatileStats(null);
         session.close();
     }
 
     private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys, boolean userInvoiceCreateNewItems)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (userInvoiceDetailsList != null) {
 
@@ -1069,14 +1057,14 @@ public class ImportActionProperty {
                 session.sql.pushVolatileStats(null);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context.getBL());
+                session.apply(context);
                 session.sql.popVolatileStats(null);
                 session.close();
             }
         }
     }
 
-    private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (priceListStoresList != null) {
 
@@ -1182,14 +1170,14 @@ public class ImportActionProperty {
                 IntegrationService service = new IntegrationService(session, table, Arrays.asList(userPriceListKey,
                         departmentStoreKey, userPriceListDetailKey, itemKey, legalEntityKey, currencyKey), props);
                 service.synchronize(true, false);
-                session.apply(context.getBL());
+                session.apply(context);
                 session.sql.popVolatileStats(null);
                 session.close();
             }
         }
     }
 
-    private void importPriceListSuppliers(List<PriceListSupplier> priceListSuppliersList, Integer numberAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importPriceListSuppliers(List<PriceListSupplier> priceListSuppliersList, Integer numberAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (priceListSuppliersList != null) {
 
@@ -1286,693 +1274,657 @@ public class ImportActionProperty {
 
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(context.getBL());
+                session.apply(context);
                 session.sql.popVolatileStats(null);
                 session.close();
             }
         }
     }
 
-    private void importLegalEntities(List<LegalEntity> legalEntitiesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
-
-        try {
-            if (legalEntitiesList != null) {
-
-                DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
-
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
-
-                List<List<Object>> data = initData(legalEntitiesList.size());
-
-                ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
-                ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
-                        LM.findLCPByCompoundOldName("legalEntityId").getMapping(idLegalEntityField));
-                keys.add(legalEntityKey);
-                props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("idLegalEntity").getMapping(legalEntityKey)));
-                fields.add(idLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).idLegalEntity);
-
-                ImportField numberAccountField = new ImportField(LM.findLCPByCompoundOldName("Bank.numberAccount"));
-                ImportKey<?> accountKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank.Account"),
-                        LM.findLCPByCompoundOldName("accountNumberLegalEntityID").getMapping(numberAccountField, idLegalEntityField));
-                keys.add(accountKey);
-                props.add(new ImportProperty(numberAccountField, LM.findLCPByCompoundOldName("Bank.numberAccount").getMapping(accountKey)));
-                props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("Bank.legalEntityAccount").getMapping(accountKey),
-                        LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
-                fields.add(numberAccountField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).numberAccount);
-
-                ImportField nameLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("nameLegalEntity"));
-                props.add(new ImportProperty(nameLegalEntityField, LM.findLCPByCompoundOldName("nameLegalEntity").getMapping(legalEntityKey)));
-                props.add(new ImportProperty(nameLegalEntityField, LM.findLCPByCompoundOldName("fullNameLegalEntity").getMapping(legalEntityKey)));
-                fields.add(nameLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).nameLegalEntity);
-
-                ImportField addressLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("addressLegalEntity"));
-                props.add(new ImportProperty(addressLegalEntityField, LM.findLCPByCompoundOldName("dataAddressLegalEntityDate").getMapping(legalEntityKey, defaultDate)));
-                fields.add(addressLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).addressLegalEntity);
-
-                ImportField unpLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("UNPLegalEntity"));
-                props.add(new ImportProperty(unpLegalEntityField, LM.findLCPByCompoundOldName("UNPLegalEntity").getMapping(legalEntityKey)));
-                fields.add(unpLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).unpLegalEntity);
-
-                ImportField okpoLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("OKPOLegalEntity"));
-                props.add(new ImportProperty(okpoLegalEntityField, LM.findLCPByCompoundOldName("OKPOLegalEntity").getMapping(legalEntityKey)));
-                fields.add(okpoLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).okpoLegalEntity);
-
-                ImportField phoneLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("dataPhoneLegalEntityDate"));
-                props.add(new ImportProperty(phoneLegalEntityField, LM.findLCPByCompoundOldName("dataPhoneLegalEntityDate").getMapping(legalEntityKey, defaultDate)));
-                fields.add(phoneLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).phoneLegalEntity);
-
-                ImportField emailLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("emailLegalEntity"));
-                props.add(new ImportProperty(emailLegalEntityField, LM.findLCPByCompoundOldName("emailLegalEntity").getMapping(legalEntityKey)));
-                fields.add(emailLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).emailLegalEntity);
-
-                ImportField isSupplierLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("isSupplierLegalEntity"));
-                props.add(new ImportProperty(isSupplierLegalEntityField, LM.findLCPByCompoundOldName("isSupplierLegalEntity").getMapping(legalEntityKey), true));
-                fields.add(isSupplierLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).isSupplierLegalEntity);
-
-                ImportField isCompanyLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("isCompanyLegalEntity"));
-                props.add(new ImportProperty(isCompanyLegalEntityField, LM.findLCPByCompoundOldName("isCompanyLegalEntity").getMapping(legalEntityKey), true));
-                fields.add(isCompanyLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).isCompanyLegalEntity);
-
-                ImportField isCustomerLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("isCustomerLegalEntity"));
-                props.add(new ImportProperty(isCustomerLegalEntityField, LM.findLCPByCompoundOldName("isCustomerLegalEntity").getMapping(legalEntityKey), true));
-                fields.add(isCustomerLegalEntityField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).isCustomerLegalEntity);
-
-                ImportField shortNameOwnershipField = new ImportField(LM.findLCPByCompoundOldName("shortNameOwnership"));
-                ImportKey<?> ownershipKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Ownership"),
-                        LM.findLCPByCompoundOldName("ownershipShortName").getMapping(shortNameOwnershipField));
-                keys.add(ownershipKey);
-                props.add(new ImportProperty(shortNameOwnershipField, LM.findLCPByCompoundOldName("shortNameOwnership").getMapping(ownershipKey)));
-                props.add(new ImportProperty(shortNameOwnershipField, LM.findLCPByCompoundOldName("ownershipLegalEntity").getMapping(legalEntityKey),
-                        LM.object(LM.findClassByCompoundName("Ownership")).getMapping(ownershipKey)));
-                fields.add(shortNameOwnershipField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).shortNameOwnership);
-
-                ImportField nameOwnershipField = new ImportField(LM.findLCPByCompoundOldName("nameOwnership"));
-                props.add(new ImportProperty(nameOwnershipField, LM.findLCPByCompoundOldName("nameOwnership").getMapping(ownershipKey)));
-                fields.add(nameOwnershipField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).nameOwnership);
-
-                if (storeLM != null) {
-
-                    ImportField idChainStoresField = new ImportField(storeLM.findLCPByCompoundOldName("idChainStores"));
-                    ImportKey<?> chainStoresKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("ChainStores"),
-                            storeLM.findLCPByCompoundOldName("chainStoresId").getMapping(idChainStoresField));
-                    keys.add(chainStoresKey);
-                    props.add(new ImportProperty(idChainStoresField, storeLM.findLCPByCompoundOldName("idChainStores").getMapping(chainStoresKey)));
-                    fields.add(idChainStoresField);
-                    for (int i = 0; i < legalEntitiesList.size(); i++)
-                        data.get(i).add(legalEntitiesList.get(i).idChainStores);
-
-                    ImportField nameChainStoresField = new ImportField(storeLM.findLCPByCompoundOldName("nameChainStores"));
-                    props.add(new ImportProperty(nameChainStoresField, storeLM.findLCPByCompoundOldName("nameChainStores").getMapping(chainStoresKey)));
-                    fields.add(nameChainStoresField);
-                    for (int i = 0; i < legalEntitiesList.size(); i++)
-                        data.get(i).add(legalEntitiesList.get(i).nameChainStores);
-
-                }
-
-                ImportField idBankField = new ImportField(LM.findLCPByCompoundOldName("idBank"));
-                ImportKey<?> bankKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank"),
-                        LM.findLCPByCompoundOldName("bankId").getMapping(idBankField));
-                keys.add(bankKey);
-                props.add(new ImportProperty(idBankField, LM.findLCPByCompoundOldName("idBank").getMapping(bankKey)));
-                props.add(new ImportProperty(idBankField, LM.findLCPByCompoundOldName("nameBank").getMapping(bankKey)));
-                props.add(new ImportProperty(idBankField, LM.findLCPByCompoundOldName("Bank.bankAccount").getMapping(accountKey),
-                        LM.object(LM.findClassByCompoundName("Bank")).getMapping(bankKey)));
-                fields.add(idBankField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).idBank);
-
-                ImportField nameCountryField = new ImportField(LM.findLCPByCompoundOldName("nameCountry"));
-                ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Country"),
-                        LM.findLCPByCompoundOldName("countryName").getMapping(nameCountryField));
-                keys.add(countryKey);
-                props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundOldName("nameCountry").getMapping(countryKey)));
-                props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundOldName("countryLegalEntity").getMapping(legalEntityKey),
-                        LM.object(LM.findClassByCompoundName("Country")).getMapping(countryKey)));
-                props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundOldName("countryOwnership").getMapping(ownershipKey),
-                        LM.object(LM.findClassByCompoundName("Country")).getMapping(countryKey)));
-                fields.add(nameCountryField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add(legalEntitiesList.get(i).nameCountry);
-
-                ImportField shortNameCurrencyField = new ImportField(LM.findLCPByCompoundOldName("shortNameCurrency"));
-                ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Currency"),
-                        LM.findLCPByCompoundOldName("currencyShortName").getMapping(shortNameCurrencyField));
-                keys.add(currencyKey);
-                props.add(new ImportProperty(shortNameCurrencyField, LM.findLCPByCompoundOldName("Bank.currencyAccount").getMapping(accountKey),
-                        LM.object(LM.findClassByCompoundName("Currency")).getMapping(currencyKey)));
-                fields.add(shortNameCurrencyField);
-                for (int i = 0; i < legalEntitiesList.size(); i++)
-                    data.get(i).add("BLR");
-
-                ImportTable table = new ImportTable(fields, data);
-
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void importEmployees(List<Employee> employeesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
-
-        try {
-            if (employeesList != null) {
-
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
-
-                List<List<Object>> data = initData(employeesList.size());
-
-                ImportField idEmployeeField = new ImportField(LM.findLCPByCompoundOldName("idEmployee"));
-                ImportKey<?> employeeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Employee"),
-                        LM.findLCPByCompoundOldName("employeeId").getMapping(idEmployeeField));
-                keys.add(employeeKey);
-                props.add(new ImportProperty(idEmployeeField, LM.findLCPByCompoundOldName("idEmployee").getMapping(employeeKey)));
-                fields.add(idEmployeeField);
-                for (int i = 0; i < employeesList.size(); i++)
-                    data.get(i).add(employeesList.get(i).idEmployee);
-
-                ImportField firstNameEmployeeField = new ImportField(LM.findLCPByCompoundOldName("firstNameContact"));
-                props.add(new ImportProperty(firstNameEmployeeField, LM.findLCPByCompoundOldName("firstNameContact").getMapping(employeeKey)));
-                fields.add(firstNameEmployeeField);
-                for (int i = 0; i < employeesList.size(); i++)
-                    data.get(i).add(employeesList.get(i).firstNameEmployee);
-
-                ImportField lastNameEmployeeField = new ImportField(LM.findLCPByCompoundOldName("lastNameContact"));
-                props.add(new ImportProperty(lastNameEmployeeField, LM.findLCPByCompoundOldName("lastNameContact").getMapping(employeeKey)));
-                fields.add(lastNameEmployeeField);
-                for (int i = 0; i < employeesList.size(); i++)
-                    data.get(i).add(employeesList.get(i).lastNameEmployee);
-
-                ImportField idPositionField = new ImportField(LM.findLCPByCompoundOldName("idPosition"));
-                ImportKey<?> positionKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Position"),
-                        LM.findLCPByCompoundOldName("positionId").getMapping(idPositionField));
-                keys.add(positionKey);
-                props.add(new ImportProperty(idPositionField, LM.findLCPByCompoundOldName("idPosition").getMapping(positionKey)));
-                props.add(new ImportProperty(idPositionField, LM.findLCPByCompoundOldName("positionEmployee").getMapping(employeeKey),
-                        LM.object(LM.findClassByCompoundName("Position")).getMapping(positionKey)));
-                fields.add(idPositionField);
-                for (int i = 0; i < employeesList.size(); i++)
-                    data.get(i).add(employeesList.get(i).idPosition);
-
-                ImportField namePositionField = new ImportField(LM.findLCPByCompoundOldName("namePosition"));
-                props.add(new ImportProperty(namePositionField, LM.findLCPByCompoundOldName("namePosition").getMapping(positionKey)));
-                fields.add(namePositionField);
-                for (int i = 0; i < employeesList.size(); i++)
-                    data.get(i).add(employeesList.get(i).idPosition);
-
-                ImportTable table = new ImportTable(fields, data);
-
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void importWarehouseGroups(List<WarehouseGroup> warehouseGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
-
-        try {
-            if (warehouseGroupsList != null) {
-
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
-
-                List<List<Object>> data = initData(warehouseGroupsList.size());
-
-                ImportField idWarehouseGroupField = new ImportField(LM.findLCPByCompoundOldName("idWarehouseGroup"));
-                ImportKey<?> warehouseGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("WarehouseGroup"),
-                        LM.findLCPByCompoundOldName("warehouseGroupId").getMapping(idWarehouseGroupField));
-                keys.add(warehouseGroupKey);
-                props.add(new ImportProperty(idWarehouseGroupField, LM.findLCPByCompoundOldName("idWarehouseGroup").getMapping(warehouseGroupKey)));
-                fields.add(idWarehouseGroupField);
-                for (int i = 0; i < warehouseGroupsList.size(); i++)
-                    data.get(i).add(warehouseGroupsList.get(i).idWarehouseGroup);
-
-                ImportField nameWarehouseGroupField = new ImportField(LM.findLCPByCompoundOldName("nameWarehouseGroup"));
-                props.add(new ImportProperty(nameWarehouseGroupField, LM.findLCPByCompoundOldName("nameWarehouseGroup").getMapping(warehouseGroupKey)));
-                fields.add(nameWarehouseGroupField);
-                for (int i = 0; i < warehouseGroupsList.size(); i++)
-                    data.get(i).add(warehouseGroupsList.get(i).nameWarehouseGroup);
-
-                ImportTable table = new ImportTable(fields, data);
-
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void importWarehouses(List<Warehouse> warehousesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
-
-        try {
-            if (warehousesList != null) {
-
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
-
-                List<List<Object>> data = initData(warehousesList.size());
-
-                ImportField idWarehouseField = new ImportField(LM.findLCPByCompoundOldName("idWarehouse"));
-                ImportKey<?> warehouseKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Warehouse"),
-                        LM.findLCPByCompoundOldName("warehouseId").getMapping(idWarehouseField));
-                keys.add(warehouseKey);
-                props.add(new ImportProperty(idWarehouseField, LM.findLCPByCompoundOldName("idWarehouse").getMapping(warehouseKey)));
-                fields.add(idWarehouseField);
-                for (int i = 0; i < warehousesList.size(); i++)
-                    data.get(i).add(warehousesList.get(i).idWarehouse);
-
-                ImportField nameWarehouseField = new ImportField(LM.findLCPByCompoundOldName("nameWarehouse"));
-                props.add(new ImportProperty(nameWarehouseField, LM.findLCPByCompoundOldName("nameWarehouse").getMapping(warehouseKey)));
-                fields.add(nameWarehouseField);
-                for (int i = 0; i < warehousesList.size(); i++)
-                    data.get(i).add(warehousesList.get(i).nameWarehouse);
-
-                ImportField addressWarehouseField = new ImportField(LM.findLCPByCompoundOldName("addressWarehouse"));
-                props.add(new ImportProperty(addressWarehouseField, LM.findLCPByCompoundOldName("addressWarehouse").getMapping(warehouseKey)));
-                fields.add(addressWarehouseField);
-                for (int i = 0; i < warehousesList.size(); i++)
-                    data.get(i).add(warehousesList.get(i).addressWarehouse);
-
-                ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
-                ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
-                        LM.findLCPByCompoundOldName("legalEntityId").getMapping(idLegalEntityField));
-                keys.add(legalEntityKey);
-                props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("idLegalEntity").getMapping(legalEntityKey)));
-                props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("legalEntityWarehouse").getMapping(warehouseKey),
-                        LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
-                fields.add(idLegalEntityField);
-                for (int i = 0; i < warehousesList.size(); i++)
-                    data.get(i).add(warehousesList.get(i).idLegalEntity);
-
-                ImportField idWarehouseGroupField = new ImportField(LM.findLCPByCompoundOldName("idWarehouseGroup"));
-                ImportKey<?> warehouseGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("WarehouseGroup"),
-                        LM.findLCPByCompoundOldName("warehouseGroupId").getMapping(idWarehouseGroupField));
-                keys.add(warehouseGroupKey);
-                props.add(new ImportProperty(idWarehouseGroupField, LM.findLCPByCompoundOldName("warehouseGroupWarehouse").getMapping(warehouseKey),
-                        LM.object(LM.findClassByCompoundName("WarehouseGroup")).getMapping(warehouseGroupKey)));
-                fields.add(idWarehouseGroupField);
-                for (int i = 0; i < warehousesList.size(); i++)
-                    data.get(i).add(warehousesList.get(i).idWarehouseGroup);
-
-                ImportTable table = new ImportTable(fields, data);
-
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void importStores(List<LegalEntity> storesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
-
-        try {
-            if (storeLM != null && storesList != null) {
-
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
-
-                List<List<Object>> data = initData(storesList.size());
-
-                ImportField idStoreField = new ImportField(storeLM.findLCPByCompoundOldName("idStore"));
-                ImportKey<?> storeKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("Store"),
-                        storeLM.findLCPByCompoundOldName("storeId").getMapping(idStoreField));
-                keys.add(storeKey);
-                props.add(new ImportProperty(idStoreField, storeLM.findLCPByCompoundOldName("idStore").getMapping(storeKey)));
-                fields.add(idStoreField);
-                for (int i = 0; i < storesList.size(); i++)
-                    data.get(i).add(((Store) storesList.get(i)).idStore);
-
-                ImportField nameStoreField = new ImportField(storeLM.findLCPByCompoundOldName("nameStore"));
-                props.add(new ImportProperty(nameStoreField, storeLM.findLCPByCompoundOldName("nameStore").getMapping(storeKey)));
-                fields.add(nameStoreField);
-                for (int i = 0; i < storesList.size(); i++)
-                    data.get(i).add(storesList.get(i).nameLegalEntity);
-
-                ImportField addressStoreField = new ImportField(storeLM.findLCPByCompoundOldName("addressStore"));
-                props.add(new ImportProperty(addressStoreField, storeLM.findLCPByCompoundOldName("addressStore").getMapping(storeKey)));
-                fields.add(addressStoreField);
-                for (int i = 0; i < storesList.size(); i++)
-                    data.get(i).add(storesList.get(i).addressLegalEntity);
-
-                ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
-                ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
-                        LM.findLCPByCompoundOldName("legalEntityId").getMapping(idLegalEntityField));
-                keys.add(legalEntityKey);
-                props.add(new ImportProperty(idLegalEntityField, storeLM.findLCPByCompoundOldName("legalEntityStore").getMapping(storeKey),
-                        LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
-                fields.add(idLegalEntityField);
-                for (int i = 0; i < storesList.size(); i++)
-                    data.get(i).add(storesList.get(i).idLegalEntity);
+    private void importLegalEntities(List<LegalEntity> legalEntitiesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+
+        if (legalEntitiesList != null) {
+
+            DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            List<List<Object>> data = initData(legalEntitiesList.size());
+
+            ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
+            ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
+                    LM.findLCPByCompoundOldName("legalEntityId").getMapping(idLegalEntityField));
+            keys.add(legalEntityKey);
+            props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("idLegalEntity").getMapping(legalEntityKey)));
+            fields.add(idLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).idLegalEntity);
+
+            ImportField numberAccountField = new ImportField(LM.findLCPByCompoundOldName("Bank.numberAccount"));
+            ImportKey<?> accountKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank.Account"),
+                    LM.findLCPByCompoundOldName("accountNumberLegalEntityID").getMapping(numberAccountField, idLegalEntityField));
+            keys.add(accountKey);
+            props.add(new ImportProperty(numberAccountField, LM.findLCPByCompoundOldName("Bank.numberAccount").getMapping(accountKey)));
+            props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("Bank.legalEntityAccount").getMapping(accountKey),
+                    LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
+            fields.add(numberAccountField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).numberAccount);
+
+            ImportField nameLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("nameLegalEntity"));
+            props.add(new ImportProperty(nameLegalEntityField, LM.findLCPByCompoundOldName("nameLegalEntity").getMapping(legalEntityKey)));
+            props.add(new ImportProperty(nameLegalEntityField, LM.findLCPByCompoundOldName("fullNameLegalEntity").getMapping(legalEntityKey)));
+            fields.add(nameLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).nameLegalEntity);
+
+            ImportField addressLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("addressLegalEntity"));
+            props.add(new ImportProperty(addressLegalEntityField, LM.findLCPByCompoundOldName("dataAddressLegalEntityDate").getMapping(legalEntityKey, defaultDate)));
+            fields.add(addressLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).addressLegalEntity);
+
+            ImportField unpLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("UNPLegalEntity"));
+            props.add(new ImportProperty(unpLegalEntityField, LM.findLCPByCompoundOldName("UNPLegalEntity").getMapping(legalEntityKey)));
+            fields.add(unpLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).unpLegalEntity);
+
+            ImportField okpoLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("OKPOLegalEntity"));
+            props.add(new ImportProperty(okpoLegalEntityField, LM.findLCPByCompoundOldName("OKPOLegalEntity").getMapping(legalEntityKey)));
+            fields.add(okpoLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).okpoLegalEntity);
+
+            ImportField phoneLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("dataPhoneLegalEntityDate"));
+            props.add(new ImportProperty(phoneLegalEntityField, LM.findLCPByCompoundOldName("dataPhoneLegalEntityDate").getMapping(legalEntityKey, defaultDate)));
+            fields.add(phoneLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).phoneLegalEntity);
+
+            ImportField emailLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("emailLegalEntity"));
+            props.add(new ImportProperty(emailLegalEntityField, LM.findLCPByCompoundOldName("emailLegalEntity").getMapping(legalEntityKey)));
+            fields.add(emailLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).emailLegalEntity);
+
+            ImportField isSupplierLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("isSupplierLegalEntity"));
+            props.add(new ImportProperty(isSupplierLegalEntityField, LM.findLCPByCompoundOldName("isSupplierLegalEntity").getMapping(legalEntityKey), true));
+            fields.add(isSupplierLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).isSupplierLegalEntity);
+
+            ImportField isCompanyLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("isCompanyLegalEntity"));
+            props.add(new ImportProperty(isCompanyLegalEntityField, LM.findLCPByCompoundOldName("isCompanyLegalEntity").getMapping(legalEntityKey), true));
+            fields.add(isCompanyLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).isCompanyLegalEntity);
+
+            ImportField isCustomerLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("isCustomerLegalEntity"));
+            props.add(new ImportProperty(isCustomerLegalEntityField, LM.findLCPByCompoundOldName("isCustomerLegalEntity").getMapping(legalEntityKey), true));
+            fields.add(isCustomerLegalEntityField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).isCustomerLegalEntity);
+
+            ImportField shortNameOwnershipField = new ImportField(LM.findLCPByCompoundOldName("shortNameOwnership"));
+            ImportKey<?> ownershipKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Ownership"),
+                    LM.findLCPByCompoundOldName("ownershipShortName").getMapping(shortNameOwnershipField));
+            keys.add(ownershipKey);
+            props.add(new ImportProperty(shortNameOwnershipField, LM.findLCPByCompoundOldName("shortNameOwnership").getMapping(ownershipKey)));
+            props.add(new ImportProperty(shortNameOwnershipField, LM.findLCPByCompoundOldName("ownershipLegalEntity").getMapping(legalEntityKey),
+                    LM.object(LM.findClassByCompoundName("Ownership")).getMapping(ownershipKey)));
+            fields.add(shortNameOwnershipField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).shortNameOwnership);
+
+            ImportField nameOwnershipField = new ImportField(LM.findLCPByCompoundOldName("nameOwnership"));
+            props.add(new ImportProperty(nameOwnershipField, LM.findLCPByCompoundOldName("nameOwnership").getMapping(ownershipKey)));
+            fields.add(nameOwnershipField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).nameOwnership);
+
+            if (storeLM != null) {
 
                 ImportField idChainStoresField = new ImportField(storeLM.findLCPByCompoundOldName("idChainStores"));
                 ImportKey<?> chainStoresKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("ChainStores"),
                         storeLM.findLCPByCompoundOldName("chainStoresId").getMapping(idChainStoresField));
                 keys.add(chainStoresKey);
+                props.add(new ImportProperty(idChainStoresField, storeLM.findLCPByCompoundOldName("idChainStores").getMapping(chainStoresKey)));
                 fields.add(idChainStoresField);
-                for (int i = 0; i < storesList.size(); i++)
-                    data.get(i).add(storesList.get(i).idChainStores);
+                for (int i = 0; i < legalEntitiesList.size(); i++)
+                    data.get(i).add(legalEntitiesList.get(i).idChainStores);
 
-                ImportField storeTypeField = new ImportField(storeLM.findLCPByCompoundOldName("nameStoreType"));
-                ImportKey<?> storeTypeKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("StoreType"),
-                        storeLM.findLCPByCompoundOldName("storeTypeNameChainStores").getMapping(storeTypeField, idChainStoresField));
-                keys.add(storeTypeKey);
-                props.add(new ImportProperty(idChainStoresField, storeLM.findLCPByCompoundOldName("chainStoresStoreType").getMapping(storeTypeKey),
-                        storeLM.object(storeLM.findClassByCompoundName("ChainStores")).getMapping(chainStoresKey)));
-                props.add(new ImportProperty(storeTypeField, storeLM.findLCPByCompoundOldName("nameStoreType").getMapping(storeTypeKey)));
-                props.add(new ImportProperty(storeTypeField, storeLM.findLCPByCompoundOldName("storeTypeStore").getMapping(storeKey),
-                        storeLM.object(storeLM.findClassByCompoundName("StoreType")).getMapping(storeTypeKey)));
-                fields.add(storeTypeField);
-                for (int i = 0; i < storesList.size(); i++)
-                    data.get(i).add(((Store) storesList.get(i)).storeType);
+                ImportField nameChainStoresField = new ImportField(storeLM.findLCPByCompoundOldName("nameChainStores"));
+                props.add(new ImportProperty(nameChainStoresField, storeLM.findLCPByCompoundOldName("nameChainStores").getMapping(chainStoresKey)));
+                fields.add(nameChainStoresField);
+                for (int i = 0; i < legalEntitiesList.size(); i++)
+                    data.get(i).add(legalEntitiesList.get(i).nameChainStores);
 
-                ImportTable table = new ImportTable(fields, data);
-
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+
+            ImportField idBankField = new ImportField(LM.findLCPByCompoundOldName("idBank"));
+            ImportKey<?> bankKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank"),
+                    LM.findLCPByCompoundOldName("bankId").getMapping(idBankField));
+            keys.add(bankKey);
+            props.add(new ImportProperty(idBankField, LM.findLCPByCompoundOldName("idBank").getMapping(bankKey)));
+            props.add(new ImportProperty(idBankField, LM.findLCPByCompoundOldName("nameBank").getMapping(bankKey)));
+            props.add(new ImportProperty(idBankField, LM.findLCPByCompoundOldName("Bank.bankAccount").getMapping(accountKey),
+                    LM.object(LM.findClassByCompoundName("Bank")).getMapping(bankKey)));
+            fields.add(idBankField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).idBank);
+
+            ImportField nameCountryField = new ImportField(LM.findLCPByCompoundOldName("nameCountry"));
+            ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Country"),
+                    LM.findLCPByCompoundOldName("countryName").getMapping(nameCountryField));
+            keys.add(countryKey);
+            props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundOldName("nameCountry").getMapping(countryKey)));
+            props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundOldName("countryLegalEntity").getMapping(legalEntityKey),
+                    LM.object(LM.findClassByCompoundName("Country")).getMapping(countryKey)));
+            props.add(new ImportProperty(nameCountryField, LM.findLCPByCompoundOldName("countryOwnership").getMapping(ownershipKey),
+                    LM.object(LM.findClassByCompoundName("Country")).getMapping(countryKey)));
+            fields.add(nameCountryField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add(legalEntitiesList.get(i).nameCountry);
+
+            ImportField shortNameCurrencyField = new ImportField(LM.findLCPByCompoundOldName("shortNameCurrency"));
+            ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Currency"),
+                    LM.findLCPByCompoundOldName("currencyShortName").getMapping(shortNameCurrencyField));
+            keys.add(currencyKey);
+            props.add(new ImportProperty(shortNameCurrencyField, LM.findLCPByCompoundOldName("Bank.currencyAccount").getMapping(accountKey),
+                    LM.object(LM.findClassByCompoundName("Currency")).getMapping(currencyKey)));
+            fields.add(shortNameCurrencyField);
+            for (int i = 0; i < legalEntitiesList.size(); i++)
+                data.get(i).add("BLR");
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
         }
     }
 
-    private void importDepartmentStores(List<DepartmentStore> departmentStoresList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importEmployees(List<Employee> employeesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        try {
-            if (storeLM != null && departmentStoresList != null) {
+        if (employeesList != null) {
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-                List<List<Object>> data = initData(departmentStoresList.size());
+            List<List<Object>> data = initData(employeesList.size());
 
-                ImportField idDepartmentStoreField = new ImportField(storeLM.findLCPByCompoundOldName("idDepartmentStore"));
-                ImportKey<?> departmentStoreKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("DepartmentStore"),
-                        storeLM.findLCPByCompoundOldName("departmentStoreId").getMapping(idDepartmentStoreField));
-                keys.add(departmentStoreKey);
-                props.add(new ImportProperty(idDepartmentStoreField, storeLM.findLCPByCompoundOldName("idDepartmentStore").getMapping(departmentStoreKey)));
-                fields.add(idDepartmentStoreField);
-                for (int i = 0; i < departmentStoresList.size(); i++)
-                    data.get(i).add((departmentStoresList.get(i)).idDepartmentStore);
+            ImportField idEmployeeField = new ImportField(LM.findLCPByCompoundOldName("idEmployee"));
+            ImportKey<?> employeeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Employee"),
+                    LM.findLCPByCompoundOldName("employeeId").getMapping(idEmployeeField));
+            keys.add(employeeKey);
+            props.add(new ImportProperty(idEmployeeField, LM.findLCPByCompoundOldName("idEmployee").getMapping(employeeKey)));
+            fields.add(idEmployeeField);
+            for (int i = 0; i < employeesList.size(); i++)
+                data.get(i).add(employeesList.get(i).idEmployee);
 
-                ImportField nameDepartmentStoreField = new ImportField(storeLM.findLCPByCompoundOldName("nameDepartmentStore"));
-                props.add(new ImportProperty(nameDepartmentStoreField, storeLM.findLCPByCompoundOldName("nameDepartmentStore").getMapping(departmentStoreKey)));
-                fields.add(nameDepartmentStoreField);
-                for (int i = 0; i < departmentStoresList.size(); i++)
-                    data.get(i).add((departmentStoresList.get(i)).nameDepartmentStore);
+            ImportField firstNameEmployeeField = new ImportField(LM.findLCPByCompoundOldName("firstNameContact"));
+            props.add(new ImportProperty(firstNameEmployeeField, LM.findLCPByCompoundOldName("firstNameContact").getMapping(employeeKey)));
+            fields.add(firstNameEmployeeField);
+            for (int i = 0; i < employeesList.size(); i++)
+                data.get(i).add(employeesList.get(i).firstNameEmployee);
 
-                ImportField idStoreField = new ImportField(storeLM.findLCPByCompoundOldName("idStore"));
-                ImportKey<?> storeKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("Store"),
-                        storeLM.findLCPByCompoundOldName("storeId").getMapping(idStoreField));
-                keys.add(storeKey);
-                props.add(new ImportProperty(idStoreField, storeLM.findLCPByCompoundOldName("storeDepartmentStore").getMapping(departmentStoreKey),
-                        storeLM.object(storeLM.findClassByCompoundName("Store")).getMapping(storeKey)));
-                fields.add(idStoreField);
-                for (int i = 0; i < departmentStoresList.size(); i++)
-                    data.get(i).add((departmentStoresList.get(i)).idStore);
+            ImportField lastNameEmployeeField = new ImportField(LM.findLCPByCompoundOldName("lastNameContact"));
+            props.add(new ImportProperty(lastNameEmployeeField, LM.findLCPByCompoundOldName("lastNameContact").getMapping(employeeKey)));
+            fields.add(lastNameEmployeeField);
+            for (int i = 0; i < employeesList.size(); i++)
+                data.get(i).add(employeesList.get(i).lastNameEmployee);
 
-                ImportTable table = new ImportTable(fields, data);
+            ImportField idPositionField = new ImportField(LM.findLCPByCompoundOldName("idPosition"));
+            ImportKey<?> positionKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Position"),
+                    LM.findLCPByCompoundOldName("positionId").getMapping(idPositionField));
+            keys.add(positionKey);
+            props.add(new ImportProperty(idPositionField, LM.findLCPByCompoundOldName("idPosition").getMapping(positionKey)));
+            props.add(new ImportProperty(idPositionField, LM.findLCPByCompoundOldName("positionEmployee").getMapping(employeeKey),
+                    LM.object(LM.findClassByCompoundName("Position")).getMapping(positionKey)));
+            fields.add(idPositionField);
+            for (int i = 0; i < employeesList.size(); i++)
+                data.get(i).add(employeesList.get(i).idPosition);
 
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            ImportField namePositionField = new ImportField(LM.findLCPByCompoundOldName("namePosition"));
+            props.add(new ImportProperty(namePositionField, LM.findLCPByCompoundOldName("namePosition").getMapping(positionKey)));
+            fields.add(namePositionField);
+            for (int i = 0; i < employeesList.size(); i++)
+                data.get(i).add(employeesList.get(i).idPosition);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
         }
     }
 
-    private void importBanks(List<Bank> banksList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importWarehouseGroups(List<WarehouseGroup> warehouseGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        try {
-            if (banksList != null) {
+        if (warehouseGroupsList != null) {
 
-                DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<List<Object>> data = initData(warehouseGroupsList.size());
 
-                List<List<Object>> data = initData(banksList.size());
+            ImportField idWarehouseGroupField = new ImportField(LM.findLCPByCompoundOldName("idWarehouseGroup"));
+            ImportKey<?> warehouseGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("WarehouseGroup"),
+                    LM.findLCPByCompoundOldName("warehouseGroupId").getMapping(idWarehouseGroupField));
+            keys.add(warehouseGroupKey);
+            props.add(new ImportProperty(idWarehouseGroupField, LM.findLCPByCompoundOldName("idWarehouseGroup").getMapping(warehouseGroupKey)));
+            fields.add(idWarehouseGroupField);
+            for (int i = 0; i < warehouseGroupsList.size(); i++)
+                data.get(i).add(warehouseGroupsList.get(i).idWarehouseGroup);
 
-                ImportField idBankField = new ImportField(LM.findLCPByCompoundOldName("idBank"));
-                ImportKey<?> bankKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank"),
-                        LM.findLCPByCompoundOldName("bankId").getMapping(idBankField));
-                keys.add(bankKey);
-                props.add(new ImportProperty(idBankField, LM.findLCPByCompoundOldName("idBank").getMapping(bankKey)));
-                fields.add(idBankField);
-                for (int i = 0; i < banksList.size(); i++)
-                    data.get(i).add(banksList.get(i).idBank);
+            ImportField nameWarehouseGroupField = new ImportField(LM.findLCPByCompoundOldName("nameWarehouseGroup"));
+            props.add(new ImportProperty(nameWarehouseGroupField, LM.findLCPByCompoundOldName("nameWarehouseGroup").getMapping(warehouseGroupKey)));
+            fields.add(nameWarehouseGroupField);
+            for (int i = 0; i < warehouseGroupsList.size(); i++)
+                data.get(i).add(warehouseGroupsList.get(i).nameWarehouseGroup);
 
-                ImportField nameBankField = new ImportField(LM.findLCPByCompoundOldName("nameBank"));
-                props.add(new ImportProperty(nameBankField, LM.findLCPByCompoundOldName("nameBank").getMapping(bankKey)));
-                fields.add(nameBankField);
-                for (int i = 0; i < banksList.size(); i++)
-                    data.get(i).add(banksList.get(i).nameBank);
+            ImportTable table = new ImportTable(fields, data);
 
-                ImportField addressBankField = new ImportField(LM.findLCPByCompoundOldName("dataAddressBankDate"));
-                props.add(new ImportProperty(addressBankField, LM.findLCPByCompoundOldName("dataAddressBankDate").getMapping(bankKey, defaultDate)));
-                fields.add(addressBankField);
-                for (int i = 0; i < banksList.size(); i++)
-                    data.get(i).add(banksList.get(i).addressBank);
-
-                ImportField departmentBankField = new ImportField(LM.findLCPByCompoundOldName("departmentBank"));
-                props.add(new ImportProperty(departmentBankField, LM.findLCPByCompoundOldName("departmentBank").getMapping(bankKey)));
-                fields.add(departmentBankField);
-                for (int i = 0; i < banksList.size(); i++)
-                    data.get(i).add(banksList.get(i).departmentBank);
-
-                ImportField mfoBankField = new ImportField(LM.findLCPByCompoundOldName("MFOBank"));
-                props.add(new ImportProperty(mfoBankField, LM.findLCPByCompoundOldName("MFOBank").getMapping(bankKey)));
-                fields.add(mfoBankField);
-                for (int i = 0; i < banksList.size(); i++)
-                    data.get(i).add(banksList.get(i).mfoBank);
-
-                ImportField cbuBankField = new ImportField(LM.findLCPByCompoundOldName("CBUBank"));
-                props.add(new ImportProperty(cbuBankField, LM.findLCPByCompoundOldName("CBUBank").getMapping(bankKey)));
-                fields.add(cbuBankField);
-                for (int i = 0; i < banksList.size(); i++)
-                    data.get(i).add(banksList.get(i).cbuBank);
-
-                ImportTable table = new ImportTable(fields, data);
-
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
         }
     }
 
-    private void importRateWastes(List<RateWaste> rateWastesList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importWarehouses(List<Warehouse> warehousesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        try {
-            if (writeOffItemLM != null && rateWastesList != null) {
+        if (warehousesList != null) {
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-                List<List<Object>> data = initData(rateWastesList.size());
+            List<List<Object>> data = initData(warehousesList.size());
 
-                ImportField idWriteOffRateField = new ImportField(writeOffItemLM.findLCPByCompoundOldName("idWriteOffRate"));
-                ImportKey<?> writeOffRateKey = new ImportKey((ConcreteCustomClass) writeOffItemLM.findClassByCompoundName("WriteOffRate"),
-                        writeOffItemLM.findLCPByCompoundOldName("writeOffRateId").getMapping(idWriteOffRateField));
-                keys.add(writeOffRateKey);
-                props.add(new ImportProperty(idWriteOffRateField, writeOffItemLM.findLCPByCompoundOldName("idWriteOffRate").getMapping(writeOffRateKey)));
-                fields.add(idWriteOffRateField);
-                for (int i = 0; i < rateWastesList.size(); i++)
-                    data.get(i).add(rateWastesList.get(i).idRateWaste);
+            ImportField idWarehouseField = new ImportField(LM.findLCPByCompoundOldName("idWarehouse"));
+            ImportKey<?> warehouseKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Warehouse"),
+                    LM.findLCPByCompoundOldName("warehouseId").getMapping(idWarehouseField));
+            keys.add(warehouseKey);
+            props.add(new ImportProperty(idWarehouseField, LM.findLCPByCompoundOldName("idWarehouse").getMapping(warehouseKey)));
+            fields.add(idWarehouseField);
+            for (int i = 0; i < warehousesList.size(); i++)
+                data.get(i).add(warehousesList.get(i).idWarehouse);
 
-                ImportField nameWriteOffRateField = new ImportField(writeOffItemLM.findLCPByCompoundOldName("nameWriteOffRate"));
-                props.add(new ImportProperty(nameWriteOffRateField, writeOffItemLM.findLCPByCompoundOldName("nameWriteOffRate").getMapping(writeOffRateKey)));
-                fields.add(nameWriteOffRateField);
-                for (int i = 0; i < rateWastesList.size(); i++)
-                    data.get(i).add(rateWastesList.get(i).nameRateWaste);
+            ImportField nameWarehouseField = new ImportField(LM.findLCPByCompoundOldName("nameWarehouse"));
+            props.add(new ImportProperty(nameWarehouseField, LM.findLCPByCompoundOldName("nameWarehouse").getMapping(warehouseKey)));
+            fields.add(nameWarehouseField);
+            for (int i = 0; i < warehousesList.size(); i++)
+                data.get(i).add(warehousesList.get(i).nameWarehouse);
 
-                ImportField percentWriteOffRateField = new ImportField(writeOffItemLM.findLCPByCompoundOldName("percentWriteOffRate"));
-                props.add(new ImportProperty(percentWriteOffRateField, writeOffItemLM.findLCPByCompoundOldName("percentWriteOffRate").getMapping(writeOffRateKey)));
-                fields.add(percentWriteOffRateField);
-                for (int i = 0; i < rateWastesList.size(); i++)
-                    data.get(i).add(rateWastesList.get(i).percentWriteOffRate);
+            ImportField addressWarehouseField = new ImportField(LM.findLCPByCompoundOldName("addressWarehouse"));
+            props.add(new ImportProperty(addressWarehouseField, LM.findLCPByCompoundOldName("addressWarehouse").getMapping(warehouseKey)));
+            fields.add(addressWarehouseField);
+            for (int i = 0; i < warehousesList.size(); i++)
+                data.get(i).add(warehousesList.get(i).addressWarehouse);
 
-                ImportField nameCountryField = new ImportField(LM.findLCPByCompoundOldName("nameCountry"));
-                ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Country"),
-                        LM.findLCPByCompoundOldName("countryName").getMapping(nameCountryField));
-                keys.add(countryKey);
-                props.add(new ImportProperty(nameCountryField, writeOffItemLM.findLCPByCompoundOldName("countryWriteOffRate").getMapping(writeOffRateKey),
-                        LM.object(LM.findClassByCompoundName("Country")).getMapping(countryKey)));
-                fields.add(nameCountryField);
-                for (int i = 0; i < rateWastesList.size(); i++)
-                    data.get(i).add(rateWastesList.get(i).nameCountry);
+            ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
+            ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
+                    LM.findLCPByCompoundOldName("legalEntityId").getMapping(idLegalEntityField));
+            keys.add(legalEntityKey);
+            props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("idLegalEntity").getMapping(legalEntityKey)));
+            props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("legalEntityWarehouse").getMapping(warehouseKey),
+                    LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
+            fields.add(idLegalEntityField);
+            for (int i = 0; i < warehousesList.size(); i++)
+                data.get(i).add(warehousesList.get(i).idLegalEntity);
 
-                ImportTable table = new ImportTable(fields, data);
+            ImportField idWarehouseGroupField = new ImportField(LM.findLCPByCompoundOldName("idWarehouseGroup"));
+            ImportKey<?> warehouseGroupKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("WarehouseGroup"),
+                    LM.findLCPByCompoundOldName("warehouseGroupId").getMapping(idWarehouseGroupField));
+            keys.add(warehouseGroupKey);
+            props.add(new ImportProperty(idWarehouseGroupField, LM.findLCPByCompoundOldName("warehouseGroupWarehouse").getMapping(warehouseKey),
+                    LM.object(LM.findClassByCompoundName("WarehouseGroup")).getMapping(warehouseGroupKey)));
+            fields.add(idWarehouseGroupField);
+            for (int i = 0; i < warehousesList.size(); i++)
+                data.get(i).add(warehousesList.get(i).idWarehouseGroup);
 
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
         }
     }
 
-    private void importContracts(List<Contract> contractsList) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importStores(List<LegalEntity> storesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        try {
-            if (contractsList != null) {
+        if (storeLM != null && storesList != null) {
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-                List<List<Object>> data = initData(contractsList.size());
+            List<List<Object>> data = initData(storesList.size());
 
-                ImportField idUserContractSkuField = new ImportField(LM.findLCPByCompoundOldName("idUserContractSku"));
-                ImportKey<?> userContractSkuKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UserContractSku"),
-                        LM.findLCPByCompoundOldName("userContractSkuId").getMapping(idUserContractSkuField));
-                keys.add(userContractSkuKey);
-                props.add(new ImportProperty(idUserContractSkuField, LM.findLCPByCompoundOldName("idUserContractSku").getMapping(userContractSkuKey)));
-                fields.add(idUserContractSkuField);
-                for (int i = 0; i < contractsList.size(); i++)
-                    data.get(i).add(contractsList.get(i).idUserContractSku);
+            ImportField idStoreField = new ImportField(storeLM.findLCPByCompoundOldName("idStore"));
+            ImportKey<?> storeKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("Store"),
+                    storeLM.findLCPByCompoundOldName("storeId").getMapping(idStoreField));
+            keys.add(storeKey);
+            props.add(new ImportProperty(idStoreField, storeLM.findLCPByCompoundOldName("idStore").getMapping(storeKey)));
+            fields.add(idStoreField);
+            for (int i = 0; i < storesList.size(); i++)
+                data.get(i).add(((Store) storesList.get(i)).idStore);
 
-                ImportField numberContractField = new ImportField(LM.findLCPByCompoundOldName("numberContract"));
-                props.add(new ImportProperty(numberContractField, LM.findLCPByCompoundOldName("numberContract").getMapping(userContractSkuKey)));
-                fields.add(numberContractField);
-                for (int i = 0; i < contractsList.size(); i++)
-                    data.get(i).add(contractsList.get(i).numberContract);
+            ImportField nameStoreField = new ImportField(storeLM.findLCPByCompoundOldName("nameStore"));
+            props.add(new ImportProperty(nameStoreField, storeLM.findLCPByCompoundOldName("nameStore").getMapping(storeKey)));
+            fields.add(nameStoreField);
+            for (int i = 0; i < storesList.size(); i++)
+                data.get(i).add(storesList.get(i).nameLegalEntity);
 
-                ImportField dateFromContractField = new ImportField(LM.findLCPByCompoundOldName("dateFromContract"));
-                props.add(new ImportProperty(dateFromContractField, LM.findLCPByCompoundOldName("dateFromContract").getMapping(userContractSkuKey)));
-                fields.add(dateFromContractField);
-                for (int i = 0; i < contractsList.size(); i++)
-                    data.get(i).add(contractsList.get(i).dateFromContract);
+            ImportField addressStoreField = new ImportField(storeLM.findLCPByCompoundOldName("addressStore"));
+            props.add(new ImportProperty(addressStoreField, storeLM.findLCPByCompoundOldName("addressStore").getMapping(storeKey)));
+            fields.add(addressStoreField);
+            for (int i = 0; i < storesList.size(); i++)
+                data.get(i).add(storesList.get(i).addressLegalEntity);
 
-                ImportField dateToContractField = new ImportField(LM.findLCPByCompoundOldName("dateToContract"));
-                props.add(new ImportProperty(dateToContractField, LM.findLCPByCompoundOldName("dateToContract").getMapping(userContractSkuKey)));
-                fields.add(dateToContractField);
-                for (int i = 0; i < contractsList.size(); i++)
-                    data.get(i).add(contractsList.get(i).dateToContract);
+            ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
+            ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
+                    LM.findLCPByCompoundOldName("legalEntityId").getMapping(idLegalEntityField));
+            keys.add(legalEntityKey);
+            props.add(new ImportProperty(idLegalEntityField, storeLM.findLCPByCompoundOldName("legalEntityStore").getMapping(storeKey),
+                    LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
+            fields.add(idLegalEntityField);
+            for (int i = 0; i < storesList.size(); i++)
+                data.get(i).add(storesList.get(i).idLegalEntity);
 
-                ImportField idSupplierField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
-                ImportKey<?> supplierKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
-                        LM.findLCPByCompoundOldName("legalEntityId").getMapping(idSupplierField));
-                keys.add(supplierKey);
-                props.add(new ImportProperty(idSupplierField, LM.findLCPByCompoundOldName("supplierContractSku").getMapping(userContractSkuKey),
-                        LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(supplierKey)));
-                fields.add(idSupplierField);
-                for (int i = 0; i < contractsList.size(); i++)
-                    data.get(i).add(contractsList.get(i).idSupplier);
+            ImportField idChainStoresField = new ImportField(storeLM.findLCPByCompoundOldName("idChainStores"));
+            ImportKey<?> chainStoresKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("ChainStores"),
+                    storeLM.findLCPByCompoundOldName("chainStoresId").getMapping(idChainStoresField));
+            keys.add(chainStoresKey);
+            fields.add(idChainStoresField);
+            for (int i = 0; i < storesList.size(); i++)
+                data.get(i).add(storesList.get(i).idChainStores);
 
-                ImportField idCustomerField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
-                ImportKey<?> customerKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
-                        LM.findLCPByCompoundOldName("legalEntityId").getMapping(idCustomerField));
-                keys.add(customerKey);
-                props.add(new ImportProperty(idCustomerField, LM.findLCPByCompoundOldName("customerContractSku").getMapping(userContractSkuKey),
-                        LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(customerKey)));
-                fields.add(idCustomerField);
-                for (int i = 0; i < contractsList.size(); i++)
-                    data.get(i).add(contractsList.get(i).idCustomer);
+            ImportField storeTypeField = new ImportField(storeLM.findLCPByCompoundOldName("nameStoreType"));
+            ImportKey<?> storeTypeKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("StoreType"),
+                    storeLM.findLCPByCompoundOldName("storeTypeNameChainStores").getMapping(storeTypeField, idChainStoresField));
+            keys.add(storeTypeKey);
+            props.add(new ImportProperty(idChainStoresField, storeLM.findLCPByCompoundOldName("chainStoresStoreType").getMapping(storeTypeKey),
+                    storeLM.object(storeLM.findClassByCompoundName("ChainStores")).getMapping(chainStoresKey)));
+            props.add(new ImportProperty(storeTypeField, storeLM.findLCPByCompoundOldName("nameStoreType").getMapping(storeTypeKey)));
+            props.add(new ImportProperty(storeTypeField, storeLM.findLCPByCompoundOldName("storeTypeStore").getMapping(storeKey),
+                    storeLM.object(storeLM.findClassByCompoundName("StoreType")).getMapping(storeTypeKey)));
+            fields.add(storeTypeField);
+            for (int i = 0; i < storesList.size(); i++)
+                data.get(i).add(((Store) storesList.get(i)).storeType);
 
-                ImportField shortNameCurrencyField = new ImportField(LM.findLCPByCompoundOldName("shortNameCurrency"));
-                ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Currency"),
-                        LM.findLCPByCompoundOldName("currencyShortName").getMapping(shortNameCurrencyField));
-                keys.add(currencyKey);
-                props.add(new ImportProperty(shortNameCurrencyField, LM.findLCPByCompoundOldName("currencyContract").getMapping(userContractSkuKey),
-                        LM.object(LM.findClassByCompoundName("Currency")).getMapping(currencyKey)));
-                fields.add(shortNameCurrencyField);
-                for (int i = 0; i < contractsList.size(); i++)
-                    data.get(i).add(contractsList.get(i).shortNameCurrency);
+            ImportTable table = new ImportTable(fields, data);
 
-                ImportTable table = new ImportTable(fields, data);
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
+        }
+    }
 
-                DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                session.apply(context.getBL());
-                session.sql.popVolatileStats(null);
-                session.close();
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+    private void importDepartmentStores(List<DepartmentStore> departmentStoresList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+
+        if (storeLM != null && departmentStoresList != null) {
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            List<List<Object>> data = initData(departmentStoresList.size());
+
+            ImportField idDepartmentStoreField = new ImportField(storeLM.findLCPByCompoundOldName("idDepartmentStore"));
+            ImportKey<?> departmentStoreKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("DepartmentStore"),
+                    storeLM.findLCPByCompoundOldName("departmentStoreId").getMapping(idDepartmentStoreField));
+            keys.add(departmentStoreKey);
+            props.add(new ImportProperty(idDepartmentStoreField, storeLM.findLCPByCompoundOldName("idDepartmentStore").getMapping(departmentStoreKey)));
+            fields.add(idDepartmentStoreField);
+            for (int i = 0; i < departmentStoresList.size(); i++)
+                data.get(i).add((departmentStoresList.get(i)).idDepartmentStore);
+
+            ImportField nameDepartmentStoreField = new ImportField(storeLM.findLCPByCompoundOldName("nameDepartmentStore"));
+            props.add(new ImportProperty(nameDepartmentStoreField, storeLM.findLCPByCompoundOldName("nameDepartmentStore").getMapping(departmentStoreKey)));
+            fields.add(nameDepartmentStoreField);
+            for (int i = 0; i < departmentStoresList.size(); i++)
+                data.get(i).add((departmentStoresList.get(i)).nameDepartmentStore);
+
+            ImportField idStoreField = new ImportField(storeLM.findLCPByCompoundOldName("idStore"));
+            ImportKey<?> storeKey = new ImportKey((ConcreteCustomClass) storeLM.findClassByCompoundName("Store"),
+                    storeLM.findLCPByCompoundOldName("storeId").getMapping(idStoreField));
+            keys.add(storeKey);
+            props.add(new ImportProperty(idStoreField, storeLM.findLCPByCompoundOldName("storeDepartmentStore").getMapping(departmentStoreKey),
+                    storeLM.object(storeLM.findClassByCompoundName("Store")).getMapping(storeKey)));
+            fields.add(idStoreField);
+            for (int i = 0; i < departmentStoresList.size(); i++)
+                data.get(i).add((departmentStoresList.get(i)).idStore);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
+        }
+    }
+
+    private void importBanks(List<Bank> banksList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+
+        if (banksList != null) {
+
+            DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            List<List<Object>> data = initData(banksList.size());
+
+            ImportField idBankField = new ImportField(LM.findLCPByCompoundOldName("idBank"));
+            ImportKey<?> bankKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Bank"),
+                    LM.findLCPByCompoundOldName("bankId").getMapping(idBankField));
+            keys.add(bankKey);
+            props.add(new ImportProperty(idBankField, LM.findLCPByCompoundOldName("idBank").getMapping(bankKey)));
+            fields.add(idBankField);
+            for (int i = 0; i < banksList.size(); i++)
+                data.get(i).add(banksList.get(i).idBank);
+
+            ImportField nameBankField = new ImportField(LM.findLCPByCompoundOldName("nameBank"));
+            props.add(new ImportProperty(nameBankField, LM.findLCPByCompoundOldName("nameBank").getMapping(bankKey)));
+            fields.add(nameBankField);
+            for (int i = 0; i < banksList.size(); i++)
+                data.get(i).add(banksList.get(i).nameBank);
+
+            ImportField addressBankField = new ImportField(LM.findLCPByCompoundOldName("dataAddressBankDate"));
+            props.add(new ImportProperty(addressBankField, LM.findLCPByCompoundOldName("dataAddressBankDate").getMapping(bankKey, defaultDate)));
+            fields.add(addressBankField);
+            for (int i = 0; i < banksList.size(); i++)
+                data.get(i).add(banksList.get(i).addressBank);
+
+            ImportField departmentBankField = new ImportField(LM.findLCPByCompoundOldName("departmentBank"));
+            props.add(new ImportProperty(departmentBankField, LM.findLCPByCompoundOldName("departmentBank").getMapping(bankKey)));
+            fields.add(departmentBankField);
+            for (int i = 0; i < banksList.size(); i++)
+                data.get(i).add(banksList.get(i).departmentBank);
+
+            ImportField mfoBankField = new ImportField(LM.findLCPByCompoundOldName("MFOBank"));
+            props.add(new ImportProperty(mfoBankField, LM.findLCPByCompoundOldName("MFOBank").getMapping(bankKey)));
+            fields.add(mfoBankField);
+            for (int i = 0; i < banksList.size(); i++)
+                data.get(i).add(banksList.get(i).mfoBank);
+
+            ImportField cbuBankField = new ImportField(LM.findLCPByCompoundOldName("CBUBank"));
+            props.add(new ImportProperty(cbuBankField, LM.findLCPByCompoundOldName("CBUBank").getMapping(bankKey)));
+            fields.add(cbuBankField);
+            for (int i = 0; i < banksList.size(); i++)
+                data.get(i).add(banksList.get(i).cbuBank);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
+        }
+    }
+
+    private void importRateWastes(List<RateWaste> rateWastesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+
+        if (writeOffItemLM != null && rateWastesList != null) {
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            List<List<Object>> data = initData(rateWastesList.size());
+
+            ImportField idWriteOffRateField = new ImportField(writeOffItemLM.findLCPByCompoundOldName("idWriteOffRate"));
+            ImportKey<?> writeOffRateKey = new ImportKey((ConcreteCustomClass) writeOffItemLM.findClassByCompoundName("WriteOffRate"),
+                    writeOffItemLM.findLCPByCompoundOldName("writeOffRateId").getMapping(idWriteOffRateField));
+            keys.add(writeOffRateKey);
+            props.add(new ImportProperty(idWriteOffRateField, writeOffItemLM.findLCPByCompoundOldName("idWriteOffRate").getMapping(writeOffRateKey)));
+            fields.add(idWriteOffRateField);
+            for (int i = 0; i < rateWastesList.size(); i++)
+                data.get(i).add(rateWastesList.get(i).idRateWaste);
+
+            ImportField nameWriteOffRateField = new ImportField(writeOffItemLM.findLCPByCompoundOldName("nameWriteOffRate"));
+            props.add(new ImportProperty(nameWriteOffRateField, writeOffItemLM.findLCPByCompoundOldName("nameWriteOffRate").getMapping(writeOffRateKey)));
+            fields.add(nameWriteOffRateField);
+            for (int i = 0; i < rateWastesList.size(); i++)
+                data.get(i).add(rateWastesList.get(i).nameRateWaste);
+
+            ImportField percentWriteOffRateField = new ImportField(writeOffItemLM.findLCPByCompoundOldName("percentWriteOffRate"));
+            props.add(new ImportProperty(percentWriteOffRateField, writeOffItemLM.findLCPByCompoundOldName("percentWriteOffRate").getMapping(writeOffRateKey)));
+            fields.add(percentWriteOffRateField);
+            for (int i = 0; i < rateWastesList.size(); i++)
+                data.get(i).add(rateWastesList.get(i).percentWriteOffRate);
+
+            ImportField nameCountryField = new ImportField(LM.findLCPByCompoundOldName("nameCountry"));
+            ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Country"),
+                    LM.findLCPByCompoundOldName("countryName").getMapping(nameCountryField));
+            keys.add(countryKey);
+            props.add(new ImportProperty(nameCountryField, writeOffItemLM.findLCPByCompoundOldName("countryWriteOffRate").getMapping(writeOffRateKey),
+                    LM.object(LM.findClassByCompoundName("Country")).getMapping(countryKey)));
+            fields.add(nameCountryField);
+            for (int i = 0; i < rateWastesList.size(); i++)
+                data.get(i).add(rateWastesList.get(i).nameCountry);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
+        }
+    }
+
+    private void importContracts(List<Contract> contractsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+
+        if (contractsList != null) {
+
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+
+            List<List<Object>> data = initData(contractsList.size());
+
+            ImportField idUserContractSkuField = new ImportField(LM.findLCPByCompoundOldName("idUserContractSku"));
+            ImportKey<?> userContractSkuKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UserContractSku"),
+                    LM.findLCPByCompoundOldName("userContractSkuId").getMapping(idUserContractSkuField));
+            keys.add(userContractSkuKey);
+            props.add(new ImportProperty(idUserContractSkuField, LM.findLCPByCompoundOldName("idUserContractSku").getMapping(userContractSkuKey)));
+            fields.add(idUserContractSkuField);
+            for (int i = 0; i < contractsList.size(); i++)
+                data.get(i).add(contractsList.get(i).idUserContractSku);
+
+            ImportField numberContractField = new ImportField(LM.findLCPByCompoundOldName("numberContract"));
+            props.add(new ImportProperty(numberContractField, LM.findLCPByCompoundOldName("numberContract").getMapping(userContractSkuKey)));
+            fields.add(numberContractField);
+            for (int i = 0; i < contractsList.size(); i++)
+                data.get(i).add(contractsList.get(i).numberContract);
+
+            ImportField dateFromContractField = new ImportField(LM.findLCPByCompoundOldName("dateFromContract"));
+            props.add(new ImportProperty(dateFromContractField, LM.findLCPByCompoundOldName("dateFromContract").getMapping(userContractSkuKey)));
+            fields.add(dateFromContractField);
+            for (int i = 0; i < contractsList.size(); i++)
+                data.get(i).add(contractsList.get(i).dateFromContract);
+
+            ImportField dateToContractField = new ImportField(LM.findLCPByCompoundOldName("dateToContract"));
+            props.add(new ImportProperty(dateToContractField, LM.findLCPByCompoundOldName("dateToContract").getMapping(userContractSkuKey)));
+            fields.add(dateToContractField);
+            for (int i = 0; i < contractsList.size(); i++)
+                data.get(i).add(contractsList.get(i).dateToContract);
+
+            ImportField idSupplierField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
+            ImportKey<?> supplierKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
+                    LM.findLCPByCompoundOldName("legalEntityId").getMapping(idSupplierField));
+            keys.add(supplierKey);
+            props.add(new ImportProperty(idSupplierField, LM.findLCPByCompoundOldName("supplierContractSku").getMapping(userContractSkuKey),
+                    LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(supplierKey)));
+            fields.add(idSupplierField);
+            for (int i = 0; i < contractsList.size(); i++)
+                data.get(i).add(contractsList.get(i).idSupplier);
+
+            ImportField idCustomerField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
+            ImportKey<?> customerKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
+                    LM.findLCPByCompoundOldName("legalEntityId").getMapping(idCustomerField));
+            keys.add(customerKey);
+            props.add(new ImportProperty(idCustomerField, LM.findLCPByCompoundOldName("customerContractSku").getMapping(userContractSkuKey),
+                    LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(customerKey)));
+            fields.add(idCustomerField);
+            for (int i = 0; i < contractsList.size(); i++)
+                data.get(i).add(contractsList.get(i).idCustomer);
+
+            ImportField shortNameCurrencyField = new ImportField(LM.findLCPByCompoundOldName("shortNameCurrency"));
+            ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Currency"),
+                    LM.findLCPByCompoundOldName("currencyShortName").getMapping(shortNameCurrencyField));
+            keys.add(currencyKey);
+            props.add(new ImportProperty(shortNameCurrencyField, LM.findLCPByCompoundOldName("currencyContract").getMapping(userContractSkuKey),
+                    LM.object(LM.findClassByCompoundName("Currency")).getMapping(currencyKey)));
+            fields.add(shortNameCurrencyField);
+            for (int i = 0; i < contractsList.size(); i++)
+                data.get(i).add(contractsList.get(i).shortNameCurrency);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            DataSession session = context.createSession();
+            session.sql.pushVolatileStats(null);
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            session.sql.popVolatileStats(null);
+            session.close();
         }
     }
 

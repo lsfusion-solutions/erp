@@ -2,6 +2,7 @@ package lsfusion.erp.integration.universal;
 
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -25,7 +26,7 @@ public class DefaultExportTXTActionProperty extends DefaultExportActionProperty 
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     protected String fillSymbolsLine(char c, int length) {

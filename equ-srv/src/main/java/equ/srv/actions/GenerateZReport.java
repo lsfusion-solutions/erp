@@ -9,6 +9,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.StringClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -35,7 +36,7 @@ public class GenerateZReport extends ScriptingActionProperty {
     }
 
     @Override
-    protected void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    protected void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         DataSession session = context.getSession();
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();

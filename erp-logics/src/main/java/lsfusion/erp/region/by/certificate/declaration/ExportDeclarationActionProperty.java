@@ -9,6 +9,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ConcreteClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -35,7 +36,7 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
         declarationInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             List<String> exportProperties = BaseUtils.toList("numberDeclarationDetail", "nameCustomsDeclarationDetail",
                     "codeCustomsGroupDeclarationDetail", "sidCountryDeclarationDetail", "idUOMDeclarationDetail",

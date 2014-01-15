@@ -12,6 +12,7 @@ import lsfusion.erp.integration.OverJDBField;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -21,7 +22,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.apache.commons.lang.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.fields.Field;
 import org.xBaseJ.xBaseJException;
@@ -49,7 +49,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         declarationInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
@@ -120,7 +120,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         }
     }
 
-    private Declaration exportDeclaration(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    private Declaration exportDeclaration(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String numberDeclaration = (String) getLCP("numberDeclaration").read(context, declarationObject);  //GA, NOMER_GTD
         BigDecimal sumDeclaration = (BigDecimal) getLCP("sumDeclarationDetailDeclaration").read(context, declarationObject);  //G222
@@ -195,7 +195,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 addressLegalEntityDeclaration, declarationDetailList, sumDeclaration, countDeclaration);
     }
 
-    private G44 exportG44ToList(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    private G44 exportG44ToList(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<G44Detail> customsDocumentDetailList = new ArrayList<G44Detail>();
         List<G44Detail> complianceDetailList = new ArrayList<G44Detail>();

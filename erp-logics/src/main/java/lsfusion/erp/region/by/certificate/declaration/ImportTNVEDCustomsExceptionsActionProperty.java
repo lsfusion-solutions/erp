@@ -8,6 +8,7 @@ import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.DateClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
@@ -38,7 +39,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "DBF");
@@ -62,7 +63,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         }
     }
 
-    private void importVATException(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException {
+    private void importVATException(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException, SQLHandledException {
 
         List<List<Object>> data = importVATExceptionFromDBF(context, fileBytes);
 
@@ -109,11 +110,11 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         DataSession session = context.createSession();
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
-        session.apply(context.getBL());
+        session.apply(context);
         session.close();
     }
 
-    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
+    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = getTNVEDSet(context);
 
@@ -156,7 +157,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         return data;
     }
 
-    private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = new HashSet<String>();
 

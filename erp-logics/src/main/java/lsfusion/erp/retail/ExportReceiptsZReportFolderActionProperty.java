@@ -1,5 +1,6 @@
 package lsfusion.erp.retail;
 
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -21,7 +22,7 @@ public class ExportReceiptsZReportFolderActionProperty extends ScriptingActionPr
         zReportInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
             String pathExportReceipts = (String) getLCP("pathExportReceipts").read(context);

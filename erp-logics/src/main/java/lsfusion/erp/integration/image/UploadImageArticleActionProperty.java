@@ -2,6 +2,7 @@ package lsfusion.erp.integration.image;
 
 import lsfusion.server.classes.DateTimeClass;
 import lsfusion.server.classes.ImageClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -29,7 +30,7 @@ public class UploadImageArticleActionProperty extends ScriptingActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 

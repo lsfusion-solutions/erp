@@ -1,6 +1,7 @@
 package lsfusion.erp.region.ua.machinery.cashregister.fiscaldatecs;
 
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -23,7 +24,7 @@ public class FiscalDatecsDisplayTextActionProperty extends ScriptingActionProper
         receiptDetailInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         DataSession session = context.getSession();
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);

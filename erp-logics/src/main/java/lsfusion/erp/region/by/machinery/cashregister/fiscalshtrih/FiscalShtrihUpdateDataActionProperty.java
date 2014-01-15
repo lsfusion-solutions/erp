@@ -8,6 +8,7 @@ import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -32,7 +33,7 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
         super(LM, new ValueClass[]{});
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         DataSession session = context.getSession();
 

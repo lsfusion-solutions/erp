@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
+import lsfusion.server.data.SQLHandledException;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -39,7 +40,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
         declarationInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 

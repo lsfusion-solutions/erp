@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -15,7 +16,7 @@ public class FiscalShtrihCutReceiptActionProperty extends ScriptingActionPropert
         super(LM);
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 

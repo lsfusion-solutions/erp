@@ -10,6 +10,7 @@ import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DataObject;
@@ -47,7 +48,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
@@ -113,7 +114,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                               byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String primaryKeyType,
                               String secondaryKeyType, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
-            throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException {
+            throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         this.saleManufacturingPriceLM = (ScriptingLogicsModule) BL.getModule("SaleManufacturingPrice");
 
@@ -137,7 +138,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                 DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType, 
                                 ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
                                 ObjectValue customerObject, ObjectValue customerStockObject)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
         if (orderDetailsList != null) {
 
@@ -341,7 +342,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Integer orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             byte[] file, String fileExtension, Integer startRow, Boolean isPosted,
                                                             String csvSeparator, String primaryKeyType, String secondaryKeyType)
-            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException {
+            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
         List<List<SaleOrderDetail>> orderDetailsList;
 
@@ -364,7 +365,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
     private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Boolean isPosted, Integer orderObject)
-            throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException {
+            throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
@@ -413,7 +414,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             String primaryKeyColumn, String secondaryKeyColumn, Integer startRow, Boolean isPosted,
                                                             String csvSeparator, Integer orderObject)
-            throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException {
+            throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
@@ -469,7 +470,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                              String primaryKeyColumn, String secondaryKeyColumn, Integer startRow,
                                                              Boolean isPosted, Integer orderObject)
-            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException {
+            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
@@ -517,7 +518,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             String primaryKeyColumn, String secondaryKeyColumn, Integer startRow,
                                                             Boolean isPosted, Integer orderObject)
-            throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();

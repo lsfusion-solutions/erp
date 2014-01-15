@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.integration.excel;
 import jxl.write.WriteException;
 import jxl.write.biff.RowsExceededException;
 import lsfusion.interop.action.ExportFileClientAction;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -20,7 +21,7 @@ public class CreateExcelTemplateAllActionProperty extends ScriptingActionPropert
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
             Map<String, byte[]> files = new HashMap<String, byte[]>();

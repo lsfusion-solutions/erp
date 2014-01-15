@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.integration.formular;
 
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -27,7 +28,7 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         Connection conn = null;
 
@@ -50,7 +51,7 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
         }
     }
 
-    private void importItemGroup(ExecutionContext context, Connection conn) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    private void importItemGroup(ExecutionContext context, Connection conn) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         ResultSet rs = conn.createStatement().executeQuery(
                 "SELECT num_class AS ext_id, name_u AS name, par AS par_id FROM klass");

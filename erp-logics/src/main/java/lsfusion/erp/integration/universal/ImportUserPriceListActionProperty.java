@@ -13,6 +13,7 @@ import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
@@ -53,7 +54,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
@@ -110,7 +111,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportColumns importColumns,
                               byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String itemKeyType,
                               boolean apply)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, UniversalImportException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, UniversalImportException, SQLHandledException {
 
         this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
         
@@ -134,7 +135,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailsList,
                                                ImportColumns importColumnProperties, DataObject userPriceListObject,
-                                               String itemKeyType, boolean apply) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+                                               String itemKeyType, boolean apply) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Map<String, ImportColumnDetail> importColumns = importColumnProperties.getColumns();
         DataObject operationObject = importColumnProperties.getOperationObject();
@@ -282,7 +283,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             service.synchronize(true, false);
             String result = null;
             if (apply) {
-                result = session.applyMessage(context.getBL());
+                result = session.applyMessage(context);
                 session.sql.popVolatileStats(null);
                 session.close();
             }
@@ -296,7 +297,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     private boolean importAdjustmentDetails(ExecutionContext context, List<UserPriceListDetail> dataAdjustment,
                                             DataObject stockObject, String itemKeyType, boolean apply)
-            throws ScriptingErrorLog.SemanticErrorException, SQLException {
+            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         if (dataAdjustment != null) {
 
@@ -383,7 +384,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             service.synchronize(true, false);
             String result = null;
             if (apply) {
-                result = session.applyMessage(context.getBL());
+                result = session.applyMessage(context);
                 session.sql.popVolatileStats(null);
                 session.close();
             }
@@ -549,7 +550,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    protected static ImportColumns readImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    protected static ImportColumns readImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, ImportColumnDetail> columns = readColumns(context, LM, importTypeObject);
         Map<DataObject, String[]> priceColumns = readPriceImportColumns(context, LM, importTypeObject);
         String quantityAdjustmentColumn = (String) LM.findLCPByCompoundOldName("quantityAdjustmentImportUserPriceListType").read(context, importTypeObject);
@@ -582,7 +583,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 stockObject, defaultItemGroupObject);
     }
 
-    private static Map<String, ImportColumnDetail> readColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    private static Map<String, ImportColumnDetail> readColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Map<String, ImportColumnDetail> importColumns = new HashMap<String, ImportColumnDetail>();
 
@@ -614,7 +615,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return importColumns;
     }
 
-    private static Map<DataObject, String[]> readPriceImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+    private static Map<DataObject, String[]> readPriceImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Map<DataObject, String[]> importColumns = new HashMap<DataObject, String[]>();
 

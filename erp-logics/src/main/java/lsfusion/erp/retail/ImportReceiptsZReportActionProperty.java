@@ -8,6 +8,7 @@ import lsfusion.interop.Compare;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
@@ -52,7 +53,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
         zReportInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         DataSession session = context.getSession();
 
         this.POSVostrovLM = (ScriptingLogicsModule) context.getBL().getModule("POSVostrov");

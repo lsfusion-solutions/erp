@@ -4,6 +4,7 @@ import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import jxl.read.biff.BiffException;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -23,7 +24,7 @@ public class ImportExcelAllActionProperty extends ScriptingActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 

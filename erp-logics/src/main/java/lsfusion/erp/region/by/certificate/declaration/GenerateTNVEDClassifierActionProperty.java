@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
+import lsfusion.server.data.SQLHandledException;
 import org.apache.commons.lang.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -27,7 +28,7 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 

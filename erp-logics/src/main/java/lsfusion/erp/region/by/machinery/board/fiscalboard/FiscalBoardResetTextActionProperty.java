@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -20,7 +21,7 @@ public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty 
         receiptInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 

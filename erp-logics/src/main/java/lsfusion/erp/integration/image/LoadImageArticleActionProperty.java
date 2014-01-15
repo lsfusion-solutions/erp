@@ -2,6 +2,7 @@ package lsfusion.erp.integration.image;
 
 import lsfusion.base.IOUtils;
 import lsfusion.server.classes.StringClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -26,7 +27,7 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         DataObject articleObject = context.getDataKeyValue(articleInterface);
         DataObject urlObject = context.getDataKeyValue(urlInterface);

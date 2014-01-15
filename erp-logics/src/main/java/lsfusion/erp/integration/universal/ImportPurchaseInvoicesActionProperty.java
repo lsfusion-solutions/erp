@@ -3,6 +3,7 @@ package lsfusion.erp.integration.universal;
 import jxl.read.biff.BiffException;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
@@ -26,7 +27,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
@@ -82,7 +83,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                                         secondaryKeyType, operationObject, supplierObject, supplierStockObject,
                                         customerObject, customerStockObject);
 
-                            session.apply(context.getBL());
+                            session.apply(context);
                             session.close();
 
                             getLAP("formRefresh").execute(context);

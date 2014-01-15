@@ -3,6 +3,7 @@ package lsfusion.erp.integration;
 import jxl.*;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -27,7 +28,7 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     protected String getXLSFieldValue(Sheet sheet, Integer row, Integer column) {

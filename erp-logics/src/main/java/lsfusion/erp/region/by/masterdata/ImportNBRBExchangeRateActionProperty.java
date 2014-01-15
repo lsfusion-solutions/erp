@@ -4,6 +4,7 @@ package lsfusion.erp.region.by.masterdata;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -35,10 +36,10 @@ public class ImportNBRBExchangeRateActionProperty extends ScriptingActionPropert
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException {
+    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
 
 
         List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, shortNameCurrency);

@@ -3,6 +3,7 @@ package lsfusion.erp.region.ru.masterdata;
 import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -40,7 +41,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
@@ -65,7 +66,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
 
     }
 
-    private void importExchanges(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException {
+    private void importExchanges(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
 
 
         List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, extraSIDCurrency, context);
@@ -118,7 +119,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
         }
     }
 
-    private List<Exchange> importExchangesFromXML(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws IOException, JDOMException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException {
+    private List<Exchange> importExchangesFromXML(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws IOException, JDOMException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         SAXBuilder builder = new SAXBuilder();
 
         List<Exchange> exchangesList = new ArrayList<Exchange>();

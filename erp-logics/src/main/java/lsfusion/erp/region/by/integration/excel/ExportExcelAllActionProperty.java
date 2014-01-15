@@ -4,6 +4,7 @@ import jxl.write.WriteException;
 import jxl.write.biff.RowsExceededException;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.DateClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -28,7 +29,7 @@ public class ExportExcelAllActionProperty extends ScriptingActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
             Map<String, byte[]> files = new HashMap<String, byte[]>();
