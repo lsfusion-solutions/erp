@@ -22,6 +22,11 @@ TABLE itemGroupArticle(ItemGroup, Article);
 isParentGroupArticle(group, article) = isParentItemGroupItemGroup(itemGroupArticle(article), group) PERSISTENT INDEXED;
 canonicalNameItemGroupArticle 'Группа товара' (article) = canonicalNameGroup(itemGroupArticle(article)) MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
+// --- Дополнительные группы
+TABLE customGroupTypeArticle(CustomGroupType, Article);
+customGroupCustomGroupTypeArticle = DATA CustomGroup (CustomGroupType, Article);
+nameCustomGroupCustomGroupTypeArticle 'Имя' (customGroupType, article) = nameCustomGroup(customGroupCustomGroupTypeArticle(customGroupType, article));
+canonicalNameCustomGroupCustomGroupTypeArticle 'Каноническое имя' (customGroupType, article) = canonicalNameCustomGroup(customGroupCustomGroupTypeArticle(customGroupType, article));
 
 // Бренд
 brandArticle 'Бренд' = DATA Brand (Article);
@@ -323,32 +328,34 @@ EXTEND DESIGN articles {
 } 
 
 // ------------------------- Автоматическое проставление свойств товара для артикула ---------------------- //
-WHEN SESSION (CHANGED(captionArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(captionItem(i)) DO         
-    captionItem(i) <- captionArticle(article) WHERE articleItem(i) == article;
+META defineEventChangedArticle(property)
+    WHEN SESSION CHANGED(property##Article(articleItem(i))) AND NOT CHANGED(property##Item(i)) DO         
+        property##Item(i) <- property##Article(articleItem(i));
+END
+
+@defineEventChangedArticle(caption);
+
+@defineEventChangedArticle(itemGroup);
     
-WHEN SESSION (CHANGED(itemGroupArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(itemGroupItem(i)) DO         
-    itemGroupItem(i) <- itemGroupArticle(article) WHERE articleItem(i)==article;
+WHEN SESSION CHANGED(customGroupCustomGroupTypeArticle(type, articleItem(i))) AND NOT CHANGED(customGroupCustomGroupTypeItem(type, i)) DO         
+    customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeArticle(type, articleItem(i));
 
-WHEN SESSION (CHANGED(brandArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(brandItem(i)) DO         
-    brandItem(i) <- brandArticle(article) WHERE articleItem(i) == article;
+//WHEN SESSION (CHANGED(customGroupCustomGroupTypeArticle(type, article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(customGroupCustomGroupTypeItem(type, i)) DO         
+//    customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeArticle(type, article) WHERE articleItem(i)==article;
 
-WHEN SESSION (CHANGED(manufacturerArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(manufacturerItem(i)) DO         
-    manufacturerItem(i) <- manufacturerArticle(article) WHERE articleItem(i) == article;
+@defineEventChangedArticle(brand);
 
-WHEN SESSION (CHANGED(compositionArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(compositionItem(i)) DO         
-    compositionItem(i) <- compositionArticle(article) WHERE articleItem(i)==article;   
+@defineEventChangedArticle(manufacturer) ;
 
-WHEN SESSION (CHANGED(UOMArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(UOMItem(i)) DO         
-    UOMItem(i) <- UOMArticle(article) WHERE articleItem(i)==article;  
-    
-WHEN SESSION (CHANGED(colorArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(colorItem(i)) DO         
-    colorItem(i) <- colorArticle(article) WHERE articleItem(i)==article;
+@defineEventChangedArticle(composition);
 
-WHEN SESSION (CHANGED(netWeightArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(netWeightItem(i)) DO         
-    netWeightItem(i) <- netWeightArticle(article) WHERE articleItem(i)==article;
+@defineEventChangedArticle(UOM);
 
-WHEN SESSION (CHANGED(grossWeightArticle(article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(grossWeightItem(i)) DO         
-    grossWeightItem(i) <- grossWeightArticle(article) WHERE articleItem(i)==article;
+@defineEventChangedArticle(color);
+
+@defineEventChangedArticle(netWeight);
+
+@defineEventChangedArticle(grossWeight);
 
 NAVIGATOR {
     itemAttributeNavigator {
