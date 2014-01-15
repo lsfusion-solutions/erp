@@ -341,6 +341,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             String result;
             switch (xssfCell.getCellType()) {
                 case Cell.CELL_TYPE_NUMERIC:
+                case Cell.CELL_TYPE_FORMULA:    
                     if (isDate)
                         result = String.valueOf(new Date(xssfCell.getDateCellValue().getTime()));
                     else {

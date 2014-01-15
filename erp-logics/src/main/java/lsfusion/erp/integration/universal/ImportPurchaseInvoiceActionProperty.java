@@ -43,6 +43,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     ScriptingLogicsModule itemPharmacyByLM;
     ScriptingLogicsModule purchaseInvoicePharmacyLM;
     ScriptingLogicsModule itemArticleLM;
+    ScriptingLogicsModule itemFashionLM;
     ScriptingLogicsModule customsGroupArticleLM;
     ScriptingLogicsModule purhcaseShipmentBoxLM;
 
@@ -139,6 +140,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         this.itemPharmacyByLM = (ScriptingLogicsModule) context.getBL().getModule("ItemPharmacyBy");
         this.purchaseInvoicePharmacyLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoicePharmacy");
         this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
+        this.itemFashionLM = (ScriptingLogicsModule) context.getBL().getModule("ItemFashion");
         this.customsGroupArticleLM = (ScriptingLogicsModule) context.getBL().getModule("CustomsGroupArticle");
         this.purhcaseShipmentBoxLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseShipmentBox");
     }
@@ -835,16 +837,16 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         data.get(i).add(userInvoiceDetailsList.get(i).idSeasonYear);
                 }
 
-                if (showField(userInvoiceDetailsList, "idSeason")) {
-                    ImportField idSeasonField = new ImportField(itemArticleLM.findLCPByCompoundOldName("idSeason"));
-                    ImportKey<?> seasonKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Season"),
-                            itemArticleLM.findLCPByCompoundOldName("seasonId").getMapping(idSeasonField));
+                if (itemFashionLM != null && showField(userInvoiceDetailsList, "idSeason")) {
+                    ImportField idSeasonField = new ImportField(itemFashionLM.findLCPByCompoundOldName("idSeason"));
+                    ImportKey<?> seasonKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClassByCompoundName("Season"),
+                            itemFashionLM.findLCPByCompoundOldName("seasonId").getMapping(idSeasonField));
                     keys.add(seasonKey);
-                    props.add(new ImportProperty(idSeasonField, itemArticleLM.findLCPByCompoundOldName("idSeason").getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
-                    props.add(new ImportProperty(idSeasonField, itemArticleLM.findLCPByCompoundOldName("seasonArticle").getMapping(articleKey),
-                            LM.object(itemArticleLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
-                    props.add(new ImportProperty(idSeasonField, itemArticleLM.findLCPByCompoundOldName("seasonItem").getMapping(itemKey),
-                            LM.object(itemArticleLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
+                    props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("idSeason").getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
+                    props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("seasonArticle").getMapping(articleKey),
+                            LM.object(itemFashionLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
+                    props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("seasonItem").getMapping(itemKey),
+                            LM.object(itemFashionLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
                     fields.add(idSeasonField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).idSeason);
