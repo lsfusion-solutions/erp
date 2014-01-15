@@ -10,6 +10,8 @@ GROUP invoices 'Приемка по накладным' : base;
 @defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, shipment, ' учетная');
 @defineDocumentHeaderSumPrefix(invoice, shipment, ' учетная');
 
+createShipmentInvoice 'Создать поставку' (invoice) = ABSTRACT BOOLEAN(Invoice);
+
 invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail);
 descriptionIndexInvoiceDetailShipmentDetail 'Строка накладной' (detail) = descriptionIndexInvoiceDetail(invoiceDetailShipmentDetail(detail));
 
@@ -25,21 +27,52 @@ shippedInvoiceDetail 'Кол-во (поставлено)' (invoiceDetail) = GROU
                                                                    
 shippedInvoice 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isPostedInvoiceDetail(detail)
                                                                    BY invoiceInvoiceDetail(detail);   
+
+notShippedInvoice (invoice) = invoice IS Invoice AND NOT shippedInvoice(invoice);
                                                                                                                                        
 toShipInvoiceDetail 'Не поставлено' (invoiceDetail) = quantityInvoiceDetail (invoiceDetail) (-) shippedInvoiceDetail(invoiceDetail);
 
 toShipInvoiceDetailInvoice 'Не поставлено по накладной' (invoice) =
     GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
-          BY invoiceInvoiceDetail(invoiceDetail);
+          BY invoiceInvoiceDetail(invoiceDetail);              
+          
+addUserShipmentInvoice  = ABSTRACT ACTION CASE OVERRIDE (Invoice);
+
+receiveShipmentInvoice 'Принять полностью' = ABSTRACT ACTION LIST (Invoice);
+
+createMultiShipmentInvoice 'Принять полностью' = ACTION (invoice) NEWSESSION AUTOAPPLY {
+    IF createShipmentInvoice(invoice) THEN {
+        MESSAGE 'Для данного инвойса уже создана накладная'; 
+    } ELSE {
+        receiveShipmentInvoice(invoice);
+    }
+}
+
+deleteCreateShipment  = ABSTRACT ACTION CASE OVERRIDE (Shipment);
+deleteMultiShipment 'Удалить полностью' = ACTION (shipment) NEWSESSION AUTOAPPLY {
+    IF shipment IS Shipment AND NOT isUserShipment(shipment) THEN {
+        deleteCreateShipment(shipment); 
+    }
+}
 
 
+isShippedInvoice = shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice));
 
+statusShippedInvoice 'Статус приемки' (invoice)= IF isShippedInvoice (invoice) AND toShipInvoiceDetailInvoice(invoice)  
+                                                    THEN 'Расхождение'
+                                                    ELSE 
+                                                        IF isShippedInvoice (invoice) 
+                                                            THEN 'Оприходована' 
+                                                            ELSE 'Не оприходована' IF invoice IS Invoice;
+
+backgroundShipInvoice 'Цвет' (invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT (shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice)));  
 
 META defineInvoiceShipment(sign, stockProp, filter)
 
     invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT;
     invoiceDetailUserShipmentDetail = DATA InvoiceDetail (UserShipmentDetail);
     invoiceDetailShipmentDetail(shipmentDetail) += invoiceDetailUserShipmentDetail(shipmentDetail);
+    Shipment.invoiceDetailShipmentDetail(shipmentDetail) += invoiceDetailShipmentDetail(shipmentDetail);
     
     overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
         invoiceDetailUserShipmentDetail(d) <- invoiceDetailUserShipmentDetail(detail);             
@@ -251,6 +284,7 @@ META defineInvoiceShipment(sign, stockProp, filter)
     @deriveDocumentDetailSumPrefix(userInvoice, shipment, currency, shipmentQuantity);
     Shipment.shipmentSumInvoiceDetail(detail) += shipmentSumInvoiceDetail(detail);
     @defineDocumentInterfaceHeaderCreateShipment (invoice);
+    Shipment.createShipmentInvoice(invoice) += createShipmentInvoice(invoice);
     @defineDocumentInterfaceHeaderSumPrefix (invoice, shipment, ' (учетная)');
 
     @defineDocumentInterfaceHeaderItemSum (invoice, shipment, shipment);
@@ -459,6 +493,7 @@ META defineInvoiceShipmentAction (sign)
             FORM userShipment OBJECTS s = s MANAGESESSION DOCKEDMODAL;
         }
     } TOOLBAR;
+    Shipment.addUserShipmentInvoice(invoice) += WHEN invoice IS Invoice THEN addUserShipmentInvoice(invoice);
 
     EXTEND FORM invoices
         PROPERTIES(i) addUserShipmentInvoice

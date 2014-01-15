@@ -96,3 +96,15 @@ purchaseShipmentPriceUserInvoiceDetail(detail) <- calcPurchaseShipmentPriceUserI
      CHANGED(extraPurchaseShipmentPriceUserInvoiceDetail(detail)) OR
      CHANGED(showPurchaseShipmentUserInvoiceDetail(detail)))
         AND showPurchaseShipmentUserInvoiceDetail(detail);
+
+receiveShipmentInvoice (invoice)+= ACTION (invoice)  {
+    IF invoice IS PurchaseInvoice THEN {
+        createPurchaseShipmentInvoice(i) <- TRUE WHERE i == invoicePurchaseInvoice(invoice);
+        purchaseShipmentDateInvoice(i) <- currentDate() WHERE i == invoicePurchaseInvoice(invoice);
+        purchaseShipmentTimeInvoice(i) <- currentTime() WHERE i == invoicePurchaseInvoice(invoice);
+    } 
+};
+
+deleteCreateShipment (shipment)+= WHEN Purchase.invoiceInvoiceShipment(shipment) IS PurchaseInvoice THEN  ACTION (shipment)  {
+    createPurchaseShipmentInvoice(invoice) <- NULL WHERE invoice == invoicePurchaseInvoice(Purchase.invoiceInvoiceShipment(shipment));          
+};

@@ -18,6 +18,8 @@ NAMESPACE SaleReturn;
 @defineShipmentBatch(supplierStock);
 @defineShipmentBatchDialog();
 
+Shipment.inShipment(s) += s IS Shipment;
+
 expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDetail(detail)) WHEN CHANGED (batchUserShipmentDetail(detail));
 
 @defineShipmentStockDestination(customerStock, supplierStock);
@@ -155,6 +157,15 @@ sumIncStockDocumentLedger (ledger) += sumShipmentDetailShipment(ledger);
 sumItemIncStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
 sumContainerIncStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
 
+receiveShipmentInvoice (invoice)+= ACTION (invoice)  {
+    IF invoice IS UserInvoice THEN {
+        createShipmentUserInvoice(invoice) <- TRUE;           
+    }
+};
+
+deleteCreateShipment (shipment)+= WHEN invoiceInvoiceShipment(shipment) IS UserInvoice THEN  ACTION (shipment)  {
+    createShipmentInvoice(invoice) <- NULL WHERE invoice == invoiceInvoiceShipment(shipment);          
+};
 NAVIGATOR {
     saleStockNavigator {
         ADD shipments;

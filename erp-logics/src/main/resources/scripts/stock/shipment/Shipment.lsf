@@ -27,11 +27,21 @@ CLASS ABSTRACT ShipmentDetail 'Строка поставки' : DocumentDetail;
 @defineDocumentAbstractDetailQuantityPrefix(shipment, pack, ' (упаковок)');
 @defineDocumentHeaderSkuQuantity(shipment, sku);
 
+@defineDocumentAbstractDetailDataSumCustomPrefix (shipmentDetail, , );
+
+@defineDocumentHeaderSum(shipment);
+@defineDocumentHeaderQuantity(shipment);
 @defineDocumentHeaderGrossWeight(shipment);
 
 quantityShipmentDetailOrderShipment = ABSTRACT NUMERIC[14,3] (Order, Shipment);
 
 editShipment 'Редактировать' = ABSTRACT ACTION LIST (Shipment) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+isUserShipment = ABSTRACT BOOLEAN (Shipment);
+
+inShipment 'Приходная' = ABSTRACT BOOLEAN (Shipment);
+inShipmentDetail 'Приходная' (d) = inShipment(shipmentShipmentDetail(d)); 
+outShipment 'Расходная' (shipment) = shipment IS Shipment AND NOT inShipment(shipment);
+outShipmentDetail 'Расходная' (d) = outShipment(shipmentShipmentDetail(d)); 
 
 // ----------------------------------- Создавать поставку по умолчанию для склада ------------------------------------------ //
 
@@ -63,6 +73,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     Shipment.shipmentShipmentDetail (detail) += shipmentShipmentDetail(detail);
     Shipment.dateShipment (shipment) += dateShipment(shipment);
     Shipment.timeShipment (shipment) += timeShipment(shipment);
+    Shipment.isUserShipment(shipment) += isUserShipment(shipment);
 
     @defineDocumentInterfaceNumber(shipment);
     Shipment.numberShipment (shipment) += numberShipment(shipment);
@@ -117,6 +128,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
     @defineDocumentInterfaceDetailDataSum(shipment);
     @deriveDocumentDetailSum(userShipment, quantity);
+    Shipment.sumShipmentDetail(detail) += sumShipmentDetail(detail);
 
     @defineDocumentInterfaceHeaderQuantity(shipment);
     @defineDocumentHeaderSkuQuantity(shipment, sku);

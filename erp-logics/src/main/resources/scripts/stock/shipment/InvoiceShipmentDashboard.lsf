@@ -1,30 +1,14 @@
-MODULE PurchaseInvoiceShipmentDashboard;
+MODULE InvoiceShipmentDashboard;
 
-REQUIRE Dashboard, SalePurchaseInvoiceShipment;
+REQUIRE Dashboard, InvoiceShipment;
 
-NAMESPACE Purchase;
+NAMESPACE Shipment;
 
-receiveShipmentInvoice 'Принять полностью' = ACTION (invoice) NEWSESSION AUTOAPPLY {
-    IF invoice IS PurchaseInvoice THEN {
-        createPurchaseShipmentInvoice(i) <- TRUE WHERE i == invoicePurchaseInvoice(invoice);
-        purchaseShipmentDateInvoice(i) <- dateInvoice(i) WHERE i == invoicePurchaseInvoice(invoice);
-        purchaseShipmentTimeInvoice(i) <- timeInvoice(i) WHERE i == invoicePurchaseInvoice(invoice);
-    } ELSE IF invoice IS UserInvoice THEN {
-        createShipmentUserInvoice(invoice) <- TRUE;           
-    }
-} CONFIRM TOOLBAR;
+notCreateShipmentInvoice (invoice) = invoice IS Invoice AND NOT createShipmentInvoice(invoice);
 
-deleteShipmentInvoice 'Удалить полностью' = ACTION (invoice) NEWSESSION AUTOAPPLY {
-    IF invoice IS PurchaseInvoice THEN {
-        createPurchaseShipmentInvoice(i) <- NULL WHERE i == invoicePurchaseInvoice(invoice);          
-    } ELSE IF invoice IS UserInvoice THEN{
-        createShipmentUserInvoice(invoice) <- NULL;           
-    }
-} TOOLBAR;
-
-notCreateShipmentInvoice = NOT createShipmentInvoice(invoice);
+notUserShipment (shipment) = shipment IS Shipment AND NOT isUserShipment(shipment);
   
-FORM invoiceShipmentDashboard 'Приемка по накладным' 
+FORM invoiceShipmentDashboard 'Приемка по накладным' AUTOREFRESH 60
 
     OBJECTS dt = DATE FIXED PANEL
     PROPERTIES(dt) date = OBJVALUE
@@ -35,9 +19,10 @@ FORM invoiceShipmentDashboard 'Приемка по накладным'
                             nameCustomerInvoice, nameCustomerStockInvoice, 
                             nameCurrencyInvoice, countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
                             VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice, noteInvoice
-    PROPERTIES (i) receiveShipmentInvoice SHOWIF notShippedInvoice(i), addUserShipmentInvoice SHOWIF notCreateShipmentInvoice(i)
+    PROPERTIES (i) FORCE PANEL TOOLBAR createMultiShipmentInvoice SHOWIF notShippedInvoice(i), addUserShipmentInvoice SHOWIF notCreateShipmentInvoice(i)
     
-    FILTERS isPostedInvoice(i)
+    FILTERS toShipInvoiceDetailInvoice(i),
+            inInvoice(i)
         
     FILTERGROUP shipped 
         FILTER 'Не оприходованы' 'F11' i IS Invoice AND NOT isShippedInvoice(i) DEFAULT     
@@ -46,7 +31,7 @@ FORM invoiceShipmentDashboard 'Приемка по накладным'
     OBJECTS d = InvoiceDetail
     PROPERTIES (d) READONLY indexInvoiceDetail, idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail
     PROPERTIES (d) READONLY quantityInvoiceDetail, priceInvoiceDetail, sumInvoiceDetail,
-                   valueVATInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail        
+                   valueVATInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail, toShipInvoiceDetail        
     FILTERS invoiceInvoiceDetail(d)==i
         
     OBJECTS s = Shipment
@@ -56,9 +41,11 @@ FORM invoiceShipmentDashboard 'Приемка по накладным'
     PROPERTIES (s) READONLY countShipmentDetailShipment, quantityShipmentDetailShipment, sumShipmentDetailShipment, 
                    noteShipment, invoicesShipment 
     
-    PROPERTIES (i) TODRAW s deleteShipmentInvoice SHOWIF createShipmentInvoice(i)
-    PROPERTIES (s) editShipment SHOWIF isUserShipment(s)
+    PROPERTIES (s) deleteMultiShipment SHOWIF notUserShipment(s) FORCE PANEL TOOLBAR
+    PROPERTIES (s) editShipment 
     PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF isUserShipment(s)   
+    
+    FILTERS inShipment(s)
     
     FILTERGROUP filters0 FILTER 'Накладные на дату' 'F5' dateInvoice(i)<=dt DEFAULT
     FILTERGROUP filters1 FILTER 'Поставки на дату' 'F5' dateShipment(s)==dt DEFAULT

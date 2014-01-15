@@ -94,3 +94,16 @@ EXTEND FORM invoices
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, saleReturnShipment, , sku, supplierStock);
+
+receiveShipmentInvoice (invoice)+= ACTION (invoice)  {
+    IF invoice IS SaleReturnInvoice THEN {
+        createSaleReturnShipmentInvoice(i) <- TRUE WHERE i == invoiceSaleReturnInvoice(invoice);
+        saleReturnShipmentDateInvoice(i) <- currentDate() WHERE i == invoiceSaleReturnInvoice(invoice);
+        saleReturnShipmentTimeInvoice(i) <- currentTime() WHERE i == invoiceSaleReturnInvoice(invoice);
+    } 
+};
+
+deleteCreateShipment (shipment)+= WHEN SaleReturn.invoiceInvoiceShipment(shipment) IS SaleReturnInvoice THEN  ACTION (shipment)  {
+    createSaleReturnShipmentInvoice(invoice) <- NULL WHERE invoice == invoiceSaleReturnInvoice(SaleReturn.invoiceInvoiceShipment(shipment));          
+};
+
