@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.image;
 
+import com.google.common.base.Throwables;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -25,7 +26,30 @@ public class SearchImageArticleActionProperty extends DefaultImageArticleActionP
 
         DataObject articleObject = context.getDataKeyValue(articleInterface);
 
+        resetImages(context);
+
         loadImages(context, articleObject, 0, 8);
     }
 
+    public void resetImages(ExecutionContext context) {
+
+        try {
+
+            for (int i = 0; i < 64; i++) {
+
+                DataObject currentObject = new DataObject(i);
+                getLCP("thumbnailImage").change(null, context, currentObject);
+                getLCP("urlImage").change(null, context, currentObject);
+                getLCP("sizeImage").change(null, context, currentObject);
+            }
+
+            getLCP("startImage").change(null, context);
+            getLCP("articleImage").change(null, context);
+
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
+        }
+    }
 }
