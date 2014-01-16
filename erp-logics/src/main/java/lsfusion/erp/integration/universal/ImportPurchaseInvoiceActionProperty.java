@@ -855,7 +855,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                             data.get(i).add(userInvoiceDetailsList.get(i).idSeason);
 
                         if (showField(userInvoiceDetailsList, "nameSeason")) {
-                            addDataField(itemArticleLM, props, fields, importColumns, "nameSeason", "nameSeason", seasonKey);
+                            addDataField(itemFashionLM, props, fields, importColumns, "nameSeason", "nameSeason", seasonKey);
                             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                                 data.get(i).add(userInvoiceDetailsList.get(i).nameSeason);
                         }
