@@ -1,0 +1,425 @@
+MODULE PurchaseSaleCreditNote;
+
+REQUIRE PurchaseCreditNote, SaleCreditNote, SalePurchaseInvoice;
+
+NAMESPACE Purchase;
+
+//----------------------------------------------------------------------------//
+
+// Создание акта расхождения на основе акта расхождения //
+
+FORM creditNoteCreditNotes 'Акты расхождения'
+    OBJECTS s = LegalEntity FIXED PANEL
+    PROPERTIES (s) READONLY nameLegalEntity
+    OBJECTS c = LegalEntity FIXED PANEL
+    PROPERTIES (c) READONLY nameLegalEntity
+
+    OBJECTS ss = Stock FIXED PANEL
+    PROPERTIES (ss) READONLY nameStock
+    OBJECTS cs = Stock FIXED PANEL
+    PROPERTIES (cs) READONLY nameStock
+
+    OBJECTS t=DATE FIXED PANEL
+    PROPERTIES(t) OBJVALUE
+
+    OBJECTS o = CreditNote
+    PROPERTIES (o) READONLY isPostedCreditNote, numberCreditNote, seriesCreditNote, dateCreditNote, timeCreditNote, nameCurrencyCreditNote,
+                            countCreditNoteDetailCreditNote, quantityCreditNoteDetailCreditNote, sumCreditNoteDetailCreditNote,
+                            noteCreditNote
+    FILTERS supplierCreditNote(o) == s,
+            customerCreditNote(o) == c,
+            supplierStockCreditNote(o) == ss,
+            customerStockCreditNote(o) == cs,
+            isPostedCreditNote(o)
+
+    FILTERGROUP filters1
+        FILTER 'Только этой даты' 'F11' dateCreditNote(o) == t DEFAULT
+
+    OBJECTS d = CreditNoteDetail
+
+    PROPERTIES (d) READONLY indexCreditNoteDetail, idBarcodeSkuCreditNoteDetail, nameSkuCreditNoteDetail, shortNameUOMSkuCreditNoteDetail
+//    PROPERTIES (d) READONLY SHOWIF showPackCreditNote(o) idBarcodePackCreditNoteDetail, shortNameUOMPackCreditNoteDetail, amountPackCreditNoteDetail, packQuantityCreditNoteDetail
+    PROPERTIES (d) READONLY quantityCreditNoteDetail, priceCreditNoteDetail, sumCreditNoteDetail, numberVATCreditNoteDetail, valueVATCreditNoteDetail,
+                            VATSumCreditNoteDetail, invoiceSumCreditNoteDetail//, nameSupplierStockCreditNoteDetail, nameCustomerStockCreditNoteDetail
+
+    FILTERS creditNoteCreditNoteDetail(d) == o
+;
+
+DESIGN creditNoteCreditNotes FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+        NEW documentContainer BEFORE functions.box {
+            
+            type = CONTAINERV;
+            fill = 1;
+            
+            NEW headerBox1 {               
+                type = CONTAINERV;
+                NEW headerBox11 {
+                    type = CONTAINERH;
+                    caption = 'Поставщик';
+                    ADD s.box;
+                    ADD ss.box;
+                }
+                NEW headerBox12 {
+                    type = CONTAINERH;
+                    caption = 'Покупатель';
+                    ADD c.box;
+                    ADD cs.box;
+                }
+                ADD t.box;
+            }
+//            NEW headerBox2 {
+//                type = CONTAINERH;
+//                
+//            }
+            ADD o.box {fill = 1;}
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                ADD d.box {
+                    caption = 'Спецификация';
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+fillCreditNoteUserCreditNote 'Заполнить на основе акта расхождения (закупка)' =  ACTION (userCreditNote) {
+    FORM creditNoteCreditNotes OBJECTS s = Sale.supplierUserCreditNote(userCreditNote), c = Sale.customerUserCreditNote(userCreditNote),
+                                   ss = Sale.supplierStockUserCreditNote(userCreditNote), cs = Sale.customerStockUserCreditNote(userCreditNote),
+                                   t = Sale.dateUserCreditNote(userCreditNote) MODAL;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL purchaseCreditNote = CreditNote();
+        ASSIGN purchaseCreditNote() <- chosenObject('o');
+
+        FOR creditNoteCreditNoteDetail(creditNoteDetail) == purchaseCreditNote() ADDOBJ d = Sale.UserCreditNoteDetail DO {
+            ASSIGN Sale.userCreditNoteUserCreditNoteDetail(d) <- userCreditNote;
+            ASSIGN Sale.skuUserCreditNoteDetail(d) <- skuCreditNoteDetail(creditNoteDetail);
+            ASSIGN Sale.batchUserCreditNoteDetail(d) <- batchCreditNoteDetail(creditNoteDetail);
+//            ASSIGN Sale.barcodePackUserCreditNoteDetail(d) <- barcodePackCreditNoteDetail(creditNoteDetail);
+//            ASSIGN Sale.amountPackUserCreditNoteDetail(d) <- amountPackCreditNoteDetail(creditNoteDetail);
+//            ASSIGN Sale.packQuantityUserCreditNoteDetail(d) <- packQuantityCreditNoteDetail(creditNoteDetail);
+            ASSIGN Sale.quantityUserCreditNoteDetail (d) <- quantityCreditNoteDetail(creditNoteDetail);
+            ASSIGN Sale.VATUserCreditNoteDetail(d) <- VATCreditNoteDetail(creditNoteDetail);
+            ASSIGN Sale.valueVATUserCreditNoteDetail(d) <- valueVATCreditNoteDetail(creditNoteDetail);
+            ASSIGN Sale.priceUserCreditNoteDetail(d) <- priceCreditNoteDetail(creditNoteDetail);
+//            ASSIGN Sale.creditNotePriceUserCreditNoteDetail(d) <- creditNotePriceCreditNoteDetail(creditNoteDetail);
+        }
+    }
+} IN Sale.creditNote; // 
+
+//----------------------------------------------------------------------------//
+
+//GROUP creditNote 'Информация об акте расхождения' : base;
+
+createSaleCreditNoteCreditNote 'Создать акт расхождения (продажа)' = ABSTRACT BOOLEAN (CreditNote) PERSISTENT;
+createSaleCreditNoteUserCreditNote 'Создать акт расхождения (продажа)' = DATA BOOLEAN (UserCreditNote);
+createSaleCreditNoteCreditNote(creditNote) += createSaleCreditNoteUserCreditNote(creditNote);
+
+createSaleCreditNoteCreditNoteDetail 'Создать акт расхождения (продажа)' (creditNoteDetail) = createSaleCreditNoteCreditNote(creditNoteCreditNoteDetail(creditNoteDetail))PERSISTENT;
+createSaleCreditNoteUserCreditNoteDetail 'Создать акт расхождения (продажа)' (userCreditNoteDetail) = createSaleCreditNoteUserCreditNote(userCreditNoteUserCreditNoteDetail(userCreditNoteDetail));
+backgroundSaleCreditNote 'Цвет' (creditNote) = RGB(238, 220, 130) IF creditNote IS CreditNote;
+
+isCompanyCustomerUserCreditNote (userCreditNote) =  isCompanyLegalEntity(customerUserCreditNote(userCreditNote));
+
+//-- Задание договора 
+returnContractSkuCreditNote = ABSTRACT ContractSku (CreditNote) PERSISTENT;
+seriesNumberReturnContractSkuCreditNote 'Номер договора' (o) = seriesNumberContract(returnContractSkuCreditNote(o)) IN documentPrm;
+dateFromReturnContractSkuCreditNote 'Дата договора' (o) = dateFromContract(returnContractSkuCreditNote(o)) IN documentPrm;
+
+descriptionReturnContractSkuCreditNote 'Описание договора' (o)= CONCAT ' ', seriesNumberReturnContractSkuCreditNote(o), ' от ' + dateFromReturnContractSkuCreditNote(o);
+
+isCommissionReturnCreditNote 'Продажа на комиссию' = ABSTRACT BOOLEAN (CreditNote) PERSISTENT IN documentPrm;
+
+returnContractSkuUserCreditNote = DATA ContractSku (UserCreditNote);
+numberReturnContractSkuUserCreditNote 'Договор (номер)' (o) = numberContract(returnContractSkuUserCreditNote(o)) IN documentPrm;
+seriesNumberReturnContractSkuUserCreditNote 'Договор (серия/номер)' (o) = seriesNumberContract(returnContractSkuUserCreditNote(o)) IN documentPrm;
+dateFromReturnContractSkuUserCreditNote 'Дата договора' (o) = dateFromContract(returnContractSkuUserCreditNote(o)) IN documentPrm;
+
+descriptionReturnContractSkuUserCreditNote 'Описание договора' (o)= CONCAT ' ', seriesNumberReturnContractSkuUserCreditNote(o), ' от ' + dateFromReturnContractSkuUserCreditNote(o);
+
+isCommissionReturnUserCreditNote 'Продажа на комиссию' = DATA BOOLEAN (UserCreditNote) IN documentPrm;
+isCommissionReturnUserCreditNote(o) <- typeContractSku(returnContractSkuUserCreditNote(o)) == ContractSkuType.commission
+    WHEN CHANGED(returnContractSkuUserCreditNote(o));
+
+returnContractSkuUserCreditNote(o) <- singleContractSkuSupplierCustomer(customerUserCreditNote(o), supplierUserCreditNote(o))
+                                      WHEN CHANGED(customerUserCreditNote(o)) OR CHANGED(supplierUserCreditNote(o));
+                                      
+                                      
+
+CONSTRAINT returnContractSkuUserCreditNote(o) AND NOT customerUserCreditNote(o) == partyAContract(returnContractSkuUserCreditNote(o))
+    CHECKED BY returnContractSkuUserCreditNote MESSAGE 'Организация (поставщик) договора накладной не соответствует организация (поставщик) накладной';
+
+CONSTRAINT returnContractSkuUserCreditNote(o) AND NOT supplierUserCreditNote(o) == partyBContract(returnContractSkuUserCreditNote(o))
+    CHECKED BY returnContractSkuUserCreditNote MESSAGE 'Организация (покупатель) договора накладной не соответствует организация (покупатель) накладной';    
+    
+returnContractSkuCreditNote(o) += returnContractSkuUserCreditNote(o);
+isCommissionReturnCreditNote(o) += isCommissionReturnUserCreditNote(o);
+
+
+EXTEND FORM userCreditNote
+    PROPERTIES(c) BACKGROUND backgroundSaleCreditNote(c) SHOWIF isCompanyCustomerUserCreditNote(c) createSaleCreditNoteUserCreditNote
+    PROPERTIES(c) BACKGROUND backgroundSaleCreditNote(c) SHOWIF createSaleCreditNoteUserCreditNote(c) seriesNumberReturnContractSkuUserCreditNote
+;
+EXTEND DESIGN userCreditNote {
+    headerRow12 {
+        NEW headerCreateSale {              
+            type = CONTAINERV;
+            caption = 'Акт расхождения (продажа)';                
+            ADD PROPERTY(createSaleCreditNoteUserCreditNote);
+            ADD PROPERTY(seriesNumberReturnContractSkuUserCreditNote);
+        }
+    }
+}
+
+//--  Связь акта с актом
+
+creditNoteDetailCreditNoteDetail = ABSTRACT CreditNoteDetail (Sale.CreditNoteDetail) PERSISTENT;
+creditNoteDetailUserCreditNoteDetail = DATA CreditNoteDetail (Sale.UserCreditNoteDetail);
+creditNoteDetailCreditNoteDetail(creditNoteDetail) += creditNoteDetailUserCreditNoteDetail(creditNoteDetail);
+
+CONSTRAINT Sale.supplierCreditNoteDetail(detail) != supplierCreditNoteDetail(creditNoteDetailUserCreditNoteDetail(detail)) OR
+           Sale.supplierStockCreditNoteDetail(detail) != supplierStockCreditNoteDetail(creditNoteDetailUserCreditNoteDetail(detail)) OR
+           Sale.customerCreditNoteDetail(detail) != customerCreditNoteDetail(creditNoteDetailUserCreditNoteDetail(detail)) OR
+           Sale.customerStockCreditNoteDetail(detail) != customerStockCreditNoteDetail(creditNoteDetailUserCreditNoteDetail(detail)) OR
+           Sale.skuCreditNoteDetail(detail) != skuCreditNoteDetail(creditNoteDetailUserCreditNoteDetail(detail))
+    CHECKED BY creditNoteDetailUserCreditNoteDetail
+        MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в акте расхождения и в акте расхождения на основе акта должны соответствовать друг другу';
+
+
+descriptionIndexCreditNoteDetailCreditNoteDetail 'Строка акта расхождения (закупка)' (detail) = descriptionIndexCreditNoteDetail(creditNoteDetailCreditNoteDetail(detail));
+descriptionIndexCreditNoteDetailUserCreditNoteDetail 'Строка акта расхождения (закупка)' (detail) = descriptionIndexCreditNoteDetail(creditNoteDetailUserCreditNoteDetail(detail));
+
+quantityCreditNoteDetailCreditNoteCreditNote (purchase, sale) = GROUP SUM Sale.quantityCreditNoteDetail(detail) BY creditNoteCreditNoteDetail(creditNoteDetailCreditNoteDetail(detail)), Sale.creditNoteCreditNoteDetail(detail);
+
+purchaseCreditNotesCreditNote 'Накладные (закупка)' (sale) = GROUP CONCAT VARSTRING[255](descriptionCreditNote(purchase)) IF quantityCreditNoteDetailCreditNoteCreditNote(purchase, sale) , ', '
+                                                        BY sale
+                                                        ORDER sale IN creditNote MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+
+relationSaleCreditNote 'Связь' (sale) = GROUP SUM quantityCreditNoteDetailCreditNoteCreditNote (purchase, sale) BY sale PERSISTENT;
+
+//creditNotedCreditNoteDetail 'Кол-во (выписано)' (creditNoteDetail) = GROUP SUM Sale.quantityCreditNoteDetail(detail) IF Sale.isPostedCreditNoteDetail(detail)
+//                                                                   BY creditNoteDetailCreditNoteDetail(detail) PERSISTENT;
+//
+//toCreditNotedCreditNoteDetail 'Не выписано' (creditNoteDetail) = quantityCreditNoteDetail (creditNoteDetail) (-) creditNotedCreditNoteDetail(creditNoteDetail);
+
+EXTEND FORM Sale.userCreditNote
+    PROPERTIES(c) fillCreditNoteUserCreditNote, purchaseCreditNotesCreditNote READONLY
+;
+EXTEND DESIGN Sale.userCreditNote { headerRow12{ type = CONTAINERH; ADD c.creditNote { type = CONTAINERV; }}}
+
+
+
+CLASS SaleCreditNote 'Накладная на основе накладной': Sale.CreditNote;
+CLASS SaleCreditNoteDetail 'Строка накладной на основе накладной' : Sale.CreditNoteDetail;
+
+@defineDocumentTables(saleCreditNote);
+
+@defineDocumentAggregation(creditNote, saleCreditNote, createSaleCreditNote);
+Sale.creditNoteCreditNoteDetail(detail) += saleCreditNoteSaleCreditNoteDetail(detail);
+
+@defineDocumentDetailIndex(saleCreditNote);
+
+Sale.dateCreditNote(creditNote) += dateSaleCreditNote(creditNote);
+Sale.timeCreditNote(creditNote) += timeSaleCreditNote(creditNote);
+
+@defineDocumentAggregationStockPrefix(creditNote, saleCreditNote, supplier, 'Склад поставщика', , );
+Sale.supplierStockCreditNote(creditNote) += supplierStockSaleCreditNote(creditNote);
+Sale.dataSupplierStockCreditNoteDetail(creditNoteDetail) += dataSupplierStockCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+@defineDocumentAggregationStockPrefix(creditNote, saleCreditNote, customer, 'Склад покупателя', , );
+Sale.customerStockCreditNote(creditNote) += customerStockSaleCreditNote(creditNote);
+Sale.dataCustomerStockCreditNoteDetail(creditNoteDetail) += dataCustomerStockCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+
+@defineDocumentAggregationLegalEntityPrefix(creditNote, saleCreditNote, supplier, 'Поставщик', , );
+Sale.supplierCreditNote(creditNote) += supplierSaleCreditNote(creditNote);
+@defineDocumentAggregationLegalEntityPrefix(creditNote, saleCreditNote, customer, 'Покупатель', , );
+Sale.customerCreditNote(creditNote) += customerSaleCreditNote(creditNote);
+
+@defineDocumentAggregationPosted(creditNote, saleCreditNote);
+Sale.isPostedCreditNote(creditNote) += isPostedSaleCreditNote(creditNote);
+
+@defineDocumentAggregationClosed(creditNote, saleCreditNote);
+Sale.isClosedCreditNote(creditNote) += isClosedSaleCreditNote(creditNote);
+
+Sale.numberCreditNote(creditNote) += numberCreditNote(creditNoteSaleCreditNote(creditNote));
+Sale.seriesCreditNote(creditNote) += seriesCreditNote(creditNoteSaleCreditNote(creditNote));
+seriesNumberSaleCreditNote 'Серия/номер документа' (saleCreditNote) = seriesNumberCreditNote(creditNoteSaleCreditNote(saleCreditNote));
+
+noteCreditNoteSaleCreditNote 'Примечание' (saleCreditNote) = noteCreditNote(creditNoteSaleCreditNote(saleCreditNote));
+Sale.noteCreditNote(creditNote) += noteCreditNoteSaleCreditNote(creditNote);
+
+currencySaleCreditNote  (saleCreditNote) = currencyCreditNote(creditNoteSaleCreditNote(saleCreditNote));
+Sale.currencyCreditNote (creditNote) += currencySaleCreditNote(creditNote);
+
+//agreementSaleCreditNote  (saleCreditNote) = agreementCreditNote(creditNoteSaleCreditNote(saleCreditNote));
+//Sale.agreementCreditNote (creditNote) += agreementSaleCreditNote(creditNote);
+//
+//priceListTypeSaleCreditNote  (saleCreditNote) = priceListTypeCreditNote(creditNoteSaleCreditNote(saleCreditNote));
+//Sale.priceListTypeCreditNote (creditNote) += priceListTypeSaleCreditNote(creditNote);
+
+@defineDocumentDescription(saleCreditNote, SaleCreditNoteDetail, 'Акт расхождения на основе акта расхождения');
+Sale.descriptionCreditNote (creditNote) += descriptionSaleCreditNote(creditNote);
+
+Sale.contractSkuCreditNote (creditNote) += returnContractSkuCreditNote(creditNoteSaleCreditNote(creditNote));
+Sale.isCommissionCreditNote (creditNote) += isCommissionReturnCreditNote(creditNoteSaleCreditNote(creditNote));
+
+@defineDocumentAggregationDetailSku(creditNote, saleCreditNote, sku);
+Sale.skuCreditNoteDetail(creditNoteDetail) +=  skuSaleCreditNoteDetail(creditNoteDetail);
+
+@defineDocumentAggregationDetailBatch(creditNote, saleCreditNote);
+Sale.batchCreditNoteDetail(creditNoteDetail) += batchSaleCreditNoteDetail(creditNoteDetail);
+
+Sale.quantityCreditNoteDetail(creditNoteDetail) += quantityCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+//Sale.priceListTypeCreditNoteDetail(creditNoteDetail) += priceListTypeCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+
+Sale.priceCreditNoteDetail(creditNoteDetail) += priceCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+Sale.sumCreditNoteDetail(creditNoteDetail) += sumCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+Sale.VATCreditNoteDetail(creditNoteDetail) += VATCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+Sale.valueVATCreditNoteDetail(creditNoteDetail) += valueVATCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+//Sale.creditNotePriceCreditNoteDetail(creditNoteDetail) += creditNotePriceCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+Sale.VATSumCreditNoteDetail(creditNoteDetail) += VATSumCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+//Sale.creditNoteSumCreditNoteDetail(creditNoteDetail) += creditNoteSumCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+
+Sale.editCreditNote(creditNote) += ACTION EXEC editCreditNote(creditNoteSaleCreditNote(creditNote));
+
+//Sale.showPackCreditNote(creditNote) +=  showPackCreditNote(creditNoteSaleCreditNote(creditNote));
+//Sale.barcodePackCreditNoteDetail(creditNoteDetail) += barcodePackCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+//Sale.amountPackCreditNoteDetail(creditNoteDetail) +=  amountPackCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+//Sale.packQuantityCreditNoteDetail(creditNoteDetail) +=  packQuantityCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+
+creditNoteDetailCreditNoteDetail(creditNoteDetail) += creditNoteDetailSaleCreditNoteDetail(creditNoteDetail);
+
+//------------------------------ Создание аггрегированных объектов через операции -----------------------------//
+
+//// -- Операция
+//createSaleCreditNoteOperation 'Накладная (закупка) ' = DATA BOOLEAN (Operation);
+//
+//EXTEND FORM operation
+//    PROPERTIES(o) createSaleCreditNoteOperation
+//;
+//EXTEND DESIGN operation {
+//    saleContainer {
+//        ADD PROPERTY(createSaleCreditNoteOperation) BEFORE PROPERTY(nameSaleOperationOperation);
+//    }
+//}
+//
+//@deriveDocumentOperationProperty(UserCreditNote, createSaleCreditNote){
+//    createSaleCreditNoteUserCreditNote (o) <- createSaleCreditNoteOperation(operationUserCreditNote(o))
+//        WHEN CHANGED(operationUserCreditNote(o));
+//};
+//
+//@defineDocumentInterfaceOperationPrefix (creditNote, sale, Sale, ' (закупка)'){
+//    @defineDocumentOperationInterfaceHeaderPrefix(creditNote, sale, Sale, ' (закупка)'){
+//        @defineDocumentOperationAbstractHeaderPrefix(creditNote, sale, Sale, ' (закупка)'){
+//            saleOperationCreditNote = ABSTRACT Sale.Operation (CreditNote) PERSISTENT;
+//            nameSaleOperationCreditNote 'Операция (закупка)' = Sale.nameOperation(saleOperationCreditNote(creditNote));
+//            idSaleOperationCreditNote 'ID операции (закупка)' = Sale.idOperation(saleOperationCreditNote(creditNote));
+//        };
+//        @defineDocumentOperationHeaderPrefix(userCreditNote, sale, Sale, ' (закупка)'){
+//            saleOperationUserCreditNote = DATA Sale.Operation (UserCreditNote);
+//            nameSaleOperationUserCreditNote 'Операция (закупка)' = Sale.nameOperation(saleOperationUserCreditNote(userCreditNote));
+//            idSaleOperationUserCreditNote 'ID операции (закупка)' = Sale.idOperation(saleOperationUserCreditNote(userCreditNote));
+//        };
+//        saleOperationCreditNote(creditNote) += saleOperationUserCreditNote(creditNote);
+//    };
+//    @defineDocumentOperationDetailPrefix(creditNote, sale, Sale, ' (закупка)'){
+//        @defineDocumentOperationDetailPrefix(creditNote, creditNoteDetail, sale, Sale, ' (закупка)'){
+//            saleOperationCreditNoteDetail (idetail) = saleOperationCreditNote(creditNoteCreditNoteDetail(idetail));
+//            nameSaleOperationCreditNoteDetail 'Операция (закупка)' (idetail) = Sale.nameOperation(saleOperationCreditNoteDetail(idetail));
+//            idSaleOperationCreditNoteDetail 'ID операции (закупка)' (idetail) = Sale.idOperation(saleOperationCreditNoteDetail(idetail));
+//        };
+//    };
+//    @defineDocumentOperationDetailPrefix(userCreditNote, sale, Sale, ' (закупка)'){
+//        @defineDocumentOperationDetailPrefix(userCreditNote, userCreditNoteDetail, sale, Sale, ' (закупка)'){
+//            saleOperationUserCreditNoteDetail (idetail) = saleOperationUserCreditNote(userCreditNoteUserCreditNoteDetail(idetail));
+//            nameSaleOperationUserCreditNoteDetail 'Операция (закупка)' (idetail) = Sale.nameOperation(saleOperationUserCreditNoteDetail(idetail));
+//            idSaleOperationUserCreditNoteDetail 'ID операции (закупка)' (idetail) = Sale.idOperation(saleOperationUserCreditNoteDetail(idetail));
+//        };
+//    };
+//};
+//
+//// Записываем операцию для закупки по умолчанию из операции
+//saleOperationUserCreditNote (creditNote) <- saleOperationOperation(operationUserCreditNote(creditNote))
+//    WHEN CHANGED(operationUserCreditNote(creditNote));
+//
+//Sale.operationCreditNote(creditNote) += saleOperationCreditNote(creditNoteSaleCreditNote(creditNote));
+//
+//EXTEND FORM userCreditNote
+//    PROPERTIES(i) BACKGROUND backgroundSaleCreditNote(i) SHOWIF createSaleCreditNoteUserCreditNote(i) nameSaleOperationUserCreditNote
+//
+//;
+//EXTEND DESIGN userCreditNote {
+//    headerCreateSale {
+//        ADD PROPERTY(nameSaleOperationUserCreditNote) AFTER PROPERTY(createSaleCreditNoteUserCreditNote);
+//    }
+//}
+
+//-- Действие
+
+overFillCreditNoteUserCreditNoteCreditNote = ABSTRACT ACTION LIST (Sale.UserCreditNote, CreditNote);
+overFillCreditNoteUserCreditNoteDetailCreditNoteDetail = ABSTRACT ACTION LIST (Sale.UserCreditNoteDetail, CreditNoteDetail);
+
+moveUserCreditNoteCreditNote 'Акт расхождения (продажа)' =  ACTION (creditNote) NEWSESSION{
+
+    FOR ADDOBJ i = Sale.UserCreditNote DO {
+
+//        ASSIGN Sale.agreementUserCreditNote(i) <- agreementCreditNote(creditNote);
+//        ASSIGN Sale.priceListTypeUserCreditNote(i) <- priceListTypeCreditNote(creditNote);
+        ASSIGN Sale.supplierUserCreditNote(i) <- supplierCreditNote(creditNote);
+        ASSIGN Sale.customerUserCreditNote(i) <- customerCreditNote(creditNote);
+        ASSIGN Sale.supplierStockUserCreditNote(i) <- supplierStockCreditNote(creditNote);
+        ASSIGN Sale.customerStockUserCreditNote(i) <- customerStockCreditNote(creditNote);
+        ASSIGN numberUserCreditNote(i) <- numberCreditNote(creditNote);
+        ASSIGN seriesUserCreditNote(i) <- seriesCreditNote(creditNote);
+        ASSIGN Sale.noteUserCreditNote(i) <- noteCreditNote(creditNote);
+        ASSIGN Sale.currencyUserCreditNote(i) <- currencyCreditNote(creditNote);
+        ASSIGN Sale.contractSkuUserCreditNote(i) <- contractSkuCreditNote(creditNote);
+        ASSIGN Sale.isCommissionUserCreditNote(i) <- isCommissionCreditNote(creditNote);
+//        ASSIGN Sale.showPackUserCreditNote(i) <- showPackCreditNote(creditNote);
+        ASSIGN Sale.operationUserCreditNote(i) <- operationCreditNote(creditNote);
+        EXEC overFillCreditNoteUserCreditNoteCreditNote(i, creditNote);
+
+        FOR creditNoteCreditNoteDetail(detail)==creditNote ADDOBJ d = Sale.UserCreditNoteDetail DO {
+
+            ASSIGN Sale.userCreditNoteUserCreditNoteDetail(d) <- i;
+
+//            ASSIGN Sale.priceListTypeUserCreditNoteDetail(d) <- priceListTypeCreditNoteDetail(detail);
+            ASSIGN Sale.dataSupplierStockUserCreditNoteDetail(d) <- dataSupplierStockCreditNoteDetail(detail);
+            ASSIGN Sale.dataCustomerStockUserCreditNoteDetail(d) <- dataCustomerStockCreditNoteDetail(detail);
+
+            ASSIGN Sale.skuUserCreditNoteDetail(d) <- skuCreditNoteDetail(detail);
+            ASSIGN Sale.quantityUserCreditNoteDetail (d) <- quantityCreditNoteDetail(detail);
+            ASSIGN Sale.VATUserCreditNoteDetail (d) <- VATCreditNoteDetail(detail);
+            ASSIGN Sale.priceUserCreditNoteDetail (d) <- priceCreditNoteDetail(detail);
+//            ASSIGN Sale.creditNotePriceUserCreditNoteDetail (d) <- creditNotePriceCreditNoteDetail(detail);
+
+//            ASSIGN Sale.barcodePackUserCreditNoteDetail (d) <- barcodePackCreditNoteDetail(detail);
+//            ASSIGN Sale.amountPackUserCreditNoteDetail (d) <- amountPackCreditNoteDetail(detail);
+//            ASSIGN Sale.packQuantityUserCreditNoteDetail (d) <- packQuantityCreditNoteDetail(detail);
+
+            ASSIGN Sale.batchUserCreditNoteDetail(d) <- batchCreditNoteDetail(detail);
+            EXEC overFillCreditNoteUserCreditNoteDetailCreditNoteDetail(d,detail);
+        }
+
+    FORM Sale.userCreditNote OBJECTS c = i MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+EXTEND FORM creditNotes
+    PROPERTIES(c) moveUserCreditNoteCreditNote
+;
+EXTEND DESIGN creditNotes {
+    createdContainer{
+        ADD PROPERTY(moveUserCreditNoteCreditNote);
+    }
+}
+
