@@ -619,13 +619,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         data.get(i).add(userInvoiceDetailsList.get(i).contractPrice);
                 }
             }
-            
+
             if (showField(userInvoiceDetailsList, "shipmentPrice")) {
                 addDataField(props, fields, importColumns, "shipmentPriceUserInvoiceDetail", "shipmentPrice", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).shipmentPrice);
             }
-            
+
             if (showField(userInvoiceDetailsList, "shipmentSum")) {
                 addDataField(props, fields, importColumns, "shipmentSumUserInvoiceDetail", "shipmentSum", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
@@ -636,7 +636,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).rateExchange);
             }
-            
+
             if (showField(userInvoiceDetailsList, "sumNetWeight")) {
                 addDataField(props, fields, importColumns, "sumNetWeightUserInvoiceDetail", "sumNetWeight", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
@@ -928,6 +928,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
         currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+
+        Map<String, String> barcodeIdItemMap = new HashMap<String, String>();
         
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
             String numberDocument = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
@@ -960,7 +962,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
             BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("price"));
-            if(price != null && price.compareTo(new BigDecimal("100000000000"))>0)
+            if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
                 price = null;
             BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
             BigDecimal valueVAT = parseVAT(getXLSFieldValue(sheet, i, importColumns.get("valueVAT")));
@@ -1007,6 +1009,18 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String composition = getXLSFieldValue(sheet, i, importColumns.get("composition"));
             String originalComposition = getXLSFieldValue(sheet, i, importColumns.get("originalComposition"));
 
+            //чит для случая, когда для двух товаров штрихкод одинаковый, а код товара - разный.
+            boolean toItemIdList = false;
+            if (barcodeItem != null && idItem != null) {
+                String checkIdItem = barcodeIdItemMap.get(barcodeItem);
+                if (checkIdItem != null && !idItem.equals(checkIdItem)) {
+                    barcodeItem = null;
+                    toItemIdList = true;
+                }
+                else
+                    barcodeIdItemMap.put(barcodeItem, idItem);
+            }
+            
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
                     dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch,
                     dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem,
@@ -1021,9 +1035,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
-            if (primaryKeyColumnValue != null && !primaryKeyColumnValue.isEmpty())
+            if (checkKeyColumn(primaryKeyColumn, primaryKeyColumnValue, toItemIdList))
                 primaryList.add(purchaseInvoiceDetail);
-            else if (secondaryKeyColumnValue != null && !secondaryKeyColumnValue.isEmpty())
+            else if (checkKeyColumn(secondaryKeyColumn, secondaryKeyColumnValue, toItemIdList))
                 primaryList.add(purchaseInvoiceDetail);
         }
         currentTimestamp = null;
@@ -1045,6 +1059,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
         currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+
+        Map<String, String> barcodeIdItemMap = new HashMap<String, String>();
         
         while ((line = br.readLine()) != null) {
 
@@ -1053,7 +1069,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if (count >= startRow) {
 
                 String[] values = line.split(csvSeparator);
-                
+
                 String numberDocument = getCSVFieldValue(values, importColumns.get("numberDocument"), count);
                 String idDocument = getCSVFieldValue(values, importColumns.get("idDocument"), count, numberDocument);
                 Date dateDocument = getCSVDateFieldValue(values, importColumns.get("dateDocument"), count);
@@ -1084,7 +1100,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
                 BigDecimal quantity = getCSVBigDecimalFieldValue(values, importColumns.get("quantity"), count);
                 BigDecimal price = getCSVBigDecimalFieldValue(values, importColumns.get("price"), count);
-                if(price != null && price.compareTo(new BigDecimal("100000000000"))>0)
+                if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
                     price = null;
                 BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns.get("sum"), count);
                 BigDecimal valueVAT = parseVAT(getCSVFieldValue(values, importColumns.get("valueVAT"), count));
@@ -1131,8 +1147,20 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String composition = getCSVFieldValue(values, importColumns.get("composition"), count);
                 String originalComposition = getCSVFieldValue(values, importColumns.get("originalComposition"), count);
 
+                //чит для случая, когда для двух товаров штрихкод одинаковый, а код товара - разный.
+                boolean toItemIdList = false;
+                if (barcodeItem != null && idItem != null) {
+                    String checkIdItem = barcodeIdItemMap.get(barcodeItem);
+                    if (checkIdItem != null && !idItem.equals(checkIdItem)) {
+                        barcodeItem = null;
+                        toItemIdList = true;
+                    }
+                    else
+                        barcodeIdItemMap.put(barcodeItem, idItem);
+                }
+                
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
-                        dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem, 
+                        dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem,
                         idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem,
                         UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch,
                         idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT,
@@ -1145,9 +1173,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 String primaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(primaryKeyColumn), count);
                 String secondaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(secondaryKeyColumn), count);
-                if (primaryKeyColumn != null && !primaryKeyColumnValue.isEmpty())
+                if (checkKeyColumn(primaryKeyColumn, primaryKeyColumnValue, toItemIdList))
                     primaryList.add(purchaseInvoiceDetail);
-                else if (secondaryKeyColumn != null && !secondaryKeyColumnValue.isEmpty())
+                else if (checkKeyColumn(secondaryKeyColumn, secondaryKeyColumnValue, toItemIdList))
                     secondaryList.add(purchaseInvoiceDetail);
 
             }
@@ -1170,9 +1198,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
         currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+
+        Map<String, String> barcodeIdItemMap = new HashMap<String, String>();
         
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
-            
+
             String numberDocument = getXLSXFieldValue(sheet, i, importColumns.get("numberDocument"));
             String idDocument = getXLSXFieldValue(sheet, i, importColumns.get("idDocument"), numberDocument);
             Date dateDocument = getXLSXDateFieldValue(sheet, i, importColumns.get("dateDocument"));
@@ -1203,7 +1233,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
             BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("price"));
-            if(price != null && price.compareTo(new BigDecimal("100000000000"))>0)
+            if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
                 price = null;
             BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
             BigDecimal valueVAT = parseVAT(getXLSXFieldValue(sheet, i, importColumns.get("valueVAT")));
@@ -1250,9 +1280,21 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String composition = getXLSXFieldValue(sheet, i, importColumns.get("composition"));
             String originalComposition = getXLSXFieldValue(sheet, i, importColumns.get("originalComposition"));
 
+            //чит для случая, когда для двух товаров штрихкод одинаковый, а код товара - разный.
+            boolean toItemIdList = false;
+            if (barcodeItem != null && idItem != null) {
+                String checkIdItem = barcodeIdItemMap.get(barcodeItem);
+                if (checkIdItem != null && !idItem.equals(checkIdItem)) {
+                    barcodeItem = null;
+                    toItemIdList = true;
+                }
+                else
+                    barcodeIdItemMap.put(barcodeItem, idItem);
+            }
+            
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
-                    dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem, 
-                    idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem, 
+                    dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem,
+                    idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem,
                     UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch,
                     idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, "БЕЛАРУСЬ",
                     invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
@@ -1264,9 +1306,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
-            if (primaryKeyColumnValue != null && !primaryKeyColumnValue.isEmpty())
+            if (checkKeyColumn(primaryKeyColumn, primaryKeyColumnValue, toItemIdList))
                 primaryList.add(purchaseInvoiceDetail);
-            else if (secondaryKeyColumnValue != null && !secondaryKeyColumnValue.isEmpty())
+            else if (checkKeyColumn(secondaryKeyColumn, secondaryKeyColumnValue, toItemIdList))
                 primaryList.add(purchaseInvoiceDetail);
         }
         currentTimestamp = null;
@@ -1295,6 +1337,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         for (int i = 0; i < startRow - 1; i++) {
             file.read();
         }
+
+        Map<String, String> barcodeIdItemMap = new HashMap<String, String>();
 
         for (int i = startRow - 1; i < totalRecordCount; i++) {
 
@@ -1330,7 +1374,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns.get("quantity"), i);
             BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns.get("price"), i);
-            if(price != null && price.compareTo(new BigDecimal("100000000000"))>0)
+            if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
                 price = null;
             BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), i);
             BigDecimal valueVAT = parseVAT(getDBFFieldValue(file, importColumns.get("valueVAT"), i, charset));
@@ -1377,10 +1421,22 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String composition = getDBFFieldValue(file, importColumns.get("composition"), i, charset);
             String originalComposition = getDBFFieldValue(file, importColumns.get("originalComposition"), i, charset);
 
+            //чит для случая, когда для двух товаров штрихкод одинаковый, а код товара - разный.
+            boolean toItemIdList = false;
+            if (barcodeItem != null && idItem != null) {
+                String checkIdItem = barcodeIdItemMap.get(barcodeItem);
+                if (checkIdItem != null && !idItem.equals(checkIdItem)) {
+                    barcodeItem = null;
+                    toItemIdList = true;
+                }               
+                else
+                    barcodeIdItemMap.put(barcodeItem, idItem);
+            }
+
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
-                    dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem, 
+                    dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem,
                     idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem,
-                    UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, 
+                    UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch,
                     idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, "БЕЛАРУСЬ",
                     invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
                     numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroup,
@@ -1391,9 +1447,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn), i);
             String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn), i);
-            if (primaryKeyColumnValue != null && !primaryKeyColumnValue.isEmpty())
+            if (checkKeyColumn(primaryKeyColumn, primaryKeyColumnValue, toItemIdList))
                 primaryList.add(purchaseInvoiceDetail);
-            else if (secondaryKeyColumnValue != null && !secondaryKeyColumnValue.isEmpty())
+            else if (checkKeyColumn(secondaryKeyColumn, secondaryKeyColumnValue, toItemIdList))
                 secondaryList.add(purchaseInvoiceDetail);
         }
 
@@ -1418,9 +1474,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         }
         return false;
     }
-    
+
     private String makeIdUserInvoiceDetail(String idDocument, Integer userInvoiceObject, int i) {
         return (idDocument != null ? idDocument : String.valueOf(userInvoiceObject)) + i;
+    }
+    
+    private boolean checkKeyColumn (String keyColumn, String keyColumnValue, boolean toItemIdList) {
+        return (keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!toItemIdList || keyColumn.equals("idItem")));
     }
 }
 
