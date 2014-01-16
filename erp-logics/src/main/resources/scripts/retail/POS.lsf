@@ -708,6 +708,10 @@ changeQuantityReceiptDetail 'Изменить кол-во строки чека'
     }
 }
 
+backgroundReceiptDetail(r, d) = RGB(255, 128, 128) 
+    IF (posNotExplicitBatchLedgerReceipt(r) AND prevCurrentBalanceSkuReceiptDetail(d) < quantityReceiptDetail(d)) OR 
+       (posExplicitBatchLedgerReceipt(r) AND prevCurrentBalanceBatchReceiptDetail(d) < quantityReceiptDetail(d));
+
 FORM POS
     PROPERTIES() READONLY hostnameCurrentComputer, currentDateTime, currentUserName
 
@@ -723,18 +727,22 @@ FORM POS
                                           inputDiscountCardNumberReceipt, clearDiscountCardReceipt, fiscalSkipReceipt
 
     OBJECTS d = ReceiptDetail FIXED GRID
-    PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID indexReceiptDetail, typeReceiptDetail, idBarcodeGrid = idBarcodeReceiptDetail, nameSkuGrid = nameSkuReceiptDetail,
-                                                              prevCurrentBalanceSkuReceiptDetail SHOWIF posNotExplicitBatchLedgerReceipt(r),
-                                                              prevCurrentBalanceBatchReceiptDetail SHOWIF posExplicitBatchLedgerReceipt(r)
-    PROPERTIES(d) SHOWIF currentZReport() FORCE GRID quantityGrid = quantityReceiptDetail ON CHANGE changeQuantityReceiptDetail(d), priceGrid = priceReceiptDetail, sumGrid = sumReceiptDetail, discountPercentReceiptSaleDetail,
-                                                     discountSumReceiptDetail, numberVATReceiptDetail, valueVATReceiptDetail, sumVATReceiptDetail, deleted=DELETESESSION
-    PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE PANEL idBarcodePanel = idBarcodeReceiptDetail,
-                                                               nameSkuPanel = nameSkuReceiptDetail,
-                                                               quantityPanel = quantityReceiptDetail,
-                                                               shortNameUOMSkuPanel = shortNameUOMSkuReceiptDetail,
-                                                               pricePanel = priceReceiptDetail,
-                                                               sumPanel = sumReceiptDetail
-    PROPERTIES(d) SHOWIF currentZReport() FORCE PANEL nameBatchPanel = nameBatchReceiptDetail ON CHANGE changeBatchReceiptDetail(d) SHOWIF posExplicitBatchLedgerReceipt(r)
+    PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID BACKGROUND backgroundReceiptDetail(r, d)  
+                        indexReceiptDetail, typeReceiptDetail, idBarcodeGrid = idBarcodeReceiptDetail, nameSkuGrid = nameSkuReceiptDetail,
+                        prevCurrentBalanceSkuReceiptDetail SHOWIF posNotExplicitBatchLedgerReceipt(r),
+                        prevCurrentBalanceBatchReceiptDetail SHOWIF posExplicitBatchLedgerReceipt(r)
+    PROPERTIES(d) SHOWIF currentZReport() FORCE GRID BACKGROUND backgroundReceiptDetail(r, d) 
+                        quantityGrid = quantityReceiptDetail ON CHANGE changeQuantityReceiptDetail(d), priceGrid = priceReceiptDetail, sumGrid = sumReceiptDetail, discountPercentReceiptSaleDetail,
+                        discountSumReceiptDetail, numberVATReceiptDetail, valueVATReceiptDetail, sumVATReceiptDetail, deleted=DELETESESSION
+    PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE PANEL BACKGROUND backgroundReceiptDetail(r, d) 
+                        idBarcodePanel = idBarcodeReceiptDetail,
+                        nameSkuPanel = nameSkuReceiptDetail,
+                        quantityPanel = quantityReceiptDetail,
+                        shortNameUOMSkuPanel = shortNameUOMSkuReceiptDetail,
+                        pricePanel = priceReceiptDetail,
+                        sumPanel = sumReceiptDetail
+    PROPERTIES(d) SHOWIF currentZReport() FORCE PANEL BACKGROUND backgroundReceiptDetail(r, d) 
+                        nameBatchPanel = nameBatchReceiptDetail ON CHANGE changeBatchReceiptDetail(d) SHOWIF posExplicitBatchLedgerReceipt(r)
     FILTERS receiptReceiptDetail(d) == r
 
     OBJECTS bs = STRING[15] FIXED PANEL
