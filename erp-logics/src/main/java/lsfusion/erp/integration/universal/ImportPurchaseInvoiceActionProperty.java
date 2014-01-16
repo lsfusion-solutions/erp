@@ -1333,7 +1333,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if(price != null && price.compareTo(new BigDecimal("100000000000"))>0)
                 price = null;
             BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), i);
-            BigDecimal valueVAT = parseVAT(getDBFFieldValue(file, importColumns.get("valueVAT"), i));
+            BigDecimal valueVAT = parseVAT(getDBFFieldValue(file, importColumns.get("valueVAT"), i, charset));
             BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns.get("sumVAT"), i);
             Date dateVAT = dateDocument == null ? currentDate : dateDocument;
             BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"), i);

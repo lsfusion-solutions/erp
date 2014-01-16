@@ -606,7 +606,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     //чит для того, чтобы обрабатывать "без НДС" как 0
     protected BigDecimal parseVAT(String value) {
         if (value == null) return null;
-        if (value.toLowerCase().replace(" ", "").equals("безндс"))
+        if ((value.toLowerCase().replace(" ", "").equals("безндс")) || (value.toLowerCase().replace(" ", "").equals("бе")))
             return BigDecimal.ZERO;
         else return parseBigDecimal(value.replace("%", ""));
     }

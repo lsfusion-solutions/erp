@@ -550,7 +550,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns.get("quantity"), i);
             BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns.get("price"), i);
             BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), i);
-            BigDecimal valueVAT = parseVAT(getDBFFieldValue(file, importColumns.get("valueVAT"), i));
+            BigDecimal valueVAT = parseVAT(getDBFFieldValue(file, importColumns.get("valueVAT"), i, charset));
             BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns.get("sumVAT"), i);
             BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"), i);
             BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns.get("manufacturingPrice"), i);
