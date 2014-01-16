@@ -306,6 +306,8 @@ signedQuantityReceiptDetail(detail) += quantityReceiptSaleDetail(detail);
 sumReceiptDetailReceipt 'Сумма чека' (receipt) = GROUP SUM signedSumReceiptDetail(detail)
     BY receiptReceiptDetail(detail);
 
+sumSkuReceiptDetailReceipt 'Сумма чека по товарам' (receipt) = GROUP SUM signedSumReceiptDetail(detail) IF skuReceiptDetail(detail)
+                                                                         BY receiptReceiptDetail(detail);
 //sumReceiptDetailReceipt 'Сумма чека' (receipt) = sumReceiptSaleDetailReceipt(receipt) (-) sumReceiptReturnDetailReceipt(receipt) PERSISTENT;
 sumReceiptDetailReceiptDetail 'Сумма чека' (receiptDetail) = sumReceiptDetailReceipt(receiptReceiptDetail(receiptDetail)) PERSISTENT;
 
@@ -597,6 +599,7 @@ sumGifCardCardReceiptDetailZReport 'Сумма (безнал.) проданны�
 sumCashZReport 'Сумма наличных Z-отчета' (zReport) = GROUP SUM sumCashPaymentReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
 sumCashIncomeCashOrder(zReport) += sumCashZReport(zReport);
 sumReceiptDetailZReport 'Сумма Z-отчета' (zReport) = GROUP SUM sumReceiptDetailReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
+sumSkuReceiptDetailZReport 'Сумма Z-отчета по sku' (zReport) = GROUP SUM sumSkuReceiptDetailReceipt(receipt) BY zReportReceipt(receipt);
 sumMeansCardZReport 'Сумма по карточкам Z-отчета' (zReport) = sumReceiptDetailZReport(zReport) (-) sumCashZReport(zReport);
 discountSumReceiptDetailZReport 'Сумма скидок Z-отчета' (zReport) = GROUP SUM discountSumReceiptDetailReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
 discountSumReceiptZReport 'Сумма скидок по чекам Z-отчета' (zReport) = GROUP SUM discountSumReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
