@@ -773,25 +773,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     }
                 }
 
-                if (showField(userInvoiceDetailsList, "idCollection")) {
-                    ImportField idCollectionField = new ImportField(itemArticleLM.findLCPByCompoundOldName("idCollection"));
-                    ImportKey<?> collectionKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Collection"),
-                            itemArticleLM.findLCPByCompoundOldName("collectionId").getMapping(idCollectionField));
-                    keys.add(collectionKey);
-                    props.add(new ImportProperty(idCollectionField, itemArticleLM.findLCPByCompoundOldName("idCollection").getMapping(collectionKey), getReplaceOnlyNull(importColumns, "idCollection")));
-                    props.add(new ImportProperty(idCollectionField, itemArticleLM.findLCPByCompoundOldName("collectionArticle").getMapping(articleKey),
-                            LM.object(itemArticleLM.findClassByCompoundName("Collection")).getMapping(collectionKey), getReplaceOnlyNull(importColumns, "idCollection")));
-                    fields.add(idCollectionField);
-                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).idCollection);
-
-                    if (showField(userInvoiceDetailsList, "nameCollection")) {
-                        addDataField(itemArticleLM, props, fields, importColumns, "nameCollection", "nameCollection", collectionKey);
-                        for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                            data.get(i).add(userInvoiceDetailsList.get(i).nameCollection);
-                    }
-                }
-
                 if (itemArticleLM != null && showField(userInvoiceDetailsList, "idSize")) {
                     ImportField idSizeField = new ImportField(itemArticleLM.findLCPByCompoundOldName("idSize"));
                     ImportKey<?> sizeKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Size"),
@@ -835,28 +816,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     fields.add(idSeasonYearField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).idSeasonYear);
-                }
-
-                if (itemFashionLM != null && showField(userInvoiceDetailsList, "idSeason")) {
-                    ImportField idSeasonField = new ImportField(itemFashionLM.findLCPByCompoundOldName("idSeason"));
-                    ImportKey<?> seasonKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClassByCompoundName("Season"),
-                            itemFashionLM.findLCPByCompoundOldName("seasonId").getMapping(idSeasonField));
-                    keys.add(seasonKey);
-                    props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("idSeason").getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
-                    props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("seasonArticle").getMapping(articleKey),
-                            LM.object(itemFashionLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
-                    props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("seasonItem").getMapping(itemKey),
-                            LM.object(itemFashionLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
-                    fields.add(idSeasonField);
-                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).idSeason);
-
-                    if (showField(userInvoiceDetailsList, "nameSeason")) {
-                        addDataField(itemArticleLM, props, fields, importColumns, "nameSeason", "nameSeason", seasonKey);
-                        for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                            data.get(i).add(userInvoiceDetailsList.get(i).nameSeason);
-                    }
-                }
+                }              
 
                 if (showField(userInvoiceDetailsList, "idBrand")) {
                     ImportField idBrandField = new ImportField(itemArticleLM.findLCPByCompoundOldName("idBrand"));
@@ -878,6 +838,50 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                             data.get(i).add(userInvoiceDetailsList.get(i).nameBrand);
                     }
                 }
+
+                if(itemFashionLM != null) {
+                    if (showField(userInvoiceDetailsList, "idSeason")) {
+                        ImportField idSeasonField = new ImportField(itemFashionLM.findLCPByCompoundOldName("idSeason"));
+                        ImportKey<?> seasonKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClassByCompoundName("Season"),
+                                itemFashionLM.findLCPByCompoundOldName("seasonId").getMapping(idSeasonField));
+                        keys.add(seasonKey);
+                        props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("idSeason").getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
+                        props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("seasonArticle").getMapping(articleKey),
+                                LM.object(itemFashionLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
+                        props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("seasonItem").getMapping(itemKey),
+                                LM.object(itemFashionLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(importColumns, "idSeason")));
+                        fields.add(idSeasonField);
+                        for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                            data.get(i).add(userInvoiceDetailsList.get(i).idSeason);
+
+                        if (showField(userInvoiceDetailsList, "nameSeason")) {
+                            addDataField(itemArticleLM, props, fields, importColumns, "nameSeason", "nameSeason", seasonKey);
+                            for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                                data.get(i).add(userInvoiceDetailsList.get(i).nameSeason);
+                        }
+                    }
+
+                    if (showField(userInvoiceDetailsList, "idCollection")) {
+                        ImportField idCollectionField = new ImportField(itemFashionLM.findLCPByCompoundOldName("idCollection"));
+                        ImportKey<?> collectionKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClassByCompoundName("Collection"),
+                                itemFashionLM.findLCPByCompoundOldName("collectionId").getMapping(idCollectionField));
+                        keys.add(collectionKey);
+                        props.add(new ImportProperty(idCollectionField, itemFashionLM.findLCPByCompoundOldName("idCollection").getMapping(collectionKey), getReplaceOnlyNull(importColumns, "idCollection")));
+                        props.add(new ImportProperty(idCollectionField, itemFashionLM.findLCPByCompoundOldName("collectionArticle").getMapping(articleKey),
+                                LM.object(itemFashionLM.findClassByCompoundName("Collection")).getMapping(collectionKey), getReplaceOnlyNull(importColumns, "idCollection")));
+                        fields.add(idCollectionField);
+                        for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                            data.get(i).add(userInvoiceDetailsList.get(i).idCollection);
+
+                        if (showField(userInvoiceDetailsList, "nameCollection")) {
+                            addDataField(itemFashionLM, props, fields, importColumns, "nameCollection", "nameCollection", collectionKey);
+                            for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                                data.get(i).add(userInvoiceDetailsList.get(i).nameCollection);
+                        }
+                    }                                      
+                }
+                
+
             }
 
             ImportTable table = new ImportTable(fields, data);
