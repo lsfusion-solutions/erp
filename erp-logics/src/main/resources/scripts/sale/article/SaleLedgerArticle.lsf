@@ -37,6 +37,11 @@ daysOnStockArticleStock 'Дней на складе' = DATA SESSION INTEGER (Art
 averageReportSoldArticleStock 'Продаж в день' = DATA SESSION NUMERIC[14,3] (Article, Stock);
 turnoverArticleStock 'Товароооборачиваемость' = DATA SESSION NUMERIC[14,2] (Article, Stock);
 
+filterBalanceSkuDateFromTo 'С остатком' (ks,dFrom, dTo) = GROUP SUM 1 IF inArticleReportStock(st) AND (balanceBSkuStockDate(ks,st,dFrom) OR balanceASkuStockDate(ks,st,dTo))
+    BY ks,dFrom, dTo;
+filterSoldSkuDateFromTo 'С продажей' (ks,dFrom,dTo) = GROUP SUM quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo) IF inArticleReportStock(st) 
+    BY ks,dFrom,dTo;   
+
 calcSaleArticleParamsInterval 'Рассчитать продажи в день и товарооборачиваемость' = ACTION (dateFrom, dateTo) {
     LOCAL balance = NUMERIC[14,3] (Article, Stock);
     LOCAL cumBalance = NUMERIC[16,3] (Article, Stock);
@@ -106,7 +111,42 @@ FORM saleArticle 'Продажи по артикулам'
     FILTERGROUP filtersSold
         FILTER 'С движением' 'F11' filterSoldArticleDateFromTo(ar,dFrom,dTo) OR filterBalanceArticleDateFromTo(ar,dFrom,dTo) DEFAULT
         FILTER 'С продажей' 'F10' filterSoldArticleDateFromTo(ar,dFrom,dTo)
-        FILTER 'С остатком' 'F9' filterBalanceArticleDateFromTo(ar,dFrom,dTo)                           
+        FILTER 'С остатком' 'F9' filterBalanceArticleDateFromTo(ar,dFrom,dTo)      
+             
+    OBJECTS sts = Stock      
+    FILTERS isCompanyStock(sts),
+            inArticleReportStock(sts)                             
+                             
+    OBJECTS ks = Sku 
+    PROPERTIES(ks) READONLY idBarcodeSku, nameSku, nameSkuGroup3Sku, nameSkuGroup4Sku                            
+    PROPERTIES     READONLY balanceBSkuStockDate(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleBalanceBStock(st)
+    PROPERTIES     READONLY sumBSkuStockDate(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleSumBStock(st)
+    PROPERTIES     READONLY quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleQuantitySoldStock(st)
+    PROPERTIES     READONLY sumSoldSkuStockDateFromTo(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleSumSoldStock(st)
+    PROPERTIES     READONLY balanceASkuStockDate(ks,st,dTo)  COLUMNS (st) HEADER nameArticleBalanceAStock(st)
+    PROPERTIES     READONLY sumASkuStockDate(ks,st,dTo)  COLUMNS (st) HEADER nameArticleSumAStock(st)                                 
+                             
+    FILTERS           articleItem(ks) == ar  
+              
+    FILTERGROUP filtersSold1
+        FILTER 'С движением' 'F11' filterSoldSkuDateFromTo(ks,dFrom,dTo) OR filterBalanceSkuDateFromTo(ks,dFrom,dTo) DEFAULT
+        FILTER 'С продажей' 'F10' filterSoldSkuDateFromTo(ks,dFrom,dTo)
+        FILTER 'С остатком' 'F9' filterBalanceSkuDateFromTo(ks,dFrom,dTo)      
+                      
+    OBJECTS s = SaleLedger
+    PROPERTIES(s) READONLY dateSaleLedger, dateTimeSaleLedger, 
+                           nameStockSaleLedger, nameCustomerSaleLedger, 
+                           nameSkuGroup3SkuSaleLedger, nameSkuGroup4SkuSaleLedger, nameSkuGroup5SkuSaleLedger, 
+                           nameSkuSaleLedger, descriptionSaleLedger, numberDocumentSaleLedger,
+                           quantitySaleLedger, //costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger, sumVATSaleLedger, 
+                           sumSaleLedger 
+                           //averagePriceSaleLedger
+    ORDER BY nameStockSaleLedger                       
+                           
+    FILTERS activeSaleLedger(s),
+            dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo,                      
+            inArticleReportStock(stockSaleLedger(s)),
+            articleItem(skuSaleLedger(s)) == ar                                        
 ;
 
 
@@ -119,6 +159,7 @@ DESIGN saleArticle FROM DEFAULT {
         ADD gt.box;
     }
     REMOVE st.box;
+    REMOVE sts.box;
     NEW article {
         type = SPLITH;
         fill = 1;
@@ -140,9 +181,17 @@ DESIGN saleArticle FROM DEFAULT {
                 }
             }
         }
-        ADD ar.box {
+        NEW row {
             fill = 2.5;
-        }    
+            type = SPLITV;
+            ADD ar.box {  fill = 2;}           
+            NEW row1 {
+                fill = 1;
+                type = TABBED;
+                ADD ks.box { caption = 'Товар';} 
+                ADD s.box { caption = 'Регистр продаж';}
+            }    
+        }     
     } 
     ADD functions.box;
     PROPERTY(balanceBArticleStockDate) { background = #FFEEEE; }
@@ -151,6 +200,14 @@ DESIGN saleArticle FROM DEFAULT {
     PROPERTY(sumSoldArticleStockDateFromTo) { background = #CCFFCC; }    
     PROPERTY(balanceAArticleStockDate) { background = #BDE3FF; }
     PROPERTY(sumAArticleStockDate) { background = #BDE3FF; }
+    
+    PROPERTY(balanceBSkuStockDate) { background = #FFEEEE; }
+    PROPERTY(sumBSkuStockDate) { background = #FFEEEE; }
+    PROPERTY(quantitySoldSkuStockDateFromTo) { background = #CCFFCC; }
+    PROPERTY(sumSoldSkuStockDateFromTo) { background = #CCFFCC; }    
+    PROPERTY(balanceASkuStockDate) { background = #BDE3FF; }
+    PROPERTY(sumASkuStockDate) { background = #BDE3FF; }    
+    
 }
 
 NAVIGATOR {                                              
