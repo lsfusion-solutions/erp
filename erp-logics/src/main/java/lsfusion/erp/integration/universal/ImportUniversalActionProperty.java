@@ -571,7 +571,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private boolean isDivisionValue(String input) {
-        return input != null && input.contains("/");
+        return input != null && input.contains("/") && !input.startsWith("=");
     }
 
     private boolean isMultiplyValue(String input) {
