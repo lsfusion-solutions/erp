@@ -346,6 +346,17 @@ EXTEND FORM currentBalanceBatchStock
 EXTEND FORM balanceBatchStock
     PROPERTIES(bt,st,t) READONLY BEFORE dateTimeBatch(bt) accountPriceBatchStockDateTime, accountSumBBatchStockDateTime
 ;
+
+// ------------------ Суммы по регистрам ------------------------ //
+
+accountPriceASkuLedgerBatch 'Цена учетная' (ledger, batch) = accountPriceBatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
+accountSumBatchSkuLedger 'Сумма по партиям' = GROUP SUM costSkuLedgerBatch(l, b) * accountPriceASkuLedgerBatch(l, b) BY l;
+EXTEND FORM costSkuLedger 
+    PROPERTIES(bil) accountSumBatchSkuLedger AFTER sumSkuLedger
+    FILTERGROUP wrongSum
+        FILTER 'Неправильная сумма по партиям' 'F4' NOT accountSumBatchSkuLedger(bil) == sumSkuLedger(bil) DEFAULT 
+;
+
 // --------------------------- Формы ---------------------------- //
 
 EXTEND FORM currentPrices
