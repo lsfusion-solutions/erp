@@ -1,6 +1,6 @@
 MODULE SaleLedgerBatch;
 
-REQUIRE SaleLedger, TaxItem;
+REQUIRE SaleLedger, TaxItem, SkuLedgerTax;
 
 NAMESPACE SaleLedger;
 
@@ -24,9 +24,6 @@ filterSoldBatchDateFromTo 'С продажей' (b,dFrom,dTo) = GROUP SUM quanti
     BY b,dFrom,dTo;           
        
 //-------------------------------------------------------------------------//
-    
-valueVATStockBatch 'НДС, %' (batch) = valueRateRangeDate(VATItemCountryDate(skuBatch(batch), countryStock(stockBatch(batch)), currentDate()), currentDate());  
-
 //-- на начало   
 costSumBalanceBBatchStockDateFrom 'Себестоимость' (batch, stock, dateFrom) = balanceBBatchStockDate(batch, stock, dateFrom) * costBatch(batch);  
 
@@ -61,7 +58,7 @@ FORM saleBatch 'Продажи по партиям'
     FILTERS inBatchReportStock(st)
     OBJECTS b = Batch 
     PROPERTIES(b)  READONLY nameSkuBatch, idBarcodeSkuBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch, costBatch,                     
-                   valueVATStockBatch                    
+                   currentValueVATBatch                    
                        
     PROPERTIES(b)  READONLY imageBatch FORCE PANEL
     PROPERTIES     READONLY BACKGROUND backgroundLavenderBatch(b) balanceBBatchStockDate(b,st,dFrom)  COLUMNS (st) HEADER nameBatchBalanceBStock(st)
@@ -81,7 +78,8 @@ FORM saleBatch 'Продажи по партиям'
     OBJECTS stb = (sts=Stock, bb=Batch)                              
     PROPERTIES(sts)READONLY stsName = nameStock                          
     PROPERTIES(bb) READONLY nameSkuBatch, idBarcodeSkuBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch,  
-                   costBatch, valueVATStockBatch                                           
+                   costBatch
+    PROPERTIES(sts, bb) READONLY currentValueVATStockBatch
                        
     PROPERTIES(bb,sts,dFrom) READONLY READONLY BACKGROUND backgroundLavenderBatch(bb) balanceBBatchStockDate, 
                    costSumBalanceBBatchStockDateFrom, accountSumBBatchStockDate         

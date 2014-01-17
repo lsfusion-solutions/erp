@@ -216,6 +216,7 @@ countBatchCostSkuLedger 'Кол-во партий' (ledger) = GROUP SUM 1 IF cos
 signedCostSkuLedgerBatch (ledger, batch) = IF ledger IS OutSkuLedger
                                               THEN -costSkuLedgerBatch(ledger, batch)
                                               ELSE costSkuLedgerBatch(ledger, batch);
+signedPostedCostSkuLedgerBatch (ledger, batch) = signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) PERSISTENT;
 
 // Расчет себестоимости по Action
 costedDataSkuLedger 'Расписано' (ledger) = GROUP SUM costDataSkuLedgerBatch (ledger, batch) BY ledger PERSISTENT;
@@ -568,12 +569,12 @@ balanceABatchStockDate 'Остаток на конец дня' (batch, stock, da
 
 // без учета текущей даты/времени
 balanceBBatchStockDateTime 'Остаток (до)' (batch, stock, dateTime) = currentBalanceBatchStock(batch, stock)
-    (-) [= GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateTimeSkuLedger(ledger) >= dateTime
+    (-) [= GROUP SUM signedPostedCostSkuLedgerBatch (ledger, batch) AND dateTimeSkuLedger(ledger) >= dateTime
     BY batch, stockSkuLedger(ledger), dateTime](batch, stock, dateTime);
 
 // с учетом текущей даты/времени
 balanceABatchStockDateTime 'Остаток (после)' (batch, stock, dateTime) = currentBalanceBatchStock(batch, stock)
-    (-) [= GROUP SUM signedCostSkuLedgerBatch (ledger, batch) IF isPostedSkuLedger(ledger) AND dateTimeSkuLedger(ledger) > dateTime
+    (-) [= GROUP SUM signedPostedCostSkuLedgerBatch (ledger, batch) AND dateTimeSkuLedger(ledger) > dateTime
     BY batch, stockSkuLedger(ledger), dateTime](batch, stock, dateTime);
 
 //---------------------------------------------- За период ------------------------------------------//
