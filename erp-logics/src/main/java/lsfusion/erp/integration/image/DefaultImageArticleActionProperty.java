@@ -12,7 +12,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.*;
@@ -47,7 +46,10 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
             idArticle = idArticle == null ? "" : idArticle;
             String idBrandArticle = trim((String) getLCP("idBrandArticle").read(context, articleObject));
             idBrandArticle = idBrandArticle == null ? "" : idBrandArticle;
-            String url = "https://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + idBrandArticle + "%20" + idArticle + "&rsz=" + pageSize + "&start=" + start * pageSize;
+            String siteBrandArticle = trim((String) getLCP("siteBrandArticle").read(context, articleObject));
+            String url = "https://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + 
+                    idBrandArticle + "%20" + idArticle + "&rsz=" + pageSize + "&start=" + start * pageSize + 
+                    (siteBrandArticle==null ? "" : "&as_sitesearch=" + siteBrandArticle);
 
             final JSONObject response = JsonReader.read(url);
             if (response != null) {
