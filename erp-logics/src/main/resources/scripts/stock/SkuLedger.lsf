@@ -531,6 +531,22 @@ END
 
 expiryDateSkuStock 'Годен до (max.)' (sku, stock) = GROUP MAX expiryDateBatch(batch) IF currentBalanceBatchStock(batch, stock)
                                                           BY skuBatch(batch), stock PERSISTENT;
+                                                          
+banNegativeSku 'Запретить расходовать больше чем в остатке по товару' = DATA BOOLEAN ();
+
+EXTEND FORM options 
+    PROPERTIES() banNegativeSku 
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(banNegativeSku);
+    }
+}
+
+CONSTRAINT currentBalanceSkuStock(sk, st) < 0.0 AND banNegativeSku()
+    MESSAGE 'Текущий остаток должен быть больше нуля';
+
 
 // -------------------------------------- Последнее движение ---------------------------------- //
 
