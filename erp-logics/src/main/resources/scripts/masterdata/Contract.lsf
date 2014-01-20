@@ -39,6 +39,9 @@ countContractPartyAPartyB 'Кол-во договоров' (partyA, partyB) =
 
 GROUP payment 'Оплата' : public;
 
+//договор по умолчанию
+isDefaultContract 'По умолчанию' = ABSTRACT BOOLEAN (Contract) IN party;
+  
 // Валюты
 currencyContract = DATA Currency (Contract);
 nameCurrencyContract 'Валюта взаиморасчетов' (contract) = nameCurrency(currencyContract(contract)) IN payment;
@@ -63,7 +66,7 @@ editContract 'Редактировать' (contract) = ABSTRACT ACTION LIST (Con
 FORM contracts 'Договоры'
     OBJECTS c = Contract
     PROPERTIES(c) READONLY namePartyAContract, namePartyBContract, seriesNumberContract, dateFromContract,
-                           dateToContract, nameCurrencyContract, nameTypeExchangeContract, descriptionPaymentConditionContract, noteContract
+                           dateToContract, isDefaultContract, nameCurrencyContract, nameTypeExchangeContract, descriptionPaymentConditionContract, noteContract
     PROPERTIES(c) editContract, DELETE FORCE PANEL TOOLBAR
 
     DIALOG Contract OBJECT c
@@ -96,18 +99,30 @@ META defineContractDefault (contract, contractClass, partyAClass, partyBClass, p
 
     single###contract###prefixA###prefixB (pA, pB) = contract###prefixA###prefixB(pA, pB) IF countContractPartyAPartyB(pA, pB);
 
+    isDataDefault###contract 'По умолчанию' = DATA BOOLEAN (###contract);
+    isDefaultContract(contract) += isDataDefault###contract(contract);
+    
+    countDefault###contract###PartyAPartyB = GROUP SUM 1 IF isDataDefault###contract(contract) BY partyAContract(contract), partyBContract(contract) PERSISTENT;
+     
+    CONSTRAINT countDefault###contract###PartyAPartyB(partyA, partyB) >1 MESSAGE 'Договор по умолчанию уже задан';
+    
+    defaultDataContract###prefixA###prefixB (pA, pB) = GROUP MAX contract IF isDataDefault###contract(contract) AND dateFromContract(contract) <= currentDate() AND NOT dateToContract(contract) < currentDate()
+                                                                                                                BY prefixA###contract(contract), prefixB###contract(contract);
+    default###contract###prefixA###prefixB 'По умолчанию' (pA, pB) =  
+        OVERRIDE single###contract###prefixA###prefixB(pA, pB), defaultDataContract###prefixA###prefixB (pA, pB);
+    
     is###prefixA###prefixB###contract 'Основной' (pA, pB, contract) = contract###prefixA###prefixB (pA, pB) == contract;
 END
 
 META defineDocumentContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage)
-    @defineDocumentContract (objectClass, contractType, prefixA, prefixB, single###contractType###prefixA###prefixB, partyAMessage, partyBMessage);
+    @defineDocumentContract (objectClass, contractType, prefixA, prefixB, default###contractType###prefixA###prefixB, partyAMessage, partyBMessage);
 END
 
-META defineDocumentContract (objectClass, contractType, prefixA, prefixB, singleContractProp, partyAMessage, partyBMessage)
-    @defineDocumentContract (objectClass, contractType, ###contractType, prefixA, prefixB, singleContractProp, partyAMessage, partyBMessage);
+META defineDocumentContract (objectClass, contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage)
+    @defineDocumentContract (objectClass, contractType, ###contractType, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage);
 END
 
-META defineDocumentContract (objectClass, contractType, contractTypeClass, prefixA, prefixB, singleContractProp, partyAMessage, partyBMessage)
+META defineDocumentContract (objectClass, contractType, contractTypeClass, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage)
     contractType##objectClass = DATA contractTypeClass (objectClass);
     number###contractType##objectClass 'Договор (номер)' (o) = numberContract(contractType##objectClass(o)) IN documentPrm;
     seriesNumber###contractType##objectClass 'Договор (серия/номер)' (o) = seriesNumberContract(contractType##objectClass(o)) IN documentPrm;
@@ -120,7 +135,7 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
         WHEN CHANGED(contractType##objectClass(o));
 
 
-    contractType##objectClass(o) <- singleContractProp(prefixA##objectClass(o), prefixB###objectClass(o))
+    contractType##objectClass(o) <- defaultContractProp(prefixA##objectClass(o), prefixB###objectClass(o))
                                           WHEN CHANGED(prefixA##objectClass(o)) OR CHANGED(prefixB###objectClass(o));
 
     CONSTRAINT contractType##objectClass(o) AND NOT prefixA##objectClass(o) == partyAContract(contractType##objectClass(o))
