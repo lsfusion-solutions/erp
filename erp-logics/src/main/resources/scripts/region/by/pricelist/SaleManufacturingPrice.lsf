@@ -68,7 +68,32 @@ EXTEND FORM orders
 includeVATUserInvoiceDetail(detail) <-  fixedPriceSku(skuUserInvoiceDetail(detail)) WHEN CHANGED (skuUserInvoiceDetail(detail));
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, manufacturing, );
 
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, manufacturingPriceStockPriceListType, manufacturing, sku, supplierStock);
+// Устанавливаем цену изготовителя из регистра
+updateManufacturingPriceUserInvoice 'Изменить цену изготовителя' = DATA BOOLEAN (UserInvoice);
+updateManufacturingPriceUserInvoiceDetail = updateManufacturingPriceUserInvoice(userInvoiceUserInvoiceDetail(d));
+
+manufacturingPriceUserInvoiceDetail (detail)  <-
+                                        IF updateManufacturingPriceUserInvoiceDetail(detail) THEN
+                                            priceUserInvoiceDetail(detail)
+                                        ELSE
+                                            IF batchUserInvoiceDetail(detail) THEN 
+                                                prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                          batchUserInvoiceDetail(detail),
+                                                                                          supplierStockUserInvoiceDetail(detail),
+                                                                                          dateTimeUserInvoiceDetail(detail))
+                                            ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                          skuUserInvoiceDetail(detail),
+                                                                                          supplierStockUserInvoiceDetail(detail),
+                                                                                          dateTimeUserInvoiceDetail(detail))
+                                            WHEN CHANGED(skuUserInvoiceDetail(detail)) OR
+                                                CHANGED(supplierStockUserInvoiceDetail(detail)) OR
+                                                CHANGED(dateTimeUserInvoiceDetail(detail)) OR
+                                                CHANGED(batchUserInvoiceDetail(detail)) OR
+                                                CHANGED(updateManufacturingPriceUserInvoiceDetail(detail));
+
+@defineOperationProperty(updateManufacturingPrice, 'Изменять цену изготовителя', showContainer);
+@deriveDocumentOperationProperty(UserInvoice, updateManufacturingPrice);
+
 
 wholesaleMarkupInvoiceDetail 'Оптовая надбавка (от цены изг.)' (detail) = round2([= (X/Y-1)*100](priceInvoiceDetail(detail),manufacturingMVATPriceInvoiceDetail(detail) IF manufacturingMVATPriceInvoiceDetail(detail)!= 0.0));
 wholesaleMarkupUserInvoiceDetail 'Оптовая надбавка (от цены изг.)' (detail) = round2([= (X/Y-1)*100](priceUserInvoiceDetail(detail),manufacturingMVATPriceUserInvoiceDetail(detail) IF manufacturingMVATPriceUserInvoiceDetail(detail)!= 0.0));
@@ -79,7 +104,7 @@ wholesaleMarkupUserInvoiceDetail 'Оптовая надбавка (от цены
 @defineDocumentInterfaceHeaderItemSum (invoice, manufacturing, manufacturing);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i)  showManufacturingPriceUserInvoice
+    PROPERTIES(i)  showManufacturingPriceUserInvoice, updateManufacturingPriceUserInvoice
     PROPERTIES(d)  SHOWIF showManufacturingPriceUserInvoice(i) AFTER invoiceSumUserInvoiceDetail  manufacturingSumUserInvoiceDetail, includeVATUserInvoiceDetail,
                    wholesaleMarkupUserInvoiceDetail READONLY, manufacturingPriceUserInvoiceDetail
 
@@ -89,6 +114,7 @@ EXTEND DESIGN userInvoice {
         NEW headerManufacturing {
             caption = 'Цена изготовителя';
             ADD PROPERTY(showManufacturingPriceUserInvoice);
+            ADD PROPERTY(updateManufacturingPriceUserInvoice);
         }
     }
 }
