@@ -115,5 +115,9 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         props.add(new ImportProperty(field, LM.findLCPByCompoundOldName(sidProperty).getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);
     }
+
+    protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, Boolean keyIsDigit) {
+        return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+"));
+    }
 }
 
