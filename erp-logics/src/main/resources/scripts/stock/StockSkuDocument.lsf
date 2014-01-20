@@ -1179,3 +1179,32 @@ META implementDocumentSupplierCustomer(object)
     customerStockDocument(object) += customerStock###object(object);
 END
 
+
+//Закртыие документов
+
+closeAbstractDocumentsDate 'Закрыть документы до заданной даты' = ABSTRACT ACTION LIST (DATE);
+
+META defineCloseActionDocument(objectClass)
+    close###objectClass##DocumentsDate = ACTION (date) {
+        isClosed###objectClass(o) <- TRUE IF date###objectClass(o) < date AND date IS DATE;
+    }    
+    closeAbstractDocumentsDate(date) += close###objectClass##DocumentsDate(date);
+END
+
+closeDocumentsDate 'Закрыть документы до заданной даты' = ACTION () {
+    FORM dialogDate MODAL;
+    IF formResult() == FormResult.ok THEN {
+        closeAbstractDocumentsDate(chosenDate('d'));
+        EXEC apply();
+    }
+}
+
+EXTEND FORM options
+    PROPERTIES closeDocumentsDate();
+;
+
+EXTEND DESIGN options{
+    commons{
+        ADD PROPERTY(closeDocumentsDate());
+    }
+}
