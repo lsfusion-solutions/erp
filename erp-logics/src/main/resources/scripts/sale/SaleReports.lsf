@@ -40,6 +40,26 @@ sumSalesSkuGroupStockDateDate 'Сумма продаж (по группе)' (gro
                                            dateSaleLedger(saleLedger) >= dateFrom AND
                                            dateSaleLedger(saleLedger) <= dateTo
     BY groupGroupTypeSku(groupType, skuSaleLedger(saleLedger)), stockSaleLedger(saleLedger), dateFrom, dateTo;
+    
+//суммы продаж всего
+costRecSumSalesGroupStockDateDate 'Себестоимость продаж (всего)' (group, stock, dateFrom, dateTo) =
+    GROUP SUM costSumSaleLedger(saleLedger) IF isParentGroupSku(group, skuSaleLedger(saleLedger)) AND
+                                               activeSaleLedger(saleLedger) AND
+                                               dateSaleLedger(saleLedger) >= dateFrom AND
+                                               dateSaleLedger(saleLedger) <= dateTo
+    BY group, stockSaleLedger(saleLedger), dateFrom, dateTo;
+markupRecSumSalesGroupStockDateDate 'Надбавка (всего)'(group, stock, dateFrom, dateTo) =
+    GROUP SUM markupSumSaleLedger(saleLedger) IF isParentGroupSku(group, skuSaleLedger(saleLedger)) AND
+                                                 activeSaleLedger(saleLedger) AND
+                                                 dateSaleLedger(saleLedger) >= dateFrom AND
+                                                 dateSaleLedger(saleLedger) <= dateTo
+    BY group, stockSaleLedger(saleLedger), dateFrom, dateTo;
+sumVATRecSalesGroupStockDateDate 'Сумма НДС (всего)'(group, stock, dateFrom, dateTo) =
+    GROUP SUM sumVATSaleLedger(saleLedger) IF isParentGroupSku(group, skuSaleLedger(saleLedger)) AND
+                                              activeSaleLedger(saleLedger) AND
+                                              dateSaleLedger(saleLedger) >= dateFrom AND
+                                              dateSaleLedger(saleLedger) <= dateTo
+    BY group, stockSaleLedger(saleLedger), dateFrom, dateTo;  
 sumRecSalesSkuGroupStockDateDate 'Сумма продаж (всего)' (group, stock, dateFrom, dateTo) =
     GROUP SUM sumSaleLedger(saleLedger) IF isParentGroupSku(group, skuSaleLedger(saleLedger)) AND
                                            activeSaleLedger(saleLedger) AND
@@ -401,7 +421,8 @@ FORM salesReport 'Отчет по продажам'
     TREE skuTree sk = Group PARENT parentGroup
     PROPERTIES inSessionGroup(sk)
     PROPERTIES READONLY skuTreeName = nameGroup(sk)
-    PROPERTIES(sk, st, df, dt) READONLY sumRecSalesSkuGroupStockDateDate
+    PROPERTIES(sk, st, df, dt) READONLY costRecSumSalesGroupStockDateDate, markupRecSumSalesGroupStockDateDate, 
+                                        sumVATRecSalesGroupStockDateDate, sumRecSalesSkuGroupStockDateDate
     ORDER BY skuTreeName
     FILTERS groupTypeGroup(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(sk) DEFAULT
@@ -443,7 +464,7 @@ DESIGN salesReport FROM DEFAULT{
 
         ADD skuTree.tree.box;
         NEW tabContainer {
-            fill = 2;
+            fill = 1;
             type = TABBED;
             NEW salesContainer {
                 type = CONTAINERV;
