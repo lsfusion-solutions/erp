@@ -606,6 +606,15 @@ discountSumReceiptDetailZReport 'Сумма скидок Z-отчета' (zRepor
 discountSumReceiptZReport 'Сумма скидок по чекам Z-отчета' (zReport) = GROUP SUM discountSumReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
 discountSumZReport 'Сумма скидок Z-отчета' (zReport) = discountSumReceiptDetailZReport(zReport) (+) discountSumReceiptZReport(zReport);
 
+discountSumVATReceiptDetail 'Сумма НДС в скидке' (d) = roundPriceCurrency(discountSumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d)); 
+//discountSumMarkupReceiptDetail 'Сумма набавки в скидке' (d) = discountSumReceiptDetail(d) - discountSumVATReceiptDetail(d); 
+
+discountSumVATSaleZReport 'Сумма НДС в скидке (продажа)' (zReport)= GROUP SUM discountSumVATReceiptDetail(d) IF d IS ReceiptSaleDetail BY zReportReceiptDetail(d);
+discountSumVATReturnZReport 'Сумма НДС в скидке (продажа)' (zReport)= GROUP SUM discountSumVATReceiptDetail(d) IF d IS ReceiptReturnDetail BY zReportReceiptDetail(d);
+discountSumVATZReport 'Сумма НДС в скидке' (zReport)= discountSumVATSaleZReport(zReport) (-) discountSumVATReturnZReport(zReport);
+
+discountSumMarkupZReport 'Сумма набавки в скидке' (z) = discountSumZReport(z) (-) discountSumVATZReport(z);
+
 sumCardDepartmentStoreDateFromTo 'Продано с использованием банк. карточек' (departmentStore, dateFrom, dateTo) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment)==PaymentMeans.paymentMeansCard
     AND dateReceipt(receiptPayment(payment)) >= dateFrom AND dateReceipt(receiptPayment(payment)) <= dateTo AND isPostedReceipt(receiptPayment(payment))
         BY departmentStoreReceipt(receiptPayment(payment)), dateFrom, dateTo;
