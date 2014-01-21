@@ -90,6 +90,7 @@ isParentGroupBatch (group, batch) = isParentGroupSku(group, skuBatch(batch));
 isContainerBatch 'Тара' (batch) = isContainerSku(skuBatch(batch));
 
 batchSkuLedger = ABSTRACT Batch (SkuLedger) PERSISTENT;
+nameBatchSkuLedger 'Партия' (l) = nameBatch(batchSkuLedger(l));
 
 operationSkuLedger  (ledger) = ABSTRACT Operation (SkuLedger) PERSISTENT;
 nameOperationSkuLedger 'Операция' (ledger) = nameOperation(operationSkuLedger (ledger));
@@ -500,10 +501,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     // суммы для периодов
     sumIn##postfix##SkuStockDateDate 'Сумма товара пришедшего за период' (sku, stock, dateFrom, dateTo) =
-        [= GROUP SUM sumIn##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn >= dateFrom
-               BY sku, stock, dateFrom](sku, stock, dateFrom) (-)
-        [= GROUP SUM sumIn##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn > dateTo
-               BY sku, stock, dateTo](sku, stock, dateTo);
+        GROUP SUM sumIn##postfix##SkuStockDate(sku, stock, dateIn) IF dateIn >= dateFrom AND dateIn <= dateTo
+               BY sku, stock, dateFrom, dateTo;
     sumIn##postfix##GroupSkuStockDateDate 'Сумма товара пришедшего за период(по группе)' (group, stock, dateFrom, dateTo) =
         GROUP SUM sumIn##postfix##SkuStockDateDate (sku, stock, dateFrom, dateTo)
         BY groupGroupTypeSku(groupType, sku), stock, dateFrom, dateTo;
@@ -512,10 +511,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
         BY group, stock, dateFrom, dateTo;
 
     sumOut##postfix##SkuStockDateDate 'Сумма товара ушедшего за период' (sku, stock, dateFrom, dateTo) =
-        [= GROUP SUM sumOut##postfix##SkuStockDate(sku, stock, dateOut) IF dateOut >= dateFrom
-               BY sku, stock, dateFrom](sku, stock, dateFrom) (-)
-        [= GROUP SUM sumOut##postfix##SkuStockDate(sku, stock, dateOut) IF dateOut > dateTo
-               BY sku, stock, dateTo](sku, stock, dateTo);
+        GROUP SUM sumOut##postfix##SkuStockDate(sku, stock, dateOut) IF dateOut >= dateFrom AND dateOut <= dateTo
+               BY sku, stock, dateFrom, dateTo;
     sumOut##postfix##GroupSkuStockDateDate 'Сумма товара ушедшего за период(по группе)' (group, stock, dateFrom, dateTo) =
         GROUP SUM sumOut##postfix##SkuStockDateDate (sku, stock, dateFrom, dateTo)
         BY groupGroupTypeSku(groupType, sku), stock, dateFrom, dateTo;
@@ -588,12 +585,12 @@ balanceABatchStockDate 'Остаток на конец дня' (batch, stock, da
 
 // без учета текущей даты/времени
 balanceBBatchStockDateTime 'Остаток (до)' (batch, stock, dateTime) = currentBalanceBatchStock(batch, stock)
-    (-) [= GROUP SUM signedPostedCostSkuLedgerBatch (ledger, batch) AND dateTimeSkuLedger(ledger) >= dateTime
+    (-) [= GROUP SUM signedPostedCostSkuLedgerBatch (ledger, batch) IF dateTimeSkuLedger(ledger) >= dateTime
     BY batch, stockSkuLedger(ledger), dateTime](batch, stock, dateTime);
 
 // с учетом текущей даты/времени
 balanceABatchStockDateTime 'Остаток (после)' (batch, stock, dateTime) = currentBalanceBatchStock(batch, stock)
-    (-) [= GROUP SUM signedPostedCostSkuLedgerBatch (ledger, batch) AND dateTimeSkuLedger(ledger) > dateTime
+    (-) [= GROUP SUM signedPostedCostSkuLedgerBatch (ledger, batch) IF dateTimeSkuLedger(ledger) > dateTime
     BY batch, stockSkuLedger(ledger), dateTime](batch, stock, dateTime);
 
 //---------------------------------------------- За период ------------------------------------------//
@@ -805,7 +802,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
         FILTER 'Товары с движением не позднее 30 дней' 'F7' balanceSkuStockDatePeriod(s, st, currentDate(), 30)
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameBatchSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
                     signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, skipSkuLedger
                     
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==s AND stockSkuLedger(bil)==st
@@ -892,7 +889,7 @@ FORM balanceSkuStock 'Остатки на дату'
         FILTER 'Товары с движением не позднее 30 дней' 'F7' balanceSkuStockDateTimePeriod(s, st, t, 30)
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameBatchSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
                     signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==s AND stockSkuLedger(bil)==st
     ORDER BY dateTimeSkuLedger DESC

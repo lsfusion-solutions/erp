@@ -178,9 +178,12 @@ FORM reportBalanceStock 'Отчет по остаткам'
     ORDER BY nameSku
     FILTERS isParentGroupSku(sk, s)
 
-    PROPERTIES(s, st, d) READONLY balanceBSkuStockDateTime, sumBSkuStockDateTime
+    PROPERTIES(s, st, d) READONLY balanceBSkuStockDateTime, sumBSkuStockDateTime, accountSumBatchBSkuStockDateTime
     PROPERTIES(st, d) printListBalanceSkusStockDateTime, printBalanceSkusStockDateTime
-    FILTERS balanceBSkuStockDateTime(s, st, d)
+    FILTERGROUP balance 
+        FILTER 'С остатком (кол-во)' 'F7' balanceBSkuStockDateTime(s, st, d) DEFAULT
+        FILTER 'С остатком (кол-во/сумма)' 'F8' balanceBSkuStockDateTime(s, st, d) OR sumBSkuStockDateTime(s, st, d)   
+    FILTERGROUP incorrectSum FILTER 'Неправильная сумма по партиям' 'F9' NOT sumBSkuStockDateTime(s, st, d) == accountSumBatchBSkuStockDateTime(s, st, d)   
 
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY dateBatch, nameBatch, idBarcodeSkuBatch, nameSkuBatch, shortNameUOMBatch//, shippedQuantityBatch
