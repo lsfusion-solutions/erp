@@ -138,6 +138,17 @@ EXTEND FORM userInvoice
 @extendFormDocumentBatchOrderLedger(userInvoice, userInvoice, i, supplierStock);
 @extendFormDocumentBatchOrderLedgerAll(userInvoice, userInvoice, i);
 
+// --------------------------- Проведение по регистру продаж ------------------------------------ //
+@implementSaleLedger(Invoice, sku, supplierStock);
+operationSaleLedger (ledger) += operationInvoiceDetail(ledger);
+costSaleLedgerBatch(ledger, batch) += -quantityInvoiceDetail(ledger) IF  batchInvoiceDetail(ledger)== batch;
+quantitySaleLedger (ledger) += -quantityInvoiceDetail(ledger);
+VATSaleLedger (ledger) += VATInvoiceDetail(ledger);
+sumSaleLedger (ledger) += -invoiceSumInvoiceDetail(ledger);
+customerSaleLedger (ledger) += customerInvoiceDetail(ledger);
+skipSaleLedger (ledger) += skipSaleLedgerOperation(operationInvoiceDetail(ledger));
+numberDocumentSaleLedger (ledger) += numberInvoiceDetail(ledger);
+
 NAVIGATOR {
     saleReturnNavigator {
         ADD invoices;
