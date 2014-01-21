@@ -73,7 +73,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-                Boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
+                boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
                 
                 String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject), ";");
                 Integer startRow = (Integer) getLCP("startRowImportType").read(session, importTypeObject);
@@ -894,7 +894,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(DataSession session, Integer userInvoiceObject, 
                                                                            Map<String, ImportColumnDetail> importColumns, byte[] file, String fileExtension,
                                                                            Integer startRow, Boolean isPosted, String csvSeparator, 
-                                                                           String primaryKeyType, String secondaryKeyType, Boolean keyIsDigit)
+                                                                           String primaryKeyType, String secondaryKeyType, boolean keyIsDigit)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
@@ -917,7 +917,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, Boolean keyIsDigit,
+                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit,
                                                                         Integer startRow, Boolean isPosted, Integer userInvoiceObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -1033,7 +1033,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, Boolean keyIsDigit, 
+                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, 
                                                                         Integer startRow, Boolean isPosted, String csvSeparator, Integer userInvoiceObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -1157,7 +1157,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                         String primaryKeyColumn, String secondaryKeyColumn, Boolean keyIsDigit, 
+                                                                         String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, 
                                                                          Integer startRow, Boolean isPosted, Integer userInvoiceObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -1272,7 +1272,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, Boolean keyIsDigit, 
+                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, 
                                                                         Integer startRow, Boolean isPosted, Integer userInvoiceObject)
             throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 

@@ -45,7 +45,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
                 String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-                Boolean keyIsDigit = (Boolean) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject);
+                boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
 
                 String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject));
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator.trim();

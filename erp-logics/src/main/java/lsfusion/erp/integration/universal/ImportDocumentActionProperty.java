@@ -116,7 +116,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         fields.add(field);
     }
 
-    protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, Boolean keyIsDigit) {
+    protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, boolean keyIsDigit) {
         return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+"));
     }
 }

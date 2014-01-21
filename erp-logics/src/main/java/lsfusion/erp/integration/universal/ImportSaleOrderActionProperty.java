@@ -63,7 +63,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(session, importTypeObject));
                 String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-                Boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
+                boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
                 String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject));
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator;
                 Integer startRow = (Integer) getLCP("startRowImportType").read(session, importTypeObject);
@@ -113,7 +113,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
     public boolean makeImport(BusinessLogics BL, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String primaryKeyType,
-                              String secondaryKeyType, Boolean keyIsDigit, ObjectValue operationObject, ObjectValue supplierObject,
+                              String secondaryKeyType, boolean keyIsDigit, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
@@ -342,7 +342,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
     public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Integer orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator,
-                                                            String primaryKeyType, String secondaryKeyType, Boolean keyIsDigit)
+                                                            String primaryKeyType, String secondaryKeyType, boolean keyIsDigit)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
         List<List<SaleOrderDetail>> orderDetailsList;
@@ -365,7 +365,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            String primaryKeyColumn, String secondaryKeyColumn, Boolean keyIsDigit, Integer startRow, 
+                                                            String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, Integer startRow, 
                                                             Boolean isPosted, Integer orderObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -414,7 +414,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            String primaryKeyColumn, String secondaryKeyColumn, Boolean keyIsDigit, Integer startRow, 
+                                                            String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, Integer startRow, 
                                                             Boolean isPosted, String csvSeparator, Integer orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
@@ -470,7 +470,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                             String primaryKeyColumn, String secondaryKeyColumn, Boolean keyIsDigit, Integer startRow,
+                                                             String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, Integer startRow,
                                                              Boolean isPosted, Integer orderObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -518,7 +518,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            String primaryKeyColumn, String secondaryKeyColumn, Boolean keyIsDigit, Integer startRow,
+                                                            String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, Integer startRow,
                                                             Boolean isPosted, Integer orderObject)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
 

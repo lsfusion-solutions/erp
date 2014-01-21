@@ -72,7 +72,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator;
                 String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-                Boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
+                boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
                 
                 ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierObject = entryValue.get("autoImportSupplierImportType");
