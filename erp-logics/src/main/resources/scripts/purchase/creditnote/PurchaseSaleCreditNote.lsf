@@ -233,16 +233,30 @@ Sale.dateCreditNote(creditNote) += dateSaleCreditNote(creditNote);
 Sale.timeCreditNote(creditNote) += timeSaleCreditNote(creditNote);
 
 @defineDocumentAggregationStockPrefix(creditNote, saleCreditNote, supplier, 'Склад поставщика', , );
-Sale.supplierStockCreditNote(creditNote) += supplierStockSaleCreditNote(creditNote);
-Sale.dataSupplierStockCreditNoteDetail(creditNoteDetail) += dataSupplierStockCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
 @defineDocumentAggregationStockPrefix(creditNote, saleCreditNote, customer, 'Склад покупателя', , );
-Sale.customerStockCreditNote(creditNote) += customerStockSaleCreditNote(creditNote);
-Sale.dataCustomerStockCreditNoteDetail(creditNoteDetail) += dataCustomerStockCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
 
 @defineDocumentAggregationLegalEntityPrefix(creditNote, saleCreditNote, supplier, 'Поставщик', , );
-Sale.supplierCreditNote(creditNote) += supplierSaleCreditNote(creditNote);
 @defineDocumentAggregationLegalEntityPrefix(creditNote, saleCreditNote, customer, 'Покупатель', , );
-Sale.customerCreditNote(creditNote) += customerSaleCreditNote(creditNote);
+
+Sale.supplierStockCreditNote(creditNote) += IF returnContractSkuCreditNote(creditNoteSaleCreditNote(creditNote))
+                                                THEN customerStockSaleCreditNote(creditNote)
+                                                ELSE supplierStockSaleCreditNote(creditNote);
+Sale.dataSupplierStockCreditNoteDetail(d) += IF returnContractSkuCreditNote(creditNoteCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(d)))
+                                                THEN dataCustomerStockCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(d))
+                                                ELSE dataSupplierStockCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(d));
+Sale.customerStockCreditNote(creditNote) += IF returnContractSkuCreditNote(creditNoteSaleCreditNote(creditNote))
+                                                THEN supplierStockSaleCreditNote(creditNote)
+                                                ELSE customerStockSaleCreditNote(creditNote);
+Sale.dataCustomerStockCreditNoteDetail(d) += IF returnContractSkuCreditNote(creditNoteCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(d)))
+                                                THEN dataSupplierStockCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(d))
+                                                ELSE dataCustomerStockCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(d));
+
+Sale.supplierCreditNote(creditNote) += IF returnContractSkuCreditNote(creditNoteSaleCreditNote(creditNote))
+                                                THEN customerSaleCreditNote(creditNote)
+                                                ELSE supplierSaleCreditNote(creditNote);
+Sale.customerCreditNote(creditNote) += IF returnContractSkuCreditNote(creditNoteSaleCreditNote(creditNote))
+                                                THEN supplierSaleCreditNote(creditNote)
+                                                ELSE customerSaleCreditNote(creditNote);
 
 @defineDocumentAggregationPosted(creditNote, saleCreditNote);
 Sale.isPostedCreditNote(creditNote) += isPostedSaleCreditNote(creditNote);
@@ -269,8 +283,12 @@ Sale.currencyCreditNote (creditNote) += currencySaleCreditNote(creditNote);
 @defineDocumentDescription(saleCreditNote, SaleCreditNoteDetail, 'Акт расхождения на основе акта расхождения');
 Sale.descriptionCreditNote (creditNote) += descriptionSaleCreditNote(creditNote);
 
-Sale.contractSkuCreditNote (creditNote) += returnContractSkuCreditNote(creditNoteSaleCreditNote(creditNote));
-Sale.isCommissionCreditNote (creditNote) += isCommissionReturnCreditNote(creditNoteSaleCreditNote(creditNote));
+Sale.contractSkuCreditNote (creditNote) += IF returnContractSkuCreditNote(creditNoteSaleCreditNote(creditNote)) 
+                                               THEN returnContractSkuCreditNote(creditNoteSaleCreditNote(creditNote))
+                                               ELSE contractSkuCreditNote(creditNoteSaleCreditNote(creditNote));
+Sale.isCommissionCreditNote (creditNote) += IF returnContractSkuCreditNote(creditNoteSaleCreditNote(creditNote))
+                                                THEN isCommissionReturnCreditNote(creditNoteSaleCreditNote(creditNote))
+                                                ELSE isCommissionCreditNote(creditNoteSaleCreditNote(creditNote));
 
 @defineDocumentAggregationDetailSku(creditNote, saleCreditNote, sku);
 Sale.skuCreditNoteDetail(creditNoteDetail) +=  skuSaleCreditNoteDetail(creditNoteDetail);
@@ -285,9 +303,8 @@ Sale.priceCreditNoteDetail(creditNoteDetail) += priceCreditNoteDetail(creditNote
 Sale.sumCreditNoteDetail(creditNoteDetail) += sumCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
 Sale.VATCreditNoteDetail(creditNoteDetail) += VATCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
 Sale.valueVATCreditNoteDetail(creditNoteDetail) += valueVATCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
-//Sale.creditNotePriceCreditNoteDetail(creditNoteDetail) += creditNotePriceCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
 Sale.VATSumCreditNoteDetail(creditNoteDetail) += VATSumCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
-//Sale.creditNoteSumCreditNoteDetail(creditNoteDetail) += creditNoteSumCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
+Sale.invoiceSumCreditNoteDetail(creditNoteDetail) += invoiceSumCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
 
 Sale.editCreditNote(creditNote) += ACTION EXEC editCreditNote(creditNoteSaleCreditNote(creditNote));
 
