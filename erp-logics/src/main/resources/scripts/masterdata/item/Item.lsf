@@ -344,12 +344,7 @@ END
 // Объявление
 valueItemAttribute = ABSTRACT VARISTRING[255] (Item, ItemAttribute) PERSISTENT;
 
-META implementItemAttribute(property, caption, itemType, attributeClass)
-    EXTEND CLASS itemType##ItemAttribute { attributeClass caption }
-    value###itemType##ItemAttribute(i, a) += WHEN a == itemType##ItemAttribute.##attributeClass THEN property###item(i);
-END
-
-META defineItemAttribute(attribute, formProperty, caption, group, itemType, attributeClass)
+META defineItemAttribute(attribute, formProperty, caption, group)
     @defineItemAttribute(attribute, caption, group);
 
     EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute##ItemGroup;
@@ -359,9 +354,14 @@ META defineItemAttribute(attribute, formProperty, caption, group, itemType, attr
 END
 
 // Примитивный тип
-META definePrimitiveItemAttribute(attribute, type, caption, group, itemType)
+META definePrimitiveItemAttribute(attribute, type, caption, group)
     attribute##Item caption = DATA type (Item) IN group;
-    @defineItemAttribute(attribute, attribute, caption, group, itemType, item###attribute);
+    @defineItemAttribute(attribute, attribute, caption, group);
+END
+
+META implementItemAttribute(property, caption, itemType, attributeClass)
+    EXTEND CLASS itemType##ItemAttribute { attributeClass caption }
+    value###itemType##ItemAttribute(i, a) += WHEN a == itemType##ItemAttribute.##attributeClass THEN property###item(i);
 END
 
 // Расширяем формы настройки
@@ -436,7 +436,7 @@ valueStringItemAttribute = ABSTRACT CASE VARISTRING[255] (Item, StringItemAttrib
 valueItemAttribute(item, attribute) += valueStringItemAttribute(item, attribute);
 
 META defineStringItemAttribute(attribute, type, caption, group)
-    @definePrimitiveItemAttribute(attribute, type, caption, group, String);
+    @definePrimitiveItemAttribute(attribute, type, caption, group);
 END
 
 // Целое число
@@ -447,7 +447,7 @@ stringIntegerItemAttribute(item, attribute) = VARSTRING[255](valueIntegerItemAtt
 valueItemAttribute(item, attribute) += stringIntegerItemAttribute(item, attribute);
 
 META defineIntegerItemAttribute(attribute, caption, group)
-    @definePrimitiveItemAttribute(attribute, INTEGER, caption, group, Integer);
+    @definePrimitiveItemAttribute(attribute, INTEGER, caption, group);
 END
 
 // Дробное число
@@ -458,13 +458,13 @@ stringDoubleItemAttribute(item, attribute) = VARSTRING[255]([= FORMULA TEXT 'con
 valueItemAttribute(item, attribute) += stringDoubleItemAttribute(item, attribute);
 
 META defineDoubleItemAttribute(attribute, type, caption, group)
-    @definePrimitiveItemAttribute(attribute, type, caption, group, Double);
+    @definePrimitiveItemAttribute(attribute, type, caption, group);
 END
 
 META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
     attribute##Item = DATA attributeClass (Item);
     identity##Item caption (item) = identity(attribute##Item(item)) IN group;
-    @defineItemAttribute(attribute, identity, caption, group, String, item###attribute);
+    @defineItemAttribute(attribute, identity, caption, group);
 END
 
 // ---------------------------- Конкретные свойства -------------------------------- //
