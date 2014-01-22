@@ -56,10 +56,13 @@ backgroundQuantityArticleColorSizeUserOrderStockRowType(article, color, size, us
 
 backgroundRowType 'Цвет' (type) = RGB(204,255,204) IF  type == RowType.inDocument;
 
+currentBalanceCustomerArticleUserOrder 'Текущий остаток (пок-ля)' (article, order )=  prevCurrentBalanceArticleStock(article, customerStockUserOrder(order));
+
 EXTEND FORM userOrder
 
     OBJECTS sta=(stk=Stock, ar=Article)
     PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar), stockName = nameStock(stk) SHOWIF notSupplierStockUserOrder(o), imageArticle(ar) FORCE PANEL 
+    PROPERTIES READONLY prevCurrentBalanceArticleStock(ar,stk)
     FILTERS           isParentGroupArticle(sk, ar),
                       (stk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockUserOrder(o) OR
                       stk == supplierStockUserOrder(o) AND NOT sg AND NOT ts
@@ -81,6 +84,10 @@ EXTEND FORM userOrder
 
     PROPERTIES(ty)  orderRowType
     ORDER BY nameColor, nameSize, orderRowType
+    
+    FILTERGROUP balance FILTER 'С остатком скл. пост-ка' 'ctrl F6' prevCurrentBalanceArticleStock(ar,st)   
+                        FILTER 'С остатком скл. пок-ля' 'ctrl F7' currentBalanceCustomerArticleUserOrder(ar,o) 
+                        FILTER 'С остатком' 'ctrl F8' prevCurrentBalanceArticleStock(ar,st) OR currentBalanceCustomerArticleUserOrder(ar,o) DEFAULT    
 ;
 
 EXTEND DESIGN userOrder {
@@ -106,7 +113,7 @@ EXTEND DESIGN userOrder {
             REMOVE si.box;
         }
     }
-//    PROPERTY(priceBalanceArticleColorSizeStockUserOrder) { background = #FFEEEE; }
+    PROPERTY(prevCurrentBalanceArticleStock(ar,stk)) { caption = 'Текущий остаток (пост-ка)'; background = #FFEEEE; } 
 }
 
 // Реализация по складу, артикулу, цвету, размеру за период
@@ -126,7 +133,7 @@ quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk, ty) +=
     WHEN ty ==  RowType.selling7 AND stk IS Stock 
         THEN NUMERIC[14,3](quantitySoldArticleColorSizeUserOrderOneWeek(ar,co,si,o))
     ;     
- 
+
 //-- 
 EXTEND CLASS RowType { selling14 'Реал-ия скл. пок-ля предпоследняя нед.' }
 quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk, ty) += 

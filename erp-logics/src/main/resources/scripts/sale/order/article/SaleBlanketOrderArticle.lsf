@@ -1,0 +1,146 @@
+MODULE SaleBlanketOrderArticle;
+
+REQUIRE SaleBlanketOrder, OrderLedgerArticle, SaleLedgerItemArticle;
+
+NAMESPACE Sale;
+
+quantityArticleBlanketOrderSupplierStock 'Кол-во товара в документе' (article, blanketOrder, supplierStock) = GROUP SUM quantitySkuBlanketOrderSupplierStock(sku, blanketOrder, supplierStock)
+    BY articleItem(sku), blanketOrder, supplierStock;    
+    
+quantityArticleBlanketOrderSupplierStockCustomerStock 'Кол-во товара в документе' (article, blanketOrder, supplierStock, customerStock) = GROUP SUM quantitySkuBlanketOrderSupplierStockCustomerStock(sku, blanketOrder, supplierStock, customerStock)      
+    BY articleItem(sku), blanketOrder, supplierStock, customerStock; 
+    
+availableQuantityArticleStock 'Доступное к-во (всего)' (article, stock)= GROUP SUM availableQuantitySkuStock(sku, stock) BY articleItem(sku), stock; 
+    
+prevAvailableQuantityArticleStock 'Доступное к-во (всего)' (article, stock)= GROUP SUM prevAvailableQuantitySkuStock(sku, stock) BY articleItem(sku), stock; 
+prevAvailableQuantityArticleStockBlanketOrder 'Доступное к-во ' (article, stock, order)= GROUP SUM prevAvailableQuantitySkuStockDateTime(sku, stock, shipmentDateTimeBlanketOrder(order)) BY articleItem(sku), stock, order;           
+                     
+prevAvailableQuantityArticleBlanketOrderStock 'Доступное к-во (всего)' (article, order, stock)= prevAvailableQuantityArticleStock(article, stock) (+) (PREV(quantityArticleBlanketOrderSupplierStock(article, order, stock)) IF isPostedBlanketOrder(order));
+prevAvailableQuantityBatchBlanketOrderStock 'Доступное к-во (всего)' (batch, order, stock)= prevAvailableQuantityBatchStock(batch, stock) (+) (PREV(quantityBatchBlanketOrderSupplierStock(batch, order, stock)) IF isPostedBlanketOrder(order));
+prevAvailableQuantitySkuBlanketOrderStock 'Доступное к-во (всего)' (sku, order, stock)= prevAvailableQuantitySkuStock(sku, stock) (+) (PREV(quantitySkuBlanketOrderSupplierStock(sku, order, stock)) IF isPostedBlanketOrder(order));
+                                                                 
+quantitySoldArticleStockBlanketOrderOneWeek 'Продано за последнюю неделю (кол-во)' (article, stock, blanketOrder)= quantitySoldArticleStockDateFromTo(article, stock, subtractDate(dateBlanketOrder(blanketOrder),7), dateBlanketOrder(blanketOrder));        
+quantitySoldArticleStockBlanketOrderTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (article, stock, blanketOrder)= quantitySoldArticleStockDateFromTo(article, stock, subtractDate(dateBlanketOrder(blanketOrder),14), subtractDate(dateBlanketOrder(blanketOrder),7));      
+
+quantitySoldSkuStockBlanketOrderOneWeek 'Продано за последнюю неделю (кол-во)' (sku, stock, blanketOrder)= quantitySoldSkuStockDateFromTo(sku, stock, subtractDate(dateBlanketOrder(blanketOrder),7), dateBlanketOrder(blanketOrder));        
+quantitySoldSkuStockBlanketOrderTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (sku, stock, blanketOrder)= quantitySoldSkuStockDateFromTo(sku, stock, subtractDate(dateBlanketOrder(blanketOrder),14), subtractDate(dateBlanketOrder(blanketOrder),7));
+
+backgroundQuantityArticleBlanketOrderStock 'Цвет'  (article, blanketOrder, stock)= ABSTRACT CASE COLOR (Article, BlanketOrder, Stock);
+@extendFormDocumentArticleStockOrderLedger(blanketOrder);
+backgroundBalanceStockBlanketOrder (order)= RGB(255,238,238) IF order IS BlanketOrder;   
+backgroundBalanceCustomerStockBlanketOrder (order)= RGB(204,204,255) IF order IS BlanketOrder;
+backgroundPriceBlanketOrder (order)= RGB(45,225,255) IF order IS BlanketOrder;    
+  
+nameSoldCustomerStockOneWeek (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(р-ия посл.нед.)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+nameSoldCustomerStockTwoWeek (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(р-ия предпосл.нед.)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;    
+balanceSoldCustomerStockWeek (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'/тек.ост./р-ия посл.нед./р-ция предпосл.нед.\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;   
+  
+concatBalanceSoldSkuStockBlanketOrder (sku, stock, blanketOrder)= CONCAT '/', round0(OVERRIDE (0.0 IF sku IS Sku AND stock IS Stock), prevCurrentBalanceSkuStock(sku,stock)),
+                                                                              round0(OVERRIDE (0.0 IF sku IS Sku AND stock IS Stock AND blanketOrder IS BlanketOrder), quantitySoldSkuStockBlanketOrderOneWeek(sku, stock, blanketOrder)),
+                                                                              round0(OVERRIDE (0.0 IF sku IS Sku AND stock IS Stock AND blanketOrder IS BlanketOrder), quantitySoldSkuStockBlanketOrderTwoWeek(sku, stock, blanketOrder));    
+       
+// Ввод количества по товару
+changeBatchQuantitySkuBlanketOrderStockCustomerStock = ABSTRACT ACTION LIST (Sku, BlanketOrder, Stock, Stock);
+     
+        
+EXTEND FORM blanketOrder
+                 
+    OBJECTS ddd = Stock FIXED GRID
+
+    OBJECTS bta=(btk=Stock, br=Article)
+    PROPERTIES READONLY idArticle(br) SHOWIF showIDs(), captionArticle(br), 
+                      stockNameB = nameStock(btk) SHOWIF notSupplierStockBlanketOrder(o), imageArticle(br) FORCE PANEL 
+    FILTERS           isParentGroupArticle(sk, br),
+                      (btk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, btk) AND NOT ts OR btk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockBlanketOrder(o) OR
+                      btk == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts
+                      
+    PROPERTIES READONLY quantityArticleBlanketOrderSupplierStock(br,o,btk) BACKGROUND backgroundQuantityArticleBlanketOrderStock(br,o,btk)  
+    PROPERTIES prevAvailableQuantityArticleBlanketOrderStock(br,o,btk) ON CHANGE  reviewReserveArticleStockBlanketOrder(br,btk,o), 
+               prevAvailableQuantityArticleStockBlanketOrder(br,btk,o) ON CHANGE  reviewReserveArticleStockBlanketOrder(br,btk,o)
+             
+    PROPERTIES READONLY prevCurrentBalanceArticleStock(br,btk) BACKGROUND backgroundBalanceStockBlanketOrder(o)            
+    PROPERTIES READONLY prevCurrentBalanceArticleStock(br,ddd)  COLUMNS (ddd) HEADER nameBalanceCustomerStock(ddd) BACKGROUND backgroundBalanceCustomerStockBlanketOrder(o)   
+ 
+                          
+    FILTERGROUP stockFilters
+        FILTER 'Собственные склады' 'F6' legalEntityStock(btk) == supplierBlanketOrder(o) DEFAULT
+    ORDER BY          idArticle, stockNameB
+    
+    FILTERGROUP filtr2
+        FILTER 'С остатком' 'F10' prevCurrentBalanceArticle(br) 
+        FILTER 'С остатком скл.пост-ка' 'F8' prevCurrentBalanceArticleStock(br,btk) DEFAULT
+        FILTER 'С остатком скл.пок-ля' 'F7' prevCurrentBalanceArticleStock(br,ddd)
+        FILTER 'В заказе' 'F9' quantityArticleBlanketOrderSupplierStock(br, o, btk)      
+
+    OBJECTS bsa=(bs=Sku, dd=Stock)
+    PROPERTIES(bs) READONLY nameSku, nameCol=nameColorItem FORCE GRID, originalSizeItem FORCE GRID
+    PROPERTIES     READONLY stockNameD = nameStock(dd) SHOWIF notSupplierStockBlanketOrder(o)
+    ORDER BY nameCol, nameSku
+    FILTERS  articleItem(bs)==br
+    FILTERS           isParentSkuGroupSku(sk, bs),
+                      (dd == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, dd) AND NOT ts OR dd IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockBlanketOrder(o) OR
+                      dd == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts
+    ORDER BY nameSku
+
+    PROPERTIES READONLY quantitySkuBlanketOrderSupplierStock(bs,o,dd) BACKGROUND backgroundQuantitySkuBlanketOrderStock(bs,o,dd)    
+    PROPERTIES READONLY prevAvailableQuantitySkuBlanketOrderStock(bs,o,dd)
+      
+    PROPERTIES READONLY prevCurrentBalanceSkuStock(bs,dd) BACKGROUND backgroundBalanceStockBlanketOrder(o)                            
+    PROPERTIES quantitySkuBlanketOrderSupplierStockCustomerStock(bs, o, dd, ddd) COLUMNS (ddd) HEADER nameQuantityCustomerStock(ddd) ON CHANGE changeBatchQuantitySkuBlanketOrderStockCustomerStock(bs, o, dd, ddd)
+
+    PROPERTIES READONLY prevCurrentBalanceSkuStock(bs,ddd) COLUMNS (ddd) HEADER nameBalanceCustomerStock(ddd) BACKGROUND backgroundBalanceCustomerStockBlanketOrder(o)
+    PROPERTIES READONLY quantitySoldSkuStockBlanketOrderOneWeek(bs,ddd,o) COLUMNS (ddd) HEADER nameSoldCustomerStockOneWeek(ddd)    
+    PROPERTIES READONLY quantitySoldSkuStockBlanketOrderTwoWeek(bs,ddd,o) COLUMNS (ddd) HEADER nameSoldCustomerStockTwoWeek(ddd)  
+    
+    FILTERS inBlanketOrderStock(o,ddd)
+    
+    PROPERTIES READONLY prevAvailableQuantitySkuBlanketOrderStock(ks,o,st) BEFORE prevAvailableQuantitySkuStockBlanketOrder(ks, st, o)
+    PROPERTIES READONLY prevAvailableQuantityBatchBlanketOrderStock(b,o,sto) BEFORE  prevAvailableQuantityBatchStockBlanketOrder(b, sto, o)    
+
+    FILTERGROUP filtr2
+        FILTER 'С остатком' 'F10' prevCurrentBalanceSku(bs) 
+        FILTER 'С остатком скл.пост-ка' 'F8' prevCurrentBalanceSkuStock(bs,dd)
+        FILTER 'С остатком скл.пок-ля' 'F7' prevCurrentBalanceSkuStock(bs,ddd)
+        FILTER 'В заказе' 'F9' quantitySkuBlanketOrderSupplierStock(bs, o, dd)                                                                                                                                   
+                                                       
+;
+
+EXTEND DESIGN blanketOrder {
+    skuSelectPane {
+        NEW articleContainer {
+            caption = 'Артикулы';
+            type = SPLITV;
+            
+            NEW topArticle {
+                fill = 1;
+                type = SPLITH;
+                ADD bta.box {caption = 'Артикул';fill = 3;}
+                NEW imageBox {
+                    fill = 2;
+                    caption = 'Изображение';                     
+                    ADD PROPERTY(imageArticle) {                           
+                        caption = '';
+                        fill = 1;
+                    }
+                } 
+            }   
+            NEW footerContainer {
+                type = SPLITV;
+                fill = 2;
+                ADD bsa.box { fill = 1.5;}  
+            } 
+                                                          
+            PROPERTY(nameCol) { minimumCharWidth = 10; preferredCharWidth = 15;}
+        }
+        ADD stb.box;        
+    }
+    PROPERTY(prevAvailableQuantityArticleBlanketOrderStock) { background = #F4FFBD; }
+    PROPERTY(prevAvailableQuantityArticleStockBlanketOrder) { background = #F4FFBD; }
+    PROPERTY(prevAvailableQuantitySkuBlanketOrderStock(ks,o,st)) { background = #F4FFBD; }   
+    PROPERTY(prevAvailableQuantityBatchBlanketOrderStock(b,o,sto)) { background = #F4FFBD; }       
+    
+    PROPERTY(prevAvailableQuantitySkuBlanketOrderStock(bs,o,dd)) { background = #F4FFBD; }              
+}
+
+    
+        
