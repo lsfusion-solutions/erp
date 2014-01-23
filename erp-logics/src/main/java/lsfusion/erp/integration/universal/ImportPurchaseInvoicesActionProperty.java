@@ -2,6 +2,7 @@ package lsfusion.erp.integration.universal;
 
 import jxl.read.biff.BiffException;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.Settings;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -38,6 +39,8 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
             imp.initModules(context);
 
             ObjectValue importTypeObject = getLCP("importTypeUserInvoices").readClasses(session);
+
+            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
 
             if (!(importTypeObject instanceof NullValue)) {
 
@@ -77,12 +80,12 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                             if (userInvoiceDetailsList != null && userInvoiceDetailsList.size() >= 1)
                                 imp.importUserInvoices(userInvoiceDetailsList.get(0), session, importColumns, null,
                                         primaryKeyType, operationObject, supplierObject, supplierStockObject,
-                                        customerObject, customerStockObject);
+                                        customerObject, customerStockObject, disableVolatileStats);
 
                             if (userInvoiceDetailsList != null && userInvoiceDetailsList.size() >= 2)
                                 imp.importUserInvoices(userInvoiceDetailsList.get(1), session, importColumns, null,
                                         secondaryKeyType, operationObject, supplierObject, supplierStockObject,
-                                        customerObject, customerStockObject);
+                                        customerObject, customerStockObject, disableVolatileStats);
 
                             session.apply(context);
                             session.close();
