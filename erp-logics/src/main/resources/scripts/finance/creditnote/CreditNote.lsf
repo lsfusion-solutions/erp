@@ -4,7 +4,7 @@ REQUIRE Shipment, Invoice;
 
 //----------------------------------------------- Акт расхождения ---------------------------------------------------//
 
-META defineCreditNote(sign, stockProp)//contact, contactCaption)
+META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customerFilter)//contact, contactCaption)
 
     CLASS ABSTRACT CreditNote 'Акт расхождения'###sign ;
     CLASS ABSTRACT CreditNoteDetail 'Строка акта расхождения'###sign ;
@@ -45,7 +45,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
     @defineDocumentInterfaceDescription(creditNote, 'Акт расхождения'###sign);
 
     @defineDocumentInterfaceCurrency(creditNote);
-    @deriveDocumentCurrency(userCreditNote, stockProp);
+    @deriveDocumentCurrency(userCreditNote, stockProp###stock);
 
     @defineDocumentInterfaceContract(CreditNote, contractSku, supplier, customer,
                                      'Организация (поставщик) договора акта расхождений не соответствует организация (поставщик) акта расхождений',
@@ -60,7 +60,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
     @defineDocumentInterfaceDetailDataSum(creditNote);
     @deriveDocumentDetailSum(userCreditNote, quantity);
 
-    @defineDocumentInterfaceDetailVAT(creditNote, country###stockProp);         //  derive см. ниже в "Связь акта и накладной"
+    @defineDocumentInterfaceDetailVAT(creditNote, country###stockProp###stock);         //  derive см. ниже в "Связь акта и накладной"
     @defineDocumentInterfaceDetailVATDataSumCustom(creditNoteDetail, invoice);
 
     @defineDocumentInterfaceHeaderQuantity(creditNote);
@@ -68,9 +68,17 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
     @defineDocumentInterfaceHeaderSum(creditNote);
     @defineDocumentInterfaceHeaderVATSum(creditNote, creditNoteDetail, invoice);
 
-    @defineAddDetailDialogSkuStock(userCreditNote, sku, stockProp, dialogSku);
+    @defineAddDetailDialogSkuStock(userCreditNote, sku, stockProp###stock, dialogSku);
     @defineAddDetailDialogBarcode(userCreditNote, sku);
         
+    @defineMovementSku(creditNoteDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(userCreditNoteDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение товара
+    @defineBalancesSku(creditNoteDetail); //-- показываем по нажатию правой клавиши остатки товара
+    @defineBalancesSku(userCreditNoteDetail); //-- показываем по нажатию правой клавиши остатки товара     
+       
+    @defineDocumentDialogSupplierCustomerStock(userCreditNote, supplierFilter, customerFilter);
+    @defineDocumentDialogSupplierCustomerStockDetail(userCreditNoteDetail, supplierFilter, customerFilter);
+    @defineDocumentDialogSupplierCustomerLegalEntity(userCreditNote, supplierFilter, customerFilter);       
 
 // --------------------------- Формы --------------------------------- //
 
@@ -88,7 +96,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
         PROPERTIES (d) indexUserCreditNoteDetail, idBarcodeSkuUserCreditNoteDetail, nameSkuUserCreditNoteDetail, shortNameUOMSkuUserCreditNoteDetail,
                        quantityUserCreditNoteDetail, priceUserCreditNoteDetail, sumUserCreditNoteDetail,
                        numberVATUserCreditNoteDetail, valueVATUserCreditNoteDetail, VATSumUserCreditNoteDetail, invoiceSumUserCreditNoteDetail,
-                       name###stockProp###userCreditNoteDetail, ADDOBJ, deletecd=DELETESESSION
+                       name###stockProp###stock###userCreditNoteDetail, ADDOBJ, deletecd=DELETESESSION
 
         PROPERTIES(c) TODRAW d addDetailDialogSkuStockUserCreditNoteDetailUserCreditNote,
                                addDetailInputBarcodeUserCreditNoteDetailUserCreditNote, deleteUserCreditNoteDetailUserCreditNote
@@ -104,7 +112,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
         main {
             preferredSize = (1024, 768);
 
-            NEW header.box BEFORE d.box {
+            NEW header.box {
                 type = CONTAINERH;
 
                 NEW headerRow1 {
@@ -152,9 +160,14 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
                 }
             }
 
-            d.panel{
-                type = CONTAINERV;
+            NEW specification.box {
+                fill = 1;
+                type = TABBED;
+                ADD d.box {
+                    caption = 'Спецификация';
+                }
             }
+            ADD functions.box;
             PROPERTY(formOk) {
                 caption = 'Провести';
             }
@@ -164,6 +177,9 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
         }
     }
 
+    @defineDocumentSkuStockPriceListTypeSystemLedger(userCreditNote, accountPriceListType, stockProp);
+    @extendFormDocumentSkuStock(userCreditNote, userCreditNote, c, legalEntityProp, stockProp);
+    
     addUserCreditNote 'Добавить' = ACTION ADDFORM UserCreditNote;
     editUserCreditNote 'Редактировать' (userCreditNote) = ACTION EDITFORM UserCreditNote;
     editCreditNote(c) += editUserCreditNote(c);
@@ -189,7 +205,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
         OBJECTS d = CreditNoteDetail
         PROPERTIES (d) READONLY indexCreditNoteDetail, idBarcodeSkuCreditNoteDetail, nameSkuCreditNoteDetail, shortNameUOMSkuCreditNoteDetail,
                                 quantityCreditNoteDetail, priceCreditNoteDetail, sumCreditNoteDetail, numberVATCreditNoteDetail, valueVATCreditNoteDetail,
-                                 VATSumCreditNoteDetail, invoiceSumCreditNoteDetail, name###stockProp###creditNoteDetail
+                                 VATSumCreditNoteDetail, invoiceSumCreditNoteDetail, name###stockProp###stock###creditNoteDetail
         FILTERS creditNoteCreditNoteDetail(d) == c
 
         DIALOG CreditNote OBJECT c
@@ -404,7 +420,7 @@ META defineCreditNote(sign, stockProp)//contact, contactCaption)
     invoiceSumCreditNoteDetail (creditNoteDetail) += invoiceSumInvoiceCreditNoteDetail(creditNoteDetail);
 END
 
-META defineCreditNoteBatch(dumb)
+META defineCreditNoteBatch(legalEntityProp, stockProp)
     @defineDocumentInterfaceDetailBatch(creditNote, batch);
 
     EXTEND FORM userCreditNote PROPERTIES (d) nameBatchUserCreditNoteDetail AFTER shortNameUOMSkuUserCreditNoteDetail;
@@ -416,7 +432,15 @@ META defineCreditNoteBatch(dumb)
 
     @defineDocumentAggregationDetailBatch (invoice, invoiceCreditNote);
     batchCreditNoteDetail (creditNoteDetail) += batchInvoiceCreditNoteDetail(creditNoteDetail);
-
+    
+    // История по правой кнопке
+    @defineBalancesBatch(creditNoteDetail); //-- показываем по нажатию правой клавиши остатки партии
+    @defineBalancesBatch(userCreditNoteDetail); //-- показываем по нажатию правой клавиши остатки партии
+    @defineMovementBatch(creditNoteDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии
+    @defineMovementBatch(userCreditNoteDetail, stockProp###stock); //-- показываем по нажатию правой клавиши движение по партии    
+    
+    @defineDocumentBatchStockPriceListTypeSystemLedger(userCreditNote, accountPriceListType, stockProp);
+    @extendFormDocumentBatchStock(userCreditNote, userCreditNote, c, legalEntityProp, stockProp);
 END
 
 META defineCreditNotePaymentCondition (sign)

@@ -6,14 +6,14 @@ NAMESPACE Sale;
 
 //----------------------------------------------- Акт ---------------------------------------------------//
 
-@defineCreditNote(' (продажа)', supplierStock);
+@defineCreditNote(' (продажа)', supplier, supplier, company, customer);
 @defineCreditNotePaymentCondition(' (продажа)');
 paymentConditionCreditNote(creditNote) += paymentConditionInvoice(invoiceInvoiceCreditNote(creditNote));
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, supplierStock, company);
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, customerStock, customer);
 @extendFormFilterAccessLegalEntity(CreditNote, c, creditNotes, supplier, company);
 @extendFormFilterAccessLegalEntity(CreditNote, c, creditNotes, customer, customer);
-@defineCreditNoteBatch();
+@defineCreditNoteBatch(supplier, supplier);
 
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
@@ -53,6 +53,24 @@ sumContractALedger(contractALedger) += -invoiceSumCreditNoteDetailCreditNote(con
 
 @implementOutContractLedger(CreditNote, contractSku);
 sumOutContractLedger(outContractLedger) += invoiceSumCreditNoteDetailCreditNote(outContractLedger);
+
+//------------------------------ Расширение формы -----------------------------//
+
+// Фильтры
+EXTEND FORM userCreditNote
+
+    FILTERGROUP filter
+        FILTER 'С остатком ' 'F10' currentBalanceSkuStock(ks, st) DEFAULT
+        FILTER 'В документе ' 'F9' quantitySkuUserCreditNoteSupplierStock(ks, c, st)
+
+;
+
+EXTEND FORM userCreditNote
+
+    FILTERGROUP filter3
+        FILTER 'С остатком ' 'F10' prevCurrentBalanceBatchStock(b, sto) DEFAULT
+        FILTER 'В документе ' 'F9' quantityBatchUserCreditNoteSupplierStock(b, c, sto)
+;
 
 NAVIGATOR {
     saleSaleNavigator {

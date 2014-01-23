@@ -6,14 +6,14 @@ NAMESPACE Purchase;
 
 //----------------------------------------------- Акт ---------------------------------------------------//
 
-@defineCreditNote(' (закупка)', customerStock);
+@defineCreditNote(' (закупка)', customer, customer, supplier, company);
 @defineCreditNotePaymentCondition(' (закупка)');
 paymentConditionCreditNote(creditNote) += paymentConditionInvoice(invoiceInvoiceCreditNote(creditNote));
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, customerStock, company);
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, supplierStock, supplier);
 @extendFormFilterAccessLegalEntity(CreditNote, c, creditNotes, customer, company);
 @extendFormFilterAccessLegalEntity(CreditNote, c, creditNotes, supplier, supplier);
-@defineCreditNoteBatch();
+@defineCreditNoteBatch(customer, customer);
 
 CONSTRAINT supplierUserCreditNote(userCreditNote) AND NOT isSupplierLegalEntity(supplierUserCreditNote(userCreditNote))
     CHECKED BY supplierUserCreditNote MESSAGE 'Для акта расхождения выбрано в качестве поставщика организация, не являющаяся поставщиком';
@@ -51,6 +51,24 @@ sumContractALedger(contractALedger) += -invoiceSumCreditNoteDetailCreditNote(con
 
 @implementOutContractLedger(CreditNote, contractSku);
 sumOutContractLedger(outContractLedger) += invoiceSumCreditNoteDetailCreditNote(outContractLedger);
+
+//------------------------------ Расширение формы -----------------------------//
+
+// Фильтры
+EXTEND FORM userCreditNote
+
+    FILTERGROUP filter
+        FILTER 'С остатком ' 'F10' currentBalanceSkuStock(ks, st) 
+        FILTER 'В документе ' 'F9' quantitySkuUserCreditNoteCustomerStock(ks, c, st)
+
+;
+
+EXTEND FORM userCreditNote
+
+    FILTERGROUP filter3
+        FILTER 'С остатком ' 'F10' prevCurrentBalanceBatchStock(b, sto) DEFAULT
+        FILTER 'В документе ' 'F9' quantityBatchUserCreditNoteCustomerStock(b, c, sto)
+;
 
 NAVIGATOR {
     purchasePurchaseNavigator {
