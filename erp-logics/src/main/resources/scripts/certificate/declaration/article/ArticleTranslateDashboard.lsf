@@ -1,6 +1,6 @@
 MODULE ArticleTranslateDashboard;
 
-REQUIRE ImageArticle, Dashboard, CustomsGroupArticle;
+REQUIRE ImageArticle, Dashboard, CustomsGroupArticle, PurchaseInvoice;
 
 NAMESPACE Item;
 
@@ -33,7 +33,26 @@ nullTranslateArticle 'Без атрибутов' (article) = GROUP SUM 1 IF item
 
 hintEditableBackground = RGB(224, 224, 255) IF TRUE;
 
+defaultPurchaseInvoiceSku (sku) =
+    GROUP LAST Purchase.invoiceInvoiceDetail(detail)
+          BY Purchase.skuInvoiceDetail(detail)
+          ORDER Purchase.dateInvoiceDetail(detail), detail
+          WHERE Purchase.isPostedInvoiceDetail(detail) AND Purchase.quantityInvoiceDetail(detail) AND NOT Purchase.isCompanySupplierInvoiceDetail(detail) COMPLEX;
+
+descriptionDefaultPurchaseInvoiceSku 'Последний инвойс' (sku)= CONCAT ' ', Purchase.seriesNumberInvoice(defaultPurchaseInvoiceSku(sku)),
+                                                                          'от ' + Purchase.dateInvoice(defaultPurchaseInvoiceSku(sku)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 30;
+
+filterTranslateInvoice= DATA SESSION Purchase.Invoice ();
+descriptionFilterTranslateInvoice 'Накладная' = Purchase.descriptionInvoice(filterTranslateInvoice());
+
+quantityInvoiceDetailArticleInvoice 'Кол-во товара в документе' (article, invoice) = 
+    GROUP SUM Purchase.quantityInvoiceDetail(idetail)
+          BY  articleItem(Purchase.skuInvoiceDetail(idetail)),
+              Purchase.invoiceInvoiceDetail(idetail);
+
 FORM articleTranslateDashboard 'Перевод'
+
+    PROPERTIES()  descriptionFilterTranslateInvoice
 
     TREE groupTree g=ItemGroup PARENT parentItemGroup
     PROPERTIES READONLY nameItemGroup(g), recCountNotCompletedTranslateArticlesItemGroup(g)
@@ -65,7 +84,7 @@ FORM articleTranslateDashboard 'Перевод'
         FILTER 'Обработан' 'F8' completedTranslateArticle(a)
 
     OBJECTS i=Item
-    PROPERTIES(i) READONLY idBarcodeSku, idItem, originalCaptionGrid = originalCaptionItem, originalCustomsGroupItem
+    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoiceSku, idBarcodeSku, idItem, originalCaptionGrid = originalCaptionItem, originalCustomsGroupItem
     PROPERTIES(i) BACKGROUND hintEditableBackground() nameUOMItem, captionItem, canonicalNameItemGroupItem, 
                              compositionItem, netWeightItem, grossWeightItem,
                              imageArticleItem FORCE PANEL
@@ -81,10 +100,16 @@ FORM articleTranslateDashboard 'Перевод'
         FILTER 'По артикулам' 'F4' articleItem(i) == a DEFAULT
         FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND NOT completedTranslateItem(i)
         FILTER 'По группам' 'ctrl F4' isParentItemGroupItem(g,i)
+        
+    FILTERS quantityInvoiceDetailArticleInvoice(a, filterTranslateInvoice()) OR (a IS Article AND NOT filterTranslateInvoice())
+        
 ;
 
 DESIGN articleTranslateDashboard FROM DEFAULT {
-
+    NEW filter {
+        caption = 'Фильтр';
+        ADD PROPERTY(descriptionFilterTranslateInvoice());
+    }
     NEW pane {
         type = SPLITH;
         fill = 1;

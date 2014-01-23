@@ -59,8 +59,13 @@ changeDefaultLabelTypeSku = ACTION (sku) {
 nullStickerItem 'Без атрибутов' (item) =  item IS Item AND NOT defaultLabelTypeSku(item) AND NOT completedStickerItem(item);
 nullStickerArticle 'Без атрибутов' (article) = GROUP SUM 1 IF item IS Item AND NOT defaultLabelTypeSku(item) AND NOT completedStickerItem(item) BY articleItem(item);
 
+filterStickerInvoice= DATA SESSION Purchase.Invoice ();
+descriptionFilterStickerInvoice 'Накладная' = Purchase.descriptionInvoice(filterStickerInvoice());
+
 FORM articleStickerDashboard 'Стикеровка'
 
+    PROPERTIES() descriptionFilterStickerInvoice 
+    
     TREE groupTree g=ItemGroup PARENT parentItemGroup
     PROPERTIES READONLY nameItemGroup(g), recCountNotStickerArticlesItemGroup(g)
     ORDER BY nameItemGroup(g)
@@ -98,7 +103,7 @@ FORM articleStickerDashboard 'Стикеровка'
         FILTER 'Обработан' 'F8' completedStickerArticle(a)
 
     OBJECTS i=Item
-    PROPERTIES(i) READONLY idBarcodeSku, idItem, 
+    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoiceSku, idBarcodeSku, idItem, 
                            originalCaptionItem, originalCompositionItem, 
                            captionItem, compositionItem, nameUOMItem, nameSizeItem,
                            imageArticleItem FORCE PANEL
@@ -119,10 +124,20 @@ FORM articleStickerDashboard 'Стикеровка'
         FILTER 'По артикулам' 'F4' articleItem(i) == a DEFAULT
         FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND completedTranslateItem(i) AND NOT completedStickerItem(i)
         FILTER 'По группам ' 'ctrl F4' isParentItemGroupItem(g,i) 
+        
+    FILTERS quantityInvoiceDetailArticleInvoice(a, filterStickerInvoice()) OR (a IS Article AND NOT filterStickerInvoice())
+        
 ;
 
 DESIGN articleStickerDashboard FROM DEFAULT {
-
+    NEW top {      
+        type = CONTAINERH;
+        NEW filter {
+            caption = 'Фильтр';
+            ADD PROPERTY(descriptionFilterStickerInvoice());
+        }
+        ADD dep.box { caption = 'Отдел магазина для проверки ценников'; }
+    }
     NEW pane {
         type = SPLITH;
         fill = 1;
@@ -143,8 +158,7 @@ DESIGN articleStickerDashboard FROM DEFAULT {
             fill = 3;
             type = SPLITV;
             NEW row4111 {
-                fill = 2;
-                ADD dep.box { caption = 'Отдел магазина для проверки ценников'; }
+                fill = 2;                      
                 ADD a.box {
                     defaultComponent = TRUE;                                      
                 }

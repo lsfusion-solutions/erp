@@ -43,8 +43,12 @@ changeDateArticleCustomsDashboard = ACTION () {
     dateArticleCustomsDashboardUser(u) <- requestedDate() WHERE u == currentUser();
 }
 
+filterCustomsInvoice= DATA SESSION Purchase.Invoice ();
+descriptionFilterCustomsInvoice 'Накладная' = Purchase.descriptionInvoice(filterCustomsInvoice());
+
 FORM articleCustomsDashboard 'Заполнение ТНВЭД'
 
+    PROPERTIES() descriptionFilterCustomsInvoice
     OBJECTS c=Country FIXED PANEL
     PROPERTIES(c) SELECTOR nameCountry
 
@@ -80,7 +84,7 @@ FORM articleCustomsDashboard 'Заполнение ТНВЭД'
         FILTER 'Обработан' 'F8' completedCustomsArticle(a)
 
     OBJECTS i=Item
-    PROPERTIES(i) READONLY idBarcodeSku, idItem, 
+    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoiceSku, idBarcodeSku, idItem, 
                            originalCaptionItem, originalCompositionItem, originalCustomsGroupItem, 
                            captionItem, compositionItem, nameUOMItem, canonicalNameItemGroupItem, idItemGroupItem, nameSizeItem,
                            imageArticleItem FORCE PANEL
@@ -97,9 +101,12 @@ FORM articleCustomsDashboard 'Заполнение ТНВЭД'
         FILTER 'По артикулам' 'F4' articleItem(i) == a DEFAULT
         FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND completedTranslateItem(i) AND NOT completedCustomsItem(i)
         FILTER 'По группам' 'ctrl F4' isParentItemGroupItem(g,i)
+
+    FILTERS quantityInvoiceDetailArticleInvoice(a, filterCustomsInvoice()) OR (a IS Article AND NOT filterCustomsInvoice())
+        
         
     EVENTS 
-        ON INIT setDateArticleCustomsDashboard()
+        ON INIT setDateArticleCustomsDashboard()                
 ;
 
 DESIGN articleCustomsDashboard FROM DEFAULT {
@@ -110,6 +117,10 @@ DESIGN articleCustomsDashboard FROM DEFAULT {
             ADD PROPERTY(dateArticleCustomsDashboard);
         }
         ADD c.box;
+        NEW filter {
+            caption = 'Фильтр';
+            ADD PROPERTY(descriptionFilterCustomsInvoice());
+        }        
     }
 
     NEW pane {
