@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
+import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -33,6 +34,8 @@ public class ImportUserPriceListsActionProperty extends DefaultIntegrationAction
 
         try {
 
+            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
+            
             LCP<?> isImportUserPriceListType = LM.is(getClass("ImportUserPriceListType"));
             ImRevMap<Object, KeyExpr> importUserPriceListTypeKeys = (ImRevMap<Object, KeyExpr>) isImportUserPriceListType.getMapKeys();
             KeyExpr importUserPriceListTypeKey = importUserPriceListTypeKeys.singleValue();
@@ -79,7 +82,7 @@ public class ImportUserPriceListsActionProperty extends DefaultIntegrationAction
 
                                     boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
                                             userPriceListObject, importColumns, IOUtils.getFileBytes(f), trim(fileExtension),
-                                            startRow, isPosted, csvSeparator, itemKeyType, true);
+                                            startRow, isPosted, csvSeparator, itemKeyType, true, disableVolatileStats);
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + trim(fileExtension));

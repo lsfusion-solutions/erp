@@ -6,6 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
+import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -34,6 +35,8 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
 
         try {
 
+            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
+            
             DataSession session = context.getSession();
             
             LCP<?> isImportType = LM.is(getClass("ImportType"));
@@ -97,7 +100,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                                     boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(), currentSession, orderObject,
                                             importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, 
                                             csvSeparator, primaryKeyType, secondaryKeyType, keyIsDigit, operationObject, supplierObject,
-                                            supplierStockObject, customerObject, customerStockObject);                                                                                                        
+                                            supplierStockObject, customerObject, customerStockObject, disableVolatileStats);                                                                                                        
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
