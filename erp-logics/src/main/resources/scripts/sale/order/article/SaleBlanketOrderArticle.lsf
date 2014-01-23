@@ -40,7 +40,23 @@ concatBalanceSoldSkuStockBlanketOrder (sku, stock, blanketOrder)= CONCAT '/', ro
                                                                               round0(OVERRIDE (0.0 IF sku IS Sku AND stock IS Stock AND blanketOrder IS BlanketOrder), quantitySoldSkuStockBlanketOrderTwoWeek(sku, stock, blanketOrder));    
        
 // Ввод количества по товару
-changeBatchQuantitySkuBlanketOrderStockCustomerStock = ABSTRACT ACTION LIST (Sku, BlanketOrder, Stock, Stock);
+changeBatchQuantitySkuBlanketOrderStockCustomerStock (sku, blanketOrder, supplierStock, customerStock) = ACTION  {
+    REQUEST NUMERIC[14,3] INPUT;
+    
+    LOCAL left = NUMERIC[14,3] ();
+    left() <- requestedNumeric();
+    FOR skuBatch(batch) == sku DO {
+        
+        LOCAL taken = NUMERIC[14,3] ();
+        taken() <- min(left(), prevAvailableQuantityBatchBlanketOrderStock(batch, blanketOrder, supplierStock));
+        left() <- left() (-) taken();
+        
+        IF NOT quantityBatchBlanketOrderSupplierStockCustomerStock(batch, blanketOrder, supplierStock, customerStock) == taken() THEN {
+            requestedNumeric() <- taken();
+            changeQuantityValueBatchBlanketOrderStockCustomerStock(batch, blanketOrder, supplierStock, customerStock);
+        } 
+    }    
+}            
      
         
 EXTEND FORM blanketOrder
@@ -86,7 +102,8 @@ EXTEND FORM blanketOrder
     PROPERTIES READONLY prevAvailableQuantitySkuBlanketOrderStock(bs,o,dd)
       
     PROPERTIES READONLY prevCurrentBalanceSkuStock(bs,dd) BACKGROUND backgroundBalanceStockBlanketOrder(o)                            
-    PROPERTIES quantitySkuBlanketOrderSupplierStockCustomerStock(bs, o, dd, ddd) COLUMNS (ddd) HEADER nameQuantityCustomerStock(ddd) ON CHANGE changeBatchQuantitySkuBlanketOrderStockCustomerStock(bs, o, dd, ddd)
+    PROPERTIES quantitySkuBlanketOrderSupplierStockCustomerStock(bs, o, dd, ddd) COLUMNS (ddd) HEADER nameQuantityCustomerStock(ddd) 
+                    ON CHANGE changeBatchQuantitySkuBlanketOrderStockCustomerStock(bs, o, dd, ddd)
 
     PROPERTIES READONLY prevCurrentBalanceSkuStock(bs,ddd) COLUMNS (ddd) HEADER nameBalanceCustomerStock(ddd) BACKGROUND backgroundBalanceCustomerStockBlanketOrder(o)
     PROPERTIES READONLY quantitySoldSkuStockBlanketOrderOneWeek(bs,ddd,o) COLUMNS (ddd) HEADER nameSoldCustomerStockOneWeek(ddd)    
@@ -103,6 +120,25 @@ EXTEND FORM blanketOrder
         FILTER 'С остатком скл.пок-ля' 'F7' prevCurrentBalanceSkuStock(bs,ddd)
         FILTER 'В заказе' 'F9' quantitySkuBlanketOrderSupplierStock(bs, o, dd)                                                                                                                                   
                                                        
+    OBJECTS bbk=(bbb=Batch, stk=Stock)
+    PROPERTIES(bbb) READONLY   idBatch SHOWIF showIDs(), nameSkuBatch, shortNameUOMBatch, nameBatch
+                    
+    PROPERTIES(stk) READONLY stkName = nameStock SHOWIF notSupplierStockBlanketOrder(o)                                                                                                    
+    
+    FILTERS skuBatch(bbb) == bs,
+            (stk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockBlanketOrder(o) OR
+            stk == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts                                        
+    FILTERGROUP stockFilters
+        FILTER 'Собственные склады' 'F6' legalEntityStock(stk) == supplierBlanketOrder(o) DEFAULT      
+                                            
+    PROPERTIES quantityBatchBlanketOrderSupplierStock(bbb, o, stk) READONLY BACKGROUND backgroundQuantityBatchBlanketOrderStock(bbb, o, stk)
+    PROPERTIES READONLY prevAvailableQuantityBatchBlanketOrderStock(bbb,o,stk)
+    PROPERTIES READONLY prevCurrentBalanceBatchStock(bbb,stk)
+    PROPERTIES quantityBatchBlanketOrderSupplierStockCustomerStock(bbb, o, stk, ddd)  COLUMNS (ddd) HEADER nameQuantityCustomerStock(ddd) ON CHANGE changeQuantityBatchBlanketOrderStockCustomerStock(bbb, o, stk, ddd)
+    FILTERGROUP filtr3                                             
+        FILTER 'С остатком скл.пост-ка' 'F8' prevCurrentBalanceBatchStock(bbb,stk)
+        FILTER 'С остатком скл.пок-ля' 'F7' prevCurrentBalanceBatchStock(bbb,ddd)        
+        FILTER 'В заказе' 'F9' quantityBatchBlanketOrderSupplierStock(bbb, o, stk)
 ;
 
 EXTEND DESIGN blanketOrder {
