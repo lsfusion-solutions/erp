@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.certificate.declaration;
 
 import lsfusion.base.IOUtils;
 import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
@@ -45,16 +46,16 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
             if (objectValue != null) {
 
                 List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
+                boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
+                
                 for (byte[] entry : fileList) {
-
 
                     File tempFile = File.createTempFile("tempTnved", ".dbf");
                     IOUtils.putFileBytes(tempFile, entry);
 
                     DBF dbfFile = new DBF(tempFile.getPath());
 
-                    importDeclaration(context, declarationObject, dbfFile);
-
+                    importDeclaration(context, declarationObject, dbfFile, disableVolatileStats);
 
                 }
             }
@@ -69,7 +70,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
         }
     }
 
-    private void importDeclaration(ExecutionContext context, DataObject declarationObject, DBF dbfFile) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
+    private void importDeclaration(ExecutionContext context, DataObject declarationObject, DBF dbfFile, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
         List<List<Object>> data = readDeclarationFromDBF(dbfFile);
 
@@ -99,11 +100,13 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
         ImportTable table = new ImportTable(fields, data);
 
         DataSession session = context.createSession();
-        session.sql.pushVolatileStats(null);
+        if(!disableVolatileStats)
+            session.pushVolatileStats();
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
-        session.apply(context);
-        session.sql.popVolatileStats(null);
+        if(!disableVolatileStats)
+            session.apply(context);
+        session.popVolatileStats();
         session.close();
     }
 

@@ -10,6 +10,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
@@ -58,6 +59,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         try {
 
+            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
+            
             DataObject userPriceListObject = context.getDataKeyValue(userPriceListInterface);
 
             ObjectValue importUserPriceListTypeObject = getLCP("importUserPriceListTypeUserPriceList").readClasses(context, userPriceListObject);
@@ -86,7 +89,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         for (byte[] file : fileList) {
 
                             importData(context, userPriceListObject, importColumns, file, fileExtension.trim(), startRow,
-                                    isPosted, csvSeparator, itemKeyType, false);
+                                    isPosted, csvSeparator, itemKeyType, false, disableVolatileStats);
 
                         }
                     }
@@ -110,7 +113,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportColumns importColumns,
                               byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String itemKeyType,
-                              boolean apply)
+                              boolean apply, boolean disableVolatileStats)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, UniversalImportException, SQLHandledException {
 
         this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
@@ -128,14 +131,14 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         else
             userPriceListDetailList = null;
 
-        return importUserPriceListDetails(context, userPriceListDetailList, importColumns, userPriceListObject, itemKeyType, apply)
-                && (importColumns.getQuantityAdjustmentColumn() == null || importAdjustmentDetails(context, userPriceListDetailList, importColumns.getStockObject(), itemKeyType, apply));
+        return importUserPriceListDetails(context, userPriceListDetailList, importColumns, userPriceListObject, itemKeyType, apply, disableVolatileStats)
+                && (importColumns.getQuantityAdjustmentColumn() == null || importAdjustmentDetails(context, userPriceListDetailList, importColumns.getStockObject(), itemKeyType, apply, disableVolatileStats));
 
     }
 
     private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailsList,
                                                ImportColumns importColumnProperties, DataObject userPriceListObject,
-                                               String itemKeyType, boolean apply) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+                                               String itemKeyType, boolean apply, boolean disableVolatileStats) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Map<String, ImportColumnDetail> importColumns = importColumnProperties.getColumns();
         DataObject operationObject = importColumnProperties.getOperationObject();
@@ -278,13 +281,15 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.getSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             String result = null;
             if (apply) {
                 result = session.applyMessage(context);
-                session.sql.popVolatileStats(null);
+                if(!disableVolatileStats)
+                    session.popVolatileStats();
                 session.close();
             }
 
@@ -296,7 +301,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     }
 
     private boolean importAdjustmentDetails(ExecutionContext context, List<UserPriceListDetail> dataAdjustment,
-                                            DataObject stockObject, String itemKeyType, boolean apply)
+                                            DataObject stockObject, String itemKeyType, boolean apply, boolean disableVolatileStats)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         if (dataAdjustment != null) {
@@ -379,13 +384,15 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.getSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             String result = null;
             if (apply) {
                 result = session.applyMessage(context);
-                session.sql.popVolatileStats(null);
+                if(!disableVolatileStats)
+                    session.popVolatileStats();
                 session.close();
             }
 

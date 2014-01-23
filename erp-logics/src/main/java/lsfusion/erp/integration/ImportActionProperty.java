@@ -1,6 +1,7 @@
 package lsfusion.erp.integration;
 
 import lsfusion.base.ExceptionUtils;
+import lsfusion.server.Settings;
 import lsfusion.server.classes.*;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
@@ -52,46 +53,48 @@ public class ImportActionProperty {
             LM.findLCPByCompoundOldName("defaultCountry").change(countryBelarus, context.getSession());
             context.getSession().apply(context);
 
-            importItemGroups(importData.getItemGroupsList());
+            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
+            
+            importItemGroups(importData.getItemGroupsList(), disableVolatileStats);
 
-            importParentGroups(importData.getParentGroupsList());
+            importParentGroups(importData.getParentGroupsList(), disableVolatileStats);
 
-            importBanks(importData.getBanksList());
+            importBanks(importData.getBanksList(), disableVolatileStats);
 
-            importLegalEntities(importData.getLegalEntitiesList());
+            importLegalEntities(importData.getLegalEntitiesList(), disableVolatileStats);
 
-            importEmployees(importData.getEmployeesList());
+            importEmployees(importData.getEmployeesList(), disableVolatileStats);
 
-            importWarehouseGroups(importData.getWarehouseGroupsList());
+            importWarehouseGroups(importData.getWarehouseGroupsList(), disableVolatileStats);
 
-            importWarehouses(importData.getWarehousesList());
+            importWarehouses(importData.getWarehousesList(), disableVolatileStats);
 
-            importStores(importData.getStoresList());
+            importStores(importData.getStoresList(), disableVolatileStats);
 
-            importDepartmentStores(importData.getDepartmentStoresList());
+            importDepartmentStores(importData.getDepartmentStoresList(), disableVolatileStats);
 
-            importContracts(importData.getContractsList());
+            importContracts(importData.getContractsList(), disableVolatileStats);
 
-            importRateWastes(importData.getRateWastesList());
+            importRateWastes(importData.getRateWastesList(), disableVolatileStats);
 
-            importWares(importData.getWaresList());
+            importWares(importData.getWaresList(), disableVolatileStats);
 
-            importUOMs(importData.getUOMsList());
+            importUOMs(importData.getUOMsList(), disableVolatileStats);
 
-            importItems(importData.getItemsList(), importData.getNumberOfItemsAtATime(), importData.getSkipKeys());
+            importItems(importData.getItemsList(), importData.getNumberOfItemsAtATime(), importData.getSkipKeys(), disableVolatileStats);
 
-            importPriceListStores(importData.getPriceListStoresList(), importData.getNumberOfPriceListsAtATime());
+            importPriceListStores(importData.getPriceListStoresList(), importData.getNumberOfPriceListsAtATime(), disableVolatileStats);
 
-            importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime());
+            importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime(), disableVolatileStats);
 
-            importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys(), importData.getUserInvoiceCreateNewItems());
+            importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys(), importData.getUserInvoiceCreateNewItems(), disableVolatileStats);
 
         } catch (Exception e) {
             throw ExceptionUtils.propagate(e, SQLException.class);
         }
     }
 
-    private void importParentGroups(List<ItemGroup> parentGroupsList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void importParentGroups(List<ItemGroup> parentGroupsList, boolean disableVolatileStats) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (parentGroupsList != null) {
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
@@ -121,16 +124,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importItemGroups(List<ItemGroup> itemGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importItemGroups(List<ItemGroup> itemGroupsList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (itemGroupsList != null) {
 
@@ -158,16 +163,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importWares(List<Ware> waresList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importWares(List<Ware> waresList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (warePurchaseInvoiceLM != null && waresList != null) {
 
@@ -203,16 +210,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime, boolean skipKeys, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         try {
             Integer numAtATime = (numberOfItemsAtATime == null || numberOfItemsAtATime <= 0) ? 5000 : numberOfItemsAtATime;
@@ -220,7 +229,7 @@ public class ImportActionProperty {
                 int amountOfImportIterations = (int) Math.ceil((double) itemsList.size() / numAtATime);
                 Integer rest = itemsList.size();
                 for (int i = 0; i < amountOfImportIterations; i++) {
-                    importPackOfItems(warePurchaseInvoiceLM, writeOffItemLM, itemsList.subList(i * numAtATime, i * numAtATime + (rest > numAtATime ? numAtATime : rest)), skipKeys);
+                    importPackOfItems(warePurchaseInvoiceLM, writeOffItemLM, itemsList.subList(i * numAtATime, i * numAtATime + (rest > numAtATime ? numAtATime : rest)), skipKeys, disableVolatileStats);
                     rest -= numAtATime;
                     System.gc();
                 }
@@ -232,7 +241,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importUOMs(List<UOM> uomsList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importUOMs(List<UOM> uomsList, boolean disableVolatileStats) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (uomsList == null)
             return;
 
@@ -266,16 +275,19 @@ public class ImportActionProperty {
         ImportTable table = new ImportTable(fields, data);
 
         DataSession session = context.createSession();
-        session.sql.pushVolatileStats(null);
+        if(!disableVolatileStats)
+            session.pushVolatileStats();
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
         session.apply(context);
-        session.sql.popVolatileStats(null);
+        if(!disableVolatileStats)
+            session.popVolatileStats();
         session.close();
     }
 
 
-    private void importPackOfItems(ScriptingLogicsModule warePurchaseInvoiceLM, ScriptingLogicsModule writeOffItemLM, List<Item> itemsList, boolean skipKeys)
+    private void importPackOfItems(ScriptingLogicsModule warePurchaseInvoiceLM, ScriptingLogicsModule writeOffItemLM, List<Item> itemsList, 
+                                   boolean skipKeys, boolean disableVolatileStats)
             throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         if (itemsList.size() == 0) return;
 
@@ -602,15 +614,18 @@ public class ImportActionProperty {
         ImportTable table = new ImportTable(fields, data);
 
         DataSession session = context.createSession();
-        session.sql.pushVolatileStats(null);
+        if(!disableVolatileStats)
+            session.pushVolatileStats();
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
         session.apply(context);
-        session.sql.popVolatileStats(null);
+        if(!disableVolatileStats)
+            session.popVolatileStats();
         session.close();
     }
 
-    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys, boolean userInvoiceCreateNewItems)
+    private void importUserInvoices(List<UserInvoiceDetail> userInvoiceDetailsList, Integer numberAtATime, boolean skipKeys,
+                                    boolean userInvoiceCreateNewItems, boolean disableVolatileStats)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (userInvoiceDetailsList != null) {
@@ -1054,17 +1069,19 @@ public class ImportActionProperty {
                 ImportTable table = new ImportTable(fields, data);
 
                 DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
+                if(!disableVolatileStats)
+                    session.pushVolatileStats();
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
                 session.apply(context);
-                session.sql.popVolatileStats(null);
+                if(!disableVolatileStats)
+                    session.popVolatileStats();
                 session.close();
             }
         }
     }
 
-    private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (priceListStoresList != null) {
 
@@ -1079,7 +1096,8 @@ public class ImportActionProperty {
                     return;
 
                 DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
+                if(!disableVolatileStats)
+                    session.pushVolatileStats();
 
                 ObjectValue dataPriceListTypeObject = LM.findLCPByCompoundOldName("dataPriceListTypeId").readClasses(session, new DataObject("Coordinated", StringClass.get(100)));
                 if (dataPriceListTypeObject instanceof NullValue) {
@@ -1171,13 +1189,14 @@ public class ImportActionProperty {
                         departmentStoreKey, userPriceListDetailKey, itemKey, legalEntityKey, currencyKey), props);
                 service.synchronize(true, false);
                 session.apply(context);
-                session.sql.popVolatileStats(null);
+                if(!disableVolatileStats)
+                    session.popVolatileStats();
                 session.close();
             }
         }
     }
 
-    private void importPriceListSuppliers(List<PriceListSupplier> priceListSuppliersList, Integer numberAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importPriceListSuppliers(List<PriceListSupplier> priceListSuppliersList, Integer numberAtATime, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (priceListSuppliersList != null) {
 
@@ -1192,7 +1211,8 @@ public class ImportActionProperty {
                     return;
 
                 DataSession session = context.createSession();
-                session.sql.pushVolatileStats(null);
+                if(!disableVolatileStats)
+                    session.pushVolatileStats();
 
                 ObjectValue dataPriceListTypeObject = LM.findLCPByCompoundOldName("dataPriceListTypeId").readClasses(session, new DataObject("Offered", StringClass.get(100)));
                 if (dataPriceListTypeObject instanceof NullValue) {
@@ -1275,13 +1295,14 @@ public class ImportActionProperty {
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
                 session.apply(context);
-                session.sql.popVolatileStats(null);
+                if(!disableVolatileStats)
+                    session.popVolatileStats();
                 session.close();
             }
         }
     }
 
-    private void importLegalEntities(List<LegalEntity> legalEntitiesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importLegalEntities(List<LegalEntity> legalEntitiesList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (legalEntitiesList != null) {
 
@@ -1442,16 +1463,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importEmployees(List<Employee> employeesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importEmployees(List<Employee> employeesList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (employeesList != null) {
 
@@ -1502,16 +1525,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importWarehouseGroups(List<WarehouseGroup> warehouseGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importWarehouseGroups(List<WarehouseGroup> warehouseGroupsList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (warehouseGroupsList != null) {
 
@@ -1539,16 +1564,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importWarehouses(List<Warehouse> warehousesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importWarehouses(List<Warehouse> warehousesList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (warehousesList != null) {
 
@@ -1603,16 +1630,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importStores(List<LegalEntity> storesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importStores(List<LegalEntity> storesList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (storeLM != null && storesList != null) {
 
@@ -1677,16 +1706,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importDepartmentStores(List<DepartmentStore> departmentStoresList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importDepartmentStores(List<DepartmentStore> departmentStoresList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (storeLM != null && departmentStoresList != null) {
 
@@ -1724,16 +1755,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importBanks(List<Bank> banksList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importBanks(List<Bank> banksList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (banksList != null) {
 
@@ -1787,16 +1820,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importRateWastes(List<RateWaste> rateWastesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importRateWastes(List<RateWaste> rateWastesList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (writeOffItemLM != null && rateWastesList != null) {
 
@@ -1840,16 +1875,18 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
 
-    private void importContracts(List<Contract> contractsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importContracts(List<Contract> contractsList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (contractsList != null) {
 
@@ -1919,11 +1956,13 @@ public class ImportActionProperty {
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = context.createSession();
-            session.sql.pushVolatileStats(null);
+            if(!disableVolatileStats)
+                session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            session.sql.popVolatileStats(null);
+            if(!disableVolatileStats)
+                session.popVolatileStats();
             session.close();
         }
     }
