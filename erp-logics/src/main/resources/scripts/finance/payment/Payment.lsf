@@ -167,6 +167,25 @@ DESIGN payment FROM DEFAULT{
     ADD functions.box;
 }
 
+//----------------------------------------- Копирование платежей ----------------------------------------------------//
+copyDataPayment = ACTION (payment, p) {
+    operationPayment(p) <- operationPayment(payment);
+    isReturnPayment(p) <- isReturnPayment(payment);
+    orderPayment(p) <- orderPayment(payment);
+    datePayment(p) <- datePayment(payment);
+    timePayment(p) <- timePayment(payment);
+    payerPayment(p) <- payerPayment(payment);
+    beneficiaryPayment(p) <- beneficiaryPayment(payment);
+    sumPayment(p) <- sumPayment(payment);
+}
+    
+copyPayment 'Копировать' = ACTION (payment) NEWSESSION {
+    FOR ADDOBJ p = Payment DO {
+        EXEC copyDataPayment(payment, p);
+        FORM payment OBJECTS p = p MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
 filterPaymentDateFrom 'Дата с' = DATA DATE ();
 filterDateFromPayment (p) = datePayment(p) >= filterPaymentDateFrom() OR (p IS Payment AND NOT filterPaymentDateFrom());      
 
@@ -182,7 +201,7 @@ FORM payments 'Платежи'
                   datePayment, timePayment, namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
                   nameCurrencyAccountToPayment, sumPayment, notePayment, nameOperationPayment 
 
-    PROPERTIES(p) ADDFORM, EDITFORM, deletep=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(p) ADDFORM, EDITFORM, deletep=DELETE FORCE PANEL TOOLBAR, copyPayment
 
     ORDER BY datePayment, orderPayment 
 
