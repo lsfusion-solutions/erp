@@ -1,6 +1,6 @@
 MODULE PurchaseReturnShipment;
 
-REQUIRE Shipment, PurchaseReturnInvoice, OrderShipment, InvoiceShipment, PriceListLedger;
+REQUIRE Shipment, PurchaseReturnInvoice, OrderShipment, InvoiceShipment, PriceListLedger, StockDocumentSkuLedger;
 
 PRIORITY Purchase, Operation;
 
@@ -131,25 +131,25 @@ EXTEND FORM userShipment
 //    (CHANGED(calcShipmentPriceUserInvoiceDetail(detail)) OR CHANGED(extraShipmentPriceUserInvoiceDetail(detail)) OR CHANGED(createShipmentUserInvoiceDetail(detail)))
 //        AND createShipmentUserInvoiceDetail(detail);
 
-// ------------------------------- Проведение по регистру остатков ------------------------ //
-
-@implementSkuLedgerOutFIFO(ShipmentDetail, sku, customerStock);
-quantityOutFIFOSkuLedger (ledger) += quantityShipmentDetail(ledger);
-batchSkuLedger(ledger) += batchShipmentDetail(ledger);
-@implementSkuLedgerOutFIFOBatchBalance(shipmentDetail, customerStock);
-sumOutSkuLedger (ledger) += sumShipmentDetail(ledger);
-seriesDataSkuLedger (ledger) += seriesShipment(shipmentShipmentDetail(ledger));
-numberDataSkuLedger (ledger) += numberShipment(shipmentShipmentDetail(ledger));
-legalEntityDataSkuLedger (ledger) += supplierShipment(shipmentShipmentDetail(ledger));
-legalEntityStockDataSkuLedger (ledger) += supplierStockShipment(shipmentShipmentDetail(ledger));
-operationSkuLedger(ledger)+= operationShipment(shipmentShipmentDetail(ledger));
 // ------------------------------- Проведение по товарному отчету ------------------------ //
-
 @implementStockDocumentLedgerOut(Shipment, customerStock);
 sumOutStockDocumentLedger (ledger) += sumShipmentDetailShipment(ledger);
 sumItemOutStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
 sumContainerOutStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
 
+legalEntityStockDocumentLedger(ledger) += supplierShipment(ledger);  
+legalEntityStockStockDocumentLedger(ledger) += supplierStockShipment(ledger);
+  
+operationStockDocumentLedger(ledger) += operationShipment(ledger);
+
+// ------------------------------- Проведение по регистру остатков ------------------------ //
+@implementSkuLedgerOutFIFO(ShipmentDetail, sku, customerStock);
+quantityOutFIFOSkuLedger (ledger) += quantityShipmentDetail(ledger);
+batchSkuLedger(ledger) += batchShipmentDetail(ledger);
+@implementSkuLedgerOutFIFOBatchBalance(shipmentDetail, customerStock);
+sumOutSkuLedger (ledger) += sumShipmentDetail(ledger);
+
+stockDocumentLedgerSkuLedger(ledger) += shipmentShipmentDetail(ledger);
 
 NAVIGATOR {
     purchaseStockNavigator {

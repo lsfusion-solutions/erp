@@ -1,6 +1,6 @@
 MODULE SaleShipment;
 
-REQUIRE Shipment, SaleInvoice, SaleOperation, OrderShipment, InvoiceShipment, PriceListLedger;
+REQUIRE Shipment, SaleInvoice, SaleOperation, OrderShipment, InvoiceShipment, PriceListLedger, StockDocumentSkuLedger;
 
 NAMESPACE Sale;
 
@@ -135,28 +135,27 @@ EXTEND FORM userShipment
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, shipment, , sku, supplierStock);
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userShipment, accountPriceListType, , , sku, supplierStock);
 
-// ------------------------------- Проведение по регистру остатков ------------------------ //
+// ------------------------------- Проведение по товарному отчету ------------------------ //
+@implementStockDocumentLedgerOut(Shipment, supplierStock);
+sumOutStockDocumentLedger (ledger) += sumShipmentDetailShipment(ledger);
+sumItemOutStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
+sumContainerOutStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
 
+legalEntityStockDocumentLedger(ledger) += customerShipment(ledger);  
+legalEntityStockStockDocumentLedger(ledger) += customerStockShipment(ledger);  
+
+operationStockDocumentLedger(ledger) += operationShipment(ledger);
+
+// ------------------------------- Проведение по регистру остатков ------------------------ //
 @implementSkuLedgerOutFIFO(ShipmentDetail, sku, supplierStock);
 quantityOutFIFOSkuLedger (ledger) += quantityShipmentDetail (ledger);
 batchSkuLedger(ledger) += batchShipmentDetail(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(shipmentDetail, supplierStock);
 sumOutSkuLedger(ledger) += sumShipmentDetail(ledger);
-seriesDataSkuLedger (ledger) += seriesShipment(shipmentShipmentDetail(ledger));
-numberDataSkuLedger (ledger) += numberShipment(shipmentShipmentDetail(ledger));
-legalEntityDataSkuLedger (ledger) += customerShipment(shipmentShipmentDetail(ledger));
-legalEntityStockDataSkuLedger (ledger) += customerStockShipment(shipmentShipmentDetail(ledger));
-operationSkuLedger(ledger)+= operationShipmentDetail(ledger);
-descriptionOperationSkuLedger (ledger) += 'Поставка без операции' IF ledger IS ShipmentDetail AND NOT operationShipmentDetail(ledger);
+
+stockDocumentLedgerSkuLedger(ledger) += shipmentShipmentDetail(ledger); 
 
 costShipmentDetailBatch(detail, batch) += costSkuLedgerBatch(detail, batch) IF detail IS ShipmentDetail;
-
-// ------------------------------- Проведение по товарному отчету ------------------------ //
-
-@implementStockDocumentLedgerOut(Shipment, supplierStock);
-sumOutStockDocumentLedger (ledger) += sumShipmentDetailShipment(ledger);
-sumItemOutStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
-sumContainerOutStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
 
 // ------------------------------- Себестоимость продажи ------------------------ //
 costSaleInvoiceDetail (invoiceDetail) = GROUP SUM costSumSkuLedger(shipmentDetail) BY invoiceDetailShipmentDetail(shipmentDetail);

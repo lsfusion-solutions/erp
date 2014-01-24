@@ -1,6 +1,6 @@
 MODULE PurchaseShipment;
 
-REQUIRE Shipment, PurchaseInvoice, PurchaseOperation, OrderShipment, InvoiceShipment, PriceListLedger;
+REQUIRE Shipment, PurchaseInvoice, PurchaseOperation, OrderShipment, InvoiceShipment, PriceListLedger, StockDocumentSkuLedger;
 
 NAMESPACE Purchase;
 
@@ -179,6 +179,17 @@ EXTEND FORM shipments
                   idBatchShipmentDetail AFTER nameBatchShipmentDetail(d)
 ;
 
+// ------------------------------- Проведение по товарному отчету ------------------------ //
+@implementStockDocumentLedgerInc(Shipment, customerStock);
+sumIncStockDocumentLedger (ledger) += sumShipmentDetailShipment(ledger);
+sumItemIncStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
+sumContainerIncStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
+
+legalEntityStockDocumentLedger(ledger) += supplierShipment(ledger);  
+legalEntityStockStockDocumentLedger(ledger) += supplierStockShipment(ledger);  
+
+operationStockDocumentLedger(ledger) += operationShipment(ledger);
+
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 
 overCreateBatchShipmentDetail = ABSTRACT BOOLEAN (ShipmentDetail);
@@ -193,8 +204,6 @@ CLASS ShipmentBatch 'Партия на основе закупки';
 quantityShipmentBatch (batch) = quantityShipmentDetail(shipmentDetailShipmentBatch(batch));
 quantityBatch(b) += quantityShipmentBatch(b);
 priceShipmentBatch (batch) = priceShipmentDetail(shipmentDetailShipmentBatch(batch));
-operationShipmentBatch (batch) = operationShipmentDetail(shipmentDetailShipmentBatch(batch));
-operationSkuLedger (ledger) += operationShipmentBatch (ledger);
 
 @implementBatch(ShipmentBatch, sku, stock, price);
 manufactureDateBatch(batch) += manufactureDateShipmentDetail(shipmentDetailShipmentBatch(batch)); 
@@ -205,6 +214,8 @@ seriesBatch (ledger) += seriesShipment(shipmentShipmentDetail(shipmentDetailShip
 numberBatch (ledger) += numberShipment(shipmentShipmentDetail(shipmentDetailShipmentBatch(ledger)));
 supplierBatch (ledger) += supplierShipmentDetail(shipmentDetailShipmentBatch(ledger));
 supplierStockBatch (ledger) += supplierStockShipmentDetail(shipmentDetailShipmentBatch(ledger));
+
+stockDocumentLedgerSkuLedger(ledger) += shipmentShipmentDetail(shipmentDetailShipmentBatch(ledger)); 
 
 costPurchaseLedgerBatch(ledger, batch) += costInvoiceDetailBatch (ledger, batch); 
 inPriceListLedgerBatch (ledger, batch) += TRUE IF countShipmentDetailInvoiceDetailBatch(ledger, batch); 
@@ -228,7 +239,6 @@ CLASS ShipmentSkuLedger 'Изменение остатка на основе з�
 quantityShipmentSkuLedger (ledger) = quantityShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 priceShipmentSkuLedger (ledger) = priceShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 batchShipmentSkuLedger (ledger) = batchShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
-operationShipmentSkuLedger(ledger) = operationShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 
 quantityShipmentSkuLedgerBatch (batch) = GROUP SUM quantityShipmentSkuLedger (ledger) 
                                                    IF NOT isCompanySupplierShipmentDetail(shipmentDetailShipmentSkuLedger(ledger)) 
@@ -241,14 +251,9 @@ limitInLIFOSkuLedgerBatch(ledger, batch) += quantityShipmentDetail(shipmentDetai
 changedDataSkuLedger(ledger) += CHANGED(batchShipmentSkuLedger(ledger));
 sumInSkuLedger (ledger) += sumShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 
-operationSkuLedger(ledger) += operationShipmentSkuLedger(ledger);
-
 batchSkuLedger(ledger) += batchShipmentSkuLedger(ledger);
 
-seriesDataSkuLedger (ledger) += seriesShipment(shipmentShipmentDetail(shipmentDetailShipmentSkuLedger(ledger)));
-numberDataSkuLedger (ledger) += numberShipment(shipmentShipmentDetail(shipmentDetailShipmentSkuLedger(ledger)));
-legalEntityDataSkuLedger (ledger) += supplierShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
-legalEntityStockDataSkuLedger (ledger) += supplierStockShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
+stockDocumentLedgerSkuLedger (ledger) += shipmentShipmentDetail(shipmentDetailShipmentSkuLedger(ledger)); 
 
 skuLedgerShipmentDetail (detail) = IF createBatchShipmentDetail(detail) THEN shipmentBatchShipmentDetail(detail) ELSE shipmentSkuLedgerShipmentDetail(detail);
 ledgerBatchShipmentDetail (detail) = OVERRIDE shipmentBatchShipmentDetail(detail), batchShipmentDetail(detail); 
@@ -259,12 +264,6 @@ costShipmentDetailBatch(detail, batch) += costSkuLedgerBatch(skuLedgerShipmentDe
 supplierShipmentSkuLedger (ledger) = supplierShipmentDetail(shipmentDetailShipmentSkuLedger(ledger));
 @implementSystemLedgerPriceListType(account, ShipmentSkuLedger, supplier, stock);
 inPriceListLedgerBatch (ledger, batch) += batchShipmentDetail(shipmentDetailShipmentSkuLedger(ledger)) == batch; 
-
-// ------------------------------- Проведение по товарному отчету ------------------------ //
-@implementStockDocumentLedgerInc(Shipment, customerStock);
-sumIncStockDocumentLedger (ledger) += sumShipmentDetailShipment(ledger);
-sumItemIncStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
-sumContainerIncStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
 
 //
 defaultUserShipmentDetailSkuUserShipmentPrice (sku, shipment, price) = GROUP MIN detail IF NOT batchUserShipmentDetail(detail)

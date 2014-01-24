@@ -37,7 +37,8 @@ TABLE zReport (ZReport);
 castBasisZReport =
     FORMULA VARSTRING[100] '\'Z-отчет №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
 
-numberZReport 'Номер Z-отчета' (zReport) = DATA VARSTRING[21](ZReport) IN documentPrm;
+@defineDocumentHeaderNumber(ZReport);
+
 cashRegisterZReport (zReport) = DATA CashRegister(ZReport);
 numberCashRegisterZReport 'Касса Z-отчета' (zReport) = numberCashRegister(cashRegisterZReport(zReport)) IN documentPrm;
 zReportNumberCashRegister (numberZReport, numberCashRegister) = GROUP AGGR zReport BY numberZReport (zReport), numberCashRegisterZReport (zReport) WHERE zReport IS ZReport;
@@ -119,7 +120,9 @@ receiptReceiptDetail = ABSTRACT Receipt (ReceiptDetail) PERSISTENT;
 receiptReceiptDetail(detail) += receiptReceiptReturnDetail(detail);
 receiptReceiptDetail(detail) += receiptReceiptSaleDetail(detail);
 
-zReportReceiptDetail (receiptDetail) = zReportReceipt(receiptReceiptDetail(receiptDetail));
+zReportReceiptSaleDetail(d) = zReportReceipt(receiptReceiptSaleDetail(d)); 
+zReportReceiptReturnDetail(d) = zReportReceipt(receiptReceiptReturnDetail(d)); 
+zReportReceiptDetail (d) = zReportReceipt(receiptReceiptDetail(d));
 sidCashRegisterModelReceiptDetail 'Код модели' (receiptDetail) = sidCashRegisterModelReceipt(receiptReceiptDetail(receiptDetail));
 
 typeReceiptDetail 'Тип' = ABSTRACT STRING[10] (ReceiptDetail) MINCHARWIDTH 10 PREFCHARWIDTH 12 PERSISTENT;
@@ -418,8 +421,6 @@ quantityOutFIFOSkuLedger (ledger) += quantityReceiptSaleDetail(ledger);
 batchSkuLedger(ledger) += batchReceiptSaleDetail(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(receiptSaleDetail, departmentStore);
 sumOutSkuLedger (ledger) += sumReceiptSaleDetail(ledger) (+) discountSumReceiptSaleDetail(ledger);
-numberDataSkuLedger (ledger) += STRING[18](numberReceipt(receiptReceiptSaleDetail(ledger)));
-legalEntityDataSkuLedger (ledger) += legalEntityDiscountCard(discountCardReceipt(receiptReceiptSaleDetail(ledger)));
 skipSkuLedger(ledger) += skipReceiptSaleDetail(ledger);
 
 @implementSkuLedgerInLIFO(ReceiptReturnDetail, sku, departmentStore);
@@ -427,8 +428,6 @@ quantityInLIFOSkuLedger (ledger) += quantityReceiptReturnDetail(ledger);
 batchSkuLedger(ledger) += batchReceiptReturnDetail(ledger);
 @implementSkuLedgerInLIFOBatchBalance(receiptReturnDetail, departmentStore);
 sumInSkuLedger (ledger) += sumReceiptReturnDetail(ledger) (+) discountSumReceiptReturnDetail(ledger);
-numberDataSkuLedger (ledger) += STRING[18](numberReceipt(receiptReceiptReturnDetail(ledger)));
-legalEntityDataSkuLedger (ledger) += legalEntityDiscountCard(discountCardReceipt(receiptReceiptReturnDetail(ledger)));
 skipSkuLedger(ledger) += skipReceiptReturnDetail(ledger);
 
 @implementSaleLedger(ReceiptSale, sku, departmentStore);

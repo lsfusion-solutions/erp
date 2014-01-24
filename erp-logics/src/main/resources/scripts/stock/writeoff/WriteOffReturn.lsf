@@ -82,24 +82,7 @@ nameReasonUserWriteOff 'Причина списания' (userWriteOff) = nameRe
 
 @defineDocumentInterfaceLegalEntity (writeOff, contact, 'Контрагент');
 
-// ------------------------------- Проведение по регистру остатков ------------------------ //
-
-@implementSkuLedgerInLIFO(WriteOffDetail, sku, stock);
-quantityInLIFOSkuLedger (ledger) += quantityWriteOffDetail(ledger);
-batchSkuLedger(ledger) += batchWriteOffDetail(ledger);
-@implementSkuLedgerInLIFOBatchBalance(writeOffDetail, stock);
-sumInSkuLedger(ledger) += sumWriteOffDetail(ledger);
-seriesDataSkuLedger (ledger) += seriesWriteOff(writeOffWriteOffDetail(ledger));
-numberDataSkuLedger (ledger) += numberWriteOff(writeOffWriteOffDetail(ledger));
-legalEntityDataSkuLedger (ledger) += contactWriteOff(writeOffWriteOffDetail(ledger));
-
-// ------------------------------- Проведение по товарному отчету ------------------------ //
-
-@implementStockDocumentLedgerInc(WriteOff, stock);
-sumIncStockDocumentLedger (ledger) += sumWriteOffDetailWriteOff(ledger);
-sumItemIncStockDocumentLedger (ledger) += sumItemWriteOffDetailWriteOff(ledger);
-sumContainerIncStockDocumentLedger (ledger) += sumContainerWriteOffDetailWriteOff(ledger);
-
+// --------------------- Добрасываем в подбор документа --------------------- //
 @implementDocument(writeOff);
 supplierStockDocument(writeOff) += stockWriteOff(writeOff);
 
@@ -291,8 +274,6 @@ DESIGN writeOffs FROM DEFAULT {
 //----------------------------------------------- Операции -----------------------------------------------------//
 @defineDocumentInterfaceOperation (writeOff, WriteOff, );
 
-operationSkuLedger(ledger)+= operationWriteOff(writeOffWriteOffDetail(ledger));
-
 @defineDocumentOperationRolePrefix(userWriteOff, );
 
 EXTEND FORM userWriteOff
@@ -376,3 +357,22 @@ NAVIGATOR {
         }
     }
 }
+
+// ------------------------------- Проведение по товарному отчету ------------------------ //
+@implementStockDocumentLedgerInc(WriteOff, stock);
+sumIncStockDocumentLedger (ledger) += sumWriteOffDetailWriteOff(ledger);
+sumItemIncStockDocumentLedger (ledger) += sumItemWriteOffDetailWriteOff(ledger);
+sumContainerIncStockDocumentLedger (ledger) += sumContainerWriteOffDetailWriteOff(ledger);
+
+legalEntityStockDocumentLedger(ledger) += contactWriteOff(ledger);  
+operationStockDocumentLedger(ledger) += operationWriteOff(ledger);
+
+// ------------------------------- Проведение по регистру остатков ------------------------ //
+@implementSkuLedgerInLIFO(WriteOffDetail, sku, stock);
+quantityInLIFOSkuLedger (ledger) += quantityWriteOffDetail(ledger);
+batchSkuLedger(ledger) += batchWriteOffDetail(ledger);
+@implementSkuLedgerInLIFOBatchBalance(writeOffDetail, stock);
+sumInSkuLedger(ledger) += sumWriteOffDetail(ledger);
+
+stockDocumentLedgerSkuLedger(ledger) += writeOffWriteOffDetail(ledger); 
+

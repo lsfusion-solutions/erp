@@ -1,6 +1,6 @@
 MODULE  ProductionConsumption;
 
-REQUIRE ProductionOrder, ProductionOutput, StockDocument;
+REQUIRE ProductionOrder, ProductionOutput, StockDocumentSkuLedger;
 NAMESPACE Production;
 
 // ---------------- Списание матириалов, производство ------------------- //
@@ -202,20 +202,18 @@ fillOrderUserConsumption 'Заполнить на основе производ�
     }
 } IN order;
 
+// Товарный отчет
+@implementStockDocumentLedgerOut(Consumption, stock);
+sumOutStockDocumentLedger (ledger) += sumConsumptionDetailConsumption(ledger);
+sumItemOutStockDocumentLedger (ledger) += sumItemConsumptionDetailConsumption(ledger);
+sumContainerOutStockDocumentLedger (ledger) += sumContainerConsumptionDetailConsumption(ledger);
 
 // Проводим по регистру
 @implementSkuLedgerOutFIFO(ConsumptionDetail, sku, stock);
 quantityOutFIFOSkuLedger (ledger) += quantityConsumptionDetail(ledger);
 @implementSkuLedgerOutFIFOBalance (consumptionDetail, stock);
 sumOutSkuLedger (ledger) += sumConsumptionDetail(ledger);
-seriesDataSkuLedger (ledger) += seriesConsumption(consumptionConsumptionDetail(ledger));
-numberDataSkuLedger (ledger) += numberConsumption(consumptionConsumptionDetail(ledger));
-
-// Товарный отчет
-@implementStockDocumentLedgerOut(Consumption, stock);
-sumOutStockDocumentLedger (ledger) += sumConsumptionDetailConsumption(ledger);
-sumItemOutStockDocumentLedger (ledger) += sumItemConsumptionDetailConsumption(ledger);
-sumContainerOutStockDocumentLedger (ledger) += sumContainerConsumptionDetailConsumption(ledger);
+stockDocumentLedgerSkuLedger(ledger) += consumptionConsumptionDetail(ledger); 
 
 // Создание аггрегированного списания
 

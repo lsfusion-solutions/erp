@@ -1,0 +1,57 @@
+MODULE StockDocumentSkuLedger;
+
+REQUIRE StockDocument, SkuLedger;
+
+NAMESPACE Stock;
+
+stockDocumentLedgerSkuLedger = ABSTRACT StockDocumentLedger (SkuLedger) PERSISTENT;
+
+numberDocumentSkuLedger 'Номер документа' (ledger) = numberStockDocumentLedger(stockDocumentLedgerSkuLedger(ledger)) MINCHARWIDTH 8;
+seriesDocumentSkuLedger 'Серия документа' (ledger) = seriesStockDocumentLedger(stockDocumentLedgerSkuLedger(ledger)) FIXEDCHARWIDTH 3;
+
+legalEntityDocumentSkuLedger (ledger) = legalEntityStockDocumentLedger(stockDocumentLedgerSkuLedger(ledger)); 
+nameLegalEntityDocumentSkuLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntityDocumentSkuLedger(ledger));
+overNameLegalEntityDocumentSkuLedger 'Контрагент' (ledger) = OVERRIDE 'Не задан', nameLegalEntityDocumentSkuLedger(ledger);
+
+legalEntityStockDocumentSkuLedger (ledger) = legalEntityStockStockDocumentLedger(stockDocumentLedgerSkuLedger(ledger));
+nameLegalEntityStockDocumentSkuLedger 'Склад контрагента' (ledger) = nameStock(legalEntityStockDocumentSkuLedger(ledger));
+overNameLegalEntityStockDocumentSkuLedger 'Склад контрагента' (ledger) = OVERRIDE 'Не задан', nameLegalEntityStockDocumentSkuLedger(ledger);
+
+operationDocumentSkuLedger (ledger) = operationStockDocumentLedger(stockDocumentLedgerSkuLedger(ledger));
+nameOperationDocumentSkuLedger 'Операция' (ledger) = nameOperation(operationDocumentSkuLedger (ledger));
+overNameOperationDocumentSkuLedger 'Операция' (ledger) = OVERRIDE 'Не задана',  nameOperationDocumentSkuLedger(ledger);
+
+EXTEND FORM costSkuLedger
+    PROPERTIES(bil) READONLY AFTER dateTimeSkuLedger seriesDocumentSkuLedger, numberDocumentSkuLedger
+    PROPERTIES(bil) READONLY BEFORE quantitySkuLedger nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger
+;
+
+EXTEND FORM costSkuBatchLedger
+    PROPERTIES(bil) READONLY AFTER dateTimeSkuLedger seriesDocumentSkuLedger, numberDocumentSkuLedger
+    PROPERTIES(bil) READONLY BEFORE quantitySkuLedger nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger
+;
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES(bil) READONLY AFTER dateTimeSkuLedger seriesDocumentSkuLedger, numberDocumentSkuLedger
+    PROPERTIES(bil) READONLY BEFORE signedQuantitySkuLedger nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger
+;
+
+EXTEND FORM balanceSkuStock
+    PROPERTIES(bil) READONLY AFTER dateTimeSkuLedger seriesDocumentSkuLedger, numberDocumentSkuLedger
+    PROPERTIES(bil) READONLY BEFORE signedQuantitySkuLedger nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger
+;
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES(bil) READONLY AFTER dateTimeSkuLedger seriesDocumentSkuLedger, numberDocumentSkuLedger
+    PROPERTIES(bil) READONLY BEFORE signedQuantitySkuLedger nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger
+;
+
+EXTEND FORM balanceBatchStock
+    PROPERTIES(bil) READONLY AFTER dateTimeSkuLedger seriesDocumentSkuLedger, numberDocumentSkuLedger
+    PROPERTIES(bil) READONLY BEFORE signedQuantitySkuLedger nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger
+;
+
+EXTEND FORM skuLedger
+    PROPERTIES(s) READONLY AFTER dateTimeSkuLedger seriesDocumentSkuLedger, numberDocumentSkuLedger
+    PROPERTIES(s) READONLY BEFORE signedQuantitySkuLedger overNameOperationDocumentSkuLedger, overNameLegalEntityDocumentSkuLedger, overNameLegalEntityStockDocumentSkuLedger 
+;

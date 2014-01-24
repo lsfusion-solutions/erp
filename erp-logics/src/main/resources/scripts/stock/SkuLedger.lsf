@@ -1,6 +1,6 @@
 MODULE SkuLedger;
 
-REQUIRE Stock, Sku, EmployeeStock, Operation;
+REQUIRE Stock, Sku, EmployeeStock;
 
 NAMESPACE Stock;
 
@@ -92,12 +92,6 @@ isContainerBatch 'Тара' (batch) = isContainerSku(skuBatch(batch));
 batchSkuLedger = ABSTRACT Batch (SkuLedger) PERSISTENT;
 nameBatchSkuLedger 'Партия' (l) = nameBatch(batchSkuLedger(l));
 
-operationSkuLedger  (ledger) = ABSTRACT Operation (SkuLedger) PERSISTENT;
-nameOperationSkuLedger 'Операция' (ledger) = nameOperation(operationSkuLedger (ledger));
-
-descriptionOperationSkuLedger 'Операция (авт.)' = ABSTRACT VARSTRING[200] (SkuLedger) PERSISTENT;
-overNameOperationSkuLedger 'Операция' (ledger) = OVERRIDE nameOperationSkuLedger(ledger), descriptionOperationSkuLedger(ledger);
-
 //---------------------------- Количественные регистры (конкретная реализация) ----------------------------------------//
 
 dateTimeDataSkuLedger 'Дата/время' = ABSTRACT DATETIME (DataSkuLedger) PERSISTENT INDEXED;
@@ -113,15 +107,6 @@ descriptionDataSkuLedger 'Название документа' = ABSTRACT VARSTR
 
 changedDataSkuLedger = ABSTRACT BOOLEAN (DataSkuLedger);
 
-numberDataSkuLedger 'Номер документа' = ABSTRACT STRING[18] (DataSkuLedger) MINCHARWIDTH 8 PERSISTENT;
-seriesDataSkuLedger 'Серия документа' = ABSTRACT STRING[2] (DataSkuLedger) FIXEDCHARWIDTH 3 PERSISTENT;
-
-legalEntityDataSkuLedger = ABSTRACT LegalEntity (DataSkuLedger) PERSISTENT;
-nameLegalEntityDataSkuLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntityDataSkuLedger(ledger));
-
-legalEntityStockDataSkuLedger = ABSTRACT Stock (DataSkuLedger) PERSISTENT;
-nameLegalEntityStockDataSkuLedger 'Склад контрагента' (ledger) = nameStock(legalEntityStockDataSkuLedger(ledger));
-
 // -------------------------------- Для всего ledger'а -------------------- //
 
 dateTimeSkuLedger 'Дата/время' (ledger) = MULTI dateTimeDataSkuLedger (ledger), dateTimeBatch (ledger) PERSISTENT INDEXED;
@@ -132,6 +117,8 @@ isPostedSkuLedger 'Проведен' (ledger) = MULTI isPostedDataSkuLedger (led
 skuSkuLedger (ledger) = MULTI skuDataSkuLedger (ledger), skuBatch (ledger) PERSISTENT INDEXED;
 nameSkuSkuLedger 'SKU' (ledger) = nameSku(skuSkuLedger(ledger));
 
+canonicalNameSkuGroupSkuLedger 'Группа' (ledger) = canonicalNameGroup(skuGroupSku(skuSkuLedger(ledger)));
+
 countSkuLedgerSku = GROUP SUM 1 BY skuSkuLedger(ledger) PERSISTENT;
 
 stockSkuLedger (ledger) = MULTI stockDataSkuLedger (ledger), stockBatch (ledger) PERSISTENT INDEXED;
@@ -141,16 +128,7 @@ idStockSkuLedger (ledger) = idStock(stockSkuLedger(ledger));
 
 descriptionSkuLedger 'Описание' (ledger) = MULTI descriptionDataSkuLedger (ledger), descriptionBatch (ledger) PERSISTENT;
 
-numberSkuLedger 'Номер документа' (ledger) = MULTI numberDataSkuLedger (ledger), numberBatch (ledger) MINCHARWIDTH 8 PERSISTENT;
-seriesSkuLedger 'Серия документа' (ledger) = MULTI seriesDataSkuLedger (ledger), seriesBatch (ledger) FIXEDCHARWIDTH 3 PERSISTENT;
 
-legalEntityStockSkuLedger (ledger) = MULTI legalEntityStockDataSkuLedger (ledger), supplierStockBatch (ledger) PERSISTENT;
-nameLegalEntityStockSkuLedger 'Склад контрагента' (ledger) = nameStock(legalEntityStockSkuLedger(ledger));
-overNameLegalEntityStockSkuLedger 'Склад контрагента' (ledger) = OVERRIDE 'Не задан', nameLegalEntityStockSkuLedger(ledger);
-legalEntitySkuLedger (ledger) = MULTI legalEntityDataSkuLedger (ledger), supplierBatch (ledger) PERSISTENT;
-nameLegalEntitySkuLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntitySkuLedger(ledger));
-canonicalNameSkuGroupSkuLedger 'Каноническое имя' (ledger) = canonicalNameGroup(skuGroupSku(skuSkuLedger(ledger)));
-overNameLegalEntitySkuLedger 'Контрагент' (ledger) = OVERRIDE 'Не задан', nameLegalEntitySkuLedger(ledger);
 // -------------------------------- Количества ---------------------------- //
 
 quantityBatch 'Кол-во в партии' = ABSTRACT NUMERIC[14,3] (Batch) PERSISTENT;
@@ -690,8 +668,8 @@ DESIGN dialogBatchStock FROM DEFAULT {
 
 FORM costSkuLedger 'Себестоимость (операции)'
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameSkuSkuLedger, nameStockSkuLedger,
-                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, quantitySkuLedger, costedSkuLedger, sumSkuLedger
+    PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger, nameSkuSkuLedger, nameStockSkuLedger,
+                             quantitySkuLedger, costedSkuLedger, sumSkuLedger
     PROPERTIES(bil)          resetCostDataSkuLedger FORCE GRID
     FILTERS isSkuLedger(bil)
     ORDER BY dateTimeSkuLedger
@@ -739,8 +717,8 @@ FORM costSkuBatchLedger 'Себестоимость (партии)'
     PROPERTIES(bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, shippedQuantityBatch, costBatch, currentBalanceBatch
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
-                             nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger, quantitySkuLedger, costedSkuLedger
+    PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
+                             quantitySkuLedger, costedSkuLedger
 //    PROPERTIES(bil)          resetCostSkuLedger
     ORDER BY dateTimeSkuLedger
 
@@ -802,7 +780,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
         FILTER 'Товары с движением не позднее 30 дней' 'F7' balanceSkuStockDatePeriod(s, st, currentDate(), 30)
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameBatchSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+    PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger, nameBatchSkuLedger,
                     signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, skipSkuLedger
                     
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==s AND stockSkuLedger(bil)==st
@@ -889,7 +867,7 @@ FORM balanceSkuStock 'Остатки на дату'
         FILTER 'Товары с движением не позднее 30 дней' 'F7' balanceSkuStockDateTimePeriod(s, st, t, 30)
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameBatchSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+    PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger, nameBatchSkuLedger,
                     signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==s AND stockSkuLedger(bil)==st
     ORDER BY dateTimeSkuLedger DESC
@@ -970,7 +948,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     ORDER BY          dateTimeBatch
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+    PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger,
                     signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, skipSkuLedger
     FILTERS isPostedSkuLedger(bil) AND costSkuLedgerBatch(bil, bt) AND stockSkuLedger(bil)==st   //skuSkuLedger(bil)==skuBatch(bt)
     ORDER BY dateTimeSkuLedger DESC
@@ -1062,7 +1040,7 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     ORDER BY          dateTimeBatch
 
     OBJECTS bil=SkuLedger
-    PROPERTIES(bil) READONLY numberSkuLedger, seriesSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameLegalEntitySkuLedger, nameLegalEntityStockSkuLedger,
+    PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger,
                     signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, skipSkuLedger
     FILTERS isPostedSkuLedger(bil) AND skuSkuLedger(bil)==skuBatch(bt) AND stockSkuLedger(bil)==st,
             dateTimeSkuLedger(bil) < t
@@ -1143,8 +1121,8 @@ FORM skuLedger 'Регистр движений'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
     OBJECTS s = SkuLedger
-    PROPERTIES(s) READONLY numberSkuLedger, seriesSkuLedger, dateSkuLedger, dateTimeSkuLedger, canonicalNameSkuGroupSkuLedger, nameSkuSkuLedger, descriptionSkuLedger, overNameOperationSkuLedger, nameStockSkuLedger,
-                           overNameLegalEntitySkuLedger, overNameLegalEntityStockSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, costSumSkuLedger
+    PROPERTIES(s) READONLY dateSkuLedger, dateTimeSkuLedger, canonicalNameSkuGroupSkuLedger, nameSkuSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
+                           signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger, costSumSkuLedger
     FILTERS isPostedSkuLedger(s)
 
     FILTERS dateSkuLedger(s) >= dFrom, dateSkuLedger(s) <= dTo

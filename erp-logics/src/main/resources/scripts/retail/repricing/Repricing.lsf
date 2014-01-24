@@ -1,6 +1,6 @@
 MODULE Repricing;
 
-REQUIRE RepricingCommittee, Store, Pricing, StockDocument, PriceListCalc, RepricingOperation, PriceListLedger, Terminal;
+REQUIRE RepricingCommittee, Store, Pricing, StockDocumentSkuLedger, PriceListCalc, RepricingOperation, PriceListLedger, Terminal;
 
 NAMESPACE Repricing;
 
@@ -487,13 +487,18 @@ EXTEND DESIGN userRepricing{
     }
 }
 
+// Проведение по товарному отчету
+@implementStockDocumentLedgerInc(Repricing, departmentStore);
+sumIncStockDocumentLedger (ledger) += diffRetailSumRepricingDetailRepricing(ledger);
+sumItemIncStockDocumentLedger (ledger) += sumItemRepricingDetailRepricing(ledger);
+sumContainerIncStockDocumentLedger (ledger) += sumContainerRepricingDetailRepricing(ledger);
+
+operationStockDocumentLedger (ledger) += operationRepricing(ledger);
+
 // Проведение по регистру
 @implementSkuLedger(repricingDetail, sku, departmentStore);
 sumInSkuLedger (ledger) += diffRetailSumRepricingDetail(ledger);
-seriesDataSkuLedger (ledger) += seriesRepricing(repricingRepricingDetail(ledger));
-numberDataSkuLedger (ledger) += numberRepricing(repricingRepricingDetail(ledger));
-
-operationSkuLedger(ledger)+= operationRepricing(repricingRepricingDetail(ledger));
+stockDocumentLedgerSkuLedger(ledger) += repricingRepricingDetail(ledger); 
 
 batchSkuLedger(ledger) += batchRepricingDetail(ledger);
 //------------------------ Управленческая переоценка ----------------------------//
@@ -699,8 +704,3 @@ Machinery.skipPriceTransactionDocument(document) += skipChangeLedgerRepricing(do
 
 @defineDocumentMachineryPriceTransaction(repricing, sku, departmentStore);
 @extendFormDocumentMachineryPriceTransaction(repricings, p, repricing, skipChangeLedgerRepricing, machineryContainer);
-
-@implementStockDocumentLedgerInc(Repricing, departmentStore);
-sumIncStockDocumentLedger (ledger) += diffRetailSumRepricingDetailRepricing(ledger);
-sumItemIncStockDocumentLedger (ledger) += sumItemRepricingDetailRepricing(ledger);
-sumContainerIncStockDocumentLedger (ledger) += sumContainerRepricingDetailRepricing(ledger);

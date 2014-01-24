@@ -1,6 +1,6 @@
 MODULE StockDocument;
 
-REQUIRE System, EmployeeStock, Utils;
+REQUIRE System, EmployeeStock, Utils, Operation;
 
 CLASS ABSTRACT StockDocumentLedger 'Учетный документ';
 TABLE stockDocumentLedger (StockDocumentLedger);
@@ -15,6 +15,18 @@ isPostedStockDocumentLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (Stoc
 
 stockStockDocumentLedger (ledger) = ABSTRACT Stock (StockDocumentLedger) PERSISTENT;
 nameStockStockDocumentLedger 'Отдел' (ledger) = nameStock(stockStockDocumentLedger(ledger));
+
+numberStockDocumentLedger 'Номер документа' (ledger) = ABSTRACT STRING[18] (StockDocumentLedger) PERSISTENT;
+seriesStockDocumentLedger 'Серия документа' (ledger) = ABSTRACT STRING[2] (StockDocumentLedger) PERSISTENT;
+
+legalEntityStockDocumentLedger 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentLedger) PERSISTENT;
+nameLegalEntityStockDocumentLedger 'Контрагент' (ledger) = nameLegalEntity(legalEntityStockDocumentLedger(ledger));
+
+legalEntityStockStockDocumentLedger 'Склад контрагента' (ledger) = ABSTRACT Stock (StockDocumentLedger) PERSISTENT;
+nameLegalEntityStockStockDocumentLedger 'Склад контрагента' = nameStock(legalEntityStockStockDocumentLedger(ledger));
+
+operationStockDocumentLedger 'Операция' (ledger) = ABSTRACT Operation(StockDocumentLedger) PERSISTENT;
+nameOperationStockDocumentLedger 'Операция' (ledger) = nameOperation(operationStockDocumentLedger(ledger));
 
 descriptionStockDocumentLedger 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) PERSISTENT;
 
@@ -178,6 +190,7 @@ FORM sumStockDocumentLedger 'Товарный отчет'
 
     OBJECTS il = IncStockDocumentLedger
     PROPERTIES(il) SELECTOR iDateTime = dateTimeStockDocumentLedger, iObjName = objectClassName, iDescription = descriptionStockDocumentLedger,
+                   nameOperationStockDocumentLedger, nameLegalEntityStockDocumentLedger, nameLegalEntityStockStockDocumentLedger, 
                    sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger
     FILTERS isPostedStockDocumentLedger(il),
             stockStockDocumentLedger(il) == ds,
@@ -188,6 +201,7 @@ FORM sumStockDocumentLedger 'Товарный отчет'
 
     OBJECTS ol = OutStockDocumentLedger
     PROPERTIES(ol) SELECTOR oDateTime = dateTimeStockDocumentLedger, oObjName = objectClassName, oDescription = descriptionStockDocumentLedger,
+                   nameOperationStockDocumentLedger, nameLegalEntityStockDocumentLedger, nameLegalEntityStockStockDocumentLedger, 
                    sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger
     FILTERS isPostedStockDocumentLedger(ol),
             stockStockDocumentLedger(ol) == ds,
@@ -257,6 +271,8 @@ NAVIGATOR {
 }
 // ------------------------------------------ Макросы ----------------------------------------------------- //
 META implementStockDocumentLedger (concrete, stockProp)
+    seriesStockDocumentLedger (ledger) += series###concrete(ledger);
+    numberStockDocumentLedger (ledger) += number###concrete(ledger);
     dateTimeStockDocumentLedger (ledger) += dateTime###concrete(ledger);
     isPostedStockDocumentLedger (ledger) += isPosted###concrete(ledger);
     stockStockDocumentLedger (ledger) += stockProp###concrete(ledger);

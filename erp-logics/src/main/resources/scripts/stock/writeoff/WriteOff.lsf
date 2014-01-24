@@ -10,7 +10,7 @@ REQUIRE System,
         Barcode,
         Document,
         EmployeeStock,
-        StockDocument,
+        StockDocumentSkuLedger,
         StockMovement,
         Utils;
 
@@ -220,22 +220,6 @@ nameReasonUserWriteOff 'Причина списания' (userWriteOff) = nameRe
 
 @defineDocumentInterfaceLegalEntity (writeOff, contact, 'Контрагент');
 
-// Проводим по регистру
-@implementSkuLedgerOutFIFO(WriteOffDetail, sku, stock);
-quantityOutFIFOSkuLedger (ledger) += quantityWriteOffDetail(ledger);
-batchSkuLedger(ledger) += batchWriteOffDetail(ledger);
-@implementSkuLedgerOutFIFOBatchBalance(WriteOffDetail, stock);
-sumOutSkuLedger (ledger) += sumWriteOffDetail(ledger);
-seriesDataSkuLedger (ledger) += seriesWriteOff(writeOffWriteOffDetail(ledger));
-numberDataSkuLedger (ledger) += numberWriteOff(writeOffWriteOffDetail(ledger));
-legalEntityDataSkuLedger (ledger) += contactWriteOff(writeOffWriteOffDetail(ledger));
-
-// Товарный отчет
-@implementStockDocumentLedgerOut(WriteOff, stock);
-sumOutStockDocumentLedger (ledger) += sumWriteOffDetailWriteOff(ledger);
-sumItemOutStockDocumentLedger (ledger) += sumItemWriteOffDetailWriteOff(ledger);
-sumContainerOutStockDocumentLedger (ledger) += sumContainerWriteOffDetailWriteOff(ledger);
-
 @implementDocument(writeOff);
 supplierStockDocument(writeOff) += stockWriteOff(writeOff);
 
@@ -439,9 +423,6 @@ FORM writeOffDetails 'Списание'
 //----------------------------------------------- Операции -----------------------------------------------------//
 @defineDocumentInterfaceOperation (writeOff, WriteOff, );
 
-operationSkuLedger(ledger)+= operationWriteOff(writeOffWriteOffDetail(ledger));
-descriptionOperationSkuLedger (ledger) += 'Списание без операции' IF ledger IS WriteOffDetail AND NOT operationWriteOffDetail(ledger);
-
 @defineDocumentOperationRolePrefix(userWriteOff, );
 
 EXTEND FORM userWriteOff
@@ -483,3 +464,22 @@ NAVIGATOR {
         }
     }
 }
+
+// Товарный отчет
+@implementStockDocumentLedgerOut(WriteOff, stock);
+sumOutStockDocumentLedger (ledger) += sumWriteOffDetailWriteOff(ledger);
+sumItemOutStockDocumentLedger (ledger) += sumItemWriteOffDetailWriteOff(ledger);
+sumContainerOutStockDocumentLedger (ledger) += sumContainerWriteOffDetailWriteOff(ledger);
+
+legalEntityStockDocumentLedger(ledger) += contactWriteOff(ledger);  
+
+operationStockDocumentLedger(ledger) += operationWriteOff(ledger);
+
+// Проводим по регистру
+@implementSkuLedgerOutFIFO(WriteOffDetail, sku, stock);
+quantityOutFIFOSkuLedger (ledger) += quantityWriteOffDetail(ledger);
+batchSkuLedger(ledger) += batchWriteOffDetail(ledger);
+@implementSkuLedgerOutFIFOBatchBalance(WriteOffDetail, stock);
+sumOutSkuLedger (ledger) += sumWriteOffDetail(ledger);
+
+stockDocumentLedgerSkuLedger(ledger) += writeOffWriteOffDetail(ledger); 

@@ -1,6 +1,6 @@
 MODULE SaleReturnShipment;
 
-REQUIRE Shipment, SaleReturnInvoice, OrderShipment, InvoiceShipment, PriceListLedger;
+REQUIRE Shipment, SaleReturnInvoice, OrderShipment, InvoiceShipment, PriceListLedger, StockDocumentSkuLedger;
 
 PRIORITY Sale, Operation;
 
@@ -138,24 +138,25 @@ EXTEND FORM userShipment
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, shipment, , sku, supplierStock);
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userShipment, accountPriceListType, , , sku, supplierStock);
 
-// ------------------------------- Проведение по регистру остатков ------------------------ //
-
-@implementSkuLedgerInLIFO(ShipmentDetail, sku, supplierStock);
-quantityInLIFOSkuLedger (ledger) += quantityShipmentDetail(ledger);
-batchSkuLedger(ledger) += batchShipmentDetail(ledger);
-@implementSkuLedgerInLIFOBatchBalance(shipmentDetail, supplierStock);
-sumInSkuLedger(ledger) += sumShipmentDetail(ledger);
-seriesDataSkuLedger (ledger) += seriesShipment(shipmentShipmentDetail(ledger));
-numberDataSkuLedger (ledger) += numberShipment(shipmentShipmentDetail(ledger));
-legalEntityDataSkuLedger (ledger) += customerShipment(shipmentShipmentDetail(ledger));
-legalEntityStockDataSkuLedger (ledger) += customerStockShipment(shipmentShipmentDetail(ledger));
-operationSkuLedger(ledger)+= operationShipment(shipmentShipmentDetail(ledger));
 // ------------------------------- Проведение по товарному отчету ------------------------ //
-
 @implementStockDocumentLedgerInc(Shipment, supplierStock);
 sumIncStockDocumentLedger (ledger) += sumShipmentDetailShipment(ledger);
 sumItemIncStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
 sumContainerIncStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
+
+legalEntityStockDocumentLedger(ledger) += customerShipment(ledger);  
+legalEntityStockStockDocumentLedger(ledger) += customerStockShipment(ledger);  
+
+operationStockDocumentLedger(ledger) += operationShipment(ledger);
+
+// ------------------------------- Проведение по регистру остатков ------------------------ //
+@implementSkuLedgerInLIFO(ShipmentDetail, sku, supplierStock);
+quantityInLIFOSkuLedger (ledger) += quantityShipmentDetail(ledger);
+batchSkuLedger(ledger) += batchShipmentDetail(ledger);
+@implementSkuLedgerInLIFOBatchBalance(shipmentDetail, supplierStock);
+
+sumInSkuLedger(ledger) += sumShipmentDetail(ledger);
+stockDocumentLedgerSkuLedger(ledger) += shipmentShipmentDetail(ledger);
 
 receiveShipmentInvoice (invoice)+= ACTION (invoice)  {
     IF invoice IS UserInvoice THEN {

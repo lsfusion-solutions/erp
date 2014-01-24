@@ -1,6 +1,6 @@
 MODULE Revaluation;
 
-REQUIRE RepricingCommittee, StockDocument, PriceListCalc, Terminal, PriceListLedger, RevaluationOperation;
+REQUIRE RepricingCommittee, StockDocumentSkuLedger, PriceListCalc, Terminal, PriceListLedger, RevaluationOperation;
 
 NAMESPACE Revaluation;
 
@@ -116,14 +116,6 @@ changeBatchUserRevaluationDetail = ACTION (userRevaluationDetail) {
 // Не изменять текущие цены
 @defineDocumentInterfaceHeaderSkip(Revaluation, changeLedger, 'Не изменять текущие цены');
 @defineDocumentInterfaceDetailSkip(revaluation, changeLedger, 'Не изменять текущие цены');
-
-// Проведение по регистру
-@implementSkuLedger(revaluationDetail, sku, stock);
-sumInSkuLedger (ledger) += diffSumRevaluationDetail(ledger);
-seriesDataSkuLedger (ledger) += seriesRevaluation(revaluationRevaluationDetail(ledger));
-numberDataSkuLedger (ledger) += numberRevaluation(revaluationRevaluationDetail(ledger));
-
-batchSkuLedger(ledger) += batchRevaluationDetail(ledger);
 
 editRevaluation 'Редактировать' = ABSTRACT ACTION LIST (Revaluation) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
@@ -328,8 +320,6 @@ DESIGN revaluations FROM DEFAULT {
 
 @defineDocumentInterfaceOperation (revaluation, Revaluation, );
 
-operationSkuLedger(ledger)+= operationRevaluation(revaluationRevaluationDetail(ledger));
-
 @defineDocumentOperationRolePrefix(userRevaluation, );
 
 EXTEND FORM userRevaluation
@@ -350,6 +340,22 @@ NAVIGATOR {
         ADD Revaluation.operations AFTER repricingCommitteeDialog;
     }
 }
+
+// Проведение по товарному отчету
+@implementStockDocumentLedgerOut(Revaluation, stock);
+sumOutStockDocumentLedger (ledger) += sumRevaluationDetailRevaluation(ledger);
+sumItemOutStockDocumentLedger (ledger) += sumRevaluationDetailRevaluation(ledger);
+sumContainerOutStockDocumentLedger (ledger) += 0.0 IF ledger IS Revaluation;
+
+operationStockDocumentLedger(ledger) += operationRevaluation(ledger);
+
+// Проведение по регистру
+@implementSkuLedger(revaluationDetail, sku, stock);
+sumInSkuLedger (ledger) += diffSumRevaluationDetail(ledger);
+
+stockDocumentLedgerSkuLedger(ledger) += revaluationRevaluationDetail(ledger); 
+
+batchSkuLedger(ledger) += batchRevaluationDetail(ledger);
 
 // ---------------------------- Создание PriceList ----------------------------------- //
 
