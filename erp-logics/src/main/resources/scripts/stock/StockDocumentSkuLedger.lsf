@@ -55,3 +55,15 @@ EXTEND FORM skuLedger
     PROPERTIES(s) READONLY AFTER dateTimeSkuLedger seriesDocumentSkuLedger, numberDocumentSkuLedger
     PROPERTIES(s) READONLY BEFORE signedQuantitySkuLedger overNameOperationDocumentSkuLedger, overNameLegalEntityDocumentSkuLedger, overNameLegalEntityStockDocumentSkuLedger 
 ;
+
+// --------- Суммы по документу ------------//
+
+sumSkuLedgerStockDocumentLedger 'Сумма по регистру' = GROUP SUM signedSumSkuLedger(l) BY stockDocumentLedgerSkuLedger(l);
+
+EXTEND FORM sumStockDocumentLedger
+    PROPERTIES(il) sumSkuLedgerStockDocumentLedger
+    FILTERGROUP incorrectIncSum FILTER 'Неправильная сумма по регистру' 'F7' NOT sumIncStockDocumentLedger(il) == sumSkuLedgerStockDocumentLedger(il)
+
+    PROPERTIES(ol) sumSkuLedgerStockDocumentLedger
+    FILTERGROUP incorrectOutSum FILTER 'Неправильная сумма по регистру' 'F7' NOT sumOutStockDocumentLedger(ol) == -sumSkuLedgerStockDocumentLedger(ol)
+;
