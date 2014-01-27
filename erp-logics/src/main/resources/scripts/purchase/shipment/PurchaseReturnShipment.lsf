@@ -1,6 +1,6 @@
 MODULE PurchaseReturnShipment;
 
-REQUIRE Shipment, PurchaseReturnInvoice, OrderShipment, InvoiceShipment, PriceListLedger, StockDocumentSkuLedger;
+REQUIRE Shipment, PurchaseReturnInvoice, OrderShipment, InvoiceShipment, PriceListLedger, StockDocumentSkuLedger, PurchaseLedger;
 
 PRIORITY Purchase, Operation;
 
@@ -148,6 +148,11 @@ quantityOutFIFOSkuLedger (ledger) += quantityShipmentDetail(ledger);
 batchSkuLedger(ledger) += batchShipmentDetail(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(shipmentDetail, customerStock);
 sumOutSkuLedger (ledger) += sumShipmentDetail(ledger);
+
+costShipmentDetailBatch(detail, batch) += quantityShipmentDetail(detail) IF batch == batchShipmentDetail(detail);
+costPurchaseLedgerBatch(ledger, batch) += -costInvoiceDetailBatch (ledger, batch); 
+
+// ------------------------------- Проведение по товарному отчету ------------------------ //
 
 stockDocumentLedgerSkuLedger(ledger) += shipmentShipmentDetail(ledger);
 
