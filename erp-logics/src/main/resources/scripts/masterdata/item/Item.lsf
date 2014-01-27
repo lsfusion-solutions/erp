@@ -36,7 +36,7 @@ moveItemGroup 'Перенести отмеченные группы в теку�
 
 FORM itemGroup 'Товарная группа'
     OBJECTS g=ItemGroup FIXED PANEL
-    PROPERTIES(g) nameItemGroup, idItemGroup SHOWIF showIDs(), nameParentItemGroup
+    PROPERTIES(g) nameItemGroup, idItemGroup SHOWIF showIDs(), nameParentItemGroup    
     EDIT ItemGroup OBJECT g
 ;
 
@@ -492,8 +492,24 @@ EXTEND FORM dialogItemGroups
 
 // ------ Базовые свойства товара ------ //
 
+GROUP defaultItemGroup 'По-умолчанию' : base;
+
+captionItemGroup 'Наименование (по-умолчанию)' = DATA VARISTRING[100](ItemGroup) IN defaultItemGroup;
+
+UOMItemGroup = DATA UOM (ItemGroup);
+nameUOMItemGroup 'Ед. изм. (по-умолчанию)' = nameUOM(UOMItemGroup(g)) IN defaultItemGroup;
+
+EXTEND FORM itemGroup
+    PROPERTIES(g) captionItemGroup, nameUOMItemGroup
+;    
+
 // Название
 @defineStringItemAttribute(caption, VARISTRING[100], 'Название', itemBase);
+
+WHEN SESSION  CHANGED(captionItemGroup(g)) DO
+    captionItem(i) <- captionItemGroup(g)
+        WHERE itemGroupItem(i) == g AND NOT captionItem(i);
+
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(caption, 'Название', String, itemCaption);
 
@@ -503,6 +519,10 @@ EXTEND FORM dialogItemGroups
 // Единица измерения
 @defineObjectItemAttribute(UOM, UOM, nameUOM, 'Единица измерения', itemBase);
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения', sku);
+
+WHEN SESSION  CHANGED(UOMItemGroup(g)) DO
+    UOMItem(i) <- UOMItemGroup(g)
+        WHERE itemGroupItem(i) == g AND NOT UOMItem(i);    
 
 shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMItem(item)) IN itemBase;
 UOMSku(item) += UOMItem(item);
@@ -776,6 +796,9 @@ DESIGN itemGroup FROM DEFAULT{
                 columns = 6;            
             }
             ADD g.itemSize {
+                columns = 6;
+            }
+            ADD g.defaultItemGroup {
                 columns = 6;
             }
         }

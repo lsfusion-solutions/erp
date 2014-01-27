@@ -18,6 +18,10 @@ itemGroupArticle  = DATA ItemGroup(Article);
 nameItemGroupArticle 'Товарная группа' (Article) = nameItemGroup(itemGroupArticle(Article));
 idItemGroupArticle 'Код группы' (Article) = idItemGroup(itemGroupArticle(Article));
 
+WHEN SESSION  CHANGED(captionItemGroup(g)) DO
+    captionArticle(a) <- captionItemGroup(g)
+        WHERE itemGroupArticle(a) == g AND NOT captionArticle(a);
+
 TABLE itemGroupArticle(ItemGroup, Article);
 isParentGroupArticle(group, article) = isParentItemGroupItemGroup(itemGroupArticle(article), group) PERSISTENT INDEXED;
 canonicalNameItemGroupArticle 'Группа товара' (article) = canonicalNameGroup(itemGroupArticle(article)) MINCHARWIDTH 40 PREFCHARWIDTH 80;
@@ -201,6 +205,10 @@ EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameCo
 //  Ед. изм.
 UOMArticle  = DATA UOM (Article);
 nameUOMArticle 'Единица измерения' (article) = nameUOM(UOMArticle(article)) IN itemBase MINCHARWIDTH 10 PREFCHARWIDTH 10;
+
+WHEN SESSION  CHANGED(UOMItemGroup(g)) DO
+    UOMArticle(a) <- UOMItemGroup(g)
+        WHERE itemGroupArticle(a) == g AND NOT UOMArticle(a);
 
 //  Состав
 compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN itemBase MINCHARWIDTH 30 PREFCHARWIDTH 40;
