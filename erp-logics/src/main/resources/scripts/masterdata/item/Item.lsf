@@ -493,20 +493,48 @@ EXTEND FORM dialogItemGroups
 // ------ Базовые свойства товара ------ //
 
 GROUP defaultItemGroup 'По-умолчанию' : base;
+ 
+META hhhhhCustom(property, caption, type, typeIdentity, object, group)
+    data###property###object caption = DATA type (###object);
+    data###typeIdentity###property##object caption (object) = typeIdentity(data###property###object(object)) IN group;
+    
+    levelParent###property###object (object) = GROUP MIN level###object###object(object, parent) IF data###property###object(parent)
+                                                                  BY object PERSISTENT;    
+    nearestParent###property###object (object) = object###object###level(object, levelParent###property###object(object));
+    nearest###property###object (object) = data###property###object( nearestParent###property###object (object));
+    property###object (object) =
+        OVERRIDE nearest###property###object (object), 
+                 data###property###object(object) PERSISTENT;    
+    
+    typeIdentity###object caption (object) = typeIdentity(property###object(object)) IN group;
+END   
+META hhhhh(property, caption, type, object, group)
+    data###property###object caption = DATA type (###object) IN group;
+    
+    levelParent###property###object (object) = GROUP MIN level###object###object(object, parent) IF data###property###object(parent)
+                                                                  BY object PERSISTENT;    
+    nearestParent###property###object (object) = object###object###level(object, levelParent###property###object(object));
+    nearest###property###object (object) = data###property###object( nearestParent###property###object (object));
+    property###object caption (object) =
+        OVERRIDE nearest###property###object (object), 
+                 data###property###object(object) PERSISTENT IN group;    
+    
+END   
+@hhhhh(caption, 'Наименование (по-умолчанию)', VARISTRING[100], itemGroup, defaultItemGroup);
 
-captionItemGroup 'Наименование (по-умолчанию)' = DATA VARISTRING[100](ItemGroup) IN defaultItemGroup;
-
-UOMItemGroup = DATA UOM (ItemGroup);
-nameUOMItemGroup 'Ед. изм. (по-умолчанию)' = nameUOM(UOMItemGroup(g)) IN defaultItemGroup;
-
+@hhhhhCustom(UOM, 'Ед. изм. (по-умолчанию)', UOM, nameUOM, itemGroup, defaultItemGroup); 
 EXTEND FORM itemGroup
     PROPERTIES(g) captionItemGroup, nameUOMItemGroup
-;    
-
+; 
+ 
+EXTEND FORM itemGroups
+    PROPERTIES(g) captionItemGroup, nameUOMItemGroup
+;  
+ 
 // Название
 @defineStringItemAttribute(caption, VARISTRING[100], 'Название', itemBase);
 
-WHEN SESSION  CHANGED(captionItemGroup(g)) DO
+WHEN SESSION  CHANGED(itemGroupItem(i)) AND g IS ItemGroup DO
     captionItem(i) <- captionItemGroup(g)
         WHERE itemGroupItem(i) == g AND NOT captionItem(i);
 
@@ -520,7 +548,7 @@ WHEN SESSION  CHANGED(captionItemGroup(g)) DO
 @defineObjectItemAttribute(UOM, UOM, nameUOM, 'Единица измерения', itemBase);
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения', sku);
 
-WHEN SESSION  CHANGED(UOMItemGroup(g)) DO
+WHEN SESSION  CHANGED(itemGroupItem(i)) AND g IS ItemGroup DO
     UOMItem(i) <- UOMItemGroup(g)
         WHERE itemGroupItem(i) == g AND NOT UOMItem(i);    
 
