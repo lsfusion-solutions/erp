@@ -108,9 +108,11 @@ public class EquipmentServer {
 
             Map<String, List<MachineryInfo>> handlerModelMap = new HashMap<String, List<MachineryInfo>>();
             for (MachineryInfo machinery : transaction.machineryInfoList) {
-                if (!handlerModelMap.containsKey(machinery.handlerModel))
-                    handlerModelMap.put(machinery.handlerModel, new ArrayList());
-                handlerModelMap.get(machinery.handlerModel).add(machinery);
+                if (machinery.handlerModel != null) {
+                    if (!handlerModelMap.containsKey(machinery.handlerModel))
+                        handlerModelMap.put(machinery.handlerModel, new ArrayList());
+                    handlerModelMap.get(machinery.handlerModel).add(machinery);
+                }
             }
 
             for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelMap.entrySet()) {

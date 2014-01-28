@@ -5,6 +5,9 @@ import equ.api.*;
 import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import org.apache.log4j.Logger;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 import lsfusion.base.DateConverter;
@@ -622,8 +625,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     if (sale.quantityReceiptDetail.doubleValue() < 0)
                         dataReturn.add(Arrays.<Object>asList(sale.numberCashRegister, idZReport, sale.numberZReport,
                                 sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
-                                idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail,
-                                sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail,
+                                idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail.negate(),
+                                sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail,
                                 sale.discountSumReceipt, sale.seriesNumberDiscountCard));
                     else
                         dataSale.add(Arrays.<Object>asList(sale.numberCashRegister, idZReport, sale.numberZReport,
@@ -918,5 +921,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
         result = (char) (time + 97) + result;
         return result;
+    }
+
+    @Aspect
+    private static class RemoteLogicsContextHoldingAspect {
+        @Before("execution(* equ.api.EquipmentServerInterface.*(..)) && target(remoteLogics)")
+        public void beforeCall(EquipmentServer remoteLogics) {
+            ThreadLocalContext.set(remoteLogics.logicsInstance.getContext());
+        }
+        @AfterReturning("execution(* equ.api.EquipmentServerInterface.*(..)) && target(remoteLogics)")
+        public void afterReturning(EquipmentServer remoteLogics) {
+            ThreadLocalContext.set(null);
+        }
     }
 }

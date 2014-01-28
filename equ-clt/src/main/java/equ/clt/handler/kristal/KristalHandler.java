@@ -125,14 +125,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                             receiptFile.read();
 
-                            Integer zReportNumber = new Integer(new String(receiptFile.getField("CREG").getBytes(), "Cp1251").trim());
-                            Integer receiptNumber = new Integer(new String(receiptFile.getField("ID").getBytes(), "Cp1251").trim());
-                            java.sql.Date date = new java.sql.Date(DateUtils.parseDate(new String(receiptFile.getField("DATE").getBytes(), "Cp1251").trim(), new String[]{"dd.MM.yyyy hh:mm", "dd.MM.yyyy hh:mm:"}).getTime());
+                            Integer zReportNumber = getDBFIntegerFieldValue(receiptFile, "CREG", "Cp1251", false, null);
+                            Integer receiptNumber = getDBFIntegerFieldValue(receiptFile, "ID", "Cp1251", false, null);
+                            java.sql.Date date = getDBFDateFieldValue(receiptFile, "DATE", "Cp1251", null);
                             Time time = new Time(date.getTime());
-                            BigDecimal cost1 = new BigDecimal(new String(receiptFile.getField("COST1").getBytes(), "Cp1251").trim()); //cash
-                            BigDecimal cost3 = new BigDecimal(new String(receiptFile.getField("COST3").getBytes(), "Cp1251").trim()); //card
-                            BigDecimal discountSum = new BigDecimal(new String(receiptFile.getField("SUMDISC").getBytes(), "Cp1251").trim());
-                            String cashRegisterNumber = new String(receiptFile.getField("CASHIER").getBytes(), "Cp1251");
+                            BigDecimal cost1 = getDBFBigDecimalFieldValue(receiptFile, "COST1", "Cp1251", null); //cash
+                            BigDecimal cost3 = getDBFBigDecimalFieldValue(receiptFile, "COST3", "Cp1251", null); //card
+                            BigDecimal discountSum = getDBFBigDecimalFieldValue(receiptFile, "SUMDISC", "Cp1251", null);
+                            String cashRegisterNumber = getDBFFieldValue(receiptFile, "CASHIER", "Cp1251", null);
                             receiptInfoMap.put(receiptNumber, new ReceiptInfo(zReportNumber, date, time, safeAdd(cost1, cost3), cost3, cost1, discountSum, cashRegisterNumber));
                         }
                         receiptFile.close();
@@ -142,15 +142,15 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         for (int i = 0; i < receiptDetailFile.getRecordCount()/*111*/; i++) {
 
                             receiptDetailFile.read();
-                            Integer receiptNumber = new Integer(new String(receiptDetailFile.getField("IDHEAD").getBytes(), "Cp1251").trim());
+                            Integer receiptNumber = getDBFIntegerFieldValue(receiptDetailFile, "IDHEAD", "Cp1251", false, null);
                             ReceiptInfo receiptInfo = receiptInfoMap.get(receiptNumber);
                             if (receiptInfo != null) {
-                                String cashRegisterNumber = new String(receiptDetailFile.getField("CASHIER").getBytes(), "Cp1251").trim();
-                                String zReportNumber = new String(receiptDetailFile.getField("CREG").getBytes(), "Cp1251").trim();
-                                String barcode = new String(receiptDetailFile.getField("BARCODE").getBytes(), "Cp1251").trim();
-                                BigDecimal quantity = new BigDecimal(new String(receiptDetailFile.getField("COUNT").getBytes(), "Cp1251").trim());
-                                BigDecimal price = new BigDecimal(new String(receiptDetailFile.getField("PRICE").getBytes(), "Cp1251").trim());
-                                BigDecimal sumReceiptDetail = new BigDecimal(new String(receiptDetailFile.getField("SUM").getBytes(), "Cp1251").trim());
+                                String cashRegisterNumber = getDBFFieldValue(receiptDetailFile, "CASHIER", "Cp1251", null);
+                                String zReportNumber = getDBFFieldValue(receiptDetailFile, "CREG", "Cp1251", null);
+                                String barcode = getDBFFieldValue(receiptDetailFile, "BARCODE", "Cp1251", null);
+                                BigDecimal quantity = getDBFBigDecimalFieldValue(receiptDetailFile, "COUNT", "Cp1251", null);
+                                BigDecimal price = getDBFBigDecimalFieldValue(receiptDetailFile, "PRICE", "Cp1251", null);
+                                BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(receiptDetailFile, "SUM", "Cp1251", null);
                                 salesInfoList.add(new SalesInfo(cashRegisterNumber, zReportNumber, receiptNumber, receiptInfo.date,
                                         receiptInfo.time, receiptInfo.sumReceipt, receiptInfo.sumCard, receiptInfo.sumCash, barcode, quantity, price, sumReceiptDetail, null, receiptInfo.discountSum, null, receiptInfo.numberReceiptDetail++, null));
                             }
@@ -200,6 +200,38 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             this.cashRegisterNumber = cashRegisterNumber;
             this.numberReceiptDetail = 1;
         }
+    }
+
+    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
+        return getDBFFieldValue(importFile, fieldName, charset, false, defaultValue);
+    }
+
+    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
+        try {
+            String result = new String(importFile.getField(fieldName).getBytes(), charset).trim();
+            return result.isEmpty() || (zeroIsNull && result.equals("0")) ? defaultValue : result;
+        } catch (xBaseJException e) {
+            return defaultValue;
+        }
+    }
+
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
+        return getDBFBigDecimalFieldValue(importFile, fieldName, charset, false, defaultValue);
+    }
+
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
+        String result = getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
+        return (result == null || result.isEmpty() || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new BigDecimal(result.replace(",", "."));
+    }
+
+    protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
+        String result = getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
+        return (result == null || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new Double(result).intValue();
+    }
+
+    protected java.sql.Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset, java.sql.Date defaultValue) throws UnsupportedEncodingException, ParseException {
+        String dateString = getDBFFieldValue(importFile, fieldName, charset, false, "");
+        return dateString.isEmpty() ? defaultValue : new java.sql.Date(DateUtils.parseDate(dateString, new String[]{"dd.MM.yyyy hh:mm", "dd.MM.yyyy hh:mm:"}).getTime());
     }
 
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
