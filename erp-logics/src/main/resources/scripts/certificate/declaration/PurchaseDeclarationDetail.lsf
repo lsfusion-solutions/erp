@@ -216,7 +216,7 @@ registrationPriceUserInvoiceDetail 'Таможенный сбор (ед.)' = DAT
 registrationPriceInvoiceDetail(detail) += registrationPriceUserInvoiceDetail(detail);
 
 overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
-    registrationPriceUserInvoiceDetail(d) <- registrationPriceUserInvoiceDetail(detail);
+    registrationPriceUserInvoiceDetail(d) <- registrationPriceUserInvoiceDetail(detail);      
 } 
 
 registrationSumInvoiceDetail 'Сумма (таможенный сбор)' (detail) = registrationPriceInvoiceDetail(detail)*quantityInvoiceDetail(detail);
@@ -225,6 +225,15 @@ registrationSumUserInvoiceDetail 'Сумма (таможенный сбор)' (d
 
 // Проводим по инвойсу
 customCostPriceUserInvoiceDetail(invoiceDetail) += registrationPriceUserInvoiceDetail(invoiceDetail) (+) dutyPriceUserInvoiceDetail(invoiceDetail);
+
+// НДС
+VATPriceInvoiceDetail 'НДС (ед.)' = ABSTRACT NUMERIC[20,8](InvoiceDetail);
+VATPriceUserInvoiceDetail 'НДС (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
+VATPriceInvoiceDetail(detail) += VATPriceUserInvoiceDetail(detail);
+
+overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
+    VATPriceUserInvoiceDetail(d) <- VATPriceUserInvoiceDetail(detail);      
+} 
 
 // -------------------------------- Расширение накладной свойствами декларации -------------------------- //
 
@@ -235,7 +244,8 @@ showDeclarationInvoice(invoice) += showDeclarationUserInvoice(invoice);
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCustoms() showDeclarationUserInvoice
     PROPERTIES(d) BACKGROUND backgroundCustoms() SHOWIF showDeclarationUserInvoice(i) BEFORE numberVATUserInvoiceDetail
-        codeCustomsGroupUserInvoiceDetail, nameVATCustomsExceptionUserInvoiceDetail, dutyPriceUserInvoiceDetail, registrationPriceUserInvoiceDetail
+        codeCustomsGroupUserInvoiceDetail, nameVATCustomsExceptionUserInvoiceDetail, dutyPriceUserInvoiceDetail, 
+        registrationPriceUserInvoiceDetail, VATPriceUserInvoiceDetail
 ;
 EXTEND DESIGN userInvoice {
     headerExtraParams {
@@ -312,7 +322,7 @@ EXTEND FORM declaration
                    nameCustomsUserInvoiceDetail, nameCountrySkuUserInvoiceDetail, sumNetWeightUserInvoiceDetail
     PROPERTIES(id) codeCustomsGroupUserInvoiceDetail, nameVATCustomsExceptionUserInvoiceDetail BACKGROUND backgroundVATCustomsExceptionUserInvoiceDetail(id)
     PROPERTIES(id) READONLY quantityUserInvoiceDetail, priceUserInvoiceDetail
-    PROPERTIES(id) dutyPriceUserInvoiceDetail, registrationPriceUserInvoiceDetail
+    PROPERTIES(id) dutyPriceUserInvoiceDetail, registrationPriceUserInvoiceDetail, VATPriceUserInvoiceDetail
 
     PROPERTIES (d) selectInvoicesDeclaration TODRAW id FORCE PANEL TOOLBAR,
                    setCustomsGroupUserInvoiceDetailDeclaration TODRAW id FORCE PANEL TOOLBAR
@@ -884,6 +894,17 @@ calcRegistrationSumUserInvoiceDetail 'Таможенный сбор' (d) =
 
 calcRegistrationPriceUserInvoiceDetail 'Таможенный сбор (ед.)' (d) = round(calcRegistrationSumUserInvoiceDetail(d) / quantityUserInvoiceDetail(d),
                                                                                   roundDeclaration(declarationUserInvoiceDetail(d)));
+// НДС
+VATSumDeclarationInvoiceDetail(d) = GROUP SUM VATSumDeclarationDetail(dd) BY declarationInvoiceDetailDeclarationDetail(dd); 
+
+calcVATSumUserInvoiceDetail (d) =
+    PARTITION UNGROUP VATSumDeclarationInvoiceDetail
+              PROPORTION ROUND(8) coeffDeclarationInvoiceDetailUserInvoiceDetail(d)
+              BY declarationInvoiceDetailUserInvoiceDetail(d)
+              ORDER d;
+
+calcVATPriceUserInvoiceDetail 'НДС (ед.)' (d) = round(calcVATSumUserInvoiceDetail(d) / quantityUserInvoiceDetail(d),
+                                                           roundDeclaration(declarationUserInvoiceDetail(d)));                                                                                                                                                                   
 
 // Расчет расходов
 recalculateDutyPriceInvoiceDeclaration 'Рассчитать пошлины (за ед.)' = ACTION (declaration) {
@@ -894,8 +915,13 @@ recalculateRegistrationPriceInvoiceDeclaration 'Рассчитать сбор (�
     registrationPriceUserInvoiceDetail(d) <- calcRegistrationPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
 } TOOLBAR;
 
+recalculateVATPriceInvoiceDeclaration 'Рассчитать НДС (за ед.)' = ACTION (declaration) {
+    VATPriceUserInvoiceDetail(d) <- calcVATPriceUserInvoiceDetail(d) WHERE declarationUserInvoiceDetail(d) == declaration;
+} TOOLBAR;
+
 EXTEND FORM declaration
-    PROPERTIES(d) recalculateDutyPriceInvoiceDeclaration TODRAW id, recalculateRegistrationPriceInvoiceDeclaration TODRAW id 
+    PROPERTIES(d) recalculateDutyPriceInvoiceDeclaration TODRAW id, recalculateRegistrationPriceInvoiceDeclaration TODRAW id,
+                  recalculateVATPriceInvoiceDeclaration TODRAW id
 ;
 
 //-- Операция
@@ -932,7 +958,7 @@ EXTEND FORM userInvoice
     OBJECTS d3 = UserInvoiceDetail FIXED GRID
     PROPERTIES(d3) SHOWIF showDeclarationUserInvoice(i) READONLY indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, descriptionDeclarationUserInvoiceDetail, 
                    codeCustomsGroupUserInvoiceDetail, nameVATCustomsExceptionUserInvoiceDetail, priceUserInvoiceDetail
-    PROPERTIES(d3) dutyPriceUserInvoiceDetail, registrationPriceUserInvoiceDetail                
+    PROPERTIES(d3) dutyPriceUserInvoiceDetail, registrationPriceUserInvoiceDetail, VATPriceUserInvoiceDetail                
     PROPERTIES(i) createDeclarationDetailUserInvoice TODRAW d3 SHOWIF showDeclarationUserInvoice(i), descriptionDeclarationTabUserInvoice = descriptionDeclarationUserInvoice SHOWIF showDeclarationUserInvoice(i)                      
     FILTERS userInvoiceUserInvoiceDetail(d3) == i                   
                    
