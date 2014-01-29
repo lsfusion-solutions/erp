@@ -4,6 +4,7 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.ByReference;
 import com.sun.jna.ptr.IntByReference;
+import org.apache.log4j.Logger;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -11,6 +12,8 @@ import java.math.BigInteger;
 
 public class FiscalVMK {
 
+    static Logger logger = Logger.getLogger("CashRegisterLogger");
+    
     public interface vmkDLL extends Library {
 
         vmkDLL vmk = (vmkDLL) Native.loadLibrary("vmk", vmkDLL.class);
@@ -76,9 +79,11 @@ public class FiscalVMK {
     }
 
     public static String getError(boolean closePort) {
+        logAction("vmk_lasterror");
         Integer lastError = vmkDLL.vmk.vmk_lasterror();
         int length = 255;
         byte[] lastErrorText = new byte[length];
+        logAction("vmk_errorstring", lastError, Native.toString(lastErrorText, "cp1251"), length);
         vmkDLL.vmk.vmk_errorstring(lastError, lastErrorText, length);
         if (closePort)
             closePort();
@@ -86,25 +91,30 @@ public class FiscalVMK {
     }
 
     public static void openPort(int comPort, int baudRate) {
+        logAction("vmk_open", "COM" + comPort, baudRate);
         if (!vmkDLL.vmk.vmk_open("COM" + comPort, baudRate))
             checkErrors(true);
     }
 
     public static void closePort() {
+        logAction("vmk_close");
         vmkDLL.vmk.vmk_close();
     }
 
     public static boolean openReceipt(int type) {    //0 - продажа, 1 - возврат
+        logAction("vmk_opencheck", type);
         return vmkDLL.vmk.vmk_opencheck(type);
     }
 
     public static boolean cancelReceipt() {
+        logAction( "vmk_cancel");
         return vmkDLL.vmk.vmk_cancel();
     }
 
     public static boolean getFiscalClosureStatus() {
         IntByReference rej = new IntByReference();
         IntByReference stat = new IntByReference();
+        logAction("vmk_ksastat",rej, stat);
         if (!vmkDLL.vmk.vmk_ksastat(rej, stat))
             return false;
         if (BigInteger.valueOf(stat.getValue()).testBit(14))
@@ -114,42 +124,50 @@ public class FiscalVMK {
     }
 
     public static boolean printFiscalText(String msg) {
+        logAction("vmk_prnch", msg);
         return vmkDLL.vmk.vmk_prnch(msg);
     }
 
     public static boolean repeatReceipt() {
+        logAction("vmk_repeat");
         return vmkDLL.vmk.vmk_repeat();
     }
 
     public static boolean totalCash(BigDecimal sum) {
         if (sum == null)
             return true;
+        logAction("vmk_oplat", 0, Math.abs(sum.intValue()), 0);
         return vmkDLL.vmk.vmk_oplat(0, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
     public static boolean totalCard(BigDecimal sum) {
         if (sum == null)
             return true;
+        logAction("vmk_oplat", 1, Math.abs(sum.intValue()), 0);
         return vmkDLL.vmk.vmk_oplat(1, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
     public static boolean totalGiftCard(BigDecimal sum) {
         if (sum == null)
             return true;
+        logAction("vmk_oplat", 2, Math.abs(sum.intValue()), 0);
         return vmkDLL.vmk.vmk_oplat(2, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
     public static void xReport() {
+        logAction("vmk_xotch");
         if (!vmkDLL.vmk.vmk_xotch())
             checkErrors(true);
     }
 
     public static void zReport() {
+        logAction("vmk_zotch");
         if (!vmkDLL.vmk.vmk_zotch())
             checkErrors(true);
     }
 
     public static void advancePaper(int lines) {
+        logAction("vmk_feed", 1, lines, 1);
         if (!vmkDLL.vmk.vmk_feed(1, lines, 1))
             checkErrors(true);
     }
@@ -157,9 +175,11 @@ public class FiscalVMK {
     public static boolean inOut(Long sum) {
 
         if (sum > 0) {
+            logAction("vmk_vnes", sum);
             if (!vmkDLL.vmk.vmk_vnes(sum))
                 checkErrors(true);
         } else {
+            logAction("vmk_vyd", -sum);
             if (!vmkDLL.vmk.vmk_vyd(-sum))
                 return false;
         }
@@ -167,6 +187,7 @@ public class FiscalVMK {
     }
 
     public static boolean openDrawer() {
+        logAction("vmk_opendrawer", 0);
         return vmkDLL.vmk.vmk_opendrawer(0);
     }
 
@@ -179,7 +200,8 @@ public class FiscalVMK {
             while (secondLine.length() < 11)
                 secondLine = " " + secondLine;
             secondLine = "ИТОГ:" + secondLine;
-            if (!vmkDLL.vmk.vmk_indik((firstLine + "\0").getBytes("cp1251"), (new String(secondLine + "\0")).getBytes("cp1251")))
+            logAction("vmk_indik", firstLine, secondLine);
+            if (!vmkDLL.vmk.vmk_indik((firstLine + "\0").getBytes("cp1251"), (secondLine + "\0").getBytes("cp1251")))
                 checkErrors(true);
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
@@ -188,6 +210,7 @@ public class FiscalVMK {
 
     public static boolean registerItem(ReceiptItem item) {
         try {
+            logAction("vmk_sale", item.barcode, (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
             return vmkDLL.vmk.vmk_sale(item.barcode, (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
         } catch (UnsupportedEncodingException e) {
             return false;
@@ -199,6 +222,7 @@ public class FiscalVMK {
             return true;
         boolean discount = item.articleDiscSum < 0;
         try {
+            logAction("vmk_discount", discount ? "Скидка" : "Наценка", (int) Math.abs(item.articleDiscSum), discount ? 3 : 1);
             return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), (int) Math.abs(item.articleDiscSum), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;
@@ -206,6 +230,7 @@ public class FiscalVMK {
     }
 
     public static boolean subtotal() {
+        logAction("vmk_subtotal");
         if (!vmkDLL.vmk.vmk_subtotal())
             return false;
         return true;
@@ -214,9 +239,11 @@ public class FiscalVMK {
     public static void opensmIfClose() {
         IntByReference rej = new IntByReference();
         IntByReference stat = new IntByReference();
+        logAction("vmk_ksastat", rej, stat);
         if (!vmkDLL.vmk.vmk_ksastat(rej, stat))
             checkErrors(true);
         if (!BigInteger.valueOf(stat.getValue()).testBit(15))//15 - открыта ли смена
+            logAction("vmk_opensmn");
             if (!vmkDLL.vmk.vmk_opensmn())
                 checkErrors(true);
     }
@@ -227,6 +254,7 @@ public class FiscalVMK {
     }
 
     public static int checkErrors(Boolean throwException) {
+        logAction("vmk_lasterror");
         Integer lastError = vmkDLL.vmk.vmk_lasterror();
         if (lastError != 0) {
             if (throwException)
@@ -237,6 +265,7 @@ public class FiscalVMK {
 
     public static int getReceiptNumber(Boolean throwException) {
         byte[] buffer = new byte[50];
+        logAction("vmk_ksainfo", Native.toString(buffer, "cp1251"), 50);
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
             checkErrors(throwException);
         String result = Native.toString(buffer, "cp1251");
@@ -245,10 +274,18 @@ public class FiscalVMK {
 
     public static int getZReportNumber(Boolean throwException) {
         byte[] buffer = new byte[50];
+        logAction("vmk_ksainfo", Native.toString(buffer, "cp1251"), 50);
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
             checkErrors(throwException);
         String result = Native.toString(buffer, "cp1251");
         return Integer.parseInt(result.split(",")[1]);
+    }
+    
+    private static void logAction(Object... actionParams) {
+        String pattern = "";
+        for(Object param : actionParams)
+            pattern += "%s;";
+        logger.info(String.format(pattern, actionParams));
     }
 }
 
