@@ -376,3 +376,30 @@ pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(price
 inPriceListLedgerStock (ledger, stock) += stockRevaluationDetail(ledger) == stock;
 inPriceListLedgerBatch (ledger, batch) += batchRevaluationDetail(ledger) == batch; 
 
+// ---------------------- Создание переоценки до учетной цены ----------------------- //
+
+addAdjustmentAccountSumDetailRevaluation 'Привести учетные суммы к ценам партий' = ACTION (revaluation) {
+    LOCAL sumBatch = NUMERIC[16,2] (Batch);
+    sumBatch(b) <- accountSumBBatchStockDateTime(b, stockRevaluation(revaluation), dateTimeRevaluation(revaluation));
+    
+    LOCAL sumBatchSku = NUMERIC[16,2] (Sku);
+    sumBatchSku(s) <- [= GROUP SUM sumBatch(b) BY skuBatch(b)](s);
+    
+    LOCAL sumSku = NUMERIC[16,2] (Sku);
+    sumSku(s) <- sumBSkuStockDateTime(s, stockRevaluation(revaluation), dateTimeRevaluation(revaluation));
+    
+    LOCAL diffSumSku = NUMERIC[16,2] (Sku);
+    diffSumSku(s) <- sumSku(s) (-) sumBatchSku(s);
+    
+    FOR diffSumSku(s) IF diffSumSku(s) != 0.0 ADDOBJ d = UserRevaluationDetail DO {
+        userRevaluationUserRevaluationDetail(d) <- revaluation;
+        skuUserRevaluationDetail(d) <- s;
+        quantityUserRevaluationDetail(d) <- balanceBSkuStockDateTime(d, stockRevaluation(revaluation), dateTimeRevaluation(revaluation));
+        curSumUserRevaluationDetail(d) <- sumSku(s);
+        sumUserRevaluationDetail(d) <- sumBatchSku(s);
+    }  
+} TOOLBAR;
+
+EXTEND FORM userRevaluation
+    PROPERTIES(p) addAdjustmentAccountSumDetailRevaluation TODRAW d
+;
