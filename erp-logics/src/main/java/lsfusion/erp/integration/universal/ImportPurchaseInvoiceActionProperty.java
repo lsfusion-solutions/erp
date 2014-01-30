@@ -351,6 +351,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idItem);
 
+            String replaceField = (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "idBarcodeSku" : "idBatch";
             String iGroupAggr = (keyType == null || keyType.equals("item")) ? "itemId" : keyType.equals("barcode") ? "skuIdBarcode" : "skuBatchId";
             ImportField iField = (keyType == null || keyType.equals("item")) ? idItemField : keyType.equals("barcode") ? idBarcodeSkuField : idBatchField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
@@ -358,9 +359,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             keys.add(itemKey);
             props.add(new ImportProperty(idItemField, getLCP("idItem").getMapping(itemKey), getReplaceOnlyNull(importColumns, "idItem")));
             props.add(new ImportProperty(iField, getLCP("Purchase.skuInvoiceDetail").getMapping(userInvoiceDetailKey),
-                    LM.object(getClass("Sku")).getMapping(itemKey), getReplaceOnlyNull(importColumns, "idItem")));
+                    LM.object(getClass("Sku")).getMapping(itemKey), getReplaceOnlyNull(importColumns, replaceField)));
             props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(barcodeKey),
-                    LM.object(getClass("Item")).getMapping(itemKey), getReplaceOnlyNull(importColumns, "idItem")));
+                    LM.object(getClass("Item")).getMapping(itemKey), getReplaceOnlyNull(importColumns, replaceField)));
 
             if (showField(userInvoiceDetailsList, "captionItem")) {
                 addDataField(props, fields, importColumns, "captionItem", "captionItem", itemKey);
