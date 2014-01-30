@@ -1,6 +1,7 @@
 package lsfusion.erp.integration;
 
 import lsfusion.base.ExceptionUtils;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.Settings;
 import lsfusion.server.classes.*;
 import lsfusion.server.data.SQLHandledException;
@@ -97,6 +98,8 @@ public class ImportActionProperty {
     private void importParentGroups(List<ItemGroup> parentGroupsList, boolean disableVolatileStats) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (parentGroupsList != null) {
 
+            ServerLoggers.systemLogger.info("importParentGroups");
+
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
@@ -139,6 +142,8 @@ public class ImportActionProperty {
 
         if (itemGroupsList != null) {
 
+            ServerLoggers.systemLogger.info("importItemGroups");
+
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
@@ -177,6 +182,8 @@ public class ImportActionProperty {
     private void importWares(List<Ware> waresList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (warePurchaseInvoiceLM != null && waresList != null) {
+
+            ServerLoggers.systemLogger.info("importWares");
 
             DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
 
@@ -245,6 +252,8 @@ public class ImportActionProperty {
         if (uomsList == null)
             return;
 
+        ServerLoggers.systemLogger.info("importUOMs");
+
         List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
         List<ImportField> fields = new ArrayList<ImportField>();
         List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
@@ -290,6 +299,8 @@ public class ImportActionProperty {
                                    boolean skipKeys, boolean disableVolatileStats)
             throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         if (itemsList.size() == 0) return;
+
+        ServerLoggers.systemLogger.info("importItems " + itemsList.size());
 
         List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
         List<ImportField> fields = new ArrayList<ImportField>();
@@ -640,6 +651,8 @@ public class ImportActionProperty {
                 if (dataUserInvoiceDetail.isEmpty())
                     return;
 
+                ServerLoggers.systemLogger.info("importUserInvoices " + dataUserInvoiceDetail.size());
+                
                 List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
                 List<ImportField> fields = new ArrayList<ImportField>();
                 List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
@@ -1095,6 +1108,8 @@ public class ImportActionProperty {
                 if (dataPriceListStores.isEmpty())
                     return;
 
+                ServerLoggers.systemLogger.info("importPriceListStores " + dataPriceListStores.size());
+
                 DataSession session = context.createSession();
                 if(!disableVolatileStats)
                     session.pushVolatileStats();
@@ -1210,6 +1225,8 @@ public class ImportActionProperty {
                 if (dataPriceListSuppliers.isEmpty())
                     return;
 
+                ServerLoggers.systemLogger.info("importPriceListSuppliers " + dataPriceListSuppliers.size());
+
                 DataSession session = context.createSession();
                 if(!disableVolatileStats)
                     session.pushVolatileStats();
@@ -1305,6 +1322,8 @@ public class ImportActionProperty {
     private void importLegalEntities(List<LegalEntity> legalEntitiesList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (legalEntitiesList != null) {
+
+            ServerLoggers.systemLogger.info("importLegalEntities");
 
             DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
 
@@ -1478,6 +1497,8 @@ public class ImportActionProperty {
 
         if (employeesList != null) {
 
+            ServerLoggers.systemLogger.info("importEmployees");
+
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
@@ -1540,6 +1561,8 @@ public class ImportActionProperty {
 
         if (warehouseGroupsList != null) {
 
+            ServerLoggers.systemLogger.info("importWarehouseGroups");
+
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
@@ -1578,6 +1601,8 @@ public class ImportActionProperty {
     private void importWarehouses(List<Warehouse> warehousesList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (warehousesList != null) {
+
+            ServerLoggers.systemLogger.info("importWarehouses");
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
@@ -1644,6 +1669,8 @@ public class ImportActionProperty {
     private void importStores(List<LegalEntity> storesList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (storeLM != null && storesList != null) {
+
+            ServerLoggers.systemLogger.info("importStores");
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
@@ -1721,6 +1748,8 @@ public class ImportActionProperty {
 
         if (storeLM != null && departmentStoresList != null) {
 
+            ServerLoggers.systemLogger.info("importDepartmentStores");
+
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
@@ -1769,6 +1798,8 @@ public class ImportActionProperty {
     private void importBanks(List<Bank> banksList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (banksList != null) {
+
+            ServerLoggers.systemLogger.info("importBanks");
 
             DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
 
@@ -1835,6 +1866,8 @@ public class ImportActionProperty {
 
         if (writeOffItemLM != null && rateWastesList != null) {
 
+            ServerLoggers.systemLogger.info("importRateWastes");
+
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
@@ -1889,6 +1922,8 @@ public class ImportActionProperty {
     private void importContracts(List<Contract> contractsList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (contractsList != null) {
+
+            ServerLoggers.systemLogger.info("importContacts");
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
