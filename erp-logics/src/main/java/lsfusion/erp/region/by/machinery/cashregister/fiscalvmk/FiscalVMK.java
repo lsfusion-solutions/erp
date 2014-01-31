@@ -12,7 +12,10 @@ import java.math.BigInteger;
 
 public class FiscalVMK {
 
-    static Logger logger = Logger.getLogger("CashRegisterLogger");
+    static Logger logger;
+    static {
+        logger = Logger.getLogger("CashRegisterLogger");
+    }
     
     public interface vmkDLL extends Library {
 
@@ -83,7 +86,7 @@ public class FiscalVMK {
         Integer lastError = vmkDLL.vmk.vmk_lasterror();
         int length = 255;
         byte[] lastErrorText = new byte[length];
-        logAction("vmk_errorstring", lastError, Native.toString(lastErrorText, "cp1251"), length);
+        logAction("vmk_errorstring");
         vmkDLL.vmk.vmk_errorstring(lastError, lastErrorText, length);
         if (closePort)
             closePort();
@@ -107,14 +110,14 @@ public class FiscalVMK {
     }
 
     public static boolean cancelReceipt() {
-        logAction( "vmk_cancel");
+        logAction("vmk_cancel");
         return vmkDLL.vmk.vmk_cancel();
     }
 
     public static boolean getFiscalClosureStatus() {
         IntByReference rej = new IntByReference();
         IntByReference stat = new IntByReference();
-        logAction("vmk_ksastat",rej, stat);
+        logAction("vmk_ksastat");
         if (!vmkDLL.vmk.vmk_ksastat(rej, stat))
             return false;
         if (BigInteger.valueOf(stat.getValue()).testBit(14))
@@ -187,7 +190,7 @@ public class FiscalVMK {
     }
 
     public static boolean openDrawer() {
-        logAction("vmk_opendrawer", 0);
+        logAction("vmk_opendrawer");
         return vmkDLL.vmk.vmk_opendrawer(0);
     }
 
@@ -239,13 +242,14 @@ public class FiscalVMK {
     public static void opensmIfClose() {
         IntByReference rej = new IntByReference();
         IntByReference stat = new IntByReference();
-        logAction("vmk_ksastat", rej, stat);
+        logAction("vmk_ksastat");
         if (!vmkDLL.vmk.vmk_ksastat(rej, stat))
             checkErrors(true);
-        if (!BigInteger.valueOf(stat.getValue()).testBit(15))//15 - открыта ли смена
+        if (!BigInteger.valueOf(stat.getValue()).testBit(15)) {//15 - открыта ли смена 
             logAction("vmk_opensmn");
             if (!vmkDLL.vmk.vmk_opensmn())
                 checkErrors(true);
+        }
     }
 
     private static String toStr(double value) {
@@ -265,7 +269,7 @@ public class FiscalVMK {
 
     public static int getReceiptNumber(Boolean throwException) {
         byte[] buffer = new byte[50];
-        logAction("vmk_ksainfo", Native.toString(buffer, "cp1251"), 50);
+        logAction("vmk_ksainfo");
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
             checkErrors(throwException);
         String result = Native.toString(buffer, "cp1251");
@@ -274,7 +278,7 @@ public class FiscalVMK {
 
     public static int getZReportNumber(Boolean throwException) {
         byte[] buffer = new byte[50];
-        logAction("vmk_ksainfo", Native.toString(buffer, "cp1251"), 50);
+        logAction("vmk_ksainfo");
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
             checkErrors(throwException);
         String result = Native.toString(buffer, "cp1251");
