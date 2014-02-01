@@ -18,9 +18,8 @@ itemGroupArticle  = DATA ItemGroup(Article);
 nameItemGroupArticle 'Товарная группа' (Article) = nameItemGroup(itemGroupArticle(Article));
 idItemGroupArticle 'Код группы' (Article) = idItemGroup(itemGroupArticle(Article));
 
-WHEN SESSION  CHANGED(captionItemGroup(g)) DO
-    captionArticle(a) <- captionItemGroup(g)
-        WHERE itemGroupArticle(a) == g AND NOT captionArticle(a);
+WHEN SESSION CHANGED(itemGroupArticle(a)) AND NOT captionArticle(a) DO
+    captionArticle(a) <- captionItemGroup(itemGroupArticle(a));
 
 TABLE itemGroupArticle(ItemGroup, Article);
 isParentGroupArticle(group, article) = isParentItemGroupItemGroup(itemGroupArticle(article), group) PERSISTENT INDEXED;
@@ -157,6 +156,8 @@ captionArticleItem 'Aртикула' (item) = captionArticle(articleItem(item));
 imageArticleItem 'Изображение (артикул)' (item) = imageArticle(articleItem(item));
 overImageItem (item) += imageArticleItem (item);
 
+countItemArticle 'Кол-во товаров' (a) = GROUP SUM 1 BY articleItem(i); 
+
 // Цвет
 CLASS Color 'Цвет товара';
 TABLE color (Color);
@@ -206,9 +207,8 @@ EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameCo
 UOMArticle  = DATA UOM (Article);
 nameUOMArticle 'Единица измерения' (article) = nameUOM(UOMArticle(article)) IN itemBase MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
-WHEN SESSION  CHANGED(UOMItemGroup(g)) DO
-    UOMArticle(a) <- UOMItemGroup(g)
-        WHERE itemGroupArticle(a) == g AND NOT UOMArticle(a);
+WHEN SESSION CHANGED(itemGroupArticle(a)) AND NOT UOMArticle(a) DO
+    UOMArticle(a) <- UOMItemGroup(itemGroupArticle(a));
 
 //  Состав
 compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN itemBase MINCHARWIDTH 30 PREFCHARWIDTH 40;
