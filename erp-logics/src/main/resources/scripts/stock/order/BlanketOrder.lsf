@@ -34,7 +34,6 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
     @defineDocumentHeaderNumber(BlanketOrder);
     
     @defineNumeratedDefault(BlanketOrder, 'Множественные заказы'###sign, 'ЗМ');
-
     @defineDocumentDescription(blanketOrder, 'Множественный заказ'###sign);
 
     @defineDocumentCurrency (blanketOrder);
@@ -44,6 +43,16 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
 
     customerStockBlanketOrderDetail (blanketOrderDetail) = DATA Stock (BlanketOrderDetail);
     nameCustomerStockBlanketOrderDetail 'Склад покупателя' (blanketOrderDetail) = nameStock(customerStockBlanketOrderDetail(blanketOrderDetail));
+
+    closeDateBlanketOrder 'Дата автоматического закрытия' = DATA DATE (BlanketOrder) IN documentPrm;
+    closeDataDateBlanketOrderDetail 'Дата автоматического закрытия' = DATA DATE (BlanketOrderDetail) IN documentPrm;
+
+    closeDateBlanketOrderDetail 'Дата автоматического закрытия' (detail) = OVERRIDE closeDateBlanketOrder(blanketOrderBlanketOrderDetail(detail)), closeDataDateBlanketOrderDetail(detail) PERSISTENT;
+
+    closeDataDateBlanketOrderDetail(detail) <- sumDate(shipmentDateBlanketOrderDetail(detail), quantityDaysCloseOrdersStock(customerStockBlanketOrderDetail(detail)))
+        WHEN CHANGED(shipmentDateBlanketOrderDetail(detail)) OR CHANGED(customerStockBlanketOrderDetail(detail));    
+
+    defaultClosedBlanketOrderDetail(detail) = closeDateBlanketOrderDetail(detail) < currentDate() ;
 
     @defineDocumentDetailSku(blanketOrder, sku);
     @defineDocumentDetailQuantity(blanketOrder);
