@@ -73,7 +73,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
                         for (byte[] file : fileList) {
                             
-                            List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = imp.importUserInvoicesFromFile(session,
+                            List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = imp.importUserInvoicesFromFile(context, session,
                                     null, importColumns, file, fileExtension, startRow, isPosted, csvSeparator, 
                                     primaryKeyType, secondaryKeyType, keyIsDigit);
 
