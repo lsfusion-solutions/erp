@@ -77,7 +77,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
                 boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
-                
+
                 String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject), ";");
                 Integer startRow = (Integer) getLCP("startRowImportType").read(session, importTypeObject);
                 startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
@@ -100,7 +100,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                         for (byte[] file : fileList) {
 
-                            List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = importUserInvoicesFromFile(session,
+                            List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = importUserInvoicesFromFile(context, session,
                                     (Integer) userInvoiceObject.object, importColumns, file, fileExtension, startRow,
                                     isPosted, csvSeparator, primaryKeyType, secondaryKeyType, keyIsDigit);
 
@@ -883,23 +883,23 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                                 data.get(i).add(userInvoiceDetailsList.get(i).nameCollection);
                         }
                     }
-                }                
+                }
             }
 
             ImportTable table = new ImportTable(fields, data);
 
-            if(!disableVolatileStats)
+            if (!disableVolatileStats)
                 session.pushVolatileStats();
             IntegrationService service = new IntegrationService(session, table, keys, props);
-            if(!disableVolatileStats)
+            if (!disableVolatileStats)
                 service.synchronize(true, false);
             session.popVolatileStats();
         }
     }
 
-    protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(DataSession session, Integer userInvoiceObject, 
+    protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataSession session, Integer userInvoiceObject,
                                                                            Map<String, ImportColumnDetail> importColumns, byte[] file, String fileExtension,
-                                                                           Integer startRow, Boolean isPosted, String csvSeparator, 
+                                                                           Integer startRow, Boolean isPosted, String csvSeparator,
                                                                            String primaryKeyType, String secondaryKeyType, boolean keyIsDigit)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
@@ -911,7 +911,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         if (fileExtension.equals("DBF"))
             userInvoiceDetailsList = importUserInvoicesFromDBF(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("XLS"))
-            userInvoiceDetailsList = importUserInvoicesFromXLS(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("XLSX"))
             userInvoiceDetailsList = importUserInvoicesFromXLSX(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("CSV"))
@@ -922,7 +922,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         return userInvoiceDetailsList;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                                         String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit,
                                                                         Integer startRow, Boolean isPosted, Integer userInvoiceObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -932,114 +932,122 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
-        Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
-        Sheet sheet = wb.getSheet(0);
-
-        Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
-        currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
-
-        for (int i = startRow - 1; i < sheet.getRows(); i++) {
-            String numberDocument = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
-            String idDocument = getXLSFieldValue(sheet, i, importColumns.get("idDocument"), numberDocument);
-            Date dateDocument = getXLSDateFieldValue(sheet, i, importColumns.get("dateDocument"));
-            String idSupplier = getXLSFieldValue(sheet, i, importColumns.get("idSupplier"));
-            String idSupplierStock = getXLSFieldValue(sheet, i, importColumns.get("idSupplierStock"));
-            String currencyDocument = getXLSFieldValue(sheet, i, importColumns.get("currencyDocument"));
-            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
-            String originalCustomsGroupItem = getXLSFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
-            String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
-            String dataIndexValue = getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(primaryList.size() + secondaryList.size() + 1));
-            Integer dataIndex = dataIndexValue == null ? null : Integer.parseInt(dataIndexValue);
-            String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
-            String idItemGroup = getXLSFieldValue(sheet, i, importColumns.get("idItemGroup"));
-            String captionItem = getXLSFieldValue(sheet, i, importColumns.get("captionItem"));
-            String originalCaptionItem = getXLSFieldValue(sheet, i, importColumns.get("originalCaptionItem"));
-            String UOMItem = getXLSFieldValue(sheet, i, importColumns.get("UOMItem"));
-            String idManufacturer = getXLSFieldValue(sheet, i, importColumns.get("idManufacturer"));
-            String nameManufacturer = getXLSFieldValue(sheet, i, importColumns.get("nameManufacturer"));
-            String nameCountry = modifyNameCountry(getXLSFieldValue(sheet, i, importColumns.get("nameCountry")));
-            String nameOriginCountry = modifyNameCountry(getXLSFieldValue(sheet, i, importColumns.get("nameOriginCountry")));
-            String importCountryBatch = getXLSFieldValue(sheet, i, importColumns.get("importCountryBatch"));
-            String idCustomerStock = getXLSFieldValue(sheet, i, importColumns.get("idCustomerStock"));
-            ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
-            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-            String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
-            BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
-            BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("price"));
-            if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
-                price = null;
-            BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
-            BigDecimal valueVAT = parseVAT(getXLSFieldValue(sheet, i, importColumns.get("valueVAT")));
-            BigDecimal sumVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
-            Date dateVAT = dateDocument == null ? currentDate : dateDocument;
-            BigDecimal invoiceSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
-            BigDecimal manufacturingPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
-            String contractPrice = getXLSFieldValue(sheet, i, importColumns.get("contractPrice"));
-            BigDecimal shipmentPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("shipmentPrice"));
-            BigDecimal shipmentSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("shipmentSum"));
-            BigDecimal rateExchange = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("rateExchange"));
-            String numberCompliance = getXLSFieldValue(sheet, i, importColumns.get("numberCompliance"));
-            Date dateCompliance = getXLSDateFieldValue(sheet, i, importColumns.get("dateCompliance"));
-            String declaration = getXLSFieldValue(sheet, i, importColumns.get("declaration"));
-            Date expiryDate = getXLSDateFieldValue(sheet, i, importColumns.get("expiryDate"));
-            Date manufactureDate = getXLSDateFieldValue(sheet, i, importColumns.get("manufactureDate"));
-            String pharmacyPriceGroupItem = getXLSFieldValue(sheet, i, importColumns.get("pharmacyPriceGroupItem"));
-            String seriesPharmacy = getXLSFieldValue(sheet, i, importColumns.get("seriesPharmacy"));
-            String idArticle = getXLSFieldValue(sheet, i, importColumns.get("idArticle"));
-            String captionArticle = getXLSFieldValue(sheet, i, importColumns.get("captionArticle"));
-            String originalCaptionArticle = getXLSFieldValue(sheet, i, importColumns.get("originalCaptionArticle"));
-            String idColor = getXLSFieldValue(sheet, i, importColumns.get("idColor"));
-            String nameColor = getXLSFieldValue(sheet, i, importColumns.get("nameColor"));
-            String idCollection = getXLSFieldValue(sheet, i, importColumns.get("idCollection"));
-            String nameCollection = getXLSFieldValue(sheet, i, importColumns.get("nameCollection"));
-            String idSize = getXLSFieldValue(sheet, i, importColumns.get("idSize"));
-            String nameSize = getXLSFieldValue(sheet, i, importColumns.get("nameSize"));
-            String nameOriginalSize = getXLSFieldValue(sheet, i, importColumns.get("nameOriginalSize"));
-            String idSeasonYear = getXLSFieldValue(sheet, i, importColumns.get("idSeasonYear"));
-            String idSeason = getXLSFieldValue(sheet, i, importColumns.get("idSeason"));
-            String nameSeason = getXLSFieldValue(sheet, i, importColumns.get("nameSeason"));
-            String idBrand = getXLSFieldValue(sheet, i, importColumns.get("idBrand"));
-            String nameBrand = getXLSFieldValue(sheet, i, importColumns.get("nameBrand"));
-            String idBox = getXLSFieldValue(sheet, i, importColumns.get("idBox"));
-            String nameBox = getXLSFieldValue(sheet, i, importColumns.get("nameBox"));
-            String idTheme = getXLSFieldValue(sheet, i, importColumns.get("idTheme"));
-            String nameTheme = getXLSFieldValue(sheet, i, importColumns.get("nameTheme"));
-            BigDecimal netWeight = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("netWeight"));
-            BigDecimal netWeightSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("netWeightSum"));
-            netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
-            BigDecimal grossWeight = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("grossWeight"));
-            BigDecimal grossWeightSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("grossWeightSum"));
-            grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
-            String composition = getXLSFieldValue(sheet, i, importColumns.get("composition"));
-            String originalComposition = getXLSFieldValue(sheet, i, importColumns.get("originalComposition"));
-
-            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
-                    dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch,
-                    dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem,
-                    idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer,
-                    idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, "БЕЛАРУСЬ",
-                    invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
-                    numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem,
-                    seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection,
-                    nameCollection, idSize, nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand,
-                    nameBrand, idBox, nameBox, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum,
-                    composition, originalComposition);
-
-            String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
-            String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
-                primaryList.add(purchaseInvoiceDetail);
-            else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
-                primaryList.add(purchaseInvoiceDetail);
+        Workbook wb = null;
+        try {
+            wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
+        } catch (Exception e) {
+            context.requestUserInteraction(new MessageClientAction("Файл неизвестного либо устаревшего формата", "Ошибка при открытии файла"));
         }
-        currentTimestamp = null;
+        if (wb != null) {
+            Sheet sheet = wb.getSheet(0);
 
-        return Arrays.asList(primaryList, secondaryList);
+            Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+            currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+
+            for (int i = startRow - 1; i < sheet.getRows(); i++) {
+                String numberDocument = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
+                String idDocument = getXLSFieldValue(sheet, i, importColumns.get("idDocument"), numberDocument);
+                Date dateDocument = getXLSDateFieldValue(sheet, i, importColumns.get("dateDocument"));
+                String idSupplier = getXLSFieldValue(sheet, i, importColumns.get("idSupplier"));
+                String idSupplierStock = getXLSFieldValue(sheet, i, importColumns.get("idSupplierStock"));
+                String currencyDocument = getXLSFieldValue(sheet, i, importColumns.get("currencyDocument"));
+                String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
+                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
+                String originalCustomsGroupItem = getXLSFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
+                String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
+                String dataIndexValue = getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(primaryList.size() + secondaryList.size() + 1));
+                Integer dataIndex = dataIndexValue == null ? null : Integer.parseInt(dataIndexValue);
+                String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
+                String idItemGroup = getXLSFieldValue(sheet, i, importColumns.get("idItemGroup"));
+                String captionItem = getXLSFieldValue(sheet, i, importColumns.get("captionItem"));
+                String originalCaptionItem = getXLSFieldValue(sheet, i, importColumns.get("originalCaptionItem"));
+                String UOMItem = getXLSFieldValue(sheet, i, importColumns.get("UOMItem"));
+                String idManufacturer = getXLSFieldValue(sheet, i, importColumns.get("idManufacturer"));
+                String nameManufacturer = getXLSFieldValue(sheet, i, importColumns.get("nameManufacturer"));
+                String nameCountry = modifyNameCountry(getXLSFieldValue(sheet, i, importColumns.get("nameCountry")));
+                String nameOriginCountry = modifyNameCountry(getXLSFieldValue(sheet, i, importColumns.get("nameOriginCountry")));
+                String importCountryBatch = getXLSFieldValue(sheet, i, importColumns.get("importCountryBatch"));
+                String idCustomerStock = getXLSFieldValue(sheet, i, importColumns.get("idCustomerStock"));
+                ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
+                ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
+                String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
+                BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("quantity"));
+                BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("price"));
+                if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
+                    price = null;
+                BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
+                BigDecimal valueVAT = parseVAT(getXLSFieldValue(sheet, i, importColumns.get("valueVAT")));
+                BigDecimal sumVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sumVAT"));
+                Date dateVAT = dateDocument == null ? currentDate : dateDocument;
+                BigDecimal invoiceSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("invoiceSum"));
+                BigDecimal manufacturingPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("manufacturingPrice"));
+                String contractPrice = getXLSFieldValue(sheet, i, importColumns.get("contractPrice"));
+                BigDecimal shipmentPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("shipmentPrice"));
+                BigDecimal shipmentSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("shipmentSum"));
+                BigDecimal rateExchange = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("rateExchange"));
+                String numberCompliance = getXLSFieldValue(sheet, i, importColumns.get("numberCompliance"));
+                Date dateCompliance = getXLSDateFieldValue(sheet, i, importColumns.get("dateCompliance"));
+                String declaration = getXLSFieldValue(sheet, i, importColumns.get("declaration"));
+                Date expiryDate = getXLSDateFieldValue(sheet, i, importColumns.get("expiryDate"));
+                Date manufactureDate = getXLSDateFieldValue(sheet, i, importColumns.get("manufactureDate"));
+                String pharmacyPriceGroupItem = getXLSFieldValue(sheet, i, importColumns.get("pharmacyPriceGroupItem"));
+                String seriesPharmacy = getXLSFieldValue(sheet, i, importColumns.get("seriesPharmacy"));
+                String idArticle = getXLSFieldValue(sheet, i, importColumns.get("idArticle"));
+                String captionArticle = getXLSFieldValue(sheet, i, importColumns.get("captionArticle"));
+                String originalCaptionArticle = getXLSFieldValue(sheet, i, importColumns.get("originalCaptionArticle"));
+                String idColor = getXLSFieldValue(sheet, i, importColumns.get("idColor"));
+                String nameColor = getXLSFieldValue(sheet, i, importColumns.get("nameColor"));
+                String idCollection = getXLSFieldValue(sheet, i, importColumns.get("idCollection"));
+                String nameCollection = getXLSFieldValue(sheet, i, importColumns.get("nameCollection"));
+                String idSize = getXLSFieldValue(sheet, i, importColumns.get("idSize"));
+                String nameSize = getXLSFieldValue(sheet, i, importColumns.get("nameSize"));
+                String nameOriginalSize = getXLSFieldValue(sheet, i, importColumns.get("nameOriginalSize"));
+                String idSeasonYear = getXLSFieldValue(sheet, i, importColumns.get("idSeasonYear"));
+                String idSeason = getXLSFieldValue(sheet, i, importColumns.get("idSeason"));
+                String nameSeason = getXLSFieldValue(sheet, i, importColumns.get("nameSeason"));
+                String idBrand = getXLSFieldValue(sheet, i, importColumns.get("idBrand"));
+                String nameBrand = getXLSFieldValue(sheet, i, importColumns.get("nameBrand"));
+                String idBox = getXLSFieldValue(sheet, i, importColumns.get("idBox"));
+                String nameBox = getXLSFieldValue(sheet, i, importColumns.get("nameBox"));
+                String idTheme = getXLSFieldValue(sheet, i, importColumns.get("idTheme"));
+                String nameTheme = getXLSFieldValue(sheet, i, importColumns.get("nameTheme"));
+                BigDecimal netWeight = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("netWeight"));
+                BigDecimal netWeightSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("netWeightSum"));
+                netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
+                BigDecimal grossWeight = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("grossWeight"));
+                BigDecimal grossWeightSum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("grossWeightSum"));
+                grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
+                String composition = getXLSFieldValue(sheet, i, importColumns.get("composition"));
+                String originalComposition = getXLSFieldValue(sheet, i, importColumns.get("originalComposition"));
+
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
+                        dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch,
+                        dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem,
+                        idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer,
+                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, "БЕЛАРУСЬ",
+                        invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
+                        numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem,
+                        seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection,
+                        nameCollection, idSize, nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand,
+                        nameBrand, idBox, nameBox, idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum,
+                        composition, originalComposition);
+
+                String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
+                String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
+                    primaryList.add(purchaseInvoiceDetail);
+                else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
+                    primaryList.add(purchaseInvoiceDetail);
+            }
+            currentTimestamp = null;
+
+            return Arrays.asList(primaryList, secondaryList);
+        } else
+            return null;
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, 
+                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit,
                                                                         Integer startRow, Boolean isPosted, String csvSeparator, Integer userInvoiceObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -1163,7 +1171,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                         String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, 
+                                                                         String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit,
                                                                          Integer startRow, Boolean isPosted, Integer userInvoiceObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -1278,7 +1286,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, 
+                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit,
                                                                         Integer startRow, Boolean isPosted, Integer userInvoiceObject)
             throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
