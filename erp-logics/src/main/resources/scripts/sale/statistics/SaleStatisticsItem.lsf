@@ -26,45 +26,14 @@ EXTEND FORM item
 ;
 EXTEND DESIGN item { regionalPrm { ADD sgt.box;} }
 
-statisticGroupTypeItemGroup  = DATA StatisticGroup (StatisticGroupType, ItemGroup); 
-nameStatisticGroupTypeItemGroup 'Статистическая группа (по-умолчанию)' (type, group) = nameStatisticGroup(statisticGroupTypeItemGroup(type, group)) IN defaultItemGroup;
 
-//META hhhhhCustomTwo(property, caption, type, typeIdentity, object, object2Class, object2, group) // Первыйй объект должен быть группа иерархии
-//    data###property###object###object2 caption = DATA type (###object, object2Class);
-//    data###typeIdentity###property###object###object2 caption (object, object2) = typeIdentity(data###property###object###object2(object, object2)) IN group;
-//    
-//    levelParent###property###object###object2 (object, object2) = GROUP MIN level###object###object(object, parent) IF data###property###object###object2(parent, object)
-//                                                                  BY object, object2 PERSISTENT;    
-//    nearestParent###property###object###object2 (object, object2) = object###object###level(object, levelParent###property###object###object2(object, object2));
-//    nearest###property###object###object2 (object, object2) = data###property###object###object2(object, nearestParent###property###object###object2 (object, object2));
-//    
-//    property###object###object2 (object, object2) =
-//        OVERRIDE nearest###property###object###object2 (object, object2), 
-//                 data###property###object###object2(object, object2) PERSISTENT;    
-//    
-//    typeIdentity###object###object2 caption (object, object2) = typeIdentity(property###object###object2 (object, object2)) IN group;
-//END 
-//@hhhhhCustomTwo(statisticGroup, 'Статистическая группа (по-умолчанию)', StatisticGroup, nameStatisticGroup, itemGroup, StatisticGroupType, statisticGroupType, defaultItemGroup){ // Первыйй объект должен быть группа иерархии
-//    dataStatisticGroupItemGroupStatisticGroupType 'Статистическая группа (по-умолчанию)' = DATA StatisticGroup (ItemGroup, StatisticGroupType);
-//    dataNameStatisticGroupStatisticGroupItemGroupStatisticGroupType 'Статистическая группа (по-умолчанию)' (itemGroup, statisticGroupType) = nameStatisticGroup(dataStatisticGroupItemGroupStatisticGroupType(itemGroup, statisticGroupType)) IN defaultItemGroup;
-//    
-//    levelParentStatisticGroupItemGroupStatisticGroupType (itemGroup, statisticGroupType) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF dataStatisticGroupItemGroupStatisticGroupType(parent, itemGroup)
-//                                                                  BY itemGroup, statisticGroupType PERSISTENT;    
-//    nearestParentStatisticGroupItemGroupStatisticGroupType (itemGroup, statisticGroupType) = itemGroupItemGroupLevel(itemGroup, levelParentStatisticGroupItemGroupStatisticGroupType(itemGroup, statisticGroupType));
-//    nearestStatisticGroupItemGroupStatisticGroupType (itemGroup, statisticGroupType) = dataStatisticGroupItemGroupStatisticGroupType(itemGroup, nearestParentStatisticGroupItemGroupStatisticGroupType (itemGroup, statisticGroupType));
-//    
-//    statisticGroupItemGroupStatisticGroupType (itemGroup, statisticGroupType) =
-//        OVERRIDE nearestStatisticGroupItemGroupStatisticGroupType (itemGroup, statisticGroupType), 
-//                 dataStatisticGroupItemGroupStatisticGroupType(itemGroup, statisticGroupType) PERSISTENT;    
-//    
-//    nameStatisticGroupItemGroupStatisticGroupType 'Статистическая группа (по-умолчанию)' (itemGroup, statisticGroupType) = nameStatisticGroup(statisticGroupItemGroupStatisticGroupType (itemGroup, statisticGroupType)) IN defaultItemGroup;
-//};
+@defineNearestValueCustom(statisticGroup, 'Статистическая группа (по-умолчанию)', StatisticGroup, nameStatisticGroup, statisticGroupType, ItemGroup, itemGroup, defaultItemGroup);
 
 
 EXTEND FORM itemGroup
     OBJECTS t=StatisticGroupType 
     PROPERTIES(t)   READONLY nameStatisticGroupType, idStatisticGroupType
-    PROPERTIES(t, g) nameStatisticGroupTypeItemGroup
+    PROPERTIES(t, g) nameStatisticGroupStatisticGroupTypeItemGroup
     FILTERS countryStatisticGroupType(t) == defaultCountry()
     
 ;    
@@ -83,4 +52,4 @@ EXTEND DESIGN itemGroup {
 }
 
 WHEN SESSION CHANGED(itemGroupItem(i)) AND t IS StatisticGroupType AND NOT statisticGroupTypeItem(t, i) DO
-    statisticGroupTypeItem(t, i) <- statisticGroupTypeItemGroup(t, itemGroupItem(i));
+    statisticGroupTypeItem(t, i) <- statisticGroupStatisticGroupTypeItemGroup(t, itemGroupItem(i));

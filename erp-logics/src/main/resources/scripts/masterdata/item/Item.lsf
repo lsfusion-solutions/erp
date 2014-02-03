@@ -500,8 +500,9 @@ EXTEND FORM dialogItemGroups
 // ------ Базовые свойства товара ------ //
 
 GROUP defaultItemGroup 'По-умолчанию' : base;
- 
-META hhhhhCustom(property, caption, type, typeIdentity, object, group)
+
+//-- Для одного объекта: задание значения для групы по-умолчанию (иерархия)
+META defineNearestValueCustom(property, caption, type, typeIdentity, object, group)
     data###property###object caption = DATA type (###object);
     data###typeIdentity###property##object caption (object) = typeIdentity(data###property###object(object)) IN group;
     
@@ -515,7 +516,7 @@ META hhhhhCustom(property, caption, type, typeIdentity, object, group)
     
     typeIdentity###object caption (object) = typeIdentity(property###object(object)) IN group;
 END   
-META hhhhh(property, caption, type, object, group)
+META defineNearestValue(property, caption, type, object, group)
     data###property###object caption = DATA type (###object) IN group;
     
     levelParent###property###object (object) = GROUP MIN level###object###object(object, parent) IF data###property###object(parent)
@@ -526,17 +527,42 @@ META hhhhh(property, caption, type, object, group)
         OVERRIDE nearest###property###object (object), 
                  data###property###object(object) PERSISTENT IN group;    
     
-END   
-@hhhhh(caption, 'Наименование (по-умолчанию)', VARISTRING[100], itemGroup, defaultItemGroup);
+END  
+//-- Для двух объектов: задание значения для групы по-умолчанию (иерархия)
+META defineNearestValueCustom(property, caption, type, typeIdentity, object, object2Class, object2, group) // Второй объект должен быть группа иерархии
+    data###property###object###object2 caption = DATA type (###object, object2Class);
+    data###typeIdentity###property###object###object2 caption (object, object2) = typeIdentity(data###property###object###object2(object, object2)) IN group;
+    
+    levelParent###property###object###object2 (object, object2) = GROUP MIN level###object2###object2(object2, parent) IF data###property###object###object2(object, parent)
+                                                                  BY object, object2 PERSISTENT;    
+    nearestParent###property###object###object2 (object, object2) = object2###object2###level(object2, levelParent###property###object###object2(object, object2));
+    nearest###property###object###object2 (object, object2) = data###property###object###object2(object, nearestParent###property###object###object2 (object, object2));
+    
+    property###object###object2 (object, object2) =
+        OVERRIDE nearest###property###object###object2 (object, object2), 
+                 data###property###object###object2(object, object2) PERSISTENT;    
+    
+    typeIdentity###object###object2 caption (object, object2) = typeIdentity(property###object###object2(object, object2)) IN group;
+END 
+META defineNearestValue(property, caption, type, object, object2Class, object2, group) // Второй объект должен быть группа иерархии
+    data###property###object###object2 caption = DATA type (###object, object2Class) IN group;
+    
+    levelParent###property###object###object2 (object, object2) = GROUP MIN level###object2###object2(object2, parent) IF data###property###object###object2(object, parent)
+                                                                  BY object, object2 PERSISTENT;    
+    nearestParent###property###object###object2 (object, object2) = object2###object2###level(object2, levelParent###property###object###object2(object, object2));
+    nearest###property###object###object2 (object, object2) = data###property###object###object2(object, nearestParent###property###object###object2 (object, object2));
+    
+    property###object###object2 (object, object2) =
+        OVERRIDE nearest###property###object###object2 (object, object2), 
+                 data###property###object###object2(object, object2) PERSISTENT IN group;    
+END  
+ 
+@defineNearestValue(caption, 'Наименование (по-умолчанию)', VARISTRING[100], itemGroup, defaultItemGroup);
 
-@hhhhhCustom(UOM, 'Ед. изм. (по-умолчанию)', UOM, nameUOM, itemGroup, defaultItemGroup); 
+@defineNearestValueCustom(UOM, 'Ед. изм. (по-умолчанию)', UOM, nameUOM, itemGroup, defaultItemGroup); 
 EXTEND FORM itemGroup
     PROPERTIES(g) captionItemGroup, nameUOMItemGroup
 ; 
- 
-EXTEND FORM itemGroups
-    PROPERTIES(g) captionItemGroup, nameUOMItemGroup
-;  
  
 // Название
 @defineStringItemAttribute(caption, VARISTRING[100], 'Название', itemBase);
