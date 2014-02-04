@@ -233,25 +233,25 @@ changeBatchReceiptDetail 'Изменить партию строки чека' =
 createReceiptSaleDetailBatch 'Добавить строку продажи' = ACTION (receipt, batch, barcode) {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
         EXEC seek(d);
-        ASSIGN receiptReceiptSaleDetail(d) <- receipt;
-        ASSIGN idBarcodeReceiptDetail(d) <- barcode;
-        ASSIGN skuReceiptSaleDetail(d) <- skuBatch(batch);
-        ASSIGN quantityReceiptSaleDetail(d) <- 1.0;
-        ASSIGN VATReceiptSaleDetail(d) <- VATRetailSkuDepartmentStoreDateTime(skuBatch(batch), departmentStoreReceipt(receipt), currentDateTime());
-        ASSIGN batchReceiptSaleDetail(d) <- batch;
-        ASSIGN priceReceiptSaleDetail(d) <- currentPOSPriceBatchReceipt(batch, receipt);
+        receiptReceiptSaleDetail(d) <- receipt;
+        idBarcodeReceiptDetail(d) <- barcode;
+        skuReceiptSaleDetail(d) <- skuBatch(batch);
+        quantityReceiptSaleDetail(d) <- 1.0;
+        VATReceiptSaleDetail(d) <- VATRetailSkuDepartmentStoreDateTime(skuBatch(batch), departmentStoreReceipt(receipt), currentDateTime());
+        batchReceiptSaleDetail(d) <- batch;
+        priceReceiptSaleDetail(d) <- currentPOSPriceBatchReceipt(batch, receipt);
     }
 }
 
 createReceiptSaleDetailSku 'Добавить строку продажи' = ACTION (receipt, sku, barcode) {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
-        EXEC seek(d);
-        ASSIGN receiptReceiptSaleDetail(d) <- receipt;
-        ASSIGN idBarcodeReceiptDetail(d) <- barcode;
-        ASSIGN skuReceiptSaleDetail(d) <- sku;
-        ASSIGN quantityReceiptSaleDetail(d) <- 1.0;
-        ASSIGN priceReceiptSaleDetail(d) <- currentPOSPriceSkuReceipt(sku, receipt);
-        ASSIGN VATReceiptSaleDetail(d) <- VATRetailSkuDepartmentStoreDateTime(sku, departmentStoreReceipt(receipt), currentDateTime());
+        seek(d);
+        receiptReceiptSaleDetail(d) <- receipt;
+        idBarcodeReceiptDetail(d) <- barcode;
+        skuReceiptSaleDetail(d) <- sku;
+        quantityReceiptSaleDetail(d) <- 1.0;
+        priceReceiptSaleDetail(d) <- currentPOSPriceSkuReceipt(sku, receipt);
+        VATReceiptSaleDetail(d) <- VATRetailSkuDepartmentStoreDateTime(sku, departmentStoreReceipt(receipt), currentDateTime());
         IF explicitBatchLedgerReceipt(receiptReceiptSaleDetail(d)) AND
             countBatchSkuStock(skuReceiptSaleDetail(d), departmentStoreReceipt(receiptReceiptSaleDetail(d))) == 1 THEN {
                 batchReceiptSaleDetail(d) <- defaultBatchSkuStock(skuReceiptSaleDetail(d), departmentStoreReceipt(receiptReceiptSaleDetail(d)));
@@ -261,7 +261,8 @@ createReceiptSaleDetailSku 'Добавить строку продажи' = ACTI
                 IF formResult() == FormResult.ok THEN {
                     batchReceiptSaleDetail(d) <- chosenObject('bt');
                     priceReceiptSaleDetail(d) <- currentPOSPriceBatchReceipt(chosenObject('bt'), receiptReceiptDetail(d));
-                }
+                } ELSE
+                    DELETE d;
             }
     }
 }
@@ -388,15 +389,15 @@ searchBatchSaleReceipt 'Поиск' = ACTION (receipt) {
 
 createReceiptReturnDetail 'Добавить строку возврата' = ACTION (receipt, receiptSaleDetail, barcode) {
     FOR ADDOBJ d = ReceiptReturnDetail DO {
-        EXEC seek(d);
-        ASSIGN receiptReceiptReturnDetail(d) <- receipt;
-        ASSIGN idBarcodeReceiptDetail(d) <- barcode;
-        ASSIGN receiptSaleDetailReceiptReturnDetail(d) <- receiptSaleDetail;
-        ASSIGN skuReceiptReturnDetail(d) <- skuReceiptSaleDetail(receiptSaleDetail);
-        ASSIGN quantityReceiptReturnDetail(d) <- 1.0;
-        ASSIGN priceReceiptReturnDetail(d) <- priceReceiptSaleDetail(receiptSaleDetail);
-        ASSIGN VATReceiptReturnDetail(d) <- VATReceiptSaleDetail(receiptSaleDetail);
-        ASSIGN batchReceiptReturnDetail(d) <- batchReceiptSaleDetail(receiptSaleDetail);
+        seek(d);
+        receiptReceiptReturnDetail(d) <- receipt;
+        idBarcodeReceiptDetail(d) <- barcode;
+        receiptSaleDetailReceiptReturnDetail(d) <- receiptSaleDetail;
+        skuReceiptReturnDetail(d) <- skuReceiptSaleDetail(receiptSaleDetail);
+        quantityReceiptReturnDetail(d) <- 1.0;
+        priceReceiptReturnDetail(d) <- priceReceiptSaleDetail(receiptSaleDetail);
+        VATReceiptReturnDetail(d) <- VATReceiptSaleDetail(receiptSaleDetail);
+        batchReceiptReturnDetail(d) <- batchReceiptSaleDetail(receiptSaleDetail);
     }
 }
 
@@ -431,12 +432,30 @@ scanBarcodeReturnReceipt 'Ввести штрих-код' = ACTION (receipt) {
     FORM barcodeInput MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL dialogBarcodeSku = Sku();
-        ASSIGN dialogBarcodeSku() <- skuBarcodeIdDate(barcodeInput(), currentDate());
+        dialogBarcodeSku() <- skuBarcodeIdDate(barcodeInput(), currentDate());
 
         IF dialogBarcodeSku() IS Sku THEN {
             FORM scanBarcodeReturnReceipt OBJECTS d = departmentStoreReceipt(receipt), s = dialogBarcodeSku() MODAL;
-            IF formResult() == FormResult.ok THEN {
-                EXEC createReceiptReturnDetail(receipt, chosenObject('r'), barcodeInput());
+            IF formResult() == FormResult.ok AND chosenObject('r') THEN {
+                createReceiptReturnDetail(receipt, chosenObject('r'), barcodeInput());
+            } ELSE {
+                FOR ADDOBJ d = ReceiptReturnDetail DO {
+                    seek(d);
+                    receiptReceiptReturnDetail(d) <- receipt;
+                    idBarcodeReceiptDetail(d) <- barcodeInput();
+                    skuReceiptReturnDetail(d) <- dialogBarcodeSku();
+                    quantityReceiptReturnDetail(d) <- 1.0;
+                    priceReceiptReturnDetail(d) <- currentPOSPriceSkuReceipt(dialogBarcodeSku(), receipt);
+                    VATReceiptReturnDetail(d) <- VATRetailSkuDepartmentStoreDateTime(dialogBarcodeSku(), departmentStoreReceipt(receipt), currentDateTime());
+                    IF explicitBatchLedgerReceipt(receipt) THEN {
+                        FORM chooseBatchReceipt OBJECTS st = departmentStoreReceiptDetail(d), d = d MODAL;
+                        IF formResult() == FormResult.ok THEN {
+                            batchReceiptReturnDetail(d) <- chosenObject('bt');
+                            priceReceiptReturnDetail(d) <- currentPOSPriceBatchReceipt(chosenObject('bt'), receiptReceiptDetail(d));
+                        } ELSE
+                            DELETE d;
+                    }
+                }
             }
         } ELSE
             MESSAGE CONCAT ' ', 'Не найден штрих-код', barcodeInput();

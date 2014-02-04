@@ -266,14 +266,18 @@ quantityReturnedReceiptSaleDetail 'Возвращено' (saleDetail) = GROUP SU
 CONSTRAINT quantityReturnedReceiptSaleDetail(detail) > quantityReceiptSaleDetail (detail) MESSAGE 'Количество возвратов по строке чека превышает проданное количество';
 
 sumReceiptReturnDetail (detail) <- roundPriceRoundCondition(quantityReceiptReturnDetail(detail) * sumReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(detail)) / quantityReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(detail)),
-                                         roundConditionDepartmentStore(departmentStoreReceiptReturnDetail (detail)))
+                                            roundConditionDepartmentStore(departmentStoreReceiptReturnDetail (detail)))
                                    WHEN CHANGED(quantityReceiptReturnDetail(detail)) OR
                                         CHANGED(receiptSaleDetailReceiptReturnDetail(detail)) OR
                                         CHANGED(departmentStoreReceiptReturnDetail(detail));
 
-discountSumReceiptReturnDetail (detail) <- roundPriceRoundCondition(quantityReceiptReturnDetail(detail) * discountSumReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(detail)) / quantityReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(detail)),
-                                                 roundConditionDepartmentStore(departmentStoreReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(detail))))
+discountSumReceiptReturnDetail (detail) <- IF receiptSaleDetailReceiptReturnDetail(detail) THEN
+                                                roundPriceRoundCondition(quantityReceiptReturnDetail(detail) * discountSumReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(detail)) / quantityReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(detail)),
+                                                    roundConditionDepartmentStore(departmentStoreReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(detail))))
+                                           ELSE
+                                                quantityReceiptReturnDetail(detail) * priceReceiptReturnDetail(detail) - sumReceiptReturnDetail(detail)
                                            WHEN CHANGED(quantityReceiptReturnDetail(detail)) OR
+                                                CHANGED(sumReceiptReturnDetail(detail)) OR
                                                 CHANGED(receiptSaleDetailReceiptReturnDetail(detail)) OR
                                                 CHANGED(departmentStoreReceiptReturnDetail(detail));
 
