@@ -47,6 +47,9 @@ CONSTRAINT stockUserRevaluation(r) AND NOT  isCompanyStock(stockUserRevaluation(
 // Партия
 @defineDocumentInterfaceDetailBatch(revaluation, batch);
 
+idBatchRevaluationDetail 'Код партии' (d) = idBatch(batchRevaluationDetail(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatchUserRevaluationDetail 'Код партии' (d) = idBatch(batchUserRevaluationDetail(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
 changeBatchUserRevaluationDetail = ACTION (userRevaluationDetail) {
     FORM dialogBatchStock OBJECTS st = stockUserRevaluationDetail(userRevaluationDetail),
                              t = dateTimeUserRevaluationDetail(userRevaluationDetail),
@@ -150,7 +153,6 @@ FORM revaluation 'Переоценка (печать)'
 printRevaluation 'Переоценка' (revaluation) = ACTION FORM revaluation OBJECTS p = revaluation PRINT  IMAGE 'print.png' IN print;
 
 // --------------------------- Формы --------------------------------- //
-
 FORM userRevaluation 'Переоценка'
     OBJECTS p=UserRevaluation FIXED PANEL
     PROPERTIES (p) isPostedUserRevaluation, nameNumeratorUserRevaluation, numberUserRevaluation, seriesUserRevaluation,
@@ -164,6 +166,9 @@ FORM userRevaluation 'Переоценка'
                    curPriceUserRevaluationDetail, curSumUserRevaluationDetail,
                    priceUserRevaluationDetail, sumUserRevaluationDetail, ADDOBJ, deleted=DELETESESSION
 
+    PROPERTIES(d) READONLYIF batchUserRevaluationDetail(d) SHOWIF showIDs()
+                  idBatchUserRevaluationDetail ON CHANGE changeBatchUserRevaluationDetail(d) BEFORE nameBatchUserRevaluationDetail(d)
+                  
     PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserRevaluationDetailUserRevaluation, addDetailDialogTerminalUserRevaluationDetailUserRevaluation,
                            addDetailInputBarcodeUserRevaluationDetailUserRevaluation, deleteUserRevaluationDetailUserRevaluation
 
@@ -269,6 +274,9 @@ FORM revaluations 'Переоценки' TITLE 'Переоценки'
     PROPERTIES (d) READONLY indexRevaluationDetail, idBarcodeSkuRevaluationDetail, nameSkuRevaluationDetail, shortNameUOMSkuRevaluationDetail, nameBatchRevaluationDetail,
                    quantityRevaluationDetail, curPriceRevaluationDetail, curSumRevaluationDetail, priceRevaluationDetail, sumRevaluationDetail
 
+    PROPERTIES(d) READONLY SHOWIF showIDs()
+                  idBatchRevaluationDetail BEFORE nameBatchRevaluationDetail(d)
+                      
     FILTERS revaluationRevaluationDetail(d) == p
 ;
 @extendFormFilterAccessStock(Revaluation, p, revaluations, stock, company);
