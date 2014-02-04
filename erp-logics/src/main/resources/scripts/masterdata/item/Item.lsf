@@ -529,8 +529,8 @@ META defineNearestValue(property, caption, type, object, group)
     
 END  
 //-- Для двух объектов: задание значения для групы по-умолчанию (иерархия)
-META defineNearestValueCustom(property, caption, type, typeIdentity, object, object2Class, object2, group) // Второй объект должен быть группа иерархии
-    data###property###object###object2 caption = DATA type (###object, object2Class);
+META defineNearestValueCustom(property, caption, type, typeIdentity, objectClass, object, object2Class, object2, group) // Второй объект должен быть группа иерархии
+    data###property###object###object2 caption = DATA type (objectClass, object2Class);
     data###typeIdentity###property###object###object2 caption (object, object2) = typeIdentity(data###property###object###object2(object, object2)) IN group;
     
     levelParent###property###object###object2 (object, object2) = GROUP MIN level###object2###object2(object2, parent) IF data###property###object###object2(object, parent)
@@ -544,18 +544,25 @@ META defineNearestValueCustom(property, caption, type, typeIdentity, object, obj
     
     typeIdentity###object###object2 caption (object, object2) = typeIdentity(property###object###object2(object, object2)) IN group;
 END 
-META defineNearestValue(property, caption, type, object, object2Class, object2, group) // Второй объект должен быть группа иерархии
-    data###property###object###object2 caption = DATA type (###object, object2Class) IN group;
+META defineNearestValueCustom(property, caption, type, typeIdentity, object, object2, group)
+    @defineNearestValueCustom(property, caption, type, typeIdentity, ###object, object, ###object2, object2, group);
+END 
+
+META defineNearestValue(property, caption, type, objectClass, object, object2Class, object2, group) // Второй объект должен быть группа иерархии
+    data###property###object###object2 caption = DATA type (objectClass, object2Class) IN group;
     
     levelParent###property###object###object2 (object, object2) = GROUP MIN level###object2###object2(object2, parent) IF data###property###object###object2(object, parent)
                                                                   BY object, object2 PERSISTENT;    
     nearestParent###property###object###object2 (object, object2) = object2###object2###level(object2, levelParent###property###object###object2(object, object2));
     nearest###property###object###object2 (object, object2) = data###property###object###object2(object, nearestParent###property###object###object2 (object, object2));
     
-    property###object###object2 (object, object2) =
+    property###object###object2 caption (object, object2) =
         OVERRIDE nearest###property###object###object2 (object, object2), 
                  data###property###object###object2(object, object2) PERSISTENT IN group;    
-END  
+END 
+META defineNearestValue(property, caption, type, object, object2, group) 
+    @defineNearestValue(property, caption, type, ###object, object, ###object2, object2, group);
+END     
  
 @defineNearestValue(caption, 'Наименование (по-умолчанию)', VARISTRING[100], itemGroup, defaultItemGroup);
 
@@ -616,6 +623,46 @@ DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @defineObjectItemAttribute(brand, Brand, nameBrand, 'Бренд', itemBase);
 @defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
 @implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
+
+META aaaaaCustom(property, caption, type, objectClass, object, object2Class, object2, group) // Второй объект должен быть группа иерархии
+    TABLE object###object2 (objectClass, object2Class);
+ 
+    @defineNearestValue(property, caption, type, objectClass, object, object2Class, object2, group);
+
+    countRec###property###object###object2 'Кол-во (рек.)' (object, object2)= GROUP SUM 1 IF 
+        property###object###object2(object, child) AND isParent###object2###object2(child, parent) 
+            BY object, parent PERSISTENT;              
+    countData###property###object2##s###object 'Кол-во групп' (object)= GROUP SUM 1 IF 
+        data###property###object###object2(object, object2) BY object PERSISTENT;            
+            
+    in###object###object2 'Доступны' (object, object2)=  countRec###property###object###object2(object, object2) OR (object2 IS object2Class AND object IS objectClass AND NOT countData###property###object2##s###object(object));       
+END
+META aaaaa(property, caption, type, object, object2, group) 
+    @aaaaaCustom(property, caption, type, ###object, object, ###object2, object2, group);
+END
+
+@aaaaa(include, 'Вкл', BOOLEAN, brand, itemGroup, base);
+
+CONSTRAINT  brandItem(item) AND itemGroupItem(item) AND NOT inBrandItemGroup(brandItem(item), itemGroupItem(item))
+    CHECKED BY brandItem, itemGroupItem  
+        MESSAGE 'Бренд должен быть доступен для товарной группы (товар)';    
+
+EXTEND FORM  brand
+    TREE groupTree g=ItemGroup PARENT parentItemGroup
+    PROPERTIES READONLY nameItemGroup(g)
+    PROPERTIES includeBrandItemGroup(t,g)
+    
+    ORDER BY nameItemGroup(g)
+    FILTERS activeItemGroup(g)
+;
+EXTEND DESIGN  brand {
+    main {
+        ADD t.box;                
+        ADD groupTree.tree.box;
+        ADD functions.box;
+    }
+}
+
 
 // Страна
 @defineObjectItemAttribute(country, Country, nameCountry, 'Страна', itemBase);
