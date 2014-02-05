@@ -355,7 +355,7 @@ EXTEND FORM balanceBatchStock
 accountPriceASkuLedgerBatch 'Цена учетная' (ledger, batch) = accountPriceBatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
 accountSumBatchSkuLedger 'Сумма по партиям' = GROUP SUM costSkuLedgerBatch(l, b) * accountPriceASkuLedgerBatch(l, b) BY l;
 EXTEND FORM costSkuLedger 
-    PROPERTIES(bil) accountSumBatchSkuLedger AFTER sumSkuLedger
+    PROPERTIES(bil) accountSumBatchSkuLedger AFTER sumSkuLedger(bil)
     FILTERGROUP wrongSum
         FILTER 'Неправильная сумма по партиям' 'F4' NOT accountSumBatchSkuLedger(bil) == sumSkuLedger(bil) 
 ;
@@ -453,7 +453,7 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
     OBJECTS pp = (t = PriceListType, pl = PriceListLedger)
     PROPERTIES READONLY namePriceListType(t),  descriptionPriceListLedger(pl), fromDateTimePriceListLedger(pl), toDateTimePriceListLedger(pl),
                         pricePriceListLedgerLedgerPriceListType(pl,t) FORCE GRID
-    ORDER BY namePriceListType, fromDateTimePriceListLedger
+    ORDER BY namePriceListType(t), fromDateTimePriceListLedger(pl)
 
     FILTERS skuPriceListLedger(pl) == s,
             isPostedPriceListLedger(pl),
@@ -473,13 +473,13 @@ DESIGN movementPriceSkuStock FROM DEFAULT {
         }
         NEW dialog {
             caption = 'Вид цен';
-            ADD PROPERTY(nameDialogPriceListTypeSkuStock);
+            ADD PROPERTY(nameDialogPriceListTypeSkuStock(s,st));
         }
         ADD pp.box;
 
-        PROPERTY(nameSku) { focusable = FALSE;}
-        PROPERTY(nameStock) { focusable = FALSE;}
-        PROPERTY(namePriceListType) { caption = 'Вид цен';}
+        PROPERTY(nameSku(s)) { focusable = FALSE;}
+        PROPERTY(nameStock(st)) { focusable = FALSE;}
+        PROPERTY(namePriceListType(t)) { caption = 'Вид цен';}
     }
     ADD functions.box;
 }

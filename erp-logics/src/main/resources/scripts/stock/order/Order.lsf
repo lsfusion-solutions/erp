@@ -320,7 +320,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        VATSumUserOrderDetail, invoiceSumUserOrderDetail,
                        name###stockProp###stock###userOrderDetail ON CHANGE changeData###stockProp###stock###filter###userOrderDetail(d), shipmentDateUserOrderDetail,
                        shipmentTimeUserOrderDetail, closeDateUserOrderDetail, ADDOBJ, DELETESESSION
-        ORDER BY indexUserOrderDetail
+        ORDER BY indexUserOrderDetail(d)
 
         PROPERTIES(o) TODRAW d fillDocumentOrder, addDetailDialogSkuStockUserOrderDetailUserOrder,
                                addDetailInputBarcodeUserOrderDetailUserOrder, deleteUserOrderDetailUserOrder
@@ -352,15 +352,15 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                         type = CONTAINERV;
                         NEW first {
                             type = CONTAINERH;
-                            ADD PROPERTY(isPostedUserOrder) { preferredCharWidth = 40; }
+                            ADD PROPERTY(isPostedUserOrder(o)) { preferredCharWidth = 40; }
                         }
                         NEW second { 
                             type = CONTAINERH;
-                            ADD PROPERTY(nameNumeratorUserOrder);
-                            ADD PROPERTY(numberUserOrder);
-                            ADD PROPERTY(seriesUserOrder);
-                            ADD PROPERTY(dateUserOrder);
-                            ADD PROPERTY(timeUserOrder);
+                            ADD PROPERTY(nameNumeratorUserOrder(o));
+                            ADD PROPERTY(numberUserOrder(o));
+                            ADD PROPERTY(seriesUserOrder(o));
+                            ADD PROPERTY(dateUserOrder(o));
+                            ADD PROPERTY(timeUserOrder(o));
                         }    
                     }                    
                     
@@ -369,14 +369,14 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                         NEW headerRow111 {
                             caption = 'Поставщик';
                             type = CONTAINERH;
-                            ADD PROPERTY(nameSupplierUserOrder);
-                            ADD PROPERTY(nameSupplierStockUserOrder);
+                            ADD PROPERTY(nameSupplierUserOrder(o));
+                            ADD PROPERTY(nameSupplierStockUserOrder(o));
                         }
                         NEW headerRow112 {
                             caption = 'Покупатель';
                             type = CONTAINERH;
-                            ADD PROPERTY(nameCustomerUserOrder);
-                            ADD PROPERTY(nameCustomerStockUserOrder);
+                            ADD PROPERTY(nameCustomerUserOrder(o));
+                            ADD PROPERTY(nameCustomerStockUserOrder(o));
                         }
                     }
                     NEW headerTabbedPane {
@@ -388,8 +388,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                             NEW headerContract {
                                 type = CONTAINERH;
                                 caption = 'Договор';
-                                ADD PROPERTY(seriesNumberContractSkuUserOrder);
-                                ADD PROPERTY(isCommissionUserOrder);
+                                ADD PROPERTY(seriesNumberContractSkuUserOrder(o));
+                                ADD PROPERTY(isCommissionUserOrder(o));
                             }
                             ADD o.documentPrm {
                                 columns = 2;
@@ -402,20 +402,20 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                                 caption = 'Исполнение';
                                 type = COLUMNS;
                                 columns = 1;
-                                ADD PROPERTY(shipmentDateUserOrder);
-                                ADD PROPERTY(shipmentTimeUserOrder);
+                                ADD PROPERTY(shipmentDateUserOrder(o));
+                                ADD PROPERTY(shipmentTimeUserOrder(o));
                             }
                             NEW headerRow121 {
                                 caption = 'Поставка';
                                 type = COLUMNS;
                                 columns = 1;
-                                ADD PROPERTY(nextShipmentDateUserOrder);
-                                ADD PROPERTY(quantityDaysNextShipmentUserOrder);
+                                ADD PROPERTY(nextShipmentDateUserOrder(o));
+                                ADD PROPERTY(quantityDaysNextShipmentUserOrder(o));
                             }
                             NEW headerDate {
                                 caption = 'Закрытие';
                                 type = CONTAINERV;
-                                ADD PROPERTY(closeDateUserOrder);
+                                ADD PROPERTY(closeDateUserOrder(o));
                             }
                         }
                         NEW headerCreateDetail {
@@ -443,12 +443,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
             ADD functions.box;
 
-            PROPERTY(formOk) {
+            PROPERTY(formOk()) {
                 caption = 'Провести';
             }                        
-            PROPERTY(sumUserOrderDetailUserOrder) { preferredCharWidth = 13;}
-            PROPERTY(VATSumUserOrderDetailUserOrder) { preferredCharWidth = 13;}
-            PROPERTY(invoiceSumUserOrderDetailUserOrder) { preferredCharWidth = 13;}
+            PROPERTY(sumUserOrderDetailUserOrder(o)) { preferredCharWidth = 13;}
+            PROPERTY(VATSumUserOrderDetailUserOrder(o)) { preferredCharWidth = 13;}
+            PROPERTY(invoiceSumUserOrderDetailUserOrder(o)) { preferredCharWidth = 13;}
             
         }
     }
@@ -570,7 +570,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         PROPERTIES (d) READONLY quantityOrderDetail, namePriceListTypeOrderDetail, priceOrderDetail, sumOrderDetail,
                        numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
                        name###stockProp###stock###orderDetail, shipmentDateOrderDetail, shipmentTimeOrderDetail
-        ORDER BY indexOrderDetail
+        ORDER BY indexOrderDetail(d)
 
         FILTERS orderOrderDetail(d) == o
         FILTERS filterDateFromOrder(o), 
@@ -597,12 +597,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                 NEW topFilters {
                     caption = 'Фильтры';
                     type = CONTAINERH;          
-                    ADD PROPERTY(filterOrderDateFrom);
-                    ADD PROPERTY(filterOrderDateTo);
-                    ADD PROPERTY(nameFilterOrderSupplier);
-                    ADD PROPERTY(nameFilterOrderSupplierStock);
-                    ADD PROPERTY(nameFilterOrderCustomer);
-                    ADD PROPERTY(nameFilterOrderCustomerStock);                      
+                    ADD PROPERTY(filterOrderDateFrom());
+                    ADD PROPERTY(filterOrderDateTo());
+                    ADD PROPERTY(nameFilterOrderSupplier());
+                    ADD PROPERTY(nameFilterOrderSupplierStock());
+                    ADD PROPERTY(nameFilterOrderCustomer());
+                    ADD PROPERTY(nameFilterOrderCustomerStock());                      
                 }
                 ADD o.box {
                     fill = 1;
@@ -641,7 +641,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                         caption = 'Создание на основе';
                         type = CONTAINERV;
 
-                        ADD PROPERTY(copyOrder) { caption = 'Заказ'###sign;}
+                        ADD PROPERTY(copyOrder(o)) { caption = 'Заказ'###sign;}
                     }
                 }
             }
@@ -697,9 +697,9 @@ META defineOrderBatchDialog(dumb)
     }
 
     EXTEND FORM userOrder
-        PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changeBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail
+        PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changeBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail(d)
     ;
-    EXTEND FORM orders PROPERTIES (d) READONLY nameBatchOrderDetail AFTER shortNameUOMSkuOrderDetail;
+    EXTEND FORM orders PROPERTIES (d) READONLY nameBatchOrderDetail AFTER shortNameUOMSkuOrderDetail(d);
 END
 
 META defineOrderBatchDialogStock(stockProp)
@@ -717,7 +717,7 @@ META defineOrderBatchDialogStock(stockProp)
     };
 
     EXTEND FORM userOrder
-        PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changeBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail
+        PROPERTIES (d) nameBatchUserOrderDetail ON CHANGE changeBatchUserOrderDetail(d) AFTER shortNameUOMSkuUserOrderDetail(d)
     ;
-    EXTEND FORM orders PROPERTIES (d) READONLY nameBatchOrderDetail AFTER shortNameUOMSkuOrderDetail;
+    EXTEND FORM orders PROPERTIES (d) READONLY nameBatchOrderDetail AFTER shortNameUOMSkuOrderDetail(d);
 END

@@ -130,7 +130,7 @@ FORM paymentRequest 'Платежное требование'
     PROPERTIES(p, i) costPaymentRequestInContractLedger
     PROPERTIES(p) writePaymentRequestFIFO TODRAW i FORCE PANEL TOOLBAR,
                   writePaymentRequestLIFO TODRAW i FORCE PANEL TOOLBAR
-    ORDER BY dateInContractLedger
+    ORDER BY dateInContractLedger(i)
 
     FILTERS activeInContractLedger(i),
             contractPaymentRequest(p) == contractInContractLedger(i)
@@ -147,12 +147,12 @@ DESIGN paymentRequest FROM DEFAULT{
         NEW headerContainer{
             caption = 'Шапка документа';
             type = CONTAINERH;
-            ADD PROPERTY(isPostedPaymentRequest);
-            ADD PROPERTY(nameNumeratorPaymentRequest);
-            ADD PROPERTY(numberPaymentRequest);
-            ADD PROPERTY(seriesPaymentRequest);
-            ADD PROPERTY(datePaymentRequest);
-            ADD PROPERTY(timePaymentRequest);
+            ADD PROPERTY(isPostedPaymentRequest(p));
+            ADD PROPERTY(nameNumeratorPaymentRequest(p));
+            ADD PROPERTY(numberPaymentRequest(p));
+            ADD PROPERTY(seriesPaymentRequest(p));
+            ADD PROPERTY(datePaymentRequest(p));
+            ADD PROPERTY(timePaymentRequest(p));
         }
         NEW columnContainer{
             type = CONTAINERH;
@@ -161,38 +161,38 @@ DESIGN paymentRequest FROM DEFAULT{
                 columns = 1;
                 fill = 1;
                 caption = 'Сторона (с)';
-                ADD PROPERTY(namePayerPaymentRequest);
-                ADD PROPERTY(nameAccountFromPaymentRequest);
-                ADD PROPERTY(nameCurrencyAccountFromPaymentRequest);
+                ADD PROPERTY(namePayerPaymentRequest(p));
+                ADD PROPERTY(nameAccountFromPaymentRequest(p));
+                ADD PROPERTY(nameCurrencyAccountFromPaymentRequest(p));
             }
             NEW secondColumn{
                 type = COLUMNS;
                 columns = 1;
                 fill = 1;
                 caption = 'Сторона (на)';
-                ADD PROPERTY(nameBeneficiaryPaymentRequest);
-                ADD PROPERTY(nameAccountToPaymentRequest);
-                ADD PROPERTY(nameCurrencyAccountToPaymentRequest);
+                ADD PROPERTY(nameBeneficiaryPaymentRequest(p));
+                ADD PROPERTY(nameAccountToPaymentRequest(p));
+                ADD PROPERTY(nameCurrencyAccountToPaymentRequest(p));
             }
             NEW thirdColumn{
                 type = COLUMNS;
                 columns = 1;
                 fill = 1;
                 caption = 'Контракт';
-                ADD PROPERTY(seriesNumberContractPaymentRequest);
+                ADD PROPERTY(seriesNumberContractPaymentRequest(p));
             }
         }
         NEW paramContainer {
             type = CONTAINERH;
             caption = 'Параметры документа';
-            ADD PROPERTY(nameOperationPaymentRequest);
-            ADD PROPERTY(sumPaymentRequest);
-            ADD PROPERTY(notePaymentRequest);
+            ADD PROPERTY(nameOperationPaymentRequest(p));
+            ADD PROPERTY(sumPaymentRequest(p));
+            ADD PROPERTY(notePaymentRequest(p));
         }
     }
     ADD i.box;
 
-    PROPERTY(formOk) {
+    PROPERTY(formOk()) {
         caption = 'Провести';
     }
 
@@ -243,7 +243,7 @@ EXTEND FORM contractLedger
                             notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
                             isPostedPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d)
     PROPERTIES(pr) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    ORDER BY datePaymentRequest, timePaymentRequest
+    ORDER BY datePaymentRequest(pr), timePaymentRequest(pr)
     FILTERS contractPaymentRequest(pr) == c
 ;
 
@@ -297,7 +297,7 @@ FORM paymentRequests 'Платежные требования'
                             nameOperationPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d)                            
     PROPERTIES(d) createPaymentRequests TODRAW pr TOOLBAR
     PROPERTIES(pr) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    ORDER BY datePaymentRequest, timePaymentRequest
+    ORDER BY datePaymentRequest(pr), timePaymentRequest(pr)
     FILTERS partyAContract(contractPaymentRequest(pr)) == partyA() OR pr IS PaymentRequest AND NOT partyA(),
             partyBContract(contractPaymentRequest(pr)) == partyB() OR pr IS PaymentRequest AND NOT partyB()
 
@@ -305,7 +305,7 @@ FORM paymentRequests 'Платежные требования'
     PROPERTIES(i) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, requestedInContractLedger
     PROPERTIES(pr, i) costPaymentRequestInContractLedger
     FILTERS costPaymentRequestInContractLedger(pr, i)
-    ORDER BY dateInContractLedger
+    ORDER BY dateInContractLedger(i)
 
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, requestedInContractLedger
@@ -313,15 +313,15 @@ FORM paymentRequests 'Платежные требования'
             toRequestInContractLedger(ic),
             partyAContract(contractInContractLedger(ic)) == partyA() OR ic IS InContractLedger AND NOT partyA(),
             partyBContract(contractInContractLedger(ic)) == partyB() OR ic IS InContractLedger AND NOT partyB()
-    ORDER BY dateInContractLedger
+    ORDER BY dateInContractLedger(i)
 ;
 
 DESIGN paymentRequests FROM DEFAULT{
     ADD d.box {
         type = CONTAINERH;
         caption = 'Параметры';
-        ADD PROPERTY(namePartyA);
-        ADD PROPERTY(namePartyB);
+        ADD PROPERTY(namePartyA());
+        ADD PROPERTY(namePartyB());
     }
     NEW splitContainer {
         type = SPLITV;

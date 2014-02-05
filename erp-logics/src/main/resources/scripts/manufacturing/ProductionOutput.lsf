@@ -100,7 +100,7 @@ EXTEND FORM productDetails
 ;
 EXTEND DESIGN productDetails {
     main {
-        PROPERTY(toOutputProductDetail) { background = #FFFFCC; }
+        PROPERTY(toOutputProductDetail(d)) { background = #FFFFCC; }
     }
 }
 
@@ -234,26 +234,26 @@ EXTEND FORM order
 
     PROPERTIES(pd) BEFORE deletepd SHOWIF createOutputOrder(o) BACKGROUND backgroundOutputOrder(o) outputProductsSumProductDetail
 
-    PROPERTIES(pd) READONLY outputProductDetail AFTER quantityProductDetail SHOWIF showOutputOrder(o) BACKGROUND backgroundOutputOrder(o)
-    PROPERTIES(pd) outputQuantityProductDetail AFTER quantityProductDetail SHOWIF createOutputOrder(o) BACKGROUND backgroundOutputOrder(o)
+    PROPERTIES(pd) READONLY outputProductDetail AFTER quantityProductDetail(pd) SHOWIF showOutputOrder(o) BACKGROUND backgroundOutputOrder(o)
+    PROPERTIES(pd) outputQuantityProductDetail AFTER quantityProductDetail(pd) SHOWIF createOutputOrder(o) BACKGROUND backgroundOutputOrder(o)
 ;
 EXTEND DESIGN order {
     headerRow112 {
         NEW headerRow1122 {
             caption = 'Производство';
-            ADD PROPERTY(createOutputOrder);
+            ADD PROPERTY(createOutputOrder(o));
         }
     }
-    PROPERTY(outputProductsSumProductDetailOrder) { preferredCharWidth = 13;}    
+    PROPERTY(outputProductsSumProductDetailOrder(o)) { preferredCharWidth = 13;}
 }
 
 EXTEND FORM orders
 
-    PROPERTIES(o)  READONLY BACKGROUND backgroundOutputOrder(o) outputProductsSumProductDetailOrder AFTER productsSumProductDetailOrder
+    PROPERTIES(o)  READONLY BACKGROUND backgroundOutputOrder(o) outputProductsSumProductDetailOrder AFTER productsSumProductDetailOrder(o)
 
     PROPERTIES(pd) READONLY SHOWIF createOutputOrder(o) BACKGROUND backgroundOutputOrder(o) outputProductsSumProductDetail
-    PROPERTIES(pd) READONLY outputProductDetail AFTER quantityProductDetail SHOWIF showOutputOrder(o) BACKGROUND backgroundOutputOrder(o)
-    PROPERTIES(pd) READONLY outputQuantityProductDetail AFTER quantityProductDetail SHOWIF createOutputOrder(o) BACKGROUND backgroundOutputOrder(o)
+    PROPERTIES(pd) READONLY outputProductDetail AFTER quantityProductDetail(pd) SHOWIF showOutputOrder(o) BACKGROUND backgroundOutputOrder(o)
+    PROPERTIES(pd) READONLY outputQuantityProductDetail AFTER quantityProductDetail(pd) SHOWIF createOutputOrder(o) BACKGROUND backgroundOutputOrder(o)
 ;
 
 // Создание агрегированного документа
@@ -355,13 +355,13 @@ DESIGN userOutput FROM DEFAULT{
 
                 ADD o.documentHeader {
                     type = CONTAINERH;
-                    ADD PROPERTY(isPostedUserOutput) { preferredCharWidth = 10; }
-                    ADD PROPERTY(nameStockUserOutput);
-                    ADD PROPERTY(nameNumeratorUserOutput);
-                    ADD PROPERTY(numberUserOutput);
-                    ADD PROPERTY(seriesUserOutput);
-                    ADD PROPERTY(dateUserOutput);
-                    ADD PROPERTY(timeUserOutput);
+                    ADD PROPERTY(isPostedUserOutput(o)) { preferredCharWidth = 10; }
+                    ADD PROPERTY(nameStockUserOutput(o));
+                    ADD PROPERTY(nameNumeratorUserOutput(o));
+                    ADD PROPERTY(numberUserOutput(o));
+                    ADD PROPERTY(seriesUserOutput(o));
+                    ADD PROPERTY(dateUserOutput(o));
+                    ADD PROPERTY(timeUserOutput(o));
                 }
                 NEW headerRow12 {
                     type = CONTAINERV;
@@ -382,10 +382,10 @@ DESIGN userOutput FROM DEFAULT{
             }
         }
 
-        PROPERTY(formOk) {
+        PROPERTY(formOk()) {
             caption = 'Провести';
         }
-        PROPERTY(sumUserOutputDetailUserOutput) { preferredCharWidth = 13;}          
+        PROPERTY(sumUserOutputDetailUserOutput(o)) { preferredCharWidth = 13;}
     }
 }
 
@@ -499,7 +499,7 @@ DESIGN outputs FROM DEFAULT {
     }
 }
 @extendFormEditable(outputs);
-@defineFilterIsOpened (output, outputs, o); 
+@defineFilterIsOpened (output, outputs, o);
 NAVIGATOR {
     manufacturingDocuments {
         ADD outputs;

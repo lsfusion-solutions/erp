@@ -291,7 +291,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                        valueVATUserInvoiceDetail ON CHANGE changeValueVATUserInvoiceDetail(d),
                        invoicePriceUserInvoiceDetail ON CHANGE changeInvoicePriceUserInvoiceDetail(d),
                        VATSumUserInvoiceDetail, invoiceSumUserInvoiceDetail, ADDOBJ, deleteid=DELETESESSION
-        ORDER BY indexUserInvoiceDetail
+        ORDER BY indexUserInvoiceDetail(d)
 
         PROPERTIES(i) TODRAW d fillDocumentInvoice, addDetailDialogSkuStockUserInvoiceDetailUserInvoice,
                                addDetailInputBarcodeUserInvoiceDetailUserInvoice, deleteUserInvoiceDetailUserInvoice
@@ -320,15 +320,15 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                         type = CONTAINERV;
                         NEW first {
                             type = CONTAINERH;
-                            ADD PROPERTY(isPostedUserInvoice);
+                            ADD PROPERTY(isPostedUserInvoice(i));
                         }
                         NEW second { 
                             type = CONTAINERH;
-                            ADD PROPERTY(nameNumeratorUserInvoice);
-                            ADD PROPERTY(numberUserInvoice);
-                            ADD PROPERTY(seriesUserInvoice);
-                            ADD PROPERTY(dateUserInvoice);
-                            ADD PROPERTY(timeUserInvoice);
+                            ADD PROPERTY(nameNumeratorUserInvoice(i));
+                            ADD PROPERTY(numberUserInvoice(i));
+                            ADD PROPERTY(seriesUserInvoice(i));
+                            ADD PROPERTY(dateUserInvoice(i));
+                            ADD PROPERTY(timeUserInvoice(i));
                         }    
                     }
                     NEW headerLegalEntity {
@@ -336,14 +336,14 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                         NEW headerSupplier {
                             caption = 'Поставщик';
                             type = CONTAINERH;
-                            ADD PROPERTY(nameSupplierUserInvoice);
-                            ADD PROPERTY(nameSupplierStockUserInvoice);
+                            ADD PROPERTY(nameSupplierUserInvoice(i));
+                            ADD PROPERTY(nameSupplierStockUserInvoice(i));
                         }
                         NEW headerCustomer {
                             caption = 'Покупатель';
                             type = CONTAINERH;
-                            ADD PROPERTY(nameCustomerUserInvoice);
-                            ADD PROPERTY(nameCustomerStockUserInvoice);
+                            ADD PROPERTY(nameCustomerUserInvoice(i));
+                            ADD PROPERTY(nameCustomerStockUserInvoice(i));
                         }
                     }
                     NEW headerTabbedPane {
@@ -355,8 +355,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                             NEW headerContract {
                                 type = CONTAINERH;
                                 caption = 'Договор';
-                                ADD PROPERTY(seriesNumberContractSkuUserInvoice);
-                                ADD PROPERTY(isCommissionUserInvoice);
+                                ADD PROPERTY(seriesNumberContractSkuUserInvoice(i));
+                                ADD PROPERTY(isCommissionUserInvoice(i));
                             }
                             ADD i.documentPrm {
                                 columns = 2;
@@ -394,12 +394,12 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 
             ADD functions.box;
 
-            PROPERTY(formOk) {
+            PROPERTY(formOk()) {
                 caption = 'Провести';
             }
-            PROPERTY(sumUserInvoiceDetailUserInvoice) { preferredCharWidth = 13;}
-            PROPERTY(VATSumUserInvoiceDetailUserInvoice) { preferredCharWidth = 13;}  
-            PROPERTY(invoiceSumUserInvoiceDetailUserInvoice) { preferredCharWidth = 13;}
+            PROPERTY(sumUserInvoiceDetailUserInvoice(i)) { preferredCharWidth = 13;}
+            PROPERTY(VATSumUserInvoiceDetailUserInvoice(i)) { preferredCharWidth = 13;}  
+            PROPERTY(invoiceSumUserInvoiceDetailUserInvoice(i)) { preferredCharWidth = 13;}
         }
     }
 
@@ -518,7 +518,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
         PROPERTIES (d) READONLY indexInvoiceDetail, idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail
         PROPERTIES (d) READONLY quantityInvoiceDetail, namePriceListTypeInvoiceDetail, priceInvoiceDetail, sumInvoiceDetail,
                        numberVATInvoiceDetail, valueVATInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail
-        ORDER BY indexInvoiceDetail
+        ORDER BY indexInvoiceDetail(d)
 
         FILTERS invoiceInvoiceDetail(d) == i
         FILTERS filterDateFromInvoice(i), 
@@ -547,12 +547,12 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                     NEW topFilters {
                         caption = 'Фильтры';
                         type = CONTAINERH;          
-                        ADD PROPERTY(filterInvoiceDateFrom);
-                        ADD PROPERTY(filterInvoiceDateTo);
-                        ADD PROPERTY(nameFilterInvoiceSupplier);
-                        ADD PROPERTY(nameFilterInvoiceSupplierStock);
-                        ADD PROPERTY(nameFilterInvoiceCustomer);
-                        ADD PROPERTY(nameFilterInvoiceCustomerStock);                   
+                        ADD PROPERTY(filterInvoiceDateFrom());
+                        ADD PROPERTY(filterInvoiceDateTo());
+                        ADD PROPERTY(nameFilterInvoiceSupplier());
+                        ADD PROPERTY(nameFilterInvoiceSupplierStock());
+                        ADD PROPERTY(nameFilterInvoiceCustomer());
+                        ADD PROPERTY(nameFilterInvoiceCustomerStock());                   
                     }
                     ADD i.box {
                         fill = 1;
@@ -588,7 +588,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                             caption = 'Создание на основе';
                             type = CONTAINERV;
 
-                            ADD PROPERTY(copyInvoice) { caption = 'Накладная'###sign;}
+                            ADD PROPERTY(copyInvoice(i)) { caption = 'Накладная'###sign;}
                         }
                         NEW machineryContainer {
                             caption = 'Загрузка';
@@ -657,9 +657,9 @@ META defineInvoiceBatchDialogStock(stockProp)
     }
 
     EXTEND FORM userInvoice
-        PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail
+        PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail(d)
     ;
-    EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail;
+    EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail(d);
 END
 
 // Партии на приходе
@@ -674,9 +674,9 @@ META defineInvoiceBatchDialog(dumb)
     }
 
     EXTEND FORM userInvoice
-        PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail
+        PROPERTIES (d) nameBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) AFTER shortNameUOMSkuUserInvoiceDetail(d)
     ;
-    EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail;
+    EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail(d);
 END
 
 META defineInvoiceReturn(NS, NSR, stockProp)
@@ -740,11 +740,11 @@ META defineInvoiceReturn(NS, NSR, stockProp)
                 DO EXEC recalculatedPriceUserInvoiceDetail(detail);
 
 
-    EXTEND FORM userInvoice PROPERTIES (d) descriptionInvoiceDetailUserInvoiceDetail AFTER shortNameUOMSkuUserInvoiceDetail;
-    EXTEND FORM NS.userInvoice PROPERTIES (d) READONLY returnQuantityInvoiceDetail BEFORE namePriceListTypeUserInvoiceDetail;
+    EXTEND FORM userInvoice PROPERTIES (d) descriptionInvoiceDetailUserInvoiceDetail AFTER shortNameUOMSkuUserInvoiceDetail(d);
+    EXTEND FORM NS.userInvoice PROPERTIES (d) READONLY returnQuantityInvoiceDetail BEFORE namePriceListTypeUserInvoiceDetail(d);
 
-    EXTEND FORM invoices PROPERTIES (d) READONLY descriptionInvoiceDetailInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail;
-    EXTEND FORM NS.invoices PROPERTIES (d) READONLY returnQuantityInvoiceDetail BEFORE namePriceListTypeInvoiceDetail;
+    EXTEND FORM invoices PROPERTIES (d) READONLY descriptionInvoiceDetailInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail(d);
+    EXTEND FORM NS.invoices PROPERTIES (d) READONLY returnQuantityInvoiceDetail BEFORE namePriceListTypeInvoiceDetail(d);
 
     NSR.batchUserInvoiceDetail(detail) <- NS.maxBatchInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
         WHEN CHANGED(invoiceDetailUserInvoiceDetail(detail)) AND NS.countBatchInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) == 1;
@@ -843,11 +843,11 @@ META defineInvoiceHomeCurrency(dumb)
                                                                           BY userInvoiceUserInvoiceDetail(d);
 
     EXTEND FORM userInvoice
-        PROPERTIES(i) BACKGROUND backgroundHomeCurrencyInvoice(i) BEFORE nameAgreementUserInvoice
+        PROPERTIES(i) BACKGROUND backgroundHomeCurrencyInvoice(i) BEFORE nameAgreementUserInvoice(i)
                                                                     isHomeCurrencyUserInvoice
         PROPERTIES(i) BACKGROUND backgroundHomeCurrencyInvoice(i) SHOWIF isHomeCurrencyUserInvoice(i)
                                                                     nameHomeCurrencyInvoice, nameTypeExchangeInvoice, dateRateExchangeInvoice, rateExchangeInvoice
-        PROPERTIES(d) BACKGROUND backgroundHomeCurrencyInvoice(i) SHOWIF isHomeCurrencyUserInvoice(i) AFTER sumUserInvoiceDetail
+        PROPERTIES(d) BACKGROUND backgroundHomeCurrencyInvoice(i) SHOWIF isHomeCurrencyUserInvoice(i) AFTER sumUserInvoiceDetail(d)
                                                                     homeSumInvoiceDetail, homePriceUserInvoiceDetail, rateExchangeUserInvoiceDetail
     ;
 
@@ -857,17 +857,17 @@ META defineInvoiceHomeCurrency(dumb)
                 caption = 'Конвертация';
                 type = COLUMNS;
                 columns = 1;
-                ADD PROPERTY(isHomeCurrencyUserInvoice);
-                ADD PROPERTY(nameHomeCurrencyInvoice);
-                ADD PROPERTY(nameTypeExchangeInvoice);
-                ADD PROPERTY(dateRateExchangeInvoice);
-                ADD PROPERTY(rateExchangeInvoice);
+                ADD PROPERTY(isHomeCurrencyUserInvoice(i));
+                ADD PROPERTY(nameHomeCurrencyInvoice(i));
+                ADD PROPERTY(nameTypeExchangeInvoice(i));
+                ADD PROPERTY(dateRateExchangeInvoice(i));
+                ADD PROPERTY(rateExchangeInvoice(i));
             }
         }
     }
 
     EXTEND FORM invoices
-        PROPERTIES(d) READONLY BACKGROUND backgroundHomeCurrencyInvoice(i) SHOWIF isHomeCurrencyInvoice(i) AFTER sumInvoiceDetail
+        PROPERTIES(d) READONLY BACKGROUND backgroundHomeCurrencyInvoice(i) SHOWIF isHomeCurrencyInvoice(i) AFTER sumInvoiceDetail(d)
                       homeSumInvoiceDetail, homePriceInvoiceDetail, rateExchangeInvoiceDetail
     ;
 END
@@ -900,7 +900,7 @@ META defineInvoicePayment(dumb)
         OBJECTS pm = Payment
         PROPERTIES(pm) READONLY seriesNumberPayment, dateTimePayment, namePayerPayment, nameBeneficiaryPayment,
                                 notePayment, isPostedPayment
-        ORDER BY dateTimePayment
+        ORDER BY dateTimePayment(pm)
         PROPERTIES(pm, i) costOutContractLedgerInContractLedger
         PROPERTIES TODRAW pm FORCE PANEL TOOLBAR addPaymentInvoice(i), editPaymentInvoice(pm, i)
         PROPERTIES(pm) DELETESESSION

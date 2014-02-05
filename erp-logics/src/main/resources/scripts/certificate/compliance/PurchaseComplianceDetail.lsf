@@ -84,7 +84,7 @@ showComplianceInvoice(invoice) += showComplianceUserInvoice(invoice);
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCompliance() showComplianceUserInvoice
     PROPERTIES(d) BACKGROUND backgroundCompliance() SHOWIF showComplianceUserInvoice(i)
-                                                    compliancePriceUserInvoiceDetail BEFORE chargePercentUserInvoiceDetail
+                                                    compliancePriceUserInvoiceDetail BEFORE chargePercentUserInvoiceDetail(d)
 
     OBJECTS cg = ComplianceGroup FIXED GRID
     PROPERTIES(cg) READONLY SHOWIF showComplianceUserInvoice(i)
@@ -112,7 +112,7 @@ EXTEND DESIGN userInvoice {
     headerExtraParams {
         NEW headerCompliance {
             caption = 'Сертификация';
-            ADD PROPERTY(showComplianceUserInvoice);
+            ADD PROPERTY(showComplianceUserInvoice(i));
         }
     }
 
@@ -128,7 +128,7 @@ EXTEND DESIGN userInvoice {
 
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY BACKGROUND backgroundCompliance() SHOWIF showComplianceInvoice(i) BEFORE chargePriceInvoiceDetail
+    PROPERTIES(d) READONLY BACKGROUND backgroundCompliance() SHOWIF showComplianceInvoice(i) BEFORE chargePriceInvoiceDetail(d)
                                                 nameComplianceGroupInvoiceDetail, compliancePriceInvoiceDetail
 ;
 
@@ -148,7 +148,7 @@ EXTEND FORM compliance
 
 EXTEND DESIGN compliance {
     documentParams{
-        ADD PROPERTY(invoicesCompliance);
+        ADD PROPERTY(invoicesCompliance(c));
     }
     firstTab{
         ADD id.box;        
@@ -213,13 +213,13 @@ EXTEND FORM compliance
 
 EXTEND DESIGN compliance {
     documentParams {
-        ADD PROPERTY(sumCompliance);
-        ADD PROPERTY(sumRoundCompliance);
+        ADD PROPERTY(sumCompliance(c));
+        ADD PROPERTY(sumRoundCompliance(c));
     }
 }
 
 EXTEND FORM compliances
-    PROPERTIES(c) READONLY sumCompliance AFTER nameComplianceTypeCompliance
+    PROPERTIES(c) READONLY sumCompliance AFTER nameComplianceTypeCompliance(c)
 ;
 
 //-- Операция

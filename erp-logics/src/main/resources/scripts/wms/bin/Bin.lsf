@@ -25,7 +25,7 @@ FORM binGroups 'Группы ячеек'
     TREE treeGroups g=BinGroup PARENT parentBinGroup
     PROPERTIES READONLY nameBinGroup(g), canonicalNameBinGroup (g)
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
-    ORDER BY canonicalNameBinGroup
+    ORDER BY canonicalNameBinGroup(g)
     DIALOG BinGroup OBJECT g
 ;
 
@@ -55,7 +55,7 @@ FORM bins 'Ячейки'
     PROPERTIES(s) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     FILTERS isParentBinGroupBin(sg, s)
-    ORDER BY nameBin
+    ORDER BY nameBin(s)
 
     DIALOG Bin OBJECT s
 ;
@@ -180,8 +180,8 @@ END
 
 EXTEND FORM currentBalanceSkuStock
 
-    PROPERTIES(bil)   READONLY nameBinSkuLedger  BEFORE signedQuantitySkuLedger
-    PROPERTIES(bt)    READONLY nameBinBatch  BEFORE shippedQuantityBatch
+    PROPERTIES(bil)   READONLY nameBinSkuLedger  BEFORE signedQuantitySkuLedger(bil)
+    PROPERTIES(bt)    READONLY nameBinBatch  BEFORE shippedQuantityBatch(bt)
 
     OBJECTS           bin=Bin
     PROPERTIES        READONLY nameBin(bin), currentBalanceSkuStockBin(s,st,bin)
@@ -195,8 +195,8 @@ EXTEND DESIGN currentBalanceSkuStock {
 
 EXTEND FORM balanceSkuStock
 
-    PROPERTIES(bil)   READONLY nameBinSkuLedger  BEFORE signedQuantitySkuLedger
-    PROPERTIES(bt)    READONLY nameBinBatch  BEFORE shippedQuantityBatch
+    PROPERTIES(bil)   READONLY nameBinSkuLedger  BEFORE signedQuantitySkuLedger(bil)
+    PROPERTIES(bt)    READONLY nameBinBatch  BEFORE shippedQuantityBatch(bt)
 
     OBJECTS           bin=Bin
     PROPERTIES        READONLY nameBin(bin), balanceASkuStockBinDateTime(s,st,bin,t)
@@ -209,7 +209,7 @@ EXTEND DESIGN balanceSkuStock {
 }
 
 EXTEND FORM batches
-    PROPERTIES(bt) READONLY nameBinBatch AFTER nameStockBatch 
+    PROPERTIES(bt) READONLY nameBinBatch AFTER nameStockBatch(bt)
 ;
 // ---------------------  Склады с указанием ячеек ----------------------- //
 
@@ -285,7 +285,7 @@ FORM binStocks 'Ячейки'
     PROPERTIES(b) READONLY nameBin, canonicalNameBin
     PROPERTIES(ts, b) inStockBin
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParentBinGroupBin(bg, b)
-    ORDER BY nameBin
+    ORDER BY nameBin(b)
     PROPERTIES(b) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     FILTERGROUP filters1
@@ -383,19 +383,19 @@ META extendFormInterfaceDetailBin(object, concrete, prefix, befProp)
 
     EXTEND FORM user###object
         PROPERTIES(concrete) showBin###user###object
-        PROPERTIES (d) SHOWIF showBin###user###object(concrete) name###prefix###bin###user###object###detail BEFORE befProp###user###object###detail
+        PROPERTIES (d) SHOWIF showBin###user###object(concrete) name###prefix###bin###user###object###detail BEFORE befProp###user###object###detail(d)
     ;
     EXTEND DESIGN user###object {
         headerExtraParams {
             NEW headerBin {
                 caption = 'Ячейка';
                 type = CONTAINERH;
-                ADD PROPERTY(showBin###user###object);
+                ADD PROPERTY(showBin###user###object(concrete));
             }
         }
     }
     EXTEND FORM object##s
-    PROPERTIES (d) READONLY SHOWIF showBin###object(concrete) name###prefix###bin###object###detail BEFORE befProp###object###detail
+    PROPERTIES (d) READONLY SHOWIF showBin###object(concrete) name###prefix###bin###object###detail BEFORE befProp###object###detail(d)
     ;
 END
 
@@ -410,24 +410,24 @@ META defineInvoiceShipmentBin(stockProp)
 
     EXTEND FORM userInvoice
         PROPERTIES(i) showBinUserInvoice
-        PROPERTIES(d) BEFORE name###stockProp###userInvoiceDetail SHOWIF showBinUserInvoice(i) BACKGROUND backgroundShippedInvoice(i)
+        PROPERTIES(d) BEFORE name###stockProp###userInvoiceDetail(d) SHOWIF showBinUserInvoice(i) BACKGROUND backgroundShippedInvoice(i)
                       nameBinUserInvoiceDetail
     ;
     EXTEND DESIGN userInvoice {
         headerExtraParams {
             NEW headerBin {
                 caption = 'Ячейка';
-                ADD PROPERTY(showBinUserInvoice);
+                ADD PROPERTY(showBinUserInvoice(i));
             }
         }
     }
 
     EXTEND FORM invoices
-        PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail SHOWIF showBinInvoice(i) BACKGROUND backgroundShippedInvoice(i)
+        PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail(d) SHOWIF showBinInvoice(i) BACKGROUND backgroundShippedInvoice(i)
                       nameBinInvoiceDetail
     ;
     EXTEND FORM invoiceDetails
-        PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail SHOWIF showBinInvoiceDetail(d) BACKGROUND backgroundShippedInvoiceDetail(d)
+        PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail(d) SHOWIF showBinInvoiceDetail(d) BACKGROUND backgroundShippedInvoiceDetail(d)
                       nameBinInvoiceDetail
     ;
     

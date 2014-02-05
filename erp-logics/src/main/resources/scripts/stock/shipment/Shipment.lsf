@@ -248,7 +248,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTIES (d) ON EDIT editSkuUserShipmentDetail(d) idBarcodeSkuUserShipmentDetail, nameSkuUserShipmentDetail, shortNameUOMSkuUserShipmentDetail
         PROPERTIES (d) quantityUserShipmentDetail, priceUserShipmentDetail, sumUserShipmentDetail, manufactureDateUserShipmentDetail, expiryDateUserShipmentDetail,
                        name###stockProp###stock###shipmentDetail ON CHANGE changeData###stockProp###stock###filter###userShipmentDetail(d), ADDOBJ, deletesd=DELETESESSION
-        ORDER BY indexUserShipmentDetail
+        ORDER BY indexUserShipmentDetail(d)
 
         PROPERTIES(s) TODRAW d fillDocumentShipment, addDetailDialogSkuStockUserShipmentDetailUserShipment,
                                addDetailInputBarcodeDimensionUserShipmentDetailUserShipment, deleteUserShipmentDetailUserShipment
@@ -275,15 +275,15 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                         type = CONTAINERV;
                         NEW first {
                             type = CONTAINERH;
-                            ADD PROPERTY(isPostedUserShipment) { preferredCharWidth = 40; }
+                            ADD PROPERTY(isPostedUserShipment(s)) { preferredCharWidth = 40; }
                         }
                         NEW second { 
                             type = CONTAINERH;
-                            ADD PROPERTY(nameNumeratorUserShipment);
-                            ADD PROPERTY(numberUserShipment);
-                            ADD PROPERTY(seriesUserShipment);
-                            ADD PROPERTY(dateUserShipment);
-                            ADD PROPERTY(timeUserShipment);
+                            ADD PROPERTY(nameNumeratorUserShipment(s));
+                            ADD PROPERTY(numberUserShipment(s));
+                            ADD PROPERTY(seriesUserShipment(s));
+                            ADD PROPERTY(dateUserShipment(s));
+                            ADD PROPERTY(timeUserShipment(s));
                         }    
                     }                    
                     NEW headerRow11 {
@@ -291,14 +291,14 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                         NEW headerRow111 {
                             caption = 'Поставщик';
                             type = CONTAINERH;
-                            ADD PROPERTY(nameSupplierUserShipment);
-                            ADD PROPERTY(nameSupplierStockUserShipment);
+                            ADD PROPERTY(nameSupplierUserShipment(s));
+                            ADD PROPERTY(nameSupplierStockUserShipment(s));
                         }
                         NEW headerRow112 {
                             caption = 'Покупатель';
                             type = CONTAINERH;
-                            ADD PROPERTY(nameCustomerUserShipment);
-                            ADD PROPERTY(nameCustomerStockUserShipment);
+                            ADD PROPERTY(nameCustomerUserShipment(s));
+                            ADD PROPERTY(nameCustomerStockUserShipment(s));
                         }
                     }
 
@@ -342,10 +342,10 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
             }
         }
 
-        PROPERTY(formOk) {
+        PROPERTY(formOk()) {
             caption = 'Провести';
         }
-        PROPERTY(sumUserShipmentDetailUserShipment) { preferredCharWidth = 13;}      
+        PROPERTY(sumUserShipmentDetailUserShipment(s)) { preferredCharWidth = 13;}      
     }
 
     @defineDocumentSkuPriceListTypeSystemLedger(userShipment, accountPriceListType, stock, stockProp);
@@ -454,7 +454,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         OBJECTS d = ShipmentDetail
         PROPERTIES (d) READONLY indexShipmentDetail, idBarcodeSkuShipmentDetail, nameSkuShipmentDetail, shortNameUOMSkuShipmentDetail
         PROPERTIES (d) READONLY quantityShipmentDetail, priceShipmentDetail, sumShipmentDetail, manufactureDateShipmentDetail, expiryDateShipmentDetail, name###stockProp###stock###shipmentDetail
-        ORDER BY indexShipmentDetail
+        ORDER BY indexShipmentDetail(d)
         FILTERS shipmentShipmentDetail(d) == s
         FILTERS filterDateFromShipment(s), 
                 filterDateToShipment(s),
@@ -477,12 +477,12 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                 NEW topFilters {
                     caption = 'Фильтры';
                     type = CONTAINERH;          
-                    ADD PROPERTY(filterShipmentDateFrom);
-                    ADD PROPERTY(filterShipmentDateTo);
-                    ADD PROPERTY(nameFilterShipmentSupplier);
-                    ADD PROPERTY(nameFilterShipmentSupplierStock);
-                    ADD PROPERTY(nameFilterShipmentCustomer);
-                    ADD PROPERTY(nameFilterShipmentCustomerStock);                   
+                    ADD PROPERTY(filterShipmentDateFrom());
+                    ADD PROPERTY(filterShipmentDateTo());
+                    ADD PROPERTY(nameFilterShipmentSupplier());
+                    ADD PROPERTY(nameFilterShipmentSupplierStock());
+                    ADD PROPERTY(nameFilterShipmentCustomer());
+                    ADD PROPERTY(nameFilterShipmentCustomerStock());                   
                 }
                 ADD s.box {
                     fill = 1;
@@ -514,7 +514,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                     NEW createdContainer {
                         caption = 'Создание на основе';
                         type = CONTAINERV;
-                        ADD PROPERTY(copyShipment) { caption = 'Поставка'###sign;}
+                        ADD PROPERTY(copyShipment(s)) { caption = 'Поставка'###sign;}
                     }
                 }
             }
@@ -558,8 +558,8 @@ META defineShipmentBatchDialogStock(stockProp)
         }
     }
 
-    EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changeBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail;
-    EXTEND FORM shipments PROPERTIES (d) READONLY nameBatchShipmentDetail AFTER shortNameUOMSkuShipmentDetail;
+    EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changeBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail(d);
+    EXTEND FORM shipments PROPERTIES (d) READONLY nameBatchShipmentDetail AFTER shortNameUOMSkuShipmentDetail(d);
 END
 
 META defineShipmentBatchDialog(dumb)
@@ -574,8 +574,8 @@ META defineShipmentBatchDialog(dumb)
         }
     }
 
-    EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changeBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail;
-    EXTEND FORM shipments PROPERTIES (d) READONLY nameBatchShipmentDetail AFTER shortNameUOMSkuShipmentDetail;
+    EXTEND FORM userShipment PROPERTIES (d) nameBatchUserShipmentDetail ON CHANGE changeBatchUserShipmentDetail(d) AFTER shortNameUOMSkuUserShipmentDetail(d);
+    EXTEND FORM shipments PROPERTIES (d) READONLY nameBatchShipmentDetail AFTER shortNameUOMSkuShipmentDetail(d);
 
 END
 

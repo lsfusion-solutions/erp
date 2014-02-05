@@ -80,7 +80,7 @@ EXTEND FORM blanketOrder
                           
     FILTERGROUP stockFilters
         FILTER 'Собственные склады' 'F6' legalEntityStock(btk) == supplierBlanketOrder(o) DEFAULT
-    ORDER BY          idArticle, stockNameB
+    ORDER BY          idArticle(br), stockNameB
     
     FILTERGROUP filtr2
         FILTER 'С остатком' 'F10' prevCurrentBalanceArticle(br) 
@@ -91,12 +91,12 @@ EXTEND FORM blanketOrder
     OBJECTS bsa=(bs=Sku, dd=Stock)
     PROPERTIES(bs) READONLY nameSku, nameCol=nameColorItem FORCE GRID, originalSizeItem FORCE GRID
     PROPERTIES     READONLY stockNameD = nameStock(dd) SHOWIF notSupplierStockBlanketOrder(o)
-    ORDER BY nameCol, nameSku
+    ORDER BY nameCol, nameSku(bs)
     FILTERS  articleItem(bs)==br
     FILTERS           isParentSkuGroupSku(sk, bs),
                       (dd == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, dd) AND NOT ts OR dd IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockBlanketOrder(o) OR
                       dd == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts
-    ORDER BY nameSku
+    ORDER BY nameSku(bs)
 
     PROPERTIES READONLY quantitySkuBlanketOrderSupplierStock(bs,o,dd) BACKGROUND backgroundQuantitySkuBlanketOrderStock(bs,o,dd)    
     PROPERTIES READONLY prevAvailableQuantitySkuBlanketOrderStock(bs,o,dd)
@@ -154,7 +154,7 @@ EXTEND DESIGN blanketOrder {
                 NEW imageBox {
                     fill = 2;
                     caption = 'Изображение';                     
-                    ADD PROPERTY(imageArticle) {                           
+                    ADD PROPERTY(imageArticle(br)) {
                         caption = '';
                         fill = 1;
                     }
@@ -170,8 +170,8 @@ EXTEND DESIGN blanketOrder {
         }
         ADD stb.box;        
     }
-    PROPERTY(prevAvailableQuantityArticleBlanketOrderStock) { background = #F4FFBD; }
-    PROPERTY(prevAvailableQuantityArticleStockBlanketOrder) { background = #F4FFBD; }
+    PROPERTY(prevAvailableQuantityArticleBlanketOrderStock(br,o,btk)) { background = #F4FFBD; }
+    PROPERTY(prevAvailableQuantityArticleStockBlanketOrder(br,btk,o)) { background = #F4FFBD; }
     PROPERTY(prevAvailableQuantitySkuBlanketOrderStock(ks,o,st)) { background = #F4FFBD; }   
     PROPERTY(prevAvailableQuantityBatchBlanketOrderStock(b,o,sto)) { background = #F4FFBD; }       
     

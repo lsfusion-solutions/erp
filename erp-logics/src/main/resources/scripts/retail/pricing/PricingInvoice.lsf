@@ -78,7 +78,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
                       valueRetailVATUserInvoiceDetail, retailVATSumUserInvoiceDetail,
                       retailPriceUserInvoiceDetail ON CHANGE changeRetailPriceUserInvoiceDetail(d),
                       retailSumUserInvoiceDetail
-        PROPERTIES(d) pricingQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF toShowPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i)
+        PROPERTIES(d) pricingQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail(d) SHOWIF toShowPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i)
 
 //        HINTTABLE LIST retailMarkupUserInvoiceDetail, valueRetailVATUserInvoiceDetail, retailPriceUserInvoiceDetail
     ;
@@ -86,11 +86,11 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
         headerCreateDocuments {
             NEW headerCreatePricing {
                 caption = 'Расценка';
-                ADD PROPERTY(createPricingUserInvoice);
-                ADD PROPERTY(namePricingCommitteeUserInvoice);
+                ADD PROPERTY(createPricingUserInvoice(i));
+                ADD PROPERTY(namePricingCommitteeUserInvoice(i));
             }
         }
-        PROPERTY(retailSumUserInvoiceDetailUserInvoice) { preferredCharWidth = 13;}   
+        PROPERTY(retailSumUserInvoiceDetailUserInvoice(i)) { preferredCharWidth = 13;}   
     }
     EXTEND FORM invoices
         PROPERTIES(i) BACKGROUND backgroundRetailInvoice(i) retailSumInvoiceDetailInvoice READONLY BEFORE ordersInvoice(i)
@@ -98,7 +98,7 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
                       retailMarkupInvoiceDetail, retailMarkupSumInvoiceDetail, numberRetailVATInvoiceDetail,
                       valueRetailVATInvoiceDetail, retailVATSumInvoiceDetail,
                       retailPriceInvoiceDetail, retailSumInvoiceDetail
-        PROPERTIES(d) READONLY BACKGROUND backgroundRetailInvoice(i) pricingQuantityInvoiceDetail AFTER quantityInvoiceDetail  SHOWIF toShowPricingInvoice(i)
+        PROPERTIES(d) READONLY BACKGROUND backgroundRetailInvoice(i) pricingQuantityInvoiceDetail AFTER quantityInvoiceDetail(d)  SHOWIF toShowPricingInvoice(i)
     ;
     
     overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
@@ -292,7 +292,7 @@ META defineInvoicePricingRelation(sign, stockProp)
                     }
                 }
             }
-            PROPERTY(toPricingInvoiceDetail) { background = #FFFFCC; }
+            PROPERTY(toPricingInvoiceDetail(d)) { background = #FFFFCC; }
         }
     }
 
@@ -332,10 +332,10 @@ META defineInvoicePricingRelation(sign, stockProp)
     ;
 
     EXTEND FORM userInvoice
-            PROPERTIES(d) READONLY pricingInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF showPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i)
+            PROPERTIES(d) READONLY pricingInvoiceDetail AFTER quantityUserInvoiceDetail(d) SHOWIF showPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i)
     ;
     EXTEND FORM invoices
-            PROPERTIES(d) READONLY BACKGROUND backgroundRetailInvoice(i) pricingInvoiceDetail AFTER quantityInvoiceDetail  SHOWIF showPricingInvoice(i)
+            PROPERTIES(d) READONLY BACKGROUND backgroundRetailInvoice(i) pricingInvoiceDetail AFTER quantityInvoiceDetail(d)  SHOWIF showPricingInvoice(i)
     ;
     EXTEND FORM pricingInvoices
         PROPERTIES(i) READONLY createPricingInvoice, retailSumInvoiceDetailInvoice BEFORE ordersInvoice(i)

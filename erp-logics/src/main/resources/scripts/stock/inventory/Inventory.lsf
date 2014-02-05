@@ -823,7 +823,7 @@ FORM dialogSkuCollationSheet 'Выбор SKU для сличительной в�
 
     TREE treeGroup g=SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY nameSkuGroup(g)
-    ORDER BY nameSkuGroup
+    ORDER BY nameSkuGroup(g)
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(g) DEFAULT
 
     OBJECTS i=Sku
@@ -832,7 +832,7 @@ FORM dialogSkuCollationSheet 'Выбор SKU для сличительной в�
     PROPERTIES(cs, i) inManyCollationSheetSku
 
     FILTERS isParentSkuGroupSku(g, i)
-    ORDER BY nameSku
+    ORDER BY nameSku(i)
 ;
 
 DESIGN dialogSkuCollationSheet FROM DEFAULT {
@@ -920,8 +920,8 @@ DESIGN listInventory FROM DEFAULT {
             NEW row {
                 ADD li.documentHeader {
                     type = CONTAINERH;
-                    ADD PROPERTY(nameInventoryListInventory);
-                    ADD PROPERTY(nameListInventory);
+                    ADD PROPERTY(nameInventoryListInventory(li));
+                    ADD PROPERTY(nameListInventory(li));
                 }
                 ADD li.inventoryCommittee {
                     type = CONTAINERH;
@@ -933,13 +933,13 @@ DESIGN listInventory FROM DEFAULT {
                     }
                     NEW create {
                         caption = 'Создание';   
-                        ADD PROPERTY(createPageListInventory); 
+                        ADD PROPERTY(createPageListInventory(li));
                     }
                 }
             }
             ADD li.documentSum {
                 columns = 1;
-                PROPERTY(countPageInventoryListInventory) {
+                PROPERTY(countPageInventoryListInventory(li)) {
                     caption = 'Количество страниц';
                 }
             }
@@ -1039,7 +1039,7 @@ FORM inventory 'Инвентаризация'
 
     TREE treeGroup g=SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY nameSkuGroup(g)
-    ORDER BY nameSkuGroup
+    ORDER BY nameSkuGroup(g)
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(g) DEFAULT
 
     OBJECTS          i=Sku
@@ -1076,12 +1076,12 @@ DESIGN inventory FROM DEFAULT {
     NEW header.box {
         ADD in.documentHeader {
             type = CONTAINERH;
-            ADD PROPERTY(nameStockInventory);
-            ADD PROPERTY(nameNumeratorInventory);
-            ADD PROPERTY(numberInventory);
-            ADD PROPERTY(seriesInventory);
-            ADD PROPERTY(dateInventory);
-            ADD PROPERTY(timeInventory);
+            ADD PROPERTY(nameStockInventory(in));
+            ADD PROPERTY(nameNumeratorInventory(in));
+            ADD PROPERTY(numberInventory(in));
+            ADD PROPERTY(seriesInventory(in));
+            ADD PROPERTY(dateInventory(in));
+            ADD PROPERTY(timeInventory(in));
         }
 
         NEW header {
@@ -1090,10 +1090,10 @@ DESIGN inventory FROM DEFAULT {
                 ADD in.documentPrm {
                     type = COLUMNS;
                     columns = 2;
-                    ADD PROPERTY(nameTypeOfAdditionInventory);
-                    ADD PROPERTY(nameInventory);
-                    ADD PROPERTY(isBatchInventory);
-                    ADD PROPERTY(noteInventory);
+                    ADD PROPERTY(nameTypeOfAdditionInventory(in));
+                    ADD PROPERTY(nameInventory(in));
+                    ADD PROPERTY(isBatchInventory(in));
+                    ADD PROPERTY(noteInventory(in));
                 }
                 ADD in.inventoryCommittee {
                     type = CONTAINERH;
@@ -1104,12 +1104,12 @@ DESIGN inventory FROM DEFAULT {
                     NEW balance {
                         caption = 'Снятие остатков';
                         type = CONTAINERH;
-                        ADD PROPERTY(timeFromInventory);
-                        ADD PROPERTY(timeToInventory);
+                        ADD PROPERTY(timeFromInventory(in));
+                        ADD PROPERTY(timeToInventory(in));
                     }
                     NEW management {
                         caption = 'Руководство';
-                        ADD PROPERTY(nameHeadManInventory);
+                        ADD PROPERTY(nameHeadManInventory(in));
                     }
                 }
             }
@@ -1128,17 +1128,17 @@ DESIGN inventory FROM DEFAULT {
             caption = 'Описи';
             type = SPLITH;
             ADD treeStock.tree.box {
-                PROPERTY(isPostedListInventory) {
+                PROPERTY(isPostedListInventory(li)) {
                         preferredCharWidth = 15;
                 }
-                PROPERTY (dumbPageInventory) {
+                PROPERTY (dumbPageInventory(pl)) {
                     caption = 'Статус';
                     minimumCharWidth = 15;
                 }
-                PROPERTY (postListInventory) {
+                PROPERTY (postListInventory(li)) {
                     caption = 'Закрыть';
                 }
-                PROPERTY (unpostListInventory) {
+                PROPERTY (unpostListInventory(li)) {
                     caption = 'Открыть';
                 }
                 PROPERTY (editLI) {
@@ -1203,7 +1203,7 @@ FORM inventories 'Инвентаризации'
     OBJECTS il=InventorySkuDetail
     PROPERTIES(il) READONLY SHOWIF isSkuInventory(in) nameStockInventorySkuDetail, idBarcodeInventorySkuDetail, nameSkuInventorySkuDetail, quantityInventorySkuDetail, sumInventorySkuDetail
     FILTERS                                           inventoryInventorySkuDetail(il) == in
-    ORDER BY                                          nameStockInventorySkuDetail, nameSkuInventorySkuDetail
+    ORDER BY                                          nameStockInventorySkuDetail(il), nameSkuInventorySkuDetail(il)
 
     OBJECTS ib=InventoryBatchDetail
     PROPERTIES(ib) READONLY SHOWIF isBatchInventory(in) nameStockInventoryBatchDetail, idBarcodeInventoryBatchDetail, nameSkuInventoryBatchDetail,
@@ -1214,7 +1214,7 @@ FORM inventories 'Инвентаризации'
     PROPERTIES(li) READONLY nameListInventory, nameStockListInventory, countIndexListInventory SHOWIF isSkuListInventory(li), countIndexBatchListInventory SHOWIF isBatchListInventory(li),
                             quantityPageInventoryDetailListInventory, sumPageInventoryDetailListInventory
     FILTERS                 inventoryListInventory(li) == in
-    ORDER BY                nameStockListInventory
+    ORDER BY                nameStockListInventory(li)
 
     OBJECTS         i=Sku FIXED GRID
     PROPERTIES(li,i) READONLY indexListInventorySku
@@ -1223,7 +1223,7 @@ FORM inventories 'Инвентаризации'
                               pricePageInventoryDetailListInventorySku SHOWIF isSkuListInventory(li),
                               sumPageInventoryDetailListInventorySku SHOWIF isSkuListInventory(li)
     FILTERS                   quantityPageInventoryDetailListInventorySku(li,i)
-    ORDER BY                  indexListInventorySku
+    ORDER BY                  indexListInventorySku(li,i)
 
     OBJECTS         b=Batch FIXED GRID
     PROPERTIES(li,b) READONLY SHOWIF isBatchListInventory(li) indexListInventoryBatch
@@ -1241,7 +1241,7 @@ FORM inventories 'Инвентаризации'
                                          sumItemBalanceCollationSheet, sumContainerBalanceCollationSheet,
                                          sumItemShortageCollationSheet, sumContainerShortageCollationSheet
     FILTERS                              inventoryCollationSheet(cs) == in
-    ORDER BY                             nameStockCollationSheet
+    ORDER BY                             nameStockCollationSheet(cs)
 
     OBJECTS          it=Sku
     PROPERTIES(it) READONLY                                   nASku=nameSku, idBarcodeSku

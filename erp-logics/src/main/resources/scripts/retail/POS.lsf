@@ -99,30 +99,30 @@ DESIGN postReceiptPayment FROM DEFAULT {
         p.grid {
             defaultComponent = TRUE;
         }
-        PROPERTY(sumPayment) { font = 'bold 36'; }
-        PROPERTY(namePaymentTypePayment) { focusable = FALSE; font = 'bold 36'; }
+        PROPERTY(sumPayment(p)) { font = 'bold 36'; }
+        PROPERTY(namePaymentTypePayment(p)) { focusable = FALSE; font = 'bold 36'; }
         REMOVE p.toolbar;
     }
     NEW south {
         alignment = STRETCH;
         type = CONTAINERH;
-        ADD PROPERTY(sumReceiptDetailReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 72'; }
-        ADD PROPERTY(changePaymentReceipt) { panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 72'; }
+        ADD PROPERTY(sumReceiptDetailReceipt(r)) { panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 72'; }
+        ADD PROPERTY(changePaymentReceipt(r)) { panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 72'; }
         ADD rightControls {
             fill = 1;
             type = CONTAINERV;
-            PROPERTY(formOk) {
+            PROPERTY(formOk()) {
                 fill = 1;
                 font = 'bold 28';
             }
-            PROPERTY(formClose) {
+            PROPERTY(formClose()) {
                 fill = 1;
                 font = 'bold 28';
             }
         }
     }
     REMOVE leftControls;
-    REMOVE PROPERTY(formRefresh);
+    REMOVE PROPERTY(formRefresh());
 }
 
 allowPaymentGiftCard = DATA SESSION BOOLEAN();
@@ -215,7 +215,7 @@ FORM chooseBatchReceipt 'Выбор партии'
     PROPERTIES(bt) READONLY dateTimeBatch, nameBatch
     PROPERTIES(bt, st) READONLY prevCurrentBalanceBatchStock
     PROPERTIES(bt, d) READONLY currentPOSPriceBatchReceiptDetail
-    ORDER BY dateTimeBatch DESC
+    ORDER BY dateTimeBatch(bt) DESC
     FILTERS skuBatch(bt) == skuReceiptDetail(d),
             currentPOSPriceBatchReceiptDetail(bt, d)
 ;
@@ -303,7 +303,7 @@ FORM searchSkuSaleReceipt 'Поиск SKU'
     OBJECTS           s = Sku FIXED GRID
     PROPERTIES        READONLY nameSkuStock(s, st), idBarcodeSku(s)
     FILTERS           isParentSkuGroupSku(sk, s)
-    ORDER BY          nameSkuStock
+    ORDER BY          nameSkuStock(s,st)
 
     PROPERTIES(s, st) READONLY prevCurrentBalanceSkuStock
     PROPERTIES(s, r)  READONLY currentPOSPriceSkuReceipt
@@ -350,7 +350,7 @@ FORM searchBatchSaleReceipt 'Поиск партии'
     OBJECTS           b = Batch FIXED GRID
     PROPERTIES        READONLY SHOWIF explicitBatchLedgerReceipt(r) nameSkuBatch(b), dateTimeBatch(b), nameBatch(b), idBarcodeSkuBatch(b)
     FILTERS           isParentSkuGroupSku(sk, skuBatch(b))
-    ORDER BY          nameSkuBatch
+    ORDER BY          nameSkuBatch(b)
 
     PROPERTIES(b, st) READONLY SHOWIF explicitBatchLedgerReceipt(r) prevCurrentBalanceBatchStock
     PROPERTIES(b, r)  READONLY SHOWIF explicitBatchLedgerReceipt(r) currentPOSPriceBatchReceipt
@@ -420,10 +420,10 @@ FORM scanBarcodeReturnReceipt 'Выбор строки возврата'
 ;
 
 DESIGN scanBarcodeReturnReceipt FROM DEFAULT {
-    PROPERTY(idBarcodeSku) {
+    PROPERTY(idBarcodeSku(s)) {
         focusable = FALSE;
     }
-    PROPERTY(nameSkuStock) {
+    PROPERTY(nameSkuStock(s,d)) {
         focusable = FALSE;
     }
 }
@@ -799,30 +799,30 @@ DESIGN POS FROM DEFAULT {
         ADD r.receiptSaleAction {
             type = CONTAINERV;
             alignment = STRETCH;
-            ADD PROPERTY(searchSkuSaleReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 22';}   
-            ADD PROPERTY(searchBatchSaleReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
+            ADD PROPERTY(searchSkuSaleReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22';}
+            ADD PROPERTY(searchBatchSaleReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
             ADD PROPERTY(barcodeSale) { caption = 'Ввести штрих-код'; panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 22'; editKey = 'F4'; }
         }
         ADD r.receiptReturnAction {
             type = CONTAINERV;
             alignment = STRETCH;
-            ADD PROPERTY(searchSkuReturnReceipt) { fill = 1; focusable = FALSE; font = 'bold 22'; }
-            ADD PROPERTY(scanBarcodeReturnReceipt) { fill = 1; focusable = FALSE; font = 'bold 22'; }
+            ADD PROPERTY(searchSkuReturnReceipt(r)) { fill = 1; focusable = FALSE; font = 'bold 22'; }
+            ADD PROPERTY(scanBarcodeReturnReceipt(r)) { fill = 1; focusable = FALSE; font = 'bold 22'; }
         }
         ADD r.receiptDiscount {
             fill = 1;
             type = CONTAINERV;
-            ADD PROPERTY(nameLegalEntityDiscountCardReceipt) { alignment = STRETCH; caption = 'Держатель'; focusable = FALSE; font = 'bold 22'; }
+            ADD PROPERTY(nameLegalEntityDiscountCardReceipt(r)) { alignment = STRETCH; caption = 'Держатель'; focusable = FALSE; font = 'bold 22'; }
             NEW receiptDiscountRow2 {
                 fill = 1;
                 type = CONTAINERH;
-                ADD PROPERTY(numberDiscountCardReceipt) { alignment = STRETCH; caption = 'Номер'; focusable = FALSE; font = 'bold 22'; }
+                ADD PROPERTY(numberDiscountCardReceipt(r)) { alignment = STRETCH; caption = 'Номер'; focusable = FALSE; font = 'bold 22'; }
                 NEW receiptDiscountActions {
                     fill = 1;
                     type = CONTAINERH;
                     childrenAlignment = TRAILING;
-                    ADD PROPERTY(inputDiscountCardNumberReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 14'; }
-                    ADD PROPERTY(clearDiscountCardReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 14'; }
+                    ADD PROPERTY(inputDiscountCardNumberReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 14'; }
+                    ADD PROPERTY(clearDiscountCardReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 14'; }
                 }
             }
         }
@@ -834,20 +834,20 @@ DESIGN POS FROM DEFAULT {
     }
     ADD d.box {
         fill = 1;
-        PROPERTY(indexReceiptDetail) { focusable = FALSE; font = '14'; }
-        PROPERTY(typeReceiptDetail) { focusable = FALSE; font = '14'; }
+        PROPERTY(indexReceiptDetail(d)) { focusable = FALSE; font = '14'; }
+        PROPERTY(typeReceiptDetail(d)) { focusable = FALSE; font = '14'; }
         PROPERTY(idBarcodeGrid) { focusable = FALSE; font = '14'; }
         PROPERTY(nameSkuGrid) { focusable = FALSE; font = '14'; minimumCharWidth = 20; }
-        PROPERTY(prevCurrentBalanceSkuReceiptDetail) { focusable = FALSE; font = '14'; }
-        PROPERTY(prevCurrentBalanceBatchReceiptDetail) { focusable = FALSE; font = '14'; }
+        PROPERTY(prevCurrentBalanceSkuReceiptDetail(d)) { focusable = FALSE; font = '14'; }
+        PROPERTY(prevCurrentBalanceBatchReceiptDetail(d)) { focusable = FALSE; font = '14'; }
         PROPERTY(quantityGrid) { font = '14'; minimumCharWidth = 5; }
         PROPERTY(priceGrid) { font = '14'; }
         PROPERTY(sumGrid) { font = '14'; }
-        PROPERTY(discountPercentReceiptSaleDetail) { font = '14'; minimumCharWidth = 4; }
-        PROPERTY(discountSumReceiptDetail) { font = '14'; }
-        PROPERTY(numberVATReceiptDetail) { font = '14'; minimumCharWidth = 3; }
-        PROPERTY(valueVATReceiptDetail) { font = '14'; minimumCharWidth = 3; }
-        PROPERTY(sumVATReceiptDetail) { font = '14';}
+        PROPERTY(discountPercentReceiptSaleDetail(d)) { font = '14'; minimumCharWidth = 4; }
+        PROPERTY(discountSumReceiptDetail(d)) { font = '14'; }
+        PROPERTY(numberVATReceiptDetail(d)) { font = '14'; minimumCharWidth = 3; }
+        PROPERTY(valueVATReceiptDetail(d)) { font = '14'; minimumCharWidth = 3; }
+        PROPERTY(sumVATReceiptDetail(d)) { font = '14';}
         PROPERTY(deleted) { focusable = FALSE; font = '14'; }
         REMOVE d.toolbar;
     }
@@ -907,14 +907,14 @@ DESIGN POS FROM DEFAULT {
             NEW misc {
                 type = CONTAINERH;
                 alignment = STRETCH;
-                ADD PROPERTY(formRefresh) {
+                ADD PROPERTY(formRefresh()) {
                     fill = 1;
                     focusable = FALSE;
                 }
                 NEW currentContainer {
                     alignment = STRETCH;
                     caption = 'Текущие значения';
-                    ADD PROPERTY(hostnameCurrentComputer) {
+                    ADD PROPERTY(hostnameCurrentComputer()) {
                         caption = 'Компьютер';
                         alignment = STRETCH;
                         focusable = FALSE;
@@ -922,18 +922,18 @@ DESIGN POS FROM DEFAULT {
                     NEW currentRow2 {
                         alignment = STRETCH;
                         type = CONTAINERH;
-                        ADD PROPERTY(currentDateTime) { caption = 'Время'; focusable = FALSE; }
-                        ADD PROPERTY(currentUserName) { caption = 'Пользователь'; focusable = FALSE; }
+                        ADD PROPERTY(currentDateTime()) { caption = 'Время'; focusable = FALSE; }
+                        ADD PROPERTY(currentUserName()) { caption = 'Пользователь'; focusable = FALSE; }
                     }
                 }
                 NEW actionsContainer {
                     caption = 'Действия с кассой';
                     type = CONTAINERH;
                     alignment = STRETCH;
-                    ADD PROPERTY(fiscalSkipReceipt) { alignment = STRETCH; panelLabelAbove = TRUE; };
-                    ADD PROPERTY(fiscalPrintCopyReceipt) { alignment = STRETCH; focusable = FALSE; }
-                    ADD PROPERTY(fiscalAdvancePaper) { alignment = STRETCH; focusable = FALSE; }
-                    ADD PROPERTY(fiscalCutReceipt) { alignment = STRETCH; focusable = FALSE; }
+                    ADD PROPERTY(fiscalSkipReceipt(r)) { alignment = STRETCH; panelLabelAbove = TRUE; };
+                    ADD PROPERTY(fiscalPrintCopyReceipt()) { alignment = STRETCH; focusable = FALSE; }
+                    ADD PROPERTY(fiscalAdvancePaper()) { alignment = STRETCH; focusable = FALSE; }
+                    ADD PROPERTY(fiscalCutReceipt()) { alignment = STRETCH; focusable = FALSE; }
                 }
             }
         }
@@ -942,16 +942,16 @@ DESIGN POS FROM DEFAULT {
             ADD r.receiptAction {
                 type = CONTAINERV;
                 alignment = STRETCH;
-                ADD PROPERTY(postReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
-                ADD PROPERTY(postCardReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
-                ADD PROPERTY(postCashReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
-                ADD PROPERTY(cancelReceipt) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
+                ADD PROPERTY(postReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
+                ADD PROPERTY(postCardReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
+                ADD PROPERTY(postCashReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
+                ADD PROPERTY(cancelReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
             }
             NEW receiptSums {
                 alignment = STRETCH;
                 caption = 'Итого';
-                ADD PROPERTY(discountSumReceiptDetailReceipt) { alignment = STRETCH; panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 48'; }
-                ADD PROPERTY(sumReceiptDetailReceipt) { alignment = STRETCH; panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 48'; }
+                ADD PROPERTY(discountSumReceiptDetailReceipt(r)) { alignment = STRETCH; panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 48'; }
+                ADD PROPERTY(sumReceiptDetailReceipt(r)) { alignment = STRETCH; panelLabelAbove = TRUE; focusable = FALSE; font = 'bold 48'; }
             }
         }
     }
@@ -1014,9 +1014,9 @@ EXTEND FORM operationCashRegister
 EXTEND DESIGN operationCashRegister {
     main {
         actions {
-            ADD PROPERTY(fiscalZReport) { font = '24'; }
-            ADD PROPERTY(openCurrentZReport) { font = '24'; };
-            ADD PROPERTY(numberCurrentZReport) { font = '24'; };
+            ADD PROPERTY(fiscalZReport()) { font = '24'; }
+            ADD PROPERTY(openCurrentZReport()) { font = '24'; };
+            ADD PROPERTY(numberCurrentZReport()) { font = '24'; };
         }
         ADD z.box BEFORE functions.box;
     }
@@ -1032,6 +1032,6 @@ EXTEND FORM operationCashRegister
 
 EXTEND DESIGN operationCashRegister{
     actions {
-        ADD PROPERTY(fiscalUpdateData) BEFORE PROPERTY(fiscalXReport) { font = '24'; }
+        ADD PROPERTY(fiscalUpdateData()) BEFORE PROPERTY(fiscalXReport()) { font = '24'; }
     }
 }

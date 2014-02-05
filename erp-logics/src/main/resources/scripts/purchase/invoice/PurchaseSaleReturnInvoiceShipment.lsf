@@ -19,7 +19,7 @@ EXTEND FORM Purchase.operation
 ;
 EXTEND DESIGN Purchase.operation {
     saleReturnContainer {
-        ADD PROPERTY(createSaleReturnShipmentOperation);
+        ADD PROPERTY(createSaleReturnShipmentOperation(o));
     }
 }
 @deriveDocumentOperationProperty(UserInvoice, createSaleReturnShipment);
@@ -68,27 +68,27 @@ EXTEND FORM userInvoice
                   saleReturnShipmentDateUserInvoice, saleReturnShipmentTimeUserInvoice
     PROPERTIES(d) BEFORE deleteid SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
                   saleReturnExpiryDateUserInvoiceDetail, nameCustomerStockUserInvoiceDetail, saleReturnShipmentSumUserInvoiceDetail
-    PROPERTIES(d) BEFORE saleReturnShipmentSumUserInvoiceDetail SHOWIF showSaleReturnShipmentUserInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i) 
+    PROPERTIES(d) BEFORE saleReturnShipmentSumUserInvoiceDetail(d) SHOWIF showSaleReturnShipmentUserInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
                   saleReturnShipmentPriceUserInvoiceDetail  
-    PROPERTIES(d) saleReturnShipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
+    PROPERTIES(d) saleReturnShipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail(d) SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
 ;
 EXTEND DESIGN userInvoice {
     headerCreateDocuments{
         NEW headerCreateSaleReturnShipment {
             caption = 'Поставка (продажа-возврат)';
             type = CONTAINERH;
-            ADD PROPERTY(createSaleReturnShipmentUserInvoice);
-            ADD PROPERTY(saleReturnShipmentDateUserInvoice);
-            ADD PROPERTY(saleReturnShipmentTimeUserInvoice);
+            ADD PROPERTY(createSaleReturnShipmentUserInvoice(i));
+            ADD PROPERTY(saleReturnShipmentDateUserInvoice(i));
+            ADD PROPERTY(saleReturnShipmentTimeUserInvoice(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY BACKGROUND backgroundSaleReturnShipmentInvoice(i) saleReturnShipmentSumInvoiceDetailInvoice BEFORE ordersInvoice
+    PROPERTIES(i) READONLY BACKGROUND backgroundSaleReturnShipmentInvoice(i) saleReturnShipmentSumInvoiceDetailInvoice BEFORE ordersInvoice(i)
     PROPERTIES(d) READONLY SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
                   saleReturnExpiryDateInvoiceDetail, nameCustomerStockInvoiceDetail, saleReturnShipmentPriceInvoiceDetail, saleReturnShipmentSumInvoiceDetail
-    PROPERTIES(d) READONLY saleReturnShipmentQuantityInvoiceDetail AFTER quantityInvoiceDetail SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
+    PROPERTIES(d) READONLY saleReturnShipmentQuantityInvoiceDetail AFTER quantityInvoiceDetail(d) SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
 ;
 
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //

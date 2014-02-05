@@ -316,7 +316,7 @@ FORM substitutesSku 'Sku'
     PROPERTIES(sk) editSku, copySku
     FILTERS isParentSkuGroupSku(sg, sk),
             filterSubstituteFromToSku(s,sk)
-    ORDER BY nameSku
+    ORDER BY nameSku(sk)
 
     FILTERGROUP filters
         FILTER 'Товары с остатком' 'F10' currentBalanceSkuSubstitutesSku(sk) AND stockSubstitutesSku() DEFAULT
@@ -340,7 +340,7 @@ DESIGN substitutesSku FROM DEFAULT {
         }
         NEW stockContainer BEFORE topContainer {
             caption = 'Склад';
-            ADD PROPERTY (nameStockSubstitutesSku);
+            ADD PROPERTY (nameStockSubstitutesSku());
         }
         REMOVE o.box;
         REMOVE s.box;
@@ -545,7 +545,7 @@ FORM substitutesComponent 'Sku'
     PROPERTIES() addSku TODRAW sk
     PROPERTIES(sk) editSku, copySku
     FILTERS isParentSkuGroupSku(sg, sk)
-    ORDER BY nameSku
+    ORDER BY nameSku(sk)
 
     FILTERGROUP filters
         FILTER 'Товары с остатком' 'F10' currentBalanceSkuSubstitutesSku(sk) AND stockSubstitutesSku() DEFAULT
@@ -569,7 +569,7 @@ DESIGN substitutesComponent FROM DEFAULT {
         }
         NEW stockContainer BEFORE topContainer {
             caption = 'Склад';
-            ADD PROPERTY (nameStockSubstitutesSku);
+            ADD PROPERTY (nameStockSubstitutesSku());
         }
         REMOVE o.box;
         ADD functions.box;
@@ -651,7 +651,7 @@ DESIGN order FROM DEFAULT{
                 caption = 'Изделия';
                 NEW row111{
                     caption = 'Цена изделий';
-                    ADD PROPERTY(nameCalcPriceListTypeOrder);
+                    ADD PROPERTY(nameCalcPriceListTypeOrder(o));
                 }
                 ADD pd.box;
             }
@@ -667,12 +667,12 @@ DESIGN order FROM DEFAULT{
                         NEW row2111 {
                             caption = 'Цена материалов';
                             type = CONTAINERH;
-                            ADD PROPERTY(namePriceListTypeOrder);
-                            ADD PROPERTY(includeVATOrder);
+                            ADD PROPERTY(namePriceListTypeOrder(o));
+                            ADD PROPERTY(includeVATOrder(o));
                         }
                         NEW row2112 {
                             caption = 'Надбавка к материалам';
-                            ADD PROPERTY(nameComponentsCalcPriceListTypeOrder);
+                            ADD PROPERTY(nameComponentsCalcPriceListTypeOrder(o));
                         }
                     }
                     ADD s.box;
@@ -687,20 +687,20 @@ DESIGN order FROM DEFAULT{
             NEW headerRow1 {
                 ADD o.documentHeader {
                     type = CONTAINERH;
-                    ADD PROPERTY(isPostedOrder) { preferredCharWidth = 10; }
-                    ADD PROPERTY(nameNumeratorOrder);
-                    ADD PROPERTY(numberOrder);
-                    ADD PROPERTY(seriesOrder);
-                    ADD PROPERTY(dateOrder);
-                    ADD PROPERTY(timeOrder);
+                    ADD PROPERTY(isPostedOrder(o)) { preferredCharWidth = 10; }
+                    ADD PROPERTY(nameNumeratorOrder(o));
+                    ADD PROPERTY(numberOrder(o));
+                    ADD PROPERTY(seriesOrder(o));
+                    ADD PROPERTY(dateOrder(o));
+                    ADD PROPERTY(timeOrder(o));
                 }
                 NEW headerRow11 {
                     type = CONTAINERH;
                     NEW headerRow111 {
                         caption = 'Склады';
                         type = CONTAINERH;
-                        ADD PROPERTY(nameComponentsStockOrder);
-                        ADD PROPERTY(nameProductsStockOrder);
+                        ADD PROPERTY(nameComponentsStockOrder(o));
+                        ADD PROPERTY(nameProductsStockOrder(o));
                     }
                     NEW headerRow112 {
                         type = CONTAINERH;
@@ -714,8 +714,8 @@ DESIGN order FROM DEFAULT{
                     NEW timeRow {
                         caption = 'Срок действия';
                         type = CONTAINERH;
-                        ADD PROPERTY(fromDateOrder);
-                        ADD PROPERTY(toDateOrder);
+                        ADD PROPERTY(fromDateOrder(o));
+                        ADD PROPERTY(toDateOrder(o));
                     }
                 }
             }
@@ -725,10 +725,10 @@ DESIGN order FROM DEFAULT{
             }
         }
 
-        PROPERTY(formOk) {
+        PROPERTY(formOk()) {
             caption = 'Провести';
         }
-        PROPERTY(productsSumProductDetailOrder) { preferredCharWidth = 13;}                   
+        PROPERTY(productsSumProductDetailOrder(o)) { preferredCharWidth = 13;}
     }
 }
 editOrder 'Редактировать' (order) = ACTION EDITFORM Order;
@@ -853,7 +853,7 @@ DESIGN orders FROM DEFAULT {
     }
 }
 @extendFormEditable(orders);
-@defineFilterIsOpened (order, orders, o); 
+@defineFilterIsOpened (order, orders, o);
 
 NAVIGATOR {
     manufacturingDocuments {

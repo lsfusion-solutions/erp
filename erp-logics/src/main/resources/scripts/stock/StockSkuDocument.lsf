@@ -94,6 +94,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
         TREE skuTree sk = SkuGroup PARENT parentSkuGroup
         PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
         ORDER BY skuTreeName
+        ORDER BY skuTreeName
         FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
         OBJECTS ks=Sku
@@ -134,7 +135,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
                 }
             }
         }
-        PROPERTY(prevCurrentBalanceSku###object) { background = #FFEEEE; }
+        PROPERTY(prevCurrentBalanceSku###object(ks, concrete)) { background = #FFEEEE; }
     }
 END
 
@@ -262,7 +263,7 @@ META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
         PROPERTIES READONLY     nameSkuBatch(b), idBarcodeSkuBatch(b), shortNameUOMBatch(b), idBatch(b) SHOWIF showIDs(), nameBatch(b)
         PROPERTIES(b, concrete) quantity###detail###batchProp###object ON CHANGE changeQuantityBatch###object(b, concrete) 
                                     BACKGROUND backgroundQuantityBatch###object(b, concrete)
-                                    QUICKFILTER nameSkuBatch,
+                                    QUICKFILTER nameSkuBatch(b),
                                 prevCurrentBalanceBatch###object READONLY,
                                 allQuantityBatch###object ON CHANGE changeAllQuantityBatch###object(b, concrete),
                                 priceBatch###object READONLY
@@ -271,7 +272,7 @@ META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
         FILTERS                isParentSkuGroupBatch(sk, b),
                                activeSkuBatch(b)
 
-        ORDER BY nameSkuBatch
+        ORDER BY nameSkuBatch(b)
     ;                                        
 
     EXTEND DESIGN form {
@@ -282,7 +283,7 @@ META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
                 caption = 'Партии';
             }
         }
-        PROPERTY(prevCurrentBalanceBatch###object) { background = #FFEEEE; }
+        PROPERTY(prevCurrentBalanceBatch###object(b, concrete)) { background = #FFEEEE; }
     }
 END
 META extendFormDocumentBatch(object, form, concrete)
@@ -432,11 +433,11 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
             FILTER 'Собственные склады' 'F6' legalEntityStock(st) == legalEntityProp###object(concrete) DEFAULT
 
         FILTERS           nameSku(ks)
-        ORDER BY          nameSku
+        ORDER BY          nameSku(ks)
 
         PROPERTIES        quantitySku###object###stockProp###stock(ks, concrete, st) ON CHANGE changeQuantitySku###object###stock(ks, concrete, st) 
                                 BACKGROUND backgroundQuantitySku###object###Stock(ks, concrete, st)
-                                QUICKFILTER nameSku,
+                                QUICKFILTER nameSku(ks),
                           prevCurrentBalanceSkuStock(ks, st) READONLY,
                           allQuantitySku###object(ks, st) ON CHANGE changeAllQuantitySku###object(ks, concrete, st),
                           priceSkuStock###object(ks, st, concrete) READONLY
@@ -468,7 +469,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
                 }
             }
         }
-        PROPERTY(prevCurrentBalanceSkuStock) { background = #FFEEEE; }
+        PROPERTY(prevCurrentBalanceSkuStock(ks, st)) { background = #FFEEEE; }
     }
 END
 
@@ -588,11 +589,11 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
 
         FILTERGROUP stockFilters
             FILTER 'Собственные склады' 'F6' legalEntityStock(sto) == legalEntityProp###object(concrete) DEFAULT
-        ORDER BY          prevNameSkuBatch
+        ORDER BY          prevNameSkuBatch(b)
 
         PROPERTIES        quantityBatch###object###stockProp###stock(b, concrete, sto) ON CHANGE changeQuantityBatch###object###stock(b, concrete, sto) 
                                     BACKGROUND backgroundQuantityBatch###object###Stock(b, concrete, sto)
-                                    QUICKFILTER prevNameSkuBatch,
+                                    QUICKFILTER prevNameSkuBatch(b),
                           prevCurrentBalanceBatchStock(b, sto) READONLY,
                           allQuantityBatch###object(b, concrete, sto) ON CHANGE changeAllQuantityBatch###object(b, concrete, sto),
                           priceBatchStock###object(b, sto, concrete) READONLY
@@ -605,7 +606,7 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
                 caption = 'Партии';
             }
         }
-        PROPERTY(prevCurrentBalanceBatchStock) { background = #FFEEEE; }
+        PROPERTY(prevCurrentBalanceBatchStock(b, sto)) { background = #FFEEEE; }
     }
 END
 
@@ -699,7 +700,7 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
         FILTERGROUP stockFilters
             FILTER 'Собственные склады' 'F6' legalEntityStock(st) == legalEntityProp###object(concrete) DEFAULT
 
-        ORDER BY          nameSku, stockName
+        ORDER BY          nameSku(ks), stockName
 
         PROPERTIES quantitySku###object###stockProp(ks, concrete, st) READONLY BACKGROUND backgroundQuantitySku###object###Stock(ks, concrete, st)
         PROPERTIES quantitySku###object###stockProp###stockExtra(ks, concrete, st, cc)  COLUMNS (cc) HEADER nameQuantity###stockExtra(cc) ON CHANGE changeQuantitySku###object###Stock###stockExtra(ks, concrete, st, cc)
@@ -741,7 +742,7 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
                 }
             }
         }
-        PROPERTY(prevCurrentBalanceSkuStock) { background = #FFEEEE; }
+        PROPERTY(prevCurrentBalanceSkuStock(ks, st)) { background = #FFEEEE; }
     }    
     
 END
@@ -830,7 +831,7 @@ META extendFormDocumentBatchStockExtraCustom(object, form, concrete, legalEntity
 
         FILTERGROUP stockFilters
             FILTER 'Собственные склады' 'F6' legalEntityStock(sto) == legalEntityProp###object(concrete) DEFAULT
-        ORDER BY          nameSkuBatch
+        ORDER BY          nameSkuBatch(b)
 
         PROPERTIES quantityBatch###object###stockProp(b, concrete, sto) READONLY BACKGROUND backgroundQuantityBatch###object###Stock(b, concrete, sto)
         PROPERTIES quantityBatch###object###stockProp###stockExtra(b, concrete, sto, ccc)  COLUMNS (ccc) HEADER nameQuantity###stockExtra(ccc) ON CHANGE changeQuantityBatch###object###Stock###stockExtra(b, concrete, sto, ccc)
@@ -853,7 +854,7 @@ META extendFormDocumentBatchStockExtraCustom(object, form, concrete, legalEntity
                 caption = 'Партии';
             }
         }
-        PROPERTY(prevCurrentBalanceBatchStock) { background = #FFEEEE; }
+        PROPERTY(prevCurrentBalanceBatchStock(b, sto)) { background = #FFEEEE; }
     }
 END
 

@@ -103,7 +103,7 @@ FORM barcodeInput 'Ввод штрих-кода'
 ;
 
 DESIGN barcodeInput FROM DEFAULT {
-    PROPERTY (barcodeInput) {
+    PROPERTY (barcodeInput()) {
         caption = 'Штрих-код';
         font = 'bold 64';
         panelLabelAbove = TRUE;
@@ -217,7 +217,7 @@ END
 @defineDialogSkuBarcode(dialogSku);
 
 EXTEND FORM skus
-    PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku
+    PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku(s)
 ;
 
 FORM emptyBarcodeSkus 'Sku'
@@ -231,7 +231,7 @@ FORM emptyBarcodeSkus 'Sku'
     PROPERTIES(s) editSku, copySku
     FILTERS isParentSkuGroupSku(sg, s)
     FILTERS NOT idBarcodeSku(s)
-    ORDER BY nameSku
+    ORDER BY nameSku(s)
 ;
 
 DESIGN emptyBarcodeSkus FROM DEFAULT {
@@ -257,49 +257,49 @@ DESIGN emptyBarcodeSkus FROM DEFAULT {
 }
 
 EXTEND FORM currentBalanceSkuStock
-    PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku
+    PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku(s)
     PROPERTIES seekBarcode() TODRAW s FORCE PANEL TOOLBAR ON CHANGE seekSkuBarcode()
 ;
 EXTEND DESIGN currentBalanceSkuStock{
     sts.box{
-        PROPERTY(seekBarcode){
+        PROPERTY(seekBarcode()){
             editKey = 'F4';
         }
     }
 }
 EXTEND FORM balanceSkuStock
-    PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku
+    PROPERTIES(s) READONLY idBarcodeSku AFTER nameSku(s)
     PROPERTIES seekBarcode() TODRAW s FORCE PANEL TOOLBAR ON CHANGE seekSkuBarcode()
 ;
 EXTEND DESIGN balanceSkuStock{
     sts.box{
-        PROPERTY(seekBarcode){
+        PROPERTY(seekBarcode()){
             editKey = 'F4';
         }
     }
 }
 
 EXTEND FORM currentBalanceBatchStock
-    PROPERTIES(bt) READONLY idBarcodeSkuBatch AFTER nameSkuBatch
+    PROPERTIES(bt) READONLY idBarcodeSkuBatch AFTER nameSkuBatch(bt)
     PROPERTIES seekBarcode() TODRAW bt FORCE PANEL TOOLBAR
     FILTERS (bt IS Batch AND NOT seekBarcode()) OR (skuBarcodeIdDate(seekBarcode(), currentDate()) == skuBatch(bt))
 ;
 EXTEND DESIGN currentBalanceBatchStock{
     stb.box{
-        PROPERTY(seekBarcode){
+        PROPERTY(seekBarcode()){
             editKey = 'F4';
         }
     }
 }
 
 EXTEND FORM costSkuLedger
-    PROPERTIES(bil) READONLY idBarcodeSkuSkuLedger AFTER nameSkuSkuLedger
+    PROPERTIES(bil) READONLY idBarcodeSkuSkuLedger AFTER nameSkuSkuLedger(bil)
 ;
 EXTEND FORM dialogBatchStock
-    PROPERTIES(bt) READONLY idBarcodeSkuBatch AFTER nameSkuBatch
+    PROPERTIES(bt) READONLY idBarcodeSkuBatch AFTER nameSkuBatch(bt)
 ;
 EXTEND FORM batches
-    PROPERTIES(bt) READONLY idBarcodeSkuBatch AFTER nameSkuBatch
+    PROPERTIES(bt) READONLY idBarcodeSkuBatch AFTER nameSkuBatch(bt)
 ;
 
 // ------------------------------------------ Объявление штрих-кода в документе ------------------------------------ //
@@ -348,5 +348,5 @@ END
 idBarcodeSkuDocumentDetail 'Товар' (documentDetail) = idBarcodeSku(skuDocumentDetail(documentDetail));
 
 EXTEND FORM documents
-    PROPERTIES (dd) idBarcodeSkuDocumentDetail BEFORE nameSkuDocumentDetail
+    PROPERTIES (dd) idBarcodeSkuDocumentDetail BEFORE nameSkuDocumentDetail(dd)
 ;

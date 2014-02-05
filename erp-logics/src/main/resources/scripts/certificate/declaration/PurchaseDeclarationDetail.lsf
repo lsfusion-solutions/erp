@@ -75,8 +75,8 @@ EXTEND DESIGN declaration {
                 caption = 'Параметры документа';
                 type = COLUMNS;
                 columns = 2;
-                ADD PROPERTY(nameLegalEntityDeclaration);
-                ADD PROPERTY(nameCustomsZoneDeclaration);
+                ADD PROPERTY(nameLegalEntityDeclaration(d));
+                ADD PROPERTY(nameCustomsZoneDeclaration(d));
             }
             NEW extraParams {
                 type = CONTAINERH;
@@ -86,16 +86,16 @@ EXTEND DESIGN declaration {
                     NEW currencyParamsColumn1 {
                         type = COLUMNS;
                         columns = 1;
-                        ADD PROPERTY(nameHomeCurrencyDeclaration);
-                        ADD PROPERTY(nameCurrencyDeclaration);
-                        ADD PROPERTY(nameCurrencyCustomsZoneDeclaration);
+                        ADD PROPERTY(nameHomeCurrencyDeclaration(d));
+                        ADD PROPERTY(nameCurrencyDeclaration(d));
+                        ADD PROPERTY(nameCurrencyCustomsZoneDeclaration(d));
                     }
                     NEW currencyParamsColumn2 {
                         type = COLUMNS;
                         columns = 1;
-                        ADD PROPERTY(nameTypeExchangeDeclaration);
-                        ADD PROPERTY(rateExchangeDeclaration);
-                        ADD PROPERTY(rateExchangeCustomsZoneDeclaration);
+                        ADD PROPERTY(nameTypeExchangeDeclaration(d));
+                        ADD PROPERTY(rateExchangeDeclaration(d));
+                        ADD PROPERTY(rateExchangeCustomsZoneDeclaration(d));
                     }
                 }
             }
@@ -108,7 +108,7 @@ EXTEND DESIGN declaration {
             type = COLUMNS;
             columns = 1;
             caption = 'Округление';
-            ADD PROPERTY(roundDeclaration);
+            ADD PROPERTY(roundDeclaration(d));
         }
     }
     NEW detail {
@@ -243,7 +243,7 @@ showDeclarationInvoice(invoice) += showDeclarationUserInvoice(invoice);
 
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCustoms() showDeclarationUserInvoice
-    PROPERTIES(d) BACKGROUND backgroundCustoms() SHOWIF showDeclarationUserInvoice(i) BEFORE numberVATUserInvoiceDetail
+    PROPERTIES(d) BACKGROUND backgroundCustoms() SHOWIF showDeclarationUserInvoice(i) BEFORE numberVATUserInvoiceDetail(d)
         codeCustomsGroupUserInvoiceDetail, nameVATCustomsExceptionUserInvoiceDetail, dutyPriceUserInvoiceDetail, 
         registrationPriceUserInvoiceDetail, VATPriceUserInvoiceDetail
 ;
@@ -251,13 +251,13 @@ EXTEND DESIGN userInvoice {
     headerExtraParams {
         NEW headerCustoms {
             caption = 'Таможенные платежи';
-            ADD PROPERTY(showDeclarationUserInvoice);
+            ADD PROPERTY(showDeclarationUserInvoice(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY BACKGROUND backgroundCustoms() SHOWIF showDeclarationInvoice(i) BEFORE numberVATInvoiceDetail FORCE GRID
+    PROPERTIES(d) READONLY BACKGROUND backgroundCustoms() SHOWIF showDeclarationInvoice(i) BEFORE numberVATInvoiceDetail(d) FORCE GRID
         codeCustomsGroupInvoiceDetail, nameVATCustomsExceptionInvoiceDetail, dutyPriceInvoiceDetail, registrationPriceInvoiceDetail
 ;
 
@@ -331,7 +331,7 @@ EXTEND FORM declaration
 
 EXTEND DESIGN declaration {
     documentParams {
-        ADD PROPERTY(invoicesDeclaration);
+        ADD PROPERTY(invoicesDeclaration(d));
     }
 
     invoices {
@@ -464,10 +464,10 @@ EXTEND FORM declaration
 
 EXTEND DESIGN declaration {
     header {
-       ADD PROPERTY(isPostedDeclaration) FIRST;
-       ADD PROPERTY(isExportedDeclaration) AFTER PROPERTY(isPostedDeclaration); 
+       ADD PROPERTY(isPostedDeclaration(d)) FIRST;
+       ADD PROPERTY(isExportedDeclaration(d)) AFTER PROPERTY(isPostedDeclaration(d));
     }
-    PROPERTY(formOk) {
+    PROPERTY(formOk()) {
         caption = 'Провести';
     }
 }
@@ -633,20 +633,20 @@ EXTEND DESIGN declaration {
             type = COLUMNS;
             columns = 1;
             caption = 'Суммы документа';
-            ADD PROPERTY(sumDeclarationDetailDeclaration);
-            ADD PROPERTY(deliverySumDeclaration);
-            ADD PROPERTY(chargeSumDeclaration);
-            ADD PROPERTY(homeSumDeclarationDetailDeclaration);
-            ADD PROPERTY(dutySumDeclarationDetailDeclaration);
-            ADD PROPERTY(VATSumDeclarationDetailDeclaration);
-            ADD PROPERTY(registrationSumDeclaration);
+            ADD PROPERTY(sumDeclarationDetailDeclaration(d));
+            ADD PROPERTY(deliverySumDeclaration(d));
+            ADD PROPERTY(chargeSumDeclaration(d));
+            ADD PROPERTY(homeSumDeclarationDetailDeclaration(d));
+            ADD PROPERTY(dutySumDeclarationDetailDeclaration(d));
+            ADD PROPERTY(VATSumDeclarationDetailDeclaration(d));
+            ADD PROPERTY(registrationSumDeclaration(d));
         }
     }
     roundParams {
-        ADD PROPERTY(deliverySumRoundDeclaration);
-        ADD PROPERTY(chargeSumRoundDeclaration);
-        ADD PROPERTY(dutySumRoundDeclaration);
-        ADD PROPERTY(registrationSumRoundDeclaration);
+        ADD PROPERTY(deliverySumRoundDeclaration(d));
+        ADD PROPERTY(chargeSumRoundDeclaration(d));
+        ADD PROPERTY(dutySumRoundDeclaration(d));
+        ADD PROPERTY(registrationSumRoundDeclaration(d));
     }
 }
 
@@ -834,7 +834,7 @@ EXTEND FORM declaration
                    percentDutyDeclarationDetail, weightDutyDeclarationDetail, dutySumDeclarationDetail,
                    numberVATDeclarationDetail, percentVATDeclarationDetail, VATSumDeclarationDetail,
                    ADDOBJ, DELETESESSION, copyDeclarationDetail FORCE PANEL
-    ORDER BY numberDeclarationDetail
+    ORDER BY numberDeclarationDetail(dd)
 
     PROPERTIES (d) createDeclarationDetailDeclaration TODRAW dd FORCE PANEL TOOLBAR
     FILTERS declarationDeclarationDetail(dd) == d
@@ -968,7 +968,7 @@ EXTEND DESIGN userInvoice{
     specification.box {
         headerExtraParams {
             headerCustoms {
-                ADD PROPERTY(showDeclarationUserInvoice);
+                ADD PROPERTY(showDeclarationUserInvoice(i));
             }
         }
         NEW declarationContainer {

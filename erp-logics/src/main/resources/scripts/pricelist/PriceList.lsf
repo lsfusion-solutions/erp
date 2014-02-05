@@ -34,12 +34,12 @@ FORM dataPriceListType 'Пользовательский вид цен'
 
 DESIGN dataPriceListType FROM DEFAULT {
     d.box{
-        ADD PROPERTY(nameDataPriceListType);
-        ADD PROPERTY(idDataPriceListType);
-        ADD PROPERTY(includeVATPriceListType);
-        ADD PROPERTY(nameCurrencyDataPriceListType);
-        ADD PROPERTY(nameRoundConditionPriceListType);
-        ADD PROPERTY(batchLedgerDataPriceListType);
+        ADD PROPERTY(nameDataPriceListType(d));
+        ADD PROPERTY(idDataPriceListType(d));
+        ADD PROPERTY(includeVATPriceListType(d));
+        ADD PROPERTY(nameCurrencyDataPriceListType(d));
+        ADD PROPERTY(nameRoundConditionPriceListType(d));
+        ADD PROPERTY(batchLedgerDataPriceListType(d));
     }
 }
 
@@ -498,7 +498,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES inBatchUserPriceList(b, p) ON CHANGE changeInBatchUserPriceList(b, p) 
     PROPERTIES READONLY idBarcodeSkuBatch(b)
     PROPERTIES READONLY  nameSkuBatch(b)
-    PROPERTIES READONLY QUICKFILTER nameSkuBatch shortNameUOMBatch(b), 
+    PROPERTIES READONLY QUICKFILTER nameSkuBatch(b) shortNameUOMBatch(b),
                                                  prevCurrentBalanceBatchStock(b, ts2), nameBatch(b)
     PROPERTIES READONLY currentPriceBatchPriceListStock(b, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)                                                 
     PROPERTIES(b, p, t, ts2) currentPriceBatchPriceListDataPriceListTypeStock COLUMNS (t) HEADER headerNameCurrentDataPriceListType(p, t) SHOWIF headerNameCurrentDataPriceListType(p, t) BACKGROUND backgroundCurrentDataPriceListType(t)
@@ -508,7 +508,7 @@ FORM userPriceList 'Прайс'
             isParentGroupSupplierGroupBatch(f, b)   
     FILTERGROUP filters4
         FILTER 'С остатком' 'F10' prevCurrentBalanceBatchStock(b, ts2) DEFAULT
-    ORDER BY nameSkuBatch    
+    ORDER BY nameSkuBatch(b)
 
     EVENTS
         ON OK prePostUserPriceList(p)
@@ -550,33 +550,33 @@ DESIGN userPriceList FROM DEFAULT {
         
         NEW first {
             type = CONTAINERH;
-            ADD PROPERTY(isPostedUserPriceList) { preferredCharWidth = 40; }
+            ADD PROPERTY(isPostedUserPriceList(p)) { preferredCharWidth = 40; }
         }
         NEW second { 
             type = CONTAINERH;
-            ADD PROPERTY (nameNumeratorUserPriceList);
-            ADD PROPERTY (numberUserPriceList);
-            ADD PROPERTY (seriesUserPriceList);
-            ADD PROPERTY (dateUserPriceList);
-            ADD PROPERTY (timeUserPriceList);
+            ADD PROPERTY (nameNumeratorUserPriceList(p));
+            ADD PROPERTY (numberUserPriceList(p));
+            ADD PROPERTY (seriesUserPriceList(p));
+            ADD PROPERTY (dateUserPriceList(p));
+            ADD PROPERTY (timeUserPriceList(p));
         }        
 
     }
     NEW timeContainer{
         caption = 'Период действия';
         type = CONTAINERH;
-        ADD PROPERTY (fromDateUserPriceList);
-        ADD PROPERTY (fromTimeUserPriceList);
-        ADD PROPERTY (toDateUserPriceList);
-        ADD PROPERTY (toTimeUserPriceList);
+        ADD PROPERTY (fromDateUserPriceList(p));
+        ADD PROPERTY (fromTimeUserPriceList(p));
+        ADD PROPERTY (toDateUserPriceList(p));
+        ADD PROPERTY (toTimeUserPriceList(p));
     }
     ADD p.documentPrm{
         caption = 'Параметры документа';
         type = COLUMNS;
         columns = 3;
-        ADD PROPERTY(nameCurrencyUserPriceList);
-        ADD PROPERTY(nameCompanyUserPriceList);
-        ADD PROPERTY(noteUserPriceList);
+        ADD PROPERTY(nameCurrencyUserPriceList(p));
+        ADD PROPERTY(nameCompanyUserPriceList(p));
+        ADD PROPERTY(noteUserPriceList(p));
     }
     NEW detailContainer{
         fill = 1;
@@ -598,7 +598,7 @@ DESIGN userPriceList FROM DEFAULT {
                 fill = 3;
                 NEW rowContainer {
                     type = CONTAINERH;
-                    ADD PROPERTY(addDetailInputBarcodeUserPriceListDetailUserPriceList);
+                    ADD PROPERTY(addDetailInputBarcodeUserPriceListDetailUserPriceList(p));
                 }
                 ADD d.box;
             }
@@ -630,8 +630,8 @@ DESIGN userPriceList FROM DEFAULT {
                 NEW filtersContainer {
                     caption = 'Фильтры';
                     type = CONTAINERH;
-                    ADD PROPERTY(nameFilterPriceListTypeUserPriceList);
-                    ADD PROPERTY(nameFilterManufacturerUserPriceList);
+                    ADD PROPERTY(nameFilterPriceListTypeUserPriceList(p));
+                    ADD PROPERTY(nameFilterManufacturerUserPriceList(p));
                 }
             }
             NEW detailFourthContainer{
@@ -665,7 +665,7 @@ DESIGN userPriceList FROM DEFAULT {
     }
     ADD functions.box;
 
-    PROPERTY(formOk) {
+    PROPERTY(formOk()) {
         caption = 'Провести';
     }
 }
@@ -795,14 +795,14 @@ changeMarkUpChosenSkuUserPriceList 'Изменить цену для отмеч�
 }
 
 EXTEND FORM userPriceList
-    PROPERTIES(d) isSelectedUserPriceListDetail BEFORE indexUserPriceListDetail
+    PROPERTIES(d) isSelectedUserPriceListDetail BEFORE indexUserPriceListDetail(d)
     PROPERTIES(p, tt) TODRAW d FORCE PANEL TOOLBAR changeMarkUpChosenSkuUserPriceList
     FILTERGROUP filterSelected
         FILTER 'Отмеченные строки' 'F11' isSelectedUserPriceListDetail(d)
 ;
 EXTEND DESIGN userPriceList{
     rowContainer{
-        ADD PROPERTY(changeMarkUpChosenSkuUserPriceList);
+        ADD PROPERTY(changeMarkUpChosenSkuUserPriceList(p,tt));
     }
 }
 
@@ -869,7 +869,7 @@ EXTEND FORM userPriceList
 
 EXTEND DESIGN userPriceList{
     rowContainer{
-        ADD PROPERTY(changeMarkUpSkuUserPriceList) BEFORE PROPERTY(changeMarkUpChosenSkuUserPriceList);
+        ADD PROPERTY(changeMarkUpSkuUserPriceList(p,tt)) BEFORE PROPERTY(changeMarkUpChosenSkuUserPriceList(p,tt));
     }
 }
 
@@ -1005,7 +1005,7 @@ DESIGN priceLists FROM DEFAULT{
                 caption = 'Печатные формы';
                 NEW printContainer {
                     caption = 'Печать';
-                    ADD PROPERTY(printPriceList);
+                    ADD PROPERTY(printPriceList(p));
                 }
             }
         }

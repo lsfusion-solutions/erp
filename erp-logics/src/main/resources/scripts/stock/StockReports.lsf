@@ -53,7 +53,7 @@ FORM printListBalanceSkusStock 'Остатки по товарам'
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     FILTERS inSessionGroup(groupGroupTypeSku(gt, s))
-    ORDER BY nameSku
+    ORDER BY nameSku(s)
 
     PROPERTIES(s, st, d) READONLY balanceBSkuStockDateTime, sumBSkuStockDateTime
     FILTERS balanceBSkuStockDateTime(s, st, d)
@@ -76,7 +76,7 @@ FORM printBalanceSkusStock 'Остатки по товарам'
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
+    ORDER BY canonicalNameGroup(sk)
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(sk) DEFAULT
 
     FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
@@ -85,7 +85,7 @@ FORM printBalanceSkusStock 'Остатки по товарам'
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
-    ORDER BY nameSku
+    ORDER BY nameSku(s)
     FILTERS groupGroupTypeSku(gt, s) == sk
 
     PROPERTIES(s, st, d) READONLY balanceBSkuStockDateTime, sumBSkuStockDateTime
@@ -111,7 +111,7 @@ FORM printListBalanceBatchesStock 'Остатки по партиям'
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY dateBatch, nameBatch, idBarcodeSkuBatch, nameSkuBatch, shortNameUOMBatch//, shippedQuantityBatch
     FILTERS inSessionGroup(groupGroupTypeSku(gt, skuBatch(bt)))
-    ORDER BY          dateBatch, nameBatch, nameSkuBatch
+    ORDER BY          dateBatch(bt), nameBatch(bt), nameSkuBatch(bt)
 
     PROPERTIES(bt, st, d) READONLY balanceBBatchStockDateTime, accountSumBBatchStockDateTime
     FILTERS balanceBBatchStockDateTime(bt, st, d)
@@ -134,7 +134,7 @@ FORM printBalanceBatchesStock 'Остатки по партиям'
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
+    ORDER BY canonicalNameGroup(sk)
     FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
     FILTERS groupTypeGroup(sk) == gt
     PROPERTIES(sk, st, d) READONLY accountSumBSkuGroupBatchStockDateTime
@@ -143,7 +143,7 @@ FORM printBalanceBatchesStock 'Остатки по партиям'
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY dateBatch, nameBatch, idBarcodeSkuBatch, nameSkuBatch, shortNameUOMBatch//, shippedQuantityBatch
     FILTERS           groupGroupTypeSku(gt, skuBatch(bt)) == sk
-    ORDER BY          dateBatch, nameBatch, nameSkuBatch
+    ORDER BY          dateBatch(bt), nameBatch(bt), nameSkuBatch(bt)
 
     PROPERTIES(bt, st, d) READONLY balanceBBatchStockDateTime, accountSumBBatchStockDateTime
     FILTERS balanceBBatchStockDateTime(bt, st, d)
@@ -175,7 +175,7 @@ FORM reportBalanceStock 'Отчет по остаткам'
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
-    ORDER BY nameSku
+    ORDER BY nameSku(s)
     FILTERS isParentGroupSku(sk, s)
 
     PROPERTIES(s, st, d) READONLY balanceBSkuStockDateTime, sumBSkuStockDateTime, accountSumBatchBSkuStockDateTime
@@ -188,7 +188,7 @@ FORM reportBalanceStock 'Отчет по остаткам'
     OBJECTS           bt=Batch
     PROPERTIES(bt)    READONLY dateBatch, nameBatch, idBarcodeSkuBatch, nameSkuBatch, shortNameUOMBatch//, shippedQuantityBatch
     FILTERS           isParentGroupBatch(sk, bt)
-    ORDER BY          dateBatch, nameBatch, nameSkuBatch
+    ORDER BY          dateBatch(bt), nameBatch(bt), nameSkuBatch(bt)
 
     PROPERTIES(bt, st, d) READONLY balanceBBatchStockDateTime, accountSumBBatchStockDateTime
     PROPERTIES(st, d) printListBalanceBatchesStockDateTime, printBalanceBatchesStockDateTime
@@ -215,8 +215,8 @@ DESIGN reportBalanceStock FROM DEFAULT{
                 NEW printSkuContainer{
                     type = CONTAINERH;
                     caption = 'Печать';
-                    ADD PROPERTY(printListBalanceSkusStockDateTime);
-                    ADD PROPERTY(printBalanceSkusStockDateTime);
+                    ADD PROPERTY(printListBalanceSkusStockDateTime(st,d));
+                    ADD PROPERTY(printBalanceSkusStockDateTime(st,d));
                 }
                 ADD s.box;
             }
@@ -227,8 +227,8 @@ DESIGN reportBalanceStock FROM DEFAULT{
                     caption = 'Печать';
                     NEW print1{
                         type = CONTAINERH;
-                        ADD PROPERTY(printListBalanceBatchesStockDateTime);
-                        ADD PROPERTY(printBalanceBatchesStockDateTime);                    
+                        ADD PROPERTY(printListBalanceBatchesStockDateTime(st,d));
+                        ADD PROPERTY(printBalanceBatchesStockDateTime(st,d));
                     }
 
                 }
@@ -261,7 +261,7 @@ FORM printListBackSheet 'Оборотная ведомость'
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
     FILTERS inSessionGroup(groupGroupTypeSku(gt, s))
-    ORDER BY nameSku
+    ORDER BY nameSku(s)
 
     PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
     PROPERTIES(s, st, df, dt) READONLY quantitySumInSkuStockDateDate, sumInSkuStockDateDate, quantitySumOutSkuStockDateDate, sumOutSkuStockDateDate
@@ -292,7 +292,7 @@ FORM printBackSheet 'Оборотная ведомость'
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalNameGroup(sk)
-    ORDER BY canonicalNameGroup
+    ORDER BY canonicalNameGroup(sk)
     FILTERS inSessionGroup(sk) AND countSkuGroupGroupType(sk, gt)
     FILTERS groupTypeGroup(sk) == gt
     PROPERTIES(sk, st, df) READONLY sumBSkuGroupStockDate
@@ -302,7 +302,7 @@ FORM printBackSheet 'Оборотная ведомость'
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
-    ORDER BY nameSku
+    ORDER BY nameSku(s)
     FILTERS groupGroupTypeSku(gt, s) == sk
 
     PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
@@ -344,7 +344,7 @@ FORM reportBackSheet 'Оборотная ведомость'
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
-    ORDER BY nameSku
+    ORDER BY nameSku(s)
     FILTERS isParentGroupSku(sk, s)
 
     PROPERTIES(s, st, df) READONLY balanceBSkuStockDate, sumBSkuStockDate
@@ -371,8 +371,8 @@ DESIGN reportBackSheet FROM DEFAULT{
         type = CONTAINERH;
         caption = 'Итоговые суммы';
         ADD PROPERTY(sumBGroupTypeStockDate(gt, st, df)){caption = 'Начала периода';}
-        ADD PROPERTY(sumInGroupTypeStockDateDate){caption = 'Товара пришедшего за период';}
-        ADD PROPERTY(sumOutGroupTypeStockDateDate){caption = 'Товара ушедшего за период';}
+        ADD PROPERTY(sumInGroupTypeStockDateDate(gt,st,df,dt)){caption = 'Товара пришедшего за период';}
+        ADD PROPERTY(sumOutGroupTypeStockDateDate(gt,st,df,dt)){caption = 'Товара ушедшего за период';}
         ADD PROPERTY(sumAGroupTypeStockDate(gt, st, dt)){caption = 'Конца периода';}
     }
     NEW bottomContainer {
@@ -392,8 +392,8 @@ DESIGN reportBackSheet FROM DEFAULT{
                 NEW printSkuContainer {
                     type = CONTAINERH;
                     caption = 'Печать';
-                    ADD PROPERTY(printListBackSheet);
-                    ADD PROPERTY(printBackSheet);
+                    ADD PROPERTY(printListBackSheet(st,df,dt));
+                    ADD PROPERTY(printBackSheet(st,df,dt));
                 }
                 ADD s.box;
                 PROPERTY(balanceBSkuStockDate(s, st, df)){caption = 'Остаток на начало периода';}

@@ -25,14 +25,14 @@ FORM printListInventoryBy 'Опись'
     PROPERTIES (i)    idBarcodeSku, nameSku
     PROPERTIES (li,i) quantityPageInventoryDetailListInventorySku, pricePageInventoryDetailListInventorySku, sumPageInventoryDetailListInventorySku
     FILTERS           quantityPageInventoryDetailListInventorySku(li,i) > 0
-    ORDER BY indexListInventorySku
+    ORDER BY indexListInventorySku(li,i)
 
     OBJECTS         b=Batch
     PROPERTIES (li,b) indexListInventoryBatch
     PROPERTIES (b)    idBarcodeSkuBatch, nameSkuBatch, descriptionBatch, nameBatch
     PROPERTIES (li,b) quantityPageInventoryDetailListInventoryBatch, pricePageInventoryDetailListInventoryBatch, sumPageInventoryDetailListInventoryBatch
     FILTERS           quantityPageInventoryDetailListInventoryBatch(li,b) > 0
-    ORDER BY indexListInventoryBatch
+    ORDER BY indexListInventoryBatch(li,b)
 
     OBJECTS e=Employee
     PROPERTIES(e) READONLY   nameContact, namePositionEmployee
@@ -49,8 +49,8 @@ DESIGN printListInventoryBy FROM DEFAULT {
                 type = CONTAINERV;
                 ADD li.documentHeader {
                     type = CONTAINERH;
-                    ADD PROPERTY(nameInventoryListInventory);
-                    ADD PROPERTY(nameListInventory);
+                    ADD PROPERTY(nameInventoryListInventory(li));
+                    ADD PROPERTY(nameListInventory(li));
                 }
                 ADD li.inventoryCommittee {
                     type = CONTAINERH;
@@ -61,7 +61,7 @@ DESIGN printListInventoryBy FROM DEFAULT {
             }
             ADD li.documentSum {
                 type = CONTAINERV;
-                PROPERTY(countPageInventoryListInventory) {
+                PROPERTY(countPageInventoryListInventory(li)) {
                     caption = 'Количество страниц';
                 }
 
@@ -100,7 +100,7 @@ FORM printCollationSheetBy 'Сличительная ведомость'
     PROPERTIES(cs, i)          pricePageInventoryDetailCollationSheetSku, priceBalanceCollationSheetSku
     PROPERTIES(cs, i) SELECTOR sumPageInventoryDetailCollationSheetSku, sumBalanceCollationSheetSku, sumShortageCollationSheetSku
     FILTERS                    includeCollationSheetSku(cs, i)
-    ORDER BY nameSku
+    ORDER BY nameSku(i)
 
     OBJECTS         b=Batch
     PROPERTIES(b)    SELECTOR nameSkuBatch, idBarcodeSkuBatch, descriptionBatch, nameBatch
@@ -109,7 +109,7 @@ FORM printCollationSheetBy 'Сличительная ведомость'
     PROPERTIES(cs,b) READONLY sumPageInventoryDetailCollationSheetBatch, sumBalanceCollationSheetBatch, sumShortageCollationSheetBatch
     FILTERS                   includeCollationSheetBatch(cs,b),
                               quantityPageInventoryDetailCollationSheetBatch(cs,b) OR quantityBalanceCollationSheetBatch(cs,b)
-    ORDER BY nameSkuBatch
+    ORDER BY nameSkuBatch(b)
 ;
 
 printCollationSheetBy 'Сличительная ведомость' (collationSheet) =

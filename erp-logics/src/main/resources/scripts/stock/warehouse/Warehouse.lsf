@@ -33,7 +33,7 @@ FORM warehouseGroups 'Группы складов'
     TREE warehouseGroupTree wg = WarehouseGroup PARENT parentWarehouseGroup
     PROPERTIES READONLY wgTreeName = nameWarehouseGroup(wg)
     PROPERTIES(wg) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    ORDER BY nameWarehouseGroup(wg)
+    ORDER BY wgTreeName
 
     DIALOG WarehouseGroup OBJECT wg
 ;
@@ -85,7 +85,7 @@ FORM warehouse 'Склад'
     OBJECTS           w=Warehouse FIXED PANEL
     PROPERTIES(w)     nameWarehouse, idWarehouse SHOWIF showIDs(), nameWarehouseGroupWarehouse, addressWarehouse, nameLegalEntityWarehouse,
                       latitudeWarehouse, longitudeWarehouse, showOnMapPOI, quantityDaysCloseWarehouse, nameRegionStock
-    ORDER BY          nameWarehouse
+    ORDER BY          nameWarehouse(w)
 
     OBJECTS           e = Employee
     PROPERTIES(e)     READONLY firstNameContact, lastNameContact
@@ -103,24 +103,24 @@ DESIGN warehouse FROM DEFAULT{
             NEW headerMainParams {
                 caption = 'Основные параметры';
                 type = CONTAINERH;
-                ADD PROPERTY(nameWarehouse);
-                ADD PROPERTY(idWarehouse);
-                ADD PROPERTY(nameWarehouseGroupWarehouse);
-                ADD PROPERTY(nameLegalEntityWarehouse);
+                ADD PROPERTY(nameWarehouse(w));
+                ADD PROPERTY(idWarehouse(w));
+                ADD PROPERTY(nameWarehouseGroupWarehouse(w));
+                ADD PROPERTY(nameLegalEntityWarehouse(w));
             }
             NEW headerLocationParams {
                 caption = 'Координаты';
                 type = CONTAINERH;
-                ADD PROPERTY(addressWarehouse);
-                ADD PROPERTY(latitudeWarehouse);
-                ADD PROPERTY(longitudeWarehouse);
-                ADD PROPERTY(showOnMapPOI);
+                ADD PROPERTY(addressWarehouse(w));
+                ADD PROPERTY(latitudeWarehouse(w));
+                ADD PROPERTY(longitudeWarehouse(w));
+                ADD PROPERTY(showOnMapPOI(w));
             }
             NEW headerExtraParams {
                 caption = 'Дополнительные параметры';
                 type = CONTAINERH;
-                ADD PROPERTY(nameRegionStock);
-                ADD PROPERTY(quantityDaysCloseWarehouse);
+                ADD PROPERTY(nameRegionStock(w));
+                ADD PROPERTY(quantityDaysCloseWarehouse(w));
             }
         }
         NEW headerRight;
@@ -146,7 +146,7 @@ FORM warehouses 'Склады'
     OBJECTS w=Warehouse
     PROPERTIES(w) READONLYIF isReadonly() nameWarehouse, idWarehouse SHOWIF showIDs(), nameWarehouseGroupWarehouse, addressWarehouse, nameLegalEntityWarehouse, nameRegionStock, latitudePOI, longitudePOI
     PROPERTIES(w) ADDFORM, EDITFORM, deletew=DELETE FORCE PANEL TOOLBAR
-    ORDER BY nameWarehouse
+    ORDER BY nameWarehouse(w)
     FILTERS isParentWarehouseGroupWarehouse(wg, w) OR (w IS Warehouse AND wg IS WarehouseGroup AND NOT warehouseGroupWarehouse(w)) OR (w IS Warehouse AND NOT wg)
 
     DIALOG Warehouse OBJECT w

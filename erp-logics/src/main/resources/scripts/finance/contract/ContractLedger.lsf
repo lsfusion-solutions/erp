@@ -294,13 +294,13 @@ FORM costContractLedger 'Разнесение документов'
                            costedInContractLedgerOutContractLedger BACKGROUND backgroundOutContractLedgerDate(o, d)
     PROPERTIES(o) writeOutContractLedgerFIFOApply TODRAW i FORCE PANEL TOOLBAR,
                   writeOutContractLedgerLIFOApply TODRAW i FORCE PANEL TOOLBAR
-    ORDER BY dateOutContractLedger
+    ORDER BY dateOutContractLedger(o)
 
     PROPERTIES(i) READONLY dateInContractLedger BACKGROUND backgroundInContractLedgerDate(i, d),
                            descriptionInContractLedger BACKGROUND backgroundInContractLedgerDate(i, d),
                            debtInContractLedger BACKGROUND backgroundInContractLedgerDate(i, d)
     PROPERTIES(o, i) costOutContractLedgerInContractLedger BACKGROUND backgroundInContractLedgerDate(i, d)
-    ORDER BY dateInContractLedger
+    ORDER BY dateInContractLedger(i)
 
     FILTERGROUP filters1
         FILTER 'Неразнесенные' 'F9' isCostedOutContractLedger(o) DEFAULT
@@ -322,8 +322,8 @@ DESIGN costContractLedger FROM DEFAULT {
             type = CONTAINERH;
             caption = 'Шапка';
             ADD PROPERTY(date);
-            ADD PROPERTY(namePartyA);
-            ADD PROPERTY(namePartyB);
+            ADD PROPERTY(namePartyA());
+            ADD PROPERTY(namePartyB());
         }
         NEW firstContainer {
             type = SPLITV;
@@ -351,20 +351,20 @@ FORM contractLedger 'Управление задолженностями'
                               debtSumContractDate BACKGROUND backgroundBonusSumContract(c),
                               bonusSumContractDate BACKGROUND backgroundBonusSumContract(c),
                               bonusDebtSumContractDate BACKGROUND backgroundBonusSumContract(c)
-    ORDER BY seriesNumberContract
+    ORDER BY seriesNumberContract(c)
 
     OBJECTS cl = ContractLedger
     PROPERTIES(cl) READONLY dateContractLedger BACKGROUND backgroundContractLedgerDate(cl, d),
                             sumContractLedger BACKGROUND backgroundSumContractLedgerDate(cl, d),
                             descriptionContractLedger BACKGROUND backgroundContractLedgerDate(cl, d)
-    ORDER BY dateContractLedger
+    ORDER BY dateContractLedger(cl)
     FILTERS activeContractLedger(cl)
 
     OBJECTS cal = ContractALedger
     PROPERTIES(cal) READONLY dateContractALedger BACKGROUND backgroundContractALedgerDate(cal, d),
                              sumContractALedger BACKGROUND backgroundSumContractALedgerDate(cal, d),
                              descriptionContractALedger BACKGROUND backgroundContractALedgerDate(cal, d)
-    ORDER BY dateContractALedger
+    ORDER BY dateContractALedger(cal)
     FILTERS activeContractALedger(cal)
 
     OBJECTS ic = InContractLedger
@@ -372,7 +372,7 @@ FORM contractLedger 'Управление задолженностями'
     PROPERTIES(ic, d) READONLY debtInContractLedgerDate BACKGROUND backgroundBonusSumInContractLedger(ic),
                                bonusSumInContractLedger BACKGROUND backgroundBonusSumInContractLedger(ic),
                                bonusDebtSumInContractLedgerDate BACKGROUND backgroundBonusSumInContractLedger(ic)
-    ORDER BY dateInContractLedger
+    ORDER BY dateInContractLedger(ic)
     FILTERS activeInContractLedger(ic)
     FILTERGROUP filters1 
         FILTER 'Неоплаченные' 'F6' debtInContractLedgerDate(ic, d) DEFAULT
@@ -383,20 +383,20 @@ FORM contractLedger 'Управление задолженностями'
     PROPERTIES(icoc) READONLY dateOutContractLedger, descriptionOutContractLedger, sumOutContractLedger
     PROPERTIES(icoc, d) READONLY costedInContractLedgerOutContractLedgerDate
     PROPERTIES READONLY costOutContractLedgerInContractLedger(icoc, ic)
-    ORDER BY dateOutContractLedger
+    ORDER BY dateOutContractLedger(icoc)
 
     OBJECTS oc = OutContractLedger
     PROPERTIES(oc) READONLY dateOutContractLedger, descriptionOutContractLedger, sumOutContractLedger
     PROPERTIES(oc, d) READONLY costedInContractLedgerOutContractLedgerDate
     PROPERTIES(oc) FORCE PANEL TOOLBAR writeOutContractLedgerFIFO SHOWIF isOutContractLedger(oc),
                                        writeOutContractLedgerLIFO SHOWIF isOutContractLedger(oc)
-    ORDER BY dateOutContractLedger
+    ORDER BY dateOutContractLedger(icoc)
 
     OBJECTS ocic = InContractLedger
     PROPERTIES(ocic) READONLY dateInContractLedger, descriptionInContractLedger, sumInContractLedger
     PROPERTIES(ocic, d) READONLY debtInContractLedgerDate
     PROPERTIES READONLY costOutContractLedgerInContractLedger(oc, ocic)
-    ORDER BY dateInContractLedger
+    ORDER BY dateInContractLedger(ic)
     FILTERS activeInContractLedger(ocic)
 
     FILTERS contractContractLedger(cl) == c,
@@ -415,8 +415,8 @@ DESIGN contractLedger FROM DEFAULT{
         type = CONTAINERH;
         caption = 'Шапка';
         ADD PROPERTY(date);
-        ADD PROPERTY(namePartyA);
-        ADD PROPERTY(namePartyB);
+        ADD PROPERTY(namePartyA());
+        ADD PROPERTY(namePartyB());
     }
 
     NEW detail {
@@ -480,7 +480,7 @@ FORM unpaidDocuments 'Неоплаченные документы'
                            nameCurrencyContractInContractLedger, seriesNumberContractInContractLedger, sumInContractLedger, 
                            costedOutContractLedgerInContractLedger, debtInContractLedger, descriptionInContractLedger                             
                              
-    ORDER BY dateInContractLedger, numberInContractLedger 
+    ORDER BY dateInContractLedger(i), numberInContractLedger(i)
     FILTERS activeInContractLedger(i), contractInContractLedger(i),  
             contractInContractLedger(i) == contractProp() OR (i IS InContractLedger AND NOT seriesNumberContractProp()),
             partyBContractInContractLedger(i) == partyB() OR (i IS InContractLedger AND NOT partyB()),
@@ -503,9 +503,9 @@ DESIGN unpaidDocuments FROM DEFAULT{
         type = CONTAINERH;
         caption = 'Шапка';
         ADD PROPERTY(valDt);
-        ADD PROPERTY(namePartyA);
-        ADD PROPERTY(namePartyB);
-        ADD PROPERTY(seriesNumberContractProp);
+        ADD PROPERTY(namePartyA());
+        ADD PROPERTY(namePartyB());
+        ADD PROPERTY(seriesNumberContractProp());
     }
     NEW docsContainer{
         type =SPLITV;
@@ -513,7 +513,7 @@ DESIGN unpaidDocuments FROM DEFAULT{
         caption = 'Документы';
         ADD i.box{
             fill = 4;
-            PROPERTY(sumInContractLedger){
+            PROPERTY(sumInContractLedger(i)){
                 caption = 'Сумма документа';
             }
         }

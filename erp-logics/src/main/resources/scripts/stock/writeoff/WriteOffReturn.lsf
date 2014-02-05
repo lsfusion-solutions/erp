@@ -129,16 +129,16 @@ DESIGN userWriteOff FROM DEFAULT{
                     type = CONTAINERV;
                     NEW first {
                         type = CONTAINERH;
-                        ADD PROPERTY(isPostedUserWriteOff);
-                        ADD PROPERTY(nameStockUserWriteOff);
+                        ADD PROPERTY(isPostedUserWriteOff(w));
+                        ADD PROPERTY(nameStockUserWriteOff(w));
                     }
                     NEW second { 
                         type = CONTAINERH;
-                        ADD PROPERTY(nameNumeratorUserWriteOff);
-                        ADD PROPERTY(numberUserWriteOff);
-                        ADD PROPERTY(seriesUserWriteOff);
-                        ADD PROPERTY(dateUserWriteOff);
-                        ADD PROPERTY(timeUserWriteOff);
+                        ADD PROPERTY(nameNumeratorUserWriteOff(w));
+                        ADD PROPERTY(numberUserWriteOff(w));
+                        ADD PROPERTY(seriesUserWriteOff(w));
+                        ADD PROPERTY(dateUserWriteOff(w));
+                        ADD PROPERTY(timeUserWriteOff(w));
                     }    
                 }
 
@@ -177,7 +177,7 @@ DESIGN userWriteOff FROM DEFAULT{
         }
         ADD functions.box;
 
-        PROPERTY(formOk) {
+        PROPERTY(formOk()) {
             caption = 'Провести';
         }
     }
@@ -281,11 +281,11 @@ EXTEND FORM userWriteOff
 ;
 EXTEND DESIGN userWriteOff{
     first{
-        ADD PROPERTY (nameOperationUserWriteOff) BEFORE PROPERTY(nameStockUserWriteOff);
+        ADD PROPERTY (nameOperationUserWriteOff(w)) BEFORE PROPERTY(nameStockUserWriteOff(w));
     }
 }
 EXTEND FORM writeOffs
-    PROPERTIES(w) READONLY nameOperationWriteOff BEFORE nameReasonWriteOff
+    PROPERTIES(w) READONLY nameOperationWriteOff BEFORE nameReasonWriteOff(w)
 ;
 
     
@@ -327,11 +327,11 @@ recalculatedPriceUserWriteOffDetail(detail) = ACTION (detail) {    //todo: не�
             DO EXEC recalculatedPriceUserWriteOffDetail(detail);
 
 
-EXTEND FORM userWriteOff PROPERTIES (d) descriptionWriteOffDetailUserWriteOffDetail AFTER shortNameUOMSkuUserWriteOffDetail;
-EXTEND FORM WriteOff.userWriteOff PROPERTIES (d) READONLY returnQuantityWriteOffDetail BEFORE priceUserWriteOffDetail;
+EXTEND FORM userWriteOff PROPERTIES (d) descriptionWriteOffDetailUserWriteOffDetail AFTER shortNameUOMSkuUserWriteOffDetail(d);
+EXTEND FORM WriteOff.userWriteOff PROPERTIES (d) READONLY returnQuantityWriteOffDetail BEFORE priceUserWriteOffDetail(d);
 
-EXTEND FORM writeOffs PROPERTIES (d) READONLY descriptionWriteOffDetailWriteOffDetail AFTER shortNameUOMSkuWriteOffDetail;
-EXTEND FORM WriteOff.writeOffs PROPERTIES (d) READONLY returnQuantityWriteOffDetail BEFORE priceWriteOffDetail;
+EXTEND FORM writeOffs PROPERTIES (d) READONLY descriptionWriteOffDetailWriteOffDetail AFTER shortNameUOMSkuWriteOffDetail(d);
+EXTEND FORM WriteOff.writeOffs PROPERTIES (d) READONLY returnQuantityWriteOffDetail BEFORE priceWriteOffDetail(d);
 
 WHEN SESSION FORMS userWriteOff  CHANGED(writeOffDetailUserWriteOffDetail(detail)) AND countBatchCostSkuLedger(writeOffDetailUserWriteOffDetail(detail)) == 1 DO {
     batchUserWriteOffDetail(detail) <- maxBatchCostSkuLedger(writeOffDetailUserWriteOffDetail(detail));
@@ -348,7 +348,7 @@ CONSTRAINT operationUserWriteOff(writeOff) AND contactUserWriteOff(writeOff)
     CHECKED BY contactUserWriteOff
     MESSAGE 'Контрагент должен совпадать с отмеченными в операции';
 
-@deriveDocumentOperationLegalEntity(userWriteOff, contact, userWriteOff);   
+@deriveDocumentOperationLegalEntity(userWriteOff, contact, userWriteOff);
   
 NAVIGATOR {
     stockNavigator {

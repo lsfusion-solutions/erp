@@ -45,19 +45,19 @@ FORM itemGroups 'Товарные группы'
     PROPERTIES inItemGroup(g), moveItemGroup(g) TODRAW g FORCE PANEL TOOLBAR
     PROPERTIES READONLYIF isReadonly() nameItemGroup(g), idItemGroup(g) SHOWIF showIDs(),canonicalNameItemGroup (g)
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
-    ORDER BY canonicalNameItemGroup
+    ORDER BY canonicalNameItemGroup(g)
 ;
 @extendFormEditable(itemGroups);
 
 FORM dialogItemGroups 'Товарные группы'
     TREE treeGroups tg=ItemGroup PARENT parentItemGroup
     PROPERTIES READONLY nameItemGroup(tg)
-    ORDER BY nameItemGroup
+    ORDER BY nameItemGroup(tg)
 
     OBJECTS g=ItemGroup
     PROPERTIES(g) nameItemGroup READONLY, canonicalNameItemGroup READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(g) ADDFORM, EDITFORM
-    ORDER BY canonicalNameItemGroup
+    ORDER BY canonicalNameItemGroup(g)
 
     FILTERS isParentItemGroupItemGroup(g, tg)
 
@@ -181,11 +181,11 @@ DESIGN item FROM DEFAULT {
         NEW itemHeader BEFORE functions.box {
             type = COLUMNS;
             columns = 2;
-            ADD PROPERTY(canonicalNameItemGroupItem) {
+            ADD PROPERTY(canonicalNameItemGroupItem(i)) {
                 caption = 'Полное имя группы';
             }
-            ADD PROPERTY(idBarcodeSku);
-            ADD PROPERTY(idItem);
+            ADD PROPERTY(idBarcodeSku(i));
+            ADD PROPERTY(idItem(i));
         }
         NEW itemDetail BEFORE functions.box {
             type = TABBED;
@@ -226,11 +226,11 @@ DESIGN item FROM DEFAULT {
             NEW itemImage {
                 type = CONTAINERV;
                 caption = 'Изображение';
-                ADD PROPERTY(dataImageItem) {
+                ADD PROPERTY(dataImageItem(i)) {
                     caption = '';
                     fill = 1;
                 }
-                ADD PROPERTY(loadImageItem);
+                ADD PROPERTY(loadImageItem(i));
             }
         }
     }
@@ -283,7 +283,7 @@ DESIGN items FROM DEFAULT {
                 fill = 1;
                 type = SPLITV;
                 ADD groupTree.tree.box;               
-                ADD PROPERTY (imageItem) {
+                ADD PROPERTY (imageItem(i)) {
                     fill = 1;
                     caption = '';
                 }
@@ -294,7 +294,7 @@ DESIGN items FROM DEFAULT {
             type = CONTAINERV;
             NEW row21 {
                 type = CONTAINERH;
-                ADD PROPERTY(seekBarcode) {
+                ADD PROPERTY(seekBarcode()) {
                     editKey = 'F4';
                 }
             }
@@ -431,7 +431,7 @@ META defineItemAttributeName (prefix, caption, group)
                                   IF numberInName###prefix##ItemAttribute(attribute) AND valueItemAttribute(item, attribute), ' ' BY item ORDER numberInName###prefix##ItemAttribute(attribute)](item))
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
     EXTEND FORM item PROPERTIES(i) READONLY name###prefix##AttributeItem;
-    EXTEND DESIGN item { itemHeader {ADD PROPERTY(name###prefix##AttributeItem); } }
+    EXTEND DESIGN item { itemHeader {ADD PROPERTY(name###prefix##AttributeItem(i)); } }
 END
 
 // -------------------------------------- Типы атрибутов ------------------------------- //
@@ -615,7 +615,7 @@ FORM brands 'Бренды'
     OBJECTS t=Brand
     PROPERTIES(t) nameBrand READONLY, siteBrand READONLY, idBrand READONLY SHOWIF showIDs(), DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameBrand
+    ORDER BY nameBrand(t)
     DIALOG Brand OBJECT t
 ;
 DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
@@ -689,7 +689,7 @@ FORM manufacturer 'Производитель товара'
 
 DESIGN manufacturer FROM DEFAULT {
     main{
-        PROPERTY(nameManufacturer){
+        PROPERTY(nameManufacturer(m)){
             preferredCharWidth = 50;    
         }
      }       
@@ -699,7 +699,7 @@ FORM manufacturerDialog 'Производители товара'
     OBJECTS m=Manufacturer
     PROPERTIES(m) nameManufacturer READONLY, idManufacturer READONLY SHOWIF showIDs(), DELETE FORCE PANEL TOOLBAR
     PROPERTIES(m) ADDFORM, EDITFORM
-    ORDER BY nameManufacturer
+    ORDER BY nameManufacturer(m)
     DIALOG Manufacturer OBJECT m
 ;
 DESIGN manufacturerDialog FROM DEFAULT { main{ preferredSize = (600, 400); } }
@@ -747,7 +747,7 @@ EXTEND DESIGN item {
     itemPrimaryColumn1 {
         ADD i.itemBase {
             columns = 2;
-            PROPERTY(compositionItem) {
+            PROPERTY(compositionItem(i)) {
                 minimumCharWidth = 20;
                 preferredCharWidth = 40;
             }
@@ -818,11 +818,11 @@ EXTEND FORM items
         FILTER 'С группами' 'F9' isParentGroupSku(g, i) DEFAULT
         FILTER 'Без групп' 'F8' nameAttributeItem(i) IF gt IS GroupType AND NOT groupGroupTypeSku(gt,i)
 
-    ORDER BY nameAttributeItem
+    ORDER BY nameAttributeItem(i)
 ;
 
 EXTEND DESIGN items {
-    PROPERTY(canonicalNameGroupGroupTypeSku) {
+    PROPERTY(canonicalNameGroupGroupTypeSku(gt,i)) {
         caption = 'Полное имя группы';
     }
 }    
@@ -860,8 +860,8 @@ META defineNumeratorItemGroup (prefix, caption)
                                                                   ELSE
                                                                       RGB(230,230,230) IF prefix##NumeratorItemGroup (itemGroup);
 
-    EXTEND FORM itemGroup PROPERTIES(g)  AFTER nameParentItemGroup name###prefix##NumeratorItemGroup;
-    EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalNameItemGroup READONLYIF isReadonly() name###prefix##NumeratorItemGroup  BACKGROUND background###prefix##NumeratotItemGroup(g);
+    EXTEND FORM itemGroup PROPERTIES(g)  AFTER nameParentItemGroup(g) name###prefix##NumeratorItemGroup;
+    EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalNameItemGroup(g) READONLYIF isReadonly() name###prefix##NumeratorItemGroup  BACKGROUND background###prefix##NumeratotItemGroup(g);
 END
 
 @defineNumeratorItemGroup (piece, 'Нумератор штрих-кодов (для штучного товара)');
@@ -880,17 +880,17 @@ DESIGN itemGroup FROM DEFAULT{
             NEW itemGroupHeader1 {
                 caption = 'Товарная группа';
                 type = CONTAINERH;
-                ADD PROPERTY(idItemGroup);
-                ADD PROPERTY(nameItemGroup);
-                ADD PROPERTY(nameParentItemGroup);
-                ADD PROPERTY(inactiveItemGroup);
+                ADD PROPERTY(idItemGroup(g));
+                ADD PROPERTY(nameItemGroup(g));
+                ADD PROPERTY(nameParentItemGroup(g));
+                ADD PROPERTY(inactiveItemGroup(g));
             }
 
             NEW itemGroupHeader2 {
                 caption = 'Нумераторы';
                 type = CONTAINERH;
-                ADD PROPERTY(nameWeightNumeratorItemGroup);
-                ADD PROPERTY(namePieceNumeratorItemGroup);
+                ADD PROPERTY(nameWeightNumeratorItemGroup(g));
+                ADD PROPERTY(namePieceNumeratorItemGroup(g));
             }
         }
 
@@ -1017,11 +1017,11 @@ changeGroupItem 'Изменить группу' = ACTION (){
 
 
 EXTEND FORM items
-    PROPERTIES(i) inItem BEFORE idBarcodeSku, replaceItem FORCE PANEL
+    PROPERTIES(i) inItem BEFORE idBarcodeSku(i), replaceItem FORCE PANEL
 ;
 EXTEND DESIGN items {
     row21 {
-        ADD PROPERTY(replaceItem);
+        ADD PROPERTY(replaceItem(i));
     }
 }
 
@@ -1029,7 +1029,7 @@ EXTEND DESIGN items {
 
 defaultItemDate 'Дата для региональных параметров по умолчанию' = DATA DATE();
 EXTEND FORM options PROPERTIES() defaultItemDate;
-EXTEND DESIGN options { itemTab { ADD PROPERTY(defaultItemDate); } }
+EXTEND DESIGN options { itemTab { ADD PROPERTY(defaultItemDate()); } }
 
 seekItemDate() = ACTION () {
     IF defaultItemDate() THEN {
