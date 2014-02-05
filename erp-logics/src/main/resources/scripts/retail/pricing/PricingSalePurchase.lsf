@@ -47,10 +47,16 @@ WHEN SESSION // цены берем на начало сессии, а не эт
     CHANGED(skuUserInvoiceDetail(detail)) OR
     CHANGED(customerStockUserInvoiceDetail(detail)) OR
     CHANGED(dateTimeUserInvoiceDetail(detail))) AND pt == calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
-    purchaseRetailPriceListTypeUserInvoiceDetail(detail) <- IF prevPriceBPriceListTypeSkuStockDateTime(pt,
-                                                                                          skuUserInvoiceDetail(detail),
-                                                                                          retailStockUserInvoiceDetail(detail),
-                                                                                          dateTimeUserInvoiceDetail(detail))
+    purchaseRetailPriceListTypeUserInvoiceDetail(detail) <- IF (IF batchUserInvoiceDetail(detail) THEN
+                                                                    prevPriceBPriceListTypeBatchStockDateTime(pt,
+                                                                                               batchUserInvoiceDetail(detail),
+                                                                                               retailStockUserInvoiceDetail(detail),
+                                                                                               dateTimeUserInvoiceDetail(detail))
+                                                                ELSE
+                                                                    prevPriceBPriceListTypeSkuStockDateTime(pt,
+                                                                                               skuUserInvoiceDetail(detail),
+                                                                                               retailStockUserInvoiceDetail(detail),
+                                                                                               dateTimeUserInvoiceDetail(detail)))
                                                             THEN pt
                                                             ELSE calcPurchaseRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
