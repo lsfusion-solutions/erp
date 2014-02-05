@@ -41,13 +41,18 @@ public class UploadImageArticleActionProperty extends ScriptingActionProperty {
             String idImageArticle = (String) getLCP("overIdImageArticle").read(context, articleObject);
             String idArticle = (String) getLCP("idArticle").read(context, articleObject);
             String idImage = idImageArticle != null ? idImageArticle : idArticle; 
-            idImage = (idImage == null || idImage.endsWith(".jpg")) ? idImage : (idImage + ".jpg");
+            String idLImage = (idImage == null || idImage.endsWith(".jpg")) ? idImage : (idImage + ".jpg");
+            String idUImage = (idImage == null || idImage.endsWith(".JPG")) ? idImage : (idImage + ".JPG"); 
             String subDirectory = pathImageArticles + ((idImage == null || idImage.length() < 3) ? "" : "//" + idImage.substring(0, 3));
             if (idImage != null) {
-                if (new File(subDirectory + "//" + idImage).exists())
+                if (new File(subDirectory + "//" + idLImage).exists())
+                    pathImageArticles = subDirectory;
+                if (new File(subDirectory + "//" + idUImage).exists())
                     pathImageArticles = subDirectory;
                 if (!pathImageArticles.isEmpty()) {
-                    File imageFile = new File(pathImageArticles + "//" + idImage);
+                    File imageFile = new File(pathImageArticles + "//" + idLImage);
+                    if (!imageFile.exists())
+                        imageFile = new File(pathImageArticles + "//" + idUImage);
                     if (imageFile.exists()) {
                         Timestamp timeChangedImageArticle = (Timestamp) getLCP("timeChangedImageArticle").read(context, articleObject);
                         if (timeChangedImageArticle == null || timeChangedImageArticle.getTime() != imageFile.lastModified()) {
