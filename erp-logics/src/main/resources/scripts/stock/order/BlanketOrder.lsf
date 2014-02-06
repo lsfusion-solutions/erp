@@ -52,7 +52,8 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
     closeDataDateBlanketOrderDetail(detail) <- sumDate(shipmentDateBlanketOrderDetail(detail), quantityDaysCloseOrdersStock(customerStockBlanketOrderDetail(detail)))
         WHEN CHANGED(shipmentDateBlanketOrderDetail(detail)) OR CHANGED(customerStockBlanketOrderDetail(detail));    
 
-    defaultClosedBlanketOrderDetail(detail) = closeDateBlanketOrderDetail(detail) < currentDate() ;
+    defaultClosedBlanketOrderDetail(detail) = closeDateBlanketOrderDetail(detail) < currentDate();
+    WHEN SET (closeDateBlanketOrder(order) <= currentDate()) DO closeBlanketOrder(order);    
 
     @defineDocumentDetailSku(blanketOrder, sku);
     @defineDocumentDetailQuantity(blanketOrder);
@@ -165,7 +166,8 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
                        nameCurrencyBlanketOrder, noteBlanketOrder,
                        nameCustomerBlanketOrder ON CHANGE changeCustomer###customerFilter###blanketOrder(o), nameAgreementBlanketOrder,
                        countBlanketOrderDetailBlanketOrder, quantityBlanketOrderDetailBlanketOrder, sumBlanketOrderDetailBlanketOrder,
-                       VATSumBlanketOrderDetailBlanketOrder, invoiceSumBlanketOrderDetailBlanketOrder, shipmentDateBlanketOrder, shipmentTimeBlanketOrder
+                       VATSumBlanketOrderDetailBlanketOrder, invoiceSumBlanketOrderDetailBlanketOrder, shipmentDateBlanketOrder, 
+                       shipmentTimeBlanketOrder, closeDateBlanketOrder
 
         OBJECTS d = BlanketOrderDetail
         PROPERTIES (d) indexBlanketOrderDetail, idBarcodeSkuBlanketOrderDetail, nameSkuBlanketOrderDetail, shortNameUOMSkuBlanketOrderDetail,
