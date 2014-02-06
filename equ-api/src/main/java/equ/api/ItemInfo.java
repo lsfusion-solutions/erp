@@ -3,6 +3,7 @@ package equ.api;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
 public class ItemInfo implements Serializable {
     public String idBarcode;
@@ -15,12 +16,13 @@ public class ItemInfo implements Serializable {
     public String composition;
     public Integer compositionNumber;
     public boolean isWeightItem;
-    public Integer numberGroupItem;
-    public String nameGroupItem;
+    public List<String> hierarchyItemGroup;
+    public String nameItemGroup;
+    public Integer nppGroupMachinery;
 
     public ItemInfo(String idBarcode, String name, BigDecimal price, BigDecimal daysExpiry, Integer hoursExpiry, Date expirationDate,
                     Integer labelFormat, String composition, Integer compositionNumber, boolean isWeightItem,
-                    Integer numberGroupItem, String nameGroupItem) {
+                    List<String> hierarchyItemGroup, String nameItemGroup, Integer nppGroupMachinery) {
         this.idBarcode = idBarcode;
         this.name = name;
         this.price = price;
@@ -31,7 +33,8 @@ public class ItemInfo implements Serializable {
         this.composition = composition;
         this.compositionNumber = compositionNumber;
         this.isWeightItem = isWeightItem;
-        this.numberGroupItem = numberGroupItem;
-        this.nameGroupItem = nameGroupItem;
+        this.hierarchyItemGroup = hierarchyItemGroup;
+        this.nameItemGroup = nameItemGroup;
+        this.nppGroupMachinery = nppGroupMachinery;
     }
 }

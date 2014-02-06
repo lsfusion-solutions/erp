@@ -45,7 +45,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 shtrihActiveXComponent.setProperty("NameFirst", new Variant(firstName));
                 shtrihActiveXComponent.setProperty("NameSecond", new Variant(secondName));
                 shtrihActiveXComponent.setProperty("ShelfLife", new Variant(shelfLife)); //срок хранения в днях
-                shtrihActiveXComponent.setProperty("GroupCode", new Variant(item.numberGroupItem));
+                shtrihActiveXComponent.setProperty("GroupCode", new Variant(item.hierarchyItemGroup.get(0)));
                 shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
                 shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
                 shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate));

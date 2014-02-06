@@ -1,19 +1,19 @@
 package equ.clt.handler.kristal;
 
 import com.google.common.base.Throwables;
-import com.hexiong.jdbf.DBFWriter;
-import com.hexiong.jdbf.JDBFException;
-import com.hexiong.jdbf.JDBField;
 import equ.api.*;
 import org.apache.commons.lang.time.DateUtils;
-import org.xBaseJ.DBF;
-import org.xBaseJ.Util;
-import org.xBaseJ.xBaseJException;
+import org.jdom.Document;
+import org.jdom.Element;
+import org.jdom.JDOMException;
+import org.jdom.input.SAXBuilder;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.Time;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
@@ -33,33 +33,25 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         }
 
         for (String directory : directoriesList) {
+
+            String exchangeDirectory = directory.trim() + "\\ImpExp\\Import\\";
             
-            String exchangeDirectory = directory.trim();
-            
-            File folder = new File(exchangeDirectory);
-            if (!folder.exists() && !folder.mkdir())
-                throw new RuntimeException("The folder " + folder.getAbsolutePath() + " can not be created");
-            folder = new File(exchangeDirectory + "/Import");
-            if (!folder.exists() && !folder.mkdir())
-                throw new RuntimeException("The folder " + folder.getAbsolutePath() + " can not be created");
-
-            Util.setxBaseJProperty("ignoreMissingMDX", "true");
-
-
             //plu.txt
-            File flagPluFile = new File(exchangeDirectory + "/Import/WAIT_PLU");
-            if (flagPluFile.createNewFile()) {
+            File flagPluFile = new File(exchangeDirectory + "WAITPLU");
+            if (flagPluFile.exists() || flagPluFile.createNewFile()) {
 
-                File pluFile = new File(directory + "/Import/plu.txt");
+                File pluFile = new File(exchangeDirectory + "plu.txt");
                 PrintWriter writer = new PrintWriter(
                         new OutputStreamWriter(
                                 new FileOutputStream(pluFile), "windows-1251"));
 
                 for (ItemInfo item : transactionInfo.itemsList) {
+                    String idItemGroup = makeIdItemGroup(item.hierarchyItemGroup);
                     String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + item.name + "|" +
-                            (item.isWeightItem ? "кг.|" : "ШТ|") + (item.isWeightItem ? "1|" : "0|") + "1|"/*section*/ +
+                            (item.isWeightItem ? "кг.|" : "ШТ|") + (item.isWeightItem ? "1|" : "0|") +
+                            (item.nppGroupMachinery == null ? "1" : item.nppGroupMachinery) + "|"/*section*/ +
                             item.price.intValue() + "|" + "0|"/*fixprice*/ + (item.isWeightItem ? "0.001|" : "1|") +
-                            item.numberGroupItem + "|0|0|0|0";
+                            idItemGroup;/*item.numberGroupItem + "|0|0|0|0";*/
                     writer.println(record);
                 }
                 writer.close();
@@ -76,10 +68,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             }
 
             //message.txt
-            File flagMessageFile = new File(exchangeDirectory + "/Import/WAIT_MESSAGE");
-            if (flagMessageFile.createNewFile()) {
+            File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
+            if (flagMessageFile.exists() || flagMessageFile.createNewFile()) {
 
-                File messageFile = new File(directory + "/Import/message.txt");
+                File messageFile = new File(exchangeDirectory + "message.txt");
                 PrintWriter writer = new PrintWriter(
                         new OutputStreamWriter(
                                 new FileOutputStream(messageFile), "windows-1251"));
@@ -103,9 +95,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             }
 
             //scale.txt
-            File flagScaleFile = new File(exchangeDirectory + "/Import/WAIT_SCALE");
-            if (flagScaleFile.createNewFile()) {
-                File scaleFile = new File(directory + "/Import/scales.txt");
+            File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
+            if (flagScaleFile.exists() || flagScaleFile.createNewFile()) {
+                File scaleFile = new File(exchangeDirectory + "scales.txt");
                 PrintWriter writer = new PrintWriter(
                         new OutputStreamWriter(
                                 new FileOutputStream(scaleFile), "windows-1251"));
@@ -130,21 +122,22 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             }
 
             //groups.txt
-            File flagGroupsFile = new File(exchangeDirectory + "/Import/WAIT_GROUPS");
-            if (flagGroupsFile.createNewFile()) {
+            File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
+            if (flagGroupsFile.exists() || flagGroupsFile.createNewFile()) {
 
-                File groupsFile = new File(directory + "/Import/groups.txt");
+                File groupsFile = new File(exchangeDirectory + "groups.txt");
 
                 PrintWriter writer = new PrintWriter(
                         new OutputStreamWriter(
                                 new FileOutputStream(groupsFile), "windows-1251"));
 
-                Set<Integer> numberGroupItems = new HashSet<Integer>();
+                Set<String> numberGroupItems = new HashSet<String>();
                 for (ItemInfo item : transactionInfo.itemsList) {
-                    if (!numberGroupItems.contains(item.numberGroupItem)) {
-                        String record = "+|" + item.nameGroupItem + "|" + item.numberGroupItem + "|0|0|0|0";
+                    String idItemGroup = makeIdItemGroup(item.hierarchyItemGroup);
+                    if (!numberGroupItems.contains(idItemGroup)) {
+                        String record = "+|" + item.nameItemGroup + "|" + idItemGroup;
                         writer.println(record);
-                        numberGroupItems.add(item.numberGroupItem);
+                        numberGroupItems.add(idItemGroup);
                     }
 
                 }
@@ -158,7 +151,45 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         }
                     }
                 }
-            }   
+            }
+        }
+    }
+
+    @Override
+    public String requestSalesInfo(Map<java.util.Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+
+        for (Map.Entry<java.util.Date, Set<String>> entry : requestSalesInfo.entrySet()) {
+
+            java.util.Date dateRequestSalesInfo = entry.getKey();
+            Set<String> directoriesList = entry.getValue();
+
+            for (String directory : directoriesList) {
+
+                String exchangeDirectory = directory + "\\export\\request\\";
+
+                if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
+
+                    String data = String.format("<?xml version=\"1.0\" encoding=\"windows-1251\" ?>\n" +
+                            "<REPORLOAD REPORTTYPE=\"2\" >\n" +
+                            "<REPORT OPERDAY=\"%s\"/>\n" +
+                            "</REPORLOAD>", new SimpleDateFormat("yyyyMMdd").format(dateRequestSalesInfo));
+
+                    writer.write(data);
+                    writer.close();
+                }
+                return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public void finishReadingSalesInfo(KristalSalesBatch salesBatch) {
+        for (String readFile : salesBatch.readFiles) {
+            File f = new File(readFile);
+            if (!f.delete())
+                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
         }
     }
 
@@ -180,153 +211,111 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             try {
                 if (entry.getValue() != null) {
 
-                    String exchangeDirectory = entry.getValue().trim();
+                    String exchangeDirectory = entry.getValue().trim() + "\\Export\\";
 
-                    createQueryFile(exchangeDirectory + "/Export/Query/12.dbf");
-                    createQueryFile(exchangeDirectory + "/Export/Query/14.dbf");
-                    String receiptFilePath = exchangeDirectory + "/Export/data/OCHHEAD.dbf";
-                    File receiptFile = new File(receiptFilePath);
-                    File waitReceiptFile = new File(exchangeDirectory + "/Export/data/WAIT_OCHHEAD");
-                    String receiptDetailFilePath = exchangeDirectory + "/Export/data/OCH_POS.dbf";
-                    File receiptDetailFile = new File(receiptDetailFilePath);
-                    File waitReceiptDetailFile = new File(exchangeDirectory + "/Export/data/WAIT_OCHPOS");
-                    
-                    while((!receiptFile.exists() || !receiptDetailFile.exists()) && (waitReceiptFile.exists() || waitReceiptDetailFile.exists())) {
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            throw Throwables.propagate(e);
+                    File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
+                        @Override
+                        public boolean accept(File pathname) {
+                            return pathname.getName().startsWith("ReportCheque1C") && pathname.getPath().endsWith(".xml");
                         }
-                    }
+                    });
 
-                    if (receiptFile.exists() && receiptDetailFile.exists()) {
-                        DBF receiptFileDBF = new DBF(receiptFilePath);
+                    for (File file : filesList) {
+                        String fileName = file.getName();
+                        long currentDate = Calendar.getInstance().getTime().getTime();
+                        long receiptDetailDate = DateUtils.parseDate(fileName.replace("ReportCheque1C_", "").replace(".xml", ""), new String[]{"yyyyMMddHHmmss"}).getTime();
+                        if ((currentDate - receiptDetailDate) > 60000) {
+                            SAXBuilder builder = new SAXBuilder();
 
-                        Map<Integer, ReceiptInfo> receiptInfoMap = new HashMap<Integer, ReceiptInfo>();
+                            Document document = builder.build(file);
+                            Element rootNode = document.getRootElement();
+                            List daysList = rootNode.getChildren("DAY");
 
-                        for (int i = 0; i < receiptFileDBF.getRecordCount(); i++) {
-                            receiptFileDBF.read();
-                            Integer zReportNumber = getDBFIntegerFieldValue(receiptFileDBF, "CREG", "Cp1251", false, null);
-                            Integer receiptNumber = getDBFIntegerFieldValue(receiptFileDBF, "ID", "Cp1251", false, null);
-                            java.sql.Date date = getDBFDateFieldValue(receiptFileDBF, "DATE", "Cp1251", null);
-                            Time time = new Time(date.getTime());
-                            BigDecimal cost1 = getDBFBigDecimalFieldValue(receiptFileDBF, "COST1", "Cp1251", null); //cash
-                            BigDecimal cost3 = getDBFBigDecimalFieldValue(receiptFileDBF, "COST3", "Cp1251", null); //card
-                            BigDecimal discountSum = getDBFBigDecimalFieldValue(receiptFileDBF, "SUMDISC", "Cp1251", null);
-                            String cashRegisterNumber = getDBFFieldValue(receiptFileDBF, "CASHIER", "Cp1251", null);
-                            receiptInfoMap.put(receiptNumber, new ReceiptInfo(zReportNumber, date, time, safeAdd(cost1, cost3), cost3, cost1, discountSum, cashRegisterNumber));
-                        }
-                        receiptFileDBF.close();
+                            for (Object dayNode : daysList) {
 
-                        DBF receiptDetailFileDBF = new DBF(receiptDetailFilePath);
-                        for (int i = 0; i < receiptDetailFileDBF.getRecordCount(); i++) {
-                            receiptDetailFileDBF.read();
-                            Integer receiptNumber = getDBFIntegerFieldValue(receiptDetailFileDBF, "IDHEAD", "Cp1251", false, null);
-                            ReceiptInfo receiptInfo = receiptInfoMap.get(receiptNumber);
-                            if (receiptInfo != null) {
-                                String cashRegisterNumber = getDBFFieldValue(receiptDetailFileDBF, "CASHIER", "Cp1251", null);
-                                String zReportNumber = getDBFFieldValue(receiptDetailFileDBF, "CREG", "Cp1251", null);
-                                String barcode = getDBFFieldValue(receiptDetailFileDBF, "BARCODE", "Cp1251", null);
-                                BigDecimal quantity = getDBFBigDecimalFieldValue(receiptDetailFileDBF, "COUNT", "Cp1251", null);
-                                BigDecimal price = getDBFBigDecimalFieldValue(receiptDetailFileDBF, "PRICE", "Cp1251", null);
-                                BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(receiptDetailFileDBF, "SUM", "Cp1251", null);
-                                salesInfoList.add(new SalesInfo(cashRegisterNumber, zReportNumber, receiptNumber, receiptInfo.date,
-                                        receiptInfo.time, receiptInfo.sumReceipt, receiptInfo.sumCard, receiptInfo.sumCash, barcode, quantity, price, sumReceiptDetail, null, receiptInfo.discountSum, null, receiptInfo.numberReceiptDetail++, null));
+                                List shopsList = ((Element) dayNode).getChildren("SHOP");
+
+                                for (Object shopNode : shopsList) {
+
+                                    List cashesList = ((Element) shopNode).getChildren("CASH");
+
+                                    for (Object cashNode : cashesList) {
+
+                                        String numberCashRegister = ((Element) cashNode).getAttributeValue("CASHNUMBER");
+                                        List gangsList = ((Element) cashNode).getChildren("GANG");
+
+                                        for (Object gangNode : gangsList) {
+
+                                            String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
+                                            List receiptsList = ((Element) gangNode).getChildren("HEAD");
+
+                                            for (Object receiptNode : receiptsList) {
+
+                                                Element receiptElement = (Element) receiptNode;
+
+                                                Integer numberReceipt = Integer.parseInt((receiptElement).getAttributeValue("ID"));
+                                                BigDecimal sumReceipt = new BigDecimal(receiptElement.getAttributeValue("SUMMA"));
+                                                BigDecimal discountSumReceipt = new BigDecimal(receiptElement.getAttributeValue("DISCSUMM"));
+                                                long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy hh:mm:ss"}).getTime();
+                                                Date dateReceipt = new Date(dateTimeReceipt);
+                                                Time timeReceipt = new Time(dateTimeReceipt);
+
+                                                List receiptDetailsList = (receiptElement).getChildren("POS");
+                                                List paymentsList = (receiptElement).getChildren("PAY");
+
+                                                BigDecimal sumCard = BigDecimal.ZERO;
+                                                BigDecimal sumCash = BigDecimal.ZERO;
+                                                for (Object paymentNode : paymentsList) {
+                                                    Element paymentElement = (Element) paymentNode;
+                                                    if (paymentElement.getAttributeValue("PAYTYPE").equals("0")) {
+                                                        sumCash = sumCash.add(new BigDecimal(paymentElement.getAttributeValue("DOCSUMM")));
+                                                    } else if (paymentElement.getAttributeValue("PAYTYPE").equals("3")) {
+                                                        sumCard = sumCard.add(new BigDecimal(paymentElement.getAttributeValue("DOCSUMM")));
+                                                    }
+                                                }
+
+                                                for (Object receiptDetailNode : receiptDetailsList) {
+
+                                                    Element receiptDetailElement = (Element) receiptDetailNode;
+
+                                                    String barcode = receiptDetailElement.getAttributeValue("CODE");
+                                                    BigDecimal quantity = new BigDecimal(receiptDetailElement.getAttributeValue("QUANTITY"));
+                                                    BigDecimal price = new BigDecimal(receiptDetailElement.getAttributeValue("PRICE"));
+                                                    BigDecimal sumReceiptDetail = new BigDecimal(receiptDetailElement.getAttributeValue("SUMMA"));
+                                                    BigDecimal discountSumReceiptDetail = new BigDecimal(receiptDetailElement.getAttributeValue("DISCSUMM"));
+                                                    Integer numberReceiptDetail = Integer.parseInt(receiptDetailElement.getAttributeValue("POSNUMBER"));
+
+                                                    salesInfoList.add(new SalesInfo(numberCashRegister, Integer.parseInt(numberCashRegister), entry.getValue().trim(),
+                                                            numberZReport, numberReceipt, dateReceipt, timeReceipt, sumReceipt, sumCard, sumCash, barcode, 
+                                                            quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, 
+                                                            numberReceiptDetail, fileName));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
+                            filePathList.add(file.getAbsolutePath());
                         }
-                        receiptDetailFileDBF.close();
-
-                        filePathList.add(receiptFilePath);
-                        filePathList.add(receiptDetailFilePath);
                     }
                 }
-            } catch (xBaseJException e) {
-                throw Throwables.propagate(e);
-            } catch (JDBFException e) {
+            } catch (JDOMException e) {
                 throw Throwables.propagate(e);
             }
         }
-
         return new KristalSalesBatch(salesInfoList, filePathList);
     }
 
-    @Override
-    public void finishReadingSalesInfo(KristalSalesBatch salesBatch) {
-        for (String readFile : salesBatch.readFiles) {
-            File f = new File(readFile);
-            if (!f.delete())
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
+    private String makeIdItemGroup(List<String> hierarchyItemGroup) {
+        String idItemGroup = "";
+        for (int i = hierarchyItemGroup.size(); i < 5; i++) {
+            idItemGroup += "0|";
         }
-    }
-
-    private class ReceiptInfo {
-        Integer zReportNumber;
-        java.sql.Date date;
-        Time time;
-        BigDecimal sumReceipt;
-        BigDecimal sumCard;
-        BigDecimal sumCash;
-        BigDecimal discountSum;
-        String cashRegisterNumber;
-        Integer numberReceiptDetail;
-
-        ReceiptInfo(Integer zReportNumber, java.sql.Date date, Time time, BigDecimal sumReceipt, BigDecimal sumCard, BigDecimal sumCash, BigDecimal discountSum, String cashRegisterNumber) {
-            this.zReportNumber = zReportNumber;
-            this.date = date;
-            this.time = time;
-            this.sumReceipt = sumReceipt;
-            this.sumCard = sumCard;
-            this.sumCash = sumCash;
-            this.discountSum = discountSum;
-            this.cashRegisterNumber = cashRegisterNumber;
-            this.numberReceiptDetail = 1;
+        for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
+            String id = hierarchyItemGroup.get(i);
+            idItemGroup += (id == null ? "0" : id) + "|";
         }
-    }
-
-    private File createQueryFile(String path) throws JDBFException {
-        JDBField[] fields = {new JDBField("DATA", 'D', 8, 0), new JDBField("DEVICELIST", 'C', 8, 0)};
-        File dbfFile = new File(path);
-        DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), fields, "CP866");
-        dbfwriter.addRecord(new Object[]{Calendar.getInstance().getTime(), "*"});                     
-        dbfwriter.close();
-        return dbfFile;
-    }
-    
-    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
-        return getDBFFieldValue(importFile, fieldName, charset, false, defaultValue);
-    }
-
-    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
-        try {
-            String result = new String(importFile.getField(fieldName).getBytes(), charset).trim();
-            return result.isEmpty() || (zeroIsNull && result.equals("0")) ? defaultValue : result;
-        } catch (xBaseJException e) {
-            return defaultValue;
-        }
-    }
-
-    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
-        return getDBFBigDecimalFieldValue(importFile, fieldName, charset, false, defaultValue);
-    }
-
-    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
-        String result = getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
-        return (result == null || result.isEmpty() || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new BigDecimal(result.replace(",", "."));
-    }
-
-    protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
-        String result = getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
-        return (result == null || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new Double(result).intValue();
-    }
-
-    protected java.sql.Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset, java.sql.Date defaultValue) throws UnsupportedEncodingException, ParseException {
-        String dateString = getDBFFieldValue(importFile, fieldName, charset, false, "");
-        return dateString.isEmpty() ? defaultValue : new java.sql.Date(DateUtils.parseDate(dateString, new String[]{"dd.MM.yyyy hh:mm", "dd.MM.yyyy hh:mm:"}).getTime());
-    }
-
-    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+        idItemGroup = idItemGroup.substring(0, idItemGroup.length() - 1);
+        return idItemGroup;
     }
 }

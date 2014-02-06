@@ -11,10 +11,7 @@ import java.math.BigDecimal;
 import java.sql.Time;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
 
@@ -150,7 +147,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                                         numberReceiptDetail = 1;
                                         oldReceiptNumber = receiptNumber;
                                     }
-                                    salesInfoList.add(new SalesInfo(entry.getKey(), zReportNumber, receiptNumber, date, time, sumReceipt, BigDecimal.ZERO, sumReceipt, barcodeReceiptDetail,
+                                    salesInfoList.add(new SalesInfo(entry.getKey(), Integer.parseInt(entry.getKey()), null, zReportNumber, receiptNumber, date, time, sumReceipt, BigDecimal.ZERO, sumReceipt, barcodeReceiptDetail,
                                             quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, fileName));
                                     numberReceiptDetail++;
                                 }
@@ -168,6 +165,11 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
         return new MaxishopSalesBatch(salesInfoList, readFiles);
     }
 
+    @Override
+    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+        return null;
+    }
+    
     @Override
     public void finishReadingSalesInfo(MaxishopSalesBatch salesBatch) {
         for (String readFile : salesBatch.readFiles) {

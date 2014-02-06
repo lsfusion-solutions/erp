@@ -3,8 +3,8 @@ package equ.clt.handler.easy;
 import equ.api.*;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.text.ParseException;
+import java.util.*;
 
 public class EasyCSVHandler {
 
@@ -46,6 +46,11 @@ public class EasyCSVHandler {
         @Override
         public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
+        }
+
+        @Override
+        public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException { 
+            return null;
         }
 
         @Override

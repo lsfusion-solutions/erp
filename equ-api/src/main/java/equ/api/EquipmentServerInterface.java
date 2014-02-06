@@ -4,13 +4,18 @@ import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public interface EquipmentServerInterface extends Remote {
 
     List<TransactionInfo> readTransactionInfo(String equServerID) throws RemoteException, SQLException;
 
     List<CashRegisterInfo> readCashRegisterInfo(String equServerID) throws RemoteException, SQLException;
+
+    Map<Date, Set<String>> readRequestSalesInfo(String equServerID) throws RemoteException, SQLException;
 
     List<TerminalInfo> readTerminalInfo(String equServerID) throws RemoteException, SQLException;
 

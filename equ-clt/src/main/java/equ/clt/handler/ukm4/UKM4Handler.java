@@ -256,8 +256,8 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                             receiptNumberSumReceipt.put(receiptNumber, new BigDecimal[]{safeAdd(tempSum1,(operation <= 1 ? sumReceiptDetail : null)),
                                     safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
 
-                            salesInfoList.add(new SalesInfo(cashRegisterNumber, zNumber, receiptNumber, date, time,
-                                    BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail, 
+                            salesInfoList.add(new SalesInfo(cashRegisterNumber, Integer.parseInt(cashRegisterNumber), entry.getValue().trim(), zNumber, 
+                                    receiptNumber, date, time, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail, 
                                     operation % 2 == 1 ? quantityReceiptDetail : (quantityReceiptDetail==null ? null : quantityReceiptDetail.negate()),
                                     priceReceiptDetail, 
                                     operation % 2 == 1 ? sumReceiptDetail : (sumReceiptDetail==null ? null : sumReceiptDetail.negate()),
@@ -284,6 +284,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
         return new UKM4SalesBatch(salesInfoList, readFiles);
     }
 
+    @Override
+    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+        return null;
+    }
+    
     @Override
     public void finishReadingSalesInfo(UKM4SalesBatch salesBatch) {
         for (String readFile : salesBatch.readFiles) {

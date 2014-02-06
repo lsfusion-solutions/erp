@@ -79,7 +79,7 @@ public class EquipmentServer {
 
                             processTransactionInfo(remote, equServerID);
                             sendSalesInfo(remote, equServerID);
-                            logger.info("transaction complete");
+                            logger.info("transaction complete");                                                                                   
                         }
 
                     } catch (Exception e) {
@@ -132,6 +132,7 @@ public class EquipmentServer {
 
     private void sendSalesInfo(EquipmentServerInterface remote, String equServerID) throws SQLException, IOException {
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(equServerID);
+        Map<Date, Set<String>> requestSalesInfo = remote.readRequestSalesInfo(equServerID);
 
         Map<String, List<MachineryInfo>> handlerModelCashRegisterMap = new HashMap<String, List<MachineryInfo>>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
@@ -142,18 +143,24 @@ public class EquipmentServer {
 
         for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelCashRegisterMap.entrySet()) {
             if (entry.getKey() != null) {
-
+                
                 try {
                     String handlerModel = entry.getValue().get(0).handlerModel;
                     if (handlerModel != null) {
-                        Object clsHandler = getHandler(handlerModel, remote);
-                        SalesBatch salesBatch = ((CashRegisterHandler) clsHandler).readSalesInfo(cashRegisterInfoList);
+                        CashRegisterHandler clsHandler = (CashRegisterHandler) getHandler(handlerModel, remote);
+                        if(!requestSalesInfo.isEmpty()) {
+                            String result = clsHandler.requestSalesInfo(requestSalesInfo);
+                            if (result != null)
+                                remote.errorEquipmentServerReport(equServerID, new Throwable(result));
+                        }
+                            
+                        SalesBatch salesBatch = clsHandler.readSalesInfo(cashRegisterInfoList);
                         if (salesBatch != null) {
                             String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID);
                             if (result != null)
                                 remote.errorEquipmentServerReport(equServerID, new Throwable(result));
                             else
-                                ((CashRegisterHandler) clsHandler).finishReadingSalesInfo(salesBatch);
+                                clsHandler.finishReadingSalesInfo(salesBatch);
                         }
                     }
                 } catch (Exception e) {

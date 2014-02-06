@@ -84,6 +84,7 @@ DESIGN equipmentServers FROM DEFAULT {
 CLASS ABSTRACT GroupMachinery 'Группы оборудования';
 TABLE groupMachinery (GroupMachinery);
 
+nppGroupMachinery 'Порядковый номер' = DATA INTEGER (GroupMachinery); 
 nameGroupMachinery 'Наименование' = DATA VARSTRING[200] (GroupMachinery) IN base MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
 equipmentServerGroupMachinery = DATA EquipmentServer (GroupMachinery);
@@ -104,7 +105,7 @@ inGroupMachinerySkuGroup 'Вкл' = DATA BOOLEAN (GroupMachinery, SkuGroup);
 
 FORM filterSkuGroupMachinery 'Фильтрация по классификатору'
     OBJECTS gm = GroupMachinery FIXED PANEL
-    PROPERTIES(gm) READONLY nameStockGroupMachinery, nameEquipmentServerGroupMachinery, nameGroupMachinery
+    PROPERTIES(gm) READONLY nppGroupMachinery, nameStockGroupMachinery, nameEquipmentServerGroupMachinery, nameGroupMachinery
 
     TREE treeGroups g=SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY nameSkuGroup(g)
@@ -191,6 +192,7 @@ TABLE machineryPriceTransaction (MachineryPriceTransaction);
 
 groupMachineryMachineryPriceTransaction (transaction) = ABSTRACT GroupMachinery (MachineryPriceTransaction);
 nameGroupMachineryMachineryPriceTransaction 'Группа оборудования' (transaction) = nameGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
+nppGroupMachineryMachineryPriceTransaction 'Номер группы оборудования' (transaction) = nppGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
 
 stockMachineryPriceTransaction (transaction) = stockGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
 
@@ -298,7 +300,7 @@ FORM groupMachineryInput 'Выбор оборудования для перез�
     PROPERTIES(s) READONLY sname = nameStock
 
     OBJECTS g = GroupMachinery
-    PROPERTIES(g) READONLY nameGroupMachinery, nameStockGroupMachinery, nameEquipmentServerGroupMachinery
+    PROPERTIES(g) READONLY nppGroupMachinery, nameGroupMachinery, nameStockGroupMachinery, nameEquipmentServerGroupMachinery
     FILTERS stockGroupMachinery(g) == s
 
     OBJECTS m = Machinery
@@ -321,7 +323,7 @@ DESIGN groupMachineryInput FROM DEFAULT {
 
 FORM machineryPriceTransaction 'Загрузка прайса в оборудование'
     OBJECTS t = MachineryPriceTransaction FIXED PANEL
-    PROPERTIES(t) nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, timeMachineryPriceTransaction,
+    PROPERTIES(t) nppGroupMachineryMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, timeMachineryPriceTransaction,
                   snapshotMachineryPriceTransaction, succeededMachineryPriceTransaction, canceledMachineryPriceTransaction
 
     OBJECTS b = Barcode
@@ -338,8 +340,8 @@ FORM machineryPriceTransactions 'Загрузки прайса в оборудо
     FILTERS isCompanyStock(s)
 
     OBJECTS t = MachineryPriceTransaction
-    PROPERTIES(t) READONLY snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, timeMachineryPriceTransaction,
-                           descriptionMachineryPriceTransaction, succeededMachineryPriceTransaction, canceledMachineryPriceTransaction,
+    PROPERTIES(t) READONLY snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, 
+                           timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, succeededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
                            quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(t),
                            nppsMachineryPriceTransaction FORCE PANEL SHOWIF snapshotMachineryPriceTransaction(t)
     PROPERTIES(t) READONLY createdNameUserMachineryPriceTransaction, createdHostnameComputerMachineryPriceTransaction
@@ -387,6 +389,10 @@ DESIGN machineryPriceTransactions FROM DEFAULT {
 }
 
 // ------------------------------------------------ Действия по загрузке ------------------------------------ //
+
+requestSalesInfoStock 'Обмен данными за день' = DATA BOOLEAN (Stock);
+dateRequestSalesInfo 'Дата' = DATA DATE ();
+requestSalesInfoStockAction 'Обмен данными за день' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.RequestSalesInfoStockActionProperty';
 
 createMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (GroupMachinery);
 
@@ -505,8 +511,22 @@ createPriceMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWS
 } CONFIRM IN incrementMachineryPrice;
 
 EXTEND FORM machineryPriceTransactions
-    PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, snapshotGroupMachineryDepartmentStore
+    PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, snapshotGroupMachineryDepartmentStore, 
+                  requestSalesInfoStock, requestSalesInfoStockAction
+    PROPERTIES()  dateRequestSalesInfo TODRAW s
 ;
+
+EXTEND DESIGN machineryPriceTransactions {
+    s.panel {
+        NEW requestContainer {
+            type = CONTAINERH;
+            caption = 'Обмен данными за день';
+            ADD PROPERTY(dateRequestSalesInfo());
+            ADD PROPERTY(requestSalesInfoStock(s));
+            ADD PROPERTY(requestSalesInfoStockAction(s));
+        }
+    }
+}
 
 // -------------------- Создание новых атрибутов ----------------- //
 
