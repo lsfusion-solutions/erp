@@ -775,6 +775,18 @@ EXTEND CLASS SystemLedgerPriceListType {
     supplierPricingPriceListType 'Поставщика (расценка)',
     retailPricingPriceListType 'Розничная (расценка)'
 }
+
+retailPricingPriceBSkuStockDateTime 'Розничная цена' (sku, stock, dateTime) =
+    priceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dateTime);
+retailPricingPriceBSkuStockDate 'Розничная цена' (sku, stock, date) = 
+    retailPricingPriceBSkuStockDateTime(sku, stock, toDateTime(date));    
+currentRetailPricingPriceSkuStock 'Розничная цена' = retailPricingPriceBSkuStockDateTime(sku, stock, currentDateTime());  
+
+retailPricingPriceBBatchStockDateTime 'Розничная цена' (batch, stock, dateTime) =
+    priceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batch, stock, dateTime);
+retailPricingPriceBBatchStockDate 'Розничная цена' (batch, stock, date) = 
+    retailPricingPriceBBatchStockDateTime(batch, stock, toDateTime(date));    
+
 includeVATSystemLedgerPriceListType (priceListType) += WHEN priceListType == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
 
 batchLedgerPriceListTypeStock(type, stock) += WHEN type == SystemLedgerPriceListType.supplierPricingPriceListType AND isCompanyStock(stock)
