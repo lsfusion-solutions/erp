@@ -42,17 +42,77 @@ defaultPurchaseInvoiceSku (sku) =
 descriptionDefaultPurchaseInvoiceSku 'Последний инвойс' (sku)= CONCAT ' ', Purchase.seriesNumberInvoice(defaultPurchaseInvoiceSku(sku)),
                                                                           'от ' + Purchase.dateInvoice(defaultPurchaseInvoiceSku(sku)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 30;
 
-filterTranslateInvoice= DATA SESSION Purchase.Invoice ();
-descriptionFilterTranslateInvoice 'Накладная' = Purchase.descriptionInvoice(filterTranslateInvoice());
+inPurchaseInvoiceUser 'Вкл.' = DATA BOOLEAN  (Purchase.Invoice, User);
+seriesNumberDateInvoice 'Номер/дата накладной' (o) = 
+    CONCAT '', Purchase.seriesNumberInvoice(o), 
+               ' от ' +Purchase.dateInvoice(o) 
+    ;  
+
+seriesNumberDateInvoicesUser 'Накладные' =  GROUP CONCAT seriesNumberDateInvoice(invoice) IF inPurchaseInvoiceUser(invoice, user), ', ' 
+    BY user 
+    ORDER Purchase.dateInvoice(invoice) 
+    MINCHARWIDTH 30 PREFCHARWIDTH 50;
+seriesNumberDateInvoicesCurrentUser 'Накладные' = seriesNumberDateInvoicesUser(currentUser()) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+
+countInvoicesUser 'Кол-во накладных' (user)= GROUP SUM 1 IF inPurchaseInvoiceUser(invoice, user) BY user;
+
+FORM purchaseInvoices 'Выбрать накладные'
+    OBJECTS u=User FIXED PANEL                           
+//    PROPERTIES(u) READONLY seriesNumberDeclaration, nameLegalEntityDeclaration, nameCurrencyDeclaration, dateTimeDeclaration
+
+    OBJECTS i=Purchase.Invoice
+    PROPERTIES (i, u) inPurchaseInvoiceUser
+    PROPERTIES (i) READONLY Purchase.numberInvoice, Purchase.seriesInvoice, Purchase.dateInvoice, Purchase.timeInvoice, 
+                   Purchase.nameSupplierInvoice, Purchase.nameCustomerInvoice, Purchase.countInvoiceDetailInvoice,
+                   Purchase.quantityInvoiceDetailInvoice, Purchase.sumInvoiceDetailInvoice
+//    FILTERS inDeclarationUserInvoice(d, i) OR d IS Declaration AND NOT declarationUserInvoice(i)
+
+    OBJECTS id=Purchase.InvoiceDetail
+    PROPERTIES(id) READONLY Purchase.indexInvoiceDetail, Purchase.idBarcodeSkuInvoiceDetail, Purchase.nameSkuInvoiceDetail, Purchase.shortNameUOMSkuInvoiceDetail, 
+                            Purchase.quantityInvoiceDetail, Purchase.priceInvoiceDetail
+    FILTERS invoiceInvoiceDetail(id) == i
+
+    FILTERGROUP filtersInclude
+        FILTER 'Только включенные' 'F10' inPurchaseInvoiceUser(i, u)
+
+;
+
+DESIGN purchaseInvoices FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+        NEW split {
+            fill = 1;
+            type = SPLITV;
+            NEW header {
+                ADD u.box;
+                ADD i.box;
+            }
+            NEW pane {
+                type = TABBED;
+                ADD id.box;
+            }
+        }
+        ADD functions.box;
+    }
+}
+
+selectPurchaseInvoicesUser 'Выбрать накладные' = ACTION (user) {
+    FORM purchaseInvoices OBJECTS u=user MODAL;
+} TOOLBAR;
+selectPurchaseInvoicesCurrentUser 'Выбрать накладные' = selectPurchaseInvoicesUser(currentUser());
+
 
 quantityInvoiceDetailArticleInvoice 'Кол-во товара в документе' (article, invoice) = 
     GROUP SUM Purchase.quantityInvoiceDetail(idetail)
           BY  articleItem(Purchase.skuInvoiceDetail(idetail)),
               Purchase.invoiceInvoiceDetail(idetail);
-
+quantityInvoiceDetailArticleUser 'Кол-во товара в документе' (article, user) = 
+    GROUP SUM quantityInvoiceDetailArticleInvoice(article, invoice) IF inPurchaseInvoiceUser(invoice, user)
+        BY article, user;
+        
 FORM articleTranslateDashboard 'Перевод'
 
-    PROPERTIES()  descriptionFilterTranslateInvoice
+    PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
 
     TREE groupTree g=ItemGroup PARENT parentItemGroup
     PROPERTIES READONLY nameItemGroup(g), recCountNotCompletedTranslateArticlesItemGroup(g)
@@ -101,14 +161,16 @@ FORM articleTranslateDashboard 'Перевод'
         FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND NOT completedTranslateItem(i)
         FILTER 'По группам' 'ctrl F4' isParentItemGroupItem(g,i)
         
-    FILTERS quantityInvoiceDetailArticleInvoice(a, filterTranslateInvoice()) OR (a IS Article AND NOT filterTranslateInvoice())
+    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))
         
 ;
 
 DESIGN articleTranslateDashboard FROM DEFAULT {
     NEW filter {
         caption = 'Фильтр';
-        ADD PROPERTY(descriptionFilterTranslateInvoice());
+        type = CONTAINERH;
+        ADD PROPERTY(seriesNumberDateInvoicesCurrentUser());
+        ADD PROPERTY(selectPurchaseInvoicesCurrentUser());
     }
     NEW pane {
         type = SPLITH;

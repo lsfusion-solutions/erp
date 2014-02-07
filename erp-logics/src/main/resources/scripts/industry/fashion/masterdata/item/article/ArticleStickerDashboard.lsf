@@ -64,7 +64,7 @@ descriptionFilterStickerInvoice 'Накладная' = Purchase.descriptionInvoi
 
 FORM articleStickerDashboard 'Стикеровка'
 
-    PROPERTIES() descriptionFilterStickerInvoice 
+    PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
     
     TREE groupTree g=ItemGroup PARENT parentItemGroup
     PROPERTIES READONLY nameItemGroup(g), recCountNotStickerArticlesItemGroup(g)
@@ -125,8 +125,7 @@ FORM articleStickerDashboard 'Стикеровка'
         FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND completedTranslateItem(i) AND NOT completedStickerItem(i)
         FILTER 'По группам ' 'ctrl F4' isParentItemGroupItem(g,i) 
         
-    FILTERS quantityInvoiceDetailArticleInvoice(a, filterStickerInvoice()) OR (a IS Article AND NOT filterStickerInvoice())
-        
+    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))        
 ;
 
 DESIGN articleStickerDashboard FROM DEFAULT {
@@ -134,7 +133,9 @@ DESIGN articleStickerDashboard FROM DEFAULT {
         type = CONTAINERH;
         NEW filter {
             caption = 'Фильтр';
-            ADD PROPERTY(descriptionFilterStickerInvoice());
+            type = CONTAINERH;
+            ADD PROPERTY(seriesNumberDateInvoicesCurrentUser());
+            ADD PROPERTY(selectPurchaseInvoicesCurrentUser());
         }
         ADD dep.box { caption = 'Отдел магазина для проверки ценников'; }
     }

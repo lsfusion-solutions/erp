@@ -43,7 +43,7 @@ filterGroupsInvoice= DATA SESSION Purchase.Invoice ();
 descriptionFilterGroupsInvoice 'Накладная' = Purchase.descriptionInvoice(filterGroupsInvoice());
 
 FORM articleGroupsDashboard 'Классификация'
-    PROPERTIES() descriptionFilterGroupsInvoice
+    PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
     
     TREE groupTree g=ItemGroup PARENT parentItemGroup
     PROPERTIES READONLY nameItemGroup(g), recCountNotCompletedGroupsArticlesItemGroup(g)
@@ -91,14 +91,16 @@ FORM articleGroupsDashboard 'Классификация'
         FILTER 'По группам (не обработан)' 'shift F4' completedTranslateItem(i) AND NOT completedGroupsItem(i) AND isParentItemGroupItem(g,i)
         FILTER 'По группам ' 'ctrl F4' isParentItemGroupItem(g,i)
         
-    FILTERS quantityInvoiceDetailArticleInvoice(a, filterGroupsInvoice()) OR (a IS Article AND NOT filterGroupsInvoice())
+    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))
         
 ;
 
 DESIGN articleGroupsDashboard FROM DEFAULT {
     NEW filter {
         caption = 'Фильтр';
-        ADD PROPERTY(descriptionFilterGroupsInvoice());
+        type = CONTAINERH;
+        ADD PROPERTY(seriesNumberDateInvoicesCurrentUser());
+        ADD PROPERTY(selectPurchaseInvoicesCurrentUser());
     }
     NEW pane {
         type = SPLITH;

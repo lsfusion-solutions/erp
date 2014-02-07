@@ -48,7 +48,7 @@ descriptionFilterCustomsInvoice 'Накладная' = Purchase.descriptionInvoi
 
 FORM articleCustomsDashboard 'Заполнение ТНВЭД'
 
-    PROPERTIES() descriptionFilterCustomsInvoice
+    PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
     OBJECTS c=Country FIXED PANEL
     PROPERTIES(c) SELECTOR nameCountry
 
@@ -102,8 +102,7 @@ FORM articleCustomsDashboard 'Заполнение ТНВЭД'
         FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND completedTranslateItem(i) AND NOT completedCustomsItem(i)
         FILTER 'По группам' 'ctrl F4' isParentItemGroupItem(g,i)
 
-    FILTERS quantityInvoiceDetailArticleInvoice(a, filterCustomsInvoice()) OR (a IS Article AND NOT filterCustomsInvoice())
-        
+    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))        
         
     EVENTS 
         ON INIT setDateArticleCustomsDashboard()                
@@ -119,7 +118,9 @@ DESIGN articleCustomsDashboard FROM DEFAULT {
         ADD c.box;
         NEW filter {
             caption = 'Фильтр';
-            ADD PROPERTY(descriptionFilterCustomsInvoice());
+            type = CONTAINERH;
+            ADD PROPERTY(seriesNumberDateInvoicesCurrentUser());
+            ADD PROPERTY(selectPurchaseInvoicesCurrentUser());
         }        
     }
 
