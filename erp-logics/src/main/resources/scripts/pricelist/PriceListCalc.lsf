@@ -1,6 +1,6 @@
 MODULE PriceListCalc;
 
-REQUIRE Integration, PriceListLedger;
+REQUIRE Integration, PriceListLedger, StockTax;
 
 NAMESPACE PriceList;
 
@@ -20,6 +20,11 @@ ledgerPriceListTypePriceListType(type) += basePriceListTypeCalcPriceListType(typ
 
 includeVATCalcPriceListType 'Цена с НДС' = DATA BOOLEAN (CalcPriceListType);
 includeVATPriceListType(type) += includeVATCalcPriceListType(type);
+
+countryCalcPriceListType 'Страна' = DATA Country(CalcPriceListType);
+nameCountryCalcPriceListType 'Страна' (t) = nameCountry(countryCalcPriceListType(t));
+
+addVATCalcPriceListType 'Добавлять НДС' (t) = includeVATCalcPriceListType(t) AND NOT includeVATPriceListType(basePriceListTypeCalcPriceListType(t)) PERSISTENT;  
 
 @defineDocumentHeaderCurrency(calcPriceListType);
 currencyPriceListType(calcPriceListType) += currencyCalcPriceListType(calcPriceListType);
@@ -50,17 +55,19 @@ markupCalcPriceListTypeSku 'Надбавка, % (перегруженная)' (t
 
 multiplierCalcPriceListTypeSku (type, sku) = NUMERIC[10,4]((100.0 + markupCalcPriceListTypeSku(type, sku)) / 100.0) PERSISTENT;
 
+VATCalcPriceListTypeSkuDate(type, sku, date) = IF addVATCalcPriceListType(type) THEN (100.0 + valueVATSkuCountryDate(sku, countryCalcPriceListType(type), date)) / 100.0 ELSE 1.0 IF sku IS Sku AND type IS CalcPriceListType AND date IS DATE;
+
 // --------------- Расчет значения цены --------------- //
 
 priceBCalcPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    roundPriceRoundCondition(priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeCalcPriceListType(type), sku, stock, dateTime) * multiplierCalcPriceListTypeSku(type, sku), roundConditionPriceListType(type));
+    roundPriceRoundCondition(priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeCalcPriceListType(type), sku, stock, dateTime) * multiplierCalcPriceListTypeSku(type, sku) * VATCalcPriceListTypeSkuDate(type, sku, DATE(dateTime)), roundConditionPriceListType(type)) COMPLEX;
 priceACalcPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    roundPriceRoundCondition(priceABasePriceListTypeSkuStockDateTime(basePriceListTypeCalcPriceListType(type), sku, stock, dateTime) * multiplierCalcPriceListTypeSku(type, sku), roundConditionPriceListType(type));
+    roundPriceRoundCondition(priceABasePriceListTypeSkuStockDateTime(basePriceListTypeCalcPriceListType(type), sku, stock, dateTime) * multiplierCalcPriceListTypeSku(type, sku) * VATCalcPriceListTypeSkuDate(type, sku, DATE(dateTime)), roundConditionPriceListType(type)) COMPLEX;
 
 priceBCalcPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    roundPriceRoundCondition(priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeCalcPriceListType(type), batch, stock, dateTime) * multiplierCalcPriceListTypeSku(type, skuBatch(batch)), roundConditionPriceListType(type));
+    roundPriceRoundCondition(priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeCalcPriceListType(type), batch, stock, dateTime) * multiplierCalcPriceListTypeSku(type, skuBatch(batch)) * VATCalcPriceListTypeSkuDate(type, skuBatch(batch), DATE(dateTime)), roundConditionPriceListType(type)) COMPLEX;
 priceACalcPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    roundPriceRoundCondition(priceABasePriceListTypeBatchStockDateTime(basePriceListTypeCalcPriceListType(type), batch, stock, dateTime) * multiplierCalcPriceListTypeSku(type, skuBatch(batch)), roundConditionPriceListType(type));
+    roundPriceRoundCondition(priceABasePriceListTypeBatchStockDateTime(basePriceListTypeCalcPriceListType(type), batch, stock, dateTime) * multiplierCalcPriceListTypeSku(type, skuBatch(batch)) * VATCalcPriceListTypeSkuDate(type, skuBatch(batch), DATE(dateTime)) , roundConditionPriceListType(type)) COMPLEX;
 
 priceBPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceBCalcPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
 priceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceACalcPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
@@ -74,7 +81,7 @@ backgroundMarkup 'Цвет' (calcPriceListType, group) = RGB(255,160,160) IF dat
 
 FORM calcPriceListType 'Расчетный вид цен'
     OBJECTS c = CalcPriceListType FIXED PANEL
-    PROPERTIES(c) nameCalcPriceListType, idCalcPriceListType SHOWIF showIDs(), includeVATPriceListType, nameCurrencyCalcPriceListType, nameBasePriceListTypeCalcPriceListType,
+    PROPERTIES(c) nameCalcPriceListType, idCalcPriceListType SHOWIF showIDs(), includeVATPriceListType, nameCurrencyCalcPriceListType, nameCountryCalcPriceListType, nameBasePriceListTypeCalcPriceListType,
                   nameRoundConditionPriceListType, nameGroupTypeCalcPriceListType
 
     TREE treeGroup g=Group PARENT parentGroup

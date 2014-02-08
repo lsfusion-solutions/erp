@@ -531,15 +531,13 @@ DESIGN managementRepricing FROM DEFAULT {
 
 overManagementRepricing = ABSTRACT ACTION LIST (RepricingDetail,Sku,Stock,DATETIME);
 
-prevPriceAPriceListCalcListSkuStockDateTime (priceList, calcList, sku, department, time) =
-    IF prevPriceAPriceListTypeSkuStockDateTime(priceList, sku, department, time)
-        THEN prevPriceAPriceListTypeSkuStockDateTime(priceList, sku, department, time)
-        ELSE prevPriceAPriceListTypeSkuStockDateTime(calcList, sku, department, time);
+prevPriceAPriceListCalcListSkuStockDateTime (priceList, calcList, sku, stock, time) =
+    OVERRIDE prevPriceAPriceListTypeSkuStockDateTime(calcList, sku, stock, time), prevPriceAPriceListTypeSkuStockDateTime(priceList, sku, stock, time);
+prevPriceAOperationSkuStockDateTime 'Цена (управленческая)' (operation, sku, stock, time)= prevPriceAPriceListCalcListSkuStockDateTime(priceListTypeOperation(operation), calcPriceListTypeOperation(operation), sku, stock, time) COMPLEX; 
         
 filterQuantityOperationSkuStockDateTime(operation,sku,department,time) = currentBalanceSkuStock(sku, department) AND
-            prevPriceAPriceListCalcListSkuStockDateTime(priceListTypeOperation(operation), calcPriceListTypeOperation(operation), sku, department, time) != 
+            prevPriceAOperationSkuStockDateTime(operation, sku, department, time) != 
             prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time);
-filterQuantityOperationStockDateTime(operation,department,time)= GROUP SUM 1 IF filterQuantityOperationSkuStockDateTime(operation,sku,department,time) BY operation,department,time; 
 
 overCreateManagementRepricingOperationStockDateTime 'Создать управленческую переоценку' (operation, department, time) = ACTION (operation, department, time) {
     FOR ADDOBJ r = UserRepricing DO {
@@ -552,8 +550,8 @@ overCreateManagementRepricingOperationStockDateTime 'Создать управл
             userRepricingUserRepricingDetail(rd) <- r;
             skuUserRepricingDetail(rd) <- sku;
             quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, department);
-            retailPriceUserRepricingDetail(rd) <- prevPriceAPriceListCalcListSkuStockDateTime(priceListTypeOperation(operation), calcPriceListTypeOperation(operation), sku, department, time);
-            curRetailPriceUserRepricingDetail(rd) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time);
+            retailPriceUserRepricingDetail(rd) <- prevPriceAOperationSkuStockDateTime(operation, sku, department, time);
+            curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBSkuStockDateTime(sku, department, time);
             priceUserRepricingDetail(rd) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, department, time);
             overManagementRepricing(rd, sku, department, time);
         }

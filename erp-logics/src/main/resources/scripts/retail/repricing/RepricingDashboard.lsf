@@ -10,9 +10,6 @@ NAMESPACE Repricing;
 createManagementRepricingOperationStockDateTime 'Создать управленческую переоценку' (oper, department, time) = ACTION (oper, department, time) NEWSESSION { 
     overCreateManagementRepricingOperationStockDateTime(oper, department, time);
 } TOOLBAR;
-curPriceOperationSkuStockDateTime 'Цена (до)' (operation, sku, department, time) = prevPriceAPriceListCalcListSkuStockDateTime(priceListTypeOperation(operation), calcPriceListTypeOperation(operation), sku, department, time);
-priceSystemSkuStockDateTime 'Цена (после)' (sku, department, time) = prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time);
-
                                                                                                
 FORM repricingDashboard 'Переоценка'
     OBJECTS d = DepartmentStore FIXED PANEL
@@ -28,8 +25,8 @@ FORM repricingDashboard 'Переоценка'
     
     OBJECTS sk=Sku
     PROPERTIES(sk) READONLY idBarcodeSku, nameSku, shortNameUOMSku     
-    PROPERTIES     READONLY currentBalanceSkuStock(sk,d), curPriceOperationSkuStockDateTime(o,sk,d,t), priceSystemSkuStockDateTime(sk,d,t) 
-    PROPERTIES (o,d,t)  createManagementRepricingOperationStockDateTime TODRAW sk FORCE PANEL SHOWIF filterQuantityOperationStockDateTime(o,d,t)
+    PROPERTIES     READONLY currentBalanceSkuStock(sk,d), prevPriceAOperationSkuStockDateTime(o,sk,d,t), retailPricingPriceBSkuStockDateTime(sk,d,t) 
+    PROPERTIES (o,d,t)  createManagementRepricingOperationStockDateTime TODRAW sk FORCE PANEL
     FILTERS filterQuantityOperationSkuStockDateTime(o,sk,d,t) 
 
     OBJECTS p = Repricing
@@ -62,7 +59,12 @@ DESIGN repricingDashboard FROM DEFAULT {
             ADD o.box;
             ADD t.box;
         }
-        ADD sk.box {caption = 'Товары, для которых необходима переоценка';}        
+        ADD sk.box {
+            caption = 'Товары, для которых необходима переоценка';
+            PROPERTY(retailPricingPriceBSkuStockDateTime(sk,d,t)) {
+                caption = 'Цена (текущая)';
+            }
+        }        
         ADD p.box;
         ADD functions.box;
     }
