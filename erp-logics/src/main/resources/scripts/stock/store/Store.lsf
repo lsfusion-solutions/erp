@@ -138,8 +138,10 @@ TABLE departmentStoreDate (DepartmentStore, DATE);
 idStock (s) += idDepartmentStore(s);
 
 nameDepartmentStore 'Наименование' = DATA VARISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+fullNameDepartmentStore 'Наименование полное' = DATA VARISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 nameStock(stock) += nameDepartmentStore(stock) IF stock IS DepartmentStore;
+fullNameStock(stock) += (OVERRIDE nameDepartmentStore(stock), fullNameDepartmentStore(stock)) IF stock IS DepartmentStore;
 
 storeDepartmentStore = DATA Store (DepartmentStore) INDEXED AUTOSET NOT NULL DELETE;
 nameStoreDepartmentStore 'Магазин' (departmentStore) = nameStore(storeDepartmentStore(departmentStore)) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
@@ -200,7 +202,7 @@ inChainStoresStoreTypeDepartmentStore (chainStores, storeType, departmentStore)=
 
 FORM departmentStore 'Отдел магазина'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES(d) nameDep=nameDepartmentStore, nameStoreDepartmentStore, tradingSquareDepartmentStore,
+    PROPERTIES(d) nameDep=nameDepartmentStore, fullNameDepartmentStore, nameStoreDepartmentStore, tradingSquareDepartmentStore,
                   numberCashAccountDepartmentStore, quantityDaysCloseDepartmentStore,
                   idDepartmentStore SHOWIF showIDs()
 
@@ -220,8 +222,10 @@ DESIGN departmentStore FROM DEFAULT {
             NEW headerLeft {
                 NEW headerMainParams {
                     caption = 'Основные параметры';
-                    type = CONTAINERH;
+                    type = COLUMNS;
+                    columns = 3;
                     ADD PROPERTY(nameDep);
+                    ADD PROPERTY(fullNameDepartmentStore(d));
                     ADD PROPERTY(idDepartmentStore(d));
                     ADD PROPERTY(nameStoreDepartmentStore(d));
                     ADD PROPERTY(tradingSquareDepartmentStore(d));
@@ -253,7 +257,7 @@ FORM departmentStores 'Отделы магазинов'
     FILTERS stringEqualsAll(a), inChainStoresStoreType (t, st), inStoreTypeStore(st, s)
 
     OBJECTS d=DepartmentStore
-    PROPERTIES(d) READONLY depName = nameDepartmentStore
+    PROPERTIES(d) READONLY depName = nameDepartmentStore, fullNameDepartmentStore
     FILTERS inChainStoresStoreTypeStoreDepartmentStore(t, st, s, d)
     ORDER BY depName
 
