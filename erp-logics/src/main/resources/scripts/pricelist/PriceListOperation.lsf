@@ -115,6 +115,22 @@ EXTEND DESIGN operation {
     }
 }
 
+//-- Фильтр
+filterPriceListOperation  = DATA SESSION Operation ();
+nameFilterPriceListOperation 'Операция' = nameOperation(filterPriceListOperation()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterOperationPriceList (i) = operationPriceList(i) == filterPriceListOperation() OR (i IS PriceList AND NOT filterPriceListOperation());   
+
+EXTEND FORM priceLists
+    PROPERTIES() nameFilterPriceListOperation
+    
+    FILTERS filterOperationPriceList(p)
+;
+EXTEND DESIGN priceLists {
+    topFilters {
+        ADD PROPERTY(nameFilterPriceListOperation()) BEFORE PROPERTY(nameFilterPriceListCompany());
+    }
+}
+
 NAVIGATOR {
     priceListMasterData {
         ADD operations;

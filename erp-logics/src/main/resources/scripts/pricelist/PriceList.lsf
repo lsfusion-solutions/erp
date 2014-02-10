@@ -945,7 +945,19 @@ updatePriceList 'Обновить' = ACTION (priceList) NEWSESSION{
 
 printPriceList 'Распечатать' = ABSTRACT ACTION LIST (PriceList);
 
+filterPriceListDateFrom 'Дата с' = DATA SESSION DATE ();
+filterDateFromPriceList (p) = fromDatePriceList(p) >= filterPriceListDateFrom() OR (p IS PriceList AND NOT filterPriceListDateFrom());      
+
+filterPriceListDateTo 'Дата по' = DATA SESSION DATE ();
+filterDateToPriceList (p) = toDatePriceList(p) <= filterPriceListDateTo() OR (p IS PriceList AND NOT filterPriceListDateTo());      
+
+filterPriceListCompany  = DATA SESSION LegalEntity ();
+nameFilterPriceListCompany 'Организация' = nameLegalEntity(filterPriceListCompany()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterCompanyPriceList (p) = companyPriceList(p) == filterPriceListCompany() OR (p IS PriceList AND NOT filterPriceListCompany());       
+
 FORM priceLists 'Прайсы'
+    PROPERTIES() filterPriceListDateFrom, filterPriceListDateTo, nameFilterPriceListCompany
+
     OBJECTS p = PriceList
     PROPERTIES(p) READONLY BACKGROUND backgroundPriceList(p)
            isPostedPriceList FORCE GRID, numberPriceList, seriesPriceList, datePriceList, timePriceList,
@@ -978,6 +990,9 @@ FORM priceLists 'Прайсы'
             inPriceListStock(p, ts),
             currencyUserPriceList(p) == currencyDataPriceListType(t),
             isCompanyStock(ts)
+    FILTERS filterDateFromPriceList(p), 
+            filterDateToPriceList(p),
+            filterCompanyPriceList(p)                    
 
     DIALOG PriceList OBJECT p
 ;
@@ -987,9 +1002,22 @@ DESIGN priceLists FROM DEFAULT{
         fill = 1;
         type = SPLITV;
         REMOVE t.box;
-        ADD p.box {
+//        ADD p.box {
+//            fill = 2;
+//        }
+        NEW filtersBox {                       
             fill = 2;
-        }
+            NEW topFilters {
+                caption = 'Фильтры';
+                type = CONTAINERH;          
+                ADD PROPERTY(filterPriceListDateFrom());    
+                ADD PROPERTY(filterPriceListDateTo());
+                ADD PROPERTY(nameFilterPriceListCompany());                
+            }
+            ADD p.box {
+                fill = 1;
+            }
+        }        
         NEW detailContainer{
             fill = 1;
             type = TABBED;
