@@ -70,11 +70,11 @@ public class ImportActionProperty {
 
             importWarehouses(importData.getWarehousesList(), disableVolatileStats);
 
-            importStores(importData.getStoresList(), disableVolatileStats);
+            importStores(importData.getStoresList(), importData.getSkipKeys(), disableVolatileStats);
 
             importDepartmentStores(importData.getDepartmentStoresList(), disableVolatileStats);
 
-            importContracts(importData.getContractsList(), disableVolatileStats);
+            importContracts(importData.getContractsList(), importData.getSkipKeys(), disableVolatileStats);
 
             importRateWastes(importData.getRateWastesList(), disableVolatileStats);
 
@@ -84,9 +84,9 @@ public class ImportActionProperty {
 
             importItems(importData.getItemsList(), importData.getNumberOfItemsAtATime(), importData.getSkipKeys(), disableVolatileStats);
 
-            importPriceListStores(importData.getPriceListStoresList(), importData.getNumberOfPriceListsAtATime(), disableVolatileStats);
+            importPriceListStores(importData.getPriceListStoresList(), importData.getNumberOfPriceListsAtATime(), importData.getSkipKeys(), disableVolatileStats);
 
-            importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime(), disableVolatileStats);
+            importPriceListSuppliers(importData.getPriceListSuppliersList(), importData.getNumberOfPriceListsAtATime(), importData.getSkipKeys(), disableVolatileStats);
 
             importUserInvoices(importData.getUserInvoicesList(), importData.getNumberOfUserInvoicesAtATime(), importData.getSkipKeys(), importData.getUserInvoiceCreateNewItems(), disableVolatileStats);
 
@@ -1094,7 +1094,8 @@ public class ImportActionProperty {
         }
     }
 
-    private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime, boolean skipKeys, boolean disableVolatileStats) 
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (priceListStoresList != null) {
 
@@ -1155,6 +1156,7 @@ public class ImportActionProperty {
                 ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
                 ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
                         LM.findLCPByCompoundOldName("legalEntityId").getMapping(idLegalEntityField));
+                legalEntityKey.skipKey = skipKeys;
                 keys.add(legalEntityKey);
                 props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("companyUserPriceList").getMapping(userPriceListKey),
                         LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
@@ -1211,7 +1213,8 @@ public class ImportActionProperty {
         }
     }
 
-    private void importPriceListSuppliers(List<PriceListSupplier> priceListSuppliersList, Integer numberAtATime, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importPriceListSuppliers(List<PriceListSupplier> priceListSuppliersList, Integer numberAtATime, boolean skipKeys, boolean disableVolatileStats) 
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (priceListSuppliersList != null) {
 
@@ -1272,6 +1275,7 @@ public class ImportActionProperty {
                 ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
                 ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
                         LM.findLCPByCompoundOldName("legalEntityId").getMapping(idLegalEntityField));
+                legalEntityKey.skipKey = skipKeys;
                 keys.add(legalEntityKey);
                 props.add(new ImportProperty(idLegalEntityField, LM.findLCPByCompoundOldName("companyUserPriceList").getMapping(userPriceListKey),
                         LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
@@ -1666,7 +1670,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importStores(List<LegalEntity> storesList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importStores(List<LegalEntity> storesList, boolean skipKeys, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (storeLM != null && storesList != null) {
 
@@ -1702,6 +1706,7 @@ public class ImportActionProperty {
             ImportField idLegalEntityField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
             ImportKey<?> legalEntityKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
                     LM.findLCPByCompoundOldName("legalEntityId").getMapping(idLegalEntityField));
+            legalEntityKey.skipKey = skipKeys;
             keys.add(legalEntityKey);
             props.add(new ImportProperty(idLegalEntityField, storeLM.findLCPByCompoundOldName("legalEntityStore").getMapping(storeKey),
                     LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(legalEntityKey)));
@@ -1919,7 +1924,7 @@ public class ImportActionProperty {
         }
     }
 
-    private void importContracts(List<Contract> contractsList, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importContracts(List<Contract> contractsList, boolean skipKeys, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (contractsList != null) {
 
@@ -1961,6 +1966,7 @@ public class ImportActionProperty {
             ImportField idSupplierField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
             ImportKey<?> supplierKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
                     LM.findLCPByCompoundOldName("legalEntityId").getMapping(idSupplierField));
+            supplierKey.skipKey = skipKeys;
             keys.add(supplierKey);
             props.add(new ImportProperty(idSupplierField, LM.findLCPByCompoundOldName("supplierContractSku").getMapping(userContractSkuKey),
                     LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(supplierKey)));
@@ -1971,6 +1977,7 @@ public class ImportActionProperty {
             ImportField idCustomerField = new ImportField(LM.findLCPByCompoundOldName("idLegalEntity"));
             ImportKey<?> customerKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("LegalEntity"),
                     LM.findLCPByCompoundOldName("legalEntityId").getMapping(idCustomerField));
+            customerKey.skipKey = skipKeys;
             keys.add(customerKey);
             props.add(new ImportProperty(idCustomerField, LM.findLCPByCompoundOldName("customerContractSku").getMapping(userContractSkuKey),
                     LM.object(LM.findClassByCompoundName("LegalEntity")).getMapping(customerKey)));
