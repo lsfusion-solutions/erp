@@ -1,0 +1,337 @@
+MODULE Range;
+
+REQUIRE Store, Sku, Barcode, PriceListDashboard, EmployeeSku;
+
+// Уровни ассортимента
+
+CLASS RangeLevel 'Уровень ассортимента';
+TABLE rangeLevel(RangeLevel);
+nameRangeLevel 'Название' = DATA VARISTRING[10] (RangeLevel) IN recognize;
+
+TABLE rangeRangeLevel(Range, RangeLevel);
+inRangeRangeLevel 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
+
+FORM rangeLevel 'Уровень ассортимента'
+    OBJECTS l = RangeLevel FIXED PANEL
+    PROPERTIES(l) nameRangeLevel
+
+    EDIT RangeLevel OBJECT l
+;
+
+FORM rangeLevels 'Уровни ассортимента'
+    OBJECTS l = RangeLevel
+    PROPERTIES(l) READONLY nameRangeLevel
+    PROPERTIES(l) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
+    
+    DIALOG RangeLevel OBJECT l
+;
+
+NAVIGATOR {
+    retailNavigator {
+        NEW retailRangeNavigator 'Управление ассортиментом' {
+            ADD rangeLevels;
+        }
+    }
+}
+
+// Ассортименты
+CLASS Range 'Ассортимент';
+TABLE range(Range);
+nameRange 'Название' = DATA VARISTRING[100] (Range) IN recognize;
+
+TABLE rangeSkuGroup(Range, SkuGroup);
+inDataRangeSkuGroup 'Вкл' = DATA BOOLEAN (Range, SkuGroup);
+
+countSkuGroupRange 'Кол-во групп' = GROUP SUM 1 IF inDataRangeSkuGroup(r, g) BY r PERSISTENT; 
+
+inParentRangeSkuGroup = GROUP SUM 1 IF inDataRangeSkuGroup(range, child) AND isParentSkuGroupSkuGroup(child, parent)
+                              BY range, parent PERSISTENT;
+
+inChildRangeSkuGroup = GROUP SUM 1 IF inDataRangeSkuGroup(range, parent) AND isParentSkuGroupSkuGroup(child, parent)
+                              BY range, child PERSISTENT;
+
+FORM range 'Ассортиментная матрица'
+    OBJECTS r = Range FIXED PANEL
+    PROPERTIES(r) nameRange
+
+    OBJECTS l = RangeLevel
+    PROPERTIES(l) READONLY nameRangeLevel
+    PROPERTIES(r, l) inRangeRangeLevel
+
+    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY skuGroupName = nameSkuGroup(sg)
+    PROPERTIES inDataRangeSkuGroup(r, sg)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
+
+    EDIT Range OBJECT r
+;
+
+DESIGN range FROM DEFAULT {
+    NEW pane {
+        fill = 1;
+        ADD r.panel;
+        NEW tabs {
+            fill = 1;
+            type = TABBED;
+            NEW options {
+                caption = 'Настройки';
+                fill = 1;
+                type = SPLITH;
+                ADD l.box;
+                ADD skuTree.tree.box {
+                    fill = 4;
+                }
+            }
+        }
+    }
+    ADD functions.box;
+}
+
+@extendFormFilterSkuGroupAccess(range, sg);
+
+FORM ranges 'Ассортиментные матрицы'
+    OBJECTS d = DATE FIXED PANEL
+    PROPERTIES(d) OBJVALUE
+
+    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY skuGroupName = nameSkuGroup(sg)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
+
+    OBJECTS r = Range
+    PROPERTIES(r) READONLY nameRange
+    PROPERTIES(r) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
+    FILTERS inParentRangeSkuGroup(r, sg) OR NOT countSkuGroupRange(r)
+    
+    DIALOG Range OBJECT r
+;
+
+DESIGN ranges FROM DEFAULT {
+    ADD d.box;
+    NEW pane {
+        fill = 1;
+        type = SPLITH;
+        ADD skuTree.tree.box;
+        ADD r.box {
+            fill = 2;        
+        }
+    }
+    ADD functions.box;
+}
+
+countSkuGroupEmployeeRange 'Кол-во групп' = GROUP SUM 1 IF inDataRangeSkuGroup(r, g) AND countAccessEmployeeSkuGroup(e, g) BY e, r; 
+EXTEND FORM ranges FILTERS (r IS Range AND NOT limitAccessEmployee(currentUser())) OR countSkuGroupEmployeeRange(currentUser(), r);
+
+NAVIGATOR {
+    retailRangeNavigator {
+        ADD ranges;
+    }
+}
+
+// Версии
+
+CLASS RangeRev 'Версия';
+TABLE rangeRev(RangeRev);
+dateTimeRangeRev 'Действует (с)' = DATA DATETIME (RangeRev) IN recognize;
+dateTimeRangeRev(v) <- currentDateTime() WHEN SET(v IS RangeRev);
+
+dateRangeRev 'Действует (с)' (v) = toDate(dateTimeRangeRev(v)) PERSISTENT;
+
+rangeRangeRev = DATA Range(RangeRev) NOT NULL AUTOSET;  
+
+rangeRevRangeDate 'Версия' = GROUP LAST rev
+                                       BY rangeRangeRev(rev), date
+                                       ORDER dateTimeRangeRev(rev), rev
+                                       WHERE dateRangeRev(rev) <= (date AS DATE) COMPLEX;
+                           
+
+TABLE rangeRevSku(RangeRev, Sku);
+levelRangeRevSku = DATA RangeLevel(RangeRev, Sku);
+nameLevelRangeRevSku 'Уровень' (r, s)= nameRangeLevel(levelRangeRevSku(r, s));
+
+levelRangeSkuDate(r, s, d) = levelRangeRevSku(rangeRevRangeDate(r, d), s);
+
+CONSTRAINT levelRangeRevSku(r, s) AND NOT inRangeRangeLevel(rangeRangeRev(r), levelRangeRevSku(r, s))
+    CHECKED BY levelRangeRevSku 
+    MESSAGE 'Уровень ассортимента для товара не соответствует типу ассортимента';
+
+countSkuRangeRev 'Кол-во товаров' = GROUP SUM 1 IF levelRangeRevSku(r, s) BY r; 
+countSkuRangeRevRangeLevel 'Кол-во товаров' = GROUP SUM 1 BY r, levelRangeRevSku(r, s);
+
+countRecSkuRangeRevRangeLevel 'Кол-во товаров' = GROUP SUM countSkuRangeRevRangeLevel(r, l) IF l <= (level AS RangeLevel) BY r, level;
+
+countSkuRangeDate 'Кол-во товаров' (r, d) = countSkuRangeRev(rangeRevRangeDate(r, d));
+countSkuRangeRangeLevelDate 'Кол-во товаров' (r, l, d)= countSkuRangeRevRangeLevel(rangeRevRangeDate(r, d), l);
+
+filterSupplier = DATA SESSION LegalEntity();
+nameFilterSupplier 'Поставщик' = nameLegalEntity(filterSupplier());
+
+nameCompanyALedgerPriceListTypeSkuStockRangeRev 'Поставщик' (pt, s, st, v)=  
+    nameCompanyALedgerPriceListTypeSkuStockDateTime(pt, s, st, dateTimeRangeRev(v));
+
+FORM rangeRev 'Версия ассортимента'
+    OBJECTS v = RangeRev FIXED PANEL
+    PROPERTIES(v) dateTimeRangeRev
+
+    PROPERTIES() nameFilterSupplier
+    
+    OBJECTS pt = DataPriceListType FIXED PANEL
+    PROPERTIES(pt) SELECTOR namePriceListType
+
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES(d) SELECTOR nameDepartmentStore
+    
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY idBarcodeSku, nameSku, nameUOMSku
+    PROPERTIES READONLY    nameCompanyALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v)
+    PROPERTIES(v, s) nameLevelRangeRevSku
+    FILTERS inChildRangeSkuGroup(rangeRangeRev(v), skuGroupSku(s)),
+            (filterSupplier() AND priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, s, d, filterSupplier(), dateTimeRangeRev(v))) OR 
+                (s IS Sku AND NOT filterSupplier())
+    
+    FILTERGROUP active 
+        FILTER 'Активный' 'F11' activeSku(s) DEFAULT
+    
+    ORDER BY nameSku(s)
+    
+    FILTERGROUP filters
+        FILTER 'Включен' 'F10' levelRangeRevSku(v, s) DEFAULT
+         
+    EDIT RangeRev OBJECT v
+;
+DESIGN rangeRev FROM DEFAULT {
+    NEW top {
+        type = CONTAINERH;
+        ADD s.panel;
+        NEW supplier {
+            caption = 'Поставщик';
+            ADD PROPERTY(nameFilterSupplier());
+        }
+        ADD d.box;
+        ADD pt.box;
+    }
+    ADD s.box;
+    ADD functions.box;
+}
+
+seekDefaultPriceListType = ACTION SEEK rangeRev.pt defaultPriceListType();
+EXTEND FORM rangeRev
+    EVENTS ON INIT seekDefaultPriceListType()
+;
+
+copyRangeRev 'Копировать' = ACTION (pr) {
+    FOR ADDOBJ r = RangeRev DO {
+        rangeRangeRev(r) <- rangeRangeRev(pr);
+        levelRangeRevSku(r, s) <- levelRangeRevSku(pr, s);
+        FORM rangeRev OBJECTS v = r DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+EXTEND FORM range
+    OBJECTS vl = RangeLevel FIXED GRID
+    FILTERS inRangeRangeLevel(r, vl)
+    
+    OBJECTS v = RangeRev
+    PROPERTIES(v) READONLY dateTimeRangeRev, countSkuRangeRev
+    PROPERTIES READONLY countSkuRangeRevRangeLevel(v, vl) COLUMNS (vl) HEADER nameRangeLevel(vl) 
+    PROPERTIES(v) ADDSESSIONFORM, EDITSESSIONFORM, copyRangeRev, DELETESESSION TOOLBAR FORCE PANEL
+    FILTERS rangeRangeRev(v) == r
+;
+
+EXTEND DESIGN range {
+    tabs {
+        ADD v.box FIRST {
+            caption = 'Версии';
+        }
+    }
+}
+
+EXTEND FORM ranges
+    OBJECTS vl = RangeLevel FIXED GRID
+
+    PROPERTIES READONLY countSkuRangeDate(r, d)
+    PROPERTIES READONLY countSkuRangeRangeLevelDate(r, vl, d) TODRAW r COLUMNS (vl) HEADER nameRangeLevel(vl) 
+;
+
+@extendFormFilterSkuGroupAccess(ranges, sg);
+
+// ----------------- Связь ассортиментов и магазинов --------------- //
+
+TABLE rangeStoreTypeDate(Range, StoreType, DATE);
+dataLevelRangeStoreTypeDate = DATA RangeLevel (Range, StoreType, DATE);
+
+CONSTRAINT dataLevelRangeStoreTypeDate(r, t, d) AND NOT inRangeRangeLevel(r, dataLevelRangeStoreTypeDate(r, t, d))
+    CHECKED BY dataLevelRangeStoreTypeDate
+    MESSAGE 'Уровень ассортимента для формата магазина не соответствует типу ассортимента';
+
+lastLevelRangeStoreTypeDate (r, t, d) = GROUP LAST dataLevelRangeStoreTypeDate(range, storeType, dateIn)
+                                              BY range, storeType, date
+                                              ORDER dateIn
+                                              WHERE dataLevelRangeStoreTypeDate(range, storeType, dateIn) AND dateIn <= (date AS DATE); 
+
+levelRangeStoreTypeDate(r, t, d) = OVERRIDE lastLevelRangeStoreTypeDate(r, t, d), dataLevelRangeStoreTypeDate(r, t, d);  
+nameLevelRangeStoreTypeDate 'Уровень' (r, t, d)= nameRangeLevel(levelRangeStoreTypeDate(r, t, d)); 
+
+countRangeSkuStoreTypeDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF levelRangeStoreTypeDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
+countRangeSkuStoreDate 'В ассортименте' (s, st, d) = countRangeSkuStoreTypeDate(s, storeTypeStore(st), d);  
+countRangeSkuDepartmentStoreDate 'В ассортименте' (s, ds, d) = countRangeSkuStoreTypeDate(s, storeTypeDepartmentStore(ds), d); 
+
+countSkuRangeStoreTypeDate 'Кол-во товаров' (r, t, d) = countRecSkuRangeRevRangeLevel(rangeRevRangeDate(r, d), levelRangeStoreTypeDate(r, t, d));
+
+FORM storeRange 'Ассортимент магазинов'
+    OBJECTS dc = (d = DATE, c = ChainStores) FIXED PANEL
+    PROPERTIES(d) OBJVALUE
+    PROPERTIES(c) SELECTOR nameChainStores
+     
+    OBJECTS t = StoreType FIXED GRID
+    PROPERTIES(t) READONLY nameStoreType
+    FILTERS chainStoresStoreType(t) == c
+    
+    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY skuGroupName = nameSkuGroup(sg)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
+
+    OBJECTS r = Range
+    PROPERTIES(r) READONLY nameRange
+    PROPERTIES(r, t, d) nameLevelRangeStoreTypeDate COLUMNS (t) HEADER nameStoreType(t) BACKGROUND dataLevelRangeStoreTypeDate(r, t, d),
+                        countSkuRangeStoreTypeDate COLUMNS(t) HEADER nameStoreType(t)
+    FILTERS inParentRangeSkuGroup(r, sg) OR NOT countSkuGroupRange(r)
+    
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY idBarcodeSku, nameSku, nameUOMSku
+    PROPERTIES(s, t, d) READONLY countRangeSkuStoreTypeDate COLUMNS (t) HEADER nameStoreType(t)
+    FILTERS levelRangeSkuDate(r, s, d) 
+;
+
+DESIGN storeRange FROM DEFAULT {
+    ADD dc.box;
+    NEW pane {
+        fill = 1;
+        type = SPLITH;
+        NEW leftPane {
+            fill = 1;
+            type = SPLITV;
+            ADD t.box;
+            ADD skuTree.tree.box {
+                fill = 2;
+            }
+        }
+        NEW rightPane {
+            fill = 2;
+            type = SPLITV;
+            ADD r.box {
+                fill = 2;
+                PROPERTY(countSkuRangeStoreTypeDate(r, t, d)) {
+                    background = #FFEEFF;
+                }
+            }
+            ADD s.box;
+        }
+    }
+    ADD functions.box;
+}
+
+NAVIGATOR {
+    retailRangeNavigator {
+        ADD storeRange;
+    }
+}

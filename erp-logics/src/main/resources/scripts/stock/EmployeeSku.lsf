@@ -1,0 +1,48 @@
+MODULE EmployeeSku;
+
+REQUIRE Employee, Sku;
+
+NAMESPACE Sku;
+
+TABLE skuGroupEmployee(SkuGroup, Employee);
+
+//--  Компания
+dataAccessSkuGroupEmployee 'Доступ разрешен' = DATA BOOLEAN (SkuGroup, Employee);
+
+levelParentEmployeeSkuGroup (employee, skuGroup) = GROUP MIN levelSkuGroupSkuGroup(skuGroup, parent) IF dataAccessSkuGroupEmployee(parent, employee)
+                                                               BY employee, skuGroup PERSISTENT;
+nearestParentEmployeeSkuGroup (employee, skuGroup) = skuGroupSkuGroupLevel(skuGroup, levelParentEmployeeSkuGroup(employee, skuGroup));
+nearestInEmployeeSkuGroup (employee, skuGroup) =
+    dataAccessSkuGroupEmployee(nearestParentEmployeeSkuGroup (employee, skuGroup), employee);
+
+accessEmployeeSkuGroup 'Доступ разрешен' (employee, skuGroup) = OVERRIDE
+    employee IS Employee AND skuGroup IS SkuGroup AND NOT limitAccessEmployee(employee),
+    nearestInEmployeeSkuGroup(employee, skuGroup),
+    dataAccessSkuGroupEmployee(skuGroup, employee); // PERSISTENT;
+
+countAccessEmployeeSkuGroup 'Кол-во доступных групп' (employee, skuGroup) =
+    GROUP SUM 1 IF accessEmployeeSkuGroup(employee, child)
+                AND isParentSkuGroupSkuGroup(child, parent)
+          BY employee, parent PERSISTENT;
+
+EXTEND FORM employee
+
+    TREE skuTree skg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY sgTreeName = nameSkuGroup(skg)
+    ORDER BY sgTreeName
+    PROPERTIES(e,skg) accessEmployeeSkuGroup
+
+;
+EXTEND DESIGN employee {
+    pane {
+        ADD skuTree.tree.box {
+            caption = 'Группы SKU';
+        }
+    }
+}
+
+// ----------------------------------------- Метакод по добавлению фильтров на форму ----------------------- //
+
+META extendFormFilterSkuGroupAccess(form, concrete)
+    EXTEND FORM form FILTERS (concrete IS SkuGroup AND NOT limitAccessEmployee(currentUser())) OR countAccessEmployeeSkuGroup(currentUser(), concrete);
+END
