@@ -1,6 +1,6 @@
 MODULE PurchaseReserve;
 
-REQUIRE PurchaseShipment, PurchaseReturnShipment, PurchaseCreditNote, PurchaseReturnCreditNote;
+REQUIRE PurchaseShipment, PurchaseCreditNote;
 
 NAMESPACE Purchase;
 
@@ -10,18 +10,21 @@ quantitySoldSkuStockUserOrder 'Продано' (sku, stock, userOrder) = quantit
 recQuantitySkuStockUserOrder  (sku, stock, userOrder) = stockReserveStockSkuDate(stock, sku, dateUserOrder(userOrder))  (+) quantitySoldSkuStockUserOrder(sku, stock, userOrder) (-)
                                                         (currentReservePurchaseSkuStock(sku, stock) IF userOrder IS UserOrder)  (-) (currentBalanceSkuStock(sku, stock) IF userOrder IS UserOrder);
 
-recommendedQuantitySkuStockUserOrder 'Рекомендуемое к закупке кол-во' (sku, stock, userOrder) = recQuantitySkuStockUserOrder(sku, stock, userOrder) IF recQuantitySkuStockUserOrder(sku, stock, userOrder) >0;
+recommendedQuantitySkuStockUserOrder 'Рекомендуемое к закупке кол-во' (sku, stock, userOrder) = recQuantitySkuStockUserOrder(sku, stock, userOrder) IF recQuantitySkuStockUserOrder(sku, stock, userOrder) > 0;
 stockReserveSkuStockUserOrder 'Страховой запас (кол-во)' (sku, stock, userOrder) = stockReserveStockSkuDate(stock, sku, dateUserOrder(userOrder));
+
+limitRecommendedQuantitySkuUserOrder = ABSTRACT BOOLEAN (Sku, UserOrder);
 
 fillRecommendedQuantityStockUserOrder 'Заполнить рекомендуемым' = ACTION (userOrder) {
     FOR priceALedgerPriceListTypeSkuStockCompanyDateTime(
             ledgerPriceListTypePriceListType(priceListTypeUserOrderSku(userOrder, sku)),
             sku, customerStockUserOrder(userOrder), supplierUserOrder(userOrder), dateTimeUserOrder(userOrder))
+        AND NOT limitRecommendedQuantitySkuUserOrder(sku, userOrder) 
         AND recommendedQuantitySkuStockUserOrder (sku, customerStockUserOrder(userOrder), userOrder)
         ADDOBJ d = UserOrderDetail DO {
-            ASSIGN userOrderUserOrderDetail(d) <- userOrder;
-            ASSIGN skuUserOrderDetail(d) <- sku;
-            ASSIGN quantityUserOrderDetail (d) <- recommendedQuantitySkuStockUserOrder (sku, customerStockUserOrder(userOrder), userOrder);
+            userOrderUserOrderDetail(d) <- userOrder;
+            skuUserOrderDetail(d) <- sku;
+            quantityUserOrderDetail (d) <- recommendedQuantitySkuStockUserOrder (sku, customerStockUserOrder(userOrder), userOrder);
         }
 } TOOLBAR CONFIRM;
 
