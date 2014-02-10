@@ -637,7 +637,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         return parseDatePattern(splittedField, calendar);
                     } else return null;
                 } else {
-                    value = String.valueOf(entry[fieldNamesMap.get(column)]);
+                    value = String.valueOf(entry[fieldNamesMap.get(column.toUpperCase())]);
                 }
                 if (value != null && !value.isEmpty())
                     result = trySum(result, value, isNumeric);
