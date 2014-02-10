@@ -12,6 +12,7 @@ public class UserPriceListDetail {
     public String idUserPriceListDetail;
     public String idUserPriceList;
     public String idItem;
+    public String idItemGroup;
     public String barcodeItem;
     public String articleItem;
     public String captionItem;
@@ -22,12 +23,13 @@ public class UserPriceListDetail {
 
 
     public UserPriceListDetail(Boolean isPosted, String idUserPriceListDetail, String idUserPriceList, String idItem, 
-                               String barcodeItem, String articleItem, String captionItem, String idUOMItem, Date date, 
-                               Map<DataObject, BigDecimal> prices, BigDecimal quantityAdjustment) {
+                               String idItemGroup, String barcodeItem, String articleItem, String captionItem, 
+                               String idUOMItem, Date date, Map<DataObject, BigDecimal> prices, BigDecimal quantityAdjustment) {
         this.isPosted = isPosted;
         this.idUserPriceListDetail = idUserPriceListDetail;
         this.idUserPriceList = idUserPriceList;
         this.idItem = idItem;
+        this.idItemGroup = idItemGroup;
         this.barcodeItem = barcodeItem;
         this.articleItem = articleItem;
         this.captionItem = captionItem;
