@@ -1,5 +1,7 @@
 package lsfusion.erp.integration.universal;
 
+import com.hexiong.jdbf.DBFReader;
+import com.hexiong.jdbf.JDBFException;
 import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
@@ -29,12 +31,12 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
 import java.io.*;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
@@ -105,6 +107,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             throw new RuntimeException(e);
         } catch (ParseException e) {
             throw new RuntimeException(e);
+        } catch (JDBFException e) {
+            throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
             context.requestUserInteraction(new MessageClientAction(e.getMessage(), e.getTitle()));
@@ -114,7 +118,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportColumns importColumns,
                               byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String itemKeyType,
                               boolean apply, boolean disableVolatileStats)
-            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, UniversalImportException, SQLHandledException {
+            throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, UniversalImportException, SQLHandledException, JDBFException {
 
         this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
         
@@ -519,40 +523,50 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     }
 
     private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, ImportColumns importColumns, Integer startRow, Boolean isPosted)
-            throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
+            throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, JDBFException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
 
         File tempFile = File.createTempFile("dutiesTNVED", ".dbf");
         IOUtils.putFileBytes(tempFile, importFile);
-        DBF file = new DBF(tempFile.getPath());
-        int totalRecordCount = file.getRecordCount();
 
-        for (int i = startRow - 1; i < totalRecordCount; i++) {
+        DBFReader dbfReader = new DBFReader(new FileInputStream(tempFile));
+        String charset = getDBFCharset(tempFile);
 
-            file.read();
+        Map<String, Integer> fieldNamesMap = new HashMap<String, Integer>();
+        for (int i=0; i<dbfReader.getFieldCount(); i++) {
+            fieldNamesMap.put(dbfReader.getField(i).getName(), i);
+        }
+        
+        for (int i = 0; i < startRow - 1; i++) {
+            dbfReader.nextRecord(Charset.forName(charset));
+        }        
 
-            String idUserPriceList = getDBFFieldValue(file, importColumns.getColumns().get("idUserPriceList"), i);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, importColumns.getColumns().get("barcodeItem"), i));
-            String articleItem = getDBFFieldValue(file, importColumns.getColumns().get("articleItem"), i);
-            String idItem = getDBFFieldValue(file, importColumns.getColumns().get("idItem"), i);
-            String captionItem = getDBFFieldValue(file, importColumns.getColumns().get("captionItem"), i);
-            String idUOMItem = getDBFFieldValue(file, importColumns.getColumns().get("idUOMItem"), i);
-            BigDecimal quantityAdjustment = getDBFBigDecimalFieldValue(file, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), importColumns.getQuantityAdjustmentColumn(), i);
+        for (int i = startRow - 1; dbfReader.hasNextRecord(); i++) {
+
+            Object entry[] = dbfReader.nextRecord(Charset.forName(charset));
+            
+            String idUserPriceList = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idUserPriceList"), i);
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("barcodeItem"), i));
+            String articleItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("articleItem"), i);
+            String idItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idItem"), i);
+            String captionItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("captionItem"), i);
+            String idUOMItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idUOMItem"), i);
+            BigDecimal quantityAdjustment = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), importColumns.getQuantityAdjustmentColumn(), i);
 
             String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
             if (!idUserPriceListDetail.equals("_")) {
                 Map<DataObject, BigDecimal> prices = new HashMap<DataObject, BigDecimal>();
-                for (Map.Entry<DataObject, String[]> entry : importColumns.getPriceColumns().entrySet()) {
-                    BigDecimal price = getDBFBigDecimalFieldValue(file, new ImportColumnDetail("price", entry.getValue(), false), i);
-                    prices.put(entry.getKey(), price);
+                for (Map.Entry<DataObject, String[]> priceEntry : importColumns.getPriceColumns().entrySet()) {
+                    BigDecimal price = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail("price", priceEntry.getValue(), false), i);
+                    prices.put(priceEntry.getKey(), price);
                 }
                 userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
                         idItem, barcodeItem, articleItem, captionItem, idUOMItem, null, prices, quantityAdjustment));
             }
         }
 
-        file.close();
+        dbfReader.close();
 
         return userPriceListDetailList;
     }

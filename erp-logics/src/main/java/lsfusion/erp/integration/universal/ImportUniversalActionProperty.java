@@ -4,6 +4,7 @@ import jxl.CellType;
 import jxl.NumberCell;
 import jxl.NumberFormulaCell;
 import jxl.Sheet;
+import lsfusion.base.IOUtils;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -17,6 +18,8 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.xBaseJ.DBF;
 
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
@@ -562,6 +565,140 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         } catch (ParseException e) {
             throw new UniversalImportException(importColumnDetail.field, importColumnDetail.getFullIndex(), row, e);
         }
+    }
+
+    protected String getJDBFFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
+        return getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, row, null);
+    }
+
+    protected String getJDBFFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
+        if (importColumnDetail == null) return defaultValue;
+        return getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, defaultValue, false);
+    }
+
+    protected String getJDBFFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap,
+                                       ImportColumnDetail importColumnDetail, String[] columns, int row,
+                                       String defaultValue, boolean isNumeric) throws UniversalImportException {
+        try {
+            if (importColumnDetail == null) return defaultValue;
+            String result = "";
+            for (String column : columns) {
+                if (column == null) return defaultValue;
+                String value;
+                if (isConstantValue(column))
+                    value = parseConstantFieldPattern(column);
+                else if (isRoundedValue(column)) {
+                    String[] splittedField = column.split("\\[|\\]");
+                    value = getRoundedValue(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, "", true), splittedField[1]);
+                } else if (isDivisionValue(column)) {
+                    String[] splittedField = column.split("/");
+                    BigDecimal dividedValue = null;
+                    for (String arg : splittedField) {
+                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull), row);
+                        dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
+                    }
+                    value = dividedValue == null ? null : String.valueOf(dividedValue);
+                } else if (isMultiplyValue(column)) {
+                    String[] splittedField = column.split("\\*");
+                    BigDecimal multipliedValue = null;
+                    for (String arg : splittedField) {
+                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull), row);
+                        multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
+                    }
+                    value = multipliedValue == null ? null : String.valueOf(multipliedValue);
+                } else if (isSubtractValue(column)) {
+                    String[] splittedField = column.split("\\-");
+                    BigDecimal subtractedValue = null;
+                    for (String arg : splittedField) {
+                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail(arg.trim(), arg.trim(), importColumnDetail.replaceOnlyNull), row);
+                        subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
+                    }
+                    value = subtractedValue == null ? null : String.valueOf(subtractedValue);
+                } else if (isOrValue(column)) {
+                    value = "";
+                    String[] splittedField = column.split("\\|");
+                    for (int i = splittedField.length - 1; i >= 0; i--) {
+                        String orValue = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[i]}, i, null, isNumeric);
+                        if (orValue != null) {
+                            value = orValue;
+                            break;
+                        }
+                    }
+                } else if (isSubstringValue(column)) {
+                    String[] splittedField = column.split(splitPattern);
+                    value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, isNumeric),
+                            splittedField.length > 1 ? parseIndex(splittedField[1]) : null, splittedField.length > 2 ? parseIndex(splittedField[2]) : null);
+                } else if (isDatePatternedValue(column)) {
+                    String[] splittedField = column.split("~");
+                    Calendar calendar = Calendar.getInstance();
+                    Date date = parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, false));
+                    if (date != null) {
+                        calendar.setTime(date);
+                        return parseDatePattern(splittedField, calendar);
+                    } else return null;
+                } else {
+                    value = String.valueOf(entry[fieldNamesMap.get(column)]);
+                }
+                if (value != null && !value.isEmpty())
+                    result = trySum(result, value, isNumeric);
+            }
+            return result.isEmpty() ? defaultValue : result;
+        } catch (Exception e) {
+            throw new UniversalImportException(importColumnDetail.field, importColumnDetail.getFullIndex(), row, e);
+        }
+    }
+
+    protected BigDecimal getJDBFBigDecimalFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
+        return getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail, row, null);
+    }
+
+    protected BigDecimal getJDBFBigDecimalFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, String column, int row) throws UniversalImportException {
+        return getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail, column, row, null);
+    }
+
+    protected BigDecimal getJDBFBigDecimalFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, String column, int row, String defaultValue) throws UniversalImportException {
+        return getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail(importColumnDetail.field, column, false), row, defaultValue);
+    }
+
+    protected BigDecimal getJDBFBigDecimalFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
+        try {
+            if (importColumnDetail == null) return parseBigDecimal(defaultValue);
+            String value = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, defaultValue, true);
+            if (value == null) return parseBigDecimal(defaultValue);
+            return parseBigDecimal(value.trim());
+        } catch (NumberFormatException e) {
+            throw new UniversalImportException(importColumnDetail == null ? null : importColumnDetail.field, importColumnDetail == null ? null : importColumnDetail.getFullIndex(), row, e);
+        }
+    }
+
+    protected Date getJDBFDateFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
+        return getJDBFDateFieldValue(entry, fieldNamesMap, importColumnDetail, row, null);
+    }
+
+    protected Date getJDBFDateFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, Date defaultValue) throws UniversalImportException {
+        if (importColumnDetail == null) return null;
+        String dateString = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, null, false);
+        try {
+            return dateString == null ? defaultValue : parseDate(dateString);
+        } catch (ParseException e) {
+            throw new UniversalImportException(importColumnDetail.field, importColumnDetail.getFullIndex(), row, e);
+        }
+    }
+
+    public String getDBFCharset(File file) throws IOException {
+        byte charsetByte = IOUtils.getFileBytes(file)[29];
+        String charset;
+        switch (charsetByte) {
+            case (byte) 0x65:
+                charset = "cp866";
+                break;
+            case (byte) 0xC9:
+                charset = "cp1251";
+                break;
+            default:
+                charset = "cp866";
+        }
+        return charset;
     }
 
     private Integer parseIndex(String index) {

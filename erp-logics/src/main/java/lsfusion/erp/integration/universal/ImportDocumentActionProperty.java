@@ -82,22 +82,6 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
     }
 
-    public String getDBFCharset(File file) throws IOException {
-        byte charsetByte = IOUtils.getFileBytes(file)[29];
-        String charset;
-        switch (charsetByte) {
-            case (byte) 0x65:
-                charset = "cp866";
-                break;
-            case (byte) 0xC9:
-                charset = "cp1251";
-                break;
-            default:
-                charset = "cp866";
-        }
-        return charset;
-    }
-
     protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, String sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
         ImportField field = new ImportField(getLCP(sidProperty));
         props.add(new ImportProperty(field, getLCP(sidProperty).getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
