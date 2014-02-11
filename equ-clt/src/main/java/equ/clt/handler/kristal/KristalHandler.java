@@ -246,7 +246,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                         for (Object gangNode : gangsList) {
 
-                                            String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
+                                            String numberZReport = numberCashRegister + "_" + ((Element) gangNode).getAttributeValue("GANGNUMBER");
                                             List receiptsList = ((Element) gangNode).getChildren("HEAD");
 
                                             for (Object receiptNode : receiptsList) {
