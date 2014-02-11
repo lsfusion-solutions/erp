@@ -176,6 +176,34 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
                 data.get(i).add(userPriceListDetailsList.get(i).barcodeItem);
 
+            ImportField idExtraBarcodeSkuField = new ImportField(getLCP("idBarcodeSku"));
+            ImportKey<?> extraBarcodeKey = new ImportKey((ConcreteCustomClass) getClass("Barcode"),
+                    getLCP("extBarcodeId").getMapping(idExtraBarcodeSkuField));
+            keys.add(extraBarcodeKey);
+            props.add(new ImportProperty(idExtraBarcodeSkuField, getLCP("idBarcode").getMapping(extraBarcodeKey), getReplaceOnlyNull(importColumns, "extraBarcodeItem")));
+            props.add(new ImportProperty(idExtraBarcodeSkuField, getLCP("extIdBarcode").getMapping(extraBarcodeKey), getReplaceOnlyNull(importColumns, "extraBarcodeItem")));
+            fields.add(idExtraBarcodeSkuField);
+            for (int i = 0; i < userPriceListDetailsList.size(); i++)
+                data.get(i).add(userPriceListDetailsList.get(i).extraBarcodeItem);
+
+            ImportField packBarcodeSkuField = new ImportField(getLCP("idBarcodeSku"));
+            ImportKey<?> packBarcodeKey = new ImportKey((ConcreteCustomClass) getClass("Barcode"),
+                    getLCP("extBarcodeId").getMapping(packBarcodeSkuField));
+            keys.add(packBarcodeKey);
+            props.add(new ImportProperty(packBarcodeSkuField, getLCP("idBarcode").getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "barcodePack")));
+            props.add(new ImportProperty(packBarcodeSkuField, getLCP("extIdBarcode").getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "barcodePack")));
+            fields.add(packBarcodeSkuField);
+            for (int i = 0; i < userPriceListDetailsList.size(); i++)
+                data.get(i).add(userPriceListDetailsList.get(i).barcodePack);
+
+            if (showField(userPriceListDetailsList, "amountPack")) {
+                ImportField amountBarcodeField = new ImportField(getLCP("amountBarcode"));
+                props.add(new ImportProperty(amountBarcodeField, getLCP("amountBarcode").getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "amountPack")));
+                fields.add(amountBarcodeField);
+                for (int i = 0; i < userPriceListDetailsList.size(); i++)
+                    data.get(i).add(userPriceListDetailsList.get(i).amountPack);
+            }
+            
             ImportField idItemField = new ImportField(getLCP("idItem"));
             String iGroupAggr = (itemKeyType == null || itemKeyType.equals("item")) ? "itemId" : "skuIdBarcode";
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
@@ -237,6 +265,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             props.add(new ImportProperty(iField, getLCP("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
                     LM.object(getClass("Sku")).getMapping(itemKey)));
             props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(barcodeKey),
+                    LM.object(getClass("Item")).getMapping(itemKey)));
+            props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(extraBarcodeKey),
+                    LM.object(getClass("Item")).getMapping(itemKey)));
+            props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(packBarcodeKey),
                     LM.object(getClass("Item")).getMapping(itemKey)));
             fields.add(idUserPriceListDetailField);
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
@@ -356,6 +388,16 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).barcodeItem);
 
+/*
+            ImportField idExtraBarcodeSkuField = new ImportField(getLCP("idBarcodeSku"));
+            ImportKey<?> extraBarcodeKey = new ImportKey((ConcreteCustomClass) getClass("Barcode"),
+                    getLCP("extBarcodeId").getMapping(idExtraBarcodeSkuField));
+            keys.add(extraBarcodeKey);
+            fields.add(idExtraBarcodeSkuField);
+            for (int i = 0; i < dataAdjustment.size(); i++)
+                data.get(i).add(dataAdjustment.get(i).extraBarcodeItem);
+*/
+
             String iGroupAggr = (itemKeyType == null || itemKeyType.equals("item")) ? "itemId" : "skuIdBarcode";
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
@@ -372,6 +414,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     LM.object(getClass("Sku")).getMapping(itemKey)));
             props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(barcodeKey),
                     LM.object(getClass("Item")).getMapping(itemKey)));
+            //props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(extraBarcodeKey),
+            //        LM.object(getClass("Item")).getMapping(itemKey)));
             fields.add(idUserAdjustmentDetailField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).idUserPriceListDetail);
@@ -443,6 +487,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String idItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idItem"));
             String idItemGroup = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idItemGroup"));
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")));
+            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")));
+            String barcodePack = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("barcodePack")));
+            BigDecimal amountPack = getXLSBigDecimalFieldValue(sheet, i, importColumns.getColumns().get("amountPack"));
             String articleItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("articleItem"));
             String captionItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("captionItem"));
             String idUOMItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idUOMItem"));
@@ -455,7 +502,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     prices.put(entry.getKey(), price);
                 }
                 userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
-                        idItem, idItemGroup, barcodeItem, articleItem, captionItem, idUOMItem, date, prices, quantityAdjustment));
+                        idItem, idItemGroup, barcodeItem, extraBarcodeItem, barcodePack, amountPack, articleItem, 
+                        captionItem, idUOMItem, date, prices, quantityAdjustment));
 
             }
         }
@@ -485,6 +533,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
                 String idUserPriceList = getCSVFieldValue(values, importColumns.getColumns().get("idUserPriceList"), count);
                 String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.getColumns().get("barcodeItem"), count));
+                String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.getColumns().get("extraBarcodeItem"), count));
+                String barcodePack = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.getColumns().get("barcodePack"), count));
+                BigDecimal amountPack = getCSVBigDecimalFieldValue(values, importColumns.getColumns().get("amountPack"), count);
                 String articleItem = getCSVFieldValue(values, importColumns.getColumns().get("articleItem"), count);
                 String idItem = getCSVFieldValue(values, importColumns.getColumns().get("idItem"), count);
                 String idItemGroup = getCSVFieldValue(values, importColumns.getColumns().get("idItemGroup"), count);
@@ -499,7 +550,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         prices.put(entry.getKey(), price);
                     }
                     userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
-                            idItem, idItemGroup, barcodeItem, articleItem, captionItem, idUOMItem, date, prices, quantityAdjustment));
+                            idItem, idItemGroup, barcodeItem, extraBarcodeItem, barcodePack, amountPack, 
+                            articleItem, captionItem, idUOMItem, date, prices, quantityAdjustment));
                 }
             }
         }
@@ -524,6 +576,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String idItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idItem"));
             String idItemGroup = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idItemGroup"));
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")));
+            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")));
+            String barcodePack = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("barcodePack")));
+            BigDecimal amountPack = getXLSXBigDecimalFieldValue(sheet, i, importColumns.getColumns().get("amountPack"));
             String articleItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("articleItem"));
             String captionItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("captionItem"));
             String idUOMItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idUOMItem"));
@@ -536,7 +591,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     prices.put(entry.getKey(), price);
                 }
                 userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
-                        idItem, idItemGroup, barcodeItem, articleItem, captionItem, idUOMItem, date, prices, quantityAdjustment));
+                        idItem, idItemGroup, barcodeItem, extraBarcodeItem, barcodePack, amountPack, articleItem, 
+                        captionItem, idUOMItem, date, prices, quantityAdjustment));
             }
         }
 
@@ -569,6 +625,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             
             String idUserPriceList = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idUserPriceList"), i);
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("barcodeItem"), i));
+            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("extraBarcodeItem"), i));
+            String barcodePack = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("barcodePack"), i));
+            BigDecimal amountPack = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("amountPack"), i);
             String articleItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("articleItem"), i);
             String idItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idItem"), i);
             String idItemGroup = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idItemGroup"), i);
@@ -584,7 +643,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     prices.put(priceEntry.getKey(), price);
                 }
                 userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
-                        idItem, idItemGroup, barcodeItem, articleItem, captionItem, idUOMItem, null, prices, quantityAdjustment));
+                        idItem, idItemGroup, barcodeItem, extraBarcodeItem, barcodePack, amountPack, articleItem, 
+                        captionItem, idUOMItem, null, prices, quantityAdjustment));
             }
         }
 
