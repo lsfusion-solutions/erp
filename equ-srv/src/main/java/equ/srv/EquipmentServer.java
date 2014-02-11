@@ -155,10 +155,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 QueryBuilder<Object, Object> skuQuery = new QueryBuilder<Object, Object>(skuKeys);
                 
-                String[] skuProperties = new String[] {"idBarcode", "nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
+                String[] skuProperties = new String[] {"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "isWeightMachineryPriceTransactionBarcode", "skuGroupMachineryPriceTransactionBarcode"};
                 String[] extraSkuProperties = new String[] {"daysExpiryMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
                         "labelFormatMachineryPriceTransactionBarcode", "compositionMachineryPriceTransactionBarcode"};
+                skuQuery.addProperty("idBarcode", equLM.findLCPByCompoundOldName("idBarcode").getExpr(barcodeExpr));
                 for(String property : skuProperties) {
                     skuQuery.addProperty(property, equLM.findLCPByCompoundOldName(property).getExpr(transactionObject.getExpr(), barcodeExpr));
                 }                
@@ -173,8 +174,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> skuResult = skuQuery.executeClasses(session);
 
                 for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
-                    String barcode = (String) row.get("idBarcode").getValue();
-                    String name = (String) row.get("nameMachineryPriceTransactionBarcode").getValue();
+                    String barcode = trim((String) row.get("idBarcode").getValue());
+                    String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                     BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                     BigDecimal daysExpiry = (BigDecimal) row.get("daysExpiryMachineryPriceTransactionBarcode").getValue();
                     Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
@@ -193,13 +194,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         skuGroupObject = parentSkuGroup;
                     }
 
-                    String canonicalNameSkuGroup = idItemGroup == null ? "" : (String) equLM.findLCPByCompoundOldName("canonicalNameSkuGroup").read(session, equLM.findLCPByCompoundOldName("itemGroupId").readClasses(session, new DataObject(idItemGroup)));
-
+                    String canonicalNameSkuGroup = idItemGroup == null ? "" : trim((String) equLM.findLCPByCompoundOldName("canonicalNameSkuGroup").read(session, equLM.findLCPByCompoundOldName("itemGroupId").readClasses(session, new DataObject(idItemGroup))));
                     Integer cellScalesObject = composition == null ? null : (Integer) equLM.findLCPByCompoundOldName("cellScalesGroupScalesComposition").read(session, groupObject, new DataObject(composition, StringClass.text));
                     Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) equLM.findLCPByCompoundOldName("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) equLM.findClassByCompoundName("CellScales")));
-
-                    skuTransactionList.add(new ItemInfo(barcode.trim(), name.trim(), price, daysExpiry, hoursExpiry, expiryDate, labelFormat, composition,
-                            compositionNumberCellScales, isWeight, hierarchyItemGroup, canonicalNameSkuGroup.trim(), nppGroupMachinery));
+                    
+                    skuTransactionList.add(new ItemInfo(barcode, name, price, daysExpiry, hoursExpiry, expiryDate, labelFormat, composition,
+                            compositionNumberCellScales, isWeight, hierarchyItemGroup, canonicalNameSkuGroup, nppGroupMachinery));
                 }
 
                 if (transactionObject.objectClass.equals(equLM.findClassByCompoundName("CashRegisterPriceTransaction"))) {
@@ -966,6 +966,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
         result = (char) (time + 97) + result;
         return result;
+    }
+
+    protected String trim(String input) {
+        return input == null ? null : input.trim();
     }
 
     @Aspect
