@@ -667,6 +667,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) getClass("ItemGroup"),
                         getLCP("itemGroupId").getMapping(idItemGroupField));
                 keys.add(itemGroupKey);
+                props.add(new ImportProperty(idItemGroupField, getLCP("idItemGroup").getMapping(itemGroupKey), getReplaceOnlyNull(importColumns, "idItemGroup")));
+                props.add(new ImportProperty(idItemGroupField, getLCP("nameItemGroup").getMapping(itemGroupKey), true));
                 props.add(new ImportProperty(idItemGroupField, getLCP("itemGroupItem").getMapping(itemKey),
                         LM.object(getClass("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(importColumns, "idItemGroup")));
                 fields.add(idItemGroupField);
@@ -692,6 +694,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) getClass("ItemGroup"),
                             getLCP("itemGroupId").getMapping(idItemGroupField));
                     keys.add(itemGroupKey);
+                    itemGroupKey.skipKey = true;
                     props.add(new ImportProperty(idItemGroupField, itemArticleLM.findLCPByCompoundOldName("itemGroupArticle").getMapping(articleKey),
                             itemArticleLM.object(itemArticleLM.findClassByCompoundName("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(importColumns, "idItemGroup")));
                     fields.add(idItemGroupField);
