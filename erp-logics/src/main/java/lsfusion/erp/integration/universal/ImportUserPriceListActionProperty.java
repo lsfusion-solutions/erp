@@ -146,6 +146,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         Map<String, ImportColumnDetail> importColumns = importColumnProperties.getColumns();
         DataObject operationObject = importColumnProperties.getOperationObject();
+        DataObject companyObject = importColumnProperties.getCompanyObject();
         DataObject defaultItemGroupObject = importColumnProperties.getDefaultItemGroupObject();
         Set<DataObject> dataPriceListTypeObjectList = importColumnProperties.getPriceColumns().keySet();
         
@@ -159,7 +160,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             if (operationObject != null) {
                 props.add(new ImportProperty(operationObject, getLCP("operationUserPriceList").getMapping(userPriceListObject)));
-            }           
+            }
+
+            if (companyObject != null) {
+                props.add(new ImportProperty(companyObject, getLCP("companyUserPriceList").getMapping(userPriceListObject)));
+            }
 
             ImportField idBarcodeSkuField = new ImportField(getLCP("idBarcodeSku"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) getClass("Barcode"),
@@ -611,14 +616,17 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         ObjectValue operation = LM.findLCPByCompoundOldName("operationImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
 
+        ObjectValue company = LM.findLCPByCompoundOldName("companyImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
+        DataObject companyObject = company instanceof NullValue ? null : (DataObject) company;
+        
         ObjectValue stock = LM.findLCPByCompoundOldName("stockImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject stockObject = stock instanceof NullValue ? null : (DataObject) stock;
 
         ObjectValue defaultItemGroup = LM.findLCPByCompoundOldName("defaultItemGroupImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject defaultItemGroupObject = defaultItemGroup instanceof NullValue ? null : (DataObject) defaultItemGroup;
 
-        return new ImportColumns(columns, priceColumns, quantityAdjustmentColumn, dateRow, dateColumn, operationObject,
-                stockObject, defaultItemGroupObject);
+        return new ImportColumns(columns, priceColumns, quantityAdjustmentColumn, dateRow, dateColumn, operationObject, 
+                companyObject, stockObject, defaultItemGroupObject);
     }
 
     private static Map<String, ImportColumnDetail> readColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

@@ -12,11 +12,12 @@ public class ImportColumns {
     private Integer dateRow;
     private Integer dateColumn;
     private DataObject operationObject;
+    private DataObject companyObject;
     private DataObject stockObject;
     private DataObject defaultItemGroupObject;
 
     public ImportColumns(Map<String, ImportColumnDetail> columns, Map<DataObject, String[]> priceColumns, String quantityAdjustmentColumn,
-                         Integer dateRow, Integer dateColumn, DataObject operationObject, DataObject stockObject,
+                         Integer dateRow, Integer dateColumn, DataObject operationObject, DataObject companyObject, DataObject stockObject,
                          DataObject defaultItemGroupObject) {
         this.columns = columns;
         this.priceColumns = priceColumns;
@@ -24,6 +25,7 @@ public class ImportColumns {
         this.dateRow = dateRow;
         this.dateColumn = dateColumn;
         this.operationObject = operationObject;
+        this.companyObject = companyObject;
         this.stockObject = stockObject;
         this.defaultItemGroupObject = defaultItemGroupObject;
     }
@@ -52,6 +54,10 @@ public class ImportColumns {
         return operationObject;
     }
 
+    public DataObject getCompanyObject() {
+        return companyObject;
+    }
+    
     public DataObject getStockObject() {
         return stockObject;
     }
