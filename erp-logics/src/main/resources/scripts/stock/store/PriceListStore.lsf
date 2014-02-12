@@ -1,6 +1,6 @@
 MODULE PriceListStore;
 
-REQUIRE PriceListType, Store, PriceListStock;
+REQUIRE PriceListCalc, Store, PriceListStock;
 
 //------------------------- Расширяем форму Магазина -------------------------//
 
@@ -17,3 +17,30 @@ EXTEND DESIGN store {
         ADD PROPERTY(namePriceStockGroupStore(s)) BEFORE PROPERTY(nameRegionStore(s));
     }
 }
+
+// ------------------------- Виды цен по умолчанию для формата -------------- //
+
+retailPriceListTypeStoreType 'Розничная цена (управленческая)' = DATA PriceListType(StoreType);
+nameRetailPriceListTypeStoreType 'Розничная цена (управленческая)' (t) = namePriceListType(retailPriceListTypeStoreType(t)); 
+
+retailPriceListTypeStore (s) = retailPriceListTypeStoreType(storeTypeStore(s)) PERSISTENT;
+retailPriceListTypeDepartmentStore (d) = retailPriceListTypeStore(storeDepartmentStore(d)) PERSISTENT;
+
+retailPriceASkuDepartmentStoreDateTime 'Розничная цена (управленческая)' (s, d, t) =  
+    priceALedgerPriceListTypeSkuStockDateTime(retailPriceListTypeDepartmentStore(d), s, d, t);
+
+retailCalcPriceListTypeStoreType 'Розничная цена (надбавка)' = DATA CalcPriceListType(StoreType);
+nameRetailCalcPriceListTypeStoreType 'Розничная цена (надбавка)' (t) = nameCalcPriceListType(retailCalcPriceListTypeStoreType(t)); 
+
+retailCalcPriceListTypeStore (s) = retailCalcPriceListTypeStoreType(storeTypeStore(s)) PERSISTENT;
+retailCalcPriceListTypeDepartmentStore (d) = retailCalcPriceListTypeStore(storeDepartmentStore(d)) PERSISTENT;
+
+markupSkuDepartmentStore 'Надбавка, %' (s, st) =
+    markupCalcPriceListTypeSku(retailCalcPriceListTypeDepartmentStore(st), s);
+
+markupPriceASkuDepartmentStoreDateTime 'Розничная цена (надбавка)' (s, d, t) =  
+    priceACalcPriceListTypeSkuStockDateTime(retailCalcPriceListTypeDepartmentStore(d), s, d, t);
+
+EXTEND FORM chainStores
+    PROPERTIES(s) nameRetailPriceListTypeStoreType, nameRetailCalcPriceListTypeStoreType AFTER nameStoreType(s) 
+;

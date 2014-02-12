@@ -1,6 +1,6 @@
 MODULE Range;
 
-REQUIRE Store, Sku, Barcode, PriceListDashboard, EmployeeSku;
+REQUIRE Store, Sku, Barcode, PriceListStore, EmployeeSku, PriceListDashboardStore;
 
 // Уровни ассортимента
 
@@ -165,6 +165,15 @@ countSkuRangeRangeLevelDate 'Кол-во товаров' (r, l, d)= countSkuRang
 filterSupplier = DATA SESSION LegalEntity();
 nameFilterSupplier 'Поставщик' = nameLegalEntity(filterSupplier());
 
+retailPriceASkuDepartmentStoreRangeRev 'Розничная цена (управленческая)' (s, d, v) =  
+    retailPriceASkuDepartmentStoreDateTime(s, d, dateTimeRangeRev(v));
+
+markupPriceASkuDepartmentStoreRangeRev 'Розничная цена (надбавка)' (s, d, v) =  
+    markupPriceASkuDepartmentStoreDateTime(s, d, dateTimeRangeRev(v));
+
+priceALedgerPriceListTypeSkuStockRangeRev 'Цена' (pt, s, st, v)=  
+    priceALedgerPriceListTypeSkuStockDateTime(pt, s, st, dateTimeRangeRev(v));
+
 nameCompanyALedgerPriceListTypeSkuStockRangeRev 'Поставщик' (pt, s, st, v)=  
     nameCompanyALedgerPriceListTypeSkuStockDateTime(pt, s, st, dateTimeRangeRev(v));
 
@@ -182,7 +191,11 @@ FORM rangeRev 'Версия ассортимента'
     
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idBarcodeSku, nameSku, nameUOMSku
-    PROPERTIES READONLY    nameCompanyALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v)
+    PROPERTIES READONLY    nameCompanyALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v),
+                           priceALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v),
+                           retailPriceASkuDepartmentStoreRangeRev(s, d, v),
+                           markupSkuDepartmentStore(s, d),
+                           markupPriceASkuDepartmentStoreRangeRev(s, d, v)
     PROPERTIES(v, s) nameLevelRangeRevSku
     FILTERS inChildRangeSkuGroup(rangeRangeRev(v), skuGroupSku(s)),
             (filterSupplier() AND priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, s, d, filterSupplier(), dateTimeRangeRev(v))) OR 
@@ -209,7 +222,11 @@ DESIGN rangeRev FROM DEFAULT {
         ADD d.box;
         ADD pt.box;
     }
-    ADD s.box;
+    ADD s.box {
+        PROPERTY(priceALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v)) {
+            caption = 'Цена закупки';
+        }    
+    }
     ADD functions.box;
 }
 
