@@ -958,8 +958,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
                 String originalCustomsGroupItem = getXLSFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
                 String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
-                String dataIndexValue = getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(primaryList.size() + secondaryList.size() + 1));
-                Integer dataIndex = dataIndexValue == null ? null : Integer.parseInt(dataIndexValue);
+                BigDecimal dataIndexValue = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("dataIndex"));
+                Integer dataIndex = dataIndexValue == null ? (primaryList.size() + secondaryList.size() + 1) : dataIndexValue.intValue();
                 String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
                 String idItemGroup = getXLSFieldValue(sheet, i, importColumns.get("idItemGroup"));
                 String captionItem = getXLSFieldValue(sheet, i, importColumns.get("captionItem"));
@@ -1057,7 +1057,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile)));
+        BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile), "cp1251"));
         String line;
         int count = 0;
 
@@ -1081,8 +1081,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, count);
                 String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.get("barcodeItem"), count));
                 String idBatch = getCSVFieldValue(values, importColumns.get("idBatch"), count);
-                String dataIndexValue = getCSVFieldValue(values, importColumns.get("idItem"), count, String.valueOf(primaryList.size() + secondaryList.size() + 1));
-                Integer dataIndex = dataIndexValue == null ? null : Integer.parseInt(dataIndexValue);
+                BigDecimal dataIndexValue = getCSVBigDecimalFieldValue(values, importColumns.get("dataIndex"), count);
+                Integer dataIndex = dataIndexValue == null ? (primaryList.size() + secondaryList.size() + 1) : dataIndexValue.intValue();
                 String idItem = getCSVFieldValue(values, importColumns.get("idItem"), count);
                 String idItemGroup = getCSVFieldValue(values, importColumns.get("idItemGroup"), count);
                 String originalCustomsGroupItem = getCSVFieldValue(values, importColumns.get("originalCustomsGroupItem"), count);
@@ -1198,8 +1198,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
-            String dataIndexValue = getXLSXFieldValue(sheet, i, importColumns.get("dataIndex"), false, String.valueOf(primaryList.size() + secondaryList.size() + 1));
-            Integer dataIndex = dataIndexValue == null ? null : Integer.parseInt(dataIndexValue);
+            BigDecimal dataIndexValue = getXLSXBigDecimalFieldValue(sheet, importColumns.get("dataIndex"), i, String.valueOf(primaryList.size() + secondaryList.size() + 1));
+            Integer dataIndex = dataIndexValue == null ? null : dataIndexValue.intValue();
             String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
             String idItemGroup = getXLSXFieldValue(sheet, i, importColumns.get("idItemGroup"));
             String originalCustomsGroupItem = getXLSXFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
