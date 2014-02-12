@@ -147,14 +147,19 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
             }
 
         } ELSE {
-            IF requestedNumeric() THEN {
-                FOR ADDOBJ d = ###detail DO {
-                   ASSIGN object###detail(d) <- object;
-                   ASSIGN data###stockProp###detail (d) <- stockProp###object(object);
-                   ASSIGN skuProp###detail(d) <- maxSkuArticleColorSize(article, color, size);
-                   ASSIGN quantity###detail (d) <- requestedNumeric();
+            IF maxSkuArticleColorSize(article, color, size) THEN {               
+                IF requestedNumeric() THEN {
+                    FOR ADDOBJ d = ###detail DO {
+                       ASSIGN object###detail(d) <- object;
+                       ASSIGN data###stockProp###detail (d) <- stockProp###object(object);
+                       ASSIGN skuProp###detail(d) <- maxSkuArticleColorSize(article, color, size);
+                       ASSIGN quantity###detail (d) <- requestedNumeric();
+                    }
                 }
-            }
+            } ELSE {
+                MESSAGE 'Товар с заданными характеристиками не найден';
+            } 
+              
         }
     }
     changeQuantityArticleColorSize###object = ACTION (article, color, size, object) {

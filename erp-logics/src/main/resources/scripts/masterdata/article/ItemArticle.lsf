@@ -45,13 +45,18 @@ CONSTRAINT  brandArticle(article) AND itemGroupArticle(article) AND NOT inBrandI
 manufacturerArticle 'Производитель' = DATA Manufacturer (Article);
 nameManufacturerArticle 'Производитель' (a) = nameManufacturer(manufacturerArticle(a)) IN itemBase;
 
+// Производитель
+countryArticle = DATA Country (Article);
+nameCountryArticle 'Страна' (a) = nameCountry(countryArticle(a)) IN itemBase;
+
 // Изображение артикула
 TABLE imagesArticle (Article);
 imageArticle 'Изображение' = DATA IMAGEFILE (Article) TABLE imagesArticle;
 
 FORM article 'Артикул'
     OBJECTS a=Article FIXED PANEL
-    PROPERTIES(a) captionArticle, originalCaptionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, nameBrandArticle, nameManufacturerArticle, imageArticle
+    PROPERTIES(a) captionArticle, originalCaptionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, nameBrandArticle, 
+                  nameManufacturerArticle, nameCountryArticle, imageArticle
 
     OBJECTS c = Country
     PROPERTIES (c) READONLY nameCountry
@@ -162,7 +167,7 @@ overImageItem (item) += imageArticleItem (item);
 
 countItemArticle 'Кол-во товаров' (a) = GROUP SUM 1 BY articleItem(i); 
 
-nameCountryArticle 'Страна' (a) = GROUP MAX nameCountryItem(i) BY articleItem(i); 
+//nameCountryArticle 'Страна' (a) = GROUP MAX nameCountryItem(i) BY articleItem(i); 
 // Цвет
 CLASS Color 'Цвет товара';
 TABLE color (Color);
@@ -312,6 +317,57 @@ NAVIGATOR {
     }
 }
 
+//-------------------------- Размерная сетка ------------------------//
+CLASS SizeGroup 'Размерная сетка';
+TABLE sizeGroup(SizeGroup);
+ 
+ @defineExternalizable(sizeGroup, VARSTRING[100]);
+ 
+nameSizeGroup 'Наименование' = DATA VARISTRING[50](SizeGroup);
+shortNameSizeGroup 'Краткое наименование' = DATA ISTRING[10](SizeGroup);
+
+inSizeGroupSize 'Вкл.' = DATA BOOLEAN (SizeGroup, Size);
+orderSizeGroupSize 'Порядковый номер' = DATA INTEGER (SizeGroup, Size); 
+ 
+FORM sizeGroup 'Размерная сетка'
+    OBJECTS t=SizeGroup FIXED PANEL
+    PROPERTIES(t) nameSizeGroup, idSizeGroup SHOWIF showIDs(), shortNameSizeGroup
+    
+    OBJECTS s=Size 
+    PROPERTIES(s) READONLY nameSize, idSize SHOWIF showIDs(), shortNameSize, nameOriginalSize  
+    PROPERTIES(t,s) inSizeGroupSize, orderSizeGroupSize   
+    FILTERGROUP filters1
+            FILTER 'Только включенные' 'F11' inSizeGroupSize(t,s)
+                 
+    EDIT SizeGroup OBJECT t
+;
+
+FORM sizeGroups 'Размерные сетки'
+    OBJECTS t=SizeGroup 
+    PROPERTIES(t) READONLY nameSizeGroup, idSizeGroup SHOWIF showIDs(), shortNameSizeGroup
+    
+    OBJECTS s=Size 
+    PROPERTIES(s) READONLY nameSize, idSize SHOWIF showIDs(), shortNameSize, nameOriginalSize  
+    PROPERTIES(t,s) READONLY inSizeGroupSize, orderSizeGroupSize
+    PROPERTIES(t) ADDFORM, EDITFORM
+    
+    ORDER BY  nameSizeGroup(t), orderSizeGroupSize(t,s)       
+    FILTERS inSizeGroupSize(t,s)
+     
+    DIALOG SizeGroup OBJECT t
+;
+DESIGN sizes FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+sizeGroupArticle = DATA SizeGroup (Article);
+nameSizeGroupArticle 'Размерная сетка' (a) = nameSizeGroup(sizeGroupArticle(a)) IN itemArticle;
+
+EXTEND FORM article
+    PROPERTIES(a) nameSizeGroupArticle
+;
+EXTEND FORM articles
+    PROPERTIES(a) READONLYIF isReadonly() nameSizeGroupArticle 
+;
+
 // ------------------ Добавляем на форму артикулов товары в отдельную вкладку ---------------------- //
 EXTEND FORM article
 
@@ -353,7 +409,8 @@ END
 @defineEventChangedArticle(caption);
 
 @defineEventChangedArticle(itemGroup);
-    
+@defineEventChangedArticle(country);
+      
 WHEN SESSION CHANGED(customGroupCustomGroupTypeArticle(type, articleItem(i))) AND NOT CHANGED(customGroupCustomGroupTypeItem(type, i)) DO         
     customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeArticle(type, articleItem(i));
 
@@ -378,5 +435,6 @@ NAVIGATOR {
     itemAttributeNavigator {
         ADD colors;
         ADD sizes;
+        ADD sizeGroups;
     }
 }
