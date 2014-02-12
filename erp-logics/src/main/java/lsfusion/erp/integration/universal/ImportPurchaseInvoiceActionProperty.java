@@ -39,6 +39,8 @@ import java.util.*;
 public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionProperty {
     private final ClassPropertyInterface userInvoiceInterface;
 
+    String defaultCountry = "БЕЛАРУСЬ";
+    
     // Опциональные модули
     ScriptingLogicsModule purchaseManufacturingPriceLM;
     ScriptingLogicsModule itemPharmacyByLM;
@@ -1027,7 +1029,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch,
                         dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem,
                         idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer,
-                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, "БЕЛАРУСЬ",
+                        idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry,
                         invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
                         numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem,
                         seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection,
@@ -1152,7 +1154,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem,
                         UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch,
                         idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT,
-                        "БЕЛАРУСЬ", invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum,
+                        defaultCountry, invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum,
                         rateExchange, numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate,
                         pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
                         idColor, nameColor, idCollection, nameCollection, idSize, nameSize, nameOriginalSize,
@@ -1268,7 +1270,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem,
                     idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem,
                     UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch,
-                    idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, "БЕЛАРУСЬ",
+                    idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry,
                     invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
                     numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem,
                     seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection,
@@ -1393,7 +1395,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem,
                     idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem,
                     UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch,
-                    idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, "БЕЛАРУСЬ",
+                    idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry,
                     invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
                     numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroup,
                     seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, idColor, nameColor, idCollection,
