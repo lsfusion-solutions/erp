@@ -573,12 +573,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     protected String getJDBFFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
         if (importColumnDetail == null) return defaultValue;
-        return getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, defaultValue, false);
+        return getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, defaultValue, false, true);
     }
 
     protected String getJDBFFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap,
                                        ImportColumnDetail importColumnDetail, String[] columns, int row,
-                                       String defaultValue, boolean isNumeric) throws UniversalImportException {
+                                       String defaultValue, boolean isNumeric, boolean zeroIsNull) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
             String result = "";
@@ -589,7 +589,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(column);
                 else if (isRoundedValue(column)) {
                     String[] splittedField = column.split("\\[|\\]");
-                    value = getRoundedValue(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, "", true), splittedField[1]);
+                    value = getRoundedValue(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, "", true, zeroIsNull), splittedField[1]);
                 } else if (isDivisionValue(column)) {
                     String[] splittedField = column.split("/");
                     BigDecimal dividedValue = null;
@@ -618,7 +618,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = "";
                     String[] splittedField = column.split("\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[i]}, i, null, isNumeric);
+                        String orValue = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[i]}, i, null, isNumeric, zeroIsNull);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -626,18 +626,21 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (isSubstringValue(column)) {
                     String[] splittedField = column.split(splitPattern);
-                    value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, isNumeric),
+                    value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, isNumeric, zeroIsNull),
                             splittedField.length > 1 ? parseIndex(splittedField[1]) : null, splittedField.length > 2 ? parseIndex(splittedField[2]) : null);
                 } else if (isDatePatternedValue(column)) {
                     String[] splittedField = column.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, false));
+                    Date date = parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, false, zeroIsNull));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedField, calendar);
                     } else return null;
                 } else {
-                    value = String.valueOf(entry[fieldNamesMap.get(column.toUpperCase())]);
+                    value = fieldNamesMap.containsKey(column.toUpperCase()) ? String.valueOf(entry[fieldNamesMap.get(column.toUpperCase())]) : null;
+                    if(value != null && value.equals("0") && !isNumeric && zeroIsNull) {
+                        value = null;
+                    }
                 }
                 if (value != null && !value.isEmpty())
                     result = trySum(result, value, isNumeric);
@@ -663,7 +666,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     protected BigDecimal getJDBFBigDecimalFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return parseBigDecimal(defaultValue);
-            String value = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, defaultValue, true);
+            String value = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, defaultValue, true, false);
             if (value == null) return parseBigDecimal(defaultValue);
             return parseBigDecimal(value.trim());
         } catch (NumberFormatException e) {
@@ -677,7 +680,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     protected Date getJDBFDateFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, Date defaultValue) throws UniversalImportException {
         if (importColumnDetail == null) return null;
-        String dateString = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, null, false);
+        String dateString = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, null, false, false);
         try {
             return dateString == null ? defaultValue : parseDate(dateString);
         } catch (ParseException e) {

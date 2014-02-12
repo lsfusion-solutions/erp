@@ -210,8 +210,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
                     getLCP(iGroupAggr).getMapping(iField));
             keys.add(itemKey);
-
             props.add(new ImportProperty(idItemField, getLCP("idItem").getMapping(itemKey)));
+            props.add(new ImportProperty(packBarcodeSkuField, getLCP("Purchase.packBarcodeSku").getMapping(itemKey),
+                    LM.object(getClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "barcodePack")));
+            props.add(new ImportProperty(packBarcodeSkuField, getLCP("Sale.packBarcodeSku").getMapping(itemKey), 
+                    LM.object(getClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "barcodePack")));
             fields.add(idItemField);
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
                 data.get(i).add(userPriceListDetailsList.get(i).idItem);
@@ -267,8 +270,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(barcodeKey),
                     LM.object(getClass("Item")).getMapping(itemKey)));
             props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(extraBarcodeKey),
-                    LM.object(getClass("Item")).getMapping(itemKey)));
-            props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(packBarcodeKey),
                     LM.object(getClass("Item")).getMapping(itemKey)));
             fields.add(idUserPriceListDetailField);
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
