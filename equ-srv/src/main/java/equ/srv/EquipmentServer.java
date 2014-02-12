@@ -531,7 +531,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImportField nppMachineryField = new ImportField(equLM.findLCPByCompoundOldName("nppMachinery"));
                 ImportField directoryCashRegisterField = new ImportField(equLM.findLCPByCompoundOldName("directoryCashRegister"));
 
-                ImportField idZReportField = new ImportField(equLM.findLCPByCompoundOldName("idZReport"));
                 ImportField numberZReportField = new ImportField(equLM.findLCPByCompoundOldName("numberZReport"));
 
                 ImportField idReceiptField = new ImportField(equLM.findLCPByCompoundOldName("idReceipt"));
@@ -567,17 +566,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 List<ImportProperty<?>> returnProperties = new ArrayList<ImportProperty<?>>();
                 List<ImportProperty<?>> paymentProperties = new ArrayList<ImportProperty<?>>();
 
-                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ZReport"), equLM.findLCPByCompoundOldName("zReportId").getMapping(idZReportField));
-                //ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("CashRegister"), equLM.findLCPByCompoundOldName("cashRegisterNumber").getMapping(numberCashRegisterField));
+                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ZReport"), equLM.findLCPByCompoundOldName("zReportNumberNppDirectory").getMapping(numberZReportField, nppMachineryField, directoryCashRegisterField));
                 ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("CashRegister"), equLM.findLCPByCompoundOldName("cashRegisterNppDirectory").getMapping(nppMachineryField, directoryCashRegisterField));
                 ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("Receipt"), equLM.findLCPByCompoundOldName("receiptId").getMapping(idReceiptField));
                 ImportKey<?> skuKey = new ImportKey((CustomClass) equLM.findClassByCompoundName("Sku"), equLM.findLCPByCompoundOldName("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
                 ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("DiscountCard"), equLM.findLCPByCompoundOldName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateReceiptField));
 
-                saleProperties.add(new ImportProperty(idZReportField, equLM.findLCPByCompoundOldName("idZReport").getMapping(zReportKey)));
                 saleProperties.add(new ImportProperty(numberZReportField, equLM.findLCPByCompoundOldName("numberZReport").getMapping(zReportKey)));
-                //saleProperties.add(new ImportProperty(numberCashRegisterField, equLM.findLCPByCompoundOldName("cashRegisterZReport").getMapping(zReportKey),
-                //        equLM.baseLM.object(equLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
                 saleProperties.add(new ImportProperty(nppMachineryField, equLM.findLCPByCompoundOldName("cashRegisterZReport").getMapping(zReportKey),
                         equLM.baseLM.object(equLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
                 saleProperties.add(new ImportProperty(dateReceiptField, equLM.findLCPByCompoundOldName("dateZReport").getMapping(zReportKey)));
@@ -589,7 +584,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 saleProperties.add(new ImportProperty(dateReceiptField, equLM.findLCPByCompoundOldName("dateReceipt").getMapping(receiptKey)));
                 saleProperties.add(new ImportProperty(timeReceiptField, equLM.findLCPByCompoundOldName("timeReceipt").getMapping(receiptKey)));
                 saleProperties.add(new ImportProperty(discountSumSaleReceiptField, equLM.findLCPByCompoundOldName("discountSumSaleReceipt").getMapping(receiptKey)));
-                saleProperties.add(new ImportProperty(idZReportField, equLM.findLCPByCompoundOldName("zReportReceipt").getMapping(receiptKey),
+                saleProperties.add(new ImportProperty(numberZReportField, equLM.findLCPByCompoundOldName("zReportReceipt").getMapping(receiptKey),
                         equLM.baseLM.object(equLM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));
                 saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
                 saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
@@ -609,10 +604,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, equLM.findLCPByCompoundOldName("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
                         equLM.baseLM.object(equLM.findClassByCompoundName("Sku")).getMapping(skuKey)));
 
-                returnProperties.add(new ImportProperty(idZReportField, equLM.findLCPByCompoundOldName("idZReport").getMapping(zReportKey)));
                 returnProperties.add(new ImportProperty(numberZReportField, equLM.findLCPByCompoundOldName("numberZReport").getMapping(zReportKey)));
-                //returnProperties.add(new ImportProperty(numberCashRegisterField, equLM.findLCPByCompoundOldName("cashRegisterZReport").getMapping(zReportKey),
-                //        equLM.baseLM.object(equLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
                 returnProperties.add(new ImportProperty(nppMachineryField, equLM.findLCPByCompoundOldName("cashRegisterZReport").getMapping(zReportKey),
                         equLM.baseLM.object(equLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
                 returnProperties.add(new ImportProperty(dateReceiptField, equLM.findLCPByCompoundOldName("dateZReport").getMapping(zReportKey)));
@@ -624,7 +616,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 returnProperties.add(new ImportProperty(dateReceiptField, equLM.findLCPByCompoundOldName("dateReceipt").getMapping(receiptKey)));
                 returnProperties.add(new ImportProperty(timeReceiptField, equLM.findLCPByCompoundOldName("timeReceipt").getMapping(receiptKey)));
                 returnProperties.add(new ImportProperty(discountSumReturnReceiptField, equLM.findLCPByCompoundOldName("discountSumReturnReceipt").getMapping(receiptKey)));
-                returnProperties.add(new ImportProperty(idZReportField, equLM.findLCPByCompoundOldName("zReportReceipt").getMapping(receiptKey),
+                returnProperties.add(new ImportProperty(numberZReportField, equLM.findLCPByCompoundOldName("zReportReceipt").getMapping(receiptKey),
                         equLM.baseLM.object(equLM.findClassByCompoundName("ZReport")).getMapping(zReportKey)));
                 returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
                 returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, equLM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
@@ -651,16 +643,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 for (SalesInfo sale : salesInfoList) {
                     String idReceipt = sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberCashRegister;
-                    String idZReport = sale.numberZReport + "_" + sale.numberCashRegister;
                     String idReceiptDetail = sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberReceiptDetail + "_" + sale.numberCashRegister;
                     if (sale.quantityReceiptDetail.doubleValue() < 0)
-                        dataReturn.add(Arrays.<Object>asList(sale.numberCashRegister, sale.nppMachinery, sale.directoryCashRegister, idZReport, sale.numberZReport,
+                        dataReturn.add(Arrays.<Object>asList(sale.numberCashRegister, sale.nppMachinery, sale.directoryCashRegister, /*idZReport, */sale.numberZReport,
                                 sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
                                 idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail.negate(),
                                 sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail,
                                 sale.discountSumReceipt, sale.seriesNumberDiscountCard));
                     else
-                        dataSale.add(Arrays.<Object>asList(sale.numberCashRegister, sale.nppMachinery, sale.directoryCashRegister, idZReport, sale.numberZReport,
+                        dataSale.add(Arrays.<Object>asList(sale.numberCashRegister, sale.nppMachinery, sale.directoryCashRegister, /*idZReport, */sale.numberZReport,
                                 sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
                                 idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail,
                                 sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail,
@@ -673,13 +664,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                 }
 
-                List<ImportField> saleImportFields = Arrays.asList(numberCashRegisterField, nppMachineryField, directoryCashRegisterField, idZReportField,
+                List<ImportField> saleImportFields = Arrays.asList(numberCashRegisterField, nppMachineryField, directoryCashRegisterField, /*idZReportField,*/
                         numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
                         numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                         quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
                         discountSumReceiptSaleDetailField, discountSumSaleReceiptField, seriesNumberDiscountCardField);
 
-                List<ImportField> returnImportFields = Arrays.asList(numberCashRegisterField, nppMachineryField, directoryCashRegisterField, idZReportField,
+                List<ImportField> returnImportFields = Arrays.asList(numberCashRegisterField, nppMachineryField, directoryCashRegisterField, /*idZReportField,*/
                         numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
                         numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                         quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
