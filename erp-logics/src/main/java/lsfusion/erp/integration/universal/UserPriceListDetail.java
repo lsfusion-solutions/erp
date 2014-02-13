@@ -15,8 +15,9 @@ public class UserPriceListDetail {
     public String idItemGroup;
     public String barcodeItem;
     public String extraBarcodeItem;
-    public String barcodePack;
-    public BigDecimal amountPack;
+    public String extIdPackBarcode;
+    public String packBarcode;
+    public BigDecimal amountPackBarcode;
     public String articleItem;
     public String captionItem;
     public String idUOMItem;
@@ -30,10 +31,10 @@ public class UserPriceListDetail {
 
 
     public UserPriceListDetail(Boolean isPosted, String idUserPriceListDetail, String idUserPriceList, String idItem, 
-                               String idItemGroup, String barcodeItem, String extraBarcodeItem, String barcodePack, 
-                               BigDecimal amountPack, String articleItem, String captionItem, String idUOMItem, 
-                               Map<DataObject, BigDecimal> prices, BigDecimal quantityAdjustment, Date dateFrom,
-                               Date dateTo, BigDecimal valueVAT, String countryVAT, Date date) {
+                               String idItemGroup, String barcodeItem, String extraBarcodeItem, String extIdPackBarcode, 
+                               String packBarcode, BigDecimal amountPackBarcode, String articleItem, String captionItem,
+                               String idUOMItem, Map<DataObject, BigDecimal> prices, BigDecimal quantityAdjustment,
+                               Date dateFrom, Date dateTo, BigDecimal valueVAT, String countryVAT, Date date) {
         this.isPosted = isPosted;
         this.idUserPriceListDetail = idUserPriceListDetail;
         this.idUserPriceList = idUserPriceList;
@@ -41,8 +42,9 @@ public class UserPriceListDetail {
         this.idItemGroup = idItemGroup;
         this.barcodeItem = barcodeItem;
         this.extraBarcodeItem = extraBarcodeItem;
-        this.barcodePack = barcodePack;
-        this.amountPack = amountPack;
+        this.extIdPackBarcode = extIdPackBarcode;
+        this.packBarcode = packBarcode;
+        this.amountPackBarcode = amountPackBarcode;
         this.articleItem = articleItem;
         this.captionItem = captionItem;
         this.idUOMItem = idUOMItem;
