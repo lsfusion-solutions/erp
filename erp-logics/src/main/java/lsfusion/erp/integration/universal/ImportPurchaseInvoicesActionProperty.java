@@ -47,6 +47,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                 String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(session, importTypeObject));
 
                 String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
+                boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
                 boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
 
@@ -75,7 +76,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                             
                             List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = imp.importUserInvoicesFromFile(context, session,
                                     null, importColumns, file, fileExtension, startRow, isPosted, csvSeparator, 
-                                    primaryKeyType, secondaryKeyType, keyIsDigit);
+                                    primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit);
 
                             if (userInvoiceDetailsList != null && userInvoiceDetailsList.size() >= 1)
                                 imp.importUserInvoices(userInvoiceDetailsList.get(0), session, importColumns, null,

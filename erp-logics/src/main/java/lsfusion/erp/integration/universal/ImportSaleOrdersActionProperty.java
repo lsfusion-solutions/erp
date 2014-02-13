@@ -74,6 +74,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                 String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject));
                 csvSeparator = csvSeparator == null ? ";" : csvSeparator;
                 String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
+                boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
                 boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
                 
@@ -99,7 +100,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
 
                                     boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(), currentSession, orderObject,
                                             importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, 
-                                            csvSeparator, primaryKeyType, secondaryKeyType, keyIsDigit, operationObject, supplierObject,
+                                            csvSeparator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject,
                                             supplierStockObject, customerObject, customerStockObject, disableVolatileStats);                                                                                                        
 
                                     if (importResult)
