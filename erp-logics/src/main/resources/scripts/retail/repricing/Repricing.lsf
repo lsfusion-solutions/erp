@@ -1,6 +1,7 @@
 MODULE Repricing;
 
-REQUIRE RepricingCommittee, Store, Pricing, StockDocumentSkuLedger, PriceListCalc, RepricingOperation, PriceListLedger, Terminal;
+REQUIRE RepricingCommittee, Store, Pricing, StockDocumentSkuLedger, PriceListCalc, RepricingOperation, PriceListLedger, 
+        Terminal, PriceListStore;
 
 NAMESPACE Repricing;
 
@@ -533,8 +534,14 @@ overManagementRepricing = ABSTRACT ACTION LIST (RepricingDetail,Sku,Stock,DATETI
 
 prevPriceAPriceListCalcListSkuStockDateTime (priceList, calcList, sku, stock, time) =
     OVERRIDE prevPriceAPriceListTypeSkuStockDateTime(calcList, sku, stock, time), prevPriceAPriceListTypeSkuStockDateTime(priceList, sku, stock, time);
-prevPriceAOperationSkuStockDateTime 'Цена (управленческая)' (operation, sku, stock, time)= prevPriceAPriceListCalcListSkuStockDateTime(priceListTypeOperation(operation), calcPriceListTypeOperation(operation), sku, stock, time) COMPLEX; 
-        
+prevPriceAOperationSkuStockDateTime 'Цена (управленческая)' (operation, sku, stock, time)= prevPriceAPriceListCalcListSkuStockDateTime(
+    (OVERRIDE retailPriceListTypeDepartmentStore(stock) IF operation IS Operation, priceListTypeOperation(operation) IF stock IS Stock), 
+    (OVERRIDE retailCalcPriceListTypeDepartmentStore(stock) IF operation IS Operation, calcPriceListTypeOperation(operation) IF stock IS Stock), 
+    sku, 
+    stock, 
+    time
+    ) COMPLEX; 
+                 
 filterQuantityOperationSkuStockDateTime(operation,sku,department,time) = currentBalanceSkuStock(sku, department) AND
             prevPriceAOperationSkuStockDateTime(operation, sku, department, time) != 
             prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time);

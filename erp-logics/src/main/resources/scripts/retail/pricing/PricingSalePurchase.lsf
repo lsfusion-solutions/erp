@@ -1,6 +1,6 @@
 MODULE PricingSalePurchase;
 
-REQUIRE PricingPurchase, SalePurchaseInvoice, SalePurchaseInvoiceShipment;
+REQUIRE PricingPurchase, SalePurchaseInvoice, SalePurchaseInvoiceShipment, PriceListStore;
 
 NAMESPACE Sale;
 
@@ -156,10 +156,16 @@ purchasePricingOperationUserInvoice (invoice) <- purchasePricingOperationOperati
     WHEN CHANGED(operationUserInvoice(invoice));
 
 // Записываем тип цены по умолчанию из операции
-calcPurchaseRetailPriceListTypeUserInvoice (invoice) <- pricingPriceListTypeOperation(purchasePricingOperationUserInvoice(invoice))
-    WHEN CHANGED(purchasePricingOperationUserInvoice(invoice));
-calcPurchaseRetailCalcPriceListTypeUserInvoice (invoice) <- pricingCalcPriceListTypeOperation(purchasePricingOperationUserInvoice(invoice))
-    WHEN CHANGED(purchasePricingOperationUserInvoice(invoice));
+
+calcPurchaseRetailPriceListTypeUserInvoice (invoice) <- IF pricingPriceListTypeOperation(purchasePricingOperationUserInvoice(invoice)) 
+    THEN pricingPriceListTypeOperation(purchasePricingOperationUserInvoice(invoice))
+    ELSE retailPriceListTypeDepartmentStore(customerStockUserInvoice(invoice))
+        WHEN CHANGED(purchasePricingOperationUserInvoice(invoice)) OR CHANGED(customerStockUserInvoice(invoice));
+    
+calcPurchaseRetailCalcPriceListTypeUserInvoice (invoice) <- IF pricingCalcPriceListTypeOperation(purchasePricingOperationUserInvoice(invoice))
+    THEN pricingCalcPriceListTypeOperation(purchasePricingOperationUserInvoice(invoice))
+    ELSE retailCalcPriceListTypeDepartmentStore(customerStockUserInvoice(invoice))
+        WHEN CHANGED(purchasePricingOperationUserInvoice(invoice)) OR CHANGED(customerStockUserInvoice(invoice));
 
 EXTEND FORM operation
     PROPERTIES(o) namePurchasePricingOperationOperation
