@@ -1,0 +1,170 @@
+MODULE ItemSizeMapping;
+
+REQUIRE System, Item, CustomsGroupItem, ImportTNVED, ItemArticle, ItemFashion, ItemFashionSticker;
+
+NAMESPACE Item;
+
+// --------------------------------------------  Отображение размеров ---------------------------------------------------- //
+
+CLASS SizeMapping 'Соответствие размеров';
+TABLE sizeMapping(SizeMapping);
+
+itemGroupSizeMapping = DATA ItemGroup (SizeMapping);
+idItemGroupSizeMapping 'Группа' (m) = idItemGroup(itemGroupSizeMapping(m));
+canonicalNameItemGroupSizeMapping 'Группа' (m) = canonicalNameItemGroup(itemGroupSizeMapping(m));
+ 
+sizeSizeMapping = DATA Size (SizeMapping);
+idSizeSizeMapping 'Код размера' (m) = idSize(sizeSizeMapping(m));
+nameSizeSizeMapping 'Размер' (m) = nameSize(sizeSizeMapping(m));
+nameOriginalSizeSizeMapping 'Размер (ориг.)' (m) = nameOriginalSize(sizeSizeMapping(m));
+
+brandSizeMapping = DATA Brand (SizeMapping);
+nameBrandSizeMapping 'Бренд' (m) = nameBrand(brandSizeMapping(m));
+ 
+sizeHeightSizeMapping 'Рост' = DATA VARSTRING[10] (SizeMapping);
+sizeChestSizeMapping 'Обхват груди' = DATA VARSTRING[10] (SizeMapping);
+sizeNeckSizeMapping 'Обхват шеи' = DATA VARSTRING[10] (SizeMapping);
+footLengthSizeMapping 'Длина стопы' = DATA VARSTRING[10] (SizeMapping);
+insoleLengthSizeMapping 'Длина стельки' = DATA VARSTRING[10] (SizeMapping);
+sizeHeadSizeMapping 'Обхват головы' = DATA VARSTRING[10] (SizeMapping);
+sizeHandSizeMapping 'Обхват кисти' = DATA VARSTRING[10] (SizeMapping);
+sizeUnderChestSizeMapping 'Обхват под грудью' = DATA VARSTRING[10] (SizeMapping);
+sizeCupBraSizeMapping 'Размер чашечки' = DATA VARSTRING[10] (SizeMapping);
+sizeHipsSizeMapping 'Обхват бедер' = DATA VARSTRING[10] (SizeMapping);
+sizeWaistSizeMapping 'Обхват талии' = DATA VARSTRING[10] (SizeMapping);
+
+CLASS SizeMappingEx 'Соответствие размеров по наименованию';
+TABLE sizeMappingEx(SizeMappingEx);
+
+nameSizeMappingEx 'Наименование' = DATA VARSTRING[100] (SizeMappingEx);
+
+sizeHeightSizeMappingEx 'Рост' = DATA BOOLEAN (SizeMappingEx);
+sizeChestSizeMappingEx 'Обхват груди' = DATA BOOLEAN (SizeMappingEx);
+sizeNeckSizeMappingEx 'Обхват шеи' = DATA BOOLEAN (SizeMappingEx);
+footLengthSizeMappingEx 'Длина стопы' = DATA BOOLEAN (SizeMappingEx);
+insoleLengthSizeMappingEx 'Длина стельки' = DATA BOOLEAN (SizeMappingEx);
+sizeHeadSizeMappingEx 'Обхват головы' = DATA BOOLEAN (SizeMappingEx);
+sizeHandSizeMappingEx 'Обхват кисти' = DATA BOOLEAN (SizeMappingEx);
+sizeUnderChestSizeMappingEx 'Обхват под грудью' = DATA BOOLEAN (SizeMappingEx);
+sizeCupBraSizeMappingEx 'Размер чашечки' = DATA BOOLEAN (SizeMappingEx);
+sizeHipsSizeMappingEx 'Обхват бедер' = DATA BOOLEAN (SizeMappingEx);
+sizeWaistSizeMappingEx 'Обхват талии' = DATA BOOLEAN (SizeMappingEx);
+
+overSizeMappingEx = ABSTRACT CASE BOOLEAN (SizeMappingEx);
+
+isFullMappingEx (mx)=   sizeHeightSizeMappingEx(mx) OR 
+                        sizeChestSizeMappingEx(mx) OR 
+                        sizeNeckSizeMappingEx(mx) OR
+                        footLengthSizeMappingEx(mx) OR
+                        insoleLengthSizeMappingEx(mx) OR
+                        sizeHeadSizeMappingEx(mx) OR
+                        sizeHandSizeMappingEx(mx) OR
+                        sizeUnderChestSizeMappingEx(mx) OR
+                        sizeCupBraSizeMappingEx(mx) OR
+                        sizeHipsSizeMappingEx(mx) OR
+                        sizeWaistSizeMappingEx(mx) OR
+                        overSizeMappingEx(mx);
+
+countMappingExItem (i)= GROUP SUM 1 IF  isISubstring(captionItem(i), nameSizeMappingEx(mx)) == 1 AND isFullMappingEx(mx) BY i;
+
+FORM sizeMappings 'Соответствие размеров'
+    OBJECTS m = SizeMapping
+    PROPERTIES(m) canonicalNameItemGroupSizeMapping, idItemGroupSizeMapping, 
+                  idSizeSizeMapping, nameSizeSizeMapping, nameOriginalSizeSizeMapping, nameBrandSizeMapping,                  
+                  sizeHeightSizeMapping, sizeChestSizeMapping, sizeNeckSizeMapping, footLengthSizeMapping,
+                  insoleLengthSizeMapping, sizeHeadSizeMapping, sizeHandSizeMapping, sizeUnderChestSizeMapping,
+                  sizeCupBraSizeMapping, sizeHipsSizeMapping, sizeWaistSizeMapping, 
+                  ADDOBJ, DELETESESSION
+                   
+    ORDER BY idItemGroupSizeMapping(m), idSizeSizeMapping(m)
+    
+    OBJECTS mx = SizeMappingEx
+    PROPERTIES(mx) nameSizeMappingEx, sizeHeightSizeMappingEx, sizeChestSizeMappingEx, sizeNeckSizeMappingEx, footLengthSizeMappingEx,
+                  insoleLengthSizeMappingEx, sizeHeadSizeMappingEx, sizeHandSizeMappingEx, sizeUnderChestSizeMappingEx,
+                  sizeCupBraSizeMappingEx, sizeHipsSizeMappingEx, sizeWaistSizeMappingEx, 
+                  ADDOBJ, DELETESESSION         
+                   
+;
+
+sizeMappingItemGroupSizeBrand (g, s, b)= GROUP AGGR m BY itemGroupSizeMapping(m), sizeSizeMapping(m), brandSizeMapping(m);
+ 
+levelParentSizeMappingItemGroupSizeBrand (itemGroup, size, brand) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF sizeMappingItemGroupSizeBrand(parent, size, brand)
+                                                                  BY itemGroup, size, brand PERSISTENT;    
+nearestParentSizeMappingItemGroupSizeBrand (itemGroup, size, brand) = itemGroupItemGroupLevel(itemGroup, levelParentSizeMappingItemGroupSizeBrand(itemGroup, size, brand));
+nearestSizeMappingItemGroupSizeBrand (itemGroup, size, brand) = sizeMappingItemGroupSizeBrand(nearestParentSizeMappingItemGroupSizeBrand (itemGroup, size, brand), size, brand);
+
+overSizeMappingItemGroupSizeBrand 'Соответствие по-умолчанию' (itemGroup, size, brand) =
+    OVERRIDE nearestSizeMappingItemGroupSizeBrand(itemGroup, size, brand), 
+             sizeMappingItemGroupSizeBrand(itemGroup, size, brand) PERSISTENT;    
+
+
+META createSizeMappingExAttribute(property, mappingProp, captionProp, shortcutProp, prefix)
+
+    countMappingEx###property###prefix###item (i)= GROUP SUM 1 IF  isISubstring(captionItem(i), nameSizeMappingEx(mx)) == 1 AND mappingProp###sizeMappingEx(mx) BY i;
+    
+    mappingProp###prefix###sizeMappingItemGroupSizeBrand (g, s, b) = mappingProp###sizeMapping(overSizeMappingItemGroupSizeBrand(g, s, b));  //  sizeMappingItemGroupSizeBrand
+    map###property###prefix###item 'Заполнить '##captionProp##' по соответствию' (i) =  ACTION (i) {
+        IF countMappingExItem(i) THEN {
+            property###prefix###item(i) <- mappingProp###sizeMappingItemGroupSizeBrand (itemGroupItem(i), sizeItem(i), brandItem(i)) 
+                WHERE  countMappingEx###property###prefix###item (i); 
+        }             
+    } SHORTCUT shortcutProp###item; 
+END
+META createSizeMappingExAttribute(property, captionProp, shortcutProp, prefix)
+    @createSizeMappingExAttribute(property, property, captionProp, shortcutProp, prefix); 
+END
+
+@createSizeMappingExAttribute(sizeHeight, 'рост', sizeHeight, );
+@createSizeMappingExAttribute(sizeUnderChest, 'обхват под грудью', sizeUnderChest, );
+@createSizeMappingExAttribute(sizeCupBra, 'размер чашечки', sizeCupBra, );
+@createSizeMappingExAttribute(sizeHips, 'обхват бедер', sizeHips, );
+@createSizeMappingExAttribute(sizeWaist, 'обхват талии', sizeWaist, );
+@createSizeMappingExAttribute(sizeChest, 'обхват груди', sizeChest, );
+@createSizeMappingExAttribute(sizeNeck, 'обхват шеи', sizeNeck, );
+@createSizeMappingExAttribute(sizeHead, 'обхват головы', sizeHead, );
+@createSizeMappingExAttribute(sizeHand, 'обхват кисти', sizeHand, );
+@createSizeMappingExAttribute(footLength, 'длину стопы', footLength, );
+@createSizeMappingExAttribute(insoleLength, 'длину стельки', insoleLength, );
+ 
+
+NAVIGATOR {
+    skuNavigator {
+        ADD sizeMappings;        
+    }
+}
+//-- Заполнение матрицы
+updateSizeMapping 'Обновить матрицу из товаров' = ABSTRACT ACTION LIST () TOOLBAR;
+EXTEND FORM sizeMappings PROPERTIES() updateSizeMapping TODRAW m;
+
+META createSizeMappingAttribute(attribute)
+    countItemGroupSizeBrand###attribute = GROUP SUM 1 BY itemGroupItem(i), sizeItem(i), brandItem(i), attribute##Item(i);
+    best###attribute##ItemGroupSizeBrand(itemGroup, size, brand) = GROUP LAST attribute
+                                                         BY itemGroup, size, brand 
+                                                         ORDER countItemGroupSizeBrand###attribute(itemGroup, size, brand, attribute), attribute
+                                                         WHERE countItemGroupSizeBrand###attribute(itemGroup, size, brand, attribute);
+    
+    updateSizeMapping() += ACTION() {
+        FOR a == best###attribute##ItemGroupSizeBrand(itemGroup, size, brand) DO {
+            IF NOT sizeMappingItemGroupSizeBrand(itemGroup, size, brand) THEN {
+                FOR ADDOBJ m = SizeMapping DO {
+                    itemGroupSizeMapping(m) <- itemGroup;
+                    sizeSizeMapping(m) <- size;
+                    brandSizeMapping(m) <- brand;
+                }
+            }
+            attribute##SizeMapping(m) <- a WHERE m == sizeMappingItemGroupSizeBrand(itemGroup, size, brand);
+        }
+    }
+END
+
+@createSizeMappingAttribute(sizeHeight);
+@createSizeMappingAttribute(sizeChest);
+@createSizeMappingAttribute(sizeNeck);
+@createSizeMappingAttribute(footLength);
+@createSizeMappingAttribute(insoleLength);
+@createSizeMappingAttribute(sizeHead);
+@createSizeMappingAttribute(sizeHand);
+@createSizeMappingAttribute(sizeUnderChest);
+@createSizeMappingAttribute(sizeCupBra);
+@createSizeMappingAttribute(sizeHips);
+@createSizeMappingAttribute(sizeWaist);
