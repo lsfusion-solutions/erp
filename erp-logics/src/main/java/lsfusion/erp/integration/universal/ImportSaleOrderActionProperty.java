@@ -65,6 +65,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                 String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(session, importTypeObject));
                 String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
+                boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
                 boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
                 String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject));
@@ -91,7 +92,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                         for (byte[] file : fileList) {
 
                             makeImport(context.getBL(), session, orderObject, importColumns, file, fileExtension, startRow, isPosted, csvSeparator,
-                                    primaryKeyType, secondaryKeyType, keyIsDigit, operationObject, supplierObject, supplierStockObject,
+                                    primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject, supplierStockObject,
                                     customerObject, customerStockObject, disableVolatileStats);
 
                         }
@@ -116,14 +117,14 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
     public boolean makeImport(BusinessLogics BL, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String primaryKeyType,
-                              String secondaryKeyType, boolean keyIsDigit, ObjectValue operationObject, ObjectValue supplierObject,
+                              boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject, boolean disableVolatileStats)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         this.saleManufacturingPriceLM = (ScriptingLogicsModule) BL.getModule("SaleManufacturingPrice");
 
         List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(session, (Integer) orderObject.object,
-                importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType, secondaryKeyType, keyIsDigit);
+                importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit);
 
         boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0),
                 BL, session, orderObject, importColumns, primaryKeyType, operationObject, supplierObject, supplierStockObject,
@@ -227,7 +228,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             for (int i = 0; i < orderDetailsList.size(); i++)
                 data.get(i).add(orderDetailsList.get(i).idItem);
 
-            String iGroupAggr = (keyType == null || keyType.equals("item")) ? "itemId" : keyType.equals("barcode") ? "skuIdBarcode" : "skuBatchId";
+            String iGroupAggr = getKeyGroupAggr(keyType);
             ImportField iField = (keyType == null || keyType.equals("item")) ? idItemField : keyType.equals("barcode") ? idBarcodeSkuField : idBatchField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
                     getLCP(iGroupAggr).getMapping(iField));
@@ -347,22 +348,19 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
     public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Integer orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator,
-                                                            String primaryKeyType, String secondaryKeyType, boolean keyIsDigit)
+                                                            String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
         List<List<SaleOrderDetail>> orderDetailsList;
 
-        String primaryKeyColumn = getKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
-
         if (fileExtension.equals("DBF"))
-            orderDetailsList = importOrdersFromDBF(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, orderObject);
+            orderDetailsList = importOrdersFromDBF(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
         else if (fileExtension.equals("XLS"))
-            orderDetailsList = importOrdersFromXLS(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, orderObject);
+            orderDetailsList = importOrdersFromXLS(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
         else if (fileExtension.equals("XLSX"))
-            orderDetailsList = importOrdersFromXLSX(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, orderObject);
+            orderDetailsList = importOrdersFromXLSX(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
         else if (fileExtension.equals("CSV"))
-            orderDetailsList = importOrdersFromCSV(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, csvSeparator, orderObject);
+            orderDetailsList = importOrdersFromCSV(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, csvSeparator, orderObject);
         else
             orderDetailsList = null;
 
@@ -370,13 +368,16 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, Integer startRow, 
+                                                            String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, Integer startRow, 
                                                             Boolean isPosted, Integer orderObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
 
+        String primaryKeyColumn = getKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+        
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
         Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
@@ -409,7 +410,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
+            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                 primaryList.add(saleOrderDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                 primaryList.add(saleOrderDetail);
@@ -419,13 +420,16 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, Integer startRow, 
+                                                            String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, Integer startRow, 
                                                             Boolean isPosted, String csvSeparator, Integer orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
 
+        String primaryKeyColumn = getKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+        
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile)));
         String line;
         int count = 0;
@@ -464,7 +468,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                 String primaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(primaryKeyColumn), count);
                 String secondaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(secondaryKeyColumn), count);
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                     primaryList.add(saleOrderDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                     secondaryList.add(saleOrderDetail);
@@ -475,13 +479,16 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                             String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, Integer startRow,
-                                                             Boolean isPosted, Integer orderObject)
+                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, 
+                                                             Integer startRow, Boolean isPosted, Integer orderObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
 
+        String primaryKeyColumn = getKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+        
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
 
@@ -513,7 +520,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
+            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                 primaryList.add(saleOrderDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                 secondaryList.add(saleOrderDetail);
@@ -523,14 +530,17 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit, Integer startRow,
-                                                            Boolean isPosted, Integer orderObject)
+                                                            String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, 
+                                                            Integer startRow, Boolean isPosted, Integer orderObject)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
 
-        File tempFile = File.createTempFile("dutiesTNVED", ".dbf");
+        String primaryKeyColumn = getKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+
+        File tempFile = File.createTempFile("saleOrder", ".dbf");
         IOUtils.putFileBytes(tempFile, importFile);
 
         DBF file = new DBF(tempFile.getPath());
@@ -568,7 +578,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn), i);
             String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn), i);
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
+            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                 primaryList.add(saleOrderDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                 secondaryList.add(saleOrderDetail);

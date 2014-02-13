@@ -81,6 +81,10 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     public String getKeyColumn(String keyType) {
         return (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
     }
+    
+    public String getKeyGroupAggr(String keyType) {
+        return (keyType == null || keyType.equals("item")) ? "itemId" : keyType.equals("barcode") ? "skuIdBarcode" : "skuBatchId";
+    }
 
     protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, String sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
         ImportField field = new ImportField(getLCP(sidProperty));
@@ -100,8 +104,16 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         fields.add(field);
     }
 
-    protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, boolean keyIsDigit) {
-        return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+"));
+    protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, boolean keyIsDigit)
+            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        return checkKeyColumnValue(keyColumn, keyColumnValue, keyIsDigit, null, null, false);
+    }
+    
+    protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, boolean keyIsDigit,
+                                          DataSession session, String keyType, boolean checkExistence) 
+            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+")) 
+                && (!checkExistence || getLCP(getKeyGroupAggr(keyType)).read(session, new DataObject(keyColumnValue)) != null);
     }
 }
 

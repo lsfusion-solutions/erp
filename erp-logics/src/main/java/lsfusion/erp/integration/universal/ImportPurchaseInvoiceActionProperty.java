@@ -77,6 +77,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(session, importTypeObject));
 
                 String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
+                boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
                 boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
 
@@ -104,7 +105,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                             List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = importUserInvoicesFromFile(context, session,
                                     (Integer) userInvoiceObject.object, importColumns, file, fileExtension, startRow,
-                                    isPosted, csvSeparator, primaryKeyType, secondaryKeyType, keyIsDigit);
+                                    isPosted, csvSeparator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit);
 
                             if (userInvoiceDetailsList != null && userInvoiceDetailsList.size() >= 1)
                                 importUserInvoices(userInvoiceDetailsList.get(0), session, importColumns, userInvoiceObject,
@@ -354,7 +355,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 data.get(i).add(userInvoiceDetailsList.get(i).idItem);
 
             String replaceField = (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "idBarcodeSku" : "idBatch";
-            String iGroupAggr = (keyType == null || keyType.equals("item")) ? "itemId" : keyType.equals("barcode") ? "skuIdBarcode" : "skuBatchId";
+            String iGroupAggr = getKeyGroupAggr(keyType);
             ImportField iField = (keyType == null || keyType.equals("item")) ? idItemField : keyType.equals("barcode") ? idBarcodeSkuField : idBatchField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
                     getLCP(iGroupAggr).getMapping(iField));
@@ -905,22 +906,19 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataSession session, Integer userInvoiceObject,
                                                                            Map<String, ImportColumnDetail> importColumns, byte[] file, String fileExtension,
                                                                            Integer startRow, Boolean isPosted, String csvSeparator,
-                                                                           String primaryKeyType, String secondaryKeyType, boolean keyIsDigit)
+                                                                           String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
 
-        String primaryKeyColumn = getKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
-
         if (fileExtension.equals("DBF"))
-            userInvoiceDetailsList = importUserInvoicesFromDBF(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromDBF(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("XLS"))
-            userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("XLSX"))
-            userInvoiceDetailsList = importUserInvoicesFromXLSX(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromXLSX(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("CSV"))
-            userInvoiceDetailsList = importUserInvoicesFromCSV(session, file, importColumns, primaryKeyColumn, secondaryKeyColumn, keyIsDigit, startRow, isPosted, csvSeparator, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromCSV(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, csvSeparator, userInvoiceObject);
         else
             userInvoiceDetailsList = null;
 
@@ -928,12 +926,15 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit,
-                                                                        Integer startRow, Boolean isPosted, Integer userInvoiceObject)
+                                                                        String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, Integer startRow,
+                                                                        Boolean isPosted, Integer userInvoiceObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
+
+        String primaryKeyColumn = getKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
 
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
@@ -1039,7 +1040,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                     primaryList.add(purchaseInvoiceDetail);
@@ -1052,13 +1053,16 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit,
+                                                                        String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                                         Integer startRow, Boolean isPosted, String csvSeparator, Integer userInvoiceObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
 
+        String primaryKeyColumn = getKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+        
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile), "cp1251"));
         String line;
         int count = 0;
@@ -1163,7 +1167,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 String primaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(primaryKeyColumn), count);
                 String secondaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(secondaryKeyColumn), count);
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                     secondaryList.add(purchaseInvoiceDetail);
@@ -1176,12 +1180,15 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                         String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit,
+                                                                         String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                                          Integer startRow, Boolean isPosted, Integer userInvoiceObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
+
+        String primaryKeyColumn = getKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
 
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
@@ -1280,7 +1287,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
+            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                 primaryList.add(purchaseInvoiceDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                 primaryList.add(purchaseInvoiceDetail);
@@ -1291,14 +1298,17 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyColumn, String secondaryKeyColumn, boolean keyIsDigit,
+                                                                        String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                                         Integer startRow, Boolean isPosted, Integer userInvoiceObject)
             throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
 
-        File tempFile = File.createTempFile("dutiesTNVED", ".dbf");
+        String primaryKeyColumn = getKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+        
+        File tempFile = File.createTempFile("purchaseInvoice", ".dbf");
         IOUtils.putFileBytes(tempFile, importFile);
 
         DBF file = new DBF(tempFile.getPath());
@@ -1405,7 +1415,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn), i);
             String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn), i);
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit))
+            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                 primaryList.add(purchaseInvoiceDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                 secondaryList.add(purchaseInvoiceDetail);
