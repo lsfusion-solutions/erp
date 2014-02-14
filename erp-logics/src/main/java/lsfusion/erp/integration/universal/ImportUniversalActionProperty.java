@@ -166,7 +166,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
     
     protected Date getCSVDateFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row, Date defaultValue) throws UniversalImportException {
-        if (importColumnDetail == null) return null;
+        if (importColumnDetail == null) return defaultValue;
         return getCSVDateFieldValue(values, importColumnDetail, importColumnDetail.indexes[0], row, defaultValue);
     }
 
@@ -287,7 +287,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
     
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate) throws UniversalImportException {
-        if (importColumnDetail == null) return null;
+        if (importColumnDetail == null) return defaultDate;
         try {
             String defaultValue = defaultDate == null ? null : formatValue(defaultDate);
             return parseDate(getXLSFieldValue(sheet, row, importColumnDetail, defaultValue));
@@ -451,7 +451,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
     
     protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate) throws UniversalImportException {
-        if (importColumnDetail == null) return null;
+        if (importColumnDetail == null) return defaultDate;
         try {
             String defaultValue = defaultDate == null ? null : formatValue(defaultDate);
             return parseDate(getXLSXFieldValue(sheet, row, true, importColumnDetail, defaultValue, false));
@@ -575,11 +575,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return getDBFDateFieldValue(importFile, importColumnDetail, row, charset, null);
     }
 
-    protected Date getDBFDateFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, Date defaultValue) throws UniversalImportException {
-        if (importColumnDetail == null) return null;
+    protected Date getDBFDateFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, Date defaultDate) throws UniversalImportException {
+        if (importColumnDetail == null) return defaultDate;
         String dateString = getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, null, false);
         try {
-            return dateString == null ? defaultValue : parseDate(dateString);
+            return dateString == null ? defaultDate : parseDate(dateString);
         } catch (ParseException e) {
             throw new UniversalImportException(importColumnDetail.field, importColumnDetail.getFullIndex(), row, e);
         }
@@ -697,7 +697,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected Date getJDBFDateFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, Date defaultValue) throws UniversalImportException {
-        if (importColumnDetail == null) return null;
+        if (importColumnDetail == null) return defaultValue;
         String dateString = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, null, false, false);
         try {
             return dateString == null ? defaultValue : parseDate(dateString);

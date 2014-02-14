@@ -23,18 +23,20 @@ public class UserPriceListDetail {
     public String idUOMItem;
     public Map<DataObject, BigDecimal> prices;
     public BigDecimal quantityAdjustment;
+    public Date dateUserPriceList;
     public Date dateFrom;
     public Date dateTo;
     public BigDecimal valueVAT;
     public String countryVAT;
-    public Date date;
+    public Date dateVAT;
 
 
     public UserPriceListDetail(Boolean isPosted, String idUserPriceListDetail, String idUserPriceList, String idItem, 
                                String idItemGroup, String barcodeItem, String extraBarcodeItem, String extIdPackBarcode, 
                                String packBarcode, BigDecimal amountPackBarcode, String articleItem, String captionItem,
                                String idUOMItem, Map<DataObject, BigDecimal> prices, BigDecimal quantityAdjustment,
-                               Date dateFrom, Date dateTo, BigDecimal valueVAT, String countryVAT, Date date) {
+                               Date dateUserPriceList, Date dateFrom, Date dateTo, BigDecimal valueVAT, String countryVAT,
+                               Date dateVAT) {
         this.isPosted = isPosted;
         this.idUserPriceListDetail = idUserPriceListDetail;
         this.idUserPriceList = idUserPriceList;
@@ -50,10 +52,11 @@ public class UserPriceListDetail {
         this.idUOMItem = idUOMItem;
         this.prices = prices;
         this.quantityAdjustment = quantityAdjustment;
+        this.dateUserPriceList = dateUserPriceList;
         this.dateFrom = dateFrom;
         this.dateTo = dateTo;
         this.valueVAT = valueVAT;
         this.countryVAT = countryVAT;
-        this.date = date;
+        this.dateVAT = dateVAT;
     }
 }

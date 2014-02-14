@@ -27,6 +27,7 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -126,15 +127,18 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
 
         List<UserPriceListDetail> userPriceListDetailList;
-
+        
+        Date dateDocument = (Date) getLCP("dateUserPriceList").read(context, userPriceListObject);
+        dateDocument = dateDocument == null ? new Date(Calendar.getInstance().getTime().getTime()) : dateDocument;
+        
         if (fileExtension.equals("DBF"))
-            userPriceListDetailList = importUserPriceListsFromDBF(file, importColumns, itemKeyType, startRow, isPosted);
+            userPriceListDetailList = importUserPriceListsFromDBF(file, importColumns, itemKeyType, startRow, isPosted, dateDocument);
         else if (fileExtension.equals("XLS"))
-            userPriceListDetailList = importUserPriceListsFromXLS(file, importColumns, itemKeyType, startRow, isPosted);
+            userPriceListDetailList = importUserPriceListsFromXLS(file, importColumns, itemKeyType, startRow, isPosted, dateDocument);
         else if (fileExtension.equals("XLSX"))
-            userPriceListDetailList = importUserPriceListsFromXLSX(file, importColumns, itemKeyType, startRow, isPosted);
+            userPriceListDetailList = importUserPriceListsFromXLSX(file, importColumns, itemKeyType, startRow, isPosted, dateDocument);
         else if (fileExtension.equals("CSV"))
-            userPriceListDetailList = importUserPriceListsFromCSV(file, importColumns, itemKeyType, startRow, isPosted, csvSeparator);
+            userPriceListDetailList = importUserPriceListsFromCSV(file, importColumns, itemKeyType, startRow, isPosted, dateDocument, csvSeparator);
         else
             userPriceListDetailList = null;
 
@@ -321,13 +325,13 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     data.get(i).add(userPriceListDetailsList.get(i).prices.get(dataPriceListTypeObject));
             }
 
-            if (showField(userPriceListDetailsList, "date")) {
+            if (showField(userPriceListDetailsList, "dateUserPriceList")) {
                 ImportField dateUserPriceListField = new ImportField(getLCP("dateUserPriceList"));
                 props.add(new ImportProperty(dateUserPriceListField, getLCP("dateUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(importColumns, "date")));
                 props.add(new ImportProperty(dateUserPriceListField, getLCP("fromDateUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(importColumns, "date")));
                 fields.add(dateUserPriceListField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
-                    data.get(i).add(userPriceListDetailsList.get(i).date);
+                    data.get(i).add(userPriceListDetailsList.get(i).dateUserPriceList);
 
                 ImportField timeUserPriceListField = new ImportField(getLCP("timeUserPriceList"));
                 props.add(new ImportProperty(timeUserPriceListField, getLCP("timeUserPriceList").getMapping(userPriceListObject)));
@@ -374,7 +378,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 props.add(new ImportProperty(dateField, LM.findLCPByCompoundOldName("dataDateBarcode").getMapping(barcodeKey)));
                 fields.add(dateField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)
-                    data.get(i).add(userPriceListDetailsList.get(i).date);
+                    data.get(i).add(userPriceListDetailsList.get(i).dateVAT);
 
                 ImportField countryVATField = new ImportField(getLCP("nameCountry"));
                 ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) getClass("Country"),
@@ -469,12 +473,12 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).quantityAdjustment);
 
-            if (showField(dataAdjustment, "date")) {
+            if (showField(dataAdjustment, "dateUserPriceList")) {
                 ImportField dateUserAdjustmentField = new ImportField(getLCP("dateUserAdjustment"));
                 props.add(new ImportProperty(dateUserAdjustmentField, getLCP("dateUserAdjustment").getMapping(userAdjustmentObject)));
                 fields.add(dateUserAdjustmentField);
                 for (int i = 0; i < dataAdjustment.size(); i++)
-                    data.get(i).add(dataAdjustment.get(i).date);
+                    data.get(i).add(dataAdjustment.get(i).dateUserPriceList);
 
                 ImportField timeUserAdjustmentField = new ImportField(getLCP("timeUserAdjustment"));
                 props.add(new ImportProperty(timeUserAdjustmentField, getLCP("timeUserAdjustment").getMapping(userAdjustmentObject)));
@@ -512,7 +516,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return false;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromXLS(byte[] importFile, ImportColumns importColumns, String itemKeyType, Integer startRow, Boolean isPosted)
+    private List<UserPriceListDetail> importUserPriceListsFromXLS(byte[] importFile, ImportColumns importColumns, String itemKeyType, 
+                                                                  Integer startRow, Boolean isPosted, Date dateDocument)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -522,9 +527,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
         Sheet sheet = wb.getSheet(0);
 
-        Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
         Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ?
-                currentDate : getXLSDateFieldValue(sheet, importColumns.getDateRow(), new ImportColumnDetail(importColumns.getDateColumn(), String.valueOf(importColumns.getDateRow()), false));
+                null : getXLSDateFieldValue(sheet, importColumns.getDateRow(), new ImportColumnDetail(importColumns.getDateColumn(), String.valueOf(importColumns.getDateRow()), false));
 
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
             String idUserPriceList = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idUserPriceList"));
@@ -537,7 +541,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String articleItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("articleItem"));
             String captionItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("captionItem"));
             String idUOMItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idUOMItem"));
-            Date dateFrom = getXLSDateFieldValue(sheet, i, importColumns.getColumns().get("dateFrom"), currentDate);
+            Date dateUserPriceList = getXLSDateFieldValue(sheet, i, importColumns.getColumns().get("dateUserPriceList"), date);
+            Date dateFrom = getXLSDateFieldValue(sheet, i, importColumns.getColumns().get("dateFrom"), dateDocument);
+            Date dateVAT = date == null ? dateFrom : date;
             Date dateTo = getXLSDateFieldValue(sheet, i, importColumns.getColumns().get("dateTo"));
             BigDecimal valueVAT = parseVAT(getXLSFieldValue(sheet, i, importColumns.getColumns().get("valueVAT")));
             BigDecimal quantityAdjustment = getXLSBigDecimalFieldValue(sheet, i, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false));
@@ -551,8 +557,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 }
                 userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
                         idItem, idItemGroup, barcodeItem, extraBarcodeItem, extIdPackBarcode, packBarcode,
-                        amountPackBarcode, articleItem, captionItem, idUOMItem, prices, quantityAdjustment, dateFrom,
-                        dateTo, valueVAT, defaultCountry, date));
+                        amountPackBarcode, articleItem, captionItem, idUOMItem, prices, quantityAdjustment, dateUserPriceList, 
+                        dateFrom, dateTo, valueVAT, defaultCountry, dateVAT));
 
             }
         }
@@ -560,7 +566,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, ImportColumns importColumns, String itemKeyType, Integer startRow, Boolean isPosted, String csvSeparator)
+    private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, ImportColumns importColumns, String itemKeyType, Integer startRow, 
+                                                                  Boolean isPosted, Date dateDocument, String csvSeparator)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -577,9 +584,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
                 String[] values = line.split(csvSeparator);
 
-                Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
                 Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null || (importColumns.getDateRow()) != count) ?
-                        currentDate : getCSVDateFieldValue(values, new ImportColumnDetail("date", importColumns.getDateColumn(), false), importColumns.getDateColumn(), count, null);
+                        null : getCSVDateFieldValue(values, new ImportColumnDetail("date", importColumns.getDateColumn(), false), importColumns.getDateColumn(), count, null);
 
                 String idUserPriceList = getCSVFieldValue(values, importColumns.getColumns().get("idUserPriceList"), count);
                 String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.getColumns().get("barcodeItem"), count));
@@ -591,8 +597,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 String idItemGroup = getCSVFieldValue(values, importColumns.getColumns().get("idItemGroup"), count);
                 String captionItem = getCSVFieldValue(values, importColumns.getColumns().get("captionItem"), count);
                 String idUOMItem = getCSVFieldValue(values, importColumns.getColumns().get("idUOMItem"), count);
-                Date dateFrom = getCSVDateFieldValue(values, importColumns.getColumns().get("dateFrom"), count, currentDate);
+                Date dateUserPriceList = getCSVDateFieldValue(values, importColumns.getColumns().get("dateFrom"), count, date);
+                Date dateFrom = getCSVDateFieldValue(values, importColumns.getColumns().get("dateFrom"), count, dateDocument);
                 Date dateTo = getCSVDateFieldValue(values, importColumns.getColumns().get("dateTo"), count);
+                Date dateVAT = date == null ? dateFrom : date;
                 BigDecimal valueVAT = parseVAT(getCSVFieldValue(values, importColumns.getColumns().get("valueVAT"), count));
                 BigDecimal quantityAdjustment = getCSVBigDecimalFieldValue(values, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), importColumns.getQuantityAdjustmentColumn(), count, null);
                 String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
@@ -606,7 +614,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
                             idItem, idItemGroup, barcodeItem, extraBarcodeItem, extIdPackBarcode, packBarcode,
                             amountPackBarcode, articleItem, captionItem, idUOMItem, prices, quantityAdjustment,
-                            dateFrom, dateTo, valueVAT, defaultCountry, date));
+                            dateUserPriceList, dateFrom, dateTo, valueVAT, defaultCountry, dateVAT));
                 }
             }
         }
@@ -614,7 +622,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromXLSX(byte[] importFile, ImportColumns importColumns, String itemKeyType, Integer startRow, Boolean isPosted)
+    private List<UserPriceListDetail> importUserPriceListsFromXLSX(byte[] importFile, ImportColumns importColumns, String itemKeyType, 
+                                                                   Integer startRow, Boolean isPosted, Date dateDocument)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -622,9 +631,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
 
-        Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
         Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ?
-                currentDate : getXLSXDateFieldValue(sheet, importColumns.getDateRow(), new ImportColumnDetail(importColumns.getDateColumn(), String.valueOf(importColumns.getDateRow()), false));
+                null : getXLSXDateFieldValue(sheet, importColumns.getDateRow(), new ImportColumnDetail(importColumns.getDateColumn(), String.valueOf(importColumns.getDateRow()), false));
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
 
@@ -639,7 +647,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String captionItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("captionItem"));
             String idUOMItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idUOMItem"));
             BigDecimal quantityAdjustment = getXLSXBigDecimalFieldValue(sheet, new ImportColumnDetail("quantityAdjustment", String.valueOf(importColumns.getDateRow()), false), i, importColumns.getQuantityAdjustmentColumn());
-            Date dateFrom = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateFrom"), currentDate);
+            Date dateUserPriceList = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateUserPriceList"), date);
+            Date dateFrom = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateFrom"), dateDocument);
+            Date dateVAT = date == null ? dateFrom : date;
             Date dateTo = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateTo"));
             BigDecimal valueVAT = parseVAT(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("valueVAT")));
 
@@ -653,20 +663,19 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 }
                 userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
                         idItem, idItemGroup, barcodeItem, extraBarcodeItem, extIdPackBarcode, packBarcode,
-                        amountPackBarcode, articleItem, captionItem, idUOMItem, prices, quantityAdjustment, dateFrom,
-                        dateTo, valueVAT, defaultCountry, date));
+                        amountPackBarcode, articleItem, captionItem, idUOMItem, prices, quantityAdjustment, dateUserPriceList, 
+                        dateFrom, dateTo, valueVAT, defaultCountry, dateVAT));
             }
         }
 
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, ImportColumns importColumns, String itemKeyType, Integer startRow, Boolean isPosted)
+    private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, ImportColumns importColumns, String itemKeyType, 
+                                                                  Integer startRow, Boolean isPosted, Date dateDocument)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, JDBFException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
-
-        Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
 
         File tempFile = File.createTempFile("dutiesTNVED", ".dbf");
         IOUtils.putFileBytes(tempFile, importFile);
@@ -698,10 +707,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String captionItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("captionItem"), i);
             String idUOMItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idUOMItem"), i);
             BigDecimal quantityAdjustment = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), importColumns.getQuantityAdjustmentColumn(), i);
-            Date dateFrom = getJDBFDateFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("dateFrom"), i, currentDate);
+            Date dateUserPriceList = getJDBFDateFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("dateUserPriceList"), i);
+            Date dateFrom = getJDBFDateFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("dateFrom"), i, dateDocument);
             Date dateTo = getJDBFDateFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("dateTo"), i);
             BigDecimal valueVAT = parseVAT(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("valueVAT"), i));
-            Date date = dateFrom == null ? currentDate : dateFrom;
             String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
             String extIdPackBarcode = packBarcode == null ? ((itemKeyType.equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
             if (!idUserPriceListDetail.equals("_")) {
@@ -712,8 +721,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 }
                 userPriceListDetailList.add(new UserPriceListDetail(isPosted, idUserPriceListDetail, idUserPriceList,
                         idItem, idItemGroup, barcodeItem, extraBarcodeItem, extIdPackBarcode, packBarcode,
-                        amountPackBarcode, articleItem, captionItem, idUOMItem, prices, quantityAdjustment, dateFrom,
-                        dateTo, valueVAT, defaultCountry, date));
+                        amountPackBarcode, articleItem, captionItem, idUOMItem, prices, quantityAdjustment, dateUserPriceList, 
+                        dateFrom, dateTo, valueVAT, defaultCountry, dateFrom));
             }
         }
 
@@ -762,16 +771,16 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         Map<String, ImportColumnDetail> importColumns = new HashMap<String, ImportColumnDetail>();
 
-        LCP<?> isImportTypeDetail = LM.is(LM.findClassByCompoundName("ImportUserPriceListTypeDetail"));
-        ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isImportTypeDetail.getMapKeys();
+        LCP<PropertyInterface> isImportTypeDetail = (LCP<PropertyInterface>) LM.is(LM.findClassByCompoundName("ImportUserPriceListTypeDetail"));
+        ImRevMap<PropertyInterface, KeyExpr> keys = isImportTypeDetail.getMapKeys();
         KeyExpr key = keys.singleValue();
-        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<PropertyInterface, Object>(keys);
         query.addProperty("staticName", LM.findLCPByCompoundOldName("staticName").getExpr(context.getModifier(), key));
         query.addProperty("staticCaption", LM.findLCPByCompoundOldName("staticCaption").getExpr(context.getModifier(), key));
         query.addProperty("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail", LM.findLCPByCompoundOldName("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
         query.addProperty("indexImportUserPriceListTypeImportUserPriceListTypeDetail", LM.findLCPByCompoundOldName("indexImportUserPriceListTypeImportUserPriceListTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
         query.and(isImportTypeDetail.getExpr(key).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context.getSession().sql);
+        ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> result = query.execute(context.getSession().sql);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
 
@@ -794,13 +803,13 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         Map<DataObject, String[]> importColumns = new HashMap<DataObject, String[]>();
 
-        LCP<?> isDataPriceListType = LM.is(LM.findClassByCompoundName("DataPriceListType"));
-        ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDataPriceListType.getMapKeys();
+        LCP<PropertyInterface> isDataPriceListType = (LCP<PropertyInterface>) LM.is(LM.findClassByCompoundName("DataPriceListType"));
+        ImRevMap<PropertyInterface, KeyExpr> keys = isDataPriceListType.getMapKeys();
         KeyExpr key = keys.singleValue();
-        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<PropertyInterface, Object>(keys);
         query.addProperty("indexImportUserPriceListTypeDataPriceListType", LM.findLCPByCompoundOldName("indexImportUserPriceListTypeDataPriceListType").getExpr(context.getModifier(), importUserPriceListTypeObject.getExpr(), key));
         query.and(isDataPriceListType.getExpr(key).getWhere());
-        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context.getSession());
+        ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context.getSession());
 
         for (int i = 0, size = result.size(); i < size; i++) {
             ImMap<Object, ObjectValue> entryValue = result.getValue(i);

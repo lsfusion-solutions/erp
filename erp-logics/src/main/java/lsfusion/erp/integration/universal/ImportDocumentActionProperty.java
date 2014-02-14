@@ -1,6 +1,5 @@
 package lsfusion.erp.integration.universal;
 
-import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -16,12 +15,11 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
-import java.io.File;
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
@@ -45,16 +43,16 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
 
         Map<String, ImportColumnDetail> importColumns = new HashMap<String, ImportColumnDetail>();
 
-        LCP<?> isImportTypeDetail = LM.is(LM.findClassByCompoundName("ImportTypeDetail"));
-        ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isImportTypeDetail.getMapKeys();
+        LCP<PropertyInterface> isImportTypeDetail = (LCP<PropertyInterface>) LM.is(LM.findClassByCompoundName("ImportTypeDetail"));
+        ImRevMap<PropertyInterface, KeyExpr> keys = isImportTypeDetail.getMapKeys();
         KeyExpr key = keys.singleValue();
-        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<PropertyInterface, Object>(keys);
         query.addProperty("staticName", LM.findLCPByCompoundOldName("staticName").getExpr(session.getModifier(), key));
         query.addProperty("staticCaption", LM.findLCPByCompoundOldName("staticCaption").getExpr(session.getModifier(), key));
         query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("replaceOnlyNullImportTypeImportTypeDetail").getExpr(session.getModifier(), importTypeObject.getExpr(), key));
         query.addProperty("indexImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("indexImportTypeImportTypeDetail").getExpr(session.getModifier(), importTypeObject.getExpr(), key));
         query.and(isImportTypeDetail.getExpr(key).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session.getSession().sql);
+        ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> result = query.execute(session.getSession().sql);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
 

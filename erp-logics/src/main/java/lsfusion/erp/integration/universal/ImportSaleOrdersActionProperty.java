@@ -16,6 +16,7 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -39,10 +40,10 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
             
             DataSession session = context.getSession();
             
-            LCP<?> isImportType = LM.is(getClass("ImportType"));
-            ImRevMap<Object, KeyExpr> importTypeKeys = (ImRevMap<Object, KeyExpr>) isImportType.getMapKeys();
+            LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) LM.is(getClass("ImportType"));
+            ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
-            QueryBuilder<Object, Object> importTypeQuery = new QueryBuilder<Object, Object>(importTypeKeys);
+            QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
             importTypeQuery.addProperty("autoImportDirectoryImportType", getLCP("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("captionFileExtensionImportType", getLCP("captionFileExtensionImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("startRowImportType", getLCP("startRowImportType").getExpr(session.getModifier(), importTypeKey));
@@ -59,7 +60,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
             importTypeQuery.and(getLCP("autoImportImportType").getExpr(importTypeKey).getWhere());
             importTypeQuery.and(getLCP("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
-            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(session);
+            ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(session);
 
             for (int i = 0, size = importTypeResult.size(); i < size; i++) {
                 ImMap<Object, ObjectValue> entryValue = importTypeResult.getValue(i);
