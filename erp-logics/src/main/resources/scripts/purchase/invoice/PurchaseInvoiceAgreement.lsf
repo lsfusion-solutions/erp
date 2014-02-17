@@ -1,6 +1,6 @@
 MODULE PurchaseInvoiceAgreement;
 
-REQUIRE PurchaseInvoice;
+REQUIRE PurchaseInvoice, PriceList;
 
 NAMESPACE Purchase;
 
@@ -8,66 +8,87 @@ NAMESPACE Purchase;
 
 //-- Ограничения 
 GROUP agreementPerc 'Ограничения': public;
-@defineHistorizable(percDeviationQuantity, , '% отклонения по количеству', NUMERIC[8,2], agreement, nameAgreement, agreementPerc);
-@defineHistorizable(percDeviationPrice, , '% отклонения по цене', NUMERIC[8,2], agreement, nameAgreement, agreementPerc);
 
-deviationNotOrderInvoiceAgreement 'Запретить оприходование накладных без заказа'  = DATA BOOLEAN (Agreement) IN agreementPerc;
- 
+//--------------------------- Допустимый процент отклонения по количеству --------------------------------------//
+
+TABLE agreementDate(Agreement, DATE);
+@defineHistorizable(percDeviationQuantity, , '% отклонения по количеству', NUMERIC[8,2], agreement, nameAgreement, agreementPerc);
 EXTEND FORM agreement 
-    PROPERTIES(a) percDeviationQuantityAgreement, percDeviationPriceAgreement, deviationNotOrderInvoiceAgreement 
+    PROPERTIES(a) percDeviationQuantityAgreement 
 ;
 EXTEND DESIGN agreement {
     ADD a.agreementPerc AFTER propContainer; 
 } 
 
-//--------------------------- Допустимый процент отклонения по количеству --------------------------------------//
-      
-maxDeviationQuantityOrderDetail 'Макс. кол-во' (d) = (percDeviationQuantityAgreementDate(agreementOrder(orderOrderDetail(d)), dateOrderDetail(d)) + 100) * 
+percDeviationQuantityAgreementOrderDetail '% отклонения по количеству' (d) = percDeviationQuantityAgreementDate(agreementOrder(orderOrderDetail(d)), dateOrderDetail(d));
+
+maxDeviationQuantityOrderDetail 'Макс. кол-во' (d) = (100.0 + percDeviationQuantityAgreementOrderDetail(d)) * 
                                                         quantityOrderDetail(d) /
-                                                        100.000;
-minDeviationQuantityOrderDetail 'Мин. кол-во' (d) = (100 - percDeviationQuantityAgreementDate(agreementOrder(orderOrderDetail(d)), dateOrderDetail(d))) *
+                                                        100.0;
+minDeviationQuantityOrderDetail 'Мин. кол-во' (d) = (100.0 - percDeviationQuantityAgreementOrderDetail(d)) *
                                                         quantityOrderDetail(d) /
-                                                        100.000;
+                                                        100.0;
 normalDeviationQuantityOrderDetail 'В пределах нормы (кол-во)' (d) = invoicedOrderDetail(d) >=  minDeviationQuantityOrderDetail(d) AND
                                                          invoicedOrderDetail(d) <=  maxDeviationQuantityOrderDetail(d);
    
-CONSTRAINT isPostedOrderDetail(d) AND percDeviationQuantityAgreementDate(agreementOrder(orderOrderDetail(d)), dateOrderDetail(d)) AND 
-    invoicedOrderDetail(d) AND NOT normalDeviationQuantityOrderDetail(d)    
-        MESSAGE 'Для заказа превышен допустимый процент отклонения по количеству';    
-  
-EXTEND FORM orders
-    PROPERTIES(d) minDeviationQuantityOrderDetail, maxDeviationQuantityOrderDetail, normalDeviationQuantityOrderDetail  
-;
-EXTEND FORM userOrder
-    PROPERTIES(d) minDeviationQuantityOrderDetail, maxDeviationQuantityOrderDetail, normalDeviationQuantityOrderDetail  
-;    
+CONSTRAINT isPostedOrderDetail(d) AND invoicedOrderDetail(d) > maxDeviationQuantityOrderDetail(d)    
+  MESSAGE 'Для заказа превышен максимальный допустимый процент отклонения по количеству';    
+
+CONSTRAINT isPostedOrderDetail(d) AND invoicedOrderDetail(d) < minDeviationQuantityOrderDetail(d)    
+  MESSAGE 'Для заказа превышен минимальный допустимый процент отклонения по количеству';
+      
+//EXTEND FORM orders
+//    PROPERTIES(d) minDeviationQuantityOrderDetail, maxDeviationQuantityOrderDetail, normalDeviationQuantityOrderDetail  
+//;
+//EXTEND FORM userOrder
+//    PROPERTIES(d) minDeviationQuantityOrderDetail, maxDeviationQuantityOrderDetail, normalDeviationQuantityOrderDetail  
+//;    
   
 //--------------------------- Допустимый процент отклонения по цене --------------------------------------//
-maxOrderDetailSkuOrder (sku, order) = GROUP MAX orderDetail BY skuOrderDetail(orderDetail),  orderOrderDetail(orderDetail);
-ordersPriceInvoiceDetail 'Цена из заказа' (d) = priceOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d))) IF isPostedOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)));
-agreementsPriceInvoiceDetail 'Цена из соглашения' (d) = prevListPriceMVATUserInvoiceDetail(priceListTypeUserInvoiceDetail(d), d) ;
-overOrdersPriceInvoiceDetail (d) = OVERRIDE agreementsPriceInvoiceDetail(d), ordersPriceInvoiceDetail(d);
-    
-maxDeviationPriceInvoiceDetail 'Макс. цена' (d) = (percDeviationPriceAgreementDate(agreementInvoice(invoiceInvoiceDetail(d)), dateInvoiceDetail(d)) + 100) * 
-                                                        overOrdersPriceInvoiceDetail(d) /
-                                                        100.000;
-minDeviationPriceInvoiceDetail 'Мин. цена' (d) = (100 - percDeviationPriceAgreementDate(agreementInvoice(invoiceInvoiceDetail(d)), dateInvoiceDetail(d))) *
-                                                        overOrdersPriceInvoiceDetail(d) /
-                                                        100.000;
-normalDeviationPriceInvoiceDetail 'В пределах нормы (цена)' (d) = priceInvoiceDetail(d) >=  minDeviationPriceInvoiceDetail(d) AND
-                                                         priceInvoiceDetail(d) <=  maxDeviationPriceInvoiceDetail(d);    
-                                                         
-CONSTRAINT isPostedInvoiceDetail(d) AND percDeviationPriceAgreementDate(agreementInvoice(invoiceInvoiceDetail(d)), dateInvoiceDetail(d)) AND overOrdersPriceInvoiceDetail(d) AND NOT normalDeviationPriceInvoiceDetail(d)    
-    MESSAGE 'Для накладной превышен допустимый процент отклонения по цене';    
-  
-EXTEND FORM invoices
-    PROPERTIES(d) minDeviationPriceInvoiceDetail, maxDeviationPriceInvoiceDetail, normalDeviationPriceInvoiceDetail  
-;                                                           
-EXTEND FORM userInvoice
-    PROPERTIES(d) minDeviationPriceInvoiceDetail, maxDeviationPriceInvoiceDetail, normalDeviationPriceInvoiceDetail  
+@defineHistorizable(percDeviationPrice, , '% отклонения по цене', NUMERIC[8,2], agreement, nameAgreement, agreementPerc);
+EXTEND FORM agreement 
+    PROPERTIES(a) percDeviationPriceAgreement 
 ;
 
+maxOrderDetailSkuOrder (sku, order) = GROUP MAX orderDetail BY skuOrderDetail(orderDetail),  orderOrderDetail(orderDetail);
+ordersPriceInvoiceDetail 'Цена из заказа' (d) = priceOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)));
+agreementsPriceInvoiceDetail 'Цена из соглашения' (d) = prevListPriceMVATUserInvoiceDetail(priceListTypeInvoiceDetail(d) AS DataPriceListType, d) ;
+overOrdersPriceInvoiceDetail (d) = OVERRIDE agreementsPriceInvoiceDetail(d), ordersPriceInvoiceDetail(d);
+
+percDeviationPriceAgreementInvoiceDetail '% отклонения по цене' (d) = percDeviationPriceAgreementDate(agreementInvoice(invoiceInvoiceDetail(d)), dateInvoiceDetail(d));
+
+maxDeviationPriceInvoiceDetail 'Макс. цена' (d) = (100.0 + percDeviationPriceAgreementInvoiceDetail(d)) * 
+                                                        overOrdersPriceInvoiceDetail(d) /
+                                                        100.0;
+minDeviationPriceInvoiceDetail 'Мин. цена' (d) = (100.0 - percDeviationPriceAgreementInvoiceDetail(d)) *
+                                                        overOrdersPriceInvoiceDetail(d) /
+                                                        100.0;
+normalDeviationPriceInvoiceDetail 'В пределах нормы (цена)' (d) = 
+    priceInvoiceDetail(d) >=  minDeviationPriceInvoiceDetail(d) AND
+    priceInvoiceDetail(d) <=  maxDeviationPriceInvoiceDetail(d);    
+                                                         
+CONSTRAINT isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) > maxDeviationPriceInvoiceDetail(d)    
+    MESSAGE 'Для накладной превышен максимальный допустимый процент отклонения по цене';    
+
+CONSTRAINT isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) < minDeviationPriceInvoiceDetail(d)    
+    MESSAGE 'Для накладной превышен минимальный допустимый процент отклонения по цене';
+        
+CONSTRAINT isPostedInvoiceDetail(d) AND percDeviationPriceAgreementInvoiceDetail(d) AND NOT overOrdersPriceInvoiceDetail(d)
+    MESSAGE 'В накладную входит товар, не включенный в заказ или спецификацию';
+
+//EXTEND FORM invoices
+//    PROPERTIES(d) minDeviationPriceInvoiceDetail, maxDeviationPriceInvoiceDetail, normalDeviationPriceInvoiceDetail  
+//;                                                           
+//EXTEND FORM userInvoice
+//    PROPERTIES(d) minDeviationPriceInvoiceDetail, maxDeviationPriceInvoiceDetail, normalDeviationPriceInvoiceDetail  
+//;
+
 //--------------------------- Запрет на оприходование без заявки --------------------------------------//
+
+deviationNotOrderInvoiceAgreement 'Запретить оприходование накладных без заказа'  = DATA BOOLEAN (Agreement) IN agreementPerc;
+EXTEND FORM agreement 
+    PROPERTIES(a) deviationNotOrderInvoiceAgreement 
+;
 
 maxOrderDetailInvoiceDetail (d) = maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)) IF isPostedOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)));
 
