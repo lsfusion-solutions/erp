@@ -267,3 +267,71 @@ NAVIGATOR {
         ADD articleStickerDashboard;
     }
 }
+
+// ------------------------------------- Печать примера ценника --------------------------- //
+ 
+maxBatchSku (sku) = GROUP LAST  batch 
+    BY skuBatch(batch)
+    ORDER dateTimeBatch(batch), batch
+    WHERE dateTimeBatch(batch);
+    
+inLabelArticle 'Отм.' = DATA SESSION BOOLEAN (Article); 
+EXTEND FORM articleStickerDashboard
+    PROPERTIES(a) inLabelArticle BEFORE idArticle(a)
+;
+
+countInLabelArticles 'Кол-во отм.' = GROUP SUM 1 IF inLabelArticle(a);
+countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP SUM 1 IF inLabelArticle(a) BY defaultLabelTypeArticle(a)](type);
+
+createSnapshotPricingArticleDepartment 'Пример ценника' = ACTION (article, department) { 
+    IF countInLabelArticles() THEN {
+        IF countLabelTypeArticles() == 1 THEN {
+  
+            FOR ADDOBJ t = LabelTransaction DO {          
+                departmentStoreLabelTransaction(t) <- department;
+                labelTypeLabelTransaction(t) <-  [=GROUP MAX defaultLabelTypeArticle(a) IF inLabelArticle(a)]();
+                FOR articleItem (item) == a AND inLabelArticle(a)  ADDOBJ d = LabelTransactionDetail DO {
+                        labelTransactionLabelTransactionDetail(d) <- t;
+                        skuLabelTransactionDetail(d) <- item;
+                        barcodeLabelTransactionDetail(d) <- barcodeSku(item);
+                        batchLabelTransactionDetail(d) <- maxBatchSku(item);
+        
+                        nameLabelTransactionDetail(d) <- nameSku(item);
+                        documentQuantityLabelTransactionDetail(d) <- 1.0; 
+                        createAttributeLabelTransactionDetail(d);
+                }
+                FORM customLabelTransaction OBJECTS l = t MODAL;
+                IF formResult() == FormResult.ok THEN {
+                    FORM printLabelTransaction OBJECTS l = t PRINT;
+                }
+            }
+        } ELSE {
+            MESSAGE 'Отмечены артикулы с разными типами ценников';
+        }
+    } ELSE {
+        FOR ADDOBJ t = LabelTransaction DO {          // [=GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
+            departmentStoreLabelTransaction(t) <- department;
+            labelTypeLabelTransaction(t) <- defaultLabelTypeArticle(article);
+            FOR articleItem (item) ==article  ADDOBJ d = LabelTransactionDetail DO {
+                    labelTransactionLabelTransactionDetail(d) <- t;
+                    skuLabelTransactionDetail(d) <- item;
+                    barcodeLabelTransactionDetail(d) <- barcodeSku(item);
+                    batchLabelTransactionDetail(d) <- maxBatchSku(item);
+        
+                    nameLabelTransactionDetail(d) <- nameSku(item);
+                    documentQuantityLabelTransactionDetail(d) <- 1.0; 
+                    createAttributeLabelTransactionDetail(d);
+            }
+            FORM customLabelTransaction OBJECTS l = t MODAL;
+            IF formResult() == FormResult.ok THEN {
+                FORM printLabelTransaction OBJECTS l = t PRINT;
+            }
+        }    
+    }       
+} TOOLBAR;
+
+EXTEND FORM articleStickerDashboard
+    PROPERTIES(a, dep) createSnapshotPricingArticleDepartment FORCE PANEL TOOLBAR
+    PROPERTIES(a) READONLY AFTER idArticle(a) idItemGroupArticle
+    PROPERTIES(i) READONLY AFTER idItem(i) idItemGroupItem
+;
