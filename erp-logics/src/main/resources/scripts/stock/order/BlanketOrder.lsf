@@ -45,6 +45,9 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
     nameCustomerStockBlanketOrderDetail 'Склад покупателя' (blanketOrderDetail) = nameStock(customerStockBlanketOrderDetail(blanketOrderDetail));
 
     closeDateBlanketOrder 'Дата автоматического закрытия' = DATA DATE (BlanketOrder) IN documentPrm;
+    closeDateBlanketOrder(o) <- sumDate(shipmentDateBlanketOrder(o), quantityDaysCloseOrdersStock(supplierStockBlanketOrder(o)))
+        WHEN CHANGED(shipmentDateBlanketOrder(o)) OR CHANGED(supplierStockBlanketOrder(o));    
+    
     closeDataDateBlanketOrderDetail 'Дата автоматического закрытия' = DATA DATE (BlanketOrderDetail) IN documentPrm;
 
     closeDateBlanketOrderDetail 'Дата автоматического закрытия' (detail) = OVERRIDE closeDateBlanketOrder(blanketOrderBlanketOrderDetail(detail)), closeDataDateBlanketOrderDetail(detail) PERSISTENT;
