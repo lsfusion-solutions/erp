@@ -52,7 +52,11 @@ EXTEND FORM agreement
 
 maxOrderDetailSkuOrder (sku, order) = GROUP MAX orderDetail BY skuOrderDetail(orderDetail),  orderOrderDetail(orderDetail);
 ordersPriceInvoiceDetail 'Цена из заказа' (d) = priceOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)));
-agreementsPriceInvoiceDetail 'Цена из соглашения' (d) = prevListPriceMVATUserInvoiceDetail(priceListTypeInvoiceDetail(d) AS DataPriceListType, d) ;
+agreementsPriceInvoiceDetail 'Цена из соглашения' (d) =
+    priceBLedgerPriceListTypeSkuStockDateTime(priceListTypeInvoiceDetail(d),
+                                              skuInvoiceDetail(d),
+                                              customerStockInvoiceDetail(d),
+                                              dateTimeInvoiceDetail(d));
 overOrdersPriceInvoiceDetail (d) = OVERRIDE agreementsPriceInvoiceDetail(d), ordersPriceInvoiceDetail(d);
 
 percDeviationPriceAgreementInvoiceDetail '% отклонения по цене' (d) = percDeviationPriceAgreementDate(agreementInvoice(invoiceInvoiceDetail(d)), dateInvoiceDetail(d));

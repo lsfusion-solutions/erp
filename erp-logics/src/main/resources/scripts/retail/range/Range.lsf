@@ -168,8 +168,11 @@ nameFilterSupplier 'Поставщик' = nameLegalEntity(filterSupplier());
 retailPriceASkuDepartmentStoreRangeRev 'Розничная цена (управленческая)' (s, d, v) =  
     retailPriceASkuDepartmentStoreDateTime(s, d, dateTimeRangeRev(v));
 
-markupPriceASkuDepartmentStoreRangeRev 'Розничная цена (надбавка)' (s, d, v) =  
-    markupPriceASkuDepartmentStoreDateTime(s, d, dateTimeRangeRev(v));
+markupPriceASkuDepartmentStoreRangeRev 'Розничная цена (надбавка)' (pt, s, d, v) =
+    markupPriceABasePriceListTypeSkuDepartmentStoreDateTime(pt, s, d, dateTimeRangeRev(v));
+
+valueVATSkuStockRangeRev 'НДС, %' (s, d, v) =
+    valueVATSkuStockDate(s, d, dateRangeRev(v));
 
 priceALedgerPriceListTypeSkuStockRangeRev 'Цена' (pt, s, st, v)=  
     priceALedgerPriceListTypeSkuStockDateTime(pt, s, st, dateTimeRangeRev(v));
@@ -195,7 +198,8 @@ FORM rangeRev 'Версия ассортимента'
                            priceALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v),
                            retailPriceASkuDepartmentStoreRangeRev(s, d, v),
                            markupSkuDepartmentStore(s, d),
-                           markupPriceASkuDepartmentStoreRangeRev(s, d, v)
+                           valueVATSkuStockRangeRev(s, d, v),
+                           markupPriceASkuDepartmentStoreRangeRev(pt, s, d, v)
     PROPERTIES(v, s) nameLevelRangeRevSku
     FILTERS inChildRangeSkuGroup(rangeRangeRev(v), skuGroupSku(s)),
             (filterSupplier() AND priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, s, d, filterSupplier(), dateTimeRangeRev(v))) OR 

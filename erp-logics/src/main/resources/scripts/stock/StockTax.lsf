@@ -6,8 +6,11 @@ NAMESPACE Stock;
 
 //------------------------- НДС -------------------------//
 
-VATSkuCountryDate = ABSTRACT Range (Sku, Country, DATE) COMPLEX;
-valueVATSkuCountryDate (sku, country, date) = valueRateRangeDate(VATSkuCountryDate(sku, country, date), date);
+VATSkuCountryDate 'НДС' = ABSTRACT Range (Sku, Country, DATE) COMPLEX;
+valueVATSkuCountryDate 'НДС, %' (sku, country, date) = valueRateRangeDate(VATSkuCountryDate(sku, country, date), date);
+
+VATSkuStockDate 'НДС' (s, st, d) = VATSkuCountryDate(s, countryStock(st), d);
+valueVATSkuStockDate 'НДС, %' (s, st, d) = valueVATSkuCountryDate(s, countryStock(st), d); 
 
 META deriveDocumentDetailVAT (concrete, prefixP, dateProp,  skuProp, stockProp)
     prefixP###VAT###concrete##Detail(detail) <- VATSkuCountryDate (skuProp###concrete##Detail(detail), countryStock(stockProp###concrete##Detail(detail)), dateProp###concrete##Detail(detail))
