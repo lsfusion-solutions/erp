@@ -46,9 +46,13 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
     }
 
     protected static Date parseDate(String value) throws ParseException {
-        if (value == null) return null;
+        return parseDate(value, null);    
+    }
+    
+    protected static Date parseDate(String value, Date defaultValue) throws ParseException {
+        if (value == null) return defaultValue;
         value = value.trim();
-        if (value.isEmpty() || value.replace(".", "").trim().isEmpty()) return null;
+        if (value.isEmpty() || value.replace(".", "").trim().isEmpty()) return defaultValue;
         if (value.length() == 8 && !value.contains(".") && Integer.parseInt(value.substring(4, 6)) > 12) {
             //чит для отличия ddMMyyyy от yyyyMMdd
             return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());

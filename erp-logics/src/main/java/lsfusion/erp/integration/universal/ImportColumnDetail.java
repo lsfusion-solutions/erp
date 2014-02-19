@@ -21,6 +21,12 @@ public class ImportColumnDetail {
         this.indexes = indexes;
         this.replaceOnlyNull = replaceOnlyNull;
     }
+    
+    public ImportColumnDetail modify(String field, String singleIndex) {
+        this.field = field;
+        this.indexes =  new String[] {singleIndex};
+        return this;
+    }
 
     public String getFullIndex() {
         return fullIndex;

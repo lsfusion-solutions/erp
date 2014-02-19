@@ -602,7 +602,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 Date dateTo = getCSVDateFieldValue(values, importColumns.getColumns().get("dateTo"), count);
                 Date dateVAT = date == null ? dateFrom : date;
                 BigDecimal valueVAT = parseVAT(getCSVFieldValue(values, importColumns.getColumns().get("valueVAT"), count));
-                BigDecimal quantityAdjustment = getCSVBigDecimalFieldValue(values, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), importColumns.getQuantityAdjustmentColumn(), count, null);
+                BigDecimal quantityAdjustment = getCSVBigDecimalFieldValue(values, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), importColumns.getQuantityAdjustmentColumn(), count);
                 String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
                 String extIdPackBarcode = packBarcode == null ? ((itemKeyType.equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
                 if (!idUserPriceListDetail.equals("_")) {

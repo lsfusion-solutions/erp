@@ -552,32 +552,32 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             file.read();
 
-            String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"), i);
-            Date dateOrder = getDBFDateFieldValue(file, importColumns.get("dateDocument"), i);
+            String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"), i, charset);
+            Date dateOrder = getDBFDateFieldValue(file, importColumns.get("dateDocument"), i, charset);
             String idOrderDetail = String.valueOf(orderObject) + i;
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, importColumns.get("barcodeItem"), i));
-            String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), i);
-            Integer dataIndex = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), i, charset, String.valueOf(primaryList.size() + secondaryList.size() + 1)).intValue();
-            String idItem = getDBFFieldValue(file, importColumns.get("idItem"), i);
-            String manufacturerItem = getDBFFieldValue(file, importColumns.get("manufacturerItem"), i);
-            String idCustomerStock = getDBFFieldValue(file, importColumns.get("idCustomerStock"), i);
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, importColumns.get("barcodeItem"), i, charset));
+            String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), i, charset);
+            Integer dataIndex = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), i, charset, new BigDecimal(primaryList.size() + secondaryList.size() + 1)).intValue();
+            String idItem = getDBFFieldValue(file, importColumns.get("idItem"), i, charset);
+            String manufacturerItem = getDBFFieldValue(file, importColumns.get("manufacturerItem"), i, charset);
+            String idCustomerStock = getDBFFieldValue(file, importColumns.get("idCustomerStock"), i, charset);
             ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
-            BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns.get("quantity"), i);
-            BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns.get("price"), i);
-            BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), i);
+            BigDecimal quantity = getDBFBigDecimalFieldValue(file, importColumns.get("quantity"), i, charset);
+            BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns.get("price"), i, charset);
+            BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), i, charset);
             BigDecimal valueVAT = parseVAT(getDBFFieldValue(file, importColumns.get("valueVAT"), i, charset));
-            BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns.get("sumVAT"), i);
-            BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"), i);
-            BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns.get("manufacturingPrice"), i);
+            BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, importColumns.get("sumVAT"), i, charset);
+            BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, importColumns.get("invoiceSum"), i, charset);
+            BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, importColumns.get("manufacturingPrice"), i, charset);
 
             SaleOrderDetail saleOrderDetail = new SaleOrderDetail(isPosted, numberOrder, dateOrder, idOrderDetail, barcodeItem, idBatch,
                     dataIndex, idItem, manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT,
                     invoiceSum, manufacturingPrice);
 
-            String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn), i);
-            String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn), i);
+            String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn), i, charset);
+            String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn), i, charset);
             if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
                 primaryList.add(saleOrderDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
