@@ -155,7 +155,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         try {
             return parseBigDecimal(getCSVFieldValue(values, parseIndex(index), null, null, null));
         } catch (Exception e) {
-            throw new UniversalImportException(importColumnDetail.field, index, row, e);
+            throw new UniversalImportException(importColumnDetail == null ? null : importColumnDetail.field, index, row, e);
         }
     }
 
@@ -172,7 +172,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         try {
             return parseDate(getCSVFieldValue(values, parseIndex(index), null, null, null), defaultDate);
         } catch (ParseException e) {
-            throw new UniversalImportException(importColumnDetail.field, index, row, e);
+            throw new UniversalImportException(importColumnDetail == null ? null : importColumnDetail.field, index, row, e);
         }
     }
 
@@ -454,6 +454,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, String defaultValue) throws UniversalImportException {
+        if (importColumnDetail == null) return defaultValue;
         return getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, defaultValue, false);
     }
 
@@ -546,6 +547,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     protected Date getDBFDateFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, Date defaultDate) throws UniversalImportException {
         try {
+            if (importColumnDetail == null) return defaultDate;
             return parseDate(getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, null, false), defaultDate);
         } catch (ParseException e) {
             throw new UniversalImportException(importColumnDetail, row, e);
@@ -557,6 +559,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected String getJDBFFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
+        if (importColumnDetail == null) return defaultValue;
         return getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, defaultValue, false, true);
     }
 
@@ -643,6 +646,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected BigDecimal getJDBFBigDecimalFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, String column, int row, BigDecimal defaultValue) throws UniversalImportException {
+        if (importColumnDetail == null) return defaultValue;
         return getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail(importColumnDetail.field, column, false), row, defaultValue);
     }
 
@@ -661,6 +665,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     protected Date getJDBFDateFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, Date defaultDate) throws UniversalImportException {
         try {
+            if (importColumnDetail == null) return defaultDate;
             return parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, null, false, false), defaultDate);
         } catch (ParseException e) {
             throw new UniversalImportException(importColumnDetail, row, e);
