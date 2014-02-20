@@ -397,13 +397,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 String[] userInvoiceProperties = new String[]{"Purchase.numberUserInvoice"};
                 String[] cashRegisterProperties = new String[]{"handlerModelMachinery", "directoryCashRegister"};
                 for (String property : userInvoiceProperties) {
-                    userInvoiceQuery.addProperty(property, equLM.findLCPByCompoundOldName(property).getExpr(userInvoiceExpr));
+                    userInvoiceQuery.addProperty(property, purchaseInvoiceTabakLM.findLCPByCompoundOldName(property).getExpr(userInvoiceExpr));
                 }
                 for (String property : cashRegisterProperties) {
-                    userInvoiceQuery.addProperty(property, equLM.findLCPByCompoundOldName(property).getExpr(cashRegisterExpr));
+                    userInvoiceQuery.addProperty(property, purchaseInvoiceTabakLM.findLCPByCompoundOldName(property).getExpr(cashRegisterExpr));
                 }
-                userInvoiceQuery.and(equLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(
-                        equLM.findLCPByCompoundOldName("Purchase.groupCashRegisterUserInvoice").getExpr(userInvoiceExpr), Compare.EQUALS));
+                userInvoiceQuery.and(purchaseInvoiceTabakLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(
+                        purchaseInvoiceTabakLM.findLCPByCompoundOldName("Purchase.groupCashRegisterUserInvoice").getExpr(userInvoiceExpr), Compare.EQUALS));
                 userInvoiceQuery.and(purchaseInvoiceTabakLM.findLCPByCompoundOldName("notSucceededUserInvoice").getExpr(userInvoiceExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> userInvoiceResult = userInvoiceQuery.executeClasses(session);
