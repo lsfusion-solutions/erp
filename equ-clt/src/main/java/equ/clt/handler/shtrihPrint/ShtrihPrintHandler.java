@@ -3,10 +3,7 @@ package equ.clt.handler.shtrihPrint;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
-import equ.api.ItemInfo;
-import equ.api.ScalesHandler;
-import equ.api.ScalesInfo;
-import equ.api.TransactionScalesInfo;
+import equ.api.*;
 
 import java.io.IOException;
 import java.util.List;
@@ -74,5 +71,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
         } else {
             throw new RuntimeException("ShtrihPrintHandler. Connection error (# " + result.toString() + ")");
         }
+    }
+
+    @Override
+    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
+        
     }
 }

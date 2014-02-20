@@ -44,6 +44,10 @@ public class EasyCSVHandler {
         }
 
         @Override
+        public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {           
+        }
+
+        @Override
         public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
         }
@@ -56,6 +60,11 @@ public class EasyCSVHandler {
         @Override
         public void finishReadingSalesInfo(SalesBatch salesBatch) {
             //To change body of implemented methods use File | Settings | File Templates.
+        }
+
+        @Override
+        public Set<String> requestSucceededSoftCheckInfo() {
+            return null;
         }
     }
 
@@ -86,6 +95,11 @@ public class EasyCSVHandler {
                 }
                 writer.close();
             }
+        }
+
+        @Override
+        public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
+            
         }
     }
 
@@ -118,6 +132,11 @@ public class EasyCSVHandler {
                 }
                 writer.close();
             }
+        }
+
+        @Override
+        public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
+            
         }
     }
 }

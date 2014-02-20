@@ -10,8 +10,8 @@ import org.jdom.input.SAXBuilder;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.sql.*;
 import java.sql.Date;
-import java.sql.Time;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -156,6 +156,41 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
+    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
+
+        for (String directory : softCheckInfo.directorySet) {
+
+            String timestamp = new SimpleDateFormat("ddMMyyyyHHmmss").format(Calendar.getInstance().getTime());
+            
+            String exchangeDirectory = directory + "\\ImpExp\\Import\\";
+
+            File flagSoftFile = new File(exchangeDirectory + "WAITSOFT");
+            if (flagSoftFile.exists() || flagSoftFile.createNewFile()) {
+                File softFile = new File(exchangeDirectory + "softcheque" + timestamp + ".txt");
+                PrintWriter writer = new PrintWriter(
+                        new OutputStreamWriter(
+                                new FileOutputStream(softFile), "windows-1251"));
+
+                for (String userInvoice : softCheckInfo.invoiceSet) {
+                    String record = String.format("%s|0|1|1|1", trimLeadingZeroes(userInvoice));
+                    writer.println(record);
+                }
+                writer.close();
+
+                if (flagSoftFile.delete()) {
+                    while (softFile.exists()) {
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            throw Throwables.propagate(e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
     public String requestSalesInfo(Map<java.util.Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
 
         for (Map.Entry<java.util.Date, Set<String>> entry : requestSalesInfo.entrySet()) {
@@ -191,6 +226,37 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if (!f.delete())
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
         }
+    }
+
+    @Override
+    public Set<String> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException {
+
+        Set<String> result = new HashSet<String>();
+
+        Connection conn = null;
+        try {
+
+            String username = "sa";
+            String password = "mssql";
+            String ip = "192.168.0.220";
+            String dbName = "SES";
+            String url = String.format("jdbc:sqlserver://%s:1433;databaseName=%s;User=%s;Password=%s", ip, dbName, username, password);
+
+            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+            conn = DriverManager.getConnection(url);
+            Statement statement = conn.createStatement();
+            String queryString = "SELECT DocNumber FROM DocHead WHERE ShipmentState='1' AND PayState='0'";
+            ResultSet rs = statement.executeQuery(queryString);
+            while (rs.next()) {
+                result.add(fillLeadingZeroes(rs.getString(1)));
+            }                       
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            if (conn != null)
+                conn.close();
+        }
+        return result;
     }
 
     @Override
@@ -306,6 +372,22 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         return new KristalSalesBatch(salesInfoList, filePathList);
     }
 
+    private String trimLeadingZeroes (String input) {
+        if(input == null)
+            return null;
+        while(input.startsWith("0"))
+            input = input.substring(1);
+        return input.trim();
+    }
+    
+    private String fillLeadingZeroes(String input) {
+        if(input == null)
+            return null;
+        while(input.length()<7)
+            input = "0" + input;
+        return input;
+    }
+    
     private String makeIdItemGroup(List<String> hierarchyItemGroup) {
         String idItemGroup = "";
         for (int i = hierarchyItemGroup.size(); i < 5; i++) {

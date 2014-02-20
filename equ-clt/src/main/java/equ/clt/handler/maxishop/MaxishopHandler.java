@@ -104,6 +104,10 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
+    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {        
+    }
+
+    @Override
     public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<String, String> cashRegisterDirectories = new HashMap<String, String>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
@@ -180,6 +184,11 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
             if (!f.delete())
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
         }
+    }
+
+    @Override
+    public Set<String> requestSucceededSoftCheckInfo() {
+        return null;
     }
 
     class DBFFilter implements FilenameFilter {

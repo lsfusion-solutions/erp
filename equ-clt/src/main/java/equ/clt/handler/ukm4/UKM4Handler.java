@@ -159,6 +159,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
+    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
+        
+    }
+
+    @Override
     public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<String, String> cashRegisterDirectories = new HashMap<String, String>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
@@ -296,6 +301,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
             if (!f.delete())
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
         }
+    }
+
+    @Override
+    public Set<String> requestSucceededSoftCheckInfo() {
+        return null;
     }
 
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {

@@ -117,6 +117,11 @@ public class DigiHandler extends ScalesHandler {
 
     }
 
+    @Override
+    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
+        
+    }
+
     private String addZeros(String str, Integer len, Boolean toTheEnd) {
         if (str == null)
             str = "";

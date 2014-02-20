@@ -4,13 +4,16 @@ import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public interface EquipmentServerInterface extends Remote {
 
+    List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException;
+
+    void finishSoftCheckInfo(Set<String> invoiceSet) throws RemoteException, SQLException;
+    
+    String sendSucceededSoftCheckInfo(Set invoiceSet) throws RemoteException, SQLException;
+    
     List<TransactionInfo> readTransactionInfo(String equServerID) throws RemoteException, SQLException;
 
     List<CashRegisterInfo> readCashRegisterInfo(String equServerID) throws RemoteException, SQLException;

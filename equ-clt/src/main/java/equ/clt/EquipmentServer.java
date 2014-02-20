@@ -79,7 +79,7 @@ public class EquipmentServer {
 
                             processTransactionInfo(remote, equServerID);
                             sendSalesInfo(remote, equServerID);
-                            logger.info("transaction complete");                                                                                   
+                            logger.info("transaction complete");
                         }
 
                     } catch (Exception e) {
@@ -102,6 +102,23 @@ public class EquipmentServer {
 
 
     private void processTransactionInfo(EquipmentServerInterface remote, String equServerID) throws SQLException, RemoteException, FileNotFoundException, UnsupportedEncodingException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, InstantiationException {
+        List<SoftCheckInfo> softCheckInfoList = remote.readSoftCheckInfo();
+        if (softCheckInfoList != null) {
+
+            for (SoftCheckInfo entry : softCheckInfoList) {
+                if (entry.handler != null) {
+                    try {
+                        Object clsHandler = getHandler(entry.handler.trim(), remote);
+                        entry.sendSoftCheckInfo(clsHandler);
+                        remote.finishSoftCheckInfo(entry.invoiceSet);
+                    } catch (Exception e) {
+                        logger.error("sendSoftCheckInfo error", e);
+                        return;
+                    }
+                }
+            }
+        }
+
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(equServerID);
         Collections.sort(transactionInfoList, COMPARATOR);
         for (TransactionInfo<MachineryInfo> transaction : transactionInfoList) {
@@ -110,7 +127,7 @@ public class EquipmentServer {
             for (MachineryInfo machinery : transaction.machineryInfoList) {
                 if (machinery.handlerModel != null) {
                     if (!handlerModelMap.containsKey(machinery.handlerModel))
-                        handlerModelMap.put(machinery.handlerModel, new ArrayList());
+                        handlerModelMap.put(machinery.handlerModel, new ArrayList<MachineryInfo>());
                     handlerModelMap.get(machinery.handlerModel).add(machinery);
                 }
             }
@@ -137,23 +154,31 @@ public class EquipmentServer {
         Map<String, List<MachineryInfo>> handlerModelCashRegisterMap = new HashMap<String, List<MachineryInfo>>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if (!handlerModelCashRegisterMap.containsKey(cashRegister.nameModel))
-                handlerModelCashRegisterMap.put(cashRegister.nameModel, new ArrayList());
+                handlerModelCashRegisterMap.put(cashRegister.nameModel, new ArrayList<MachineryInfo>());
             handlerModelCashRegisterMap.get(cashRegister.nameModel).add(cashRegister);
         }
 
         for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelCashRegisterMap.entrySet()) {
             if (entry.getKey() != null) {
-                
+
                 try {
                     String handlerModel = entry.getValue().get(0).handlerModel;
                     if (handlerModel != null) {
                         CashRegisterHandler clsHandler = (CashRegisterHandler) getHandler(handlerModel, remote);
-                        if(!requestSalesInfo.isEmpty()) {
+
+                        Set succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo();
+                        if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
+                            String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
+                            if (result != null)
+                                remote.errorEquipmentServerReport(equServerID, new Throwable(result));
+                        }
+
+                        if (!requestSalesInfo.isEmpty()) {
                             String result = clsHandler.requestSalesInfo(requestSalesInfo);
                             if (result != null)
                                 remote.errorEquipmentServerReport(equServerID, new Throwable(result));
                         }
-                            
+
                         SalesBatch salesBatch = clsHandler.readSalesInfo(cashRegisterInfoList);
                         if (salesBatch != null) {
                             String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID);
@@ -175,7 +200,7 @@ public class EquipmentServer {
         Map<String, List<MachineryInfo>> handlerModelTerminalMap = new HashMap<String, List<MachineryInfo>>();
         for (TerminalInfo terminal : terminalInfoList) {
             if (!handlerModelTerminalMap.containsKey(terminal.nameModel))
-                handlerModelTerminalMap.put(terminal.nameModel, new ArrayList());
+                handlerModelTerminalMap.put(terminal.nameModel, new ArrayList<MachineryInfo>());
             handlerModelTerminalMap.get(terminal.nameModel).add(terminal);
         }
 

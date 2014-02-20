@@ -324,6 +324,112 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             throw Throwables.propagate(e);
         }
     }
+    
+    @Override
+    public void finishSoftCheckInfo(Set<String> invoiceSet) throws RemoteException, SQLException {
+
+        ScriptingLogicsModule purchaseInvoiceTabakLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseInvoiceTabak");
+
+        if (purchaseInvoiceTabakLM != null) {
+            try {
+                DataSession session = getDbManager().createSession();
+                for (String invoice : invoiceSet)
+                    purchaseInvoiceTabakLM.findLCPByCompoundOldName("succeededUserInvoice").change(true, session, 
+                            (DataObject) purchaseInvoiceTabakLM.findLCPByCompoundOldName("Purchase.invoiceNumber").readClasses(session, new DataObject(invoice)));
+                session.apply(getBusinessLogics());
+            } catch (ScriptingErrorLog.SemanticErrorException e) {
+                throw Throwables.propagate(e);
+            } catch (SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    @Override
+    public String sendSucceededSoftCheckInfo(Set invoiceSet) throws RemoteException, SQLException {       
+            try {
+
+                DataSession session = getDbManager().createSession();
+                
+                ImportField numberUserInvoiceField = new ImportField(equLM.findLCPByCompoundOldName("numberUserInvoice"));
+                ImportField createShipmentUserInvoiceField = new ImportField(equLM.findLCPByCompoundOldName("createShipmentInvoice"));
+
+                List<ImportProperty<?>> properties = new ArrayList<ImportProperty<?>>();
+                
+                ImportKey<?> userInvoiceKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("Purchase.UserInvoice"), equLM.findLCPByCompoundOldName("invoiceNumber").getMapping(numberUserInvoiceField));
+                userInvoiceKey.skipKey = true;
+                properties.add(new ImportProperty(createShipmentUserInvoiceField, equLM.findLCPByCompoundOldName("createShipmentInvoice").getMapping(userInvoiceKey)));
+
+                List<List<Object>> data = new ArrayList<List<Object>>();
+
+                for (Object invoice : invoiceSet) {
+                    data.add(Arrays.asList(invoice, true));
+                }
+
+                List<ImportField> importFields = Arrays.asList(numberUserInvoiceField, createShipmentUserInvoiceField);
+
+                new IntegrationService(session, new ImportTable(importFields, data), Arrays.asList(userInvoiceKey),
+                        properties).synchronize(true);
+
+                return session.applyMessage(getBusinessLogics());
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+    }
+
+
+    @Override
+    public List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException {
+
+        ScriptingLogicsModule purchaseInvoiceTabakLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseInvoiceTabak");
+
+        if(purchaseInvoiceTabakLM != null) {
+
+            try {
+
+                DataSession session = getDbManager().createSession();
+
+                KeyExpr userInvoiceExpr = new KeyExpr("purchase.UserInvoice");
+                KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
+                ImRevMap<Object, KeyExpr> userInvoiceKeys = MapFact.toRevMap((Object) "Purchase.UserInvoice", userInvoiceExpr, "cashRegister", cashRegisterExpr);
+                QueryBuilder<Object, Object> userInvoiceQuery = new QueryBuilder<Object, Object>(userInvoiceKeys);
+
+                String[] userInvoiceProperties = new String[]{"Purchase.numberUserInvoice"};
+                String[] cashRegisterProperties = new String[]{"handlerModelMachinery", "directoryCashRegister"};
+                for (String property : userInvoiceProperties) {
+                    userInvoiceQuery.addProperty(property, equLM.findLCPByCompoundOldName(property).getExpr(userInvoiceExpr));
+                }
+                for (String property : cashRegisterProperties) {
+                    userInvoiceQuery.addProperty(property, equLM.findLCPByCompoundOldName(property).getExpr(cashRegisterExpr));
+                }
+                userInvoiceQuery.and(equLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(
+                        equLM.findLCPByCompoundOldName("Purchase.groupCashRegisterUserInvoice").getExpr(userInvoiceExpr), Compare.EQUALS));
+                userInvoiceQuery.and(purchaseInvoiceTabakLM.findLCPByCompoundOldName("notSucceededUserInvoice").getExpr(userInvoiceExpr).getWhere());
+
+                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> userInvoiceResult = userInvoiceQuery.executeClasses(session);
+
+                Map<String, SoftCheckInfo> softCheckInfoMap = new HashMap<String, SoftCheckInfo>();
+                for (int i = 0, size = userInvoiceResult.size(); i < size; i++) {
+                    ImMap<Object, ObjectValue> entryValue = userInvoiceResult.getValue(i);
+                    String numberUserInvoice = trim((String) entryValue.get("Purchase.numberUserInvoice").getValue());
+                    String handlerModelMachinery = trim((String) entryValue.get("handlerModelMachinery").getValue());
+                    String directoryCashRegister = trim((String) entryValue.get("directoryCashRegister").getValue());
+                    if (numberUserInvoice != null && handlerModelMachinery != null && directoryCashRegister != null) {
+                        if (!softCheckInfoMap.containsKey(handlerModelMachinery))
+                            softCheckInfoMap.put(handlerModelMachinery,
+                                    new SoftCheckInfo(handlerModelMachinery, new HashSet<String>(), new HashSet<String>()));
+                        softCheckInfoMap.get(handlerModelMachinery).directorySet.add(directoryCashRegister);
+                        softCheckInfoMap.get(handlerModelMachinery).invoiceSet.add(numberUserInvoice);
+                    }
+                }
+                return new ArrayList(softCheckInfoMap.values());
+            } catch (ScriptingErrorLog.SemanticErrorException e) {
+                throw Throwables.propagate(e);
+            } catch (SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        } else return null;
+    }
 
     @Override
     public Map<Date, Set<String>> readRequestSalesInfo(String equServerID) throws RemoteException, SQLException {
@@ -959,7 +1065,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return result;
     }
 
-    protected String trim(String input) {
+    private String trim(String input) {
         return input == null ? null : input.trim();
     }
 
