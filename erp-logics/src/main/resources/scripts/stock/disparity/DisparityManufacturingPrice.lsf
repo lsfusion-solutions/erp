@@ -1,0 +1,65 @@
+MODULE DisparityManufacturingPrice;
+
+REQUIRE Disparity;
+
+@defineDocumentDetailPriceCustomPrefix(disparityDetail, curInputManufacturing, ' изготовителя до');
+@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, manufacturingPriceStockPriceListType, curInputManufacturing, sku, stock);
+
+@defineDocumentDetailPriceCustomPrefix(disparityDetail, afterInputManufacturing, ' изготовителя после');
+
+afterInputManufacturingPriceDisparityDetail(detail) <- curInputManufacturingPriceDisparityDetail(detail) WHEN CHANGED (curInputManufacturingPriceDisparityDetail(detail));
+
+@defineDocumentDetailDataSumCustomPrefix (disparityDetail, curInputManufacturing, ' изготовителя до');
+@deriveDocumentDetailSumPrefix(disparity, curInputManufacturing, currency, inputQuantity);
+
+@defineDocumentDetailDataSumCustomPrefix (disparityDetail, afterInputManufacturing, ' изготовителя после');
+@deriveDocumentDetailSumPrefix(disparity, afterInputManufacturing, currency, inputQuantity);
+
+
+
+showIfManufacturingPriceDisparityDetail= ABSTRACT CASE BOOLEAN (DisparityDetail);
+
+backgroundCurInputManufacturingPriceDisparityDetail= ABSTRACT CASE COLOR (DisparityDetail);
+overCurInputManufacturingPriceDisparityDetail = ABSTRACT ACTION LIST (DisparityDetail);
+changeCurInputManufacturingPriceDisparityDetail = ACTION (disparityDetail) {
+    REQUEST NUMERIC[14,2] INPUT;
+
+    IF requestedNumeric() THEN {
+        curInputManufacturingPriceDisparityDetail(disparityDetail) <- requestedNumeric();
+        overCurInputManufacturingPriceDisparityDetail(disparityDetail);
+    } ELSE {
+        curInputManufacturingPriceDisparityDetail(disparityDetail) <- NULL;
+    }
+}
+//--
+backgroundAfterInputManufacturingPriceDisparityDetail= ABSTRACT CASE COLOR (DisparityDetail);
+overAfterInputManufacturingPriceDisparityDetail = ABSTRACT ACTION LIST (DisparityDetail);
+changeAfterInputManufacturingPriceDisparityDetail = ACTION (disparityDetail) {
+    REQUEST NUMERIC[14,2] INPUT;
+
+    IF requestedNumeric() THEN {
+        afterInputManufacturingPriceDisparityDetail(disparityDetail) <- requestedNumeric();
+        overAfterInputManufacturingPriceDisparityDetail(disparityDetail);
+    } ELSE {
+        afterInputManufacturingPriceDisparityDetail(disparityDetail) <- NULL;
+    }
+}
+
+EXTEND FORM disparity
+    PROPERTIES(d)  AFTER inputSumDisparityDetail(d)
+                   curInputManufacturingPriceDisparityDetail ON CHANGE changeCurInputManufacturingPriceDisparityDetail(d) 
+                   BACKGROUND backgroundCurInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
+                   curInputManufacturingSumDisparityDetail BACKGROUND backgroundCurInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
+                   afterInputManufacturingPriceDisparityDetail ON CHANGE changeAfterInputManufacturingPriceDisparityDetail(d) 
+                   BACKGROUND backgroundAfterInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
+                   afterInputManufacturingSumDisparityDetail BACKGROUND backgroundAfterInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d)                   
+                   
+;
+EXTEND FORM disparities
+                   
+    PROPERTIES(d)  READONLY AFTER inputSumDisparityDetail(d) 
+                   curInputManufacturingPriceDisparityDetail BACKGROUND backgroundCurInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
+                   curInputManufacturingSumDisparityDetail BACKGROUND backgroundCurInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),  
+                   afterInputManufacturingPriceDisparityDetail BACKGROUND backgroundAfterInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
+                   afterInputManufacturingSumDisparityDetail BACKGROUND backgroundAfterInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d)                   
+;

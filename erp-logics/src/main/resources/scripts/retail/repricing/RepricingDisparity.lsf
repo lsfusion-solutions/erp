@@ -7,6 +7,20 @@ REQUIRE Disparity,
 
 NAMESPACE Disparity;
 
+//-- Расширяем операцию
+createRepricingOperation 'Создать акт переоценки (розн.)' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) createRepricingOperation
+;
+
+EXTEND DESIGN operation {
+    createContainer {              
+        ADD PROPERTY(createRepricingOperation(o));
+    }
+}
+
+//--
 @defineDocumentHeaderProperty(disparity, createRepricing, 'Создать акт переоценки');
 @defineDocumentDetailProperty(disparity, disparityDetail, createRepricing, 'Создать акт переоценки');
 
@@ -16,7 +30,7 @@ createRepricingDisparity (disparity) <- createRepricingOperation(operationDispar
     WHEN CHANGED(operationDisparity(disparity));
 
 repricingOperationOperation  = DATA Repricing.Operation (Operation);
-nameRepricingOperationOperation 'Операция (переоценки)' (operation)= Repricing.nameOperation(repricingOperationOperation(operation));
+nameRepricingOperationOperation 'Операция переоценки (розн.)' (operation)= Repricing.nameOperation(repricingOperationOperation(operation));
 
 
 EXTEND FORM operation
@@ -121,7 +135,7 @@ needToRepricingDisparity (disparity)= GROUP SUM 1 IF needToRepricingDisparityDet
 @defineDocumentHeaderRepricingCommittee(disparity, stock);
 
 CLASS DisparityRepricing 'Акт переоценки (сортность)': Repricing;
-CLASS DisparityRepricingDetail 'Строка акта дооценки на основе накладной': RepricingDetail;
+CLASS DisparityRepricingDetail 'Строка акта переоценки (сортность)': RepricingDetail;
 
 @defineDocumentTables(disparityRepricing);
 
@@ -265,3 +279,5 @@ curVATSumRepricingDetail(repricingDetail) += curInputVATSumDisparityDetail(dispa
 markupSumRepricingDetail(repricingDetail) += afterInputMarkupSumDisparityDetail(disparityDetailDisparityRepricingDetail(repricingDetail));
 curMarkupSumRepricingDetail(repricingDetail) += curInputMarkupSumDisparityDetail(disparityDetailDisparityRepricingDetail(repricingDetail));
 
+
+editRepricing(repricing) += ACTION EXEC editDisparity(disparityDisparityRepricing(repricing));

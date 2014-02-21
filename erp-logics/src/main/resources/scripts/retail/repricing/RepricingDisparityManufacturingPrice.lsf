@@ -1,11 +1,23 @@
 MODULE RepricingDisparityManufacturingPrice;
 
-REQUIRE RepricingDisparity, RepricingManufacturingPrice, PriceListLedger;
+REQUIRE RepricingDisparity, RepricingManufacturingPrice, PriceListLedger, DisparityManufacturingPrice;
 
-@defineDocumentDetailPriceCustomPrefix(disparityDetail, curInputManufacturing, ' изготовителя до');
-@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, manufacturingPriceStockPriceListType, curInputManufacturing, sku, stock);
-
-@defineDocumentDetailPriceCustomPrefix(disparityDetail, afterInputManufacturing, ' изготовителя после');
+//@defineDocumentDetailPriceCustomPrefix(disparityDetail, curInputManufacturing, ' изготовителя до'){
+//    curInputManufacturingPriceDisparityDetail 'Цена изготовителя до' = DATA NUMERIC[14,2] (DisparityDetail);
+//};
+//@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, manufacturingPriceStockPriceListType, curInputManufacturing, sku, stock){
+//    curInputManufacturingPriceDisparityDetail (detail)  <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+//                                                                                            skuDisparityDetail(detail),
+//                                                                                            stockDisparityDetail(detail),
+//                                                                                            dateTimeDisparityDetail(detail))
+//                                                    WHEN DO CHANGED(skuDisparityDetail(detail)) OR
+//                                                         CHANGED(stockDisparityDetail(detail)) OR
+//                                                         CHANGED(dateTimeDisparityDetail(detail));
+//};
+//
+//@defineDocumentDetailPriceCustomPrefix(disparityDetail, afterInputManufacturing, ' изготовителя после'){
+//    afterInputManufacturingPriceDisparityDetail 'Цена изготовителя после' = DATA NUMERIC[14,2] (DisparityDetail);
+//};
 
 overCurRepricingPriceRepricingDetail(detail) += curInputManufacturingPriceDisparityDetail(disparityDetailDisparityRepricingDetail(detail));
 overCurInputRepricingPriceDisparityDetail(detail) += curInputManufacturingPriceDisparityDetail(detail);
@@ -15,19 +27,75 @@ overRepricingPriceRepricingDetail(detail) += afterInputManufacturingPriceDispari
 overAfterInputRepricingPriceDisparityDetail(detail) += afterInputManufacturingPriceDisparityDetail(detail);
 manufacturingPriceRepricingDetail(detail) += afterInputManufacturingPriceDisparityDetail(disparityDetailDisparityRepricingDetail(detail));
 
-afterInputManufacturingPriceDisparityDetail(detail) <- curInputManufacturingPriceDisparityDetail(detail) WHEN CHANGED (curInputManufacturingPriceDisparityDetail(detail));
+//afterInputManufacturingPriceDisparityDetail(detail) <- curInputManufacturingPriceDisparityDetail(detail) WHEN CHANGED (curInputManufacturingPriceDisparityDetail(detail));
 
-@changeDocumentDetailPricePrefix(disparityDetail, curInputManufacturing, curInput, curInput, curInputManufacturing, curInput, curInputRetail);
-@changeDocumentDetailPricePrefix(disparityDetail, afterInputManufacturing, afterInput, afterInput, afterInputManufacturing, afterInput, afterInputRetail);
+//@changeDocumentDetailPricePrefix(disparityDetail, curInputManufacturing, curInput, curInput, curInputManufacturing, curInput, curInputRetail){
+//
+//    calcCurInputPriceDisparityDetail(disparityDetail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+//        curInputManufacturingPriceDisparityDetail(disparityDetail),
+//        curInputMarkupDisparityDetail(disparityDetail),
+//        valueCurInputVATDisparityDetail(disparityDetail))), roundConditionDisparityDetail(disparityDetail));
+//
+//    changeCurInputManufacturingPriceDisparityDetail = ACTION (disparityDetail) {
+//        REQUEST NUMERIC[14,2] INPUT;
+//
+//        IF requestedNumeric() THEN {
+//            curInputManufacturingPriceDisparityDetail(disparityDetail) <- requestedNumeric();
+//            curInputRetailPriceDisparityDetail(disparityDetail) <- calcCurInputPriceDisparityDetail(disparityDetail) WHERE calcCurInputPriceDisparityDetail(disparityDetail);
+//        } ELSE {
+//            curInputManufacturingPriceDisparityDetail(disparityDetail) <- NULL;
+//        }
+//    }
+//};
+//@changeDocumentDetailPricePrefix(disparityDetail, afterInputManufacturing, afterInput, afterInput, afterInputManufacturing, afterInput, afterInputRetail){
+//
+//    calcAfterInputPriceDisparityDetail(disparityDetail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+//        afterInputManufacturingPriceDisparityDetail(disparityDetail),
+//        afterInputMarkupDisparityDetail(disparityDetail),
+//        valueAfterInputVATDisparityDetail(disparityDetail))), roundConditionDisparityDetail(disparityDetail));
+//
+//    changeAfterInputManufacturingPriceDisparityDetail = ACTION (disparityDetail) {
+//        REQUEST NUMERIC[14,2] INPUT;
+//
+//        IF requestedNumeric() THEN {
+//            afterInputManufacturingPriceDisparityDetail(disparityDetail) <- requestedNumeric();
+//            afterInputRetailPriceDisparityDetail(disparityDetail) <- calcAfterInputPriceDisparityDetail(disparityDetail) WHERE calcAfterInputPriceDisparityDetail(disparityDetail);
+//        } ELSE {
+//            afterInputManufacturingPriceDisparityDetail(disparityDetail) <- NULL;
+//        }
+//    }
+//};
 
-EXTEND FORM disparity
-    PROPERTIES(d)  BACKGROUND backgroundCurDisparity(dis) SHOWIF createRepricingDisparity(dis)
-                   curInputManufacturingPriceDisparityDetail ON CHANGE changeCurInputManufacturingPriceDisparityDetail(d) BEFORE curInputPriceDisparityDetail(d)
-    PROPERTIES(d)  BACKGROUND backgroundAfterDisparity(dis) SHOWIF createRepricingDisparity(dis)
-                   afterInputManufacturingPriceDisparityDetail ON CHANGE changeAfterInputManufacturingPriceDisparityDetail(d) BEFORE afterInputPriceDisparityDetail(d)
-;
-EXTEND FORM disparities
-    PROPERTIES(d)  READONLY BACKGROUND backgroundCurDisparity(dis) SHOWIF createRepricingDisparity(dis) curInputManufacturingPriceDisparityDetail BEFORE curInputPriceDisparityDetail(d)
-    PROPERTIES(d)  READONLY BACKGROUND backgroundAfterDisparity(dis) SHOWIF createRepricingDisparity(dis) afterInputManufacturingPriceDisparityDetail BEFORE afterInputPriceDisparityDetail(d)
-;
+showIfManufacturingPriceDisparityDetail (d) += WHEN createRepricingDisparityDetail(d) THEN TRUE;
+
+calcCurInputPriceDisparityDetail(disparityDetail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+    curInputManufacturingPriceDisparityDetail(disparityDetail),
+    curInputMarkupDisparityDetail(disparityDetail),
+    valueCurInputVATDisparityDetail(disparityDetail))), roundConditionDisparityDetail(disparityDetail));
+        
+overCurInputManufacturingPriceDisparityDetail(d) += ACTION (d) {      
+    curInputRetailPriceDisparityDetail(d) <- calcCurInputPriceDisparityDetail(d) WHERE calcCurInputPriceDisparityDetail(d);
+} 
+backgroundCurInputManufacturingPriceDisparityDetail (d) += WHEN createRepricingDisparityDetail(d) THEN RGB(255, 255, 224);
+
+
+calcAfterInputPriceDisparityDetail(disparityDetail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+    afterInputManufacturingPriceDisparityDetail(disparityDetail),
+    afterInputMarkupDisparityDetail(disparityDetail),
+    valueAfterInputVATDisparityDetail(disparityDetail))), roundConditionDisparityDetail(disparityDetail));
+overAfterInputManufacturingPriceDisparityDetail(d) += ACTION (d) {      
+            afterInputRetailPriceDisparityDetail(d) <- calcAfterInputPriceDisparityDetail(d) WHERE calcAfterInputPriceDisparityDetail(d);
+}  
+backgroundAfterInputManufacturingPriceDisparityDetail (d) += WHEN createRepricingDisparityDetail(d) THEN RGB(255, 255, 200);       
+        
+//EXTEND FORM disparity
+//    PROPERTIES(d)  BACKGROUND backgroundCurDisparity(dis) SHOWIF createRepricingDisparity(dis)
+//                   curInputManufacturingPriceDisparityDetail ON CHANGE changeCurInputManufacturingPriceDisparityDetail(d) BEFORE curInputPriceDisparityDetail(d)
+//    PROPERTIES(d)  BACKGROUND backgroundAfterDisparity(dis) SHOWIF createRepricingDisparity(dis)
+//                   afterInputManufacturingPriceDisparityDetail ON CHANGE changeAfterInputManufacturingPriceDisparityDetail(d) BEFORE afterInputPriceDisparityDetail(d)
+//;
+//EXTEND FORM disparities
+//    PROPERTIES(d)  READONLY BACKGROUND backgroundCurDisparity(dis) SHOWIF createRepricingDisparity(dis) curInputManufacturingPriceDisparityDetail BEFORE curInputPriceDisparityDetail(d)
+//    PROPERTIES(d)  READONLY BACKGROUND backgroundAfterDisparity(dis) SHOWIF createRepricingDisparity(dis) afterInputManufacturingPriceDisparityDetail BEFORE afterInputPriceDisparityDetail(d)
+//;
 
