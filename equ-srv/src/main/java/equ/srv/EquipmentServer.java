@@ -661,10 +661,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImportField discountSumReceiptReturnDetailField = new ImportField(equLM.findLCPByCompoundOldName("discountSumReceiptReturnDetail"));
                 ImportField discountSumReturnReceiptField = new ImportField(equLM.findLCPByCompoundOldName("discountSumReturnReceipt"));
 
-                ImportField idPaymentField = new ImportField(equLM.findLCPByCompoundOldName("idPayment"));
+                ImportField idPaymentField = new ImportField(equLM.findLCPByCompoundOldName("ZReport.idPayment"));
                 ImportField sidTypePaymentField = new ImportField(equLM.findLCPByCompoundOldName("sidPaymentType"));
-                ImportField sumPaymentField = new ImportField(equLM.findLCPByCompoundOldName("sumPayment"));
-                ImportField numberPaymentField = new ImportField(equLM.findLCPByCompoundOldName("numberPayment"));
+                ImportField sumPaymentField = new ImportField(equLM.findLCPByCompoundOldName("ZReport.sumPayment"));
+                ImportField numberPaymentField = new ImportField(equLM.findLCPByCompoundOldName("ZReport.numberPayment"));
 
                 ImportField seriesNumberDiscountCardField = new ImportField(equLM.findLCPByCompoundOldName("seriesNumberDiscountCard"));
 
@@ -791,11 +791,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, discountCardKey),
                         returnProperties).synchronize(true);
 
-                ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("Payment"), equLM.findLCPByCompoundOldName("paymentId").getMapping(idPaymentField));
+                ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("ZReport.Payment"), equLM.findLCPByCompoundOldName("ZReport.paymentId").getMapping(idPaymentField));
                 ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) equLM.findClassByCompoundName("PaymentType"), equLM.findLCPByCompoundOldName("typePaymentSID").getMapping(sidTypePaymentField));
-                paymentProperties.add(new ImportProperty(idPaymentField, equLM.findLCPByCompoundOldName("idPayment").getMapping(paymentKey)));
-                paymentProperties.add(new ImportProperty(sumPaymentField, equLM.findLCPByCompoundOldName("sumPayment").getMapping(paymentKey)));
-                paymentProperties.add(new ImportProperty(numberPaymentField, equLM.findLCPByCompoundOldName("numberPayment").getMapping(paymentKey)));
+                paymentProperties.add(new ImportProperty(idPaymentField, equLM.findLCPByCompoundOldName("ZReport.idPayment").getMapping(paymentKey)));
+                paymentProperties.add(new ImportProperty(sumPaymentField, equLM.findLCPByCompoundOldName("ZReport.sumPayment").getMapping(paymentKey)));
+                paymentProperties.add(new ImportProperty(numberPaymentField, equLM.findLCPByCompoundOldName("ZReport.numberPayment").getMapping(paymentKey)));
                 paymentProperties.add(new ImportProperty(sidTypePaymentField, equLM.findLCPByCompoundOldName("paymentTypePayment").getMapping(paymentKey),
                         equLM.baseLM.object(equLM.findClassByCompoundName("PaymentType")).getMapping(paymentTypeKey)));
                 paymentProperties.add(new ImportProperty(idReceiptField, equLM.findLCPByCompoundOldName("receiptPayment").getMapping(paymentKey),
