@@ -46,12 +46,12 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                 new FileOutputStream(pluFile), "windows-1251"));
 
                 for (ItemInfo item : transactionInfo.itemsList) {
-                    String idItemGroup = makeIdItemGroup(item.hierarchyItemGroup);
+                    String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
                     String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + item.name + "|" +
                             (item.isWeightItem ? "кг.|" : "ШТ|") + (item.isWeightItem ? "1|" : "0|") +
                             (item.nppGroupMachinery == null ? "1" : item.nppGroupMachinery) + "|"/*section*/ +
                             item.price.intValue() + "|" + "0|"/*fixprice*/ + (item.isWeightItem ? "0.001|" : "1|") +
-                            idItemGroup;/*item.numberGroupItem + "|0|0|0|0";*/
+                            idItemGroup;
                     writer.println(record);
                 }
                 writer.close();
