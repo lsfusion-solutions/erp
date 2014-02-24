@@ -1,8 +1,6 @@
 MODULE Trip;
 
-REQUIRE Order, Shipment, Route, ContractLedger;
-
-PRIORITY ContractLedger;
+REQUIRE Order, Shipment, Route;
 
 NAMESPACE Trip;
 
@@ -119,8 +117,13 @@ printOrdersTrip 'Печать заказов' (trip) = ACTION (trip) {
     FORM ordersTrip OBJECTS t = trip PRINT;
 } TOOLBAR;
 
+supplierTrip = DATA SESSION LegalEntity();
+nameSupplierTrip 'Организация (поставщик)' = nameLegalEntity(supplierTrip());
+customerTrip = DATA SESSION LegalEntity();
+nameCustomerTrip 'Организация (покупатель)' = nameLegalEntity(customerTrip());
+
 FORM trip 'Рейс'
-    PROPERTIES() namePartyA FORCE PANEL, namePartyB FORCE PANEL
+    PROPERTIES() nameSupplierTrip FORCE PANEL, nameCustomerTrip FORCE PANEL
 
     OBJECTS t=Trip FIXED PANEL
     PROPERTIES (t) nameNumeratorTrip, numberTrip, seriesTrip, dateTrip, timeTrip, nameDriverTrip, sidTruckTrip, nameTruckModelTruckTrip, trailerTruckTrip, weightTruckTrip
@@ -134,8 +137,8 @@ FORM trip 'Рейс'
 
     FILTERS isPostedOrder(o)
 
-    FILTERS customerOrder(o) == partyB() OR (o IS Order AND NOT partyB()),
-            supplierOrder(o) == partyA() OR (o IS Order AND NOT partyA())
+    FILTERS customerOrder(o) == customerTrip() OR (o IS Order AND NOT customerTrip()),
+            supplierOrder(o) == supplierTrip() OR (o IS Order AND NOT supplierTrip())
 
     FILTERGROUP filterDateOrder
         FILTER 'Текущие' 'F9' dateOrder(o) <= dateTrip(t) DEFAULT
@@ -155,8 +158,8 @@ FORM trip 'Рейс'
 
     FILTERS isPostedShipment(s)
 
-     FILTERS customerShipment(s) == partyB() OR (s IS Shipment AND NOT partyB()),
-             supplierShipment(s) == partyA() OR (s IS Shipment AND NOT partyA())
+     FILTERS customerShipment(s) == customerTrip() OR (s IS Shipment AND NOT customerTrip()),
+             supplierShipment(s) == supplierTrip() OR (s IS Shipment AND NOT supplierTrip())
 
     PROPERTIES createShipmentsTrip(t) TODRAW s FORCE PANEL
 
@@ -244,10 +247,10 @@ DESIGN trip FROM DEFAULT{
                 NEW filterContainer {
                     type = CONTAINERH;
                     caption = 'Фильтрация';
-                    ADD PROPERTY(namePartyA()) {
+                    ADD PROPERTY(nameSupplierTrip()) {
                         caption = 'Поставщик';
                     };
-                    ADD PROPERTY(namePartyB()){
+                    ADD PROPERTY(nameCustomerTrip()){
                         caption = 'Покупатель';
                     };
                 }

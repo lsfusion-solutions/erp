@@ -1,6 +1,6 @@
 MODULE SaleCreditNote;
 
-REQUIRE CreditNote, SaleShipment, SaleInvoiceContract;
+REQUIRE CreditNote, SaleShipment;
 
 NAMESPACE Sale;
 
@@ -8,7 +8,6 @@ NAMESPACE Sale;
 
 @defineCreditNote(' (продажа)', supplier, supplier, company, customer);
 @defineCreditNotePaymentCondition(' (продажа)');
-paymentConditionCreditNote(creditNote) += paymentConditionInvoice(invoiceInvoiceCreditNote(creditNote));
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, supplierStock, company);
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, customerStock, customer);
 @extendFormFilterAccessLegalEntity(CreditNote, c, creditNotes, supplier, company);
@@ -42,17 +41,6 @@ CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCustomerLegalEntity(
 @deriveDocumentOperationStock(userCreditNote, customer, userCreditNote);
 
 operationCreditNote(creditNote) += operationInvoice(invoiceInvoiceCreditNote(creditNote));
-
-// --------------------------- Проведение по регистру задолженностей ------------------------------------ //
-
-@implementContractLedger(, CreditNote, contractSku);
-sumContractLedger(contractLedger) += -invoiceSumCreditNoteDetailCreditNote(contractLedger);
-
-@implementContractLedger(a, CreditNote, contractSku);
-sumContractALedger(contractALedger) += -invoiceSumCreditNoteDetailCreditNote(contractALedger);
-
-@implementOutContractLedger(CreditNote, contractSku);
-sumOutContractLedger(outContractLedger) += invoiceSumCreditNoteDetailCreditNote(outContractLedger);
 
 //------------------------------ Расширение формы -----------------------------//
 

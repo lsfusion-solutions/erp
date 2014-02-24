@@ -1,8 +1,6 @@
 MODULE TripInvoice;
 
-REQUIRE OrderInvoice, Shipment, Trip;   //  Order, Invoice
-
-PRIORITY ContractLedger;
+REQUIRE OrderInvoice, Shipment, Trip;
 
 quantityTripInvoice (trip, invoice) = GROUP SUM quantityOrderInvoice(order, invoice) IF inTripOrder(trip, order) BY trip, invoice;
 
@@ -49,8 +47,8 @@ EXTEND FORM trip
         FILTER 'Не расписанные или в текущем рейсе' 'F11' filterTripInvoice(t, i)
         FILTER 'В текущем рейсе' 'F10' inTripInvoice(t, i) DEFAULT
 
-    FILTERS customerInvoice(i) == partyB() OR (i IS Invoice AND NOT partyB()),
-            supplierInvoice(i) == partyA() OR (i IS Invoice AND NOT partyA())
+    FILTERS customerInvoice(i) == customerTrip() OR (i IS Invoice AND NOT customerTrip()),
+            supplierInvoice(i) == supplierTrip() OR (i IS Invoice AND NOT supplierTrip())
 
     OBJECTS id=InvoiceDetail
     PROPERTIES (id) READONLY idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail, quantityInvoiceDetail, grossWeightInvoiceDetail, nameFromStockInvoiceDetail, nameToStockInvoiceDetail
