@@ -2,7 +2,9 @@ package equ.clt.handler.kristal;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
+import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
+import org.apache.log4j.Logger;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -18,6 +20,8 @@ import java.util.*;
 
 public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
+    protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    
     public KristalHandler() {
     }
 
@@ -165,7 +169,17 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             String exchangeDirectory = directory + "\\ImpExp\\Import\\";
 
             File flagSoftFile = new File(exchangeDirectory + "WAITSOFT");
-            if (flagSoftFile.exists() || flagSoftFile.createNewFile()) {
+            
+            Boolean flagExists = true;
+            try {
+                flagExists = flagSoftFile.exists() || flagSoftFile.createNewFile();
+                if(!flagExists) {
+                    logger.info("unable to create file " + flagSoftFile.getAbsolutePath());  
+                }
+            } catch(Exception e) {
+                logger.info("unable to create file " + flagSoftFile.getAbsolutePath(), e);
+            }
+            if (flagExists) {
                 File softFile = new File(exchangeDirectory + "softcheque" + timestamp + ".txt");
                 PrintWriter writer = new PrintWriter(
                         new OutputStreamWriter(
