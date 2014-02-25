@@ -1207,8 +1207,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
             String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
-            BigDecimal dataIndexValue = getXLSXBigDecimalFieldValue(sheet, importColumns.get("dataIndex"), i, String.valueOf(primaryList.size() + secondaryList.size() + 1));
-            Integer dataIndex = dataIndexValue == null ? null : dataIndexValue.intValue();
+            BigDecimal dataIndexValue = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("dataIndex"));
+            Integer dataIndex = dataIndexValue == null ? (primaryList.size() + secondaryList.size() + 1) : dataIndexValue.intValue();
             String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
             String idItemGroup = getXLSXFieldValue(sheet, i, importColumns.get("idItemGroup"));
             String originalCustomsGroupItem = getXLSXFieldValue(sheet, i, importColumns.get("originalCustomsGroupItem"));
