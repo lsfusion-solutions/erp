@@ -1,6 +1,6 @@
 MODULE CashRegister;
 
-REQUIRE System, Machinery, Store, LegalEntity, PaymentTerminal;
+REQUIRE System, Machinery, Store, LegalEntity;
 
 // Группы
 CLASS GroupCashRegister 'Группы касс' : GroupMachinery;
@@ -36,6 +36,14 @@ FORM cashRegistersModels 'Модели касс'
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG CashRegisterModel OBJECT c
 ;
+
+NAVIGATOR {
+    machineryNavigator {
+        NEW cashRegisterNavigator 'Кассы'{
+            ADD cashRegistersModels;
+        }
+    }
+}
 
 // Кассы
 CLASS CashRegister 'Касса' : Machinery;
@@ -84,18 +92,7 @@ operatorNumberCurrentCashRegister (user) = operatorNumberGroupCashRegisterCustom
 operatorNumberCurrentCashRegisterCurrentUser () = operatorNumberCurrentCashRegister (currentUser());
 countryCurrentCashRegister 'Страна кассы' = countryCashRegister(currentCashRegister());
 maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSumCashRegisterModel(cashRegisterModelCashRegister(currentCashRegister()));
-
-paymentTerminalModelCashRegister 'Модель платёжного терминала' = DATA PaymentTerminalModel(CashRegister) IN base;
-namePaymentTerminalModelCashRegister 'Модель платёжного терминала' (cashRegister) = nameModel(paymentTerminalModelCashRegister(cashRegister));
-comPortPaymentTerminalModelCashRegister 'Порт платёжного терминала' = DATA INTEGER (CashRegister) IN base;
-comPortCurrentPaymentTerminalModelCashRegister 'Порт платёжного терминала' = comPortPaymentTerminalModelCashRegister(currentCashRegister());
  
-comPortBoardCashRegister 'Порт табло' = DATA INTEGER (CashRegister) IN base;
-comPortBoardCurrentCashRegister 'Порт табло' = comPortBoardCashRegister(currentCashRegister());
-
-baudRateBoardCashRegister 'Скорость табло' = DATA INTEGER (CashRegister) IN base;
-baudRateBoardCurrentCashRegister 'Скорость табло' = baudRateBoardCashRegister(currentCashRegister());
-
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister FIXED PANEL
     PROPERTIES(c) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberCashRegister, directoryCashRegister, comPortCashRegister, baudRateCashRegister, nameModelMachinery,
@@ -112,8 +109,6 @@ FORM groupCashRegister 'Группа касс'
     OBJECTS c=CashRegister
     PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberCashRegister,
                     directoryCashRegister, comPortCashRegister, baudRateCashRegister, nameModelMachinery,
-                    namePaymentTerminalModelCashRegister, comPortPaymentTerminalModelCashRegister,
-                    comPortBoardCashRegister, baudRateBoardCashRegister,
                     dateCashRegister, hostnameComputerCashRegister, nameLegalEntityCashRegister, ADDOBJ, DELETESESSION
 
     OBJECTS cu=CustomUser
@@ -149,6 +144,12 @@ DESIGN groupsCashRegister FROM DEFAULT {
         ADD c.box;
     }
     ADD functions.box;
+}
+
+NAVIGATOR {
+    cashRegisterNavigator {
+        ADD groupsCashRegister;
+    }
 }
 
 // ----------------------------------------- Загрузка в ВУ -------------------------------------- //

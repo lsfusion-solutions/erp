@@ -1,6 +1,6 @@
 MODULE GiftCard;
 
-REQUIRE POS;
+REQUIRE ZReport;
 
 //подарочные сертификаты
 CLASS GiftCard 'Подарочный сертификат';
@@ -76,30 +76,6 @@ dateTimeGiftCardLedger(detail) += dateTimeReceipt(receiptReceiptGiftCardSaleDeta
 seriesNumberGiftCardLedger(detail) += seriesNumberGiftCard(giftCardReceiptGiftCardSaleDetail(detail));
 sumGiftCardLedger(detail) += sumReceiptGiftCardSaleDetail(detail);
 descriptionGiftCardLedger(detail) += 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
-
-//продажа подарочных сертификатов
-overChangeBarcodeGiftCard = ACTION (string, receipt) {
-    IF giftCardSeriesNumber(string) AND receipt IS Receipt AND string IS STRING[15] THEN {
-        LOCAL giftCard = GiftCard();
-        giftCard() <- giftCardSeriesNumber(string);
-
-        IF soldGiftCard(giftCard()) THEN {
-            MESSAGE 'Сертификат ' + seriesNumberGiftCard(giftCard()) +' был использован';
-        } ELSE {
-            FOR ADDOBJ d = ReceiptGiftCardSaleDetail DO {
-                receiptReceiptGiftCardSaleDetail(d) <- receipt;
-                giftCardReceiptGiftCardSaleDetail(d) <- giftCard();
-                idBarcodeReceiptDetail(d) <- string;
-                priceReceiptGiftCardSaleDetail(d) <- priceGiftCard(giftCard());
-                sumReceiptGiftCardSaleDetail(d) <- priceGiftCard(giftCard());
-                seek(d);
-            }
-        }
-        consumedChangeBarcodeSaleReceipt() <- TRUE;
-    }
-} TOOLBAR;
-
-overChangeBarcodeSaleReceipt(string, receipt) += overChangeBarcodeGiftCard(string, receipt);
 
 //генерация подарочных сертификатов
 FORM generationGiftCards 'Генерация подарочных сертификатов'
@@ -179,7 +155,7 @@ FORM giftCards 'Подарочные сертификаты'
 ;
 
 NAVIGATOR {
-    POSNavigator{
+    retailMasterData {
         ADD giftCards;
     }
 }
@@ -244,37 +220,6 @@ sumGiftCardPaymentReceipt 'Сумма продаж (сертификат)' (rece
 sumGiftCardPaymentZReport 'Сумма продаж (сертификат)' (zReport) = GROUP SUM sumGiftCardPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
 
 minGiftCardPaymentType() = GROUP MIN paymentType IF paymentMeansPaymentType(paymentType) == PaymentMeans.paymentMeansGiftCard;
-
-addPaymentGiftCard 'Оплатить сертификатом' = ACTION (receipt) {
-    FOR ADDOBJ pg = PaymentGiftCard DO {
-        FORM barcodeInput MODAL;
-        IF formResult() == FormResult.ok AND isSoldGiftCard(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS STRING[15] AND 
-           NOT expireDateGiftCard(giftCardSeriesNumber(barcodeInput())) < currentDate() THEN {
-            LOCAL giftCard = GiftCard();
-            giftCard() <- giftCardSeriesNumber(barcodeInput());
-            giftCardPaymentGiftCard(pg) <- giftCard();
-            receiptPayment(pg) <- receipt;
-            paymentTypePayment(pg) <- minGiftCardPaymentType();
-            sumPayment(pg) <- priceGiftCard(giftCard());
-        } ELSE {
-            DELETE pg;
-            MESSAGE 'Сертификат не найден или истек';
-        }
-    }
-}
-
-EXTEND FORM postReceiptPayment
-    PROPERTIES addPaymentGiftCard(r) TODRAW p FORCE PANEL SHOWIF allowPaymentGiftCard()
-;
-
-EXTEND DESIGN postReceiptPayment {
-    rightControls{
-        ADD PROPERTY(addPaymentGiftCard(r)) BEFORE PROPERTY(formOk()){
-            fill = 1;
-            font = 'bold 28';
-        }
-    }
-}
 
 sumGiftCardReceiptDetailZReportRange 'Сумма (сертификат) по товарам' (zReport, range) = sumReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansGiftCard, range);
 sumVATGiftCardReceiptDetailZReportRange 'Сумма НДС (сертификат) по товарам' (zReport, range) = sumVATReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansGiftCard, range);

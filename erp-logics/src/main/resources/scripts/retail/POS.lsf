@@ -1,6 +1,6 @@
 MODULE POS;
 
-REQUIRE ZReport, Dashboard;
+REQUIRE ZReportRetailCRM, Dashboard, PaymentTerminal;
 
 // ----------------------------- Расширяем форму отдела магазина нужными нам параметрами --------------------- //
 
@@ -79,6 +79,10 @@ noFiscalPostPrintReceipt 'Создать чек (без фискального �
     }
 }
 postPrintReceipt(receipt) += ACTION IF NOT sidCashRegisterModelReceipt(receipt) THEN noFiscalPostPrintReceipt(receipt);
+
+// Оплата через платежный терминал
+paymentTerminalModelReceipt (receipt) = paymentTerminalModelCashRegister(cashRegisterReceipt(receipt));
+sidPaymentTerminalModelReceipt 'Код модели' (receipt) = sidModel(paymentTerminalModelReceipt(receipt));
 
 postPaymentTerminalReceipt 'Оплата через платёжный терминал' = ABSTRACT ACTION LIST (Receipt);
 postPaymentTerminalReceiptResult = DATA SESSION VARSTRING[100] (); 
@@ -972,14 +976,6 @@ WHEN SESSION FORMS POS CHANGED(quantityReceiptDetail(receiptDetail)) OR CHANGED(
 WHEN SESSION FORMS POS CHANGED(discountCardReceipt(receipt)) DO EXEC recalculatedPriceReceipt(receipt);
 
 NAVIGATOR {
-    retailNavigator {
-        NEW POSNavigator 'Касса' BEFORE retailMasterData {
-            ADD zReports;
-            ADD groupsCashRegister;
-            ADD cashRegistersModels;
-            ADD paymentTerminalsModels;
-        }
-    }
     retailDashboardNavigator {
         ADD POS;
         ADD operationCashRegister;

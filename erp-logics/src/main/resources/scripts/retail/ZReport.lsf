@@ -12,8 +12,7 @@ REQUIRE System,
         CashRegister,
         CashOperation,
         SaleLedger,
-        RetailCRM,
-        PaymentTerminal,
+        DiscountCard,
         PriceRoundStore,
         PriceListType,
         PaymentLedger,
@@ -81,6 +80,7 @@ TABLE receiptSaleDetail (ReceiptSaleDetail);
 TABLE receiptReturnDetail (ReceiptReturnDetail);
 
 @defineDocumentRelation(zReport, Receipt);
+numberZReportReceipt 'Номер Z-отчета' (receipt) = numberZReport(zReportReceipt(receipt)) IN recognize;
 cashRegisterReceipt (receipt) = cashRegisterZReport(zReportReceipt(receipt));
 numberCashRegisterReceipt 'Номер кассы' (receipt) = numberCashRegister(cashRegisterReceipt(receipt)) IN recognize;
 
@@ -88,10 +88,6 @@ groupCashRegisterReceipt (receipt) = groupCashRegisterCashRegister(cashRegisterR
 
 cashRegisterModelReceipt (receipt) = cashRegisterModelCashRegister(cashRegisterReceipt(receipt));
 sidCashRegisterModelReceipt 'Код модели' (receipt) = sidModel(cashRegisterModelReceipt(receipt));
-
-paymentTerminalModelReceipt (receipt) = paymentTerminalModelCashRegister(cashRegisterReceipt(receipt));
-sidPaymentTerminalModelReceipt 'Код модели' (receipt) = sidModel(paymentTerminalModelReceipt(receipt));
-numberZReportReceipt 'Номер Z-отчета' (receipt) = numberZReport(zReportReceipt(receipt)) IN recognize;
 
 userReceipt = DATA CustomUser(Receipt);
 nameUserReceipt 'Кассир' (receipt) = nameContact(userReceipt(receipt));
@@ -645,12 +641,6 @@ accountToPaymentLedger(zReportCard) += accountLegalEntity(legalEntityCashRegiste
 legalEntityToPaymentLedger(zReportCard) += legalEntityCashRegister(cashRegisterZReport(zReportZReportCard(zReportCard)));
 sumPaymentLedger(zReportCard) += sumMeansCardZReport(zReportZReportCard(zReportCard));
 
-// ----------------------------------- Расчет сумм скидок ------------------------------------- // 
-TABLE receiptSaleDetailPromotionCondition(ReceiptSaleDetail, PromotionCondition);
-quantityReceiptSaleDetailPromotionCondition 'Кол-во по акции' = DATA NUMERIC[14,3] (ReceiptSaleDetail, PromotionCondition) INDEXED;
-promotionSumReceiptSaleDetailPromotionCondition 'Сумма скидки' = DATA NUMERIC[16,2] (ReceiptSaleDetail, PromotionCondition);
-setUserPromotionReceiptSaleDetailPromotionCondition 'Применить скидку' = DATA BOOLEAN (ReceiptSaleDetail, PromotionCondition);
-
 //----------------------------------- Формы -------------------------------------------------//
 
 FORM zReport 'Z-отчет'
@@ -787,6 +777,14 @@ DESIGN zReports FROM DEFAULT{
     ADD functions.box;
 }
 @defineFilterIsOpened (zReport, zReports, z);
+
+NAVIGATOR {
+    retailNavigator {
+        NEW ZReportNavigator 'Касса' BEFORE retailMasterData {
+            ADD zReports;
+        }
+    }
+}
 // ----------------------------------------------- Стандартные значения ------------------------------------- //
 
 loadDefaultPaymentType 'Добавить тип оплаты' = ACTION(string, paymentMeans, sid) {

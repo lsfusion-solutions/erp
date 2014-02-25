@@ -1,6 +1,6 @@
 MODULE PaymentTerminal;
 
-REQUIRE System, Machinery, Store, LegalEntity;
+REQUIRE System, Machinery, Store, LegalEntity, CashRegister;
 
 // Модели
 CLASS PaymentTerminalModel 'Модель платёжных терминалов' : Model;
@@ -20,6 +20,23 @@ FORM paymentTerminalsModels 'Модели платёжных терминало�
     PROPERTIES(p) READONLY namePaymentTerminalModel, sidModel, handlerModel, noteModel
     PROPERTIES(p) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG PaymentTerminalModel OBJECT p
+;
+
+NAVIGATOR {
+    cashRegisterNavigator {
+        ADD paymentTerminalsModels; 
+    }
+}
+
+// Привязываем кассу к платежным терминалам 
+paymentTerminalModelCashRegister 'Модель платёжного терминала' = DATA PaymentTerminalModel(CashRegister) IN base;
+namePaymentTerminalModelCashRegister 'Модель платёжного терминала' (cashRegister) = nameModel(paymentTerminalModelCashRegister(cashRegister));
+
+comPortPaymentTerminalModelCashRegister 'Порт платёжного терминала' = DATA INTEGER (CashRegister) IN base;
+comPortCurrentPaymentTerminalModelCashRegister 'Порт платёжного терминала' = comPortPaymentTerminalModelCashRegister(currentCashRegister());
+
+EXTEND FORM groupCashRegister 
+    PROPERTIES(c) namePaymentTerminalModelCashRegister, comPortPaymentTerminalModelCashRegister
 ;
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //

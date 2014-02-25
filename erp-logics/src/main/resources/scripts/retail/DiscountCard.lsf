@@ -1,0 +1,126 @@
+MODULE DiscountCard;
+
+REQUIRE Retail, LegalEntity, Numerator;
+
+CLASS DiscountCard 'Дисконтная карта';
+TABLE discountCard (DiscountCard);
+@defineExternalizable(discountCard, VARSTRING[100]);
+
+@defineNumbered(DiscountCard);
+@defineNumeratedDefault(DiscountCard, 'Дисконтные карты', 'ДС');
+
+discountCardSeriesNumber (discountCard) = GROUP AGGR discountCard BY seriesNumberDiscountCard (discountCard) WHERE discountCard IS DiscountCard;
+discountCardNumber (discountCard) = GROUP MAX discountCard BY numberDiscountCard(discountCard) IF discountCard IS DiscountCard;
+
+// Держатель
+legalEntityDiscountCard (discountCard) = DATA LegalEntity(DiscountCard);
+nameLegalEntityDiscountCard 'Держатель дисконтной карты' (discountCard) = nameLegalEntity(legalEntityDiscountCard(discountCard)) IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 40;
+
+// Сроки действия
+GROUP discountCardDate 'Срок действия' : base;
+dateDiscountCard 'Дата выдачи' (discountCard) = DATA DATE (DiscountCard) IN discountCardDate;
+dateDiscountCard (discountCard) <- currentDate() WHEN SET(discountCard IS DiscountCard);
+
+dateToDiscountCard 'Дата окончания действия' (discountCard) = DATA DATE (DiscountCard) IN discountCardDate;
+
+initialSumDiscountCard 'Начальная сумма' (discountCard) = DATA NUMERIC[16,2] (DiscountCard);
+
+// Генерация дисконтных карт
+FORM generationDiscountCards 'Генерация дисконтных карт'
+    OBJECTS n=Numerator  FIXED PANEL
+    PROPERTIES(n) SELECTOR nameNumerator
+
+    OBJECTS quantityCards=INTEGER FIXED PANEL
+    PROPERTIES(quantityCards) intValueQuantityCards = OBJVALUE;
+
+DESIGN generationDiscountCards FROM DEFAULT {
+    main{
+        PROPERTY(intValueQuantityCards) {
+            caption = 'Количество дисконтных карт';
+        }
+    }
+}
+
+
+generateDiscountCards 'Сгенерировать дисконтные карты' = ACTION() {
+    FORM generationDiscountCards OBJECTS n=defaultNumeratorDiscountCard() MODAL CHECK;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL num = INTEGER();
+        ASSIGN num() <- 0;
+        WHILE num() < chosenInteger('quantityCards') DO {
+            FOR ADDOBJ d = DiscountCard DO {
+                // todo : делается влоб, поскольку numerator сейчас не умеет генерировать сразу несколько объектов
+                ASSIGN numeratorDiscountCard(d) <- chosenObject('n');
+                ASSIGN numberDiscountCard(d) <- curStringValueNumerator(numeratorDiscountCard(d));
+                ASSIGN seriesDiscountCard(d) <- seriesNumerator(numeratorDiscountCard(d));
+                ASSIGN curValueNumerator(numerator) <- curValueNumerator(numerator) + 1 WHERE numerator == numeratorDiscountCard(d);
+                ASSIGN num() <- num() + 1;
+            }
+        }
+    }
+} TOOLBAR;
+
+// Формы по работе с дисконтными картами
+FORM discountCard 'Дисконтная карта'
+    OBJECTS d=DiscountCard FIXED PANEL
+    PROPERTIES(d) nameLegalEntityDiscountCard, idDiscountCard SHOWIF showIDs(), initialSumDiscountCard,
+                  nameNumeratorDiscountCard, numberDiscountCard, seriesDiscountCard,
+                  dateDiscountCard, dateToDiscountCard
+
+    EDIT DiscountCard OBJECT d
+;
+
+DESIGN discountCard FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+        d.box {
+            d.panel {
+                type = CONTAINERV;
+                NEW row1 {
+                    type = CONTAINERH;
+                    ADD PROPERTY(nameLegalEntityDiscountCard(d)) {
+                        font = '24';
+                    }
+                    ADD PROPERTY(initialSumDiscountCard(d)) {
+                        font = '24';
+                    }                    
+                }
+                NEW row2 {
+                    type = CONTAINERH;
+                    NEW row21{
+                        caption = 'Код';
+                        ADD PROPERTY(idDiscountCard(d));
+                    }
+                    ADD d.numbered;
+                    ADD d.discountCardDate;
+                }
+            }
+        }
+    }
+}
+
+FORM discountCardDialog 'Дисконтные карты'
+
+    OBJECTS d = DiscountCard
+    PROPERTIES(d) READONLY numberDiscountCard, seriesDiscountCard, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, initialSumDiscountCard,
+                         dateDiscountCard, dateToDiscountCard
+
+    DIALOG DiscountCard OBJECT d
+;
+
+FORM discountCards 'Дисконтные карты'
+    OBJECTS d=DiscountCard
+    PROPERTIES(d) READONLY numberDiscountCard, seriesDiscountCard, idDiscountCard SHOWIF showIDs(), nameLegalEntityDiscountCard, 
+                           dateDiscountCard, dateToDiscountCard, initialSumDiscountCard
+    PROPERTIES(d) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+
+    ORDER BY seriesDiscountCard(d), numberDiscountCard(d)
+
+    PROPERTIES() generateDiscountCards TODRAW d
+;
+
+NAVIGATOR {
+    retailMasterData {
+        ADD discountCards;
+    }
+}
