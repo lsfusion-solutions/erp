@@ -1031,8 +1031,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ThreadLocalContext.set(logicsInstance.getContext());
             DataSession session = getDbManager().createSession();
             Integer equipmentServerID = (Integer) equLM.findLCPByCompoundOldName("sidToEquipmentServer").read(session, new DataObject(equipmentServer, StringClass.get(20)));
-            Integer delay = (Integer) equLM.findLCPByCompoundOldName("delayEquipmentServer").read(session, new DataObject(equipmentServerID, (ConcreteClass) equLM.findClassByCompoundName("EquipmentServer")));
-            return new EquipmentServerSettings(delay);
+            if (equipmentServerID != null) {
+                Integer delay = (Integer) equLM.findLCPByCompoundOldName("delayEquipmentServer").read(session, new DataObject(equipmentServerID, (ConcreteClass) equLM.findClassByCompoundName("EquipmentServer")));
+                return new EquipmentServerSettings(delay);
+            } else return null;
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }

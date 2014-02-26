@@ -67,7 +67,9 @@ public class EquipmentServer {
                             if (remote != null) {
                                 try {
                                     equipmentServerSettings = remote.readEquipmentServerSettings(equServerID);
-                                    if (equipmentServerSettings.delay != null)
+                                    if(equipmentServerSettings == null) {
+                                        logger.error("Equipment Server " + equServerID + " not found"); 
+                                    } else if (equipmentServerSettings.delay != null)
                                         millis = equipmentServerSettings.delay;
                                 } catch (RemoteException e) {
                                     logger.error("Get remote logics error : ", e);
