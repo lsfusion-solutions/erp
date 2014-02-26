@@ -62,6 +62,9 @@ CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 
 @defineDocumentHeaderVATSum(invoice, invoice);
 
+CONSTRAINT isItemSku(skuInvoiceDetail(detail)) AND isPostedInvoice(invoiceInvoiceDetail(detail)) AND NOT valueVATInvoiceDetail(detail)
+    MESSAGE 'Не задан НДС для строки товара';
+
 @defineDocumentAbstractDetailNote (InvoiceDetail);
 
 @defineDocumentAbstractHeaderDescription(Invoice);
@@ -615,6 +618,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
         DIALOG InvoiceDetail OBJECT d
     ;
 
+    backgroundVATUserInvoiceDetail(d) += WHEN isItemSku(skuUserInvoiceDetail(d)) AND NOT 
+        (valueVATUserInvoiceDetail(d) == valueVATSkuCountryDate(skuUserInvoiceDetail(d), countryStock(customerStockUserInvoiceDetail(d)), dateUserInvoiceDetail(d))) 
+            THEN RGB(255,0,0); 
 END
 
 // -------------------------- Метакод по добавлению партий ------------------------- //
