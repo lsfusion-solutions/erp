@@ -86,7 +86,7 @@ FORM sizeMappings 'Соответствие размеров'
                    
 ;
 
-sizeMappingItemGroupSizeBrand (g, s, b)= GROUP AGGR m BY itemGroupSizeMapping(m), sizeSizeMapping(m), brandSizeMapping(m);
+sizeMappingItemGroupSizeBrand (g, s, b)= GROUP MAX m BY itemGroupSizeMapping(m), sizeSizeMapping(m), brandSizeMapping(m);
  
 levelParentSizeMappingItemGroupSizeBrand (itemGroup, size, brand) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF sizeMappingItemGroupSizeBrand(parent, size, brand)
                                                                   BY itemGroup, size, brand PERSISTENT;    
@@ -96,17 +96,32 @@ nearestSizeMappingItemGroupSizeBrand (itemGroup, size, brand) = sizeMappingItemG
 overSizeMappingItemGroupSizeBrand 'Соответствие по-умолчанию' (itemGroup, size, brand) =
     OVERRIDE nearestSizeMappingItemGroupSizeBrand(itemGroup, size, brand), 
              sizeMappingItemGroupSizeBrand(itemGroup, size, brand) PERSISTENT;    
+             
+sizeMappingItemGroupSize (g, s)= GROUP MAX m BY itemGroupSizeMapping(m), sizeSizeMapping(m);
+levelParentSizeMappingItemGroupSize (itemGroup, size) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF sizeMappingItemGroupSize(parent, size)
+                                                                  BY itemGroup, size PERSISTENT;    
+nearestParentSizeMappingItemGroupSize (itemGroup, size) = itemGroupItemGroupLevel(itemGroup, levelParentSizeMappingItemGroupSize(itemGroup, size));
+nearestSizeMappingItemGroupSize (itemGroup, size) = sizeMappingItemGroupSize(nearestParentSizeMappingItemGroupSize (itemGroup, size), size);
 
-
+overSizeMappingItemGroupSize 'Соответствие по-умолчанию' (itemGroup, size) =
+    OVERRIDE nearestSizeMappingItemGroupSize(itemGroup, size), 
+             sizeMappingItemGroupSize(itemGroup, size) PERSISTENT;  
+             
 META createSizeMappingExAttribute(property, mappingProp, captionProp, shortcutProp, prefix)
 
     countMappingEx###property###prefix###item (i)= GROUP SUM 1 IF  isISubstring(captionItem(i), nameSizeMappingEx(mx)) == 1 AND mappingProp###sizeMappingEx(mx) BY i;
     
     mappingProp###prefix###sizeMappingItemGroupSizeBrand (g, s, b) = mappingProp###sizeMapping(overSizeMappingItemGroupSizeBrand(g, s, b));  //  sizeMappingItemGroupSizeBrand
+    mappingProp###prefix###sizeMappingItemGroupSize (g, s) = mappingProp###sizeMapping(overSizeMappingItemGroupSize(g, s));
     map###property###prefix###item 'Заполнить '##captionProp##' по соответствию' (i) =  ACTION (i) {
         IF countMappingExItem(i) THEN {
-            property###prefix###item(i) <- mappingProp###sizeMappingItemGroupSizeBrand (itemGroupItem(i), sizeItem(i), brandItem(i)) 
-                WHERE  countMappingEx###property###prefix###item (i); 
+            IF overSizeMappingItemGroupSizeBrand (itemGroupItem(i), sizeItem(i), brandItem(i)) THEN {
+                property###prefix###item(i) <- mappingProp###sizeMappingItemGroupSizeBrand (itemGroupItem(i), sizeItem(i), brandItem(i)) 
+                    WHERE  countMappingEx###property###prefix###item (i); 
+            } ELSE {               
+                property###prefix###item(i) <- mappingProp###sizeMappingItemGroupSize (itemGroupItem(i), sizeItem(i)) 
+                    WHERE  countMappingEx###property###prefix###item (i);             
+            }
         }             
     } SHORTCUT shortcutProp###item; 
 END
