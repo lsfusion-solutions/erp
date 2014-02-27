@@ -89,7 +89,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail.modify(arg.trim(), arg.trim()), row);
+                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail.clone(arg.trim(), arg.trim()), row);
                         dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
                     }
                     value = formatValue(dividedValue);
@@ -97,7 +97,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail.modify(arg.trim(), arg.trim()), row);
+                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail.clone(arg.trim(), arg.trim()), row);
                         multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
                     }
                     value = formatValue(multipliedValue);
@@ -105,7 +105,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail.modify(arg.trim(), arg.trim()), row);
+                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail.clone(arg.trim(), arg.trim()), row);
                         subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
                     }
                     value = formatValue(subtractedValue);
@@ -200,7 +200,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.modify(arg.trim(), arg.trim()));
+                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg.trim(), arg.trim()));
                         dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
                     }
                     value = formatValue(dividedValue);
@@ -208,7 +208,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.modify(arg.trim(), arg.trim()));
+                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg.trim(), arg.trim()));
                         multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
                     }
                     value = formatValue(multipliedValue);
@@ -216,7 +216,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.modify(arg.trim(), arg.trim()));
+                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg.trim(), arg.trim()));
                         subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
                     }
                     value = formatValue(subtractedValue);
@@ -236,7 +236,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 } else if (isDatePatternedValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getXLSFieldValue(sheet, row, importColumnDetail.modify(splittedCell[0], splittedCell[0])));
+                    Date date = parseDate(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0], splittedCell[0])));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedCell, calendar);
@@ -326,7 +326,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.modify(arg.trim(), arg.trim()));
+                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg.trim(), arg.trim()));
                         dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
                     }
                     value = formatValue(dividedValue);
@@ -334,7 +334,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.modify(arg.trim(), arg.trim()));
+                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg.trim(), arg.trim()));
                         multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
                     }
                     value = formatValue(multipliedValue);
@@ -342,7 +342,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.modify(arg.trim(), arg.trim()));
+                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg.trim(), arg.trim()));
                         subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
                     }
                     value = formatValue(subtractedValue);
@@ -362,7 +362,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 } else if (isDatePatternedValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getXLSXFieldValue(sheet, row, isDate, importColumnDetail.modify(splittedCell[0], splittedCell[0]), false));
+                    Date date = parseDate(getXLSXFieldValue(sheet, row, isDate, importColumnDetail.clone(splittedCell[0], splittedCell[0]), false));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedCell, calendar);
@@ -475,7 +475,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = column.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail.modify(arg.trim(), arg.trim()), row, charset);
+                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg.trim(), arg.trim()), row, charset);
                         dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
                     }
                     value = formatValue(dividedValue);
@@ -483,7 +483,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = column.split("\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail.modify(arg.trim(), arg.trim()), row, charset);
+                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg.trim(), arg.trim()), row, charset);
                         multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
                     }
                     value = formatValue(multipliedValue);
@@ -491,7 +491,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = column.split("\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail.modify(arg.trim(), arg.trim()), row, charset);
+                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg.trim(), arg.trim()), row, charset);
                         subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
                     }
                     value = formatValue(subtractedValue);
@@ -581,7 +581,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = column.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.modify(arg.trim(), arg.trim()), row);
+                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg.trim(), arg.trim()), row);
                         dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
                     }
                     value = formatValue(dividedValue);
@@ -589,7 +589,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = column.split("\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.modify(arg.trim(), arg.trim()), row);
+                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg.trim(), arg.trim()), row);
                         multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
                     }
                     value = formatValue(multipliedValue);
@@ -597,7 +597,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = column.split("\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.modify(arg.trim(), arg.trim()), row);
+                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg.trim(), arg.trim()), row);
                         subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
                     }
                     value = formatValue(subtractedValue);
