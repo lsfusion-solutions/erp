@@ -387,6 +387,7 @@ public class ImportActionProperty {
         ImportField idUOMField = new ImportField(LM.findLCPByCompoundOldName("idUOM"));
         ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("UOM"),
                 LM.findLCPByCompoundOldName("UOMId").getMapping(idUOMField));
+        UOMKey.skipKey = true;
         keys.add(UOMKey);
         props.add(new ImportProperty(idUOMField, LM.findLCPByCompoundOldName("UOMItem").getMapping(itemKey),
                 LM.object(LM.findClassByCompoundName("UOM")).getMapping(UOMKey)));

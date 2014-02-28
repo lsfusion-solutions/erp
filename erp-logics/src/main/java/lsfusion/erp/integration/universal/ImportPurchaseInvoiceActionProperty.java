@@ -383,6 +383,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) getClass("UOM"),
                         getLCP("UOMId").getMapping(idUOMField));
                 keys.add(UOMKey);
+                props.add(new ImportProperty(idUOMField, getLCP("idUOM").getMapping(UOMKey), getReplaceOnlyNull(importColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, getLCP("nameUOM").getMapping(UOMKey), getReplaceOnlyNull(importColumns, "idUOM")));
                 props.add(new ImportProperty(idUOMField, getLCP("UOMItem").getMapping(itemKey),
                         LM.object(getClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(importColumns, "idUOM")));
                 fields.add(idUOMField);
