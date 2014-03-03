@@ -62,7 +62,11 @@ CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 
 @defineDocumentHeaderVATSum(invoice, invoice);
 
-CONSTRAINT isItemSku(skuInvoiceDetail(detail)) AND isPostedInvoice(invoiceInvoiceDetail(detail)) AND NOT valueVATInvoiceDetail(detail)
+notNullInvoiceVAT 'В накладной должен быть задан НДС' = DATA BOOLEAN ();
+EXTEND FORM options PROPERTIES notNullInvoiceVAT();
+EXTEND DESIGN options { commons { ADD PROPERTY(notNullInvoiceVAT()); } }
+
+CONSTRAINT notNullInvoiceVAT() AND isItemSku(skuInvoiceDetail(detail)) AND isPostedInvoice(invoiceInvoiceDetail(detail)) AND NOT valueVATInvoiceDetail(detail)
     MESSAGE 'Не задан НДС для строки товара';
 
 @defineDocumentAbstractDetailNote (InvoiceDetail);
