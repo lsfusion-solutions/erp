@@ -1,0 +1,19 @@
+MODULE CashOperationPaymentLedger;
+
+REQUIRE CashOperation, CashPaymentLedger;
+
+NAMESPACE CashOperation;
+
+EXTEND CLASS CashOperation : PaymentLedger;
+
+dateTimePaymentLedger(cashDocument) += dateTimeCashDocument(cashDocument);
+isPostedPaymentLedger(cashDocument) += isPostedCashDocument(cashDocument);
+descriptionPaymentLedger(cashDocument) += basisCashDocument(cashDocument);
+
+accountToPaymentLedger(incomeCashOrder) += cashAccountDepartmentStore(departmentStoreCashDocument(incomeCashOrder)) IF incomeCashOrder IS IncomeCashOrder;
+legalEntityToPaymentLedger(incomeCashOrder) += legalEntityDepartmentStore(departmentStoreCashDocument(incomeCashOrder)) IF incomeCashOrder IS IncomeCashOrder;
+sumPaymentLedger(incomeCashOrder) += sumCashIncomeCashOrder(incomeCashOrder);
+
+accountFromPaymentLedger(outcomeCashOrder) += cashAccountDepartmentStore(departmentStoreCashDocument(outcomeCashOrder)) IF outcomeCashOrder IS OutcomeCashOrder;
+legalEntityFromPaymentLedger(outcomeCashOrder) += legalEntityDepartmentStore(departmentStoreCashDocument(outcomeCashOrder)) IF outcomeCashOrder IS OutcomeCashOrder;
+sumPaymentLedger(outcomeCashOrder) += sumCashOutcomeCashOrder(outcomeCashOrder);

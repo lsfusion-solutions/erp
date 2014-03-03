@@ -1,6 +1,6 @@
 MODULE POS;
 
-REQUIRE ZReportRetailCRM, Dashboard, PaymentTerminal;
+REQUIRE ZReportRetailCRM, Dashboard, PaymentTerminal, CashOperation;
 
 // ----------------------------- Расширяем форму отдела магазина нужными нам параметрами --------------------- //
 
@@ -549,19 +549,12 @@ openCurrentZReport 'Открыть Z-отчет' = ACTION () {
     }
 } CONFIRM IN receiptZReport;
 
+overCloseZReport = ABSTRACT ACTION LIST (ZReport);
 closeCurrentZReport 'Закрыть Z-отчет' = ACTION () {
     cancel();
     timeZReport(z) <- currentTime() WHERE z == currentZReport();
     dateZReport(z) <- currentDate() WHERE z == currentZReport();
-    IF curSumCashCashOperation(cashRegisterZReport(currentZReport())) THEN {
-        FOR ADDOBJ o = OutcomeCashOperation DO {
-            dateOutcomeCashOperation(o) <- dateZReport(currentZReport());
-            timeOutcomeCashOperation(o) <- timeZReport(currentZReport());
-            departmentStoreOutcomeCashOperation(o) <- departmentStoreZReport(currentZReport());
-            cashRegisterOutcomeCashOperation(o) <- cashRegisterZReport(currentZReport());
-            sumCashOutcomeCashOperation(o) <- curSumCashCashOperation(cashRegisterZReport(currentZReport()));
-        }
-    }
+    overCloseZReport(currentZReport());
     zReportCashRegister(cashRegister) <- NULL WHERE cashRegister == currentCashRegister();
     apply();
 } CONFIRM IN receiptZReport;
@@ -978,8 +971,6 @@ WHEN SESSION FORMS POS CHANGED(discountCardReceipt(receipt)) DO EXEC recalculate
 NAVIGATOR {
     retailDashboardNavigator {
         ADD POS;
-        ADD operationCashRegister;
-        ADD centralCashRegister;
     }
 }
 

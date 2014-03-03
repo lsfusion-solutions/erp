@@ -1,0 +1,194 @@
+MODULE Collection;
+
+REQUIRE CashOperationZReport;
+
+NAMESPACE CashOperation;
+
+CLASS Collection 'Инкассация' : OutcomeCashOrder;
+TABLE collection (Collection);
+
+isCollection (collection) = collection IS Collection;
+
+@defineDocumentHeaderCreated(Collection);
+@defineDocumentHeaderNumber(Collection);
+
+@defineNumeratedDefault(Collection, 'Инкассации', 'ИН');
+
+@defineDocumentHeaderTime(Collection);
+@deriveDocumentHeaderTimePrefix(Collection, );
+@defineDocumentHeaderDepartmentStore(collection);
+
+@defineDocumentHeaderDescription (Collection, 'Инкассация');
+
+bankAccountCollection = DATA Bank.Account (Collection);
+bankAccountCollection(collection) <- bankAccountStore(storeDepartmentStore(departmentStoreCollection(collection)))
+    WHEN SET(departmentStoreCollection(collection));
+
+sumCashCollection 'Сумма инкассации' = DATA NUMERIC[16,2] (Collection) IN documentSum;
+castBasisCollection =
+    FORMULA VARSTRING[100] '\'Инкассация №\' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT)';
+basisCollection 'Основание' (collection) =
+    castBasisCollection(seriesNumberCollection(collection), dateCollection(collection)) IN documentPrm;
+
+dateCashDocument(collection) += dateCollection(collection);
+timeCashDocument(collection) += timeCollection(collection);
+numberCashDocument(collection) += seriesNumberCollection(collection) IF collection IS Collection;
+departmentStoreCashDocument(collection) += departmentStoreCollection(collection);
+sumCashOutcomeCashOrder(collection) += sumCashCollection(collection);
+basisCashDocument(collection) += basisCollection(collection);
+isPostedCashDocument(collection) += collection IS Collection;
+
+sumCashForCollection 'Сумма инкассации' = DATA SESSION NUMERIC[16,2] (DepartmentStore);
+
+FORM addCollection 'Инкассация'
+
+    OBJECTS dt = DATE FIXED PANEL
+    PROPERTIES(dt) date = OBJVALUE
+
+    OBJECTS t = TIME FIXED PANEL
+    PROPERTIES(t) time = OBJVALUE
+
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES(d) nameDepartmentStore SELECTOR, sumCashForCollection
+;
+
+DESIGN addCollection FROM DEFAULT {
+    NEW topContainer {
+        type = SPLITV;
+        NEW firstCase {
+            type = CONTAINERH;
+            NEW dateTimeContainer{
+                caption = 'Дата/время';
+                ADD PROPERTY(date);
+                ADD PROPERTY(time);
+            }
+            ADD d.box;
+        }
+    }
+    ADD functions.box;
+}
+
+FORM collection 'Инкассация'
+    OBJECTS c = Collection FIXED PANEL
+    PROPERTIES(c) numberCollection, seriesCollection, dateCollection, timeCollection, nameDepartmentStoreCollection,
+                  sumCashCollection, basisCollection
+
+    EDIT Collection OBJECT c
+;
+
+DESIGN collection FROM DEFAULT {
+    NEW topContainer{
+        type = CONTAINERH;
+        NEW firstCase{
+            type = CONTAINERH;
+            caption = 'Шапка документа';
+            ADD PROPERTY(numberCollection(c));
+            ADD PROPERTY(seriesCollection(c));
+            ADD PROPERTY(dateCollection(c));
+            ADD PROPERTY(timeCollection(c));
+        }
+        NEW secondCase{
+            caption = 'Параметры документа';
+            ADD PROPERTY(nameDepartmentStoreCollection(c));
+            ADD PROPERTY(basisCollection(c));
+        }
+        NEW thirdCase{
+            caption = 'Суммы';
+            ADD PROPERTY(sumCashCollection(c));
+        }
+    }
+    ADD functions.box;
+}
+
+addCollectionForm 'Инкассация' () = ACTION () {
+    FORM addCollection MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR sumCashForCollection(departmentStore) DO {
+            FOR ADDOBJ c = Collection DO {
+                departmentStoreCollection(c) <- departmentStore;
+                dateCollection(c) <- chosenDate('dt');
+                timeCollection(c) <- chosenTime('t');
+                sumCashCollection(c) <- sumCashForCollection(departmentStore);
+                generateSeriesNumberCollection(c);
+            }
+        }
+        EXEC apply();
+    }
+} TOOLBAR;
+
+editCollection 'Редактировать' (collection) = ACTION EDITFORM Collection;
+
+FORM centralCashRegister 'Центральная касса'
+
+    OBJECTS interval = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
+
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES(d) nameDepartmentStore SELECTOR
+    PROPERTIES(d) READONLY curSumCashDepartmentStore
+
+    OBJECTS i = IncomeCashOrder
+    PROPERTIES(i) READONLY objectClassName, numberCashDocument, dateCashDocument, timeCashDocument, nameDepartmentStoreCashDocument,
+                           numberCashRegisterCashDocument, sumCashIncomeCashOrder, basisCashDocument, isPrintedIncomeCashOrder
+    PROPERTIES(i) READONLY isCompleteCashOperation FORCE GRID
+    PROPERTIES addOutcomeCashOperationForm() TODRAW i FORCE PANEL TOOLBAR
+    PROPERTIES editOutcomeCashOperation(i) SHOWIF isOutcomeCashOperation(i)
+    PROPERTIES(i) DELETE FORCE PANEL TOOLBAR
+    ORDER BY dateCashDocument(i), timeCashDocument(i)
+
+    FILTERS departmentStoreCashDocument(i) == d,
+            dateCashDocument(i) >= dFrom,
+            dateCashDocument(i) <= dTo
+
+    OBJECTS o = OutcomeCashOrder
+    PROPERTIES(o) READONLY numberCashDocument, dateCashDocument, timeCashDocument, nameDepartmentStoreCashDocument,
+                           numberCashRegisterCashDocument, sumCashOutcomeCashOrder, basisCashDocument, isPrintedOutcomeCashOrder
+    PROPERTIES addIncomeCashOperationForm() TODRAW o FORCE PANEL TOOLBAR
+    PROPERTIES addCollectionForm() TODRAW o FORCE PANEL TOOLBAR
+    PROPERTIES editIncomeCashOperation(o) SHOWIF isIncomeCashOperation(o)
+    PROPERTIES editCollection(o) SHOWIF isCollection(o)
+    PROPERTIES(o) DELETE FORCE PANEL TOOLBAR
+    ORDER BY dateCashDocument(o), timeCashDocument(o)
+    FILTERS departmentStoreCashDocument(o) == d,
+            dateCashDocument(o) >= dFrom,
+            dateCashDocument(o) <= dTo,
+            isPostedCashDocument(i),
+            isPostedCashDocument(o)
+;
+@extendFormFilterStockAccess(DepartmentStore, d, centralCashRegister);
+
+DESIGN centralCashRegister FROM DEFAULT {
+
+    NEW top {
+        type = CONTAINERH;
+        ADD interval.box {
+            caption = 'Период';
+            type = CONTAINERH;
+            PROPERTY(objFrom) {
+                caption = 'Дата (с)';
+            }
+            PROPERTY(objTo) {
+                caption = 'Дата (по)';
+            }
+        }
+        ADD d.box;
+    }
+
+    NEW center {
+        fill = 1;
+        type = SPLITV;
+        ADD i.box{
+            caption = 'ПКО';
+        }
+        ADD o.box{
+            caption = 'РКО';
+        }
+    }
+    ADD functions.box;
+}
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        ADD centralCashRegister;
+    }
+}

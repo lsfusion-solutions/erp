@@ -1,6 +1,6 @@
 MODULE Cash;
 
-REQUIRE PaymentLedger;
+REQUIRE LegalEntity;
 
 // ----------------------------------- Кассовый счет ------------------------------------------ //
 
@@ -18,11 +18,6 @@ currencyAccount(account) <- currencyLegalEntity(legalEntityAccount(account))
     WHEN SET(legalEntityAccount(account));
 nameCurrencyAccount 'Валюта счета' = nameCurrency(currencyAccount(account));
 
-EXTEND CLASS Account : PaymentLedger.Account;
-PaymentLedger.nameAccount(account) += numberAccount(account);
-PaymentLedger.currencyAccount(account) += currencyAccount(account);
-PaymentLedger.legalEntityAccount(account) += legalEntityAccount(account);
-
 FORM account 'Касса'
     OBJECTS a = Account FIXED PANEL
     PROPERTIES(a) numberAccount, nameCurrencyAccount, nameLegalEntityAccount
@@ -32,11 +27,6 @@ FORM account 'Касса'
 
 addAccount 'Добавить кассу' = ACTION ADDFORM Cash.Account;
 editAccount 'Редактировать' (account) = ACTION EDITFORM Cash.Account;
-PaymentLedger.editAccount(account) += editAccount(account);
-
-EXTEND FORM PaymentLedger.accounts
-    PROPERTIES() addAccount TODRAW a FORCE PANEL
-;
 
 FORM accounts 'Счета'
     OBJECTS a = Account
@@ -54,7 +44,7 @@ EXTEND FORM legalEntity
 ;
 
 EXTEND DESIGN legalEntity {
-    accountContainer {
+    extendContainer {
         ADD ca.box {
             caption = 'Кассы';
         }

@@ -1,6 +1,6 @@
 MODULE Bank;
 
-REQUIRE System, Integration, LegalEntity, Finance, PaymentLedger;
+REQUIRE System, Integration, LegalEntity, Finance;
 
 CLASS Bank 'Банк';
 TABLE bank (Bank);
@@ -64,32 +64,43 @@ NAVIGATOR {
 CLASS Account 'Расчетный счет';
 TABLE account (Account);
 
-bankAccount = DATA Bank (Account);
-
 GROUP account 'Банковская информация' : base;
 
-currencyAccount = DATA Currency (Account) NOT NULL;
-currencyAccount(account) <- currencyLegalEntity(legalEntityAccount(account))
-    WHEN SET(legalEntityAccount(account));
-nameCurrencyAccount 'Валюта счета' = nameCurrency(currencyAccount(account)) IN account;
-
 numberAccount 'Номер расчетного счета'  = DATA VARSTRING[20] (Account) IN account FIXEDCHARWIDTH 13;
-
-accountNumberLegalEntityID 'Расчетный счет по номеру' (number, legalEntityId) = GROUP AGGR account BY numberAccount(account), idLegalEntity(legalEntityAccount(account)) WHERE account IS Account;
-
 accountNumber (number) = GROUP MAX account BY numberAccount(account); // WHERE account IS Account;
-legalEntityAccountNumber (number) = legalEntityAccount(accountNumber(number)); 
 
+// Банк
+bankAccount = DATA Bank (Account);
 nameBankAccount 'Наименование банка' (account) = nameBank(bankAccount(account)) IN account;
 addressBankAccount 'Адрес банка' (account) = addressBank(bankAccount(account)) IN account;
 MFOBankAccount 'Код МФО банка' (account) = MFOBank(bankAccount(account)) IN account;
 departmentBankAccount 'Отдел банка' (account) = departmentBank(bankAccount(account)) IN account;
 CBUBankAccount 'ЦБУ банка' (account) = CBUBank(bankAccount(account)) IN account;
-noteAccount 'Примечание'  = DATA VARSTRING[50] (Account) IN account;
 
-EXTEND CLASS Account : PaymentLedger.Account;
-PaymentLedger.nameAccount(account) += numberAccount(account);
-PaymentLedger.currencyAccount(account) += currencyAccount(account);
+// Организация
+legalEntityAccount = DATA LegalEntity (Account) NOT NULL DELETE;
+nameLegalEntityAccount 'Организация' (account) = nameLegalEntity(legalEntityAccount(account));
+
+defaultAccountLegalEntity(legalEntity) = GROUP MAX account BY legalEntityAccount(account);
+
+userAccountLegalEntity = DATA Account (LegalEntity);
+CONSTRAINT legalEntityAccount(userAccountLegalEntity(legalEntity)) != legalEntity CHECKED MESSAGE 'ошибка: Р/сч. по умолчанию должен соответствовать р/сч. Ю.Л.';
+
+accountLegalEntity (legalEntity) =  OVERRIDE defaultAccountLegalEntity(legalEntity), userAccountLegalEntity(legalEntity);
+numberAccountLegalEntity 'Основной р/сч.' (legalEntity) = numberAccount(accountLegalEntity(legalEntity)) IN law;
+
+equalsLegalEntityAccount 'Основной' (legalEntity, account) = userAccountLegalEntity(legalEntity) == account;
+
+accountNumberLegalEntityID 'Расчетный счет по номеру' (number, legalEntityId) = GROUP AGGR account BY numberAccount(account), idLegalEntity(legalEntityAccount(account)) WHERE account IS Account;
+legalEntityAccountNumber (number) = legalEntityAccount(accountNumber(number)); 
+
+// Валюта
+currencyAccount = DATA Currency (Account) NOT NULL;
+currencyAccount(account) <- currencyLegalEntity(legalEntityAccount(account))
+    WHEN SET(legalEntityAccount(account));
+nameCurrencyAccount 'Валюта счета' = nameCurrency(currencyAccount(account)) IN account;
+
+noteAccount 'Примечание'  = DATA VARSTRING[50] (Account) IN account;
 
 FORM account 'Расчетный счет'
     OBJECTS a = Account FIXED PANEL
@@ -117,12 +128,6 @@ DESIGN account FROM DEFAULT{
 
 addAccount 'Добавить расчетный счет' = ACTION ADDFORM Bank.Account;
 editAccount 'Редактировать' (account) = ACTION EDITFORM Bank.Account;
-PaymentLedger.editAccount(account) += editAccount(account);
-
-EXTEND FORM PaymentLedger.accounts
-    PROPERTIES(a) READONLY nameBankAccount, addressBankAccount, MFOBankAccount, departmentBankAccount, CBUBankAccount, noteAccount
-    PROPERTIES() addAccount TODRAW a FORCE PANEL
-;
 
 FORM accounts 'Счета'
     OBJECTS a = Account
@@ -134,19 +139,7 @@ FORM accounts 'Счета'
     DIALOG Account OBJECT a
 ;
 
-// ------------------------ Привязка банков к юрлицам ------------------------ //
-
-legalEntityAccount = DATA LegalEntity (Account) NOT NULL DELETE;
-defaultAccountLegalEntity(legalEntity) = GROUP MAX account BY legalEntityAccount(account);
-PaymentLedger.legalEntityAccount(account) += legalEntityAccount(account);
-
-userAccountLegalEntity = DATA Account (LegalEntity);
-CONSTRAINT legalEntityAccount(userAccountLegalEntity(legalEntity)) != legalEntity CHECKED MESSAGE 'ошибка: Р/сч. по умолчанию должен соответствовать р/сч. Ю.Л.';
-
-accountLegalEntity (legalEntity) =  OVERRIDE defaultAccountLegalEntity(legalEntity), userAccountLegalEntity(legalEntity);
-numberAccountLegalEntity 'Основной р/сч.' (legalEntity) = numberAccount(accountLegalEntity(legalEntity)) IN law;
-
-equalsLegalEntityAccount 'Основной' (legalEntity, account) = userAccountLegalEntity(legalEntity) == account;
+// ------------------------ Расширяем форму организаций ------------------------ //
 
 EXTEND FORM legalEntity
     PROPERTIES(l)  SHOWIF toShowLegalEntity(l) numberAccountLegalEntity
@@ -159,9 +152,8 @@ EXTEND FORM legalEntity
 ;
 
 EXTEND DESIGN legalEntity {
-    accountContainer {
+    extendContainer {
         ADD a.box {
-            fill = 4;
             caption = 'Расчетные счета';
         }
     }
