@@ -432,47 +432,52 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile)));
         String line;
+        
         int count = 0;
-
+        List<String[]> valuesList = new ArrayList<String[]>();
         while ((line = br.readLine()) != null) {
+            count++;
+            if (count >= startRow) {
+                valuesList.add(line.split(csvSeparator));              
+            }
+        }
+
+        count = 0;
+        for (String[] values : valuesList) {
 
             count++;
 
-            if (count >= startRow) {
+            String numberOrder = getCSVFieldValue(valuesList, importColumns.get("numberDocument"), count);
+            Date dateOrder = getCSVDateFieldValue(values, importColumns.get("dateDocument"), count);
+            String idOrderDetail = String.valueOf(orderObject) + count;
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.get("barcodeItem"), count));
+            String idBatch = getCSVFieldValue(valuesList, importColumns.get("idBatch"), count);
+            Integer dataIndex = Integer.parseInt(getCSVFieldValue(valuesList, importColumns.get("idItem"), count, String.valueOf(primaryList.size() + secondaryList.size() + 1)));
+            String idItem = getCSVFieldValue(valuesList, importColumns.get("idItem"), count);
+            String manufacturerItem = getCSVFieldValue(valuesList, importColumns.get("manufacturerItem"), count);
+            String idCustomerStock = getCSVFieldValue(valuesList, importColumns.get("idCustomerStock"), count);
+            ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
+            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
+            String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
+            BigDecimal quantity = getCSVBigDecimalFieldValue(values, importColumns.get("quantity"), count);
+            BigDecimal price = getCSVBigDecimalFieldValue(values, importColumns.get("price"), count);
+            BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns.get("sum"), count);
+            BigDecimal valueVAT = parseVAT(getCSVFieldValue(valuesList, importColumns.get("valueVAT"), count));
+            BigDecimal sumVAT = getCSVBigDecimalFieldValue(values, importColumns.get("sumVAT"), count);
+            BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, importColumns.get("invoiceSum"), count);
+            BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, importColumns.get("manufacturingPrice"), count);
 
-                String[] values = line.split(csvSeparator);
+            SaleOrderDetail saleOrderDetail = new SaleOrderDetail(isPosted, numberOrder, dateOrder, idOrderDetail, barcodeItem, idBatch,
+                    dataIndex, idItem, manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum,
+                    VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice);
 
-                String numberOrder = getCSVFieldValue(values, importColumns.get("numberDocument"), count);
-                Date dateOrder = getCSVDateFieldValue(values, importColumns.get("dateDocument"), count);
-                String idOrderDetail = String.valueOf(orderObject) + count;
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.get("barcodeItem"), count));
-                String idBatch = getCSVFieldValue(values, importColumns.get("idBatch"), count);
-                Integer dataIndex = Integer.parseInt(getCSVFieldValue(values, importColumns.get("idItem"), count, String.valueOf(primaryList.size() + secondaryList.size() + 1)));
-                String idItem = getCSVFieldValue(values, importColumns.get("idItem"), count);
-                String manufacturerItem = getCSVFieldValue(values, importColumns.get("manufacturerItem"), count);
-                String idCustomerStock = getCSVFieldValue(values, importColumns.get("idCustomerStock"), count);
-                ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
-                ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-                String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
-                BigDecimal quantity = getCSVBigDecimalFieldValue(values, importColumns.get("quantity"), count);
-                BigDecimal price = getCSVBigDecimalFieldValue(values, importColumns.get("price"), count);
-                BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns.get("sum"), count);
-                BigDecimal valueVAT = parseVAT(getCSVFieldValue(values, importColumns.get("valueVAT"), count));
-                BigDecimal sumVAT = getCSVBigDecimalFieldValue(values, importColumns.get("sumVAT"), count);
-                BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, importColumns.get("invoiceSum"), count);
-                BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, importColumns.get("manufacturingPrice"), count);
+            String primaryKeyColumnValue = getCSVFieldValue(valuesList, importColumns.get(primaryKeyColumn), count);
+            String secondaryKeyColumnValue = getCSVFieldValue(valuesList, importColumns.get(secondaryKeyColumn), count);
+            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
+                primaryList.add(saleOrderDetail);
+            else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
+                secondaryList.add(saleOrderDetail);
 
-                SaleOrderDetail saleOrderDetail = new SaleOrderDetail(isPosted, numberOrder, dateOrder, idOrderDetail, barcodeItem, idBatch,
-                        dataIndex, idItem, manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum,
-                        VATifAllowed(valueVAT), sumVAT, invoiceSum, manufacturingPrice);
-
-                String primaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(primaryKeyColumn), count);
-                String secondaryKeyColumnValue = getCSVFieldValue(values, importColumns.get(secondaryKeyColumn), count);
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
-                    primaryList.add(saleOrderDetail);
-                else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
-                    secondaryList.add(saleOrderDetail);
-            }
         }
 
         return Arrays.asList(primaryList, secondaryList);

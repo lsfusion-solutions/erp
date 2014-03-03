@@ -28,11 +28,13 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Map;
 
 public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
 
     // syntax : 
+    // ":xxx_yyy" - value from cell (xxx - column, yyy - row) (for xls, xlsx, csv)
     // "=xxx" - constant value  
     // "=CDT" - currentDateTime
     // "xxx^(1,6) - substring(1,6)
@@ -60,18 +62,19 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     String substringPattern = ".*\\^\\(\\d+,(?:\\d+)?\\)";
     String datePatternPattern = "(.*)(~(.*))+";
     String roundedPattern = "(.*)\\[(\\-?)\\d+\\]";
+    String columnRowPattern = ":(\\d+)_(\\d+)";
     DecimalFormat decimalFormat = new DecimalFormat("#.#####");
     String currentTimestamp;
 
-    protected String getCSVFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
-        return getCSVFieldValue(values, importColumnDetail, row, null);
+    protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
+        return getCSVFieldValue(valuesList, importColumnDetail, row, null);
     }
 
-    protected String getCSVFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
-        return getCSVFieldValue(values, importColumnDetail, row, defaultValue, false);
+    protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
+        return getCSVFieldValue(valuesList, importColumnDetail, row, defaultValue, false);
     }
 
-    protected String getCSVFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row, String defaultValue, boolean isNumeric) throws UniversalImportException {
+    protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row, String defaultValue, boolean isNumeric) throws UniversalImportException {
 
         try {
 
@@ -82,14 +85,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(cell))
                     value = parseConstantFieldPattern(cell);
-                else if (isRoundedValue(cell)) {
+                else if(isColumnRowValue(cell)) {
+                    String[] splittedCell = cell.replace(":", "").split("_");
+                    value = getCSVFieldValue(valuesList.get(parseIndex(splittedCell[0])), parseIndex(splittedCell[1]), null, null, defaultValue);
+                } else if (isRoundedValue(cell)) {
                     String[] splittedCell = cell.split("\\[|\\]");
-                    value = getRoundedValue(getCSVFieldValue(values, parseIndex(splittedCell[0]), null, null, ""), splittedCell[1]);
+                    value = getRoundedValue(getCSVFieldValue(valuesList.get(row - 1), parseIndex(splittedCell[0]), null, null, ""), splittedCell[1]);
                 } else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail.clone(arg.trim(), arg.trim()), row);
+                        BigDecimal argument = getCSVBigDecimalFieldValue(valuesList.get(row - 1), importColumnDetail.clone(arg.trim(), arg.trim()), row);
                         dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
                     }
                     value = formatValue(dividedValue);
@@ -97,7 +103,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail.clone(arg.trim(), arg.trim()), row);
+                        BigDecimal argument = getCSVBigDecimalFieldValue(valuesList.get(row - 1), importColumnDetail.clone(arg.trim(), arg.trim()), row);
                         multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
                     }
                     value = formatValue(multipliedValue);
@@ -105,7 +111,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedField = cell.split("\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(values, importColumnDetail.clone(arg.trim(), arg.trim()), row);
+                        BigDecimal argument = getCSVBigDecimalFieldValue(valuesList.get(row - 1), importColumnDetail.clone(arg.trim(), arg.trim()), row);
                         subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
                     }
                     value = formatValue(subtractedValue);
@@ -113,7 +119,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = "";
                     String[] splittedField = cell.split("\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getCSVFieldValue(values, parseIndex(splittedField[i]), null, null, null);
+                        String orValue = getCSVFieldValue(valuesList.get(row - 1), parseIndex(splittedField[i]), null, null, null);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -121,17 +127,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (isSubstringValue(cell)) {
                     String[] splittedCell = cell.split(splitPattern);
-                    value = getCSVFieldValue(values, parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, "");
+                    value = getCSVFieldValue(valuesList.get(row - 1), parseIndex(splittedCell[0]), splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null, splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null, "");
                 } else if (isDatePatternedValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getCSVFieldValue(values, importColumnDetail, parseIndex(splittedCell[0])));
+                    Date date = parseDate(getCSVFieldValue(valuesList, importColumnDetail, parseIndex(splittedCell[0])));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedCell, calendar);
                     } else return null;
                 } else {
-                    value = getCSVFieldValue(values, parseIndex(cell), null, null, "");
+                    value = getCSVFieldValue(valuesList.get(row - 1), parseIndex(cell), null, null, "");
                 }
                 result = trySum(result, value, isNumeric);
             }
@@ -141,9 +147,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
-    protected String getCSVFieldValue(String[] values, Integer index, Integer from, Integer to, String defaultValue) {
-        if (index == null) return defaultValue;
-        return values.length <= index ? defaultValue : getSubstring(values[index], from, to);
+    protected String getCSVFieldValue(String[] values, Integer column, Integer from, Integer to, String defaultValue) {
+        if (column == null) return defaultValue;
+        return values.length <= column ? defaultValue : getSubstring(values[column], from, to);
     }
 
     protected BigDecimal getCSVBigDecimalFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
@@ -193,9 +199,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(cell))
                     value = parseConstantFieldPattern(cell);
-                else if (isRoundedValue(cell)) {
+                else if(isColumnRowValue(cell)) {
+                    String[] splittedCell = cell.replace(":", "").split("_");
+                    value = getXLSFieldValue(sheet, importColumnDetail, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), defaultValue);
+                } else if (isRoundedValue(cell)) {
                     String[] splittedCell = cell.split("\\[|\\]");
-                    value = getRoundedValue(getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), null, null, ""), splittedCell[1]);
+                    value = getRoundedValue(getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), ""), splittedCell[1]);
                 } else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
@@ -224,7 +233,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = "";
                     String[] splittedField = cell.split("\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(splittedField[i]), null, null, null);
+                        String orValue = getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(splittedField[i]), null);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -242,7 +251,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         return parseDatePattern(splittedCell, calendar);
                     } else return null;
                 } else {
-                    value = getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(cell), null, null, "");
+                    value = getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(cell), "");
                 }
                 result = trySum(result, value, isNumeric);
             }
@@ -252,6 +261,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
+    protected String getXLSFieldValue(Sheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer column, String defaultValue) 
+                                                           throws UniversalImportException {
+        return getXLSFieldValue(sheet, importColumnDetail, row, column, null, null, defaultValue);
+    }
+    
     protected String getXLSFieldValue(Sheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer column, Integer from, Integer to, 
                                       String defaultValue) throws UniversalImportException {
         try {
@@ -319,9 +333,13 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 String value;
                 if (isConstantValue(cell))
                     value = parseConstantFieldPattern(cell);
+                else if(isColumnRowValue(cell)) {
+                    String[] splittedCell = cell.replace(":", "").split("_");
+                    value = getXLSXFieldValue(sheet, importColumnDetail, parseIndex(splittedCell[1]), parseIndex(splittedCell[0]), isDate, defaultValue);
+                }
                 else if (isRoundedValue(cell)) {
                     String[] splittedCell = cell.split("\\[|\\]");
-                    value = getRoundedValue(getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), null, null, false, ""), splittedCell[1]);
+                    value = getRoundedValue(getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), false, ""), splittedCell[1]);
                 } else if (isDivisionValue(cell)) {
                     String[] splittedField = cell.split("/");
                     BigDecimal dividedValue = null;
@@ -350,7 +368,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = "";
                     String[] splittedField = cell.split("\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedField[i]), null, null, isDate, null);
+                        String orValue = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(splittedField[i]), isDate, null);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -368,7 +386,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                         return parseDatePattern(splittedCell, calendar);
                     } else return null;
                 } else {
-                    value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(cell), null, null, isDate, "");
+                    value = getXLSXFieldValue(sheet, importColumnDetail, row, parseIndex(cell), isDate, "");
                 }
                 result = trySum(result, value, isNumeric);
             }
@@ -378,6 +396,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         }
     }
 
+    protected String getXLSXFieldValue(XSSFSheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer cell, boolean isDate, String defaultValue) throws UniversalImportException {
+        return getXLSXFieldValue(sheet, importColumnDetail, row, cell, null, null, isDate, defaultValue);
+    }
+    
     protected String getXLSXFieldValue(XSSFSheet sheet, ImportColumnDetail importColumnDetail, Integer row, Integer cell, Integer from, Integer to, boolean isDate, String defaultValue) throws UniversalImportException {
         try {
             if (cell == null) return defaultValue;
@@ -734,11 +756,15 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private boolean isConstantValue(String input) {
-        return input != null && input.startsWith("=") && !isRoundedValue(input) && !isDivisionValue(input)
-                && !isMultiplyValue(input) && !(isSubtractValue(input)) && !isOrValue(input) && !isSubstringValue(input)
-                && !isDatePatternedValue(input);
+        return input != null && input.startsWith("=") && !isColumnRowValue(input) && !isRoundedValue(input) 
+                && !isDivisionValue(input) && !isMultiplyValue(input) && !(isSubtractValue(input)) && !isOrValue(input)
+                && !isSubstringValue(input) && !isDatePatternedValue(input);
     }
 
+    private boolean isColumnRowValue(String input) {
+        return input.matches(columnRowPattern);
+    }
+    
     private boolean isRoundedValue(String input) {
         return input.matches(roundedPattern);
     }

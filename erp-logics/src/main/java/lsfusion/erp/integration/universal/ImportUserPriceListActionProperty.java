@@ -574,34 +574,41 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile)));
         String line;
-        int count = 0;
 
+        int count = 0;
+        List<String[]> valuesList = new ArrayList<String[]>();
         while ((line = br.readLine()) != null) {
+            count++;
+            if (count >= startRow) {
+                valuesList.add(line.split(csvSeparator));
+            }
+        }
+
+        count = 0;
+        for (String[] values : valuesList) {
 
             count++;
 
             if (count >= startRow) {
-
-                String[] values = line.split(csvSeparator);
-
+                
                 Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null || (importColumns.getDateRow()) != count) ?
                         null : getCSVDateFieldValue(values, new ImportColumnDetail("date", importColumns.getDateColumn(), false), importColumns.getDateColumn(), count, null);
 
-                String idUserPriceList = getCSVFieldValue(values, importColumns.getColumns().get("idUserPriceList"), count);
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.getColumns().get("barcodeItem"), count));
-                String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.getColumns().get("extraBarcodeItem"), count));
-                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(values, importColumns.getColumns().get("packBarcode"), count));
+                String idUserPriceList = getCSVFieldValue(valuesList, importColumns.getColumns().get("idUserPriceList"), count);
+                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("barcodeItem"), count));
+                String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("extraBarcodeItem"), count));
+                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("packBarcode"), count));
                 BigDecimal amountPackBarcode = getCSVBigDecimalFieldValue(values, importColumns.getColumns().get("amountPackBarcode"), count);
-                String articleItem = getCSVFieldValue(values, importColumns.getColumns().get("articleItem"), count);
-                String idItem = getCSVFieldValue(values, importColumns.getColumns().get("idItem"), count);
-                String idItemGroup = getCSVFieldValue(values, importColumns.getColumns().get("idItemGroup"), count);
-                String captionItem = getCSVFieldValue(values, importColumns.getColumns().get("captionItem"), count);
-                String idUOMItem = getCSVFieldValue(values, importColumns.getColumns().get("idUOMItem"), count);
+                String articleItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("articleItem"), count);
+                String idItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("idItem"), count);
+                String idItemGroup = getCSVFieldValue(valuesList, importColumns.getColumns().get("idItemGroup"), count);
+                String captionItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("captionItem"), count);
+                String idUOMItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("idUOMItem"), count);
                 Date dateUserPriceList = getCSVDateFieldValue(values, importColumns.getColumns().get("dateFrom"), count, date);
                 Date dateFrom = getCSVDateFieldValue(values, importColumns.getColumns().get("dateFrom"), count, dateDocument);
                 Date dateTo = getCSVDateFieldValue(values, importColumns.getColumns().get("dateTo"), count);
                 Date dateVAT = date == null ? dateFrom : date;
-                BigDecimal valueVAT = parseVAT(getCSVFieldValue(values, importColumns.getColumns().get("valueVAT"), count));
+                BigDecimal valueVAT = parseVAT(getCSVFieldValue(valuesList, importColumns.getColumns().get("valueVAT"), count));
                 BigDecimal quantityAdjustment = getCSVBigDecimalFieldValue(values, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), importColumns.getQuantityAdjustmentColumn(), count);
                 String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
                 String extIdPackBarcode = packBarcode == null ? ((itemKeyType.equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
