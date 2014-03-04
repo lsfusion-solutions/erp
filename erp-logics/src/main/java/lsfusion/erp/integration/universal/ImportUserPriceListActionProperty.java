@@ -52,6 +52,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
     // Опциональные модули
     private ScriptingLogicsModule itemArticleLM;
+    private ScriptingLogicsModule purchasePackLM;
+    private ScriptingLogicsModule salePackLM;
 
     public ImportUserPriceListActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, LM.findClassByCompoundName("UserPriceList"));
@@ -125,6 +127,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, UniversalImportException, SQLHandledException, JDBFException {
 
         this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
+        this.purchasePackLM = (ScriptingLogicsModule) context.getBL().getModule("PurchasePack");
+        this.salePackLM = (ScriptingLogicsModule) context.getBL().getModule("SalePack");
 
         List<UserPriceListDetail> userPriceListDetailList;
         
@@ -225,10 +229,12 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     getLCP(iGroupAggr).getMapping(iField));
             keys.add(itemKey);
             props.add(new ImportProperty(idItemField, getLCP("idItem").getMapping(itemKey)));
-            props.add(new ImportProperty(extIdPackBarcodeSkuField, getLCP("Purchase.packBarcodeSku").getMapping(itemKey),
-                    LM.object(getClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
-            props.add(new ImportProperty(extIdPackBarcodeSkuField, getLCP("Sale.packBarcodeSku").getMapping(itemKey),
-                    LM.object(getClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
+            if (purchasePackLM != null)
+                props.add(new ImportProperty(extIdPackBarcodeSkuField, getLCP("Purchase.packBarcodeSku").getMapping(itemKey),
+                        LM.object(getClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
+            if (salePackLM != null)
+                props.add(new ImportProperty(extIdPackBarcodeSkuField, getLCP("Sale.packBarcodeSku").getMapping(itemKey),
+                        LM.object(getClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
             fields.add(idItemField);
             for (int i = 0; i < userPriceListDetailsList.size(); i++)
                 data.get(i).add(userPriceListDetailsList.get(i).idItem);
