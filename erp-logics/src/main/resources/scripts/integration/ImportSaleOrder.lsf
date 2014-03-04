@@ -11,25 +11,26 @@ importSaleOrdersDataAction 'Импортировать заказы' = ACTION CU
 importTypeOrder = DATA ImportType(Sale.Order);
 nameImportTypeOrder 'Тип импорта' (order) = nameImportType(importTypeOrder(order));
 
-autoImportImportType 'Автоматический импорт' = DATA BOOLEAN(ImportType);
-autoImportDirectoryImportType 'Папка' =  DATA VARSTRING[100](ImportType);
-
-EXTEND FORM importTypes
-PROPERTIES(i) READONLY autoImportImportType, autoImportDirectoryImportType SHOWIF autoImportImportType(i)
+EXTEND FORM orders
+    PROPERTIES() TODRAW d TOOLBAR importSaleOrdersDataAction
 ;
 
-EXTEND FORM importType
-PROPERTIES(i) autoImportImportType,
-              autoImportDirectoryImportType FORCE PANEL SHOWIF autoImportImportType(i)
-PROPERTIES() importSaleOrdersDataAction TODRAW i TOOLBAR SHOWIF autoImportImportType(i)
+EXTEND DESIGN orders{
+    documentDetail {
+        NEW importUniversal {
+            caption = 'Импорт';
+            ADD PROPERTY(importSaleOrdersDataAction());
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() TOOLBAR importSaleOrdersDataAction
 ;
 
-EXTEND DESIGN importType {
-    tabbedContainer{
-        invoiceParamsContainer {
-            caption = 'Параметры заказа';
-            ADD PROPERTY(autoImportImportType(i));
-            ADD PROPERTY(autoImportDirectoryImportType(i));
+EXTEND DESIGN integrationData {
+    pane {
+        actionsContainer {
             ADD PROPERTY(importSaleOrdersDataAction());
         }
     }

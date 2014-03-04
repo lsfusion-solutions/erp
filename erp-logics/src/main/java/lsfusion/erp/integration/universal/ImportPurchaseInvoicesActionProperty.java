@@ -1,12 +1,12 @@
 package lsfusion.erp.integration.universal;
 
+import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.Settings;
+import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -32,84 +32,59 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
         try {
 
-            DataSession session = context.getSession();
+            ObjectValue importTypeObject = getLCP("importTypeUserInvoices").readClasses(context);
 
-            ImportPurchaseInvoiceActionProperty imp = new ImportPurchaseInvoiceActionProperty(LM);
-            
-            imp.initModules(context);
+            String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(context, importTypeObject));
+            Integer startRow = (Integer) getLCP("startRowImportType").read(context, importTypeObject);
+            startRow = startRow == null ? 1 : startRow;
+            Boolean isPosted = (Boolean) getLCP("isPostedImportType").read(context, importTypeObject);
+            String csvSeparator = trim((String) getLCP("separatorImportType").read(context, importTypeObject), ";");
+            String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(context, importTypeObject));
+            boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(context, importTypeObject) != null;
+            String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(context, importTypeObject));
+            boolean keyIsDigit = getLCP("keyIsDigitImportType").read(context, importTypeObject) != null;
 
-            ObjectValue importTypeObject = getLCP("importTypeUserInvoices").readClasses(session);
+            ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
+            ObjectValue supplierObject = getLCP("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
+            ObjectValue supplierStockObject = getLCP("autoImportSupplierStockImportType").readClasses(context, (DataObject) importTypeObject);
+            ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(context, (DataObject) importTypeObject);
+            ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
 
-            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
+            Map<String, ImportColumnDetail> importColumns = ImportPurchaseInvoiceActionProperty.readImportColumns(context.getSession(), LM, importTypeObject);
 
-            if (!(importTypeObject instanceof NullValue)) {
+            if (fileExtension != null) {
 
-                String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(session, importTypeObject));
+                CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
+                ObjectValue objectValue = context.requestUserData(valueClass, null);
+                if (objectValue != null) {
+                    List<byte[]> listFiles = valueClass.getFiles(objectValue.getValue());
+                    if (listFiles != null) {
+                        for (byte[] file : listFiles) {
+                            DataSession currentSession = context.createSession();
+                            DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) getClass("Purchase.UserInvoice"));
 
-                String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
-                boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
-                String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-                boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
+                            new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
+                                    importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
+                                    checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject, supplierStockObject,
+                                    customerObject, customerStockObject);
 
-                String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject));
-                csvSeparator = csvSeparator == null ? ";" : csvSeparator.trim();
-                Integer startRow = (Integer) getLCP("startRowImportType").read(session, importTypeObject);
-                startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
-                Boolean isPosted = (Boolean) getLCP("isPostedImportType").read(session, importTypeObject);
-
-                ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierObject = getLCP("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierStockObject = getLCP("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
-
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(session, LM, importTypeObject);
-
-                if (importColumns != null && fileExtension != null) {
-
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
-                    ObjectValue objectValue = context.requestUserData(valueClass, null);
-                    if (objectValue != null) {
-                        List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
-
-                        for (byte[] file : fileList) {
-                            
-                            List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList = imp.importUserInvoicesFromFile(context, session,
-                                    null, importColumns, file, fileExtension, startRow, isPosted, csvSeparator, 
-                                    primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit);
-
-                            if (userInvoiceDetailsList != null && userInvoiceDetailsList.size() >= 1)
-                                imp.importUserInvoices(userInvoiceDetailsList.get(0), session, importColumns, null,
-                                        primaryKeyType, operationObject, supplierObject, supplierStockObject,
-                                        customerObject, customerStockObject, disableVolatileStats);
-
-                            if (userInvoiceDetailsList != null && userInvoiceDetailsList.size() >= 2)
-                                imp.importUserInvoices(userInvoiceDetailsList.get(1), session, importColumns, null,
-                                        secondaryKeyType, operationObject, supplierObject, supplierStockObject,
-                                        customerObject, customerStockObject, disableVolatileStats);
-
-                            session.apply(context);
-                            session.close();
-
-                            getLAP("formRefresh").execute(context);
+                            currentSession.apply(context);
                         }
                     }
                 }
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw Throwables.propagate(e);
         } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+            throw Throwables.propagate(e);
         } catch (UniversalImportException e) {
-            e.printStackTrace();
-            context.requestUserInteraction(new MessageClientAction(e.getMessage(), e.getTitle()));
+            throw Throwables.propagate(e);
+        } catch (xBaseJException e) {
+            throw Throwables.propagate(e);
+        } catch (ParseException e) {
+            throw Throwables.propagate(e);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
         }
     }
 }
-

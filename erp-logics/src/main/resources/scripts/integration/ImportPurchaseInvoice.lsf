@@ -13,10 +13,36 @@ importPurchaseInvoicesDataAction 'Импортировать накладные'
 importTypeUserInvoices = DATA ImportType();
 nameImportTypeUserInvoices 'Тип импорта' () = nameImportType(importTypeUserInvoices());
 
+importPurchaseInvoicesDirectoryDataAction 'Импортировать накладные из папки' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportPurchaseInvoicesDirectoryActionProperty';
+importPurchaseInvoicesEmailDataAction 'Импортировать накладные из почты' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportPurchaseInvoicesEmailActionProperty';
+
 originalInvoice 'Файл оригинала накладной'  = DATA CUSTOMFILE (Purchase.Invoice);
 
 saveOriginalInvoice 'Загрузить файл оригинала накладной' (i) = ACTION LOADFILE originalInvoice(i);
 openOriginalInvoice 'Просмотреть оригинал накладной' (i) = ACTION OPENFILE originalInvoice(i);
+
+autoImportEmailImportType 'E-mail поставщика' =  DATA VARSTRING[100](ImportType);
+autoImportAccountImportType 'E-mail аккаунт' =  DATA Account(ImportType);
+autoImportNameAccountImportType 'E-mail аккаунт' (importType) = nameAccount(autoImportAccountImportType(importType));
+
+EXTEND FORM importTypes
+PROPERTIES(i) READONLY autoImportEmailImportType SHOWIF autoImportImportType(i), 
+                       autoImportNameAccountImportType SHOWIF autoImportImportType(i)
+;
+
+EXTEND FORM importType
+PROPERTIES(i) autoImportNameAccountImportType FORCE PANEL SHOWIF autoImportImportType(i)
+PROPERTIES(i) autoImportEmailImportType FORCE PANEL SHOWIF autoImportImportType(i)
+
+;
+
+EXTEND DESIGN importType {
+        autoImportContainer {
+            ADD PROPERTY(autoImportNameAccountImportType(i));
+            ADD PROPERTY(autoImportEmailImportType(i));
+
+        }
+}
 
 EXTEND FORM userInvoice
     PROPERTIES(i) importPurchaseInvoiceDataAction TODRAW d TOOLBAR
@@ -44,8 +70,8 @@ EXTEND DESIGN userInvoice{
 }
 
 EXTEND FORM invoices
-    PROPERTIES() importPurchaseInvoicesDataAction TODRAW d TOOLBAR
-    PROPERTIES() nameImportTypeUserInvoices
+    PROPERTIES() TODRAW d TOOLBAR importPurchaseInvoicesDataAction, nameImportTypeUserInvoices, 
+                 importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction
 ;
 
 EXTEND DESIGN invoices{
@@ -53,7 +79,22 @@ EXTEND DESIGN invoices{
         NEW importUniversal {
             caption = 'Импорт';
             ADD PROPERTY(nameImportTypeUserInvoices());
-            ADD PROPERTY(importPurchaseInvoicesDataAction());
+            ADD PROPERTY(importPurchaseInvoicesDataAction());            
+            ADD PROPERTY(importPurchaseInvoicesDirectoryDataAction());
+            ADD PROPERTY(importPurchaseInvoicesEmailDataAction());
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() TOOLBAR importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction
+;
+
+EXTEND DESIGN integrationData {
+    pane { 
+        actionsContainer {
+            ADD PROPERTY(importPurchaseInvoicesDirectoryDataAction());
+            ADD PROPERTY(importPurchaseInvoicesEmailDataAction());
         }
     }
 }

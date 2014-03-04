@@ -142,6 +142,33 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             context.requestUserInteraction(new MessageClientAction(e.getMessage(), e.getTitle()));
         }
     }
+    
+    public boolean makeImport(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject userInvoiceObject,
+                              Map<String, ImportColumnDetail> importColumns, byte[] file, String fileExtension, Integer startRow,
+                              Boolean isPosted, String csvSeparator, String primaryKeyType, boolean checkExistence, String secondaryKeyType,
+                              boolean keyIsDigit, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
+                              ObjectValue customerObject, ObjectValue customerStockObject) 
+            throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException, 
+            xBaseJException, ScriptingErrorLog.SemanticErrorException {
+
+        boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
+        
+        List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, session,
+                userInvoiceObject, importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
+                checkExistence, secondaryKeyType, keyIsDigit);
+
+        boolean result1 = (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1) && 
+            importUserInvoices(userInvoiceDetailData.get(0), session, importColumns, userInvoiceObject,
+                    primaryKeyType, operationObject, supplierObject, supplierStockObject,
+                    customerObject, customerStockObject, disableVolatileStats);
+
+        boolean result2 = (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 2) &&
+            importUserInvoices(userInvoiceDetailData.get(1), session, importColumns, userInvoiceObject,
+                    secondaryKeyType, operationObject, supplierObject, supplierStockObject,
+                    customerObject, customerStockObject, disableVolatileStats);
+        
+        return result1 && result2;
+    }
 
     public void initModules(ExecutionContext context) {
         this.purchaseManufacturingPriceLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseManufacturingPrice");
@@ -158,7 +185,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         this.purchaseShipmentLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseShipment");
     }
 
-    public void importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, DataSession session, Map<String, ImportColumnDetail> importColumns,
+    public boolean importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, DataSession session, Map<String, ImportColumnDetail> importColumns,
                                    DataObject userInvoiceObject, String keyType, ObjectValue operationObject, ObjectValue supplierObject,
                                    ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject, boolean disableVolatileStats)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
@@ -929,6 +956,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 service.synchronize(true, false);
             session.popVolatileStats();
         }
+        return true;
     }
 
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataSession session, DataObject userInvoiceObject,
