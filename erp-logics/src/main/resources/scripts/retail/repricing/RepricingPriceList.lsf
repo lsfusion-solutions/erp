@@ -1,0 +1,80 @@
+MODULE RepricingPriceList;
+
+REQUIRE Repricing, PriceListOperation;
+
+NAMESPACE Repricing;
+
+FORM managementRepricing 'Управленческая переоценка'
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES (d) SELECTOR nameDepartmentStore
+
+    OBJECTS o = Repricing.Operation FIXED PANEL
+    PROPERTIES (o) SELECTOR Repricing.nameOperation
+    FILTERS inUserOperation(currentUser(), o)
+
+    OBJECTS t=DATETIME FIXED PANEL
+    PROPERTIES(t) OBJVALUE
+
+;
+DESIGN managementRepricing FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+
+        NEW topContainer {
+            type = CONTAINERH;
+            ADD d.box { caption = 'Выберите отдел магазина';}
+            ADD o.box { caption = 'Выберите операцию'; }
+            ADD t.box;
+        }
+        ADD functions.box;
+    }
+}
+
+overManagementRepricing = ABSTRACT ACTION LIST (RepricingDetail,Sku,Stock,DATETIME);
+
+prevPriceAPriceListCalcListSkuStockDateTime (priceList, calcList, sku, stock, time) =
+    OVERRIDE prevPriceAPriceListTypeSkuStockDateTime(calcList, sku, stock, time), prevPriceAPriceListTypeSkuStockDateTime(priceList, sku, stock, time);
+prevPriceAOperationSkuStockDateTime 'Цена (управленческая)' (operation, sku, stock, time)= prevPriceAPriceListCalcListSkuStockDateTime(
+    (OVERRIDE retailPriceListTypeDepartmentStore(stock) IF operation IS Operation, priceListTypeOperation(operation) IF stock IS Stock), 
+    (OVERRIDE retailCalcPriceListTypeDepartmentStore(stock) IF operation IS Operation, calcPriceListTypeOperation(operation) IF stock IS Stock), 
+    sku, 
+    stock, 
+    time
+    ) COMPLEX; 
+                 
+filterQuantityOperationSkuStockDateTime(operation,sku,department,time) = currentBalanceSkuStock(sku, department) AND
+            prevPriceAOperationSkuStockDateTime(operation, sku, department, time) != 
+            prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time);
+
+overCreateManagementRepricingOperationStockDateTime 'Создать управленческую переоценку' (operation, department, time) = ACTION (operation, department, time) {
+    FOR ADDOBJ r = UserRepricing DO {
+        departmentStoreUserRepricing(r) <-  department;
+        operationUserRepricing(r) <- operation;
+        dateUserRepricing(r) <-  toDate(time);
+        timeUserRepricing(r) <- toTime(time);               
+
+        FOR filterQuantityOperationSkuStockDateTime(operation,sku,department,time) ADDOBJ rd = UserRepricingDetail DO {
+            userRepricingUserRepricingDetail(rd) <- r;
+            skuUserRepricingDetail(rd) <- sku;
+            quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, department);
+            retailPriceUserRepricingDetail(rd) <- prevPriceAOperationSkuStockDateTime(operation, sku, department, time);
+            curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBSkuStockDateTime(sku, department, time);
+            priceUserRepricingDetail(rd) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, department, time);
+            overManagementRepricing(rd, sku, department, time);
+        }
+        FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;
+    }
+};
+
+
+createManagementRepricing 'Создать управленческую переоценку' = ACTION () NEWSESSION {
+
+    FORM managementRepricing  MODAL;
+    IF formResult() == FormResult.ok THEN {
+        overCreateManagementRepricingOperationStockDateTime(chosenObject('o'), chosenObject('d'), chosenDateTime('t'));
+    }
+} TOOLBAR;
+
+EXTEND FORM repricings
+    PROPERTIES() createManagementRepricing TODRAW p
+;
