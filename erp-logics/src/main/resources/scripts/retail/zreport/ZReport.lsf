@@ -11,7 +11,6 @@ REQUIRE System,
         StockTax,
         CashRegister,
         SaleLedger,
-        DiscountCard,
         PriceRoundStore,
         PriceListType,
         StockSkuDocument;
@@ -196,15 +195,6 @@ maxNumberReceiptZReport 'Максимальный номер чека' (zReport)
 receiptZReportNumberCashRegister (zReport, receipt, cashRegister) = GROUP AGGR receipt BY numberZReport(zReportReceipt(receipt)), numberReceipt(receipt), numberCashRegister(cashRegisterZReport(zReportReceipt(receipt))) WHERE receipt IS Receipt;
 
 GROUP receiptDiscount 'Дисконтная карта' : public;
-
-discountCardReceipt (receipt) = DATA DiscountCard (Receipt);
-
-CONSTRAINT dateToDiscountCard(discountCardReceipt(receipt)) < dateReceipt(receipt) CHECKED BY discountCardReceipt MESSAGE 'Закончился срок действия карты';
-
-numberDiscountCardReceipt 'Номер дисконтной карты' (receipt) = seriesNumberDiscountCard(discountCardReceipt(receipt)) IN receiptDiscount;
-nameLegalEntityDiscountCardReceipt 'Держатель дисконтной карты' (receipt) = nameLegalEntityDiscountCard(discountCardReceipt(receipt)) IN receiptDiscount MINCHARWIDTH 30 PREFCHARWIDTH 40;
-numberDiscountCardReceiptDetail 'Номер дисконтной карты' (receiptDetail) = numberDiscountCardReceipt(receiptReceiptDetail(receiptDetail));
-nameLegalEntityDiscountCardReceiptDetail 'Держатель дисконтной карты' (receiptDetail) = nameLegalEntityDiscountCardReceipt(receiptReceiptDetail(receiptDetail)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
 idBarcodeReceiptDetail 'Штрих-код' (receiptDetail) = DATA STRING[15] (ReceiptDetail) FIXEDCHARWIDTH 14 INDEXED;
 
@@ -631,7 +621,7 @@ FORM zReport 'Z-отчет'
 
     OBJECTS b=Receipt, d=ReceiptDetail
     PROPERTIES(b) numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
-                  numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt, sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
+                  sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
                   discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt, exportReceipt, exportedIncrementReceipt, 
                   ADDOBJ, DELETESESSION
     FILTERS zReportReceipt(b)==z
@@ -702,7 +692,7 @@ FORM zReports 'Z-отчеты'
 
     OBJECTS b=Receipt
     PROPERTIES(b) READONLY  numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
-                            numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt, sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
+                            sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
                             discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt
     PROPERTIES(b)           exportReceipt, exportedIncrementReceipt
 

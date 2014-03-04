@@ -1,0 +1,21 @@
+MODULE ZReportDiscountCard;
+
+REQUIRE ZReport, DiscountCard;
+
+NAMESPACE ZReport;
+
+discountCardReceipt (receipt) = DATA DiscountCard (Receipt);
+
+CONSTRAINT dateToDiscountCard(discountCardReceipt(receipt)) < dateReceipt(receipt) CHECKED BY discountCardReceipt MESSAGE 'Закончился срок действия карты';
+
+numberDiscountCardReceipt 'Номер дисконтной карты' (receipt) = seriesNumberDiscountCard(discountCardReceipt(receipt)) IN receiptDiscount;
+nameLegalEntityDiscountCardReceipt 'Держатель дисконтной карты' (receipt) = nameLegalEntityDiscountCard(discountCardReceipt(receipt)) IN receiptDiscount MINCHARWIDTH 30 PREFCHARWIDTH 40;
+numberDiscountCardReceiptDetail 'Номер дисконтной карты' (receiptDetail) = numberDiscountCardReceipt(receiptReceiptDetail(receiptDetail));
+nameLegalEntityDiscountCardReceiptDetail 'Держатель дисконтной карты' (receiptDetail) = nameLegalEntityDiscountCardReceipt(receiptReceiptDetail(receiptDetail)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+
+EXTEND FORM zReport
+    PROPERTIES(b) AFTER nameUserReceipt(b) numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt
+;
+EXTEND FORM zReports
+    PROPERTIES(b) READONLY AFTER nameUserReceipt(b) numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt 
+;
