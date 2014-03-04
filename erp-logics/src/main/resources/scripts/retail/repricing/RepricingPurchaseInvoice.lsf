@@ -1,0 +1,99 @@
+MODULE RepricingPurchaseInvoice;
+
+REQUIRE RepricingPurchase, ZReport;
+
+NAMESPACE Repricing;
+
+//------------------- Дооценка с учетом проданного количества между приходом и закачкой прайса в оборудование -----------------------//  
+   
+FORM extraValuation 'Дооценка'
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES (d) SELECTOR nameDepartmentStore
+
+    OBJECTS tf=DATETIME FIXED PANEL
+    PROPERTIES(tf) OBJVALUE
+    
+    OBJECTS o=Repricing.Operation FIXED PANEL
+    PROPERTIES(o) SELECTOR Repricing.nameOperation    
+
+;
+DESIGN extraValuation FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+
+        NEW topContainer {
+            type = CONTAINERH;
+            ADD d.box { caption = 'Выберите отдел магазина';}
+            ADD tf.box { caption = 'Дата/время с'; }
+            ADD o.box { caption = 'Выберите операцию переоценки'; }
+        }
+        ADD functions.box;
+    }
+}     
+       
+repricingInvoice= DATA Repricing (Purchase.Invoice);
+repricingInvoiceDetail (d) =  repricingInvoice(Purchase.invoiceInvoiceDetail(d));
+
+prevBalanceBSkuStockDateTime (sku, stock, dateTime) = PREV(balanceBSkuStockDateTime(sku, stock, dateTime) IF dateTime IS DATETIME);
+calcPrevRetailPriceBInvoiceDetail 'Цена до'  (detail)= prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, Purchase.skuInvoiceDetail(detail), Purchase.customerStockInvoiceDetail(detail), Purchase.dateTimeInvoiceDetail(detail));
+
+calcQuantitySoldSkuStockPriceDateTime 'Кол-во продано по старой цене' (sku, stock, price, dateTime) = GROUP SUM 
+    signedQuantityReceiptDetail(d) IF dateTimeReceiptDetail(d) >= (dateTime AS DATETIME) AND isPostedReceiptDetail(d)
+        BY skuReceiptDetail(d), departmentStoreReceiptDetail(d), priceReceiptDetail(d), dateTime; 
+        
+toRepricingQuantitySkuStockPriceDateTime 'Кол-во к дооценке' (sku, stock, price, dateTime)= prevBalanceBSkuStockDateTime (sku, stock, dateTime) (-) calcQuantitySoldSkuStockPriceDateTime(sku, stock, price, dateTime);         
+toRepricingQuantityInvoiceDetail 'Кол-во к дооценке' (detail) = toRepricingQuantitySkuStockPriceDateTime(Purchase.skuInvoiceDetail(detail), Purchase.customerStockInvoiceDetail(detail), calcPrevRetailPriceBInvoiceDetail(detail), Purchase.shipmentDateTimeInvoiceDetail(detail));
+               
+filterToRepricingInvoiceStockDateTime 'Фильтр' (invoice, department, timeFrom)= 
+    Purchase.customerStockInvoice(invoice) == department AND         
+    Purchase.shipmentDateTimeInvoice(invoice) >= timeFrom AND NOT
+    costLedgerDepartmentStore(department) AND
+    Purchase.isPostedInvoice(invoice) AND NOT
+    repricingInvoice(invoice)
+;                  
+                  
+overExtraValuation = ABSTRACT ACTION LIST (RepricingDetail, Purchase.InvoiceDetail);                    
+createExtraValuation 'Создать дооценку' = ACTION () NEWSESSION {
+
+    FORM extraValuation  MODAL;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL department = DepartmentStore();
+        LOCAL timeFrom =  DATETIME();          
+        LOCAL operation = Repricing.Operation ();                   
+        LOCAL inInvoice =  BOOLEAN(Purchase.Invoice);
+        
+        department() <- chosenObject('d');
+        timeFrom() <- chosenDateTime('tf');
+        operation() <- chosenObject('o');   
+             
+        inInvoice(invoice) <- TRUE WHERE filterToRepricingInvoiceStockDateTime(invoice, department(), timeFrom());   
+
+        FOR ADDOBJ r = UserRepricing DO {
+            departmentStoreUserRepricing(r) <-  department();
+            operationUserRepricing(r) <- operation();
+
+            FOR retailPriceInvoiceDetail(detail) AND calcPrevRetailPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
+                toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(Purchase.invoiceInvoiceDetail(detail))               
+                ADDOBJ rd = UserRepricingDetail DO {
+                    userRepricingUserRepricingDetail(rd) <- r;
+                    skuUserRepricingDetail(rd) <- Purchase.skuInvoiceDetail(detail);
+                    quantityUserRepricingDetail(rd) <- toRepricingQuantityInvoiceDetail(detail);
+                    curPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, Purchase.skuInvoiceDetail(detail), department(), Purchase.dateTimeInvoiceDetail(detail));
+                    curRetailPriceUserRepricingDetail(rd) <- calcPrevRetailPriceBInvoiceDetail(detail);
+
+                    priceUserRepricingDetail(rd) <- Purchase.priceInvoiceDetail(detail);
+                    retailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);                          
+
+                    overExtraValuation(rd, detail);
+            }
+            repricingInvoice(invoice) <- r WHERE inInvoice(invoice);
+
+            FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;               
+        }       
+    }
+} TOOLBAR ;
+
+EXTEND FORM repricings
+    PROPERTIES ()  createExtraValuation TODRAW p
+;
+
