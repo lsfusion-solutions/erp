@@ -1,0 +1,33 @@
+MODULE RetailCRMArticle;
+
+REQUIRE RetailCRMItem, ItemArticle;
+
+PRIORITY Stock;
+
+// article
+TABLE promotionConditionArticle (PromotionCondition, Article);
+inDataPromotionConditionArticle 'В условии' = DATA BOOLEAN (PromotionCondition, Article);
+
+overInPromotionConditionSku (condition, sku) += inDataPromotionConditionArticle(condition, articleItem(sku));
+
+EXTEND FORM promotion
+
+    OBJECTS ar = Article
+    PROPERTIES(ar)    READONLY idArticle, captionArticle
+    FILTERS           isParentGroupArticle(skg, ar)
+    PROPERTIES(sg, ar)   inDataPromotionConditionArticle
+
+    FILTERGROUP filterArticle
+        FILTER 'Только отмеченные' 'F10' inDataPromotionConditionArticle(sg, ar)
+;
+
+EXTEND DESIGN promotion {
+    row212 {
+        NEW skuMainPane AFTER skuGroupContainer{
+            type = TABBED;
+            fill = 2;
+            ADD ar.box;
+            ADD sk.box;                        
+        }
+    }
+}                

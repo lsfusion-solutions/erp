@@ -186,9 +186,12 @@ inPromotionConditionSkuGroup 'В условии' = inParentPromotionConditionSku
 TABLE promotionConditionSku (PromotionCondition, Sku);
 inDataPromotionConditionSku 'В условии' = DATA BOOLEAN (PromotionCondition, Sku);
 
-inPromotionConditionSku 'В условии' (promotionCondition, sku) = OVERRIDE (countPromotionConditionSku(promotionCondition, sku) OR (allDiscountSkuGroupPromotionCondition(promotionCondition) AND sku IS Sku)) AND
-                                                                          inParentPromotionConditionSkuGroup(promotionCondition, skuGroupSku(sku)),
-                                                                          inDataPromotionConditionSku(promotionCondition, sku);
+overInPromotionConditionSku 'В условии' = ABSTRACT BOOLEAN (PromotionCondition, Sku);
+
+inPromotionConditionSku 'В условии' (c, sku) = OVERRIDE
+    (countPromotionConditionSku(c, sku) OR (allDiscountSkuGroupPromotionCondition(c) AND sku IS Sku)) AND inParentPromotionConditionSkuGroup(c, skuGroupSku(sku)),                                                                            
+    overInPromotionConditionSku(c, sku),
+    inDataPromotionConditionSku(c, sku);
 
 notHasDiscountCardPromotion (p) = NOT hasDiscountCardPromotion(p);
 notNoDiscountCardPromotion (p) = NOT noDiscountCardPromotion(p);
