@@ -52,44 +52,45 @@ filterToRepricingInvoiceStockDateTime 'Фильтр' (invoice, department, timeF
     repricingInvoice(invoice)
 ;                  
                   
-overExtraValuation = ABSTRACT ACTION LIST (RepricingDetail, Purchase.InvoiceDetail);                    
-createExtraValuation 'Создать дооценку' = ACTION () NEWSESSION {
-
-    FORM extraValuation  MODAL;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL department = DepartmentStore();
-        LOCAL timeFrom =  DATETIME();          
-        LOCAL operation = Repricing.Operation ();                   
-        LOCAL inInvoice =  BOOLEAN(Purchase.Invoice);
+overExtraValuation = ABSTRACT ACTION LIST (RepricingDetail, Purchase.InvoiceDetail);  
+                  
+createExtraValuationStockTimeOperation 'Создать дооценку' = ACTION (department, timeFrom, operation) {
+    
+    LOCAL inInvoice =  BOOLEAN(Purchase.Invoice);
         
-        department() <- chosenObject('d');
-        timeFrom() <- chosenDateTime('tf');
-        operation() <- chosenObject('o');   
-             
-        inInvoice(invoice) <- TRUE WHERE filterToRepricingInvoiceStockDateTime(invoice, department(), timeFrom());   
+    inInvoice(invoice) <- TRUE WHERE filterToRepricingInvoiceStockDateTime(invoice, department, timeFrom);   
 
-        FOR ADDOBJ r = UserRepricing DO {
-            departmentStoreUserRepricing(r) <-  department();
-            operationUserRepricing(r) <- operation();
+    FOR ADDOBJ r = UserRepricing DO {
+        departmentStoreUserRepricing(r) <-  department;
+        operationUserRepricing(r) <- operation;
+        skipChangeLedgerUserRepricing(r) <- TRUE;
 
-            FOR retailPriceInvoiceDetail(detail) AND calcPrevRetailPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
-                toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(Purchase.invoiceInvoiceDetail(detail))               
-                ADDOBJ rd = UserRepricingDetail DO {
-                    userRepricingUserRepricingDetail(rd) <- r;
-                    skuUserRepricingDetail(rd) <- Purchase.skuInvoiceDetail(detail);
-                    quantityUserRepricingDetail(rd) <- toRepricingQuantityInvoiceDetail(detail);
-                    curPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, Purchase.skuInvoiceDetail(detail), department(), Purchase.dateTimeInvoiceDetail(detail));
-                    curRetailPriceUserRepricingDetail(rd) <- calcPrevRetailPriceBInvoiceDetail(detail);
+        FOR retailPriceInvoiceDetail(detail) AND calcPrevRetailPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
+            toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(Purchase.invoiceInvoiceDetail(detail))               
+            ADDOBJ rd = UserRepricingDetail DO {
+                userRepricingUserRepricingDetail(rd) <- r;
+                skuUserRepricingDetail(rd) <- Purchase.skuInvoiceDetail(detail);
+                quantityUserRepricingDetail(rd) <- toRepricingQuantityInvoiceDetail(detail);
+                curPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, Purchase.skuInvoiceDetail(detail), department, Purchase.dateTimeInvoiceDetail(detail));
+                curRetailPriceUserRepricingDetail(rd) <- calcPrevRetailPriceBInvoiceDetail(detail);
 
-                    priceUserRepricingDetail(rd) <- Purchase.priceInvoiceDetail(detail);
-                    retailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);                          
+                priceUserRepricingDetail(rd) <- Purchase.priceInvoiceDetail(detail);
+                retailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);                          
 
-                    overExtraValuation(rd, detail);
-            }
-            repricingInvoice(invoice) <- r WHERE inInvoice(invoice);
+                overExtraValuation(rd, detail);
+        }
+        repricingInvoice(invoice) <- r WHERE inInvoice(invoice);
 
-            FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;               
-        }       
+        FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;               
+    }  
+}                   
+                  
+                  
+                  
+createExtraValuation 'Создать дооценку' = ACTION () NEWSESSION {
+    FORM extraValuation  MODAL;
+    IF formResult() == FormResult.ok THEN {        
+        createExtraValuationStockTimeOperation(chosenObject('d'), chosenDateTime('tf'), chosenObject('o'));                               
     }
 } TOOLBAR ;
 

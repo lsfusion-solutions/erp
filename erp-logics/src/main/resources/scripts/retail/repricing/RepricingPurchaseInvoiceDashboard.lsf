@@ -1,0 +1,74 @@
+MODULE RepricingPurchaseInvoiceDashboard;
+
+REQUIRE Dashboard, RepricingPurchaseInvoice, LabelRepricing;
+
+NAMESPACE Repricing;
+
+createExtraValuationNewStockTimeOperation 'Создать дооценку' = ACTION (department, timeFrom, operation) NEWSESSION {
+    createExtraValuationStockTimeOperation(department, timeFrom, operation);   
+}
+
+FORM repricingInvoiceDashboard 'Дооценка'
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES (d) SELECTOR nameDepartmentStore
+    FILTERS isCompanyStock(d)
+        
+    OBJECTS o = Repricing.Operation FIXED PANEL
+    PROPERTIES (o) SELECTOR Repricing.nameOperation
+    FILTERS inUserOperation(currentUser(), o)
+
+    OBJECTS t=DATETIME FIXED PANEL
+    PROPERTIES(t) OBJVALUE        
+     
+    OBJECTS i = Purchase.Invoice
+    PROPERTIES (i) READONLY Purchase.isClosedInvoice, Purchase.isPostedInvoice,
+                            Purchase.numberInvoice, Purchase.seriesInvoice, Purchase.dateInvoice, Purchase.timeInvoice,
+                            Purchase.nameSupplierInvoice, Purchase.nameSupplierStockInvoice, Purchase.nameCustomerInvoice, Purchase.nameCustomerStockInvoice,            
+                            Purchase.countInvoiceDetailInvoice, Purchase.quantityInvoiceDetailInvoice, Purchase.sumInvoiceDetailInvoice,
+                            Purchase.VATSumInvoiceDetailInvoice, Purchase.invoiceSumInvoiceDetailInvoice
+    PROPERTIES (i) Purchase.editInvoice SHOWIF Purchase.isOpenedInvoice(i)
+    FILTERGROUP filters FILTER 'Накладные, которым нужна дооценка' 'F9' filterToRepricingInvoiceStockDateTime(i,d,t) DEFAULT     
+    
+    OBJECTS p = Repricing
+    PROPERTIES (p) READONLY isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
+                   nameDepartmentStoreRepricing, countRepricingDetailRepricing, diffSumRepricingDetailRepricing,
+                   diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
+                   diffRetailSumRepricingDetailRepricing, numberDisposalRepricing, skipChangeLedgerRepricing,
+                   statusLabelPriceTransactionDocument BACKGROUND backgroundPrintLabelTransactionRepricing(p),
+                   statusMachineryPriceTransactionDocument ON SHORTCUT createSnapshotRepricingMachineryPriceTransaction(p) BACKGROUND backgroundCreateMachineryPriceTransactionRepricing(p), 
+                   noteRepricing                      
+               
+    PROPERTIES (p) createRepricingLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransactionRepricing(p), 
+                   createSnapshotRepricingLabelTransaction FORCE PANEL
+                   
+    PROPERTIES(p)  createRepricingMachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransactionRepricing(p)
+    PROPERTIES (p) printRepricing FORCE PANEL TOOLBAR                                           
+    PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p), ADDFORM
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)    
+               
+    PROPERTIES (d,t,o)  createExtraValuationNewStockTimeOperation TODRAW p FORCE PANEL TOOLBAR     
+                     
+    FILTERGROUP filters FILTER 'Переоценки на текущую дату' 'F5' dateRepricing(p)==currentDate() DEFAULT                         
+                                               
+;
+DESIGN repricingInvoiceDashboard FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+
+        NEW topContainer {
+            type = CONTAINERH;
+            ADD d.box;
+            ADD o.box;
+            ADD t.box { caption = 'Время с';}
+        }
+        ADD i.box;
+        ADD p.box;
+        ADD functions.box;
+    }
+}
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        ADD repricingInvoiceDashboard;
+    }
+}
