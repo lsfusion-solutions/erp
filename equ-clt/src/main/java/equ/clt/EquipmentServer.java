@@ -105,7 +105,7 @@ public class EquipmentServer {
 
     private void processTransactionInfo(EquipmentServerInterface remote, String equServerID) throws SQLException, RemoteException, FileNotFoundException, UnsupportedEncodingException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, InstantiationException {
         List<SoftCheckInfo> softCheckInfoList = remote.readSoftCheckInfo();
-        if (softCheckInfoList != null) {
+        if (softCheckInfoList != null && !softCheckInfoList.isEmpty()) {
 
             for (SoftCheckInfo entry : softCheckInfoList) {
                 if (entry.handler != null) {
