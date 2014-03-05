@@ -4,7 +4,7 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.ByReference;
 import com.sun.jna.ptr.IntByReference;
-import org.apache.log4j.Logger;
+import org.apache.log4j.*;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -14,7 +14,16 @@ public class FiscalVMK {
 
     static Logger logger;
     static {
-        logger = Logger.getLogger("CashRegisterLogger");
+        try {
+            logger = Logger.getLogger("cashRegisterLog");
+            logger.setLevel(Level.INFO);
+            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
+                    "logs/cashregister.log");   
+            logger.removeAllAppenders();
+            logger.addAppender(fileAppender);
+            
+        } catch (Exception ignored) {
+        }
     }
     
     public interface vmkDLL extends Library {
