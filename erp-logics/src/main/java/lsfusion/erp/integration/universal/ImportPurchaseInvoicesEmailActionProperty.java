@@ -66,6 +66,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                 ObjectValue accountObject = entryValue.get("autoImportAccountImportType");
                 ObjectValue emailObject = entryValue.get("autoImportEmailImportType");
+                String emailPattern = emailObject instanceof DataObject ? ((String) ((DataObject) emailObject).object).replace("*", ".*") : null;
                 String fileExtension = trim((String) entryValue.get("captionFileExtensionImportType").getValue());
                 Integer startRow = (Integer) entryValue.get("startRowImportType").getValue();
                 startRow = startRow == null ? 1 : startRow;
@@ -91,41 +92,42 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                     KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
                     ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap((Object) "email", emailExpr, "attachmentEmail", attachmentEmailExpr);
 
-                    String[] attachmentEmailProperties = new String[]{"fileAttachmentEmail"};
                     QueryBuilder<Object, Object> emailQuery = new QueryBuilder<Object, Object>(emailKeys);
-                    for (String property : attachmentEmailProperties) {
-                        emailQuery.addProperty(property, getLCP(property).getExpr(session.getModifier(), attachmentEmailExpr));
-                    }
+                    emailQuery.addProperty("fromAddressEmail", getLCP("fromAddressEmail").getExpr(session.getModifier(), emailExpr));
+                    emailQuery.addProperty("fileAttachmentEmail", getLCP("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr));
+                    
                     emailQuery.and(getLCP("accountEmail").getExpr(session.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
-                    emailQuery.and(getLCP("fromAddressEmail").getExpr(session.getModifier(), emailExpr).compare(emailObject.getExpr(), Compare.EQUALS));
                     emailQuery.and(getLCP("notImportedAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
                     emailQuery.and(getLCP("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> emailResult = emailQuery.executeClasses(session);
 
                     for (int j = 0, sizej = emailResult.size(); j < sizej; j++) {
-                        ImMap<Object, ObjectValue> emailEntryValue = emailResult.getValue(i);
-                        ObjectValue attachmentEmailObject = emailResult.getKey(i).get("attachmentEmail");
-                        byte[] fileAttachment = (byte[]) emailEntryValue.get("fileAttachmentEmail").getValue();
-                        DataSession currentSession = context.createSession();
-                        DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) getClass("Purchase.UserInvoice"));
+                        ImMap<Object, ObjectValue> emailEntryValue = emailResult.getValue(j);
+                        ObjectValue attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
+                        String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
+                        if (fromAddressEmail != null && emailPattern != null && fromAddressEmail.matches(emailPattern)) {
+                            byte[] fileAttachment = (byte[]) emailEntryValue.get("fileAttachmentEmail").getValue();
+                            DataSession currentSession = context.createSession();
+                            DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) getClass("Purchase.UserInvoice"));
 
-                        try {
+                            try {
 
-                            boolean importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                    importColumns, fileAttachment, fileExtension, startRow, isPosted, csvSeparator,
-                                    primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject,
-                                    supplierStockObject, customerObject, customerStockObject);
+                                boolean importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
+                                        importColumns, fileAttachment, fileExtension, startRow, isPosted, csvSeparator,
+                                        primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject,
+                                        supplierStockObject, customerObject, customerStockObject);
 
-                            if (importResult)
-                                getLCP("importedAttachmentEmail").change(true, currentSession, (DataObject) attachmentEmailObject);
+                                if (importResult)
+                                    getLCP("importedAttachmentEmail").change(true, currentSession, (DataObject) attachmentEmailObject);
 
 
-                        } catch (Exception e) {
-                            ServerLoggers.systemLogger.error(e);
+                            } catch (Exception e) {
+                                ServerLoggers.systemLogger.error(e);
+                            }
+
+                            currentSession.apply(context);
                         }
-                        
-                        currentSession.apply(context);
                     }
                 }
             }
