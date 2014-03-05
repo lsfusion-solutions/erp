@@ -70,6 +70,8 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
         switch (value.length()) {
             case 4:
                 return new Date(DateUtils.parseDate(value, new String[]{"MMyy"}).getTime());
+            case 5:
+                return new Date(DateUtils.parseDate(value, new String[]{"MM.yy"}).getTime());
             case 6:
                 return new Date(DateUtils.parseDate(value, new String[]{"MM,yy_"}).getTime());
             case 7:
@@ -83,7 +85,8 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
             case 19:
                 return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime());
         }
-        return new Date(DateUtils.parseDate(value, new String[]{"MM,yy_", "MM.yyyy", "MM-yyyy", "MMyy", "yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy HH:mm", "dd.MM.yyyy HH:mm:ss"}).getTime());
+        return new Date(DateUtils.parseDate(value, new String[]{"MM,yy_", "MM.yyyy", "MM-yyyy", "MMyy", "MM.yy", "yyyyMMdd", 
+                "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy HH:mm", "dd.MM.yyyy HH:mm:ss"}).getTime());
     }
 
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
