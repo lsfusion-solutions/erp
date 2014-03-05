@@ -435,6 +435,21 @@ valueResidentByStatisticGroupDateTo 'Остаток на конец, бел. п�
         ELSE 0 IF group IS StatisticGroup AND stock IS Stock AND dateTo IS DATE
     ;
 
+quantitySoldNotStatisticGroupTypeDateFromTo 'Продано без группы, шт' (type, stock, dateFrom, dateTo)=
+    GROUP SUM quantitySoldSkuStockDateFromTo (sku, stock, dateFrom, dateTo) IF NOT       
+    statisticGroupTypeSku(type,sku)  BY type, stock, dateFrom, dateTo;  
+    
+balanceBNotStatisticGroupTypeDate 'Остаток на начало без групп, шт' (type, stock, date)=
+    GROUP SUM  balanceBSkuStockDate (sku, stock, date) IF NOT       
+    statisticGroupTypeSku(type,sku)  BY type, stock, date;  
+balanceANotStatisticGroupTypeDate 'Остаток на конец без групп, шт' (type, stock, date)=
+    GROUP SUM  balanceASkuStockDate (sku, stock, date) IF NOT       
+    statisticGroupTypeSku(type,sku)  BY type, stock, date; 
+    
+backgroundQuantityNotStatisticGroup (type, stock, dateFrom, dateTo) =  RGB(255,0,0) IF quantitySoldNotStatisticGroupTypeDateFromTo(type, stock, dateFrom, dateTo);
+backgroundBalanceBNotStatisticGroup (type, stock, dateFrom) =  RGB(255,0,0) IF balanceBNotStatisticGroupTypeDate(type, stock, dateFrom);
+backgroundBalanceANotStatisticGroup (type, stock, dateTo) =  RGB(255,0,0) IF balanceANotStatisticGroupTypeDate(type, stock, dateTo);
+    
 FORM statisticalReport 'Статистика (продажи) склад/группа/sku'
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
@@ -447,7 +462,12 @@ FORM statisticalReport 'Статистика (продажи) склад/гру�
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a),
             stockGroupStock(ts) == sg
-
+            
+//    PROPERTIES READONLY 
+//               balanceBNotStatisticGroupTypeDate(c,ts,dFrom) BACKGROUND backgroundBalanceBNotStatisticGroup(c,ts,dFrom),
+//               quantitySoldNotStatisticGroupTypeDateFromTo(c,ts,dFrom,dTo) BACKGROUND backgroundQuantityNotStatisticGroup(c,ts,dFrom,dTo),
+//               balanceANotStatisticGroupTypeDate(c,ts,dTo) BACKGROUND backgroundBalanceANotStatisticGroup(c,ts,dTo)
+    
     TREE treeGroups g=StatisticGroup PARENT parentStatisticGroup
     PROPERTIES READONLY gname = nameStatisticGroup(g),  sidStatisticGroup(g), nameUOMStatisticGroup(g)
     ORDER BY gname
@@ -1004,6 +1024,21 @@ sumResidentBalanceAByStatisticGroupLegalEntityDate 'В т.ч.отеч., руб.'
 
 //residentStatisticGroupSku (group, sku) AND
 
+quantitySoldNotStatisticGroupTypeLegalEntityDateFromTo 'Продано без группы, шт' (type, legalEntity, dateFrom, dateTo)=
+    GROUP SUM quantitySoldSkuStockDateFromTo (sku, stock, dateFrom, dateTo) IF NOT       
+    statisticGroupTypeSku(type, sku) BY type, legalEntityStock(stock), dateFrom, dateTo;  
+    
+balanceBNotStatisticGroupTypeLegalEntityDate 'Остаток на начало без групп, шт' (type, legalEntity, date)=
+    GROUP SUM  balanceBSkuStockDate (sku, stock, date) IF NOT       
+    statisticGroupTypeSku(type,sku)  BY type, legalEntityStock(stock), date;  
+balanceANotStatisticGroupTypeLegalEntityDate 'Остаток на конец без групп, шт' (type, legalEntity, date)=
+    GROUP SUM  balanceASkuStockDate (sku, stock, date) IF NOT       
+    statisticGroupTypeSku(type,sku)  BY type, legalEntityStock(stock), date; 
+    
+backgroundQuantityNotStatisticGroupLegalEntity (type, legalEntity, dateFrom, dateTo) =  RGB(255,0,0) IF quantitySoldNotStatisticGroupTypeLegalEntityDateFromTo(type, legalEntity, dateFrom, dateTo);
+backgroundBalanceBNotStatisticGroupLegalEntity (type, legalEntity, dateFrom) =  RGB(255,0,0) IF balanceBNotStatisticGroupTypeLegalEntityDate(type, legalEntity, dateFrom);
+backgroundBalanceANotStatisticGroupLegalEntity (type, legalEntity, dateTo) =  RGB(255,0,0) IF balanceANotStatisticGroupTypeLegalEntityDate(type, legalEntity, dateTo);
+
 FORM statisticalLegalEntityReport 'Статистический отчет по организации'
 
     OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
@@ -1013,8 +1048,13 @@ FORM statisticalLegalEntityReport 'Статистический отчет по 
     PROPERTIES SELECTOR nameStatisticGroupType(c)
 
     OBJECTS l=LegalEntity  FIXED PANEL
-    PROPERTIES(l) SELECTOR nameLegalEntity
-
+    PROPERTIES(l) SELECTOR nameLegalEntity      
+    
+    PROPERTIES READONLY balanceBNotStatisticGroupTypeLegalEntityDate(c,l,dFrom) BACKGROUND backgroundBalanceBNotStatisticGroupLegalEntity(c,l,dFrom),
+               quantitySoldNotStatisticGroupTypeLegalEntityDateFromTo(c,l,dFrom, dTo) BACKGROUND backgroundQuantityNotStatisticGroupLegalEntity(c,l,dFrom, dTo),
+               balanceANotStatisticGroupTypeLegalEntityDate(c,l,dTo) BACKGROUND backgroundBalanceANotStatisticGroupLegalEntity(c,l,dTo)    
+    FILTERS isCompanyLegalEntity(l)
+    
     TREE treeGroups g=StatisticGroup PARENT parentStatisticGroup
     PROPERTIES READONLY gname = nameStatisticGroup(g), sidStatisticGroup(g), nameUOMStatisticGroup(g)
     ORDER BY sidStatisticGroup(g)
@@ -1033,13 +1073,16 @@ DESIGN statisticalLegalEntityReport FROM DEFAULT {
     main{
         NEW firstCase BEFORE treeGroups.tree.box {
             caption = 'Параметры отчета';
-            type = CONTAINERH;
-            ADD c.box;
-            NEW dateCase {
-                caption = 'Даты';
+            type = CONTAINERV;
+            NEW row {
                 type = CONTAINERH;
-                ADD PROPERTY(objFrom) {caption = 'Дата (с)';}
-                ADD PROPERTY(objTo) {caption = 'Дата (по)';}
+                ADD c.box;
+                NEW dateCase {
+                    caption = 'Даты';
+                    type = CONTAINERH;
+                    ADD PROPERTY(objFrom) {caption = 'Дата (с)';}
+                    ADD PROPERTY(objTo) {caption = 'Дата (по)';}
+                }             
             }
             ADD l.box;
         }
@@ -1205,6 +1248,11 @@ FORM statisticalStockReport 'Статистический отчет по скл
 
     OBJECTS s=Stock  FIXED PANEL
     PROPERTIES(s) SELECTOR nameStock
+    FILTERS isCompanyStock(s)
+    PROPERTIES READONLY 
+               balanceBNotStatisticGroupTypeDate(c,s,dFrom) BACKGROUND backgroundBalanceBNotStatisticGroup(c,s,dFrom),
+               quantitySoldNotStatisticGroupTypeDateFromTo(c,s,dFrom,dTo) BACKGROUND backgroundQuantityNotStatisticGroup(c,s,dFrom,dTo),
+               balanceANotStatisticGroupTypeDate(c,s,dTo) BACKGROUND backgroundBalanceANotStatisticGroup(c,s,dTo)    
 
     TREE treeGroups g=StatisticGroup PARENT parentStatisticGroup
     PROPERTIES READONLY gname = nameStatisticGroup(g), sidStatisticGroup(g), nameUOMStatisticGroup(g)
@@ -1224,13 +1272,16 @@ DESIGN statisticalStockReport FROM DEFAULT {
     main{
         NEW firstCase BEFORE treeGroups.tree.box {
             caption = 'Параметры отчета';
-            type = CONTAINERH;
-            ADD c.box;
-            NEW dateCase {
-                caption = 'Даты';
+            type = CONTAINERV;
+            NEW row {
                 type = CONTAINERH;
-                ADD PROPERTY(objFrom) {caption = 'Дата (с)';}
-                ADD PROPERTY(objTo) {caption = 'Дата (по)';}
+                ADD c.box;
+                NEW dateCase {
+                    caption = 'Даты';
+                    type = CONTAINERH;
+                    ADD PROPERTY(objFrom) {caption = 'Дата (с)';}
+                    ADD PROPERTY(objTo) {caption = 'Дата (по)';}
+                }             
             }
             ADD s.box;
         }
