@@ -53,10 +53,17 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
         if (value == null) return defaultValue;
         value = value.trim();
         if (value.isEmpty() || value.replace(".", "").trim().isEmpty()) return defaultValue;
-        if (value.length() == 8 && !value.contains(".") && Integer.parseInt(value.substring(4, 6)) > 12) {
-            //чит для отличия ddMMyyyy от yyyyMMdd
-            return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
-        } else if (value.contains("г")) {
+        if (value.length() == 8 && !value.contains(".")) {
+            try {
+                //чит для отличия ddMMyyyy от yyyyMMdd
+                Integer intValue = Integer.parseInt(value.substring(4, 6));
+                if(intValue > 12)
+                return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
+            } catch(Exception e) {
+                return defaultValue;
+            }            
+        } 
+        if (value.contains("г")) {
             //чит для даты с месяцем прописью
             return new Date(new SimpleDateFormat("dd MMMM yyyy г.", RU_SYMBOLS).parse(value.toLowerCase()).getTime());
         }

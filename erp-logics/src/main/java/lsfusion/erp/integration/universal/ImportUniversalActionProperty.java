@@ -71,10 +71,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
-        return getCSVFieldValue(valuesList, importColumnDetail, row, defaultValue, false);
+        return getCSVFieldValue(valuesList, importColumnDetail, row, defaultValue, false, false);
     }
 
-    protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row, String defaultValue, boolean isNumeric) throws UniversalImportException {
+    protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row, String defaultValue, 
+                                      boolean isNumeric, boolean ignoreException) throws UniversalImportException {
 
         try {
 
@@ -142,8 +143,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 result = trySum(result, value, isNumeric);
             }
             return result.isEmpty() ? defaultValue : result;
-        } catch (Exception e) {
-            throw new UniversalImportException(importColumnDetail, row, e);
+        } catch (Exception e) {    
+            if(ignoreException)
+                return defaultValue;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
         }
     }
 
@@ -166,31 +170,59 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected Date getCSVDateFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
-       return getCSVDateFieldValue(values, importColumnDetail, row, null);
+       return getCSVDateFieldValue(values, importColumnDetail, row, false);
+    }
+
+    protected Date getCSVDateFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row, boolean ignoreException) throws UniversalImportException {
+        return getCSVDateFieldValue(values, importColumnDetail, row, null, ignoreException);
     }
     
     protected Date getCSVDateFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row, Date defaultValue) throws UniversalImportException {
+       return getCSVDateFieldValue(values, importColumnDetail, row, defaultValue, false);
+    }
+
+    protected Date getCSVDateFieldValue(String[] values, ImportColumnDetail importColumnDetail, int row, Date defaultValue, boolean ignoreException) 
+            throws UniversalImportException {
         if (importColumnDetail == null) return defaultValue;
-        return getCSVDateFieldValue(values, importColumnDetail, importColumnDetail.indexes[0], row, defaultValue);
+        return getCSVDateFieldValue(values, importColumnDetail, importColumnDetail.indexes[0], row, defaultValue, ignoreException);
     }
 
     protected Date getCSVDateFieldValue(String[] values, ImportColumnDetail importColumnDetail, String index, int row, Date defaultDate) throws UniversalImportException {
+        return getCSVDateFieldValue(values, importColumnDetail, index, row, defaultDate, false);
+    }
+    
+    protected Date getCSVDateFieldValue(String[] values, ImportColumnDetail importColumnDetail, String index, int row, Date defaultDate, boolean ignoreException)
+            throws UniversalImportException {
         try {
             return parseDate(getCSVFieldValue(values, parseIndex(index), null, null, null), defaultDate);
         } catch (ParseException e) {
-            throw new UniversalImportException(importColumnDetail == null ? null : importColumnDetail.field, index, row, e);
+            if(ignoreException)
+                return defaultDate;
+            else
+                throw new UniversalImportException(importColumnDetail == null ? null : importColumnDetail.field, index, row, e);
         }
     }
 
     protected String getXLSFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
-        return getXLSFieldValue(sheet, row, importColumnDetail, null);
+        return getXLSFieldValue(sheet, row, importColumnDetail, false);
     }
 
-    protected String getXLSFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue) throws UniversalImportException {
-        return getXLSFieldValue(sheet, row, importColumnDetail, defaultValue, false);
+    protected String getXLSFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean ignoreException) throws UniversalImportException {
+        return getXLSFieldValue(sheet, row, importColumnDetail, null, ignoreException);
+    }
+
+    protected String getXLSFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue)
+            throws UniversalImportException {
+        return getXLSFieldValue(sheet, row, importColumnDetail, defaultValue, false, false);
     }
     
-    protected String getXLSFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue, boolean isNumeric) throws UniversalImportException {
+    protected String getXLSFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue, boolean ignoreException) 
+            throws UniversalImportException {
+        return getXLSFieldValue(sheet, row, importColumnDetail, defaultValue, false, ignoreException);
+    }
+    
+    protected String getXLSFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, String defaultValue, 
+                                      boolean isNumeric, boolean ignoreException) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
             String result = "";
@@ -257,7 +289,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
-            throw new UniversalImportException(importColumnDetail, row, e);
+            if(ignoreException)
+                return defaultValue;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
         }
     }
 
@@ -288,18 +323,29 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
-        return parseBigDecimal(getXLSFieldValue(sheet, row, importColumnDetail, null, true));
+        return parseBigDecimal(getXLSFieldValue(sheet, row, importColumnDetail, null, true, false));
     }
 
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
         return getXLSDateFieldValue(sheet, row, importColumnDetail, null);
     }
+
+    protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean ignoreException) throws UniversalImportException {
+        return getXLSDateFieldValue(sheet, row, importColumnDetail, null, ignoreException);
+    }
     
     protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate) throws UniversalImportException {
+        return getXLSDateFieldValue(sheet, row, importColumnDetail, defaultDate, false);
+    }
+
+    protected Date getXLSDateFieldValue(Sheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate, boolean ignoreException) throws UniversalImportException {
         try {
-            return parseDate(getXLSFieldValue(sheet, row, importColumnDetail), defaultDate);
+            return parseDate(getXLSFieldValue(sheet, row, importColumnDetail, ignoreException), defaultDate);
         } catch (ParseException e) {
-            throw new UniversalImportException(importColumnDetail, row, e);
+            if(ignoreException)
+                return defaultDate;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
         }
     }
 
@@ -312,7 +358,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean isDate, String defaultValue) throws UniversalImportException {
-        return getXLSXFieldValue(sheet, row, importColumnDetail, isDate, defaultValue, false);
+        return getXLSXFieldValue(sheet, row, importColumnDetail, isDate, defaultValue, false, false);
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, boolean isDate, ImportColumnDetail importColumnDetail, boolean isNumeric) throws UniversalImportException {
@@ -320,11 +366,16 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
     
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, boolean isDate, ImportColumnDetail importColumnDetail, String defaultValue, boolean isNumeric) throws UniversalImportException {
-        return getXLSXFieldValue(sheet, row, importColumnDetail, isDate, defaultValue, isNumeric);
+        return getXLSXFieldValue(sheet, row, isDate, importColumnDetail,  defaultValue, isNumeric, false);
+    }
+
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, boolean isDate, ImportColumnDetail importColumnDetail, String defaultValue, 
+                                       boolean isNumeric, boolean ignoreException) throws UniversalImportException {
+        return getXLSXFieldValue(sheet, row, importColumnDetail, isDate, defaultValue, isNumeric, ignoreException);
     }
 
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean isDate, 
-                                       String defaultValue, boolean isNumeric) throws UniversalImportException {
+                                       String defaultValue, boolean isNumeric, boolean ignoreException) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
             String result = "";
@@ -392,7 +443,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
-            throw new UniversalImportException(importColumnDetail, row, e);
+            if(ignoreException)
+                return defaultValue;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
         }
     }
 
@@ -460,14 +514,27 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail) throws UniversalImportException {
-        return getXLSXDateFieldValue(sheet, row, importColumnDetail, null);
+        return getXLSXDateFieldValue(sheet, row, importColumnDetail, false);
+    }
+
+    protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, boolean ignoreException) 
+            throws UniversalImportException {
+        return getXLSXDateFieldValue(sheet, row, importColumnDetail, null, ignoreException);
     }
     
     protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate) throws UniversalImportException {
+        return getXLSXDateFieldValue(sheet, row, importColumnDetail, defaultDate, false);
+    }
+
+    protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, ImportColumnDetail importColumnDetail, Date defaultDate, boolean ignoreException) 
+            throws UniversalImportException {
         try {
-            return parseDate(getXLSXFieldValue(sheet, row, true, importColumnDetail, null, false), defaultDate);
+            return parseDate(getXLSXFieldValue(sheet, row, true, importColumnDetail, null, false, ignoreException), defaultDate);
         } catch (ParseException e) {
-            throw new UniversalImportException(importColumnDetail, row, e);
+            if(ignoreException)
+                return defaultDate;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
         }
     }
 
@@ -477,11 +544,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, String defaultValue) throws UniversalImportException {
         if (importColumnDetail == null) return defaultValue;
-        return getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, defaultValue, false);
+        return getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, defaultValue, false, false);
     }
 
-    protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, String[] columns, int row, 
-                                      String charset, String defaultValue, boolean isNumeric) throws UniversalImportException {
+    protected String getDBFFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, String[] columns, int row, String charset,
+                                      String defaultValue, boolean isNumeric, boolean ignoreException) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
             String result = "";
@@ -492,7 +559,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(column);
                 else if (isRoundedValue(column)) {
                     String[] splittedField = column.split("\\[|\\]");
-                    value = getRoundedValue(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, "", true), splittedField[1]);
+                    value = getRoundedValue(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, "", true, ignoreException), splittedField[1]);
                 } else if (isDivisionValue(column)) {
                     String[] splittedField = column.split("/");
                     BigDecimal dividedValue = null;
@@ -521,7 +588,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = "";
                     String[] splittedField = column.split("\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[i]}, i, charset, null, isNumeric);
+                        String orValue = getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[i]}, i, charset, null, isNumeric, ignoreException);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -529,12 +596,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (isSubstringValue(column)) {
                     String[] splittedField = column.split(splitPattern);
-                    value = getSubstring(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, defaultValue, isNumeric),
+                    value = getSubstring(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, defaultValue, isNumeric, ignoreException),
                             splittedField.length > 1 ? parseIndex(splittedField[1]) : null, splittedField.length > 2 ? parseIndex(splittedField[2]) : null);
                 } else if (isDatePatternedValue(column)) {
                     String[] splittedField = column.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, defaultValue, false));
+                    Date date = parseDate(getDBFFieldValue(importFile, importColumnDetail, new String[]{splittedField[0]}, row, charset, defaultValue, false, ignoreException));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedField, calendar);
@@ -546,7 +613,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
-            throw new UniversalImportException(importColumnDetail, row, e);
+            if(ignoreException)
+                return defaultValue;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
         }
     }
 
@@ -557,22 +627,31 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, BigDecimal defaultValue) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
-            return parseBigDecimal(getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, null, true), defaultValue);
+            return parseBigDecimal(getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, null, true, false), defaultValue);
         } catch (NumberFormatException e) {
             throw new UniversalImportException(importColumnDetail, row, e);
         }
     }
 
     protected Date getDBFDateFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset) throws UniversalImportException {
-        return getDBFDateFieldValue(importFile, importColumnDetail, row, charset, null);
+        return getDBFDateFieldValue(importFile, importColumnDetail, row, charset, false);
     }
 
-    protected Date getDBFDateFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, Date defaultDate) throws UniversalImportException {
+    protected Date getDBFDateFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, boolean ignoreException) 
+            throws UniversalImportException {
+        return getDBFDateFieldValue(importFile, importColumnDetail, row, charset, null, ignoreException);
+    }
+
+    protected Date getDBFDateFieldValue(DBF importFile, ImportColumnDetail importColumnDetail, int row, String charset, Date defaultDate, 
+                                        boolean ignoreException) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultDate;
-            return parseDate(getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, null, false), defaultDate);
+            return parseDate(getDBFFieldValue(importFile, importColumnDetail, importColumnDetail.indexes, row, charset, null, false, ignoreException), defaultDate);
         } catch (ParseException e) {
-            throw new UniversalImportException(importColumnDetail, row, e);
+            if(ignoreException)
+                return defaultDate;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
         }
     }
 
@@ -582,12 +661,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     protected String getJDBFFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
         if (importColumnDetail == null) return defaultValue;
-        return getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, defaultValue, false, true);
+        return getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, defaultValue, false, true, false);
     }
 
-    protected String getJDBFFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap,
-                                       ImportColumnDetail importColumnDetail, String[] columns, int row,
-                                       String defaultValue, boolean isNumeric, boolean zeroIsNull) throws UniversalImportException {
+    protected String getJDBFFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, 
+                                       String[] columns, int row, String defaultValue, boolean isNumeric, boolean zeroIsNull, 
+                                       boolean ignoreException) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
             String result = "";
@@ -598,7 +677,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(column);
                 else if (isRoundedValue(column)) {
                     String[] splittedField = column.split("\\[|\\]");
-                    value = getRoundedValue(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, "", true, zeroIsNull), splittedField[1]);
+                    value = getRoundedValue(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, "", true, zeroIsNull, ignoreException), splittedField[1]);
                 } else if (isDivisionValue(column)) {
                     String[] splittedField = column.split("/");
                     BigDecimal dividedValue = null;
@@ -627,7 +706,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = "";
                     String[] splittedField = column.split("\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[i]}, i, null, isNumeric, zeroIsNull);
+                        String orValue = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[i]}, i, null, isNumeric, zeroIsNull, ignoreException);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -635,12 +714,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (isSubstringValue(column)) {
                     String[] splittedField = column.split(splitPattern);
-                    value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, isNumeric, zeroIsNull),
+                    value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, isNumeric, zeroIsNull, ignoreException),
                             splittedField.length > 1 ? parseIndex(splittedField[1]) : null, splittedField.length > 2 ? parseIndex(splittedField[2]) : null);
                 } else if (isDatePatternedValue(column)) {
                     String[] splittedField = column.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, false, zeroIsNull));
+                    Date date = parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, new String[]{splittedField[0]}, row, defaultValue, false, zeroIsNull, ignoreException));
                     if (date != null) {
                         calendar.setTime(date);
                         return parseDatePattern(splittedField, calendar);
@@ -655,7 +734,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             }
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
-            throw new UniversalImportException(importColumnDetail, row, e);
+            if(ignoreException)
+                return defaultValue;
+            else
+                throw new UniversalImportException(importColumnDetail, row, e);
         }
     }
 
@@ -675,7 +757,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     protected BigDecimal getJDBFBigDecimalFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, BigDecimal defaultValue) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultValue;
-            return parseBigDecimal(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, null, true, false), defaultValue);
+            return parseBigDecimal(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, null, true, false, false), defaultValue);
         } catch (NumberFormatException e) {
             throw new UniversalImportException(importColumnDetail, row, e);
         }
@@ -688,7 +770,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     protected Date getJDBFDateFieldValue(Object[] entry, Map<String, Integer> fieldNamesMap, ImportColumnDetail importColumnDetail, int row, Date defaultDate) throws UniversalImportException {
         try {
             if (importColumnDetail == null) return defaultDate;
-            return parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, null, false, false), defaultDate);
+            return parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail, importColumnDetail.indexes, row, null, false, false, false), defaultDate);
         } catch (ParseException e) {
             throw new UniversalImportException(importColumnDetail, row, e);
         }
@@ -817,13 +899,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
             return BigDecimal.ZERO;
         else return parseBigDecimal(value.replace("%", ""));
     }
-    
+
     private String trySum(String value1, String value2, boolean isNumeric) {
         if (value2 == null || value2.isEmpty())
             return value1;
         try {
-               return isNumeric ? String.valueOf(new BigDecimal(value1).add(new BigDecimal(value2))) : (value1 + value2);
-        } catch(Exception e) {
+            if (isNumeric) {
+                BigDecimal value1Numeric = value1.isEmpty() ? BigDecimal.ZERO : new BigDecimal(value1);
+                BigDecimal value2Numeric = value2.isEmpty() ? BigDecimal.ZERO : new BigDecimal(value2);
+                return String.valueOf(value1Numeric.add(value2Numeric));
+            } else return value1 + value2;
+        } catch (Exception e) {
             return value1 + value2;
         }
     }

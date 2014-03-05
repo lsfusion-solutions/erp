@@ -1051,7 +1051,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String numberCompliance = getXLSFieldValue(sheet, i, importColumns.get("numberCompliance"));
                 Date dateCompliance = getXLSDateFieldValue(sheet, i, importColumns.get("dateCompliance"));
                 String declaration = getXLSFieldValue(sheet, i, importColumns.get("declaration"));
-                Date expiryDate = getXLSDateFieldValue(sheet, i, importColumns.get("expiryDate"));
+                Date expiryDate = getXLSDateFieldValue(sheet, i, importColumns.get("expiryDate"), true);
                 Date manufactureDate = getXLSDateFieldValue(sheet, i, importColumns.get("manufactureDate"));
                 String pharmacyPriceGroupItem = getXLSFieldValue(sheet, i, importColumns.get("pharmacyPriceGroupItem"));
                 String seriesPharmacy = getXLSFieldValue(sheet, i, importColumns.get("seriesPharmacy"));
@@ -1185,7 +1185,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String numberCompliance = getCSVFieldValue(valuesList, importColumns.get("numberCompliance"), count);
             Date dateCompliance = getCSVDateFieldValue(values, importColumns.get("dateCompliance"), count);
             String declaration = getCSVFieldValue(valuesList, importColumns.get("declaration"), count);
-            Date expiryDate = getCSVDateFieldValue(values, importColumns.get("expiryDate"), count);
+            Date expiryDate = getCSVDateFieldValue(values, importColumns.get("expiryDate"), count, true);
             Date manufactureDate = getCSVDateFieldValue(values, importColumns.get("manufactureDate"), count);
             String pharmacyPriceGroupItem = getCSVFieldValue(valuesList, importColumns.get("pharmacyPriceGroupItem"), count);
             String seriesPharmacy = getCSVFieldValue(valuesList, importColumns.get("seriesPharmacy"), count);
@@ -1305,7 +1305,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String numberCompliance = getXLSXFieldValue(sheet, i, importColumns.get("numberCompliance"));
             Date dateCompliance = getXLSXDateFieldValue(sheet, i, importColumns.get("dateCompliance"));
             String declaration = getXLSXFieldValue(sheet, i, importColumns.get("declaration"));
-            Date expiryDate = getXLSXDateFieldValue(sheet, i, importColumns.get("expiryDate"));
+            Date expiryDate = getXLSXDateFieldValue(sheet, i, importColumns.get("expiryDate"), true);
             Date manufactureDate = getXLSXDateFieldValue(sheet, i, importColumns.get("manufactureDate"));
             String pharmacyPriceGroupItem = getXLSXFieldValue(sheet, i, importColumns.get("pharmacyPriceGroupItem"));
             String seriesPharmacy = getXLSXFieldValue(sheet, i, importColumns.get("seriesPharmacy"));
@@ -1434,7 +1434,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             BigDecimal rateExchange = getDBFBigDecimalFieldValue(file, importColumns.get("rateExchange"), i, charset);
             Date dateCompliance = getDBFDateFieldValue(file, importColumns.get("dateCompliance"), i, charset);
             String declaration = getDBFFieldValue(file, importColumns.get("declaration"), i, charset);
-            Date expiryDate = getDBFDateFieldValue(file, importColumns.get("expiryDate"), i, charset);
+            Date expiryDate = getDBFDateFieldValue(file, importColumns.get("expiryDate"), i, charset, true);
             Date manufactureDate = getDBFDateFieldValue(file, importColumns.get("manufactureDate"), i, charset);
             String pharmacyPriceGroup = getDBFFieldValue(file, importColumns.get("pharmacyPriceGroupItem"), i, charset);
             String seriesPharmacy = getDBFFieldValue(file, importColumns.get("seriesPharmacy"), i, charset);
