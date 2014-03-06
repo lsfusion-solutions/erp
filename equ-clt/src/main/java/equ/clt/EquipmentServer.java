@@ -184,10 +184,12 @@ public class EquipmentServer {
                         SalesBatch salesBatch = clsHandler.readSalesInfo(cashRegisterInfoList);
                         if (salesBatch != null) {
                             String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID);
-                            if (result != null)
+                            if (result != null) {
                                 remote.errorEquipmentServerReport(equServerID, new Throwable(result));
-                            else
+                            }
+                            else {
                                 clsHandler.finishReadingSalesInfo(salesBatch);
+                            }
                         }
                     }
                 } catch (Exception e) {

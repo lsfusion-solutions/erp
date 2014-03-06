@@ -235,10 +235,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(KristalSalesBatch salesBatch) {
+        logger.info("Finish reading");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
             if (f.delete()) {
-                logger.info("file " + readFile + "has been deleted");
+                logger.info("file " + readFile + " has been deleted");
             } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
