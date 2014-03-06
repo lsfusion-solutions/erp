@@ -1,6 +1,6 @@
 MODULE TripDashboard;
 
-REQUIRE Dashboard, OrderInvoice, Trip, OrderPickingOrder;
+REQUIRE Dashboard, OrderInvoice, Trip, OrderPickingOrder, TripInvoiceConsignmentBy;
 
 NAMESPACE Trip;
 
@@ -12,12 +12,40 @@ countInCreatingTripOrder = GROUP SUM 1 IF inCreatingTripOrder(order);
 
 FORM optionTrip 'Настройки рейса'
     OBJECTS t = Trip FIXED PANEL
-    PROPERTIES(t) dateTrip, timeTrip, nameDriverTrip, nameTruckTrip    
+    PROPERTIES (t) dateTrip, timeTrip, nameDriverTrip, nameTruckTrip
+    PROPERTIES (t) nameIssuanceAllowedTrip, nameIssuanceExecutedTrip, nameForwarderTrip, nameLoadingExecuterTrip, 
+                   nameWayOfLoadingTrip, nameUnloadingExecuterTrip, nameWayOfUnloadingTrip, codeLoadingTrip, documentNameCurrencyTrip,
+                   timeOfArrivalTrip, downtimeTrip        
 ;
 DESIGN optionTrip FROM DEFAULT {
-    t.panel.props {
-        columns = 2;
+//    t.panel.props {
+//        columns = 2;
+//    }
+    NEW consignmentContainer{
+        caption = 'Атрибуты накладных';
+        NEW issuanceContainer {
+            caption = 'Отпуск';
+            ADD PROPERTY(nameIssuanceAllowedTrip(t));
+            ADD PROPERTY(nameIssuanceExecutedTrip(t));
+            ADD PROPERTY(nameForwarderTrip(t));
+        }
+        NEW loadingContainer {
+            caption = 'ППР';
+            ADD PROPERTY(nameLoadingExecuterTrip(t));
+            ADD PROPERTY(nameWayOfLoadingTrip(t));
+            ADD PROPERTY(nameUnloadingExecuterTrip(t));
+            ADD PROPERTY(nameWayOfUnloadingTrip(t));
+            ADD PROPERTY(codeLoadingTrip(t));
+            ADD PROPERTY(timeOfArrivalTrip(t));
+            ADD PROPERTY(downtimeTrip(t));
+        }
+        NEW dopContainer {
+            caption = 'Дополнительно';
+            ADD PROPERTY(documentNameCurrencyTrip(t));
+        }
+
     }
+    ADD functions.box;
 }
 
 overPrintTrip = ABSTRACT ACTION LIST (Trip);
