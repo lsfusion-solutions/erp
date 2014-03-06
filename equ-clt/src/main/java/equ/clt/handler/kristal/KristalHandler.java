@@ -55,7 +55,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             (item.isWeightItem ? "кг.|" : "ШТ|") + (item.isWeightItem ? "1|" : "0|") +
                             (item.nppGroupMachinery == null ? "1" : item.nppGroupMachinery) + "|"/*section*/ +
                             item.price.intValue() + "|" + "0|"/*fixprice*/ + (item.isWeightItem ? "0.001|" : "1|") +
-                            idItemGroup;
+                            idItemGroup + "||||||1";
                     writer.println(record);
                 }
                 writer.close();
