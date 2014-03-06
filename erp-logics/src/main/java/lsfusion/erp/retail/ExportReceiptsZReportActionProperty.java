@@ -43,6 +43,7 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
     // Опциональные модули
     ScriptingLogicsModule POSVostrovLM;
     ScriptingLogicsModule itemArticleLM;
+    ScriptingLogicsModule zReportDiscountCardLM;
 
     public ExportReceiptsZReportActionProperty(ScriptingLogicsModule LM) {
         super(LM, new ValueClass[]{});
@@ -55,6 +56,7 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
 
         this.POSVostrovLM = (ScriptingLogicsModule) context.getBL().getModule("POSVostrov");
         this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
+        this.zReportDiscountCardLM = (ScriptingLogicsModule) context.getBL().getModule("ZReportDiscountCard");
         
         if (filePath == null && !customPath)
             return;
@@ -71,12 +73,14 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
             KeyExpr receiptExpr = new KeyExpr("receipt");
             ImRevMap<Object, KeyExpr> receiptKeys = MapFact.singletonRev((Object) "receipt", receiptExpr);
 
-            String[] receiptProperties = new String[]{"numberReceipt", "dateTimeReceipt", "discountSumReceipt",
-                    "numberDiscountCardReceipt", "noteReceipt"};
+            String[] receiptProperties = new String[]{"numberReceipt", "dateTimeReceipt", "discountSumReceipt", "noteReceipt"};
             QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<Object, Object>(receiptKeys);
             for (String rProperty : receiptProperties) {
                 receiptQuery.addProperty(rProperty, getLCP(rProperty).getExpr(session.getModifier(), receiptExpr));
             }
+            if (zReportDiscountCardLM != null)
+                receiptQuery.addProperty("numberDiscountCardReceipt", zReportDiscountCardLM.findLCPByCompoundOldName("numberDiscountCardReceipt").getExpr(session.getModifier(), receiptExpr));
+
             if (POSVostrovLM != null)
                 receiptQuery.addProperty("isInvoiceReceipt", POSVostrovLM.findLCPByCompoundOldName("isInvoiceReceipt").getExpr(session.getModifier(), receiptExpr));
 
