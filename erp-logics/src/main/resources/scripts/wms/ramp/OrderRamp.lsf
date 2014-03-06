@@ -1,0 +1,94 @@
+MODULE OrderRamp;
+
+REQUIRE Ramp, Order;
+
+NAMESPACE Order;
+
+inOrderRampInterval 'Вкл.' = DATA BOOLEAN (Order, Ramp, Interval);
+
+CONSTRAINT inOrderRampInterval(o,r,i) AND NOT inRampInterval(r,i)
+    MESSAGE 'В заказ включены рампа и интервал, у которых нет связи';    
+    
+orderRampIntervalDate (r,i,d)= GROUP AGGR o BY r,i,shipmentDateOrder(o) WHERE inOrderRampInterval(o,r,i);   
+descriptionOrdersRampIntervalDate 'Заказ' (r,i,d)= descriptionOrder(orderRampIntervalDate(r,i,d));    
+descriptionOrdersRampIntervalOrder'Заказ' (r,i,o) =  descriptionOrdersRampIntervalDate(r,i,shipmentDateOrder(o));      
+
+descriptionRampsOrder 'Рампы' (o)= 
+    GROUP CONCAT (CONCAT ' ', shipmentDateOrder(o), timeInterval(i), nameRamp(r)) IF inOrderRampInterval(o,r,i), ', ' 
+    BY o
+    ORDER shipmentDateOrder(o), nameRamp(r), timeInterval(i) 
+    MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+defaultShipmentTimeOrderDate (o)= GROUP MIN timeInterval(i) IF inOrderRampInterval(o,r,i) BY o;
+
+backgroundOrdersRampIntervalOrder 'Цвет (свой заказ)' (r,i,o) = RGB(204,255,204) IF orderRampIntervalDate(r,i,shipmentDateOrder(o))==o;
+
+changeOrderRampInterval = ACTION (o,r,i) {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        IF o IS Order AND NOT orderRampIntervalDate(r,i,shipmentDateOrder(o)) THEN {
+            inOrderRampInterval(o,r,i) <- TRUE;
+        }
+    } ELSE {
+        inOrderRampInterval(o,r,i) <- NULL;
+    }        
+}
+
+
+META  defineOrderRamp(stockProp)       
+
+    FORM orderRamp 'Рампы'
+        OBJECTS o=Order FIXED PANEL 
+            
+        OBJECTS r=Ramp 
+        PROPERTIES(r) READONLY nameRamp
+        ORDER BY      nameRamp(r)
+        FILTERS stockRamp(r) == stockProp##Order(o)        
+        
+        OBJECTS i= Interval
+        PROPERTIES(i) READONLY timeInterval
+        ORDER BY timeInterval(i)
+        FILTERS inRampInterval(r,i)    
+        PROPERTIES    descriptionOrdersRampIntervalOrder(r,i,o) BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) READONLY, 
+                      inOrderRampInterval(o,r,i) ON CHANGE changeOrderRampInterval(o,r,i)     
+                          
+    ;
+    DESIGN orderRamp FROM DEFAULT {
+        main{ 
+            preferredSize = (600, 800); 
+            ADD o.box;
+            NEW row {
+                type = SPLITV;
+                fill = 1;
+                ADD r.box { fill = 1;}
+                ADD i.box { fill = 2;}
+            }
+            ADD functions.box;
+        } 
+    }
+    
+    toFillRampOrder 'Зарезервировать рампу' = ACTION (order) {
+    
+        FORM orderRamp OBJECTS o = order MODAL;
+        IF formResult() == FormResult.ok THEN {
+            shipmentTimeOrder(order) <- defaultShipmentTimeOrderDate(order);         
+        }          
+    } 
+    
+    EXTEND FORM userOrder
+        PROPERTIES (o) descriptionRampsOrder READONLY, toFillRampOrder 
+    ;
+    EXTEND DESIGN userOrder {
+        headerExtraParams {                                 
+            NEW documentRamp AFTER documentShipmentGroup {
+                caption = 'Погрузка/отгрузка';
+                type = COLUMNS;
+                columns = 1;
+                ADD PROPERTY(descriptionRampsOrder(o));
+                ADD PROPERTY(toFillRampOrder(o));
+            }
+        }    
+    }    
+    
+
+END 

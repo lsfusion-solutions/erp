@@ -88,6 +88,9 @@ inOrder 'Приходный' = ABSTRACT BOOLEAN (Order);
 outOrder 'Расходный' (order) = order IS Order AND NOT inOrder(order);
 
 isReturnOrder 'Возвратный' = ABSTRACT BOOLEAN (Order);
+
+@defineDocumentAbstractHeaderDescription(Order);
+@defineDocumentDetailDescription(order, OrderDetail);
 //----------------------------------------------- Заказ ---------------------------------------------------//
 
 META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, filter)
@@ -196,7 +199,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 //    openUserOrder 'Открыть' (o) = ACTION (o) NEWSESSION AUTOAPPLY { IF isClosedUserOrder(o) THEN ASSIGN isDataClosedUserOrder(o) <- NULL; } TOOLBAR CONFIRM;
 
     @defineDocumentInterfaceDescription(order, 'Заказ'###sign);
-
+    Order.descriptionOrder(order) += descriptionOrder(order);    
+    
     @defineDocumentInterfaceCurrency(order);
     @deriveDocumentCurrency(userOrder, stockProp###stock);
     Order.currencyOrder(order) += currencyOrder(order);

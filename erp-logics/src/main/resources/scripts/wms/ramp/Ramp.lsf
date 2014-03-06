@@ -1,0 +1,106 @@
+MODULE Ramp;
+
+REQUIRE Stock, WMS;
+
+NAMESPACE Ramp;
+
+//------------------------- Интервал -----------------------------//
+
+CLASS  IntervalType 'Тип интервала';
+TABLE intervalType (IntervalType);
+
+nameIntervalType 'Наименование' = DATA VARISTRING[100](IntervalType);
+@defineExternalizable(intervalType, VARSTRING[100]);
+
+CLASS  Interval 'Интервал';
+TABLE interval (Interval);
+
+nameInterval 'Наименование' = DATA VARISTRING[100](Interval);
+@defineExternalizable(interval, VARSTRING[100]);
+timeInterval 'Время' = DATA TIME (Interval);
+
+intervalTypeInterval= DATA IntervalType (Interval);
+nameIntervalTypeInterval 'Тип интервала' (i) = nameIntervalType(intervalTypeInterval(i));
+
+FORM intervalType 'Тип интервала'
+    OBJECTS t=IntervalType FIXED PANEL
+    PROPERTIES(t) nameIntervalType
+    
+    OBJECTS i= Interval
+    PROPERTIES(i) timeInterval, ADDOBJ, DELETE FORCE PANEL TOOLBAR       
+    FILTERS intervalTypeInterval(i) == t
+    
+    EDIT IntervalType OBJECT t
+;
+
+FORM intervalTypes 'Типы интервала'
+    OBJECTS t=IntervalType
+    PROPERTIES(t) nameIntervalType READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameIntervalType(t)
+    
+    OBJECTS i= Interval
+    PROPERTIES(i) READONLY timeInterval
+    ORDER BY timeInterval(i)    
+    FILTERS intervalTypeInterval(i) == t
+        
+    DIALOG IntervalType OBJECT t
+;
+DESIGN intervalTypes FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+//------------------------- Рампа -----------------------------//
+
+CLASS  Ramp 'Рампа';
+TABLE ramp (Ramp);
+
+nameRamp 'Наименование' = DATA VARISTRING[100](Ramp);
+@defineExternalizable(ramp, VARSTRING[100]);
+
+intervalTypeRamp= DATA IntervalType (Ramp);
+nameIntervalTypeRamp 'Тип интервала' (r) = nameIntervalType(intervalTypeRamp(r));
+
+inRampInterval 'Вкл.' (r,i)= intervalTypeRamp(r) == intervalTypeInterval(i);
+
+stockRamp= DATA Stock (Ramp);
+nameStockRamp 'Склад' (r) = nameStock(stockRamp(r));
+
+CONSTRAINT stockRamp(r) AND NOT isCompanyStock(stockRamp(r))
+    CHECKED BY stockRamp MESSAGE 'Для рампы должен быть задан склад компании';    
+
+FORM ramp 'Рампа'
+    OBJECTS r=Ramp FIXED PANEL
+    PROPERTIES(r) nameRamp, nameIntervalTypeRamp, nameStockRamp 
+    
+    OBJECTS i= Interval
+    PROPERTIES(i) READONLY timeInterval
+    ORDER BY timeInterval(i)
+    FILTERS intervalTypeRamp(r) == intervalTypeInterval(i)
+    
+    EDIT Ramp OBJECT r
+;
+FORM ramps 'Рампы'
+    OBJECTS r=Ramp 
+    PROPERTIES(r) READONLY nameRamp, nameIntervalTypeRamp, nameStockRamp
+    PROPERTIES(r) ADDFORM, EDITFORM
+    ORDER BY      nameRamp(r)
+    
+    OBJECTS i= Interval
+    PROPERTIES(i) READONLY timeInterval
+    ORDER BY timeInterval(i)
+    FILTERS intervalTypeRamp(r) == intervalTypeInterval(i)
+    
+    DIALOG Ramp OBJECT r
+;
+DESIGN ramps FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+NAVIGATOR {
+    WMSNavigator {
+        NEW rampNavigator 'Рампа' {
+            ADD intervalTypes;
+            ADD ramps;
+        }
+    }
+}
+
+
+
