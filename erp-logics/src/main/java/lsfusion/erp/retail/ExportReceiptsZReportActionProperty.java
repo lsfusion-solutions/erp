@@ -19,7 +19,6 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.w3c.dom.Document;
@@ -27,8 +26,9 @@ import org.w3c.dom.Element;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.*;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.*;
@@ -36,7 +36,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
 
 public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty {
 
@@ -44,7 +46,8 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
     ScriptingLogicsModule POSVostrovLM;
     ScriptingLogicsModule itemArticleLM;
     ScriptingLogicsModule zReportDiscountCardLM;
-
+    ScriptingLogicsModule zReportRetailCRMLM;
+    
     public ExportReceiptsZReportActionProperty(ScriptingLogicsModule LM) {
         super(LM, new ValueClass[]{});
     }
@@ -57,6 +60,7 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
         this.POSVostrovLM = (ScriptingLogicsModule) context.getBL().getModule("POSVostrov");
         this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
         this.zReportDiscountCardLM = (ScriptingLogicsModule) context.getBL().getModule("ZReportDiscountCard");
+        this.zReportRetailCRMLM = (ScriptingLogicsModule) context.getBL().getModule("ZReportRetailCRM");
         
         if (filePath == null && !customPath)
             return;
@@ -153,37 +157,40 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
                         }
                     }
 
-                    KeyExpr promotionConditionExpr = new KeyExpr("promotionCondition");
-                    ImRevMap<Object, KeyExpr> promotionConditionKeys = MapFact.singletonRev((Object) "promotionCondition", promotionConditionExpr);
+                    if (zReportRetailCRMLM != null) {
 
-                    String[] receiptDetailPromotionConditionProperties = new String[]{"quantityReceiptSaleDetailPromotionCondition", 
-                            "promotionSumReceiptSaleDetailPromotionCondition", "setUserPromotionReceiptSaleDetailPromotionCondition"};
-                    QueryBuilder<Object, Object> promotionConditionQuery = new QueryBuilder<Object, Object>(promotionConditionKeys);
-                    for (String pcProperty : receiptDetailPromotionConditionProperties) {
-                        promotionConditionQuery.addProperty(pcProperty, getLCP(pcProperty).getExpr(session.getModifier(), receiptDetailObject.getExpr(), promotionConditionExpr));
-                    }
-                    promotionConditionQuery.addProperty("idPromotionCondition", getLCP("idPromotionCondition").getExpr(session.getModifier(), promotionConditionExpr));
-                    promotionConditionQuery.addProperty("namePromotionPromotionCondition", getLCP("namePromotionPromotionCondition").getExpr(session.getModifier(), promotionConditionExpr));
-                    promotionConditionQuery.and(getLCP("receiptReceiptDetail").getExpr(session.getModifier(), receiptDetailObject.getExpr()).compare(receiptObject.getExpr(), Compare.EQUALS));
-                    promotionConditionQuery.and(getLCP("quantityReceiptSaleDetailPromotionCondition").getExpr(receiptDetailObject.getExpr(), promotionConditionExpr).getWhere());
-                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> promotionConditionResult = promotionConditionQuery.execute(session.getSession().sql);
-
-                    for (int z = 0, sizeReceiptDetailResult = promotionConditionResult.size(); z < sizeReceiptDetailResult; z++) {
-                        Element promotionCondition = doc.createElement("promotionCondition");
-
-                        String[] promotionConditionFields = new String[]{"idPromotionCondition", "namePromotionPromotionCondition", 
-                                "quantityReceiptSaleDetailPromotionCondition", "promotionSumReceiptSaleDetailPromotionCondition"};
-                        for (String field : promotionConditionFields) {
-                            Object value = promotionConditionResult.getValue(z).get(field);
-                            if (value != null) {
-                                Element element = doc.createElement(field.replace("Sale", "").replace("Return", ""));
-                                element.appendChild(doc.createTextNode(String.valueOf(value).trim()));
-                                promotionCondition.appendChild(element);
-                            }
+                        KeyExpr promotionConditionExpr = new KeyExpr("promotionCondition");
+                        ImRevMap<Object, KeyExpr> promotionConditionKeys = MapFact.singletonRev((Object) "promotionCondition", promotionConditionExpr);
+                        QueryBuilder<Object, Object> promotionConditionQuery = new QueryBuilder<Object, Object>(promotionConditionKeys);
+                        String[] receiptDetailPromotionConditionProperties = new String[]{"quantityReceiptSaleDetailPromotionCondition",
+                                "promotionSumReceiptSaleDetailPromotionCondition", "setUserPromotionReceiptSaleDetailPromotionCondition"};
+                        for (String pcProperty : receiptDetailPromotionConditionProperties) {
+                            promotionConditionQuery.addProperty(pcProperty, zReportRetailCRMLM.findLCPByCompoundOldName(pcProperty).getExpr(session.getModifier(), receiptDetailObject.getExpr(), promotionConditionExpr));
                         }
-                        receiptDetail.appendChild(promotionCondition);
+                        promotionConditionQuery.addProperty("idPromotionCondition", zReportRetailCRMLM.findLCPByCompoundOldName("idPromotionCondition").getExpr(session.getModifier(), promotionConditionExpr));
+                        promotionConditionQuery.addProperty("namePromotionPromotionCondition", zReportRetailCRMLM.findLCPByCompoundOldName("namePromotionPromotionCondition").getExpr(session.getModifier(), promotionConditionExpr));
+                        promotionConditionQuery.and(zReportRetailCRMLM.findLCPByCompoundOldName("receiptReceiptDetail").getExpr(session.getModifier(), receiptDetailObject.getExpr()).compare(receiptObject.getExpr(), Compare.EQUALS));
+                        promotionConditionQuery.and(zReportRetailCRMLM.findLCPByCompoundOldName("quantityReceiptSaleDetailPromotionCondition").getExpr(receiptDetailObject.getExpr(), promotionConditionExpr).getWhere());
+                        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> promotionConditionResult = promotionConditionQuery.execute(session.getSession().sql);
+
+                        for (int z = 0, sizeReceiptDetailResult = promotionConditionResult.size(); z < sizeReceiptDetailResult; z++) {
+                            Element promotionCondition = doc.createElement("promotionCondition");
+
+                            String[] promotionConditionFields = new String[]{"idPromotionCondition", "namePromotionPromotionCondition",
+                                    "quantityReceiptSaleDetailPromotionCondition", "promotionSumReceiptSaleDetailPromotionCondition"};
+                            for (String field : promotionConditionFields) {
+                                Object value = promotionConditionResult.getValue(z).get(field);
+                                if (value != null) {
+                                    Element element = doc.createElement(field.replace("Sale", "").replace("Return", ""));
+                                    element.appendChild(doc.createTextNode(String.valueOf(value).trim()));
+                                    promotionCondition.appendChild(element);
+                                }
+                            }
+                            receiptDetail.appendChild(promotionCondition);
+                        }
+                        receipt.appendChild(receiptDetail);
+                        
                     }
-                    receipt.appendChild(receiptDetail);
                 }
 
                 KeyExpr paymentExpr = new KeyExpr("payment");

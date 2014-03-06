@@ -45,7 +45,9 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
 
     // Опциональные модули
     ScriptingLogicsModule POSVostrovLM;
-    
+    ScriptingLogicsModule zReportRetailCRMLM;
+    ScriptingLogicsModule zReportDiscountCardLM;
+
     public ImportReceiptsZReportActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, LM.findClassByCompoundName("ZReport"));
 
@@ -57,6 +59,8 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
         DataSession session = context.getSession();
 
         this.POSVostrovLM = (ScriptingLogicsModule) context.getBL().getModule("POSVostrov");
+        this.zReportRetailCRMLM = (ScriptingLogicsModule) context.getBL().getModule("zReportRetailCRM");
+        this.zReportDiscountCardLM = (ScriptingLogicsModule) context.getBL().getModule("zReportDiscountCard");
         
         try {
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы XML", "xml");
@@ -332,40 +336,49 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 saleProperties.add(new ImportProperty(discountSumSaleReceiptField, getLCP("discountSumSaleReceipt").getMapping(receiptKey)));
                 saleImportFields.add(discountSumSaleReceiptField);
 
-                ImportField seriesNumberDiscountCardField = new ImportField(getLCP("seriesNumberDiscountCard"));
-                ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("DiscountCard"), getLCP("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
-                saleKeys.add(discountCardKey);
-                returnKeys.add(discountCardKey);
-                
-                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("discountCardReceipt").getMapping(receiptKey),
-                        LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
-                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("discountCardReceipt").getMapping(receiptKey),
-                        LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
-                saleImportFields.add(seriesNumberDiscountCardField);
-                returnImportFields.add(seriesNumberDiscountCardField);
+                if (zReportDiscountCardLM != null) {
 
+                    ImportField seriesNumberDiscountCardField = new ImportField(zReportDiscountCardLM.findLCPByCompoundOldName("seriesNumberDiscountCard"));
+                    ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("DiscountCard"), zReportDiscountCardLM.findLCPByCompoundOldName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
+                    saleKeys.add(discountCardKey);
+                    returnKeys.add(discountCardKey);
+
+                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("seriesNumberDiscountCard").getMapping(discountCardKey)));
+                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("discountCardReceipt").getMapping(receiptKey),
+                            LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
+                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("seriesNumberDiscountCard").getMapping(discountCardKey)));
+                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("discountCardReceipt").getMapping(receiptKey),
+                            LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
+                    saleImportFields.add(seriesNumberDiscountCardField);
+                    returnImportFields.add(seriesNumberDiscountCardField);
+
+                }
+                
                 ImportField noteReceiptField = new ImportField(getLCP("noteReceipt"));
                 saleProperties.add(new ImportProperty(noteReceiptField, getLCP("noteReceipt").getMapping(receiptKey)));
                 returnProperties.add(new ImportProperty(noteReceiptField, getLCP("noteReceipt").getMapping(receiptKey)));
                 saleImportFields.add(noteReceiptField);
                 returnImportFields.add(noteReceiptField);
 
-                ImportField idPromotionConditionField = new ImportField(getLCP("idPromotionCondition"));
-                ImportKey<?> promotionConditionKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("PromotionCondition"),
-                        getLCP("promotionConditionId").getMapping(idPromotionConditionField));
-                saleKeys.add(promotionConditionKey);
-                saleImportFields.add(idPromotionConditionField);
+                if (zReportRetailCRMLM != null) {
 
-                ImportField quantityReceiptSaleDetailPromotionConditionField = new ImportField(getLCP("quantityReceiptSaleDetailPromotionCondition"));
-                saleProperties.add(new ImportProperty(quantityReceiptSaleDetailPromotionConditionField, getLCP("quantityReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
-                saleImportFields.add(quantityReceiptSaleDetailPromotionConditionField);
+                    ImportField idPromotionConditionField = new ImportField(zReportRetailCRMLM.findLCPByCompoundOldName("idPromotionCondition"));
+                    ImportKey<?> promotionConditionKey = new ImportKey((ConcreteCustomClass) zReportRetailCRMLM.findClassByCompoundName("PromotionCondition"),
+                            getLCP("promotionConditionId").getMapping(idPromotionConditionField));
+                    saleKeys.add(promotionConditionKey);
+                    saleImportFields.add(idPromotionConditionField);
 
-                ImportField promotionSumReceiptSaleDetailPromotionConditionField = new ImportField(getLCP("promotionSumReceiptSaleDetailPromotionCondition"));
-                saleProperties.add(new ImportProperty(promotionSumReceiptSaleDetailPromotionConditionField, getLCP("promotionSumReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
-                saleImportFields.add(promotionSumReceiptSaleDetailPromotionConditionField);
 
+                    ImportField quantityReceiptSaleDetailPromotionConditionField = new ImportField(zReportRetailCRMLM.findLCPByCompoundOldName("quantityReceiptSaleDetailPromotionCondition"));
+                    saleProperties.add(new ImportProperty(quantityReceiptSaleDetailPromotionConditionField, zReportRetailCRMLM.findLCPByCompoundOldName("quantityReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
+                    saleImportFields.add(quantityReceiptSaleDetailPromotionConditionField);
+
+                    ImportField promotionSumReceiptSaleDetailPromotionConditionField = new ImportField(zReportRetailCRMLM.findLCPByCompoundOldName("promotionSumReceiptSaleDetailPromotionCondition"));
+                    saleProperties.add(new ImportProperty(promotionSumReceiptSaleDetailPromotionConditionField, zReportRetailCRMLM.findLCPByCompoundOldName("promotionSumReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
+                    saleImportFields.add(promotionSumReceiptSaleDetailPromotionConditionField);
+
+                }
+                
                 if(POSVostrovLM != null) {
                     ImportField isInvoiceReceiptField = new ImportField(POSVostrovLM.findLCPByCompoundOldName("isInvoiceReceipt"));
                     saleProperties.add(new ImportProperty(isInvoiceReceiptField, POSVostrovLM.findLCPByCompoundOldName("isInvoiceReceipt").getMapping(receiptKey)));
