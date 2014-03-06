@@ -185,9 +185,11 @@ public class EquipmentServer {
                         if (salesBatch != null) {
                             String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID);
                             if (result != null) {
+                                logger.info("Equipment server error: " + result);
                                 remote.errorEquipmentServerReport(equServerID, new Throwable(result));
                             }
                             else {
+                                logger.info("Finish Reading starts");
                                 clsHandler.finishReadingSalesInfo(salesBatch);
                             }
                         }
