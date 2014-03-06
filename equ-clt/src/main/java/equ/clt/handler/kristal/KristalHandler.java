@@ -300,8 +300,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         }
                     });
 
+                    if(filesList.length==0)
+                        logger.info("Kristal: No checks found in " + exchangeDirectory);
+                    else
+                        logger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+
                     for (File file : filesList) {
                         String fileName = file.getName();
+                        logger.info("Kristal: reading " + file.getName());
                         long currentDate = Calendar.getInstance().getTime().getTime();
                         long receiptDetailDate = DateUtils.parseDate(fileName.replace("ReportCheque1C_", "").replace(".xml", ""), new String[]{"yyyyMMddHHmmss"}).getTime();
                         if ((currentDate - receiptDetailDate) > 60000) {
