@@ -55,7 +55,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     private ScriptingLogicsModule purchasePackLM;
     private ScriptingLogicsModule salePackLM;
     private ScriptingLogicsModule stockAdjustmentLM;
-    private ScriptingLogicsModule zReportVostrovLM;
     
     public ImportUserPriceListActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, LM.findClassByCompoundName("UserPriceList"));
@@ -131,8 +130,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
         this.purchasePackLM = (ScriptingLogicsModule) context.getBL().getModule("PurchasePack");
         this.salePackLM = (ScriptingLogicsModule) context.getBL().getModule("SalePack");
-        this.stockAdjustmentLM = (ScriptingLogicsModule) context.getBL().getModule("StockAdjustment");
-        this.zReportVostrovLM = (ScriptingLogicsModule) context.getBL().getModule("ZReportVostrov");
+        this.stockAdjustmentLM = (ScriptingLogicsModule) context.getBL().getModule("ImportUserPriceListStockAdjustment");
         
         List<UserPriceListDetail> userPriceListDetailList;
         
@@ -430,8 +428,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         if (stockAdjustmentLM != null && dataAdjustment != null) {
 
             stockAdjustmentLM.findLAPByCompoundOldName("unpostAllUserAdjustment").execute(context.getSession());
-            if(zReportVostrovLM != null)
-                zReportVostrovLM.findLAPByCompoundOldName("overImportAdjustment").execute(context.getSession());
+            stockAdjustmentLM.findLAPByCompoundOldName("overImportAdjustment").execute(context.getSession());
 
             DataObject userAdjustmentObject = context.addObject((ConcreteCustomClass) stockAdjustmentLM.findClassByCompoundName("UserAdjustment"));
 
