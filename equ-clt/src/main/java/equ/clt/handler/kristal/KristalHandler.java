@@ -237,8 +237,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     public void finishReadingSalesInfo(KristalSalesBatch salesBatch) {
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
-            if (!f.delete())
+            if (f.delete()) {
+                logger.info("file " + readFile + "has been deleted");
+            } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
+            }
         }
     }
 
