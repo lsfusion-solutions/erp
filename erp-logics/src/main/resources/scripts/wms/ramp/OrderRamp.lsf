@@ -34,42 +34,42 @@ changeOrderRampInterval = ACTION (o,r,i) {
     }        
 }
 
+FORM orderRamp 'Рампы'
+    OBJECTS o=Order FIXED PANEL 
+    OBJECTS st=Stock FIXED PANEL 
+            
+    OBJECTS r=Ramp 
+    PROPERTIES(r) READONLY nameRamp
+    ORDER BY      nameRamp(r)
+    FILTERS stockRamp(r) == st       
+    
+    OBJECTS i= Interval
+    PROPERTIES(i) READONLY timeInterval
+    ORDER BY timeInterval(i)
+    FILTERS inRampInterval(r,i)    
+    PROPERTIES    descriptionOrdersRampIntervalOrder(r,i,o) BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) READONLY, 
+                  inOrderRampInterval(o,r,i) ON CHANGE changeOrderRampInterval(o,r,i)     
+                      
+;
+DESIGN orderRamp FROM DEFAULT {
+    main{ 
+        preferredSize = (600, 800); 
+        ADD o.box;
+        NEW row {
+            type = SPLITV;
+            fill = 1;
+            ADD r.box { fill = 1;}
+            ADD i.box { fill = 2;}
+        }
+        ADD functions.box;
+    } 
+}
 
 META  defineOrderRamp(stockProp)       
-
-    FORM orderRamp 'Рампы'
-        OBJECTS o=Order FIXED PANEL 
-            
-        OBJECTS r=Ramp 
-        PROPERTIES(r) READONLY nameRamp
-        ORDER BY      nameRamp(r)
-        FILTERS stockRamp(r) == stockProp##Order(o)        
-        
-        OBJECTS i= Interval
-        PROPERTIES(i) READONLY timeInterval
-        ORDER BY timeInterval(i)
-        FILTERS inRampInterval(r,i)    
-        PROPERTIES    descriptionOrdersRampIntervalOrder(r,i,o) BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) READONLY, 
-                      inOrderRampInterval(o,r,i) ON CHANGE changeOrderRampInterval(o,r,i)     
-                          
-    ;
-    DESIGN orderRamp FROM DEFAULT {
-        main{ 
-            preferredSize = (600, 800); 
-            ADD o.box;
-            NEW row {
-                type = SPLITV;
-                fill = 1;
-                ADD r.box { fill = 1;}
-                ADD i.box { fill = 2;}
-            }
-            ADD functions.box;
-        } 
-    }
     
     toFillRampOrder 'Зарезервировать рампу' = ACTION (order) {
     
-        FORM orderRamp OBJECTS o = order MODAL;
+        FORM orderRamp OBJECTS o = order, st = stockProp##Order(order)  MODAL;
         IF formResult() == FormResult.ok THEN {
             shipmentTimeOrder(order) <- defaultShipmentTimeOrderDate(order);         
         }          
