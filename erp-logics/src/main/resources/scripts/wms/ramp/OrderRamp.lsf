@@ -10,8 +10,13 @@ CONSTRAINT inOrderRampInterval(o,r,i) AND NOT inRampInterval(r,i)
     MESSAGE 'В заказ включены рампа и интервал, у которых нет связи';    
     
 orderRampIntervalDate (r,i,d)= GROUP AGGR o BY r,i,shipmentDateOrder(o) WHERE inOrderRampInterval(o,r,i);   
-descriptionOrdersRampIntervalDate 'Заказ' (r,i,d)= descriptionOrder(orderRampIntervalDate(r,i,d));    
-descriptionOrdersRampIntervalOrder'Заказ' (r,i,o) =  descriptionOrdersRampIntervalDate(r,i,shipmentDateOrder(o));      
+descriptionOrdersRampIntervalDate 'Заказ' (r,i,d)= descriptionOrder(orderRampIntervalDate(r,i,d));   
+nameSupplierOrdersRampIntervalDate 'Поставщик' (r,i,d) = nameSupplierOrder(orderRampIntervalDate(r,i,d));
+nameCustomerOrdersRampIntervalDate 'Покупатель' (r,i,d) = nameCustomerOrder(orderRampIntervalDate(r,i,d)); 
+ 
+descriptionOrdersRampIntervalOrder'Заказ' (r,i,o) =  descriptionOrdersRampIntervalDate(r,i,shipmentDateOrder(o));    
+nameSupplierOrdersRampIntervalOrder 'Поставщик' (r,i,o) = nameSupplierOrder(orderRampIntervalDate(r,i,shipmentDateOrder(o)));
+nameCustomerOrdersRampIntervalOrder 'Покупатель' (r,i,o) = nameCustomerOrder(orderRampIntervalDate(r,i,shipmentDateOrder(o)));
 
 descriptionRampsOrder 'Рампы' (o)= 
     GROUP CONCAT (CONCAT ' ', shipmentDateOrder(o), timeInterval(i), nameRamp(r)) IF inOrderRampInterval(o,r,i), ', ' 
@@ -44,16 +49,17 @@ FORM orderRamp 'Рампы'
     FILTERS stockRamp(r) == st       
     
     OBJECTS i= Interval
-    PROPERTIES(i) READONLY timeInterval
+    PROPERTIES(i) READONLY BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) timeInterval
     ORDER BY timeInterval(i)
-    FILTERS inRampInterval(r,i)    
-    PROPERTIES    descriptionOrdersRampIntervalOrder(r,i,o) BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) READONLY, 
-                  inOrderRampInterval(o,r,i) ON CHANGE changeOrderRampInterval(o,r,i)     
-                      
+    FILTERS inRampInterval(r,i) 
+       
+    PROPERTIES(r,i,o) BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) READONLY descriptionOrdersRampIntervalOrder,
+                      nameSupplierOrdersRampIntervalOrder, nameCustomerOrdersRampIntervalOrder 
+    PROPERTIES    BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) inOrderRampInterval(o,r,i) ON CHANGE changeOrderRampInterval(o,r,i)                                                                
 ;
 DESIGN orderRamp FROM DEFAULT {
     main{ 
-        preferredSize = (600, 800); 
+        preferredSize = (800, 800); 
         ADD o.box;
         NEW row {
             type = SPLITV;

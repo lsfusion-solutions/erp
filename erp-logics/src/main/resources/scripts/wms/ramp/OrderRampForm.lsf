@@ -1,0 +1,93 @@
+MODULE OrderRampForm;
+
+REQUIRE OrderRamp;
+
+NAMESPACE Order;
+
+countOrdersRampDateDateFromTo (ramp, date, dateFrom, dateTo) = GROUP SUM 1 IF 
+    inOrderRampInterval(o,r,i) AND shipmentDateOrder(o) >= (dateFrom AS DATE) AND shipmentDateOrder(o) <= (dateTo AS DATE)
+        BY r, shipmentDateOrder(o), dateFrom, dateTo;
+        
+countOrdersStockDateDateFromTo (stock, date, dateFrom, dateTo) = GROUP SUM 1 IF 
+    inOrderRampInterval(o,r,i) AND shipmentDateOrder(o) >= (dateFrom AS DATE) AND shipmentDateOrder(o) <= (dateTo AS DATE)
+        BY stockRamp(r), shipmentDateOrder(o), dateFrom, dateTo;     
+countDatesStockDateFromTo 'Кол-во дней' (stock, dateFrom, dateTo) = GROUP SUM 1 IF 
+    countOrdersStockDateDateFromTo (stock, date, dateFrom, dateTo)
+        BY stock, dateFrom, dateTo; 
+                   
+countLoadIntervalRampDate (ramp, date) = GROUP SUM 1 IF 
+    inOrderRampInterval(o,r,i) BY r, shipmentDateOrder(o);  
+countLoadIntervalStockDate (stock, date) = GROUP SUM 1 IF
+    inOrderRampInterval(o,r,i) BY stockRamp(r), shipmentDateOrder(o);
+           
+percIntervalRampDate '% загрузки рампы' (r,d) = countLoadIntervalRampDate (r, d) * 100.00 / countIntervalRamp(r);            
+percIntervalStockDate '% загрузки рампы' (st,d) = countLoadIntervalStockDate (st, d)* 100.00 / countIntervalStock(st) ;          
+        
+
+countLoadIntervalStockDateFromTo 'Кол-во загруженных интервалов' (st,dFrom,dTo) = GROUP SUM countLoadIntervalStockDate (st, d) IF 
+    countOrdersStockDateDateFromTo(st,d,dFrom,dTo) BY st,dFrom,dTo;
+    
+percIntervalStockDateFromTo '% загрузки рамп' (st,dateFrom,dateTo) = countLoadIntervalStockDateFromTo(st,dateFrom,dateTo) *100.00 / 
+    (countDatesStockDateFromTo(st,dateFrom,dateTo) * countIntervalStock(st));  
+
+FORM rampStockDate 'Загрузка рамп'
+    OBJECTS st=Stock FIXED PANEL 
+    PROPERTIES(st) SELECTOR nameStock
+    FILTERS isCompanyStock(st)
+        
+    OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)       
+      
+    OBJECTS d=DATE 
+    PROPERTIES READONLY objDate = OBJVALUE(d)  
+    PROPERTIES(st,d) READONLY percIntervalStockDate           
+        
+    FILTERS countOrdersStockDateDateFromTo(st,d,dFrom,dTo),
+            d >= dFrom, d <= dTo                
+    
+    PROPERTIES(st,dFrom,dTo) READONLY percIntervalStockDateFromTo            
+            
+    OBJECTS r=Ramp 
+    PROPERTIES(r) READONLY nameRamp
+    PROPERTIES(r,d) READONLY percIntervalRampDate   
+    ORDER BY      nameRamp(r)
+    FILTERS stockRamp(r) == st,
+            countOrdersRampDateDateFromTo(r,d,dFrom,dTo)
+                
+    
+    OBJECTS i= Interval
+    PROPERTIES(i) READONLY timeInterval
+    ORDER BY timeInterval(i)
+    FILTERS inRampInterval(r,i) 
+       
+    PROPERTIES(r,i,d) READONLY descriptionOrdersRampIntervalDate,
+                      nameSupplierOrdersRampIntervalDate, nameCustomerOrdersRampIntervalDate 
+;
+DESIGN rampStockDate FROM DEFAULT {
+    main{ 
+        NEW top {
+            type = CONTAINERH;
+            ADD st.box;
+            ADD params.box;
+        }
+        NEW columnTop {
+            type = SPLITH;
+            fill = 1;
+            NEW column1 {
+                fill = 1;
+                type = SPLITH;
+                fill = 1;
+                ADD d.box;
+                ADD r.box;                                                              
+            }
+            ADD i.box {fill = 2;}            
+        }
+        ADD functions.box;
+    } 
+}
+
+NAVIGATOR {
+    rampNavigator {
+        ADD rampStockDate;       
+    }
+}
