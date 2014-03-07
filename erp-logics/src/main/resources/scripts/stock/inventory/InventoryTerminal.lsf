@@ -1,0 +1,44 @@
+MODULE InventoryTerminal;
+
+REQUIRE Inventory, Terminal;
+
+NAMESPACE Terminal;
+
+addDetailDialogTerminalListInventory 'Заполнить из документа ТСД' (listInventory) = ACTION (listInventory) {
+    FORM terminalDocuments MODAL;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL document = TerminalDocument ();
+        ASSIGN document() <- chosenObject('td');
+        ASSIGN usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document();
+
+        LOCAL page = PageInventory ();
+        LOCAL detailCount = INTEGER();
+        ASSIGN detailCount() <- 0;
+
+        FOR terminalDocumentTerminalDocumentDetail(tdd) == document() DO {
+            IF detailCount() == 0 THEN {
+                FOR ADDOBJ pi = PageInventory DO {
+                    ASSIGN listInventoryPageInventory(pi) <- listInventory;
+                    ASSIGN page() <- pi;
+                }
+            }
+
+            FOR ADDOBJ pid = PageInventoryDetail DO {
+                ASSIGN pageInventoryPageInventoryDetail(pid) <- page();
+                ASSIGN skuPageInventoryDetail(pid) <- skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(listInventory));
+                ASSIGN quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
+
+                ASSIGN detailCount() <- detailCount() + 1;
+
+                IF detailCount() >= 20 THEN {
+                    ASSIGN detailCount() <- 0;
+                }
+            }
+        }
+
+    }
+} TOOLBAR;
+
+EXTEND FORM listInventory
+    PROPERTIES SHOWIF isSkuListInventory(li) addDetailDialogTerminalListInventory(li) TODRAW dp
+;

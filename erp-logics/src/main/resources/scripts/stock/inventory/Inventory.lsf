@@ -6,7 +6,6 @@ REQUIRE System,
 //        Store,
         PriceList,
         Numerator,
-        Terminal,
         Barcode,
         Document,
         EmployeeStock,
@@ -224,43 +223,6 @@ pricePageInventoryDetail (detail)  <- IF isBatchInventory(inventoryPageInventory
                 THEN priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batchPageInventoryDetail(detail), stockPageInventoryDetail(detail), dateTimePageInventoryDetail(detail))
                 ELSE priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuPageInventoryDetail(detail), stockPageInventoryDetail(detail), dateTimePageInventoryDetail(detail))
                 WHEN CHANGED(skuPageInventoryDetail(detail)) OR CHANGED(batchPageInventoryDetail(detail)) OR CHANGED (dateTimePageInventoryDetail(detail));
-
-//------------------------------------ Заполнение описи из ТСД ------------------------------------------ //
-
-addDetailDialogTerminalListInventory 'Заполнить из документа ТСД' (listInventory) = ACTION (listInventory) {
-    FORM terminalDocuments MODAL;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL document = TerminalDocument ();
-        ASSIGN document() <- chosenObject('td');
-        ASSIGN usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document();
-
-        LOCAL page = PageInventory ();
-        LOCAL detailCount = INTEGER();
-        ASSIGN detailCount() <- 0;
-
-        FOR terminalDocumentTerminalDocumentDetail(tdd) == document() DO {
-            IF detailCount() == 0 THEN {
-                FOR ADDOBJ pi = PageInventory DO {
-                    ASSIGN listInventoryPageInventory(pi) <- listInventory;
-                    ASSIGN page() <- pi;
-                }
-            }
-
-            FOR ADDOBJ pid = PageInventoryDetail DO {
-                ASSIGN pageInventoryPageInventoryDetail(pid) <- page();
-                ASSIGN skuPageInventoryDetail(pid) <- skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(listInventory));
-                ASSIGN quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
-
-                ASSIGN detailCount() <- detailCount() + 1;
-
-                IF detailCount() >= 20 THEN {
-                    ASSIGN detailCount() <- 0;
-                }
-            }
-        }
-
-    }
-} TOOLBAR;
 
 // -------------------------------------------- Сличительная ведомость ----------------------------------------------- //
 
@@ -878,7 +840,6 @@ createPageListInventory 'Создать страницу описи с оста�
     }
 } CONFIRM;
 
-
 FORM listInventory 'Опись'
     OBJECTS         li=ListInventory FIXED PANEL
     PROPERTIES (li) nameStockListInventory, nameInventoryListInventory, nameListInventory, noteListInventory,
@@ -900,7 +861,6 @@ FORM listInventory 'Опись'
     PROPERTIES (i)     idBarcodeSku, nameSku
     PROPERTIES (li,i)  quantityPageInventoryDetailListInventorySku, pricePageInventoryDetailListInventorySku SHOWIF isSkuListInventory(li),
                        sumPageInventoryDetailListInventorySku SHOWIF isSkuListInventory(li)
-    PROPERTIES         SHOWIF isSkuListInventory(li) addDetailDialogTerminalListInventory(li) TODRAW dp
     FILTERS            quantityPageInventoryDetailListInventorySku(li,i) > 0
 
     OBJECTS         bt=Batch
