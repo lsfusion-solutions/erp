@@ -9,6 +9,16 @@ inCreatingTripStock = GROUP SUM 1 IF inCreatingTripOrder(order) BY toStockOrder(
 
 countInCreatingTripOrder = GROUP SUM 1 IF inCreatingTripOrder(order);
 
+editTripOrder 'Редактировать рейс' = ACTION (order) {
+    FOR t == tripOrder(order) DO {
+        FORM trip OBJECTS t=t MODAL;
+        IF formResult() == FormResult.ok THEN {
+            apply();
+        } ELSE {
+            cancel();
+        }
+    }
+}
 
 FORM optionTrip 'Настройки рейса'
     OBJECTS t = Trip FIXED PANEL
@@ -96,7 +106,7 @@ FORM tripDashboard 'Загрузка транспорта' AUTOREFRESH 60
                             numberOrder, dateOrder, finishDateTimeOrder,
                             nameToOrder, nameToStockOrder, addressToStockOrder, packQuantityOrder, quantityOrderDetailOrder
                             
-    PROPERTIES(to) cancelTripOrder
+    PROPERTIES(to) editTripOrder TODRAW to FORCE PANEL TOOLBAR, cancelTripOrder
     FILTERS tripOrder(to) //AND driverTripOrder(to) == currentUser()
     FILTERGROUP filters FILTER 'Заказы на дату' 'F5' dateOrder(o)<=d DEFAULT
     FILTERGROUP filters1 FILTER 'Рейсы на дату' 'F5' dateTripOrder(to)==d DEFAULT
