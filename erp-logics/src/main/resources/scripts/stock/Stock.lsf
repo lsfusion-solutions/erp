@@ -78,6 +78,10 @@ GROUP committee 'Комиссии' : public;
 GROUP responsibility 'Ответственные лица' : public;
 GROUP bookkeeping 'Учет и цены' : public;
 
+// Неактивный
+inactiveStock 'Неактивный' = ABSTRACT BOOLEAN (Stock);
+activeStock 'Активный' (st) = st IS Stock AND NOT inactiveStock(st);
+
 // -------------------------------------- Регион ------------------------------- //
 
 CLASS Region 'Регион';
@@ -120,6 +124,8 @@ FORM stocks 'Склады'
     PROPERTIES(s)          editStock
     ORDER BY stockName
     FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(s) DEFAULT    
 
     DIALOG Stock OBJECT s
 ;
@@ -361,6 +367,7 @@ FORM companyStocks 'Склады'
     ORDER BY stockName
     FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
             inLegalEntityStock(l,s)
+    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(s) DEFAULT        
 ;
 
 DESIGN companyStocks FROM DEFAULT {
@@ -401,6 +408,7 @@ FORM supplierStocks 'Склады'
     ORDER BY stockName
     FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
             inLegalEntityStock(l,s)
+    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(s) DEFAULT        
 ;
 
 DESIGN supplierStocks FROM DEFAULT {
@@ -441,6 +449,7 @@ FORM customerStocks 'Склады'
     ORDER BY stockName
     FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
             inLegalEntityStock(l,s)
+    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(s) DEFAULT        
 ;
 
 DESIGN customerStocks FROM DEFAULT {
@@ -508,6 +517,7 @@ FORM chooseStocks 'Выбор складов'
     PROPERTIES userLegalEntityStock(l, s)
     ORDER BY nameStock(s)
     FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND sg IS StockGroup AND NOT stockGroupStock(s)) OR (s IS Stock AND NOT sg)
+    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(s) DEFAULT
 ;
 
 DESIGN chooseStocks FROM DEFAULT{
@@ -538,7 +548,7 @@ EXTEND FORM legalEntity
     PROPERTIES chooseStocksLegalEntity(l) TODRAW st FORCE PANEL TOOLBAR
     FILTERS isParentStockGroupStock(sg, st) OR (st IS Stock AND NOT sg)
     FILTERS inLegalEntityStock(l, st)
-
+    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(st) DEFAULT
     OBJECTS s=LegalEntity FIXED GRID
     PROPERTIES(s) READONLY nameLegalEntity
 
