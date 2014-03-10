@@ -83,8 +83,11 @@ positionNameManagerLegalEntity 'Руководитель' (legalEntity) = positi
 positionNameAccountantLegalEntity 'Главный бухгалтер' (legalEntity) = positionNameEmployee(bookerLegalEntity(legalEntity)) IN management;
 
 GROUP doc 'Для договора' : public;
-
 GROUP order 'Для заказов' : public;
+
+// Неактивный
+inactiveLegalEntity 'Неактивная' = DATA BOOLEAN (LegalEntity);
+activeLegalEntity 'Активная' (l) = l IS LegalEntity AND NOT inactiveLegalEntity(l);
 
 // ----------------------------------- Группы юридический лиц ---------------------------- //
 
@@ -166,7 +169,7 @@ isParentLegalEntityGroupLegalEntity (lg,l) = isParentLegalEntityGroupLegalEntity
 FORM legalEntity 'Организация'
     OBJECTS l=LegalEntity FIXED PANEL
     PROPERTIES(l)  nameLegalEntity, nameLegalEntityGroupLegalEntity, nameOwnershipLegalEntity, shortNameOwnershipLegalEntity,
-                   nameCountryLegalEntity, nameLanguageLegalEntity, nameCurrencyLegalEntity
+                   nameCountryLegalEntity, nameLanguageLegalEntity, nameCurrencyLegalEntity, inactiveLegalEntity
     PROPERTIES(l)  SHOWIF toShowLegalEntity(l) fullNameLegalEntity,
                    addressLegalEntity, postAddressLegalEntity, nameContactChiefLegalEntity, nameContactBookerLegalEntity, phoneLegalEntity,
                    emailLegalEntity, siteLegalEntity,
@@ -197,6 +200,7 @@ DESIGN legalEntity FROM DEFAULT {
                     ADD PROPERTY(nameOwnershipLegalEntity(l));
                     ADD PROPERTY(shortNameOwnershipLegalEntity(l));
                     ADD PROPERTY(idLegalEntity(l));
+                    ADD PROPERTY(inactiveLegalEntity(l));
                 }
                 NEW regionContainer {
                     type = CONTAINERH;
@@ -250,7 +254,7 @@ FORM legalEntities 'Организации'
     PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
     PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR
     ORDER BY nameL
-
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная орг-ия' 'shift F10' activeLegalEntity(l) DEFAULT    
     FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
             l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
@@ -296,7 +300,7 @@ FORM companyLegalEntities 'Организации'
     PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
     PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR
     ORDER BY nameL
-
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная орг-ия' 'shift F10' activeLegalEntity(l) DEFAULT
     FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
             l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
@@ -339,7 +343,7 @@ FORM supplierLegalEntities 'Организации'
     PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
     PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR
     ORDER BY nameL
-
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная орг-ия' 'shift F10' activeLegalEntity(l) DEFAULT
     FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
             l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
@@ -383,7 +387,7 @@ FORM customerLegalEntities 'Организации'
     PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
     PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR
     ORDER BY nameL
-
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная орг-ия' 'shift F10' activeLegalEntity(l) DEFAULT
     FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
             l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
