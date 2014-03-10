@@ -62,6 +62,10 @@ FORM rampStockDate 'Загрузка рамп'
        
     PROPERTIES(r,i,d) READONLY descriptionOrdersRampIntervalDate,
                       nameSupplierOrdersRampIntervalDate, nameCustomerOrdersRampIntervalDate 
+    FILTERGROUP filter1
+        FILTER 'Только свободные рампы' 'F9' percIntervalRampDate(r,d) < 100                         
+    FILTERGROUP filter
+        FILTER 'Только свободное время' 'F10' TRUE AND NOT orderRampIntervalDate(r,i,d)                          
 ;
 DESIGN rampStockDate FROM DEFAULT {
     main{ 
@@ -85,6 +89,14 @@ DESIGN rampStockDate FROM DEFAULT {
         ADD functions.box;
     } 
 }
+
+percIntervalRampOrder '% загрузки рампы' (r,o) = percIntervalRampDate(r, shipmentDateOrder(o));
+EXTEND FORM orderRamp
+    PROPERTIES READONLY percIntervalRampOrder(r,o)         
+
+    FILTERGROUP filter1
+        FILTER 'Только свободные рампы' 'F9' percIntervalRampOrder(r,o) < 100    
+;
 
 NAVIGATOR {
     rampNavigator {
