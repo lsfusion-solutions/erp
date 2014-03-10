@@ -235,7 +235,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(KristalSalesBatch salesBatch) {
-        logger.info("Finish reading");
+        logger.info("Finish Reading");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
             if (f.delete()) {

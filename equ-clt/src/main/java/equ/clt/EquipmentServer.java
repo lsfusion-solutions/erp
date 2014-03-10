@@ -195,6 +195,7 @@ public class EquipmentServer {
                         }
                     }
                 } catch (Exception e) {
+                    logger.error("Exception: ", e);
                     remote.errorEquipmentServerReport(equServerID, e.fillInStackTrace());
                     return;
                 }
