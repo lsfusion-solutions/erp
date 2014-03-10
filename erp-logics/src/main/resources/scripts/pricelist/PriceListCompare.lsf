@@ -1,0 +1,54 @@
+MODULE PriceListCompare;
+
+REQUIRE PriceList;
+
+//Подсветка строк сравнения прайсов
+isSkuPriceList (sku, priceList) = GROUP SUM 1 BY skuPriceListDetail(detail), priceListPriceListDetail(detail);
+
+priceSkuDataPriceListTypePriceList 'Цена' (sku, type, priceList) = GROUP MAX pricePriceListDetailDataPriceListType(detail, type)
+    BY skuPriceListDetail(detail), type, priceListPriceListDetail(detail);
+
+backgroundSkuPriceListPriceListPricelistType (sku, p1, p2, type) = 
+    CASE WHEN isSkuPriceList(sku, p1) AND NOT isSkuPriceList(sku, p2) THEN RGB(192,255,192)  
+         WHEN isSkuPriceList(sku, p2) AND NOT isSkuPriceList(sku, p1) THEN RGB(255,192,192)  
+         WHEN priceSkuDataPriceListTypePriceList(sku, type, p1) != priceSkuDataPriceListTypePriceList(sku, type, p2) THEN RGB(255,255,192);  
+
+headerNamePriceListDataPriceListType (priceList, dataPriceListType) =
+    [= FORMULA VARSTRING[50]  ' CAST($1 AS TEXT) || \' (№\' || CAST($2 AS TEXT) || \')\''](
+    namePriceListType(dataPriceListType), numberPriceList(priceList)) IF inPriceListDataPriceListType(priceList, dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;    
+
+EXTEND FORM userPriceList
+    OBJECTS p2 = UserPriceList FIXED PANEL
+    PROPERTIES (p2) SELECTOR seriesNumberUserPriceList, dateUserPriceList, nameCurrencyUserPriceList, nameCompanyUserPriceList
+    FILTERS p != p2
+    
+    OBJECTS s3=Sku
+    PROPERTIES BACKGROUND backgroundSkuPriceListPriceListPricelistType(s3, p, p2, t) READONLY inputName3 = nameSku(s3), idBarcodeSku(s3), shortNameUOMSku(s3)
+    PROPERTIES(s3, t, p) READONLY priceSkuDataPriceListTypePriceList COLUMNS (t) HEADER headerNamePriceListDataPriceListType(p, t) SHOWIF headerNamePriceListDataPriceListType(p, t) BACKGROUND backgroundSkuPriceListPriceListPricelistType(s3, p, p2, t) TODRAW s3 FORCE GRID    
+    PROPERTIES(s3, t, p2) READONLY priceSkuDataPriceListTypePriceList COLUMNS (t) HEADER headerNamePriceListDataPriceListType(p2, t) SHOWIF headerNamePriceListDataPriceListType(p2, t) BACKGROUND backgroundSkuPriceListPriceListPricelistType(s3, p, p2, t) TODRAW s3 FORCE GRID    
+    ORDER BY inputName3
+    FILTERS isSkuPriceList(s3, p) OR isSkuPriceList(s3, p2),
+            companyUserPriceList(p) == companyUserPriceList(p2)
+    FILTERGROUP compareFilter
+        FILTER 'Удаленные' 'F9' isSkuPriceList(s3, p2) AND NOT isSkuPriceList(s3, p) 
+        FILTER 'Добавленные' 'F10' isSkuPriceList(s3, p) AND NOT isSkuPriceList(s3, p2) 
+    FILTERGROUP differentPricesFilter
+        FILTER 'Различные цены' 'F11' priceSkuDataPriceListTypePriceList(s3, t, p) != priceSkuDataPriceListTypePriceList(s3, t, p2) 
+;
+
+EXTEND DESIGN userPriceList{
+    detailContainer{
+        NEW fifthContainer{
+            fill = 1;
+            caption = 'Сравнение';
+            ADD p2.box{
+                type = CONTAINERH;
+                ADD PROPERTY (seriesNumberUserPriceList(p2));
+                ADD PROPERTY (dateUserPriceList(p2));
+                ADD PROPERTY (nameCurrencyUserPriceList(p2));
+                ADD PROPERTY (nameCompanyUserPriceList(p2));
+            }
+            ADD s3.box;
+        }
+    }
+}
