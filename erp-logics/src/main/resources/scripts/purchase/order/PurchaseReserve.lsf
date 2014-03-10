@@ -13,6 +13,16 @@ recQuantitySkuStockUserOrder  (sku, stock, userOrder) = stockReserveStockSkuDate
 recommendedQuantitySkuStockUserOrder 'Рекомендуемое к закупке кол-во' (sku, stock, userOrder) = recQuantitySkuStockUserOrder(sku, stock, userOrder) IF recQuantitySkuStockUserOrder(sku, stock, userOrder) > 0;
 stockReserveSkuStockUserOrder 'Страховой запас (кол-во)' (sku, stock, userOrder) = stockReserveStockSkuDate(stock, sku, dateUserOrder(userOrder));
 
+diffStockReserveStockSkuDate 'Потребность' (stock, sku, date) = (overStockReserveStockSkuDate(stock, sku, date) (-) (currentBalanceSkuStock(sku, stock) IF date IS DATE)) IF overStockReserveStockSkuDate(stock, sku, date)>0;
+diffStockReserveStockSkuDateTime 'Потребность' (stock, sku, dateTime) = diffStockReserveStockSkuDate(stock, sku, toDate(dateTime));
+
+overStockReserveStockSkuDateTime 'Страховой запас (кол-во)'(stock, sku, dateTime) = overStockReserveStockSkuDate(stock, sku, toDate(dateTime));
+
+numberSkuStockReserveSupplierStockPriceListTypeDateTime 'Кол-во товаров' (supplier, stock, priceListType, dateTime) =
+    GROUP SUM 1 IF (diffStockReserveStockSkuDateTime(stock, sku, dateTime) > 0 AND
+                    companyALedgerPriceListTypeSkuStockDateTime(priceListType, sku, stock, dateTime) == supplier)
+          BY supplier, stock, priceListType, dateTime;
+
 limitRecommendedQuantitySkuUserOrder = ABSTRACT BOOLEAN (Sku, UserOrder);
 
 fillRecommendedQuantityStockUserOrder 'Заполнить рекомендуемым' = ACTION (userOrder) {

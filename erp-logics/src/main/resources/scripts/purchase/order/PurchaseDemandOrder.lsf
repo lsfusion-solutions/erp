@@ -13,16 +13,6 @@ REQUIRE System,
 
 NAMESPACE Purchase;
 
-diffStockReserveStockSkuDate 'Потребность' (stock, sku, date) = (overStockReserveStockSkuDate(stock, sku, date) (-) (currentBalanceSkuStock(sku, stock) IF date IS DATE)) IF overStockReserveStockSkuDate(stock, sku, date)>0;
-diffStockReserveStockSkuDateTime 'Потребность' (stock, sku, dateTime) = diffStockReserveStockSkuDate(stock, sku, toDate(dateTime));
-
-overStockReserveStockSkuDateTime 'Страховой запас (кол-во)'(stock, sku, dateTime) = overStockReserveStockSkuDate(stock, sku, toDate(dateTime));
-
-numberSkuStockReserveSupplierStockPriceListTypeDateTime 'Кол-во товаров' (supplier, stock, priceListType, dateTime) =
-    GROUP SUM 1 IF (diffStockReserveStockSkuDateTime(stock, sku, dateTime) > 0 AND
-                    companyALedgerPriceListTypeSkuStockDateTime(priceListType, sku, stock, dateTime) == supplier)
-          BY supplier, stock, priceListType, dateTime;
-
 createDemandUserOrder 'Создать заказ' = ACTION (supplier, stock, priceListType, dateTime) NEWSESSION {
     FOR ADDOBJ o = Purchase.UserOrder DO {
         dateUserOrder(o) <- toDate(dateTime);
