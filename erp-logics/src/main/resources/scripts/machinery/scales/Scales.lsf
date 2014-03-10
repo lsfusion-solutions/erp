@@ -59,7 +59,7 @@ FORM scales 'Весы'
 
 FORM groupScales 'Группа весов'
     OBJECTS grs=GroupScales FIXED PANEL
-    PROPERTIES(grs) nppGroupMachinery, nameStockGroupMachinery, nameEquipmentServerGroupMachinery, nameGroupMachinery,
+    PROPERTIES(grs) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                     directoryGroupScales,
                     pieceCodeGroupScales, weightCodeGroupScales,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grs),
@@ -72,37 +72,10 @@ FORM groupScales 'Группа весов'
         FILTER 'Показывать только для данной группы' 'F10' groupScalesScales(s) == grs DEFAULT
     EDIT GroupScales OBJECT grs
 ;
-DESIGN groupScales FROM DEFAULT {
-    grs.box{
-        type = CONTAINERV;
-
-        NEW row1 {
-            type = CONTAINERH;
-            ADD PROPERTY(nppGroupMachinery(grs));
-            ADD PROPERTY(nameStockGroupMachinery(grs));
-            ADD PROPERTY(nameEquipmentServerGroupMachinery(grs));
-            ADD PROPERTY(nameGroupMachinery(grs));
-        }
-        NEW row2 {
-            type = CONTAINERH;
-            ADD PROPERTY(filterSkuGroupMachinery(grs));
-            ADD PROPERTY(showFilterSkuGroupMachinery(grs));
-            ADD PROPERTY(namePriceListTypeGroupMachinery(grs));
-        }
-        NEW row3 {
-            type = CONTAINERH;
-            ADD PROPERTY(directoryGroupScales(grs));
-            ADD PROPERTY(pieceCodeGroupScales(grs));
-            ADD PROPERTY(weightCodeGroupScales(grs));
-        }
-    }
-    ADD s.box;
-    ADD functions.box;
-}
 
 FORM groupsScales 'Группы весов'
     OBJECTS grs=GroupScales
-    PROPERTIES(grs) READONLY nppGroupMachinery, nameStockGroupMachinery, nameEquipmentServerGroupMachinery, nameGroupMachinery,
+    PROPERTIES(grs) READONLY nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                          filterSkuGroupMachinery, directoryGroupScales,
                          pieceCodeGroupScales, weightCodeGroupScales
     PROPERTIES(grs) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
@@ -137,7 +110,7 @@ cellScalesGroupScalesComposition (groupScales, composition) = GROUP AGGR cellSca
 
 FORM cellScales 'Ячейки весов'
     OBJECTS grs=GroupScales
-        PROPERTIES(grs) READONLY nameStockGroupMachinery, nameEquipmentServerGroupMachinery, nameGroupMachinery,
+        PROPERTIES(grs) READONLY nameStockGroupMachinery, nameGroupMachinery,
                              filterSkuGroupMachinery, directoryGroupScales,
                              pieceCodeGroupScales, weightCodeGroupScales
 
@@ -192,21 +165,6 @@ FORM labelFormats 'Форматы этикеток весов'
     DIALOG LabelFormat OBJECT c
 ;
 
-// ----------------------------------------- Загрузка в ВУ -------------------------------------- //
-
-CLASS ScalesPriceTransaction 'Загрузка прайса в весы' : MachineryPriceTransaction;
-groupScalesScalesPriceTransaction 'Группа весов' = DATA GroupScales (ScalesPriceTransaction);
-groupMachineryMachineryPriceTransaction (transaction) += groupScalesScalesPriceTransaction(transaction);
-
-EXTEND FORM groupMachineryInput
-    PROPERTIES(m) READONLY FORCE GRID SHOWIF isGroupScales(g)       numberScales, nameModelMachinery
-;
-
-createMachineryPriceTransactionGroupMachinery (groupMachinery) += ACTION (groupMachinery) {
-    IF groupMachinery IS GroupScales THEN
-        ADDOBJ ScalesPriceTransaction;
-}
-
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
 loadDefaultScalesModel 'Добавить модель весов' = ACTION (stringOne, stringTwo)  {
@@ -225,22 +183,21 @@ loadDefaultScalesModels 'Загрузить стандартные модели 
 @implementLoadDefaultData(loadDefaultScalesModels);
 
 // --------------------------------------- Генерация групп весов -------------------------------- //
-loadDefaultGroupScales 'Сгенерировать группу весов' = ACTION(equipmentServer, priceListType, stock, model, num) {
+loadDefaultGroupScales 'Сгенерировать группу весов' = ACTION(priceListType, stock, model, num) {
     FOR ADDOBJ g = GroupScales DO {
-        ASSIGN stockGroupScales(g) <- stock;
-        ASSIGN equipmentServerGroupMachinery(g) <- equipmentServer;
-        ASSIGN priceListTypeGroupMachinery(g) <- priceListType;
-        ASSIGN nameGroupMachinery(g) <- 'Группа весов по умолчанию';
+        stockGroupScales(g) <- stock;
+        priceListTypeGroupMachinery(g) <- priceListType;
+        nameGroupMachinery(g) <- 'Группа весов по умолчанию';
 
         LOCAL numScales = INTEGER();
-        ASSIGN numScales() <- 0;
+        numScales() <- 0;
         WHILE numScales() < num DO {
             FOR ADDOBJ s = Scales DO {
-                ASSIGN groupScalesScales(s) <- g;
-                ASSIGN numScales() <- numScales() + 1;
-                ASSIGN nppMachinery(s) <- numScales();
-                ASSIGN scalesModelScales(s) <- model;
-                ASSIGN descriptionMachinery(s) <- CONCAT ' ', 'Весы', VARSTRING[255](numScales()), '(', nameStock(stock), ')';
+                groupScalesScales(s) <- g;
+                numScales() <- numScales() + 1;
+                nppMachinery(s) <- numScales();
+                scalesModelScales(s) <- model;
+                descriptionMachinery(s) <- CONCAT ' ', 'Весы', VARSTRING[255](numScales()), '(', nameStock(stock), ')';
             }
         }
     }
@@ -252,7 +209,7 @@ EXTEND FORM defaultData
 
     OBJECTS         cScales=INTEGER FIXED PANEL
     PROPERTIES(cScales)   intValueScales = OBJVALUE
-    PROPERTIES(es, pt, s, sm, cScales)  loadDefaultGroupScales
+    PROPERTIES(pt, s, sm, cScales)  loadDefaultGroupScales
 ;
 
 EXTEND DESIGN defaultData {
@@ -267,7 +224,7 @@ EXTEND DESIGN defaultData {
             caption = 'Весы';
             ADD PROPERTY(nameScalesModel(sm));
             ADD PROPERTY(intValueScales);
-            ADD PROPERTY(loadDefaultGroupScales(es,pt,s,sm,cScales));
+            ADD PROPERTY(loadDefaultGroupScales(pt,s,sm,cScales));
         }
     }
 }

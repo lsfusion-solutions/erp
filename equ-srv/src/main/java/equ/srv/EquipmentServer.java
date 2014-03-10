@@ -96,10 +96,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         zReportLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ZReport");
         itemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Item");
         discountCardLM = (ScriptingLogicsModule) getBusinessLogics().getModule("DiscountCard");
-        cashRegisterLM = (ScriptingLogicsModule) getBusinessLogics().getModule("CashRegister");
-        scalesLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Scales");
-        priceCheckerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PriceChecker");
-        terminalLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Terminal");
+        cashRegisterLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentCashRegister");
+        scalesLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentScales");
+        priceCheckerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentPriceChecker");
+        terminalLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentTerminal");
     }
 
     @Override

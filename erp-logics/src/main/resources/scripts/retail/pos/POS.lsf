@@ -17,18 +17,20 @@ EXTEND FORM zReports PROPERTIES(b) fiscalSkipReceipt;
 
 POSPriceListTypeReceipt (receipt) = OVERRIDE priceListTypeGroupMachinery(groupCashRegisterReceipt(receipt)), priceListTypeDiscountCard(discountCardReceipt(receipt));
 
+overPriceSkuReceiptDateTime = ABSTRACT NUMERIC[14,2] (Sku, Receipt, DATETIME); 
+
 POSPriceSkuReceiptDateTime 'Цена в кассе' (sku, receipt, dateTime) =
     IF usePriceListGroupCashRegister(groupCashRegisterReceipt(receipt)) THEN
         priceAPriceListTypeSkuStockDateTime(POSPriceListTypeReceipt(receipt), sku, departmentStoreReceipt(receipt), dateTime)
     ELSE
-        transactionPriceBarcodeGroupMachinery(barcodeSku(sku), groupCashRegisterReceipt(receipt)) IF dateTime IS DATETIME;
+        overPriceSkuReceiptDateTime(sku, receipt, dateTime); 
 currentPOSPriceSkuReceipt 'Текущая цена' (sku, receipt) = POSPriceSkuReceiptDateTime(sku, receipt, currentDateTime());
 
 POSPriceBatchReceiptDateTime 'Цена в кассе' (batch, receipt, dateTime) =
     IF usePriceListGroupCashRegister(groupCashRegisterReceipt(receipt)) THEN
         priceAPriceListTypeBatchStockDateTime(POSPriceListTypeReceipt(receipt), batch, departmentStoreReceipt(receipt), dateTime)
     ELSE
-        transactionPriceBarcodeGroupMachinery(barcodeSku(skuBatch(batch)), groupCashRegisterReceipt(receipt)) IF dateTime IS DATETIME;
+        overPriceSkuReceiptDateTime(skuBatch(batch), receipt, dateTime); 
 currentPOSPriceBatchReceipt 'Текущая цена' (batch, receipt) = POSPriceBatchReceiptDateTime(batch, receipt, currentDateTime());
 currentPOSPriceBatchReceiptDetail 'Текущая цена' (batch, receiptDetail) = POSPriceBatchReceiptDateTime(batch, receiptReceiptDetail(receiptDetail), currentDateTime());
 

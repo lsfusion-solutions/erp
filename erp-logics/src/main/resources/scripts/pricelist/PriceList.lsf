@@ -1,6 +1,6 @@
 MODULE PriceList;
 
-REQUIRE PriceListLedger, StockTax, Item, Machinery;
+REQUIRE PriceListLedger, StockTax, Item;
 
 NAMESPACE PriceList;
 
@@ -1189,59 +1189,4 @@ EXTEND FORM migrationData
     PROPERTIES() findEqualsPriceLists
 ;
 
-// ------------------------------------- Загрузка в оборудование ------------------------------ //
-
 quantityPriceListDetailSkuPriceList 'Кол-во строк' (sku, priceList) = GROUP SUM 1 BY skuPriceListDetail(d), priceListPriceListDetail(d);
-
-@Machinery.implementPriceTransactionDocument(PriceList);
-createPriceListMachineryPriceTransaction 'Загрузить в оборудование' = ACTION (priceList) NEWSESSION AUTOAPPLY {
-    ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF quantityPriceListDetailSkuPriceList(sku, priceList);
-    ASSIGN createMachineryPriceTransactionDocument() <- priceList;
-    FOR inPriceListStock(PriceList, stock) DO {
-        EXEC createMachineryPriceTransaction(stock);   
-    }            
-    ASSIGN sentPriceTransactionDocument(priceList) <- TRUE;
-} TOOLBAR CONFIRM;
-
-createSnapshotPriceListMachineryPriceTransaction 'Перегрузить все позиции' = ACTION (priceList) NEWSESSION AUTOAPPLY {
-    ASSIGN createMachineryPriceTransactionSnapshot() <- TRUE;
-    ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF quantityPriceListDetailSkuPriceList(sku, priceList);
-    ASSIGN createMachineryPriceTransactionDocument() <- priceList;
-    FOR inPriceListStock(PriceList, stock) DO {
-        EXEC createMachineryPriceTransaction(stock);   
-    }  
-    ASSIGN sentPriceTransactionDocument(priceList) <- TRUE;
-} CONFIRM;
-
-showCreateMachineryPriceTransactionPriceList 'Показывать' (priceList) = isPostedPriceList(priceList) AND NOT Machinery.skipPriceTransactionDocument(priceList)
-                                                                                                       AND NOT sentPriceTransactionDocument(priceList);
-backgroundCreateMachineryPriceTransactionPriceList 'Цвет' (priceList) = IF countProcessPriceTransactionDocument(priceList) THEN
-                                                                            RGB(255,255,128)
-                                                                         ELSE
-                                                                            RGB(212,255,212) IF showCreateMachineryPriceTransactionPriceList(priceList);
-
-EXTEND FORM priceLists
-    PROPERTIES(p) statusMachineryPriceTransactionDocument ON SHORTCUT createSnapshotPriceListMachineryPriceTransaction(p) BACKGROUND backgroundCreateMachineryPriceTransactionPriceList(p) READONLY AFTER stocksPriceList(p),
-                       createPriceListMachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransactionPriceList(p)
-;
-EXTEND DESIGN priceLists {     
-    detailContainer {    
-        NEW actionContainer {
-            caption = 'Действия';
-            type = CONTAINERV;
-            NEW createdContainer {
-                caption = 'Создание на основе';
-            }
-            NEW machineryContainer {
-                caption = 'Загрузка';                     
-                NEW machinery {                 
-                    caption = 'Загрузки' ;
-                    type = CONTAINERV;    
-                            
-                    ADD PROPERTY (createPriceListMachineryPriceTransaction(p));
-                }
-            }
-        }   
-    } 
-}
-

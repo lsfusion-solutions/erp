@@ -1,0 +1,21 @@
+MODULE CashRegisterPriceTransaction;
+
+REQUIRE CashRegister, MachineryPriceTransaction;
+
+NAMESPACE CashRegister;
+
+// -------------------------- Загрузка прайса в оборудование --------------------- //
+CLASS CashRegisterPriceTransaction 'Загрузка прайса в кассы' : MachineryPriceTransaction;
+groupCashRegisterCashRegisterPriceTransaction 'Группа касс' = DATA GroupCashRegister (CashRegisterPriceTransaction);
+groupMachineryMachineryPriceTransaction (transaction) += groupCashRegisterCashRegisterPriceTransaction(transaction);
+
+EXTEND FORM groupMachineryInput
+    PROPERTIES(m) READONLY FORCE GRID SHOWIF isGroupCashRegister(g) numberCashRegister, directoryCashRegister, comPortCashRegister, baudRateCashRegister,
+                                                                    nameModelMachinery, dateCashRegister
+;
+
+createMachineryPriceTransactionGroupMachinery (groupMachinery) += ACTION (groupMachinery) {
+    IF groupMachinery IS GroupCashRegister THEN
+        ADDOBJ CashRegisterPriceTransaction;
+}
+

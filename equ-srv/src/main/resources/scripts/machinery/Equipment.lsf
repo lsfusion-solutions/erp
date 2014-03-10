@@ -1,3 +1,99 @@
 MODULE Equipment;
 
-REQUIRE Machinery;
+REQUIRE System, MachineryPriceTransaction, DefaultData;
+
+NAMESPACE Machinery;
+
+//---------------------------- Сервера управления оборудования ----------------------------//
+
+CLASS EquipmentServer 'Сервер оборудования';
+TABLE equipmentServer (EquipmentServer);
+
+nameEquipmentServer 'Наименование' = DATA VARISTRING[50](EquipmentServer) IN recognize;
+
+sidEquipmentServer 'Идентификатор' = DATA VARSTRING[20] (EquipmentServer) IN recognize;
+sidToEquipmentServer(equipmentServer) = GROUP AGGR equipmentServer BY sidEquipmentServer (equipmentServer) WHERE equipmentServer IS EquipmentServer;
+delayEquipmentServer 'Период обновления (в миллисекундах)' = DATA INTEGER (EquipmentServer) IN base;
+
+//---------------------------- Ошибки сервера оборудования ----------------------------//
+
+CLASS EquipmentServerError 'Ошибки';
+TABLE equipmentServerError (EquipmentServerError);
+
+dataEquipmentServerError 'Сообщение об ошибке' = DATA VARSTRING[200] (EquipmentServerError) IN base;
+erTraceEquipmentServerError 'След ошибки' = DATA TEXT (EquipmentServerError) IN base;
+dateEquipmentServerError 'Время возникновения' = DATA DATETIME (EquipmentServerError) IN base;
+equipmentServerEquipmentServerError 'Сервер оборудования (ID)' = DATA EquipmentServer(EquipmentServerError) IN base;
+
+//---------------------------- Лог сервера оборудования ----------------------------//
+
+CLASS EquipmentServerLog 'Лог';
+TABLE equipmentServerLog (EquipmentServerLog);
+
+dataEquipmentServerLog 'Сообщение' = DATA TEXT (EquipmentServerLog) IN base;
+dateEquipmentServerLog 'Время' = DATA DATETIME (EquipmentServerLog) IN base;
+equipmentServerEquipmentServerLog 'Сервер оборудования (ID)' = DATA EquipmentServer(EquipmentServerLog) IN base;
+
+//---------------------------- Формы для серверов оборудования ----------------------------//
+
+FORM equipmentServers 'Серверы оборудования'
+    OBJECTS es = EquipmentServer
+    PROPERTIES(es)  READONLY nameEquipmentServer, sidEquipmentServer, delayEquipmentServer
+    PROPERTIES(es)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+
+    OBJECTS e = EquipmentServerError
+    PROPERTIES(e) READONLY dataEquipmentServerError, dateEquipmentServerError
+    PROPERTIES(e) DELETESESSION
+    PROPERTIES(e) READONLY FORCE PANEL erTraceEquipmentServerError
+
+    OBJECTS l = EquipmentServerLog
+    PROPERTIES(l) READONLY dataEquipmentServerLog, dateEquipmentServerLog
+    PROPERTIES(l) DELETESESSION
+
+    FILTERS equipmentServerEquipmentServerError (e) == es
+    FILTERS equipmentServerEquipmentServerLog (l) == es
+;
+
+DESIGN equipmentServers FROM DEFAULT {
+    main {
+        NEW topContainer {
+            fill = 1;
+            type = SPLITV;
+
+            ADD es.box;
+            NEW specContainer {
+                type = TABBED;
+                fill = 1;
+
+                NEW errorContainer {
+                    fill = 1;
+                    caption = 'Ошибки';
+                    ADD e.box;
+                    PROPERTY(erTraceEquipmentServerError(e)) {
+                        fill = 1;
+                        panelLabelAbove = TRUE;
+                    }
+                }
+                ADD l.box;
+            }
+        }
+        ADD functions.box;
+    }
+}
+
+NAVIGATOR {
+    machineryMasterData {
+        ADD equipmentServers;
+    }
+}
+
+// ------------------ Ссылка на сервер оборудования для группы оборудования --------------- //
+
+equipmentServerGroupMachinery = DATA EquipmentServer (GroupMachinery);
+nameEquipmentServerGroupMachinery 'Сервер оборудования' (groupMachinery) = nameEquipmentServer(equipmentServerGroupMachinery(groupMachinery));
+sidEquipmentServerGroupMachinery 'ИД сервера оборудования' (groupMachinery) = sidEquipmentServer(equipmentServerGroupMachinery(groupMachinery));
+
+// ------------------ Подключение к загрузке прайса в оборудование ------------------- //
+
+equipmentServerMachineryPriceTransaction (transaction) = equipmentServerGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
+sidEquipmentServerMachineryPriceTransaction (transaction) = sidEquipmentServer(equipmentServerMachineryPriceTransaction (transaction));

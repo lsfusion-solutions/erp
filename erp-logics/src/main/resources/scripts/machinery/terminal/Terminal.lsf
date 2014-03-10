@@ -146,7 +146,7 @@ DESIGN groupsTerminalDocumentType FROM DEFAULT {
 
 FORM groupTerminal 'Группа ТСД'
     OBJECTS grt=GroupTerminal FIXED PANEL
-    PROPERTIES(grt) nppGroupMachinery, nameStockGroupMachinery, nameEquipmentServerGroupMachinery, nameGroupMachinery,
+    PROPERTIES(grt) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                     nameGroupTerminalDocumentTypeGroupTerminal,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt)
 
@@ -162,7 +162,7 @@ FORM groupTerminal 'Группа ТСД'
 
 FORM groupsTerminal 'Группы ТСД'
     OBJECTS grt=GroupTerminal, t=Terminal
-    PROPERTIES(grt)  READONLY nppGroupMachinery, nameStockGroupMachinery, nameEquipmentServerGroupMachinery, nameGroupMachinery,
+    PROPERTIES(grt)  READONLY nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                      nameGroupTerminalDocumentTypeGroupTerminal,
                      filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt),
                      namePriceListTypeGroupMachinery
@@ -316,17 +316,6 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp)
     } TOOLBAR;
 END
 
-// -------------------------------------------- Загрузка в ВУ ------------------------------------------------ //
-
-CLASS TerminalPriceTransaction 'Загрузка прайса в ТСД' : MachineryPriceTransaction;
-groupTerminalTerminalPriceTransaction 'Группа ТСД' = DATA GroupTerminal (TerminalPriceTransaction);
-groupMachineryMachineryPriceTransaction (transaction) += groupTerminalTerminalPriceTransaction(transaction);
-
-createMachineryPriceTransactionGroupMachinery (groupMachinery) += ACTION (groupMachinery) {
-    IF groupMachinery IS GroupTerminal THEN
-        ADDOBJ TerminalPriceTransaction;
-}
-
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
 // Модели терминалов сбора данных
@@ -378,21 +367,20 @@ loadDefaultTerminalDocumentTypes 'Загрузить стандартные ти
 @implementLoadDefaultData(loadDefaultTerminalDocumentTypes);
 
 // ------------------------------------------ Генерация групп терминалов сбора данных ------------------------------ //
-loadDefaultGroupTerminal 'Сгенерировать группу терминалов' = ACTION(equipmentServer, stock, model, gtdt, num) {
+loadDefaultGroupTerminal 'Сгенерировать группу терминалов' = ACTION(stock, model, gtdt, num) {
     FOR ADDOBJ g = GroupTerminal DO {
-        ASSIGN stockGroupTerminal(g) <- stock;
-        ASSIGN equipmentServerGroupMachinery(g) <- equipmentServer;
-        ASSIGN nameGroupMachinery(g) <- 'Группа ТСД по умолчанию';
-        ASSIGN groupTerminalDocumentTypeGroupTerminal(g) <- gtdt;
+        stockGroupTerminal(g) <- stock;
+        nameGroupMachinery(g) <- 'Группа ТСД по умолчанию';
+        groupTerminalDocumentTypeGroupTerminal(g) <- gtdt;
 
         LOCAL numTerminal = INTEGER();
-        ASSIGN numTerminal() <- 0;
+        numTerminal() <- 0;
         WHILE numTerminal() < num DO {
             FOR ADDOBJ t = Terminal DO {
-                ASSIGN groupTerminalTerminal(t) <- g;
-                ASSIGN numTerminal() <- numTerminal() + 1;
-                ASSIGN nppMachinery(t) <- numTerminal();
-                ASSIGN terminalModelTerminal(t) <- model;
+                groupTerminalTerminal(t) <- g;
+                numTerminal() <- numTerminal() + 1;
+                nppMachinery(t) <- numTerminal();
+                terminalModelTerminal(t) <- model;
             }
         }
     }
@@ -407,7 +395,7 @@ EXTEND FORM defaultData
 
     OBJECTS         cTerminal=INTEGER FIXED PANEL
     PROPERTIES(cTerminal)   intValueTerminal = OBJVALUE
-    PROPERTIES (es, s, tm, gtdt, cTerminal)  loadDefaultGroupTerminal
+    PROPERTIES (s, tm, gtdt, cTerminal)  loadDefaultGroupTerminal
 ;
 
 EXTEND DESIGN defaultData {
@@ -426,7 +414,7 @@ EXTEND DESIGN defaultData {
             ADD PROPERTY(nameTerminalModel(tm));
             ADD PROPERTY(nameGroupTerminalDocumentType(gtdt));
             ADD PROPERTY(intValueTerminal);
-            ADD PROPERTY(loadDefaultGroupTerminal(es,s,tm,gtdt,cTerminal));
+            ADD PROPERTY(loadDefaultGroupTerminal(s,tm,gtdt,cTerminal));
         }
     }
 }
