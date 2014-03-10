@@ -457,63 +457,52 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     @Override
     public Map<Date, Set<String>> readRequestSalesInfo(String equServerID) throws RemoteException, SQLException {
-        try {
-            DataSession session = getDbManager().createSession();
 
-            Set<String> directoriesList = new HashSet<String>();
+        Map<Date, Set<String>> directoriesMap = new HashMap<Date, Set<String>>();
 
-            LCP<PropertyInterface> isGroupMachinery = (LCP<PropertyInterface>) equLM.is(equLM.findClassByCompoundName("GroupMachinery"));
-            ImRevMap<PropertyInterface, KeyExpr> keys = isGroupMachinery.getMapKeys();
-            KeyExpr key = keys.singleValue();
-            QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<PropertyInterface, Object>(keys);
-            query.addProperty("stockGroupMachinery", equLM.findLCPByCompoundOldName("stockGroupMachinery").getExpr(key));
-            query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(key).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
+        if (cashRegisterLM != null) {
+            try {
+                logger.info("RequestSalesInfoStock started");
 
-            ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
-            for (int i = 0, size = result.size(); i < size; i++) {
-                DataObject groupMachineryObject = result.getKey(i).getValue(0);
+                DataSession session = getDbManager().createSession();
 
-                DataObject departmentStoreObject = (DataObject) result.getValue(0).get("stockGroupMachinery");
+                KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
+                KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
+                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "GroupMachinery", groupMachineryExpr, "cashRegister", cashRegisterExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-                boolean requestSalesInfo = equLM.findLCPByCompoundOldName("requestSalesInfoStock").read(session, departmentStoreObject) != null;
+                query.addProperty("stockGroupMachinery", equLM.findLCPByCompoundOldName("stockGroupMachinery").getExpr(groupMachineryExpr));
+                query.addProperty("directoryCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryCashRegister").getExpr(cashRegisterExpr));
+                query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupMachineryExpr).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
+                query.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupMachineryExpr, Compare.EQUALS));
+                query.and(cashRegisterLM.findLCPByCompoundOldName("directoryCashRegister").getExpr(cashRegisterExpr).getWhere());
 
-                if (requestSalesInfo && cashRegisterLM != null) {
+                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
+                for (int i = 0, size = result.size(); i < size; i++) {
 
-                    equLM.findLCPByCompoundOldName("requestSalesInfoStock").change((Object) null, session, departmentStoreObject);
-                    
-                    LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) cashRegisterLM.is(cashRegisterLM.findClassByCompoundName("CashRegister"));
+                    DataObject departmentStoreObject = (DataObject) result.getValue(i).get("stockGroupMachinery");
+                    String directoryCashRegister = (String) result.getValue(i).get("directoryCashRegister").getValue();
+                    boolean requestSalesInfoStock = equLM.findLCPByCompoundOldName("requestSalesInfoStock").read(session, departmentStoreObject) != null;
+                    Date dateRequestSalesInfoStock = (Date) equLM.findLCPByCompoundOldName("dateRequestSalesInfoStock").read(session, departmentStoreObject);
 
-                    ImRevMap<PropertyInterface, KeyExpr> cashRegisterKeys = isCashRegister.getMapKeys();
-                    KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();
-                    QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(cashRegisterKeys);
+                    String nameDepartmentStore = (String) cashRegisterLM.findLCPByCompoundOldName("nameDepartmentStore").read(session, departmentStoreObject);
+                    logger.info("RequestSalesInfoStock: " + nameDepartmentStore + ": " + requestSalesInfoStock);
 
-                    cashRegisterQuery.addProperty("directoryCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryCashRegister").getExpr(cashRegisterKey));
-                    cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
-                    cashRegisterQuery.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupMachineryObject, Compare.EQUALS));
-
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session.sql);
-
-                    for (ImMap<Object, Object> row : cashRegisterResult.valueIt()) {
-                        String directoryCashRegister = (String) row.get("directoryCashRegister");
-                        if (directoryCashRegister != null)
-                            directoriesList.add(directoryCashRegister);
+                    if (requestSalesInfoStock) {
+                        equLM.findLCPByCompoundOldName("requestSalesInfoStock").change((Object) null, session, departmentStoreObject);
+                        Set<String> directories = directoriesMap.containsKey(dateRequestSalesInfoStock) ? directoriesMap.get(dateRequestSalesInfoStock) : new HashSet<String>();
+                        directories.add(directoryCashRegister);
+                        directoriesMap.put(dateRequestSalesInfoStock, directories);
                     }
                 }
+                session.apply(getBusinessLogics());                
+            } catch (ScriptingErrorLog.SemanticErrorException e) {
+                throw Throwables.propagate(e);
+            } catch (SQLHandledException e) {
+                throw Throwables.propagate(e);
             }
-
-            Date dateRequestSalesInfo = (Date) equLM.findLCPByCompoundOldName("dateRequestSalesInfo").read(session);
-            session.apply(getBusinessLogics());
-
-            Map<Date, Set<String>> resultMap = new HashMap<Date, Set<String>>();
-            if(dateRequestSalesInfo != null && !directoriesList.isEmpty())
-                resultMap.put(dateRequestSalesInfo, directoriesList);
-
-            return resultMap;
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLHandledException e) {
-            throw Throwables.propagate(e);
         }
+        return directoriesMap;
     }
 
     @Override
