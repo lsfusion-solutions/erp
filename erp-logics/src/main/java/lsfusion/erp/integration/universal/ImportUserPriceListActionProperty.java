@@ -593,7 +593,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             if (count >= startRow) {
                 
                 Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null || (importColumns.getDateRow()) != count) ?
-                        null : getCSVDateFieldValue(valuesList, new ImportColumnDetail("date", importColumns.getDateColumn(), false), importColumns.getDateColumn(), count, null);
+                        null : getCSVDateFieldValue(valuesList, new ImportColumnDetail("date", importColumns.getDateColumn(), false), count, null);
 
                 String idUserPriceList = getCSVFieldValue(valuesList, importColumns.getColumns().get("idUserPriceList"), count);
                 String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("barcodeItem"), count));
@@ -610,7 +610,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 Date dateTo = getCSVDateFieldValue(valuesList, importColumns.getColumns().get("dateTo"), count);
                 Date dateVAT = date == null ? dateFrom : date;
                 BigDecimal valueVAT = parseVAT(getCSVFieldValue(valuesList, importColumns.getColumns().get("valueVAT"), count));
-                BigDecimal quantityAdjustment = getCSVBigDecimalFieldValue(valuesList, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), importColumns.getQuantityAdjustmentColumn(), count);
+                BigDecimal quantityAdjustment = getCSVBigDecimalFieldValue(valuesList, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), count);
                 String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
                 String extIdPackBarcode = packBarcode == null ? ((itemKeyType.equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
                 if (!idUserPriceListDetail.equals("_")) {
@@ -654,7 +654,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String articleItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("articleItem"));
             String captionItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("captionItem"));
             String idUOMItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idUOMItem"));
-            BigDecimal quantityAdjustment = getXLSXBigDecimalFieldValue(sheet, new ImportColumnDetail("quantityAdjustment", String.valueOf(importColumns.getDateRow()), false), i, importColumns.getQuantityAdjustmentColumn());
+            BigDecimal quantityAdjustment = getXLSXBigDecimalFieldValue(sheet, i, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false));
             Date dateUserPriceList = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateUserPriceList"), date);
             Date dateFrom = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateFrom"), dateDocument);
             Date dateVAT = date == null ? dateFrom : date;
@@ -714,7 +714,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String idItemGroup = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idItemGroup"), i);
             String captionItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("captionItem"), i);
             String idUOMItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idUOMItem"), i);
-            BigDecimal quantityAdjustment = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), importColumns.getQuantityAdjustmentColumn(), i);
+            BigDecimal quantityAdjustment = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), i);
             Date dateUserPriceList = getJDBFDateFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("dateUserPriceList"), i);
             Date dateFrom = getJDBFDateFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("dateFrom"), i, dateDocument);
             Date dateTo = getJDBFDateFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("dateTo"), i);
