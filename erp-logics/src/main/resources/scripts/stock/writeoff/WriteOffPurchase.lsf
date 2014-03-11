@@ -1,7 +1,9 @@
 MODULE WriteOffPurchase;
 
 REQUIRE WriteOff, PurchaseShipment;
+
 PRIORITY Purchase; 
+
 NAMESPACE WriteOff;
 
 //---------------------------------- Норма отходов ------------------------------------//
@@ -35,15 +37,24 @@ FORM writeOffRateDialog 'Нормы отходов'
 
 //------------------------------ Создание аггрегированных объектов через операции -----------------------------//
 
-@defineOperationProperty(createPurchaseWriteOff, 'Акт списания', createContainer);
+createPurchaseWriteOffOperation 'Акт списания' = DATA BOOLEAN (Purchase.Operation);
 
-writeOffOperationOperation  = DATA WriteOff.Operation (Operation);
-nameWriteOffOperationOperation 'Операция (списания)' (operation)= WriteOff.nameOperation(writeOffOperationOperation(operation));
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) createPurchaseWriteOffOperation
+;
+EXTEND DESIGN Purchase.operation {
+    createContainer {
+        ADD PROPERTY(createPurchaseWriteOffOperation(o));
+    }
+}
 
-EXTEND FORM operation
+writeOffOperationOperation  = DATA Operation (Purchase.Operation);
+nameWriteOffOperationOperation 'Операция (списания)' (operation)= nameOperation(writeOffOperationOperation(operation));
+
+EXTEND FORM Purchase.operation
     PROPERTIES(o) nameWriteOffOperationOperation
 ;
-EXTEND DESIGN operation {
+EXTEND DESIGN Purchase.operation {
     createContainer {
         ADD PROPERTY(nameWriteOffOperationOperation(o)) AFTER PROPERTY(createPurchaseWriteOffOperation(o));
     }
