@@ -88,7 +88,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(cell);
                 else if(isColumnRowValue(cell)) {
                     String[] splittedCell = cell.replace(":", "").split("_");
-                    value = getCSVFieldValue(valuesList.get(parseIndex(splittedCell[0])), parseIndex(splittedCell[1]), null, null, defaultValue);
+                    value = getCSVFieldValue(valuesList.get(parseIndex(splittedCell[1])), parseIndex(splittedCell[0]), null, null, defaultValue);
                 } else if (isRoundedValue(cell)) {
                     String[] splittedCell = cell.split("\\[|\\]");
                     value = getRoundedValue(getCSVFieldValue(valuesList.get(row - 1), parseIndex(splittedCell[0]), null, null, ""), splittedCell[1]);
@@ -233,7 +233,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(cell);
                 else if(isColumnRowValue(cell)) {
                     String[] splittedCell = cell.replace(":", "").split("_");
-                    value = getXLSFieldValue(sheet, importColumnDetail, parseIndex(splittedCell[0]), parseIndex(splittedCell[1]), defaultValue);
+                    value = getXLSFieldValue(sheet, importColumnDetail, parseIndex(splittedCell[1]), parseIndex(splittedCell[0]), defaultValue);
                 } else if (isRoundedValue(cell)) {
                     String[] splittedCell = cell.split("\\[|\\]");
                     value = getRoundedValue(getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(splittedCell[0]), ""), splittedCell[1]);
