@@ -535,9 +535,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
         Sheet sheet = wb.getSheet(0);
 
-        Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ?
-                null : getXLSDateFieldValue(sheet, importColumns.getDateRow(), new ImportColumnDetail(importColumns.getDateColumn(), String.valueOf(importColumns.getDateRow()), false));
-
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
             String idUserPriceList = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idUserPriceList"));
             String idItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idItem"));
@@ -549,9 +546,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String articleItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("articleItem"));
             String captionItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("captionItem"));
             String idUOMItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idUOMItem"));
-            Date dateUserPriceList = getXLSDateFieldValue(sheet, i, importColumns.getColumns().get("dateUserPriceList"), date);
+            Date dateUserPriceList = getXLSDateFieldValue(sheet, i, importColumns.getColumns().get("dateUserPriceList"));
             Date dateFrom = getXLSDateFieldValue(sheet, i, importColumns.getColumns().get("dateFrom"), dateDocument);
-            Date dateVAT = date == null ? dateFrom : date;
+            Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
             Date dateTo = getXLSDateFieldValue(sheet, i, importColumns.getColumns().get("dateTo"));
             BigDecimal valueVAT = parseVAT(getXLSFieldValue(sheet, i, importColumns.getColumns().get("valueVAT")));
             BigDecimal quantityAdjustment = getXLSBigDecimalFieldValue(sheet, i, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false));
@@ -592,9 +589,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             if (count >= startRow) {
                 
-                Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null || (importColumns.getDateRow()) != count) ?
-                        null : getCSVDateFieldValue(valuesList, new ImportColumnDetail("date", importColumns.getDateColumn(), false), count, null);
-
                 String idUserPriceList = getCSVFieldValue(valuesList, importColumns.getColumns().get("idUserPriceList"), count);
                 String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("barcodeItem"), count));
                 String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("extraBarcodeItem"), count));
@@ -605,10 +599,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 String idItemGroup = getCSVFieldValue(valuesList, importColumns.getColumns().get("idItemGroup"), count);
                 String captionItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("captionItem"), count);
                 String idUOMItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("idUOMItem"), count);
-                Date dateUserPriceList = getCSVDateFieldValue(valuesList, importColumns.getColumns().get("dateFrom"), count, date);
+                Date dateUserPriceList = getCSVDateFieldValue(valuesList, importColumns.getColumns().get("dateFrom"), count);
                 Date dateFrom = getCSVDateFieldValue(valuesList, importColumns.getColumns().get("dateFrom"), count, dateDocument);
                 Date dateTo = getCSVDateFieldValue(valuesList, importColumns.getColumns().get("dateTo"), count);
-                Date dateVAT = date == null ? dateFrom : date;
+                Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
                 BigDecimal valueVAT = parseVAT(getCSVFieldValue(valuesList, importColumns.getColumns().get("valueVAT"), count));
                 BigDecimal quantityAdjustment = getCSVBigDecimalFieldValue(valuesList, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), count);
                 String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
@@ -639,9 +633,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
 
-        Date date = (importColumns.getDateRow() == null || importColumns.getDateColumn() == null) ?
-                null : getXLSXDateFieldValue(sheet, importColumns.getDateRow(), new ImportColumnDetail(importColumns.getDateColumn(), String.valueOf(importColumns.getDateRow()), false));
-
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
 
             String idUserPriceList = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idUserPriceList"));
@@ -655,9 +646,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String captionItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("captionItem"));
             String idUOMItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idUOMItem"));
             BigDecimal quantityAdjustment = getXLSXBigDecimalFieldValue(sheet, i, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false));
-            Date dateUserPriceList = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateUserPriceList"), date);
+            Date dateUserPriceList = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateUserPriceList"));
             Date dateFrom = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateFrom"), dateDocument);
-            Date dateVAT = date == null ? dateFrom : date;
+            Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
             Date dateTo = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateTo"));
             BigDecimal valueVAT = parseVAT(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("valueVAT")));
 
@@ -744,21 +735,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         Map<DataObject, String[]> priceColumns = readPriceImportColumns(context, LM, importTypeObject);
         String quantityAdjustmentColumn = (String) LM.findLCPByCompoundOldName("quantityAdjustmentImportUserPriceListType").read(context, importTypeObject);
 
-        String dateRowString = (String) LM.findLCPByCompoundOldName("dateRowImportUserPriceListType").read(context, importTypeObject);
-        Integer dateRow;
-        try {
-            dateRow = dateRowString == null ? null : Integer.parseInt(dateRowString);
-        } catch (Exception e) {
-            dateRow = null;
-        }
-        String dateColumnString = (String) LM.findLCPByCompoundOldName("dateColumnImportUserPriceListType").read(context, importTypeObject);
-        Integer dateColumn;
-        try {
-            dateColumn = dateColumnString == null ? null : Integer.parseInt(dateColumnString);
-        } catch (Exception e) {
-            dateColumn = null;
-        }
-
         ObjectValue operation = LM.findLCPByCompoundOldName("operationImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
 
@@ -771,8 +747,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         ObjectValue defaultItemGroup = LM.findLCPByCompoundOldName("defaultItemGroupImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject defaultItemGroupObject = defaultItemGroup instanceof NullValue ? null : (DataObject) defaultItemGroup;
 
-        return new ImportColumns(columns, priceColumns, quantityAdjustmentColumn, dateRow, dateColumn, operationObject,
-                companyObject, stockObject, defaultItemGroupObject);
+        return new ImportColumns(columns, priceColumns, quantityAdjustmentColumn, operationObject, companyObject, stockObject, defaultItemGroupObject);
     }
 
     private static Map<String, ImportColumnDetail> readColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
