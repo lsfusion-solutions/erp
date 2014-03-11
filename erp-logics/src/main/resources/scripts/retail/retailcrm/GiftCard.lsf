@@ -41,6 +41,7 @@ giftCardReceiptGiftCardSaleDetail = DATA GiftCard (ReceiptGiftCardSaleDetail);
 
 receiptReceiptGiftCardSaleDetail = DATA Receipt (ReceiptGiftCardSaleDetail);
 receiptReceiptDetail(detail) += receiptReceiptGiftCardSaleDetail(detail);
+zReportReceiptGiftCardSaleDetail(d) = zReportReceipt(receiptReceiptGiftCardSaleDetail(d)); 
 
 @defineDocumentDetailPosted(receipt, ReceiptGiftCardSaleDetail);
 isPostedReceiptDetail(d) += isPostedReceiptGiftCardSaleDetail(d); 
@@ -76,6 +77,11 @@ dateTimeGiftCardLedger(detail) += dateTimeReceipt(receiptReceiptGiftCardSaleDeta
 seriesNumberGiftCardLedger(detail) += seriesNumberGiftCard(giftCardReceiptGiftCardSaleDetail(detail));
 sumGiftCardLedger(detail) += sumReceiptGiftCardSaleDetail(detail);
 descriptionGiftCardLedger(detail) += 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
+
+editReceiptGiftCardSaleDetail 'Редактировать' (d) = ACTION (d) NEWSESSION {
+    FORM zReport OBJECTS z = zReportReceiptGiftCardSaleDetail(d), b = receiptReceiptGiftCardSaleDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+}
+editReceiptDetail(d) += editReceiptGiftCardSaleDetail(d);
 
 //генерация подарочных сертификатов
 FORM generationGiftCards 'Генерация подарочных сертификатов'
