@@ -1128,30 +1128,23 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 (Date) getLCP("Purchase.dateUserInvoice").read(session, userInvoiceObject);
         currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
 
-        int count = 0;
         List<String[]> valuesList = new ArrayList<String[]>();
         while ((line = br.readLine()) != null) {
-            count++;
-            if (count >= startRow) {
                 valuesList.add(line.split(csvSeparator));
-            }
         }
 
-        count = 0;
-        for (String[] values : valuesList) {
-
-            count++;
+        for (int count = startRow; count <= valuesList.size(); count++) {
             
             String numberDocument = getCSVFieldValue(valuesList, importColumns.get("numberDocument"), count);
             String idDocument = getCSVFieldValue(valuesList, importColumns.get("idDocument"), count, numberDocument);
-            Date dateDocument = getCSVDateFieldValue(values, importColumns.get("dateDocument"), count);
+            Date dateDocument = getCSVDateFieldValue(valuesList, importColumns.get("dateDocument"), count);
             String idSupplier = getCSVFieldValue(valuesList, importColumns.get("idSupplier"), count);
             String idSupplierStock = getCSVFieldValue(valuesList, importColumns.get("idSupplierStock"), count);
             String currencyDocument = getCSVFieldValue(valuesList, importColumns.get("currencyDocument"), count);
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, count);
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.get("barcodeItem"), count));
             String idBatch = getCSVFieldValue(valuesList, importColumns.get("idBatch"), count);
-            BigDecimal dataIndexValue = getCSVBigDecimalFieldValue(values, importColumns.get("dataIndex"), count);
+            BigDecimal dataIndexValue = getCSVBigDecimalFieldValue(valuesList, importColumns.get("dataIndex"), count);
             Integer dataIndex = dataIndexValue == null ? (primaryList.size() + secondaryList.size() + 1) : dataIndexValue.intValue();
             String idItem = getCSVFieldValue(valuesList, importColumns.get("idItem"), count);
             String idItemGroup = getCSVFieldValue(valuesList, importColumns.get("idItemGroup"), count);
@@ -1168,25 +1161,25 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
-            BigDecimal quantity = getCSVBigDecimalFieldValue(values, importColumns.get("quantity"), count);
-            BigDecimal price = getCSVBigDecimalFieldValue(values, importColumns.get("price"), count);
+            BigDecimal quantity = getCSVBigDecimalFieldValue(valuesList, importColumns.get("quantity"), count);
+            BigDecimal price = getCSVBigDecimalFieldValue(valuesList, importColumns.get("price"), count);
             if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
                 price = null;
-            BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns.get("sum"), count);
+            BigDecimal sum = getCSVBigDecimalFieldValue(valuesList, importColumns.get("sum"), count);
             BigDecimal valueVAT = parseVAT(getCSVFieldValue(valuesList, importColumns.get("valueVAT"), count));
-            BigDecimal sumVAT = getCSVBigDecimalFieldValue(values, importColumns.get("sumVAT"), count);
+            BigDecimal sumVAT = getCSVBigDecimalFieldValue(valuesList, importColumns.get("sumVAT"), count);
             Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-            BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, importColumns.get("invoiceSum"), count);
-            BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, importColumns.get("manufacturingPrice"), count);
+            BigDecimal invoiceSum = getCSVBigDecimalFieldValue(valuesList, importColumns.get("invoiceSum"), count);
+            BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(valuesList, importColumns.get("manufacturingPrice"), count);
             String contractPrice = getCSVFieldValue(valuesList, importColumns.get("contractPrice"), count);
-            BigDecimal shipmentPrice = getCSVBigDecimalFieldValue(values, importColumns.get("shipmentPrice"), count);
-            BigDecimal shipmentSum = getCSVBigDecimalFieldValue(values, importColumns.get("shipmentSum"), count);
-            BigDecimal rateExchange = getCSVBigDecimalFieldValue(values, importColumns.get("rateExchange"), count);
+            BigDecimal shipmentPrice = getCSVBigDecimalFieldValue(valuesList, importColumns.get("shipmentPrice"), count);
+            BigDecimal shipmentSum = getCSVBigDecimalFieldValue(valuesList, importColumns.get("shipmentSum"), count);
+            BigDecimal rateExchange = getCSVBigDecimalFieldValue(valuesList, importColumns.get("rateExchange"), count);
             String numberCompliance = getCSVFieldValue(valuesList, importColumns.get("numberCompliance"), count);
-            Date dateCompliance = getCSVDateFieldValue(values, importColumns.get("dateCompliance"), count);
+            Date dateCompliance = getCSVDateFieldValue(valuesList, importColumns.get("dateCompliance"), count);
             String declaration = getCSVFieldValue(valuesList, importColumns.get("declaration"), count);
-            Date expiryDate = getCSVDateFieldValue(values, importColumns.get("expiryDate"), count, true);
-            Date manufactureDate = getCSVDateFieldValue(values, importColumns.get("manufactureDate"), count);
+            Date expiryDate = getCSVDateFieldValue(valuesList, importColumns.get("expiryDate"), count, true);
+            Date manufactureDate = getCSVDateFieldValue(valuesList, importColumns.get("manufactureDate"), count);
             String pharmacyPriceGroupItem = getCSVFieldValue(valuesList, importColumns.get("pharmacyPriceGroupItem"), count);
             String seriesPharmacy = getCSVFieldValue(valuesList, importColumns.get("seriesPharmacy"), count);
             String idArticle = getCSVFieldValue(valuesList, importColumns.get("idArticle"), count);
@@ -1208,11 +1201,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameBox = getCSVFieldValue(valuesList, importColumns.get("nameBox"), count);
             String idTheme = getCSVFieldValue(valuesList, importColumns.get("idTheme"), count);
             String nameTheme = getCSVFieldValue(valuesList, importColumns.get("nameTheme"), count);
-            BigDecimal netWeight = getCSVBigDecimalFieldValue(values, importColumns.get("netWeight"), count);
-            BigDecimal netWeightSum = getCSVBigDecimalFieldValue(values, importColumns.get("netWeightSum"), count);
+            BigDecimal netWeight = getCSVBigDecimalFieldValue(valuesList, importColumns.get("netWeight"), count);
+            BigDecimal netWeightSum = getCSVBigDecimalFieldValue(valuesList, importColumns.get("netWeightSum"), count);
             netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
-            BigDecimal grossWeight = getCSVBigDecimalFieldValue(values, importColumns.get("grossWeight"), count);
-            BigDecimal grossWeightSum = getCSVBigDecimalFieldValue(values, importColumns.get("grossWeight"), count);
+            BigDecimal grossWeight = getCSVBigDecimalFieldValue(valuesList, importColumns.get("grossWeight"), count);
+            BigDecimal grossWeightSum = getCSVBigDecimalFieldValue(valuesList, importColumns.get("grossWeight"), count);
             grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
             String composition = getCSVFieldValue(valuesList, importColumns.get("composition"), count);
             String originalComposition = getCSVFieldValue(valuesList, importColumns.get("originalComposition"), count);

@@ -433,22 +433,15 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile)));
         String line;
         
-        int count = 0;
         List<String[]> valuesList = new ArrayList<String[]>();
         while ((line = br.readLine()) != null) {
-            count++;
-            if (count >= startRow) {
-                valuesList.add(line.split(csvSeparator));              
-            }
+            valuesList.add(line.split(csvSeparator));              
         }
 
-        count = 0;
-        for (String[] values : valuesList) {
-
-            count++;
+        for (int count = startRow; count <= valuesList.size(); count++) {
 
             String numberOrder = getCSVFieldValue(valuesList, importColumns.get("numberDocument"), count);
-            Date dateOrder = getCSVDateFieldValue(values, importColumns.get("dateDocument"), count);
+            Date dateOrder = getCSVDateFieldValue(valuesList, importColumns.get("dateDocument"), count);
             String idOrderDetail = String.valueOf(orderObject) + count;
             String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.get("barcodeItem"), count));
             String idBatch = getCSVFieldValue(valuesList, importColumns.get("idBatch"), count);
@@ -459,13 +452,13 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
-            BigDecimal quantity = getCSVBigDecimalFieldValue(values, importColumns.get("quantity"), count);
-            BigDecimal price = getCSVBigDecimalFieldValue(values, importColumns.get("price"), count);
-            BigDecimal sum = getCSVBigDecimalFieldValue(values, importColumns.get("sum"), count);
+            BigDecimal quantity = getCSVBigDecimalFieldValue(valuesList, importColumns.get("quantity"), count);
+            BigDecimal price = getCSVBigDecimalFieldValue(valuesList, importColumns.get("price"), count);
+            BigDecimal sum = getCSVBigDecimalFieldValue(valuesList, importColumns.get("sum"), count);
             BigDecimal valueVAT = parseVAT(getCSVFieldValue(valuesList, importColumns.get("valueVAT"), count));
-            BigDecimal sumVAT = getCSVBigDecimalFieldValue(values, importColumns.get("sumVAT"), count);
-            BigDecimal invoiceSum = getCSVBigDecimalFieldValue(values, importColumns.get("invoiceSum"), count);
-            BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(values, importColumns.get("manufacturingPrice"), count);
+            BigDecimal sumVAT = getCSVBigDecimalFieldValue(valuesList, importColumns.get("sumVAT"), count);
+            BigDecimal invoiceSum = getCSVBigDecimalFieldValue(valuesList, importColumns.get("invoiceSum"), count);
+            BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(valuesList, importColumns.get("manufacturingPrice"), count);
 
             SaleOrderDetail saleOrderDetail = new SaleOrderDetail(isPosted, numberOrder, dateOrder, idOrderDetail, barcodeItem, idBatch,
                     dataIndex, idItem, manufacturerItem, idCustomer, idCustomerStock, quantity, price, sum,
