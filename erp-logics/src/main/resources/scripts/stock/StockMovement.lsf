@@ -31,7 +31,7 @@ FORM movementSkuStock 'Движение товара по складу'
     PROPERTIES(s) READONLY nameSku
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) READONLY nameStock
+    PROPERTIES(st) SELECTOR nameStock
 
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY numberDocumentSkuLedger, seriesDocumentSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
@@ -79,6 +79,12 @@ META defineBalancesSku(detail)
     showBalancesSkuStock###detail 'Показать остатки товара' (detail) = ACTION FORM balancesSkuStock OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
 END
 
+showMovementSkuSku'Показать движение товара' (sku) = ACTION FORM movementSku OBJECTS s = sku MODAL SHORTCUT nameSku;
+showBalancesSkuSku 'Показать остатки товара' (sku) = ACTION FORM balancesSkuStock OBJECTS s = sku MODAL SHORTCUT nameSku;
+
+// История по правой кнопке (два объекта)
+showMovementSkuSkuStock 'Показать движение товара по складу' (sku, stock) = ACTION FORM movementSkuStock OBJECTS s = sku, st = stock MODAL;
+
 // -------------------------------- Движение по партии -------------------------- //
 balanceABatchLedger 'Остаток (после)' (batch, ledger) = balanceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
 accountPriceABatchStockSkuLedger 'Цена учетная' (batch, stock, ledger)= prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTimeSkuLedger(ledger));
@@ -105,7 +111,7 @@ FORM movementBatchStock 'Движение по партии'
     PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) READONLY nameStock
+    PROPERTIES(st) SELECTOR nameStock
 
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY numberDocumentSkuLedger, seriesDocumentSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
@@ -172,13 +178,22 @@ META defineBalancesIdBatch(detail)
     @defineBalancesIdBatch(detail, batch);
 END
 
-showMovementBatchStockBatch 'Показать движение по партии и складу' (batch) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stockBatch(batch) MODAL SHORTCUT nameBatch;
+showMovementBatchStockBatch 'Показать движение по партии и складу возникновения партии' (batch) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stockBatch(batch) MODAL SHORTCUT nameBatch;
 showMovementBatchBatch 'Показать движение по партии' (batch) = ACTION FORM movementBatch OBJECTS bt = batch MODAL SHORTCUT nameBatch;
 showBalancesBatchStockBatch 'Показать остатки по партии' (batch) = ACTION FORM balancesBatchStock OBJECTS bt = batch MODAL SHORTCUT nameBatch;
 
-showMovementBatchStockIdBatch 'Показать движение по партии и складу' (batch) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stockBatch(batch) MODAL SHORTCUT idBatch;
+showMovementBatchBatchStock 'Показать движение по партии и складу' (batch, stock) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stock MODAL;
+
+showMovementBatchStockIdBatch 'Показать движение по партии и складу возникновения партии' (batch) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stockBatch(batch) MODAL SHORTCUT idBatch;
 showMovementBatchIdBatch 'Показать движение по партии' (batch) = ACTION FORM movementBatch OBJECTS bt = batch MODAL SHORTCUT idBatch;
 showBalancesBatchIdStockBatch 'Показать остатки по партии' (batch) = ACTION FORM balancesBatchStock OBJECTS bt = batch MODAL SHORTCUT idBatch;
 
-@defineMovementSku(batch, stock); //-- показываем по нажатию правой клавиши движение товара
+showMovementSkuBatch 'Показать движение товара' (batch) = ACTION FORM movementSku OBJECTS s = skuBatch(batch) MODAL SHORTCUT nameSkuBatch;
+showMovementSkuBatchStock 'Показать движение товара по складу' (batch, stock) = ACTION FORM movementSkuStock OBJECTS s = skuBatch(batch), st = stock MODAL;
+
+showMovementSkuStockBatch 'Показать движение товара по складу возникновения партии' (batch) = ACTION FORM movementSkuStock OBJECTS s = skuBatch(batch), st = stockBatch(batch) MODAL SHORTCUT nameSkuBatch;
+//@defineMovementSku(batch, stock){
+//    showMovementSkuStockBatch 'Показать движение товара по складу' (batch) = ACTION FORM movementSkuStock OBJECTS s = skuBatch(batch), st = stockBatch(batch) MODAL SHORTCUT nameSkuBatch;
+//    showMovementSkuBatch 'Показать движение товара' (batch) = ACTION FORM movementSku OBJECTS s = skuBatch(batch) MODAL SHORTCUT nameSkuBatch;
+//}; //-- показываем по нажатию правой клавиши движение товара
 @defineBalancesSku(batch); //-- показываем по нажатию правой клавиши остатки товара

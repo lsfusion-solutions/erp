@@ -1,6 +1,6 @@
 MODULE StockReports;
 
-REQUIRE EmployeeStock, Barcode, PriceListLedger;
+REQUIRE EmployeeStock, Barcode, PriceListLedger, StockMovement;
 
 dataInSessionGroup 'Отм.' = DATA SESSION BOOLEAN (Group);
 
@@ -174,7 +174,7 @@ FORM reportBalanceStock 'Отчет по остаткам'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeGroup(sk) DEFAULT
 
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES(s) READONLY idBarcodeSku, nameSku ON SHORTCUT showMovementSkuSkuStock(s,st) ON SHORTCUT showMovementPriceSkuSkuStock(s,st), shortNameUOMSku
     ORDER BY nameSku(s)
     FILTERS isParentGroupSku(sk, s)
 
@@ -186,7 +186,8 @@ FORM reportBalanceStock 'Отчет по остаткам'
     FILTERGROUP incorrectSum FILTER 'Неправильная сумма по партиям' 'F9' NOT sumBSkuStockDateTime(s, st, d) == accountSumBatchBSkuStockDateTime(s, st, d)   
 
     OBJECTS           bt=Batch
-    PROPERTIES(bt)    READONLY dateBatch, nameBatch, idBarcodeSkuBatch, nameSkuBatch, shortNameUOMBatch//, shippedQuantityBatch
+    PROPERTIES(bt)    READONLY dateBatch, nameBatch ON SHORTCUT showMovementBatchBatchStock(bt,st), idBarcodeSkuBatch, 
+                      nameSkuBatch ON SHORTCUT showMovementSkuBatchStock(bt,st), shortNameUOMBatch//, shippedQuantityBatch
     FILTERS           isParentGroupBatch(sk, bt)
     ORDER BY          dateBatch(bt), nameBatch(bt), nameSkuBatch(bt)
 
