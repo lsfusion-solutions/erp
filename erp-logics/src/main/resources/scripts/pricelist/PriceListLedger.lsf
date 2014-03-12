@@ -30,12 +30,12 @@ nameSkuPriceListLedger 'SKU' (l) = nameSku(skuPriceListLedger(l));
 
 countPriceListLedgerSku = GROUP SUM 1 BY skuPriceListLedger(ledger) PERSISTENT;
 
-batchPriceListLedger = ABSTRACT Batch (PriceListLedger) PERSISTENT INDEXED;
-idBatchPriceListLedger (priceListLedger) = idBatch(batchPriceListLedger(priceListLedger));
-
 TABLE priceListLedgerBatch(PriceListLedger, Batch);
 //inPriceListLedgerBatch = DATA BOOLEAN (PriceListLedger, Batch) INDEXED;
 inPriceListLedgerBatch = ABSTRACT BOOLEAN (PriceListLedger, Batch) PERSISTENT INDEXED;
+
+batchPriceListLedger = GROUP MAX batch IF inPriceListLedgerBatch(ledger, batch) BY ledger;
+idBatchPriceListLedger (ledger) = idBatch(batchPriceListLedger(ledger));
 
 descriptionPriceListLedger 'Описание' = ABSTRACT VARSTRING[200] (PriceListLedger) PERSISTENT;
 
@@ -50,6 +50,7 @@ priceListTypesPriceListLedger 'Цены' (priceList) = GROUP CONCAT nameLedgerPr
                                                                 ORDER type MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 inPriceListLedgerStock (ledger, stock) = ABSTRACT BOOLEAN (PriceListLedger, Stock);
+stockPriceListLedger (ledger) = GROUP MAX stock IF inPriceListLedgerStock(ledger, stock) BY ledger;
 
 stocksPriceListLedger 'Склады' (priceList) = GROUP CONCAT nameStock(stock) IF inPriceListLedgerStock(priceList, stock) , ', '
                                                    BY priceList
