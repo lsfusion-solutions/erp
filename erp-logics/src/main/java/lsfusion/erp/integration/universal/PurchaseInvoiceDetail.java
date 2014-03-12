@@ -24,6 +24,7 @@ public class PurchaseInvoiceDetail {
     public String idUOM;
     public String idManufacturer;
     public String nameManufacturer;
+    public String sidOrigin2Country;
     public String nameCountry;
     public String nameOriginCountry;
     public String nameImportCountry;
@@ -79,8 +80,8 @@ public class PurchaseInvoiceDetail {
                                  String idSupplier, String idSupplierStock, String currencyUserInvoice, String idUserInvoiceDetail, 
                                  String idBarcodeSku, String idBatch, Integer dataIndex, String idItem, String idItemGroup, 
                                  String originalCustomsGroupItem, String captionItem, String originalCaptionItem, 
-                                 String idUOM, String idManufacturer, String nameManufacturer, String nameCountry, 
-                                 String nameOriginCountry, String nameImportCountry, String idCustomer, 
+                                 String idUOM, String idManufacturer, String nameManufacturer, String sidOrigin2Country,
+                                 String nameCountry, String nameOriginCountry, String nameImportCountry, String idCustomer, 
                                  String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
                                  BigDecimal valueVAT, BigDecimal sumVAT, Date dateVAT, String countryVAT, 
                                  BigDecimal invoiceSum, BigDecimal manufacturingPrice, String contractPrice, 
@@ -113,6 +114,7 @@ public class PurchaseInvoiceDetail {
         this.idUOM = idUOM;
         this.idManufacturer = idManufacturer;
         this.nameManufacturer = nameManufacturer;
+        this.sidOrigin2Country = sidOrigin2Country;
         this.nameCountry = nameCountry;
         this.nameOriginCountry = nameOriginCountry;
         this.nameImportCountry = nameImportCountry;

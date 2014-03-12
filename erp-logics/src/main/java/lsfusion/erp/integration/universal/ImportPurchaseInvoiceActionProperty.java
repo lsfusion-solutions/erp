@@ -454,34 +454,47 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 }
             }
 
-            if (showField(userInvoiceDetailsList, "nameCountry")) {
-                ImportField nameCountryField = new ImportField(getLCP("nameCountry"));
-                ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) getClass("Country"),
-                        getLCP("countryName").getMapping(nameCountryField));
-                keys.add(countryKey);
-                props.add(new ImportProperty(nameCountryField, getLCP("nameCountry").getMapping(countryKey), getReplaceOnlyNull(importColumns, "nameCountry")));
-                props.add(new ImportProperty(nameCountryField, getLCP("countryItem").getMapping(itemKey),
-                        LM.object(getClass("Country")).getMapping(countryKey), getReplaceOnlyNull(importColumns, "nameCountry")));
-                fields.add(nameCountryField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).nameCountry);
+            ImportField sidOrigin2CountryField = new ImportField(getLCP("sidOrigin2Country"));
+            ImportField nameCountryField = new ImportField(getLCP("nameCountry"));
+            ImportField nameOriginCountryField = new ImportField(getLCP("nameOriginCountry"));
 
-                if (showField(userInvoiceDetailsList, "nameOriginCountry")) {
-                    addDataField(props, fields, importColumns, "nameOriginCountry", "nameOriginCountry", countryKey);
+            boolean showSidOrigin2Country = showField(userInvoiceDetailsList, "sidOrigin2Country");
+            boolean showNameCountry = showField(userInvoiceDetailsList, "nameCountry");
+            boolean showNameOriginCountry = showField(userInvoiceDetailsList, "nameOriginCountry");
+
+            ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
+                    (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
+            String countryAggr = showSidOrigin2Country ? "countrySIDOrigin2" :
+                    (showNameCountry ? "countryName" : (showNameOriginCountry ? "countryNameOrigin" : null));
+            String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
+                    (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
+            ImportKey<?> countryKey = countryField == null ? null : 
+                    new ImportKey((ConcreteCustomClass) getClass("Country"), getLCP(countryAggr).getMapping(countryField));
+
+            if (countryKey != null) {
+                keys.add(countryKey);
+
+                props.add(new ImportProperty(countryField, getLCP("countryItem").getMapping(itemKey),
+                        LM.object(getClass("Country")).getMapping(countryKey), getReplaceOnlyNull(importColumns, countryReplaceField)));
+
+                if (showSidOrigin2Country) {
+                    props.add(new ImportProperty(sidOrigin2CountryField, getLCP("sidOrigin2Country").getMapping(countryKey), getReplaceOnlyNull(importColumns, "sidOrigin2Country")));
+                    fields.add(sidOrigin2CountryField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).sidOrigin2Country);
+                }
+                if (showNameCountry) {
+                    props.add(new ImportProperty(nameCountryField, getLCP("nameCountry").getMapping(countryKey), getReplaceOnlyNull(importColumns, "nameCountry")));
+                    fields.add(nameCountryField);
+                    for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                        data.get(i).add(userInvoiceDetailsList.get(i).nameCountry);
+                }
+                if (showNameOriginCountry) {
+                    props.add(new ImportProperty(nameOriginCountryField, getLCP("nameOriginCountry").getMapping(countryKey), getReplaceOnlyNull(importColumns, "nameOriginCountry")));
+                    fields.add(nameOriginCountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).nameOriginCountry);
                 }
-            } else if (showField(userInvoiceDetailsList, "nameOriginCountry")) {
-                ImportField nameOriginCountryField = new ImportField(getLCP("nameOriginCountry"));
-                ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) getClass("Country"),
-                        getLCP("countryNameOrigin").getMapping(nameOriginCountryField));
-                keys.add(countryKey);
-                props.add(new ImportProperty(nameOriginCountryField, getLCP("nameOriginCountry").getMapping(countryKey), getReplaceOnlyNull(importColumns, "nameOriginCountry")));
-                props.add(new ImportProperty(nameOriginCountryField, getLCP("countryItem").getMapping(itemKey),
-                        LM.object(getClass("Country")).getMapping(countryKey), getReplaceOnlyNull(importColumns, "nameOriginCountry")));
-                fields.add(nameOriginCountryField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).nameOriginCountry);
             }
 
             if (showField(userInvoiceDetailsList, "idCustomer")) {
@@ -553,10 +566,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 if(taxItemLM != null) {
                 ImportField countryVATField = new ImportField(taxItemLM.findLCPByCompoundOldName("nameCountry"));
-                ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) taxItemLM.findClassByCompoundName("Country"),
+                ImportKey<?> countryVATKey = new ImportKey((ConcreteCustomClass) taxItemLM.findClassByCompoundName("Country"),
                         taxItemLM.findLCPByCompoundOldName("countryName").getMapping(countryVATField));
-                keys.add(countryKey);
-                props.add(new ImportProperty(valueVATUserInvoiceDetailField, taxItemLM.findLCPByCompoundOldName("dataVATItemCountryDate").getMapping(itemKey, countryKey, dateField),
+                keys.add(countryVATKey);
+                props.add(new ImportProperty(valueVATUserInvoiceDetailField, taxItemLM.findLCPByCompoundOldName("dataVATItemCountryDate").getMapping(itemKey, countryVATKey, dateField),
                         LM.object(taxItemLM.findClassByCompoundName("Range")).getMapping(VATKey), getReplaceOnlyNull(importColumns, "valueVAT")));
                 fields.add(countryVATField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
@@ -1040,6 +1053,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String UOMItem = getXLSFieldValue(sheet, i, importColumns.get("UOMItem"));
                 String idManufacturer = getXLSFieldValue(sheet, i, importColumns.get("idManufacturer"));
                 String nameManufacturer = getXLSFieldValue(sheet, i, importColumns.get("nameManufacturer"));
+                String sidOrigin2Country = getXLSFieldValue(sheet, i, importColumns.get("sidOrigin2Country"));
                 String nameCountry = modifyNameCountry(getXLSFieldValue(sheet, i, importColumns.get("nameCountry")));
                 String nameOriginCountry = modifyNameCountry(getXLSFieldValue(sheet, i, importColumns.get("nameOriginCountry")));
                 String importCountryBatch = getXLSFieldValue(sheet, i, importColumns.get("importCountryBatch"));
@@ -1100,7 +1114,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
                         dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch,
                         dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem,
-                        idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch, idCustomer,
+                        idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry, nameOriginCountry, importCountryBatch, idCustomer,
                         idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry,
                         invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
                         numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem,
@@ -1169,6 +1183,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String UOMItem = getCSVFieldValue(valuesList, importColumns.get("UOMItem"), count);
             String idManufacturer = getCSVFieldValue(valuesList, importColumns.get("idManufacturer"), count);
             String nameManufacturer = getCSVFieldValue(valuesList, importColumns.get("nameManufacturer"), count);
+            String sidOrigin2Country = getCSVFieldValue(valuesList, importColumns.get("sidOrigin2Country"), count);
             String nameCountry = modifyNameCountry(getCSVFieldValue(valuesList, importColumns.get("nameCountry"), count));
             String nameOriginCountry = modifyNameCountry(getCSVFieldValue(valuesList, importColumns.get("nameOriginCountry"), count));
             String importCountryBatch = getCSVFieldValue(valuesList, importColumns.get("importCountryBatch"), count);
@@ -1229,7 +1244,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
                     dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem,
                     idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem,
-                    UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch,
+                    UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry, nameOriginCountry, importCountryBatch,
                     idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT,
                     defaultCountry, invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum,
                     rateExchange, numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate,
@@ -1291,6 +1306,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String UOMItem = getXLSXFieldValue(sheet, i, importColumns.get("UOMItem"));
             String idManufacturer = getXLSXFieldValue(sheet, i, importColumns.get("idManufacturer"));
             String nameManufacturer = getXLSXFieldValue(sheet, i, importColumns.get("nameManufacturer"));
+            String sidOrigin2Country = getXLSXFieldValue(sheet, i, importColumns.get("sidOrigin2Country"));
             String nameCountry = modifyNameCountry(getXLSXFieldValue(sheet, i, importColumns.get("nameCountry")));
             String nameOriginCountry = modifyNameCountry(getXLSXFieldValue(sheet, i, importColumns.get("nameOriginCountry")));
             String importCountryBatch = getXLSXFieldValue(sheet, i, importColumns.get("importCountryBatch"));
@@ -1351,7 +1367,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
                     dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem,
                     idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem,
-                    UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch,
+                    UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry, nameOriginCountry, importCountryBatch,
                     idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry,
                     invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
                     numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem,
@@ -1422,6 +1438,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String UOMItem = getDBFFieldValue(file, importColumns.get("UOMItem"), i, charset);
             String idManufacturer = getDBFFieldValue(file, importColumns.get("idManufacturer"), i, charset);
             String nameManufacturer = getDBFFieldValue(file, importColumns.get("nameManufacturer"), i, charset);
+            String sidOrigin2Country = getDBFFieldValue(file, importColumns.get("sidOrigin2Country"), i, charset);
             String nameCountry = modifyNameCountry(getDBFFieldValue(file, importColumns.get("nameCountry"), i, charset));
             String nameOriginCountry = modifyNameCountry(getDBFFieldValue(file, importColumns.get("nameOriginCountry"), i, charset));
             String importCountryBatch = getDBFFieldValue(file, importColumns.get("importCountryBatch"), i, charset);
@@ -1482,7 +1499,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(isPosted, idDocument, numberDocument,
                     dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail, barcodeItem,
                     idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, originalCaptionItem,
-                    UOMItem, idManufacturer, nameManufacturer, nameCountry, nameOriginCountry, importCountryBatch,
+                    UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry, nameOriginCountry, importCountryBatch,
                     idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry,
                     invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, rateExchange,
                     numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, pharmacyPriceGroup,
