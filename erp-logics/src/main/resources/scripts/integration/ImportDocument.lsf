@@ -126,6 +126,18 @@ nameAutoImportCustomerImportType 'Покупатель' (importType) =  nameLega
 autoImportCustomerStockImportType = DATA Stock(ImportType);
 nameAutoImportCustomerStockImportType 'Склад покупателя' (importType) =  nameStock(autoImportCustomerStockImportType(importType));
 
+useStockMappingImportType 'Настраиваемые коды складов' = DATA BOOLEAN(ImportType);
+
+CLASS StockMappingEntry 'Настраиваемый код склада';
+TABLE stockMappingEntry(StockMappingEntry);
+
+idStockMappingEntry 'Код' = DATA VARSTRING[100] (StockMappingEntry);
+importTypeStockMappingEntry = DATA ImportType(StockMappingEntry);
+stockMappingEntryIdImportType (idEntry, importType) = GROUP AGGR stockMappingEntry BY idStockMappingEntry (stockMappingEntry), importTypeStockMappingEntry(stockMappingEntry); 
+stockStockMappingEntry 'Склад' = DATA Stock (StockMappingEntry);
+nameStockStockMappingEntry 'Склад' (stockMappingEntry) = nameStock(stockStockMappingEntry(stockMappingEntry)); 
+idStockStockMappingEntry (stockMappingEntry) = idStock(stockStockMappingEntry(stockMappingEntry)); 
+
 FORM importTypeDetails
     OBJECTS itd = ImportTypeDetail
     PROPERTIES(itd) READONLY staticCaption
@@ -151,25 +163,22 @@ FORM importType 'Тип импорта'
     PROPERTIES(i) nameImportType, captionFileExtensionImportType, startRowImportType, isPostedImportType,
                   separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, checkExistencePrimaryKeyImportType,
                   captionSecondaryKeyTypeImportType, keyIsDigitImportType, 
-                  autoImportImportType, autoImportDirectoryImportType FORCE PANEL SHOWIF autoImportImportType(i)
-    PROPERTIES(i) nameAutoImportOperationImportType FORCE PANEL, 
+                  useStockMappingImportType, autoImportImportType, 
+                  autoImportDirectoryImportType FORCE PANEL SHOWIF autoImportImportType(i),
+                  nameAutoImportOperationImportType FORCE PANEL, 
                   nameAutoImportSupplierImportType FORCE PANEL,
                   nameAutoImportSupplierStockImportType FORCE PANEL,
                   nameAutoImportCustomerImportType FORCE PANEL,
-                  nameAutoImportCustomerStockImportType FORCE PANEL                  
+                  nameAutoImportCustomerStockImportType FORCE PANEL 
+                                   
+    OBJECTS  s=StockMappingEntry              
+    PROPERTIES(s) SHOWIF useStockMappingImportType(i) idStockMappingEntry, nameStockStockMappingEntry, DELETE, ADDOBJ                
+    FILTERS importTypeStockMappingEntry(s) == i
+              
     OBJECTS d = ImportTypeDetail
     PROPERTIES(d) READONLY staticCaption
     PROPERTIES(i,d) indexImportTypeImportTypeDetail, replaceOnlyNullImportTypeImportTypeDetail                   
     EDIT ImportType OBJECT i
-;
-
-FORM importTypes 'Типы импорта'
-    OBJECTS i=ImportType
-    PROPERTIES(i) READONLY nameImportType, captionFileExtensionImportType, startRowImportType, isPostedImportType,
-                   separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, checkExistencePrimaryKeyImportType,
-                   captionSecondaryKeyTypeImportType, keyIsDigitImportType, autoImportImportType, autoImportDirectoryImportType SHOWIF autoImportImportType(i)
-    PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    DIALOG ImportType OBJECT i
 ;
 
 EXTEND DESIGN importType {
@@ -194,10 +203,26 @@ EXTEND DESIGN importType {
                 ADD PROPERTY(autoImportImportType(i));
                 ADD PROPERTY(autoImportDirectoryImportType(i)); 
             }
+            
+            NEW stockMappingContainer {
+                fill = 1;
+                caption = 'Настраиваемые коды складов'; 
+                ADD PROPERTY(useStockMappingImportType(i));
+                ADD s.box;
+            }            
         }
     }
     ADD functions.box;
 }
+
+FORM importTypes 'Типы импорта'
+    OBJECTS i=ImportType
+    PROPERTIES(i) READONLY nameImportType, captionFileExtensionImportType, startRowImportType, isPostedImportType,
+                   separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, checkExistencePrimaryKeyImportType,
+                   captionSecondaryKeyTypeImportType, keyIsDigitImportType, autoImportImportType, autoImportDirectoryImportType SHOWIF autoImportImportType(i)
+    PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    DIALOG ImportType OBJECT i
+;
 
 EXTEND FORM integrationData
     OBJECTS i=ImportType

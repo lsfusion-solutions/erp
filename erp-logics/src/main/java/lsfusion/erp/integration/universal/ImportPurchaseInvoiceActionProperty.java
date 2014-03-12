@@ -95,7 +95,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(session, LM, importTypeObject);
-
+                Map<String, String> stockMapping = readStockMapping(session, LM, importTypeObject);
+                
                 if (importColumns != null && fileExtension != null) {
 
                     CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
@@ -106,7 +107,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         for (byte[] file : fileList) {
 
                             List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, session,
-                                    userInvoiceObject, importColumns, file, fileExtension, startRow,
+                                    userInvoiceObject, importColumns, stockMapping, file, fileExtension, startRow,
                                     isPosted, csvSeparator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit);
 
                             if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1)
@@ -144,17 +145,25 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
     
     public boolean makeImport(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject userInvoiceObject,
-                              Map<String, ImportColumnDetail> importColumns, byte[] file, String fileExtension, Integer startRow,
-                              Boolean isPosted, String csvSeparator, String primaryKeyType, boolean checkExistence, String secondaryKeyType,
-                              boolean keyIsDigit, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
-                              ObjectValue customerObject, ObjectValue customerStockObject) 
+                              DataObject importTypeObject, byte[] file, String fileExtension, Integer startRow, Boolean isPosted,
+                              String csvSeparator, String primaryKeyType, boolean checkExistence, String secondaryKeyType, 
+                              boolean keyIsDigit) 
             throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException, 
             xBaseJException, ScriptingErrorLog.SemanticErrorException {
 
         boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
-        
+
+        Map<String, ImportColumnDetail> importColumns = readImportColumns(session, LM, importTypeObject);
+        Map<String, String> stockMapping = readStockMapping(session, LM, importTypeObject);
+
+        ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue supplierObject = getLCP("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue supplierStockObject = getLCP("autoImportSupplierStockImportType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
+
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, session,
-                userInvoiceObject, importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
+                userInvoiceObject, importColumns, stockMapping, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
                 checkExistence, secondaryKeyType, keyIsDigit);
 
         boolean result1 = (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1) && 
@@ -960,21 +969,25 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataSession session, DataObject userInvoiceObject,
-                                                                           Map<String, ImportColumnDetail> importColumns, byte[] file, String fileExtension,
-                                                                           Integer startRow, Boolean isPosted, String csvSeparator,
+                                                                           Map<String, ImportColumnDetail> importColumns, Map<String, String> stockMapping, 
+                                                                           byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator,
                                                                            String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
 
         if (fileExtension.equals("DBF"))
-            userInvoiceDetailsList = importUserInvoicesFromDBF(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromDBF(session, file, importColumns, stockMapping, primaryKeyType, 
+                    checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("XLS"))
-            userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, importColumns, stockMapping, primaryKeyType,
+                    checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("XLSX"))
-            userInvoiceDetailsList = importUserInvoicesFromXLSX(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromXLSX(session, file, importColumns, stockMapping, primaryKeyType,
+                    checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, userInvoiceObject);
         else if (fileExtension.equals("CSV"))
-            userInvoiceDetailsList = importUserInvoicesFromCSV(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, csvSeparator, userInvoiceObject);
+            userInvoiceDetailsList = importUserInvoicesFromCSV(session, file, importColumns, stockMapping, primaryKeyType,
+                    checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, csvSeparator, userInvoiceObject);
         else
             userInvoiceDetailsList = null;
 
@@ -982,8 +995,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, Integer startRow,
-                                                                        Boolean isPosted, DataObject userInvoiceObject)
+                                                                        Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence, String secondaryKeyType,
+                                                                        boolean keyIsDigit, Integer startRow, Boolean isPosted, DataObject userInvoiceObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1031,6 +1044,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String nameOriginCountry = modifyNameCountry(getXLSFieldValue(sheet, i, importColumns.get("nameOriginCountry")));
                 String importCountryBatch = getXLSFieldValue(sheet, i, importColumns.get("importCountryBatch"));
                 String idCustomerStock = getXLSFieldValue(sheet, i, importColumns.get("idCustomerStock"));
+                idCustomerStock = stockMapping.containsKey(idCustomerStock) ? stockMapping.get(idCustomerStock) : idCustomerStock;
                 ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
                 ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
                 String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
@@ -1110,8 +1124,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
-                                                                        Integer startRow, Boolean isPosted, String csvSeparator, DataObject userInvoiceObject)
+                                                                        Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence, 
+                                                                        String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, 
+                                                                        String csvSeparator, DataObject userInvoiceObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1158,6 +1173,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameOriginCountry = modifyNameCountry(getCSVFieldValue(valuesList, importColumns.get("nameOriginCountry"), count));
             String importCountryBatch = getCSVFieldValue(valuesList, importColumns.get("importCountryBatch"), count);
             String idCustomerStock = getCSVFieldValue(valuesList, importColumns.get("idCustomerStock"), count);
+            idCustomerStock = stockMapping.containsKey(idCustomerStock) ? stockMapping.get(idCustomerStock) : idCustomerStock;
             ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
@@ -1236,8 +1252,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                         String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
-                                                                         Integer startRow, Boolean isPosted, DataObject userInvoiceObject)
+                                                                         Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence,
+                                                                         String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, 
+                                                                         DataObject userInvoiceObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1278,6 +1295,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameOriginCountry = modifyNameCountry(getXLSXFieldValue(sheet, i, importColumns.get("nameOriginCountry")));
             String importCountryBatch = getXLSXFieldValue(sheet, i, importColumns.get("importCountryBatch"));
             String idCustomerStock = getXLSXFieldValue(sheet, i, importColumns.get("idCustomerStock"));
+            idCustomerStock = stockMapping.containsKey(idCustomerStock) ? stockMapping.get(idCustomerStock) : idCustomerStock;
             ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
@@ -1355,8 +1373,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                                        String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
-                                                                        Integer startRow, Boolean isPosted, DataObject userInvoiceObject)
+                                                                        Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence, 
+                                                                        String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted,
+                                                                        DataObject userInvoiceObject)
             throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -1407,6 +1426,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameOriginCountry = modifyNameCountry(getDBFFieldValue(file, importColumns.get("nameOriginCountry"), i, charset));
             String importCountryBatch = getDBFFieldValue(file, importColumns.get("importCountryBatch"), i, charset);
             String idCustomerStock = getDBFFieldValue(file, importColumns.get("idCustomerStock"), i, charset);
+            idCustomerStock = stockMapping.containsKey(idCustomerStock) ? stockMapping.get(idCustomerStock) : idCustomerStock;
             ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));

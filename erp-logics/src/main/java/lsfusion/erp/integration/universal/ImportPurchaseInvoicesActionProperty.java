@@ -2,7 +2,6 @@ package lsfusion.erp.integration.universal;
 
 import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
-import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
@@ -19,7 +18,6 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.List;
-import java.util.Map;
 
 public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionProperty {
 
@@ -44,14 +42,6 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
             String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(context, importTypeObject));
             boolean keyIsDigit = getLCP("keyIsDigitImportType").read(context, importTypeObject) != null;
 
-            ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
-            ObjectValue supplierObject = getLCP("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
-            ObjectValue supplierStockObject = getLCP("autoImportSupplierStockImportType").readClasses(context, (DataObject) importTypeObject);
-            ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(context, (DataObject) importTypeObject);
-            ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
-
-            Map<String, ImportColumnDetail> importColumns = ImportPurchaseInvoiceActionProperty.readImportColumns(context.getSession(), LM, importTypeObject);
-
             if (fileExtension != null) {
 
                 CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
@@ -64,9 +54,8 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                             DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) getClass("Purchase.UserInvoice"));
 
                             new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                    importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
-                                    checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject, supplierStockObject,
-                                    customerObject, customerStockObject);
+                                    (DataObject) importTypeObject, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
+                                    checkExistence, secondaryKeyType, keyIsDigit);
 
                             currentSession.apply(context);
                         }

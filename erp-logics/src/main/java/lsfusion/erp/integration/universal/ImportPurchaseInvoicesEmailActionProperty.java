@@ -21,7 +21,6 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.sql.SQLException;
-import java.util.Map;
 
 public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentActionProperty {
 
@@ -78,14 +77,6 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
                 boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
 
-                ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierObject = entryValue.get("autoImportSupplierImportType");
-                ObjectValue supplierStockObject = entryValue.get("autoImportSupplierStockImportType");
-                ObjectValue customerObject = entryValue.get("autoImportCustomerImportType");
-                ObjectValue customerStockObject = entryValue.get("autoImportCustomerStockImportType");
-
-                Map<String, ImportColumnDetail> importColumns = ImportPurchaseInvoiceActionProperty.readImportColumns(session, LM, importTypeObject);
-
                 if (fileExtension != null && emailObject instanceof DataObject && accountObject instanceof DataObject) {
 
                     KeyExpr emailExpr = new KeyExpr("email");
@@ -113,10 +104,10 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                             try {
 
-                                boolean importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                        importColumns, fileAttachment, fileExtension, startRow, isPosted, csvSeparator,
-                                        primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject,
-                                        supplierStockObject, customerObject, customerStockObject);
+                                boolean importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, 
+                                        currentSession, invoiceObject, importTypeObject, fileAttachment, fileExtension,
+                                        startRow, isPosted, csvSeparator, primaryKeyType, checkExistence, secondaryKeyType,
+                                        keyIsDigit);
 
                                 if (importResult)
                                     getLCP("importedAttachmentEmail").change(true, currentSession, (DataObject) attachmentEmailObject);

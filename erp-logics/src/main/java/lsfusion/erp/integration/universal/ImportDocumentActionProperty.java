@@ -1,8 +1,10 @@
 package lsfusion.erp.integration.universal;
 
+import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.interop.Compare;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -69,6 +71,29 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
             }
         }
         return importColumns.isEmpty() ? null : importColumns;
+    }
+
+    protected static Map<String, String> readStockMapping(DataSession session, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        Map<String, String> stockMapping = new HashMap<String, String>();
+
+        KeyExpr key = new KeyExpr("stockMappingEntry");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "StockMappingEntry", key);
+        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        
+        query.addProperty("idStockMappingEntry", LM.findLCPByCompoundOldName("idStockMappingEntry").getExpr(session.getModifier(), key));
+        query.addProperty("idStockStockMappingEntry", LM.findLCPByCompoundOldName("idStockStockMappingEntry").getExpr(session.getModifier(), key));
+        query.and(LM.findLCPByCompoundOldName("idStockMappingEntry").getExpr(key).getWhere());
+        query.and(LM.findLCPByCompoundOldName("importTypeStockMappingEntry").getExpr(key).compare(importTypeObject.getExpr(), Compare.EQUALS));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session.getSession().sql);
+
+        for (ImMap<Object, Object> entry : result.valueIt()) {
+
+            String idStockMappingEntry = (String) entry.get("idStockMappingEntry");
+            String idStockStockMappingEntry = (String) entry.get("idStockStockMappingEntry");
+            stockMapping.put(idStockMappingEntry, idStockStockMappingEntry);            
+        }
+        return stockMapping;
     }
 
     public String parseKeyType(String keyType) {

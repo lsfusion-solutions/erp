@@ -22,7 +22,6 @@ import lsfusion.server.session.DataSession;
 
 import java.io.File;
 import java.sql.SQLException;
-import java.util.Map;
 
 public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumentActionProperty {
 
@@ -49,11 +48,6 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
             importTypeQuery.addProperty("captionPrimaryKeyTypeImportType", getLCP("captionPrimaryKeyTypeImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("captionSecondaryKeyTypeImportType", getLCP("captionSecondaryKeyTypeImportType").getExpr(session.getModifier(), importTypeKey));
 
-            importTypeQuery.addProperty("autoImportSupplierImportType", getLCP("autoImportSupplierImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportSupplierStockImportType", getLCP("autoImportSupplierStockImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerImportType", getLCP("autoImportCustomerImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerStockImportType", getLCP("autoImportCustomerStockImportType").getExpr(session.getModifier(), importTypeKey));
-
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
             importTypeQuery.and(getLCP("autoImportImportType").getExpr(importTypeKey).getWhere());
             importTypeQuery.and(getLCP("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
@@ -76,14 +70,6 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
                 boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
 
-                ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierObject = entryValue.get("autoImportSupplierImportType");
-                ObjectValue supplierStockObject = entryValue.get("autoImportSupplierStockImportType");
-                ObjectValue customerObject = entryValue.get("autoImportCustomerImportType");
-                ObjectValue customerStockObject = entryValue.get("autoImportCustomerStockImportType");
-
-                Map<String, ImportColumnDetail> importColumns = ImportPurchaseInvoiceActionProperty.readImportColumns(session, LM, importTypeObject);
-
                 if (directory != null && fileExtension != null) {
                     File dir = new File(directory);
 
@@ -98,9 +84,8 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                                     try {
 
                                         boolean importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                                importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
-                                                checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject, supplierStockObject, 
-                                                customerObject, customerStockObject);
+                                                importTypeObject, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
+                                                checkExistence, secondaryKeyType, keyIsDigit);
 
                                         if (importResult)
                                             renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
