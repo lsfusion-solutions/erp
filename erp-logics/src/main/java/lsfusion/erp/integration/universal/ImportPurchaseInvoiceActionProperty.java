@@ -1617,7 +1617,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 for (PurchaseInvoiceDetail invoiceDetail : primaryList) {
                     String oldPropertyArticle = articlesMap.get(invoiceDetail.idArticle);
                     Object propertyValue = getField(invoiceDetail, staticNameImportType);
-                    if (oldPropertyArticle != null && !oldPropertyArticle.equals(propertyValue) && !duplicateArticles.containsKey(invoiceDetail.idArticle)) {
+                    if (propertyValue != null && oldPropertyArticle != null && !oldPropertyArticle.equals(propertyValue) && !duplicateArticles.containsKey(invoiceDetail.idArticle)) {
                         duplicateArticles.put(invoiceDetail.idArticle, new Object[]{oldPropertyArticle, propertyValue});
                     }
                 }
