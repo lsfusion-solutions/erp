@@ -3,8 +3,10 @@ package lsfusion.erp.integration.universal;
 
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.util.LinkedHashMap;
 
 public class PurchaseInvoiceDetail {
+    public LinkedHashMap<String, String> customValues;
     public Boolean isPosted;
     public String idUserInvoice;
     public String numberUserInvoice;
@@ -76,15 +78,15 @@ public class PurchaseInvoiceDetail {
     public String composition;
     public String originalComposition;
 
-    public PurchaseInvoiceDetail(Boolean isPosted, String idUserInvoice, String numberUserInvoice, Date dateUserInvoice,
-                                 String idSupplier, String idSupplierStock, String currencyUserInvoice, String idUserInvoiceDetail, 
-                                 String idBarcodeSku, String idBatch, Integer dataIndex, String idItem, String idItemGroup, 
-                                 String originalCustomsGroupItem, String captionItem, String originalCaptionItem, 
-                                 String idUOM, String idManufacturer, String nameManufacturer, String sidOrigin2Country,
-                                 String nameCountry, String nameOriginCountry, String nameImportCountry, String idCustomer, 
-                                 String idCustomerStock, BigDecimal quantity, BigDecimal price, BigDecimal sum, 
-                                 BigDecimal valueVAT, BigDecimal sumVAT, Date dateVAT, String countryVAT, 
-                                 BigDecimal invoiceSum, BigDecimal manufacturingPrice, String contractPrice, 
+    public PurchaseInvoiceDetail(LinkedHashMap<String, String> customValues, Boolean isPosted, String idUserInvoice, String numberUserInvoice, 
+                                 Date dateUserInvoice, String idSupplier, String idSupplierStock, String currencyUserInvoice,
+                                 String idUserInvoiceDetail, String idBarcodeSku, String idBatch, Integer dataIndex, 
+                                 String idItem, String idItemGroup, String originalCustomsGroupItem, String captionItem,
+                                 String originalCaptionItem, String idUOM, String idManufacturer, String nameManufacturer,
+                                 String sidOrigin2Country, String nameCountry, String nameOriginCountry, 
+                                 String nameImportCountry, String idCustomer, String idCustomerStock, BigDecimal quantity,
+                                 BigDecimal price, BigDecimal sum, BigDecimal valueVAT, BigDecimal sumVAT, Date dateVAT,
+                                 String countryVAT, BigDecimal invoiceSum, BigDecimal manufacturingPrice, String contractPrice, 
                                  BigDecimal shipmentPrice, BigDecimal shipmentSum, BigDecimal rateExchange, 
                                  String numberCompliance, Date dateCompliance, String numberDeclaration, Date expiryDate,
                                  Date manufactureDate, String idPharmacyPriceGroup, String seriesPharmacy, 
@@ -95,6 +97,7 @@ public class PurchaseInvoiceDetail {
                                  String idTheme, String nameTheme, BigDecimal netWeight, BigDecimal sumNetWeight, 
                                  BigDecimal grossWeight, BigDecimal sumGrossWeight, String composition, 
                                  String originalComposition) {
+        this.customValues = customValues;
         this.isPosted = isPosted;
         this.idUserInvoice = idUserInvoice;
         this.numberUserInvoice = numberUserInvoice;

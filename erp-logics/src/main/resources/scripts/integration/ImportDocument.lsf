@@ -1,6 +1,6 @@
 MODULE ImportDocument;
 
-REQUIRE System, Operation, SkuLedger;//, Import;
+REQUIRE System, Operation, SkuLedger;
 
 CLASS FileExtension 'Тип файла' {
     xls 'XLS',
@@ -13,6 +13,13 @@ CLASS KeyType 'Ключ товара' {
     barcode 'Штрихкод',
     batch   'Код партии',
     item    'Код товара'
+}
+
+CLASS CustomKeyType 'Ключ свойства' {
+    item 'Товар',
+    article   'Артикул',
+    document    'Документ',
+    documentDetail 'Строка документа'
 }
 
 skuBatchId (idBatch) = skuBatch(batchId(idBatch));
@@ -85,6 +92,11 @@ CLASS ImportTypeDetail 'Свойство' {
     nameBrand 'Наименование бренда'
 }
 
+propertyImportTypeDetail 'Свойство' (ImportTypeDetail) = DATA VARSTRING[100] (ImportTypeDetail);
+keyImportTypeDetail 'Ключ' (ImportTypeDetail) = DATA CustomKeyType (ImportTypeDetail);
+nameKeyImportTypeDetail (ImportTypeDetail) = staticName(keyImportTypeDetail(ImportTypeDetail));
+captionKeyImportTypeDetail 'Ключ' (ImportTypeDetail) = staticCaption(keyImportTypeDetail(ImportTypeDetail));
+
 CLASS ImportType 'Тип импорта';
 TABLE importType(ImportType);
 
@@ -103,6 +115,10 @@ captionSecondaryKeyTypeImportType 'Тип вторичного ключа' (impo
 nameSecondaryKeyTypeImportType 'Тип вторичного ключа' (importType) = staticName(secondaryKeyTypeImportType(importType));
 
 keyIsDigitImportType 'Ключ содержит только цифры' (importType) = DATA BOOLEAN(ImportType);
+checkArticlesImportType 'Проверка артикулов на изменение' (importType) = DATA BOOLEAN(ImportType); 
+importTypeDetailImportType (ImportType) = DATA ImportTypeDetail(ImportType);
+propertyImportTypeDetailImportType 'Свойство артикула' (importType) = propertyImportTypeDetail(importTypeDetailImportType(importType)); 
+staticNameImportTypeDetailImportType  (importType) = staticName(importTypeDetailImportType(importType)); 
 
 TABLE importTypeImportTypeDetail (ImportType, ImportTypeDetail);
 indexImportTypeImportTypeDetail 'Поле' = DATA VARSTRING[50] (ImportType, ImportTypeDetail);
@@ -141,7 +157,7 @@ idStockStockMappingEntry (stockMappingEntry) = idStock(stockStockMappingEntry(st
 
 FORM importTypeDetails
     OBJECTS itd = ImportTypeDetail
-    PROPERTIES(itd) READONLY staticCaption
+    PROPERTIES(itd) staticCaption READONLY, propertyImportTypeDetail, captionKeyImportTypeDetail
     DIALOG ImportTypeDetail OBJECT itd
 ;
 
@@ -151,10 +167,16 @@ FORM fileExtensions 'Типы файлов'
     DIALOG FileExtension OBJECT f
 ;
 
-FORM keyTypes 'Типы ключа'
+FORM keyTypes 'Ключи товара'
     OBJECTS k=KeyType
     PROPERTIES(k) READONLY staticCaption
     DIALOG KeyType OBJECT k
+;
+
+FORM customKeyTypes 'Ключи свойства'
+    OBJECTS k=CustomKeyType
+    PROPERTIES(k) READONLY staticCaption
+    DIALOG CustomKeyType OBJECT k
 ;
 
 showSeparator (importType) = fileExtensionImportType(importType)==FileExtension.csv;
@@ -164,6 +186,7 @@ FORM importType 'Тип импорта'
     PROPERTIES(i) nameImportType, captionFileExtensionImportType, startRowImportType, isPostedImportType,
                   separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, checkExistencePrimaryKeyImportType,
                   captionSecondaryKeyTypeImportType, keyIsDigitImportType, 
+                  checkArticlesImportType, propertyImportTypeDetailImportType SHOWIF checkArticlesImportType(i), 
                   useStockMappingImportType, autoImportImportType, 
                   autoImportDirectoryImportType FORCE PANEL SHOWIF autoImportImportType(i),
                   nameAutoImportOperationImportType FORCE PANEL, 
@@ -177,7 +200,7 @@ FORM importType 'Тип импорта'
     FILTERS importTypeStockMappingEntry(s) == i
               
     OBJECTS d = ImportTypeDetail
-    PROPERTIES(d) READONLY staticCaption
+    PROPERTIES(d) staticCaption READONLY, propertyImportTypeDetail, captionKeyImportTypeDetail
     PROPERTIES(i,d) indexImportTypeImportTypeDetail, replaceOnlyNullImportTypeImportTypeDetail                   
     EDIT ImportType OBJECT i
 ;
@@ -220,7 +243,8 @@ FORM importTypes 'Типы импорта'
     OBJECTS i=ImportType
     PROPERTIES(i) READONLY nameImportType, captionFileExtensionImportType, startRowImportType, isPostedImportType,
                    separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, checkExistencePrimaryKeyImportType,
-                   captionSecondaryKeyTypeImportType, keyIsDigitImportType, autoImportImportType, autoImportDirectoryImportType SHOWIF autoImportImportType(i)
+                   captionSecondaryKeyTypeImportType, keyIsDigitImportType, 
+                   checkArticlesImportType, autoImportImportType, autoImportDirectoryImportType SHOWIF autoImportImportType(i)
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG ImportType OBJECT i
 ;
@@ -229,7 +253,8 @@ EXTEND FORM integrationData
     OBJECTS i=ImportType
     PROPERTIES(i) READONLY nameImportType, captionFileExtensionImportType, startRowImportType, isPostedImportType,
                    separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, checkExistencePrimaryKeyImportType, 
-                   captionSecondaryKeyTypeImportType, keyIsDigitImportType
+                   captionSecondaryKeyTypeImportType, keyIsDigitImportType, 
+                   checkArticlesImportType, propertyImportTypeDetailImportType SHOWIF checkArticlesImportType(i)
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 ;
 

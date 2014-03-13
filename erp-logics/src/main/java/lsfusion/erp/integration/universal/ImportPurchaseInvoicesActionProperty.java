@@ -41,7 +41,9 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
             boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(context, importTypeObject) != null;
             String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(context, importTypeObject));
             boolean keyIsDigit = getLCP("keyIsDigitImportType").read(context, importTypeObject) != null;
-
+            String propertyImportType = (String) getLCP("propertyImportTypeDetailImportType").read(context, importTypeObject);
+            String staticNamePropertyImportType = (String) getLCP("staticNamePropertyImportTypeDetailImportType").read(context, importTypeObject);
+            
             if (fileExtension != null) {
 
                 CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
@@ -55,7 +57,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
                             new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
                                     (DataObject) importTypeObject, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
-                                    checkExistence, secondaryKeyType, keyIsDigit);
+                                    checkExistence, secondaryKeyType, keyIsDigit, propertyImportType, staticNamePropertyImportType);
 
                             currentSession.apply(context);
                         }

@@ -85,7 +85,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                 ObjectValue customerObject = entryValue.get("autoImportCustomerImportType");
                 ObjectValue customerStockObject = entryValue.get("autoImportCustomerStockImportType");
 
-                Map<String, ImportColumnDetail> importColumns = ImportSaleOrderActionProperty.readImportColumns(session, LM, importTypeObject);
+                Map<String, ImportColumnDetail> importColumns = ImportSaleOrderActionProperty.readImportColumns(session, LM, importTypeObject).get(0);
 
                 if (directory != null && fileExtension != null) {
                     File dir = new File(directory);

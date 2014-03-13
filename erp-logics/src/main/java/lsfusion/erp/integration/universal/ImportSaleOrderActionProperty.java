@@ -80,7 +80,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
 
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(session, LM, importTypeObject);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(session, LM, importTypeObject).get(0);
 
                 if (importColumns != null && fileExtension != null) {
 
@@ -228,7 +228,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             for (int i = 0; i < orderDetailsList.size(); i++)
                 data.get(i).add(orderDetailsList.get(i).idItem);
 
-            String iGroupAggr = getKeyGroupAggr(keyType);
+            String iGroupAggr = getItemKeyGroupAggr(keyType);
             ImportField iField = (keyType == null || keyType.equals("item")) ? idItemField : keyType.equals("barcode") ? idBarcodeSkuField : idBatchField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
                     getLCP(iGroupAggr).getMapping(iField));
@@ -375,8 +375,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
 
-        String primaryKeyColumn = getKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+        String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
         
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
@@ -427,8 +427,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
 
-        String primaryKeyColumn = getKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+        String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
         
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile)));
         String line;
@@ -484,8 +484,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
 
-        String primaryKeyColumn = getKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+        String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
         
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
@@ -535,8 +535,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
         List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
 
-        String primaryKeyColumn = getKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getKeyColumn(secondaryKeyType);
+        String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
+        String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
 
         File tempFile = File.createTempFile("saleOrder", ".dbf");
         IOUtils.putFileBytes(tempFile, importFile);

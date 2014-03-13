@@ -14,18 +14,14 @@ import lsfusion.server.integration.ImportKey;
 import lsfusion.server.integration.ImportProperty;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public abstract class ImportDocumentActionProperty extends ImportUniversalActionProperty {
 
@@ -41,36 +37,46 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected static Map<String, ImportColumnDetail> readImportColumns(DataSession session, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected static List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(DataSession session, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        Map<String, ImportColumnDetail> importColumns = new HashMap<String, ImportColumnDetail>();
+        LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<String, ImportColumnDetail>();
+        LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<String, ImportColumnDetail>();
 
-        LCP<PropertyInterface> isImportTypeDetail = (LCP<PropertyInterface>) LM.is(LM.findClassByCompoundName("ImportTypeDetail"));
-        ImRevMap<PropertyInterface, KeyExpr> keys = isImportTypeDetail.getMapKeys();
-        KeyExpr key = keys.singleValue();
-        QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<PropertyInterface, Object>(keys);
-        query.addProperty("staticName", LM.findLCPByCompoundOldName("staticName").getExpr(session.getModifier(), key));
-        query.addProperty("staticCaption", LM.findLCPByCompoundOldName("staticCaption").getExpr(session.getModifier(), key));
-        query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("replaceOnlyNullImportTypeImportTypeDetail").getExpr(session.getModifier(), importTypeObject.getExpr(), key));
-        query.addProperty("indexImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("indexImportTypeImportTypeDetail").getExpr(session.getModifier(), importTypeObject.getExpr(), key));
-        query.and(isImportTypeDetail.getExpr(key).getWhere());
-        ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> result = query.execute(session.getSession().sql);
+        KeyExpr importTypeDetailExpr = new KeyExpr("importTypeDetail");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importTypeDetail", importTypeDetailExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        String[] properties = new String[] {"staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail"};
+        for(String property : properties) {
+            query.addProperty(property, LM.findLCPByCompoundOldName(property).getExpr(importTypeDetailExpr));
+        }
+        query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("replaceOnlyNullImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
+        query.addProperty("indexImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("indexImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
+        query.and(LM.findLCPByCompoundOldName("staticName").getExpr(importTypeDetailExpr).getWhere());
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session.getSession().sql);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
 
             String[] field = ((String) entry.get("staticName")).trim().split("\\.");
             String captionProperty = (String) entry.get("staticCaption");
             captionProperty = captionProperty == null ? null : captionProperty.trim();
+            String propertyImportTypeDetail = (String) entry.get("propertyImportTypeDetail");
+            String moduleName = getSplittedPart(propertyImportTypeDetail, "\\.", 0);
+            String sidProperty = getSplittedPart(propertyImportTypeDetail, "\\.", 1);
+            String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportTypeDetail"), "\\.", 1);
             boolean replaceOnlyNull = entry.get("replaceOnlyNullImportTypeImportTypeDetail") != null;
             String indexes = (String) entry.get("indexImportTypeImportTypeDetail");
             if (indexes != null) {
                 String[] splittedIndexes = indexes.split("\\+");
                 for (int i = 0; i < splittedIndexes.length; i++)
                     splittedIndexes[i] = splittedIndexes[i].contains("=") ? splittedIndexes[i] : splittedIndexes[i].trim();
-                importColumns.put(field[field.length - 1], new ImportColumnDetail(captionProperty, indexes, splittedIndexes, replaceOnlyNull));
+                if(keyImportTypeDetail == null)
+                    defaultColumns.put(field[field.length - 1], new ImportColumnDetail(captionProperty, indexes, splittedIndexes, replaceOnlyNull));
+                else
+                    customColumns.put(field[field.length - 1], new ImportColumnDetail(captionProperty, indexes, splittedIndexes, replaceOnlyNull,
+                            moduleName, sidProperty, keyImportTypeDetail));
             }
         }
-        return importColumns.isEmpty() ? null : importColumns;
+        return Arrays.asList(defaultColumns, customColumns);
     }
 
     protected static Map<String, String> readStockMapping(DataSession session, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -101,11 +107,11 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return primaryParts == null ? null : trim(primaryParts[primaryParts.length - 1]);
     }
 
-    public String getKeyColumn(String keyType) {
+    public String getItemKeyColumn(String keyType) {
         return (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
     }
     
-    public String getKeyGroupAggr(String keyType) {
+    public String getItemKeyGroupAggr(String keyType) {
         return (keyType == null || keyType.equals("item")) ? "itemId" : keyType.equals("barcode") ? "skuIdBarcode" : "skuBatchId";
     }
 
@@ -136,7 +142,13 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
                                           DataSession session, String keyType, boolean checkExistence) 
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+")) 
-                && (!checkExistence || getLCP(getKeyGroupAggr(keyType)).read(session, new DataObject(keyColumnValue)) != null);
+                && (!checkExistence || getLCP(getItemKeyGroupAggr(keyType)).read(session, new DataObject(keyColumnValue)) != null);
+    }
+    
+    protected static String getSplittedPart(String value, String splitPattern, int index) {
+        if(value == null) return null;
+        String[] splittedValue = value.trim().split(splitPattern);
+        return splittedValue.length <= index ? null : splittedValue[index];
     }
 }
 
