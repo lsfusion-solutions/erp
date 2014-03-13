@@ -114,4 +114,82 @@ EXTEND FORM snapshot
                        saleQuantityBatchSupplierSnapshot, saleCostSumBatchSupplierSnapshot,
                        saleVATSumBatchSupplierSnapshot, saleMarkupSumBatchSupplierSnapshot, saleSumBatchSupplierSnapshot                           
 ;
+
+//------------------------  Товароооборачиваемость ----------------------//
+
+daysOnStockSkuStockSnapshot 'Дней на складе' = DATA INTEGER (Sku, Stock, Snapshot);
+cumBalanceSkuStockSnapshot 'Накопленный остаток' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
+turnoverSkuSnapshot 'Рассчитывать товароооборачиваемость' = DATA BOOLEAN (Snapshot) IN documentHeader; 
+
+averageSoldSkuStockSnapshot 'Продаж в день' (sku, stock, snapshot) =  
+    saleQuantitySkuStockSnapshot(sku, stock, snapshot) /
+    daysOnStockSkuStockSnapshot(sku, stock, snapshot);
+
+turnoverSkuStockSnapshot 'Товароооборачиваемость, дн.' (sku, stock, snapshot) = cumBalanceSkuStockSnapshot(sku, stock, snapshot) /
+    (saleSumSkuStockSnapshot(sku, stock, snapshot) IF saleSumSkuStockSnapshot(sku, stock, snapshot) != 0);
+        
+//-- группа/склад       
+cumBalanceGroupStockSnapshot 'Накопленный остаток' (group, stock, snapshot) =
+    GROUP SUM cumBalanceSkuStockSnapshot(sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
+        BY group, stock, snapshot PERSISTENT;                       
+        
+//-- группа   
+cumBalanceGroupSnapshot 'Накопленный остаток' (group, snapshot) =
+    GROUP SUM cumBalanceGroupStockSnapshot(group, stock, snapshot) BY group, snapshot PERSISTENT;   
+    
+turnoverGroupSnapshot 'Товароооборачиваемость, дн.' (group, snapshot) = cumBalanceGroupSnapshot(group, snapshot) /
+    (saleSumSkuGroupSnapshot(group, snapshot) IF saleSumSkuGroupSnapshot(group, snapshot) != 0);    
+         
+//--По складам 
+cumBalanceStockSnapshot 'Накопленный остаток' (stock, snapshot) =
+    GROUP SUM cumBalanceGroupStockSnapshot(group, stock, snapshot) BY stock, snapshot PERSISTENT;            
+
+turnoverStockSnapshot 'Товароооборачиваемость, дн.' (stock, snapshot) = cumBalanceStockSnapshot(stock, snapshot) /
+    (saleSumStockSnapshot(stock, snapshot) IF saleSumStockSnapshot(stock, snapshot) != 0);          
  
+ 
+calcSaleSkuParamsInterval 'Рассчитать продажи в день и товарооборачиваемость' = ACTION (snapshot, dateFrom, dateTo) {    
+    IF turnoverSkuSnapshot(snapshot) AND dateFrom IS DATE AND dateTo IS DATE THEN {
+    
+        LOCAL daysOnStock = INTEGER (Sku, Stock);
+        LOCAL balance = NUMERIC[16,2] (Sku, Stock);
+        LOCAL cumBalance = NUMERIC[16,2] (Sku, Stock);
+        LOCAL dateCur = DATE();    
+    
+        dateCur() <- dateFrom;
+        balance(sku, stock) <- sumBSkuStockDate(sku, stock, dateFrom) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+        daysOnStock(sku, stock) <- NULL;
+        
+        WHILE dateCur() <= dateTo DO {
+            daysOnStock(sku, stock) <- daysOnStock(sku, stock) (+)
+                       (1 IF ((balance(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0))) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+            cumBalance(sku, stock) <- cumBalance(sku, stock) (+) balance(sku, stock);  
+            balance(sku, stock) <- balance(sku, stock) (+)
+                       signedSumSkuStockDate(sku, stock, dateCur()) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+    
+            dateCur() <- sumDate(dateCur(), 1);
+        }
+    
+        daysOnStockSkuStockSnapshot(sku, stock, snapshot) <- daysOnStock(sku, stock);
+        cumBalanceSkuStockSnapshot(sku, stock, snapshot) <- cumBalance(sku, stock);
+    }                                    
+} TOOLBAR;
+
+overTakeSnapshotDateFromTo(snapshot, dateFrom, dateTo) +=  calcSaleSkuParamsInterval(snapshot, dateFrom, dateTo);
+
+EXTEND FORM snapshot
+
+    PROPERTIES(r) turnoverSkuSnapshot
+    
+//-- По группам                           
+    PROPERTIES(sk1,r)  READONLY SHOWIF turnoverSkuSnapshot(r) BACKGROUND hintSaleBackground()         
+                       turnoverGroupSnapshot                                           
+                       
+//-- По складам                           
+    PROPERTIES(ts1,r)  READONLY SHOWIF turnoverSkuSnapshot(r) BACKGROUND hintSaleBackground()                         
+                       turnoverStockSnapshot    
+    
+//--sku  
+    PROPERTIES(s,st,r) SHOWIF turnoverSkuSnapshot(r) BACKGROUND hintSaleBackground() 
+                       daysOnStockSkuStockSnapshot, averageSoldSkuStockSnapshot, turnoverSkuStockSnapshot  
+;                       

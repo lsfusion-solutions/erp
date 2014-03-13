@@ -215,7 +215,7 @@ includeSnapshotSku 'Вкл' (snapshot, sku) = includeSnapshotSkuGroup(snapshot, 
 countIncludeSkuSnapshot 'Вкл' (snapshot) = GROUP SUM 1 IF includeSnapshotSku(snapshot, sku) BY snapshot;                    
 
 //------------------------------- ACTION -------------------------------//   
- 
+overTakeSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE); 
 overTakeSkuSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE);
 overTakeBatchSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE);
 
@@ -247,11 +247,13 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
             outQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
             outSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));           
             
-            balanceABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceABatchStockDate(batch, stock, dateTo)) WHERE includeSnapshotStock(snapshot, stock);
-            sumABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)) WHERE includeSnapshotStock(snapshot, stock);        
+            balanceABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceABatchStockDate(batch, stock, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+            sumABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));        
        
             overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo);     
         }
+        
+        overTakeSnapshotDateFromTo(snapshot, dateFrom, dateTo);
     } ELSE {
         MESSAGE 'Не выбраны группы товаров или склады для отчета';
     }    
@@ -262,10 +264,11 @@ takeDataSnapshot 'Заполнить данные' (snapshot) = takeSnapshotDate
 TABLE skuStockSnapshot (Sku, Stock, Snapshot);  
 TABLE batchStockSnapshot (Batch, Stock, Snapshot);  
 
-filterMoveSkuStockSnapshot (s,st,r) = balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) OR 
-inQuantitySkuStockSnapshot(s,st,r) OR outQuantitySkuStockSnapshot(s,st,r) PERSISTENT;
+filterMoveSkuStockSnapshot (s, st, r) = balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) OR 
+                                        inQuantitySkuStockSnapshot(s,st,r) OR outQuantitySkuStockSnapshot(s,st,r) PERSISTENT;
+                                        
 filterMoveBatchStockSnapshot (bt,ss,r)= balanceBBatchStockSnapshot(bt,ss,r) OR balanceABatchStockSnapshot(bt,ss,r) OR 
-    inQuantityBatchStockSnapshot(bt,ss,r) OR outQuantityBatchStockSnapshot(bt,ss,r) PERSISTENT;
+                                        inQuantityBatchStockSnapshot(bt,ss,r) OR outQuantityBatchStockSnapshot(bt,ss,r) PERSISTENT;
 
 FORM snapshot 'Отчет'
 
