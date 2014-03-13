@@ -7,7 +7,6 @@ NAMESPACE Stock;
 //////////////////////Отчет ////////////////////////////
 
 CLASS Snapshot 'Отчет';
-
 TABLE snapshot (Snapshot);
 
 hintBalanceBBackground 'Лавандовый' = RGB(255,238,238) IF TRUE;     
@@ -39,6 +38,7 @@ isSkuSnapshot 'По товарам' (s) = s IS Snapshot AND NOT isBatchSnapshot(
 
 //------------------------------ Sku -------------------------------//
 
+TABLE skuStockSnapshot (Sku, Stock, Snapshot);  
 balanceBSkuStockSnapshot 'Кол-во начало' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
 sumBSkuStockSnapshot 'Сумма начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 
@@ -126,6 +126,7 @@ sumAStockSnapshot 'Сумма конец' (stock, snapshot) =
         
 //------------------------------ Batch -------------------------------//
 
+TABLE batchStockSnapshot (Batch, Stock, Snapshot);  
 balanceBBatchStockSnapshot 'Кол-во начало' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
 sumBBatchStockSnapshot 'Сумма начало' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
@@ -260,9 +261,6 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
 } CONFIRM;
 
 takeDataSnapshot 'Заполнить данные' (snapshot) = takeSnapshotDateFromTo(snapshot, fromDateSnapshot(snapshot), toDateSnapshot(snapshot)) CONFIRM;
-
-TABLE skuStockSnapshot (Sku, Stock, Snapshot);  
-TABLE batchStockSnapshot (Batch, Stock, Snapshot);  
 
 filterMoveSkuStockSnapshot (s, st, r) = balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) OR 
                                         inQuantitySkuStockSnapshot(s,st,r) OR outQuantitySkuStockSnapshot(s,st,r) PERSISTENT;
