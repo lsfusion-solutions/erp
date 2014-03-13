@@ -1,0 +1,32 @@
+MODULE ExportGeneralLedger;
+
+REQUIRE System, GeneralLedger, Dimension;
+                                                     
+//---------------------------------------------- Экспорт данных -----------------------------------------------------//
+
+GROUP export 'Экспорт' : public;
+
+exportGeneralLedgerDBFDataAction 'Экспортировать проводки' = ACTION CUSTOM 'lsfusion.erp.integration.export.ExportGeneralLedgerDBFActionProperty' IN export;
+dateFromExportGeneralLedgerDBF 'Дата с' = DATA DATE () IN export;
+dateToExportGeneralLedgerDBF 'Дата по' = DATA DATE () IN export;
+ 
+EXTEND FORM integrationData
+    PROPERTIES() exportGeneralLedgerDBFDataAction, dateFromExportGeneralLedgerDBF, dateToExportGeneralLedgerDBF    
+;
+EXTEND DESIGN integrationData {
+    pane {        
+        NEW export {
+            caption = 'Экспорт';
+            ADD NOGROUP.export {
+                type = CONTAINERV;                
+                NEW generalLedgers {
+                    caption = 'Проводки';
+                    type = CONTAINERH; 
+                    ADD PROPERTY(dateFromExportGeneralLedgerDBF());
+                    ADD PROPERTY(dateToExportGeneralLedgerDBF());
+                    ADD PROPERTY(exportGeneralLedgerDBFDataAction());
+                }                
+            };
+        }
+    }
+}
