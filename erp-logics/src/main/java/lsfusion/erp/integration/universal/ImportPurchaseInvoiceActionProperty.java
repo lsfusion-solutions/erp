@@ -1687,7 +1687,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             Field field = PurchaseInvoiceDetail.class.getField(fieldName);
             return field.get(purchaseInvoiceDetail);
         } catch (NoSuchFieldException e) {
-            return null;
+            return purchaseInvoiceDetail.customValues.get(fieldName);
         } catch (IllegalAccessException e) {
             return null;
         }
