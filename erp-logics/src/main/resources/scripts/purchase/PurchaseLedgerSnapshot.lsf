@@ -1,0 +1,49 @@
+MODULE PurchaseLedgerSnapshot;
+
+REQUIRE PurchaseLedger, StockSnapshot;
+
+NAMESPACE Purchase;
+
+
+//-- Sku
+purchaseQuantitySkuStockSnapshot 'Кол-во закупка' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
+purchaseSumSkuStockSnapshot 'Сумма закупка' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
+
+//-- группа/склад       
+purchaseQuantitySkuGroupStockSnapshot 'Кол-во закупка' (group, stock, snapshot) =
+    GROUP SUM purchaseQuantitySkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
+        BY group, stock, snapshot PERSISTENT;
+purchaseSumSkuGroupStockSnapshot 'Сумма закупка' (group, stock, snapshot) =
+    GROUP SUM purchaseSumSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
+        BY group, stock, snapshot PERSISTENT; 
+        
+//-- группа          
+purchaseQuantitySkuGroupSnapshot 'Кол-во закупка' (group, snapshot) =
+    GROUP SUM purchaseQuantitySkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
+purchaseSumSkuGroupSnapshot 'Сумма закупка' (group, snapshot) =
+    GROUP SUM purchaseSumSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;          
+
+//--По складам
+purchaseQuantityStockSnapshot 'Кол-во закупка' (stock, snapshot) =
+    GROUP SUM purchaseQuantitySkuGroupStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
+purchaseSumStockSnapshot 'Сумма закупка' (stock, snapshot) =
+    GROUP SUM purchaseSumSkuGroupStockSnapshot (sku, stock, snapshot) BY stock, snapshot;  
+     
+//-- Расширяем ACTION  
+overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
+    purchaseQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+    purchaseSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);   
+};  
+
+EXTEND FORM snapshot
+//--sku  
+    PROPERTIES(s,st,r) AFTER sumBSkuStockSnapshot(s, st, r) BACKGROUND hintPurchaseBackground()
+                       purchaseQuantitySkuStockSnapshot, purchaseSumSkuStockSnapshot
+//-- По группам                           
+    PROPERTIES(sk1,r)  READONLY AFTER sumBSkuGroupSnapshot(sk1,r) BACKGROUND hintPurchaseBackground() 
+                       purchaseQuantitySkuGroupSnapshot, purchaseSumSkuGroupSnapshot
+//-- По складам                           
+    PROPERTIES(ts1,r)  READONLY AFTER sumBStockSnapshot(ts1,r) BACKGROUND hintPurchaseBackground()                         
+                       purchaseQuantityStockSnapshot, purchaseSumStockSnapshot
+;
+ 

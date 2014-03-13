@@ -4,11 +4,18 @@ REQUIRE SkuLedger, Document, PriceListLedger;
 
 NAMESPACE Stock;
 
-//////////////////////Отчет комиссионера////////////////////////////
+//////////////////////Отчет ////////////////////////////
 
 CLASS Snapshot 'Отчет';
 
 TABLE snapshot (Snapshot);
+
+hintBalanceBBackground 'Лавандовый' = RGB(255,238,238) IF TRUE;     
+hintPurchaseBackground 'Розовато-лавандовый'  = RGB(224, 224, 255) IF TRUE;         
+hintSaleBackground 'Зеленого чая'  = RGB(204,255,204) IF TRUE;  
+hintBalanceABackground 'Небесный'  = RGB(127,199,255) IF TRUE;                                                                                     
+hintInBackground 'Лимонный' = RGB(255, 250, 205) IF TRUE;                                                                                   
+hintOutBackground 'Бороды Абдель-Керима' = RGB(213, 213, 213) IF TRUE;     // серый
 
 
 @defineDocumentHeaderTime(Snapshot);
@@ -29,90 +36,92 @@ WHEN SESSION SET(o IS Snapshot) DO {
 
 isBatchSnapshot 'По партиям' = DATA BOOLEAN (Snapshot) IN documentHeader;
 isSkuSnapshot 'По товарам' (s) = s IS Snapshot AND NOT isBatchSnapshot(s) IN documentHeader;
+
 //------------------------------ Sku -------------------------------//
 
 balanceBSkuStockSnapshot 'Кол-во начало' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
 sumBSkuStockSnapshot 'Сумма начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 
-purchaseQuantitySkuStockSnapshot 'Кол-во приход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
-purchaseSumSkuStockSnapshot 'Сумма приход' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
+inQuantitySkuStockSnapshot 'Кол-во приход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
+inSumSkuStockSnapshot 'Сумма приход' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 
-saleQuantitySkuStockSnapshot 'Кол-во расход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
-saleSumSkuStockSnapshot 'Сумма расход' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
+outQuantitySkuStockSnapshot 'Кол-во расход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
+outSumSkuStockSnapshot 'Сумма расход' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 
 balanceASkuStockSnapshot 'Кол-во конец' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
 sumASkuStockSnapshot 'Сумма конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 
 //--По группе рекурсивно
-TABLE groupStockSnapshot (Group, Stock, Snapshot);       
+TABLE skuGroupStockSnapshot (SkuGroup, Stock, Snapshot);   
+  
 //-- группа/склад       
-balanceBSkuRecGroupStockSnapshot 'Кол-во начало (рек.)' (group, stock, snapshot) =
-    GROUP SUM balanceBSkuStockSnapshot (sku, stock, snapshot) IF isParentGroupSku(group, sku)
+balanceBSkuGroupStockSnapshot 'Кол-во начало' (group, stock, snapshot) =
+    GROUP SUM balanceBSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;
-sumBSkuRecGroupStockSnapshot 'Сумма начало (рек.)' (group, stock, snapshot) =
-    GROUP SUM sumBSkuStockSnapshot (sku, stock, snapshot) IF isParentGroupSku(group, sku)
+sumBSkuGroupStockSnapshot 'Сумма начало' (group, stock, snapshot) =
+    GROUP SUM sumBSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;        
     
-purchaseQuantitySkuRecGroupStockSnapshot 'Кол-во приход (рек.)' (group, stock, snapshot) =
-    GROUP SUM purchaseQuantitySkuStockSnapshot (sku, stock, snapshot) IF isParentGroupSku(group, sku)
+inQuantitySkuGroupStockSnapshot 'Кол-во приход' (group, stock, snapshot) =
+    GROUP SUM inQuantitySkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;
-purchaseSumSkuRecGroupStockSnapshot 'Сумма приход (рек.)' (group, stock, snapshot) =
-    GROUP SUM purchaseSumSkuStockSnapshot (sku, stock, snapshot) IF isParentGroupSku(group, sku)
+inSumSkuGroupStockSnapshot 'Сумма приход' (group, stock, snapshot) =
+    GROUP SUM inSumSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;  
            
-saleQuantitySkuRecGroupStockSnapshot 'Кол-во расход (рек.)' (group, stock, snapshot) =
-    GROUP SUM saleQuantitySkuStockSnapshot (sku, stock, snapshot) IF isParentGroupSku(group, sku)
+outQuantitySkuGroupStockSnapshot 'Кол-во расход' (group, stock, snapshot) =
+    GROUP SUM outQuantitySkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;
-saleSumSkuRecGroupStockSnapshot 'Сумма расход (рек.)' (group, stock, snapshot) =
-    GROUP SUM saleSumSkuStockSnapshot (sku, stock, snapshot) IF isParentGroupSku(group, sku)
+outSumSkuGroupStockSnapshot 'Сумма расход' (group, stock, snapshot) =
+    GROUP SUM outSumSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;             
     
-balanceASkuRecGroupStockSnapshot 'Кол-во конец (рек.)' (group, stock, snapshot) =
-    GROUP SUM balanceASkuStockSnapshot (sku, stock, snapshot) IF isParentGroupSku(group, sku)
+balanceASkuGroupStockSnapshot 'Кол-во конец' (group, stock, snapshot) =
+    GROUP SUM balanceASkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;
-sumASkuRecGroupStockSnapshot 'Сумма конец (рек.)' (group, stock, snapshot) =
-    GROUP SUM sumASkuStockSnapshot (sku, stock, snapshot) IF isParentGroupSku(group, sku)
+sumASkuGroupStockSnapshot 'Сумма конец' (group, stock, snapshot) =
+    GROUP SUM sumASkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;  
 //-- группа          
-balanceBSkuRecGroupSnapshot 'Кол-во начало (рек.)' (group, snapshot) =
-    GROUP SUM balanceBSkuRecGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
-sumBSkuRecGroupSnapshot 'Сумма начало (рек.)' (group, snapshot) =
-    GROUP SUM sumBSkuRecGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;        
+balanceBSkuGroupSnapshot 'Кол-во начало' (group, snapshot) =
+    GROUP SUM balanceBSkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
+sumBSkuGroupSnapshot 'Сумма начало' (group, snapshot) =
+    GROUP SUM sumBSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;        
     
-purchaseQuantitySkuRecGroupSnapshot 'Кол-во приход (рек.)' (group, snapshot) =
-    GROUP SUM purchaseQuantitySkuRecGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
-purchaseSumSkuRecGroupSnapshot 'Сумма приход (рек.)' (group, snapshot) =
-    GROUP SUM purchaseSumSkuRecGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;      
+inQuantitySkuGroupSnapshot 'Кол-во приход' (group, snapshot) =
+    GROUP SUM inQuantitySkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
+inSumSkuGroupSnapshot 'Сумма приход' (group, snapshot) =
+    GROUP SUM inSumSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;      
  
-saleQuantitySkuRecGroupSnapshot 'Кол-во расход (рек.)' (group, snapshot) =
-    GROUP SUM saleQuantitySkuRecGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
-saleSumSkuRecGroupSnapshot 'Сумма расход (рек.)' (group, snapshot) =
-    GROUP SUM saleSumSkuRecGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;      
+outQuantitySkuGroupSnapshot 'Кол-во расход' (group, snapshot) =
+    GROUP SUM outQuantitySkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
+outSumSkuGroupSnapshot 'Сумма расход' (group, snapshot) =
+    GROUP SUM outSumSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;      
     
-balanceASkuRecGroupSnapshot 'Кол-во конец (рек.)' (group, snapshot) =
-    GROUP SUM balanceASkuRecGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
-sumASkuRecGroupSnapshot 'Сумма конец (рек.)' (group, snapshot) =
-    GROUP SUM sumASkuRecGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;            
+balanceASkuGroupSnapshot 'Кол-во конец' (group, snapshot) =
+    GROUP SUM balanceASkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
+sumASkuGroupSnapshot 'Сумма конец' (group, snapshot) =
+    GROUP SUM sumASkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;            
 
 //--По складам
-balanceBStockSnapshot 'Кол-во начало (рек.)' (stock, snapshot) =
+balanceBStockSnapshot 'Кол-во начало' (stock, snapshot) =
     GROUP SUM balanceBSkuStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
-sumBStockSnapshot 'Сумма начало (рек.)' (stock, snapshot) =
+sumBStockSnapshot 'Сумма начало' (stock, snapshot) =
     GROUP SUM sumBSkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;        
     
-purchaseQuantityStockSnapshot 'Кол-во приход (рек.)' (stock, snapshot) =
-    GROUP SUM purchaseQuantitySkuStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
-purchaseSumStockSnapshot 'Сумма приход (рек.)' (stock, snapshot) =
-    GROUP SUM purchaseSumSkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;      
+inQuantityStockSnapshot 'Кол-во приход' (stock, snapshot) =
+    GROUP SUM inQuantitySkuStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
+inSumStockSnapshot 'Сумма приход' (stock, snapshot) =
+    GROUP SUM inSumSkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;      
  
-saleQuantityStockSnapshot 'Кол-во расход (рек.)' (stock, snapshot) =
-    GROUP SUM saleQuantitySkuStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
-saleSumStockSnapshot 'Сумма расход (рек.)' (stock, snapshot) =
-    GROUP SUM saleSumSkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;      
+outQuantityStockSnapshot 'Кол-во расход' (stock, snapshot) =
+    GROUP SUM outQuantitySkuStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
+outSumStockSnapshot 'Сумма расход' (stock, snapshot) =
+    GROUP SUM outSumSkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;      
     
-balanceAStockSnapshot 'Кол-во конец (рек.)' (stock, snapshot) =
+balanceAStockSnapshot 'Кол-во конец' (stock, snapshot) =
     GROUP SUM balanceASkuStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
-sumAStockSnapshot 'Сумма конец (рек.)' (stock, snapshot) =
+sumAStockSnapshot 'Сумма конец' (stock, snapshot) =
     GROUP SUM sumASkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;   
         
 //------------------------------ Batch -------------------------------//
@@ -120,70 +129,143 @@ sumAStockSnapshot 'Сумма конец (рек.)' (stock, snapshot) =
 balanceBBatchStockSnapshot 'Кол-во начало' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
 sumBBatchStockSnapshot 'Сумма начало' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
-purchaseQuantityBatchStockSnapshot 'Кол-во приход' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
-purchaseSumBatchStockSnapshot 'Сумма приход' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+inQuantityBatchStockSnapshot 'Кол-во приход' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
+inSumBatchStockSnapshot 'Сумма приход' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
-saleQuantityBatchStockSnapshot 'Кол-во расход' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
-saleSumBatchStockSnapshot 'Сумма расход' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+outQuantityBatchStockSnapshot 'Кол-во расход' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
+outSumBatchStockSnapshot 'Сумма расход' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
 balanceABatchStockSnapshot 'Кол-во конец' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
 sumABatchStockSnapshot 'Сумма конец' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
-//-- По поставщикам
+skuGroup1Batch 'Категория' (batch) = skuGroup1Sku(skuBatch(batch));
+nameSkuGroup1Batch 'Категория' (batch) = nameSkuGroup(skuGroup1Batch(batch));
+ 
+skuGroup2Batch 'Направление' (batch) = skuGroup2Sku(skuBatch(batch));
+nameSkuGroup2Batch 'Направление' (batch) = nameSkuGroup(skuGroup2Batch(batch));
 
+skuGroup3Batch 'Группа' (batch) = skuGroup3Sku(skuBatch(batch));
+nameSkuGroup3Batch 'Группа' (batch) = nameSkuGroup(skuGroup3Batch(batch));
+
+skuGroup4Batch 'Подгруппа' (batch) = skuGroup4Sku(skuBatch(batch));
+nameSkuGroup4Batch 'Подгруппа' (batch) = nameSkuGroup(skuGroup4Batch(batch));
+
+skuGroup5Batch 'Субгруппа' (batch) = skuGroup5Sku(skuBatch(batch));
+nameSkuGroup5Batch 'Субгруппа' (batch) = nameSkuGroup(skuGroup5Batch(batch));
+
+//-- По поставщикам
 balanceBBatchSupplierSnapshot 'Кол-во начало' (supplier, snapshot) =
     GROUP SUM balanceBBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
 sumBBatchSupplierSnapshot 'Сумма начало' (supplier, snapshot) =
     GROUP SUM sumBBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot; 
     
-purchaseQuantityBatchSupplierSnapshot 'Кол-во приход' (supplier, snapshot) =
-    GROUP SUM purchaseQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
-purchaseSumBatchSupplierSnapshot 'Сумма приход' (supplier, snapshot) =
-    GROUP SUM purchaseSumBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
+inQuantityBatchSupplierSnapshot 'Кол-во приход' (supplier, snapshot) =
+    GROUP SUM inQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
+inSumBatchSupplierSnapshot 'Сумма приход' (supplier, snapshot) =
+    GROUP SUM inSumBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
  
-saleQuantityBatchSupplierSnapshot 'Кол-во расход' (supplier, snapshot) =
-    GROUP SUM saleQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
-saleSumBatchSupplierSnapshot 'Сумма расход' (supplier, snapshot) =
-    GROUP SUM saleSumBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
+outQuantityBatchSupplierSnapshot 'Кол-во расход' (supplier, snapshot) =
+    GROUP SUM outQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
+outSumBatchSupplierSnapshot 'Сумма расход' (supplier, snapshot) =
+    GROUP SUM outSumBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
     
 balanceABatchSupplierSnapshot 'Кол-во конец' (supplier, snapshot) =
     GROUP SUM balanceABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
 sumABatchSupplierSnapshot 'Сумма конец' (supplier, snapshot) =
     GROUP SUM sumABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
     
-//------------------------------- ACTION -------------------------------//    
+//-- Выбор складов
+TABLE snapshotStockGroup (Snapshot, StockGroup); 
+allStockIncludeSnapshot 'Вкл' = DATA BOOLEAN (Snapshot);
+dataIncludeSnapshotStockGroup 'Вкл' = DATA BOOLEAN (Snapshot, StockGroup);
+dataIncludeSnapshotStock 'Вкл' = DATA BOOLEAN (Snapshot, Stock);
+
+levelParentIncludeSnapshotStockGroup (snapshot, stockGroup) = GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataIncludeSnapshotStockGroup(snapshot, parent)
+                                                              BY snapshot, stockGroup PERSISTENT;    
+nearestParentIncludeSnapshotStockGroup (snapshot, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentIncludeSnapshotStockGroup(snapshot, stockGroup));
+nearestIncludeSnapshotStockGroup (snapshot, stockGroup) = dataIncludeSnapshotStockGroup(snapshot, nearestParentIncludeSnapshotStockGroup (snapshot, stockGroup));
+
+includeSnapshotStockGroup 'Вкл' (snapshot, stockGroup) =
+    OVERRIDE allStockIncludeSnapshot(snapshot) IF stockGroup IS StockGroup,
+             nearestIncludeSnapshotStockGroup (snapshot, stockGroup), 
+             dataIncludeSnapshotStockGroup(snapshot, stockGroup) PERSISTENT;
+
+includeSnapshotStock 'Вкл' (snapshot, stock) =
+    (OVERRIDE includeSnapshotStockGroup(snapshot, stockGroupStock(stock)),
+             dataIncludeSnapshotStock(snapshot, stock)) IF isCompanyStock(stock) PERSISTENT;
+             
+countIncludeStockSnapshot  (snapshot) = GROUP SUM 1 IF includeSnapshotStock(snapshot, stock) BY snapshot;      
+        
+//-- Выбор групп товара  
+TABLE snapshotSkuGroup (Snapshot, SkuGroup);  
+     
+dataIncludeSnapshotSkuGroup 'Вкл' = DATA BOOLEAN (Snapshot, SkuGroup);
+
+levelParentIncludeSnapshotSkuGroup (snapshot, skuGroup) = GROUP MIN levelSkuGroupSkuGroup(skuGroup, parent) IF dataIncludeSnapshotSkuGroup(snapshot, parent)
+                                                              BY snapshot, skuGroup PERSISTENT;    
+nearestParentIncludeSnapshotSkuGroup (snapshot, skuGroup) = skuGroupSkuGroupLevel(skuGroup, levelParentIncludeSnapshotSkuGroup(snapshot, skuGroup));
+nearestIncludeSnapshotSkuGroup (snapshot, skuGroup) = dataIncludeSnapshotSkuGroup(snapshot, nearestParentIncludeSnapshotSkuGroup (snapshot, skuGroup));
+
+includeSnapshotSkuGroup 'Вкл' (snapshot, skuGroup) =
+    OVERRIDE nearestIncludeSnapshotSkuGroup (snapshot, skuGroup), 
+             dataIncludeSnapshotSkuGroup(snapshot, skuGroup) PERSISTENT;    
+                      
+includeSnapshotSku 'Вкл' (snapshot, sku) = includeSnapshotSkuGroup(snapshot, skuGroupSku(sku));  
+                    
+countIncludeSkuSnapshot 'Вкл' (snapshot) = GROUP SUM 1 IF includeSnapshotSku(snapshot, sku) BY snapshot;                    
+
+//------------------------------- ACTION -------------------------------//   
+ 
+overTakeSkuSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE);
+overTakeBatchSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE);
 
 takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
      
-        balanceBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateFrom)) WHERE isCompanyStock(stock);
-        sumBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumBSkuStockDate(sku, stock, dateFrom)) WHERE isCompanyStock(stock);
+    IF countIncludeSkuSnapshot(snapshot) AND countIncludeStockSnapshot(snapshot) THEN {        
+        balanceBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateFrom)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+        sumBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumBSkuStockDate(sku, stock, dateFrom)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
         
-        purchaseQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE isCompanyStock(stock);
-        purchaseSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE isCompanyStock(stock);
+        inQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+        inSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
 
-        saleQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE isCompanyStock(stock);
-        saleSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE isCompanyStock(stock);        
+        outQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+        outSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);        
         
-        balanceASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceASkuStockDate(sku, stock, dateTo)) WHERE isCompanyStock(stock);
-        sumASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumASkuStockDate(sku, stock, dateTo)) WHERE isCompanyStock(stock);   
+        balanceASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceASkuStockDate(sku, stock, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+        sumASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumASkuStockDate(sku, stock, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);   
+        
+        overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo);      
                      
-    IF isBatchSnapshot(snapshot) THEN {   
+        IF isBatchSnapshot(snapshot) THEN {   
+    
+            balanceBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceBBatchStockDate(batch, stock, dateFrom)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+            sumBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceBBatchStockDate(batch, stock, dateFrom)*costBatch(batch)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+            
+            inQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+            inSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+    
+            outQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+            outSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));           
+            
+            balanceABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceABatchStockDate(batch, stock, dateTo)) WHERE includeSnapshotStock(snapshot, stock);
+            sumABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)) WHERE includeSnapshotStock(snapshot, stock);        
+       
+            overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo);     
+        }
+    } ELSE {
+        MESSAGE 'Не выбраны группы товаров или склады для отчета';
+    }    
+} CONFIRM;
 
-        balanceBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceBBatchStockDate(batch, stock, dateFrom)) WHERE isCompanyStock(stock);
-        sumBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceBBatchStockDate(batch, stock, dateFrom)*costBatch(batch)) WHERE isCompanyStock(stock);
-        
-        purchaseQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE isCompanyStock(stock);
-        purchaseSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE isCompanyStock(stock);
+takeDataSnapshot 'Заполнить данные' (snapshot) = takeSnapshotDateFromTo(snapshot, fromDateSnapshot(snapshot), toDateSnapshot(snapshot)) CONFIRM;
 
-        saleQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE isCompanyStock(stock);
-        saleSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE isCompanyStock(stock);           
-        
-        balanceABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceABatchStockDate(batch, stock, dateTo)) WHERE isCompanyStock(stock);
-        sumABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)) WHERE isCompanyStock(stock);        
-    }
-};
+TABLE skuStockSnapshot (Sku, Stock, Snapshot);  
+TABLE batchStockSnapshot (Batch, Stock, Snapshot);  
 
-takeDataSnapshot 'Заполнить данные' (snapshot) = takeSnapshotDateFromTo(snapshot, fromDateSnapshot(snapshot), toDateSnapshot(snapshot));
+filterMoveSkuStockSnapshot (s,st,r) = balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) OR 
+inQuantitySkuStockSnapshot(s,st,r) OR outQuantitySkuStockSnapshot(s,st,r) PERSISTENT;
+filterMoveBatchStockSnapshot (bt,ss,r)= balanceBBatchStockSnapshot(bt,ss,r) OR balanceABatchStockSnapshot(bt,ss,r) OR 
+    inQuantityBatchStockSnapshot(bt,ss,r) OR outQuantityBatchStockSnapshot(bt,ss,r) PERSISTENT;
 
 FORM snapshot 'Отчет'
 
@@ -191,6 +273,16 @@ FORM snapshot 'Отчет'
     PROPERTIES (r) nameNumeratorSnapshot, 
                    numberSnapshot, seriesSnapshot, dateSnapshot, timeSnapshot,
                    noteSnapshot, fromDateSnapshot, toDateSnapshot, isBatchSnapshot 
+//-- выбор складов                  
+    TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parentStockGroup, ts2 = Stock
+    PROPERTIES OBJVALUE(a2) READONLY, allStockIncludeSnapshot(r) TODRAW a2, 
+               nameStockGroup(sg2) READONLY, includeSnapshotStockGroup(r,sg2),
+               nameStock(ts2) READONLY, includeSnapshotStock(r,ts2)
+    ORDER BY nameStockGroup(sg2)
+    FILTERS stringEqualsAll(a2),
+            stockGroupStock(ts2) == sg2,
+            isCompanyStock(ts2)
+    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ts2) DEFAULT                                                                                  
 
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
     PROPERTIES READONLY OBJVALUE(a), nameStockGroup(sg), nameStock(ts)
@@ -199,6 +291,12 @@ FORM snapshot 'Отчет'
             stockGroupStock(ts) == sg,
             isCompanyStock(ts)
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ts) DEFAULT              
+//-- выбор групп товара     
+    TREE skuTree2 sk2 = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY nameSkuGroup(sk2)
+    PROPERTIES includeSnapshotSkuGroup(r,sk2)
+    ORDER BY nameSkuGroup(sk2)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk2) DEFAULT            
             
 //--sku      
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
@@ -207,47 +305,45 @@ FORM snapshot 'Отчет'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
     
     OBJECTS           sts=(st=Stock, s=Sku)
-    PROPERTIES        READONLY nameSku(s), idBarcodeSku(s), nameStock(st)
+    PROPERTIES        READONLY nameSku(s), idBarcodeSku(s), nameStock(st), nameSkuGroup1Sku(s), nameSkuGroup2Sku(s),
+                      nameSkuGroup3Sku(s), nameSkuGroup4Sku(s), nameSkuGroup5Sku(s)
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(st) DEFAULT         
         
     FILTERS           isParentSkuGroupSku(sk, s),
                       st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
                       isCompanyStock(st)
 
-    PROPERTIES(s, st, r) balanceBSkuStockSnapshot, sumBSkuStockSnapshot, 
-                         purchaseQuantitySkuStockSnapshot, purchaseSumSkuStockSnapshot,
-                         saleQuantitySkuStockSnapshot, saleSumSkuStockSnapshot,
-                         balanceASkuStockSnapshot, sumASkuStockSnapshot 
+    PROPERTIES(s, st, r) BACKGROUND hintBalanceBBackground() balanceBSkuStockSnapshot, sumBSkuStockSnapshot 
+    PROPERTIES(s, st, r) BACKGROUND hintInBackground() inQuantitySkuStockSnapshot, inSumSkuStockSnapshot
+    PROPERTIES(s, st, r) BACKGROUND hintOutBackground() outQuantitySkuStockSnapshot, outSumSkuStockSnapshot
+    PROPERTIES(s, st, r) BACKGROUND hintBalanceABackground() balanceASkuStockSnapshot, sumASkuStockSnapshot                                                                                                                                               
                                                              
     FILTERGROUP filtersSold
-        FILTER 'С движением' 'F11' balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) OR 
-                                   purchaseQuantitySkuStockSnapshot(s,st,r) OR saleQuantitySkuStockSnapshot(s,st,r) DEFAULT
+        FILTER 'С движением' 'F11' filterMoveSkuStockSnapshot(s,st,r) DEFAULT
         FILTER 'С остатком' 'F10' balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r)  
-        FILTER 'С приходом' 'F9' purchaseQuantitySkuStockSnapshot(s,st,r)   
-        FILTER 'С продажей' 'F8' saleQuantitySkuStockSnapshot(s,st,r) 
+        FILTER 'С приходом' 'F9' inQuantitySkuStockSnapshot(s,st,r)   
+        FILTER 'С продажей' 'F8' outQuantitySkuStockSnapshot(s,st,r) 
                                                                                                                                                                                       
 //--batch
     OBJECTS           stb=(ss=Stock, bt=Batch) FIXED GRID
     PROPERTIES        READONLY SHOWIF isBatchSnapshot(r) nameSkuBatch(bt), idBarcodeSkuBatch(bt), nameStock(ss), nameBatch(bt), dateTimeBatch(bt) 
-
-//    PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, idBatch, shippedQuantityBatch, costBatch, expiryDateBatch
+    PROPERTIES        READONLY nameSkuGroup1Batch(bt), nameSkuGroup2Batch(bt), nameSkuGroup3Batch(bt), nameSkuGroup4Batch(bt), nameSkuGroup5Batch(bt)
     FILTERS           isParentSkuGroupBatch(sk, bt),
                       ss == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, ss) AND NOT ts OR ss IS Stock AND NOT sg AND NOT ts,
                       isCompanyStock(ss)
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ss) DEFAULT
     ORDER BY          dateTimeBatch(bt)
 
-    PROPERTIES(bt, ss, r) SHOWIF isBatchSnapshot(r) balanceBBatchStockSnapshot, sumBBatchStockSnapshot, 
-                          purchaseQuantityBatchStockSnapshot, purchaseSumBatchStockSnapshot,
-                          saleQuantityBatchStockSnapshot, saleSumBatchStockSnapshot,                              
-                          balanceABatchStockSnapshot, sumABatchStockSnapshot
+    PROPERTIES(bt, ss, r) SHOWIF isBatchSnapshot(r) BACKGROUND hintBalanceBBackground() balanceBBatchStockSnapshot, sumBBatchStockSnapshot 
+    PROPERTIES(bt, ss, r) SHOWIF isBatchSnapshot(r)BACKGROUND hintInBackground() inQuantityBatchStockSnapshot, inSumBatchStockSnapshot
+    PROPERTIES(bt, ss, r) SHOWIF isBatchSnapshot(r) BACKGROUND hintOutBackground() outQuantityBatchStockSnapshot, outSumBatchStockSnapshot                              
+    PROPERTIES(bt, ss, r) SHOWIF isBatchSnapshot(r) BACKGROUND hintBalanceABackground() balanceABatchStockSnapshot, sumABatchStockSnapshot
     
     FILTERGROUP filtersSoldBatch
-        FILTER 'С движением' 'F11' balanceBBatchStockSnapshot(bt,ss,r) OR balanceABatchStockSnapshot(bt,ss,r) OR 
-                                   purchaseQuantityBatchStockSnapshot(bt,ss,r) OR saleQuantityBatchStockSnapshot(bt,ss,r) DEFAULT
+        FILTER 'С движением' 'F11' filterMoveBatchStockSnapshot(bt,ss,r) DEFAULT
         FILTER 'С остатком' 'F10' balanceBBatchStockSnapshot(bt,ss,r) OR balanceABatchStockSnapshot(bt,ss,r)  
-        FILTER 'С приходом' 'F9' purchaseQuantityBatchStockSnapshot(bt,ss,r)   
-        FILTER 'С продажей' 'F8' saleQuantityBatchStockSnapshot(bt,ss,r)     
+        FILTER 'С приходом' 'F9' inQuantityBatchStockSnapshot(bt,ss,r)   
+        FILTER 'С продажей' 'F8' outQuantityBatchStockSnapshot(bt,ss,r)     
     
     PROPERTIES(r)  takeDataSnapshot FORCE PANEL 
 //-- По группам    
@@ -255,10 +351,10 @@ FORM snapshot 'Отчет'
     PROPERTIES READONLY nameSkuGroup(sk1)
     ORDER BY nameSkuGroup(sk1)
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk1) DEFAULT    
-    PROPERTIES(sk1,r) READONLY  balanceBSkuRecGroupSnapshot, sumBSkuRecGroupSnapshot, 
-                                purchaseQuantitySkuRecGroupSnapshot, purchaseSumSkuRecGroupSnapshot,
-                                saleQuantitySkuRecGroupSnapshot, saleSumSkuRecGroupSnapshot,
-                                balanceASkuRecGroupSnapshot, sumASkuRecGroupSnapshot                
+    PROPERTIES(sk1,r) READONLY BACKGROUND hintBalanceBBackground() balanceBSkuGroupSnapshot, sumBSkuGroupSnapshot 
+    PROPERTIES(sk1,r) READONLY BACKGROUND hintInBackground() inQuantitySkuGroupSnapshot, inSumSkuGroupSnapshot
+    PROPERTIES(sk1,r) READONLY BACKGROUND hintOutBackground() outQuantitySkuGroupSnapshot, outSumSkuGroupSnapshot
+    PROPERTIES(sk1,r) READONLY BACKGROUND hintBalanceABackground() balanceASkuGroupSnapshot, sumASkuGroupSnapshot                
        
 //-- По складам           
     TREE stockTree1 a1 = STRING[3], sg1 = StockGroup PARENT parentStockGroup
@@ -274,17 +370,17 @@ FORM snapshot 'Отчет'
             isCompanyStock(ts1)     
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ts1) DEFAULT               
 
-    PROPERTIES(ts1,r) READONLY  balanceBStockSnapshot, sumBStockSnapshot, 
-                                purchaseQuantityStockSnapshot, purchaseSumStockSnapshot,
-                                saleQuantityStockSnapshot, saleSumStockSnapshot,
-                                balanceAStockSnapshot, sumAStockSnapshot  
+    PROPERTIES(ts1,r) READONLY BACKGROUND hintBalanceBBackground() balanceBStockSnapshot, sumBStockSnapshot 
+    PROPERTIES(ts1,r) READONLY BACKGROUND hintInBackground() inQuantityStockSnapshot, inSumStockSnapshot
+    PROPERTIES(ts1,r) READONLY BACKGROUND hintOutBackground() outQuantityStockSnapshot, outSumStockSnapshot
+    PROPERTIES(ts1,r) READONLY BACKGROUND hintBalanceABackground() balanceAStockSnapshot, sumAStockSnapshot  
                                   
     FILTERGROUP filtersSoldStock
         FILTER 'С движением' 'F11' balanceBStockSnapshot(ts1,r) OR balanceAStockSnapshot(ts1,r) OR 
-                                   purchaseQuantityStockSnapshot(ts1,r) OR saleQuantityStockSnapshot(ts1,r) DEFAULT
+                                   inQuantityStockSnapshot(ts1,r) OR outQuantityStockSnapshot(ts1,r) DEFAULT
         FILTER 'С остатком' 'F10' balanceBStockSnapshot(ts1,r) OR balanceAStockSnapshot(ts1,r)  
-        FILTER 'С приходом' 'F9' purchaseQuantityStockSnapshot(ts1,r)   
-        FILTER 'С продажей' 'F8' saleQuantityStockSnapshot(ts1,r)   
+        FILTER 'С приходом' 'F9' inQuantityStockSnapshot(ts1,r)   
+        FILTER 'С продажей' 'F8' outQuantityStockSnapshot(ts1,r)   
                                           
 //-- По поставщикам                                                
     
@@ -294,17 +390,17 @@ FORM snapshot 'Отчет'
     FILTERGROUP inactiveLegalEntity FILTER 'Активная орг-ия' 'shift F10' activeLegalEntity(l) DEFAULT
     FILTERS isSupplierLegalEntity(l)                                              
                                               
-    PROPERTIES(l,r) READONLY SHOWIF isBatchSnapshot(r)  balanceBBatchSupplierSnapshot, sumBBatchSupplierSnapshot, 
-                                purchaseQuantityBatchSupplierSnapshot, purchaseSumBatchSupplierSnapshot,
-                                saleQuantityBatchSupplierSnapshot, saleSumBatchSupplierSnapshot,
-                                balanceABatchSupplierSnapshot, sumABatchSupplierSnapshot                                                                                                                                                              
+    PROPERTIES(l,r) READONLY SHOWIF isBatchSnapshot(r) BACKGROUND hintBalanceBBackground() balanceBBatchSupplierSnapshot, sumBBatchSupplierSnapshot 
+    PROPERTIES(l,r) READONLY SHOWIF isBatchSnapshot(r) BACKGROUND hintInBackground() inQuantityBatchSupplierSnapshot, inSumBatchSupplierSnapshot
+    PROPERTIES(l,r) READONLY SHOWIF isBatchSnapshot(r) BACKGROUND hintOutBackground() outQuantityBatchSupplierSnapshot, outSumBatchSupplierSnapshot
+    PROPERTIES(l,r) READONLY SHOWIF isBatchSnapshot(r) BACKGROUND hintBalanceABackground() balanceABatchSupplierSnapshot, sumABatchSupplierSnapshot                                                                                                                                                              
  
     FILTERGROUP filtersSoldSupplier
         FILTER 'С движением' 'F11' balanceBBatchSupplierSnapshot(l,r) OR balanceABatchSupplierSnapshot(l,r) OR 
-                                   purchaseQuantityBatchSupplierSnapshot(l,r) OR saleQuantityBatchSupplierSnapshot(l,r) DEFAULT
+                                   inQuantityBatchSupplierSnapshot(l,r) OR outQuantityBatchSupplierSnapshot(l,r) DEFAULT
         FILTER 'С остатком' 'F10' balanceBBatchSupplierSnapshot(l,r) OR balanceABatchSupplierSnapshot(l,r)  
-        FILTER 'С приходом' 'F9' purchaseQuantityBatchSupplierSnapshot(l,r)   
-        FILTER 'С продажей' 'F8' saleQuantityBatchSupplierSnapshot(l,r)    
+        FILTER 'С приходом' 'F9' inQuantityBatchSupplierSnapshot(l,r)   
+        FILTER 'С продажей' 'F8' outQuantityBatchSupplierSnapshot(l,r)    
    
     EDIT Snapshot OBJECT r
 ;
@@ -329,43 +425,48 @@ DESIGN snapshot FROM DEFAULT {
                 caption = 'Параметры';
                 ADD r.documentHeader;                   
                 ADD r.documentPrm;
-                NEW action {
-                    caption = 'Действия';
-                    ADD PROPERTY (takeDataSnapshot(r));
-                }
+                 NEW select{
+                    fill = 1;
+                    type = SPLITH;
+                    ADD stockTree2.tree.box { fill = 1; caption = 'Выбор складов'; }   
+                    ADD skuTree2.tree.box { fill = 1; caption = 'Выбор групп'; }   
+                 }   
             }
             
             NEW resultContainer {
                 caption = 'Результат';
-                fill = 1;
-                type = TABBED;
-                NEW tabb1 {
-                    caption = 'Таблица';
-                    type = SPLITH;          
-                    NEW firstCase {
-                        fill = 1;
-                        type = SPLITV;
-                        ADD stockTree.tree.box { caption = 'Склады'; }
-                        ADD skuTree.tree.box { caption = 'Группы'; }
+                ADD PROPERTY (takeDataSnapshot(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 36';  }
+                NEW resultContainer2 {
+                    fill = 7;
+                    type = TABBED;
+                    NEW tabb1 {
+                        caption = 'Таблица';
+                        type = SPLITH;          
+                        NEW firstCase {
+                            fill = 1;
+                            type = SPLITV;
+                            ADD stockTree.tree.box { caption = 'Склады'; }
+                            ADD skuTree.tree.box { caption = 'Группы'; }
+                        }
+                        NEW secondCase {
+                            fill = 3;
+                            type = TABBED;
+                            ADD sts.box {caption = 'Товары';}
+                            ADD stb.box {caption = 'Партии';}
+            
+            
+                        }   
                     }
-                    NEW secondCase {
-                        fill = 3;
-                        type = TABBED;
-                        ADD sts.box {caption = 'Товары';}
-                        ADD stb.box {caption = 'Партии';}
-        
-        
-                    }   
-                }
-                NEW tabb2 {
-                    caption = 'По складам';
-                    type = SPLITH; 
-                    fill = 1;
-                    ADD stockTree1.tree.box { fill = 1;}     
-                    ADD ts1.box { fill = 3;}                
-                }
-                ADD skuTree1.tree.box { caption = 'По группам'; }                        
-                ADD l.box { caption = 'По поставщикам'; }                
+                    NEW tabb2 {
+                        caption = 'По складам';
+                        type = SPLITH; 
+                        fill = 1;
+                        ADD stockTree1.tree.box { fill = 1;}     
+                        ADD ts1.box { fill = 3;}                
+                    }
+                    ADD skuTree1.tree.box { caption = 'По группам'; }                        
+                    ADD l.box { caption = 'По поставщикам'; }   
+                }                 
             }
         }    
         ADD functions.box;
