@@ -835,6 +835,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 List<ImportKey<?>> saleKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey);
                 if(discountCardLM != null)
                     saleKeys.add(discountCardKey);
+
+                session.pushVolatileStats();
                 new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
 
                 List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey);
@@ -883,7 +885,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 new IntegrationService(session, new ImportTable(paymentImportFields, dataPayment), Arrays.asList(paymentKey, paymentTypeKey, receiptKey/*, cashRegisterKey*/),
                         paymentProperties).synchronize(true);
 
-                return session.applyMessage(getBusinessLogics());
+                String result = session.applyMessage(getBusinessLogics());
+                session.popVolatileStats();
+                return result;
             } else return null;
         } catch (Exception e) {
             throw Throwables.propagate(e);

@@ -295,8 +295,8 @@ signedQuantityReceiptDetail(detail) += quantityReceiptSaleDetail(detail);
 sumReceiptDetailReceipt 'Сумма чека' (receipt) = GROUP SUM signedSumReceiptDetail(detail)
     BY receiptReceiptDetail(detail);
 
-sumSkuReceiptDetailReceipt 'Сумма чека по товарам' (receipt) = GROUP SUM signedSumReceiptDetail(detail) IF skuReceiptDetail(detail)
-                                                                         BY receiptReceiptDetail(detail);
+sumSkuReceiptDetailReceipt 'Сумма чека по товарам' (receipt) = 
+    GROUP SUM signedSumReceiptDetail(detail) IF skuReceiptDetail(detail) BY receiptReceiptDetail(detail);
 //sumReceiptDetailReceipt 'Сумма чека' (receipt) = sumReceiptSaleDetailReceipt(receipt) (-) sumReceiptReturnDetailReceipt(receipt) PERSISTENT;
 sumReceiptDetailReceiptDetail 'Сумма чека' (receiptDetail) = sumReceiptDetailReceipt(receiptReceiptDetail(receiptDetail)) PERSISTENT;
 
@@ -374,7 +374,8 @@ VATReceiptDetail 'НДС' = ABSTRACT Range(ReceiptDetail) PERSISTENT;
 numberVATReceiptDetail 'НДС, номер' (receiptDetail) = numberRange(VATReceiptDetail(receiptDetail));
 valueVATReceiptDetail 'НДС, %' (receiptDetail) = valueRateRangeDate(VATReceiptDetail(receiptDetail), dateReceiptDetail(receiptDetail));
 
-sumVATReceiptDetail 'Сумма НДС' (d) = roundPriceCurrency(sumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d)); 
+sumVATReceiptDetail 'Сумма НДС' (d) = roundPriceCurrency(sumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d));
+signedSumVATReceiptDetail 'Сумма НДС' (d) = roundPriceCurrency(signedSumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d));
 
 VATReceiptDetail(d) += VATReceiptSaleDetail(d);
 VATReceiptDetail(d) += VATReceiptReturnDetail(d);
@@ -517,90 +518,36 @@ CONSTRAINT receipt IS Receipt AND NOT sumPaymentReceipt(receipt) MESSAGE 'По �
 CONSTRAINT sumReceiptDetailReceipt(receipt) > sumPaymentReceipt(receipt) MESSAGE 'Сумма платежей по чеку меньше суммы чека';
 CONSTRAINT sumReceiptDetailReceipt(receipt) < sumCardPaymentReceipt(receipt) MESSAGE 'Сумма платежей по безналичному расчету больше суммы чека';
 
-// ------------------------ Расписывание платежей по чеку -------------------- //
-
-TABLE receiptDetailPayment(ReceiptDetail, Payment);
-sumReceiptDetailPayment 'Расписано для строки чека' = DATA NUMERIC[16,2] (ReceiptDetail, Payment);
-CONSTRAINT sumReceiptDetailPayment(d, p) AND receiptReceiptDetail(d) != receiptPayment(p)
-    MESSAGE 'Несоответствие чека строки и платежа';
-
-calculateSumReceiptDetailPaymentReceipt 'Расписать платежи по строкам' (receipt) = ACTION (receipt) {
-    sumReceiptDetailPayment(d, p) <- NULL WHERE receiptReceiptDetail(d) == receipt AND receiptPayment(p) == receipt; 
-    LOCAL left = NUMERIC[16,2] (ReceiptDetail);
-    left(d) <- sumReceiptDetail(d) IF receiptReceiptDetail(d) == receipt;
-    
-    FOR receiptPayment(p) == receipt ORDER DESC paymentMeansPayment(p) DO {
-        LOCAL sum = NUMERIC[16,2]();
-        sum() <- sumPayment(p);
-        FOR left(d) DO {
-            IF sum() > 0 THEN {
-                sumReceiptDetailPayment(d, p) <- min(left(d), sum());
-                sum() <- sum() (-) sumReceiptDetailPayment(d, p);
-                left(d) <- left(d) (-) sumReceiptDetailPayment(d, p);
-            } ELSE {
-                sumReceiptDetailPayment(d, p) <- -min(left(d), -sum());                
-                sum() <- sum() (-) sumReceiptDetailPayment(d, p);
-                left(d) <- left(d) (+) sumReceiptDetailPayment(d, p);
-            }
-        }            
-    }    
-}
-
-// не очень правильно, но пока так
-WHEN CHANGED(sumReceiptDetailReceipt(receipt)) OR CHANGED(sumCashPaymentReceipt(receipt)) OR CHANGED(sumCardPaymentReceipt(receipt)) DO {
-    calculateSumReceiptDetailPaymentReceipt(receipt);        
-}
-
-// Продажи товаров
-calcSumVATReceiptDetailPayment (detail, payment) = sumReceiptDetailPayment(detail, payment) * valueVATReceiptDetail(detail) / (100 + valueVATReceiptDetail(detail));
-
-TABLE zReportPaymentMeansRange(ZReport, PaymentMeans, Range);
-sumReceiptDetailZReportPaymentMeansRange 'Сумма по товарам' (zReport, paymentMeans, range) = GROUP SUM sumReceiptDetailPayment(detail, payment) 
-    IF isItemSku(skuReceiptDetail(detail)) AND isPostedReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail) PERSISTENT;
-sumItemReceiptDetailZReport 'Сумма по товарам' (zReport) = GROUP SUM sumReceiptDetailZReportPaymentMeansRange(zReport, paymentMeans, range) BY zReport;   
-    
-sumVATReceiptDetailZReportPaymentMeansRange 'Сумма НДС по товарам' (zReport, paymentMeans, range) = (round0(
-    [= GROUP SUM calcSumVATReceiptDetailPayment(detail, payment) IF isItemSku(skuReceiptDetail(detail)) AND isPostedReceiptDetail(detail) 
-        BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail)](zReport, paymentMeans, range))) PERSISTENT;
-sumVATReceiptDetailZReportRange 'Сумма НДС по товарам' (zReport, range)= NUMERIC[16,2]([=GROUP SUM sumVATReceiptDetailZReportPaymentMeansRange(zReport, paymentMeans, range) BY zReport, range](zReport, range));
-sumVATReceiptDetailZReport 'Сумма НДС по товарам' (zReport)= GROUP SUM sumVATReceiptDetailZReportRange(zReport, range) BY zReport;
-
-sumCashReceiptDetailZReportRange 'Сумма (нал.) по товарам' (zReport, range) = sumReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansCash, range);
-sumCardReceiptDetailZReportRange 'Сумма (безнал.) по товарам' (zReport, range) = sumReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansCard, range);
-sumCashReceiptDetailZReport 'Сумма (нал.) по товарам' (zReport) = GROUP SUM  sumCashReceiptDetailZReportRange(zReport, range) BY zReport;
-sumCardReceiptDetailZReport 'Сумма (нал.) по товарам' (zReport) = GROUP SUM  sumCardReceiptDetailZReportRange(zReport, range) BY zReport;
-
-sumVATCashReceiptDetailZReportRange 'Сумма НДС (нал.) по товарам' (zReport, range) = sumVATReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansCash, range);
-sumVATCardReceiptDetailZReportRange 'Сумма НДС (безнал.) по товарам' (zReport, range) = sumVATReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansCard, range);
-
-// Продажи сертификатов
-sumGifCardReceiptDetailZReportPaymentMeans 'Сумма проданных сертификатав' (zReport, paymentMeans) = GROUP SUM sumReceiptDetailPayment(detail, payment) 
-    IF NOT isItemSku(skuReceiptDetail(detail)) AND isPostedReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment));
-sumGifCardReceiptDetailZReport 'Сумма проданных сертификатав' (zReport) = GROUP SUM sumGifCardReceiptDetailZReportPaymentMeans(zReport, paymentMeans) BY zReport;    
-
-sumGifCardCashReceiptDetailZReport 'Сумма (нал.) проданных сертификатав' (zReport) = sumGifCardReceiptDetailZReportPaymentMeans(zReport, PaymentMeans.paymentMeansCash);
-sumGifCardCardReceiptDetailZReport 'Сумма (безнал.) проданных сертификатав' (zReport) = sumGifCardReceiptDetailZReportPaymentMeans(zReport, PaymentMeans.paymentMeansCard);   
 // Итоги по Z-отчету
 
 @defineDocumentHeaderQuantityCustom(zReport, receiptDetail);
 
-sumCashZReport 'Сумма наличных Z-отчета' (zReport) = GROUP SUM sumCashPaymentReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
 sumReceiptDetailZReport 'Сумма Z-отчета' (zReport) = GROUP SUM sumReceiptDetailReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
+
+sumCashZReport 'Сумма наличных Z-отчета' (zReport) = GROUP SUM sumCashPaymentReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
+sumCardZReport 'Сумма по карточкам Z-отчета' (zReport) = GROUP SUM sumCardPaymentReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
+
 sumSkuReceiptDetailZReport 'Сумма Z-отчета по sku' (zReport) = GROUP SUM sumSkuReceiptDetailReceipt(receipt) BY zReportReceipt(receipt);
-sumMeansCardZReport 'Сумма по карточкам Z-отчета' (zReport) = sumReceiptDetailZReport(zReport) (-) sumCashZReport(zReport);
+
 discountSumReceiptDetailZReport 'Сумма скидок Z-отчета' (zReport) = GROUP SUM discountSumReceiptDetailReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
 discountSumReceiptZReport 'Сумма скидок по чекам Z-отчета' (zReport) = GROUP SUM discountSumReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT IN documentSum;
 discountSumZReport 'Сумма скидок Z-отчета' (zReport) = discountSumReceiptDetailZReport(zReport) (+) discountSumReceiptZReport(zReport);
 
-discountSumVATReceiptDetail 'Сумма НДС в скидке' (d) = roundPriceCurrency(discountSumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d)); 
-//discountSumMarkupReceiptDetail 'Сумма набавки в скидке' (d) = discountSumReceiptDetail(d) - discountSumVATReceiptDetail(d); 
+// НДС
 
+sumVATSkuReceiptDetailZReport 'Сумма НДС по sku' (zReport) = GROUP SUM signedSumVATReceiptDetail(detail)
+    IF skuReceiptDetail(detail) BY zReportReceiptDetail(detail) PERSISTENT;
+
+discountSumVATReceiptDetail 'Сумма НДС в скидке' (d) = roundPriceCurrency(discountSumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d));
+ 
 discountSumVATSaleZReport 'Сумма НДС в скидке (продажа)' (zReport)= GROUP SUM discountSumVATReceiptDetail(d) IF d IS ReceiptSaleDetail BY zReportReceiptDetail(d);
-discountSumVATReturnZReport 'Сумма НДС в скидке (продажа)' (zReport)= GROUP SUM discountSumVATReceiptDetail(d) IF d IS ReceiptReturnDetail BY zReportReceiptDetail(d);
+discountSumVATReturnZReport 'Сумма НДС в скидке (возврат)' (zReport)= GROUP SUM discountSumVATReceiptDetail(d) IF d IS ReceiptReturnDetail BY zReportReceiptDetail(d);
+
 discountSumVATZReport 'Сумма НДС в скидке' (zReport)= discountSumVATSaleZReport(zReport) (-) discountSumVATReturnZReport(zReport);
 
 discountSumMarkupZReport 'Сумма набавки в скидке' (z) = discountSumZReport(z) (-) discountSumVATZReport(z);
 
+// Суммы за дату
 sumCardDepartmentStoreDateFromTo 'Продано с использованием банк. карточек' (departmentStore, dateFrom, dateTo) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment)==PaymentMeans.paymentMeansCard
     AND dateReceipt(receiptPayment(payment)) >= dateFrom AND dateReceipt(receiptPayment(payment)) <= dateTo AND isPostedReceipt(receiptPayment(payment))
         BY departmentStoreReceipt(receiptPayment(payment)), dateFrom, dateTo;
