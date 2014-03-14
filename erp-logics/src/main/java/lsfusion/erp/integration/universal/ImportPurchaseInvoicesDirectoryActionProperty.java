@@ -70,7 +70,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                 String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
                 boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
                 String propertyImportType = (String) getLCP("propertyImportTypeDetailImportType").read(session, importTypeObject);
-                String staticNamePropertyImportType = (String) getLCP("staticNamePropertyImportTypeDetailImportType").read(session, importTypeObject);
+                String staticNameImportType = (String) getLCP("staticNameImportTypeDetailImportType").read(session, importTypeObject);
                 
                 if (directory != null && fileExtension != null) {
                     File dir = new File(directory);
@@ -87,7 +87,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
 
                                         boolean importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
                                                 importTypeObject, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
-                                                checkExistence, secondaryKeyType, keyIsDigit, propertyImportType, staticNamePropertyImportType);
+                                                checkExistence, secondaryKeyType, keyIsDigit, propertyImportType, staticNameImportType);
 
                                         if (importResult)
                                             renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);

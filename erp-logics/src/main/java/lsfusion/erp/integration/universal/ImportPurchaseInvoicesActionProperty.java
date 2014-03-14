@@ -42,7 +42,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
             String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(context, importTypeObject));
             boolean keyIsDigit = getLCP("keyIsDigitImportType").read(context, importTypeObject) != null;
             String propertyImportType = (String) getLCP("propertyImportTypeDetailImportType").read(context, importTypeObject);
-            String staticNamePropertyImportType = (String) getLCP("staticNamePropertyImportTypeDetailImportType").read(context, importTypeObject);
+            String staticNameImportType = (String) getLCP("staticNameImportTypeDetailImportType").read(context, importTypeObject);
             
             if (fileExtension != null) {
 
@@ -57,7 +57,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
                             new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
                                     (DataObject) importTypeObject, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
-                                    checkExistence, secondaryKeyType, keyIsDigit, propertyImportType, staticNamePropertyImportType);
+                                    checkExistence, secondaryKeyType, keyIsDigit, propertyImportType, staticNameImportType);
 
                             currentSession.apply(context);
                         }
