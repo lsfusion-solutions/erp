@@ -9,6 +9,10 @@ sumReceiptDetailPayment 'Расписано для строки чека' = DATA
 CONSTRAINT sumReceiptDetailPayment(d, p) AND receiptReceiptDetail(d) != receiptPayment(p)
     MESSAGE 'Несоответствие чека строки и платежа';
 
+EXTEND FORM zReports
+    PROPERTIES(d, p) READONLY sumReceiptDetailPayment
+;
+
 calculateSumReceiptDetailPaymentReceipt 'Расписать платежи по строкам' (receipt) = ACTION (receipt) {
     sumReceiptDetailPayment(d, p) <- NULL WHERE receiptReceiptDetail(d) == receipt AND receiptPayment(p) == receipt; 
     LOCAL left = NUMERIC[16,2] (ReceiptDetail);
@@ -64,4 +68,3 @@ sumGiftCardReceiptDetailZReport 'Сумма проданных сертифик�
 
 sumGiftCardCashReceiptDetailZReport 'Сумма (нал.) проданных сертификатов' (zReport) = sumGiftCardReceiptDetailZReportPaymentMeans(zReport, PaymentMeans.paymentMeansCash);
 sumGiftCardCardReceiptDetailZReport 'Сумма (безнал.) проданных сертификатов' (zReport) = sumGiftCardReceiptDetailZReportPaymentMeans(zReport, PaymentMeans.paymentMeansCard);   
-
