@@ -16,6 +16,6 @@ public abstract class CashRegisterHandler<S extends SalesBatch> extends Machiner
 
     public abstract void finishReadingSalesInfo(S salesBatch);
     
-    public abstract Set<String> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException;
+    public abstract Set<String> requestSucceededSoftCheckInfo(String sqlUsername, String sqlPassword, String sqlIp, String sqlPort, String sqlDBName) throws ClassNotFoundException, SQLException;
 
 }

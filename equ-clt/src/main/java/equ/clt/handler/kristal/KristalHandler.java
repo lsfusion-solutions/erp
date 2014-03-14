@@ -247,18 +247,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo() throws ClassNotFoundException, SQLException {
+    public Set<String> requestSucceededSoftCheckInfo(String sqlUsername, String sqlPassword, String sqlIp, String sqlPort, String sqlDBName) throws ClassNotFoundException, SQLException {
 
         Set<String> result = new HashSet<String>();
 
         Connection conn = null;
         try {
 
-            String username = "sa";
-            String password = "mssql";
-            String ip = "192.168.0.220";
-            String dbName = "SES";
-            String url = String.format("jdbc:sqlserver://%s:1433;databaseName=%s;User=%s;Password=%s", ip, dbName, username, password);
+            String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s", sqlIp, sqlPort, sqlDBName, sqlUsername, sqlPassword);
 
             Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
             conn = DriverManager.getConnection(url);
@@ -304,88 +300,89 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         }
                     });
 
-                    if(filesList.length==0)
+                    if(filesList == null || filesList.length==0)
                         logger.info("Kristal: No checks found in " + exchangeDirectory);
-                    else
+                    else {
                         logger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
 
-                    for (File file : filesList) {
-                        String fileName = file.getName();
-                        logger.info("Kristal: reading " + file.getName());
-                        long currentDate = Calendar.getInstance().getTime().getTime();
-                        long receiptDetailDate = DateUtils.parseDate(fileName.replace("ReportCheque1C_", "").replace(".xml", ""), new String[]{"yyyyMMddHHmmss"}).getTime();
-                        if ((currentDate - receiptDetailDate) > 60000) {
-                            SAXBuilder builder = new SAXBuilder();
+                        for (File file : filesList) {
+                            String fileName = file.getName();
+                            logger.info("Kristal: reading " + file.getName());
+                            long currentDate = Calendar.getInstance().getTime().getTime();
+                            long receiptDetailDate = DateUtils.parseDate(fileName.replace("ReportCheque1C_", "").replace(".xml", ""), new String[]{"yyyyMMddHHmmss"}).getTime();
+                            if ((currentDate - receiptDetailDate) > 60000) {
+                                SAXBuilder builder = new SAXBuilder();
 
-                            Document document = builder.build(file);
-                            Element rootNode = document.getRootElement();
-                            List daysList = rootNode.getChildren("DAY");
+                                Document document = builder.build(file);
+                                Element rootNode = document.getRootElement();
+                                List daysList = rootNode.getChildren("DAY");
 
-                            for (Object dayNode : daysList) {
+                                for (Object dayNode : daysList) {
 
-                                List shopsList = ((Element) dayNode).getChildren("SHOP");
+                                    List shopsList = ((Element) dayNode).getChildren("SHOP");
 
-                                for (Object shopNode : shopsList) {
+                                    for (Object shopNode : shopsList) {
 
-                                    List cashesList = ((Element) shopNode).getChildren("CASH");
+                                        List cashesList = ((Element) shopNode).getChildren("CASH");
 
-                                    for (Object cashNode : cashesList) {
+                                        for (Object cashNode : cashesList) {
 
-                                        String numberCashRegister = ((Element) cashNode).getAttributeValue("CASHNUMBER");
-                                        List gangsList = ((Element) cashNode).getChildren("GANG");
+                                            String numberCashRegister = ((Element) cashNode).getAttributeValue("CASHNUMBER");
+                                            List gangsList = ((Element) cashNode).getChildren("GANG");
 
-                                        for (Object gangNode : gangsList) {
+                                            for (Object gangNode : gangsList) {
 
-                                            String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
-                                            List receiptsList = ((Element) gangNode).getChildren("HEAD");
+                                                String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
+                                                List receiptsList = ((Element) gangNode).getChildren("HEAD");
 
-                                            for (Object receiptNode : receiptsList) {
+                                                for (Object receiptNode : receiptsList) {
 
-                                                Element receiptElement = (Element) receiptNode;
+                                                    Element receiptElement = (Element) receiptNode;
 
-                                                Integer numberReceipt = Integer.parseInt((receiptElement).getAttributeValue("ID"));
-                                                BigDecimal sumReceipt = new BigDecimal(receiptElement.getAttributeValue("SUMMA"));
-                                                BigDecimal discountSumReceipt = new BigDecimal(receiptElement.getAttributeValue("DISCSUMM"));
-                                                long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy hh:mm:ss"}).getTime();
-                                                Date dateReceipt = new Date(dateTimeReceipt);
-                                                Time timeReceipt = new Time(dateTimeReceipt);
+                                                    Integer numberReceipt = Integer.parseInt((receiptElement).getAttributeValue("ID"));
+                                                    BigDecimal sumReceipt = new BigDecimal(receiptElement.getAttributeValue("SUMMA"));
+                                                    BigDecimal discountSumReceipt = new BigDecimal(receiptElement.getAttributeValue("DISCSUMM"));
+                                                    long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy hh:mm:ss"}).getTime();
+                                                    Date dateReceipt = new Date(dateTimeReceipt);
+                                                    Time timeReceipt = new Time(dateTimeReceipt);
 
-                                                List receiptDetailsList = (receiptElement).getChildren("POS");
-                                                List paymentsList = (receiptElement).getChildren("PAY");
+                                                    List receiptDetailsList = (receiptElement).getChildren("POS");
+                                                    List paymentsList = (receiptElement).getChildren("PAY");
 
-                                                BigDecimal sumCard = BigDecimal.ZERO;
-                                                BigDecimal sumCash = BigDecimal.ZERO;
-                                                for (Object paymentNode : paymentsList) {
-                                                    Element paymentElement = (Element) paymentNode;
-                                                    if (paymentElement.getAttributeValue("PAYTYPE").equals("0")) {
-                                                        sumCash = sumCash.add(new BigDecimal(paymentElement.getAttributeValue("DOCSUMM")));
-                                                    } else if (paymentElement.getAttributeValue("PAYTYPE").equals("3")) {
-                                                        sumCard = sumCard.add(new BigDecimal(paymentElement.getAttributeValue("DOCSUMM")));
+                                                    BigDecimal sumCard = BigDecimal.ZERO;
+                                                    BigDecimal sumCash = BigDecimal.ZERO;
+                                                    for (Object paymentNode : paymentsList) {
+                                                        Element paymentElement = (Element) paymentNode;
+                                                        if (paymentElement.getAttributeValue("PAYTYPE").equals("0")) {
+                                                            sumCash = sumCash.add(new BigDecimal(paymentElement.getAttributeValue("DOCSUMM")));
+                                                        } else if (paymentElement.getAttributeValue("PAYTYPE").equals("3")) {
+                                                            sumCard = sumCard.add(new BigDecimal(paymentElement.getAttributeValue("DOCSUMM")));
+                                                        }
                                                     }
-                                                }
 
-                                                for (Object receiptDetailNode : receiptDetailsList) {
+                                                    for (Object receiptDetailNode : receiptDetailsList) {
 
-                                                    Element receiptDetailElement = (Element) receiptDetailNode;
+                                                        Element receiptDetailElement = (Element) receiptDetailNode;
 
-                                                    String barcode = receiptDetailElement.getAttributeValue("CODE");
-                                                    BigDecimal quantity = new BigDecimal(receiptDetailElement.getAttributeValue("QUANTITY"));
-                                                    BigDecimal price = new BigDecimal(receiptDetailElement.getAttributeValue("PRICE"));
-                                                    BigDecimal sumReceiptDetail = new BigDecimal(receiptDetailElement.getAttributeValue("SUMMA"));
-                                                    BigDecimal discountSumReceiptDetail = new BigDecimal(receiptDetailElement.getAttributeValue("DISCSUMM"));
-                                                    Integer numberReceiptDetail = Integer.parseInt(receiptDetailElement.getAttributeValue("POSNUMBER"));
+                                                        String barcode = receiptDetailElement.getAttributeValue("CODE");
+                                                        BigDecimal quantity = new BigDecimal(receiptDetailElement.getAttributeValue("QUANTITY"));
+                                                        BigDecimal price = new BigDecimal(receiptDetailElement.getAttributeValue("PRICE"));
+                                                        BigDecimal sumReceiptDetail = new BigDecimal(receiptDetailElement.getAttributeValue("SUMMA"));
+                                                        BigDecimal discountSumReceiptDetail = new BigDecimal(receiptDetailElement.getAttributeValue("DISCSUMM"));
+                                                        Integer numberReceiptDetail = Integer.parseInt(receiptDetailElement.getAttributeValue("POSNUMBER"));
 
-                                                    salesInfoList.add(new SalesInfo(numberCashRegister, Integer.parseInt(numberCashRegister), entry.getValue().trim(),
-                                                            numberZReport, numberReceipt, dateReceipt, timeReceipt, sumReceipt, sumCard, sumCash, barcode, 
-                                                            quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null, 
-                                                            numberReceiptDetail, fileName));
+                                                        salesInfoList.add(new SalesInfo(numberCashRegister, Integer.parseInt(numberCashRegister), entry.getValue().trim(),
+                                                                numberZReport, numberReceipt, dateReceipt, timeReceipt, sumReceipt, sumCard, sumCash, barcode,
+                                                                quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
+                                                                numberReceiptDetail, fileName));
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
+                                filePathList.add(file.getAbsolutePath());
                             }
-                            filePathList.add(file.getAbsolutePath());
                         }
                     }
                 }

@@ -24,8 +24,21 @@ public class EquipmentServer {
     protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
     Map<String, Object> handlerMap = new HashMap<String, Object>();
     EquipmentServerSettings equipmentServerSettings;
+    
+    String sqlUsername;
+    String sqlPassword;
+    String sqlIp;
+    String sqlPort;
+    String sqlDBName;
 
-    public EquipmentServer(final String equServerID, final String serverUrl, final String serverDB) {
+    public EquipmentServer(final String equServerID, final String serverUrl, final String serverDB, final String sqlUsername,
+                           final String sqlPassword, final String sqlIp, final String sqlPort, final String sqlDBName) {
+        this.sqlUsername = sqlUsername;        
+        this.sqlPassword = sqlPassword;
+        this.sqlIp = sqlIp;
+        this.sqlPort = sqlPort;
+        this.sqlDBName = sqlDBName;
+        
         final String serverHost;
         final int serverPort;
         int dotIndex = serverUrl.indexOf(":");
@@ -168,7 +181,7 @@ public class EquipmentServer {
                     if (handlerModel != null) {
                         CashRegisterHandler clsHandler = (CashRegisterHandler) getHandler(handlerModel, remote);
 
-                        Set succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo();
+                        Set succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo(sqlUsername, sqlPassword, sqlIp, sqlPort, sqlDBName);
                         if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
                             String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
                             if (result != null)
