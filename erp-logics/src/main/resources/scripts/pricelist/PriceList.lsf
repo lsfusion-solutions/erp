@@ -269,18 +269,17 @@ changePricePriceListDetailDataPriceListTypeStock 'Изменение, %' (priceL
     (currentPricePriceListDetailDataPriceListTypeStock (priceListDetail, dataPriceListType, stock) IF currentPricePriceListDetailDataPriceListTypeStock (priceListDetail, dataPriceListType, stock) != 0) - 100.0;
 
 // Заголовки колонок
-headerNameCurrentDataPriceListType (userPriceList, dataPriceListType) =
+headerNameCurrentDataPriceListType (dataPriceListType) =
     [= FORMULA VARSTRING[50]  ' CAST($1 AS TEXT) || \' (старая) \''](
-    namePriceListType(dataPriceListType)) IF showPriceListPriceListType(userPriceList, dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;
+    namePriceListType(dataPriceListType)) MINCHARWIDTH 30 MAXCHARWIDTH 50;
 
-headerNameChangeDataPriceListType (userPriceList, dataPriceListType) =
+headerNameChangeDataPriceListType (dataPriceListType) =
     [= FORMULA VARSTRING[50]  'CAST($1 AS TEXT) || \' (изменение, %) \''](
-    namePriceListType(dataPriceListType)) IF inUserPriceListDataPriceListType (userPriceList, dataPriceListType) AND
-                                             showUserPriceListPriceListType (userPriceList, dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;
+    namePriceListType(dataPriceListType)) MINCHARWIDTH 30 MAXCHARWIDTH 50;
 
-headerNameDataPriceListType (userPriceList, dataPriceListType) =
+headerNameDataPriceListType (dataPriceListType) =
     [= FORMULA VARSTRING[50]  ' CAST($1 AS TEXT) || \' (новая) \''](
-    namePriceListType(dataPriceListType)) IF inPriceListDataPriceListType(userPriceList, dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;
+    namePriceListType(dataPriceListType)) MINCHARWIDTH 30 MAXCHARWIDTH 50;
 
 // Цвета колонок
 backgroundCurrentDataPriceListType 'Цвет' (dataPriceListType) = RGB(255,238,165) IF dataPriceListType IS DataPriceListType;
@@ -416,9 +415,20 @@ FORM userPriceList 'Прайс'
 
     OBJECTS t = PriceListType
     PROPERTIES(t) namePriceListType READONLY, includeVATLedgerPriceListType
-    PROPERTIES(p, t) inPriceListDataPriceListType TODRAW t FORCE GRID, showPriceListPriceListType
+    PROPERTIES(p, t) inPriceListDataPriceListType FORCE GRID, showPriceListPriceListType
     FILTERS (currencyUserPriceList(p) == currencyPriceListType(t)) OR 
             NOT currencyPriceListType(t) OR NOT currencyUserPriceList(p) 
+
+    OBJECTS tc = DataPriceListType FIXED GRID
+    FILTERS inPriceListDataPriceListType(p, tc), 
+            (currencyUserPriceList(p) == currencyPriceListType(tc)) OR 
+            NOT currencyPriceListType(tc) OR NOT currencyUserPriceList(p) 
+
+    OBJECTS to = PriceListType FIXED GRID
+    FILTERS showPriceListPriceListType(p, to)
+
+    OBJECTS th = DataPriceListType FIXED GRID
+    FILTERS inPriceListDataPriceListType(p, th) AND showPriceListPriceListType(p, th)  
 
     TREE skuTree sk = Group PARENT parentGroup
     PROPERTIES READONLY skuTreeName = nameGroup(sk)
@@ -431,7 +441,7 @@ FORM userPriceList 'Прайс'
                   shortNameUOMSkuUserPriceListDetail, nameBatchUserPriceListDetail ON CHANGE changePurchaseBatchUserPriceListDetail(d),
                   valueVATUserPriceListDetail, fromDateUserPriceListDetail, fromTimeUserPriceListDetail,
                   toDateUserPriceListDetail, toTimeUserPriceListDetail, ADDOBJ, DELETESESSION
-    PROPERTIES(d, t) priceUserPriceListDetailDataPriceListType COLUMNS (t) HEADER headerNameDataPriceListType(p, t) SHOWIF headerNameDataPriceListType(p, t) BACKGROUND backgroundDataPriceListType(t) TODRAW d FORCE GRID
+    PROPERTIES(d, tc) priceUserPriceListDetailDataPriceListType COLUMNS (tc) HEADER headerNameDataPriceListType(tc) BACKGROUND backgroundDataPriceListType(tc)
     PROPERTIES(p) TODRAW d FORCE PANEL TOOLBAR fillDocumentPriceList, addDetailInputBarcodeUserPriceListDetailUserPriceList
     FILTERS userPriceListUserPriceListDetail(d) == p,
             isParentGroupSku(sk, skuPriceListDetail(d)) OR (sk IS Group AND d IS PriceListDetail AND NOT skuPriceListDetail(d)),
@@ -450,17 +460,18 @@ FORM userPriceList 'Прайс'
     OBJECTS ts = Stock
     PROPERTIES READONLY  nameStock(ts)
     PROPERTIES(p, ts)    inPriceListStock
-    PROPERTIES(d, t, ts) currentPricePriceListDetailDataPriceListTypeStock COLUMNS (t) HEADER headerNameCurrentDataPriceListType(p, t) SHOWIF headerNameCurrentDataPriceListType(p, t) BACKGROUND backgroundCurrentDataPriceListType(t)
-    PROPERTIES(d, t, ts) changePricePriceListDetailDataPriceListTypeStock COLUMNS (t) HEADER headerNameChangeDataPriceListType(p, t) SHOWIF headerNameChangeDataPriceListType(p, t) BACKGROUND backgroundChangeDataPriceListType(t)
+    PROPERTIES(d, to, ts) currentPricePriceListDetailDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
+    PROPERTIES(d, th, ts) changePricePriceListDetailDataPriceListTypeStock COLUMNS (th) HEADER headerNameChangeDataPriceListType(th) BACKGROUND backgroundChangeDataPriceListType(th)
     FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParentStockGroupStock(sg, ts),
             isCompanyStock(ts)
     FILTERGROUP filters2
             FILTER 'Выбранные склады' 'F10' inPriceListStock(p, ts) DEFAULT
-    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ts) DEFAULT    
+    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ts) DEFAULT
+        
     OBJECTS tt = Stock FIXED PANEL
     PROPERTIES SELECTOR stockName = nameStock(tt) FORCE PANEL
-    PROPERTIES(d, t, tt) currentPricePriceListDetailDataPriceListTypeStock COLUMNS (t) HEADER headerNameCurrentDataPriceListType(p, t) SHOWIF headerNameCurrentDataPriceListType(p, t) BACKGROUND backgroundCurrentDataPriceListType(t) TODRAW d FORCE GRID
-    PROPERTIES(d, t, tt) changePricePriceListDetailDataPriceListTypeStock COLUMNS (t) HEADER headerNameChangeDataPriceListType(p, t) SHOWIF headerNameChangeDataPriceListType(p, t) BACKGROUND backgroundChangeDataPriceListType(t) TODRAW d FORCE GRID
+    PROPERTIES(d, to, tt) currentPricePriceListDetailDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to) TODRAW d FORCE GRID
+    PROPERTIES(d, th, tt) changePricePriceListDetailDataPriceListTypeStock COLUMNS (th) HEADER headerNameChangeDataPriceListType(th) BACKGROUND backgroundChangeDataPriceListType(th) TODRAW d FORCE GRID
 
     PROPERTIES(d)        nameCompanyUserPriceListDetail
     FILTERS isCompanyStock(tt)
@@ -480,7 +491,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES inSkuUserPriceList(s2, p) ON CHANGE changeInSkuUserPriceList(s2, p)
     PROPERTIES READONLY inputName2 = nameSku(s2), idBarcodeSku(s2), shortNameUOMSku(s2), currentBalanceSkuStock(s2, ts2)
     PROPERTIES READONLY currentPriceSkuPriceListStock(s2, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)
-    PROPERTIES(s2, p, t, ts2) currentPriceSkuPriceListDataPriceListTypeStock COLUMNS (t) HEADER headerNameCurrentDataPriceListType(p, t) SHOWIF headerNameCurrentDataPriceListType(p, t) BACKGROUND backgroundCurrentDataPriceListType(t)
+    PROPERTIES(s2, p, to, ts2) currentPriceSkuPriceListDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
     FILTERS filterPriceListTypeUserPriceListSkuStock(p, s2, ts2),
             groupTypeUserPriceList(p) == groupTypeGroup(sk2),
             filterManufacturerUserPriceListSku(p, s2)
@@ -500,7 +511,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES READONLY QUICKFILTER nameSkuBatch(b) shortNameUOMBatch(b),
                                                  prevCurrentBalanceBatchStock(b, ts2), nameBatch(b)
     PROPERTIES READONLY currentPriceBatchPriceListStock(b, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)                                                 
-    PROPERTIES(b, p, t, ts2) currentPriceBatchPriceListDataPriceListTypeStock COLUMNS (t) HEADER headerNameCurrentDataPriceListType(p, t) SHOWIF headerNameCurrentDataPriceListType(p, t) BACKGROUND backgroundCurrentDataPriceListType(t)
+    PROPERTIES(b, p, to, ts2) currentPriceBatchPriceListDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
     FILTERS filterPriceListTypeUserPriceListBatchStock(p, b, ts2),
             isParentSkuGroupBatch(sk2, b),
             filterManufacturerUserPriceListBatch(p, b),
@@ -1073,7 +1084,7 @@ FORM printPriceList 'Прайс'
            nameCurrencyPriceList, nameCompanyPriceList, priceListTypesPriceList, stocksPriceList,
            notePriceList, isPostedPriceList
 
-    OBJECTS t = PriceListType
+    OBJECTS t = DataPriceListType
     PROPERTIES(t) READONLY namePriceListType
     FILTERS inPriceListDataPriceListType(p, t),
             (currencyUserPriceList(p) == currencyPriceListType(t)) OR (p IS PriceList AND t IS PriceListType AND NOT currencyPriceListType(t))
@@ -1081,7 +1092,7 @@ FORM printPriceList 'Прайс'
     OBJECTS d = UserPriceListDetail
     PROPERTIES(d) READONLY indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail,
                            shortNameUOMSkuPriceListDetail, nameCompanyPriceListDetail
-    PROPERTIES(d, t) pricePriceListDetailDataPriceListType COLUMNS (t) HEADER headerNameDataPriceListType(p, t) SHOWIF headerNameDataPriceListType(p, t) BACKGROUND backgroundDataPriceListType(t) TODRAW d FORCE GRID
+    PROPERTIES(d, t) pricePriceListDetailDataPriceListType COLUMNS (t) HEADER headerNameDataPriceListType(t) BACKGROUND backgroundDataPriceListType(t) TODRAW d FORCE GRID
 
     FILTERS priceListPriceListDetail(d) == p
 ;
