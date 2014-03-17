@@ -24,7 +24,7 @@ public interface EquipmentServerInterface extends Remote {
 
     List<TerminalDocumentTypeInfo> readTerminalDocumentTypeInfo() throws RemoteException, SQLException;
 
-    String sendSalesInfo(List<SalesInfo> salesInfoList, String equServerID) throws IOException, SQLException;
+    String sendSalesInfo(List<SalesInfo> salesInfoList, String equServerID, Integer numberAtATime) throws IOException, SQLException;
 
     String sendTerminalDocumentInfo(List<TerminalDocumentInfo> terminalDocumentInfoList, String equServerID) throws IOException, SQLException;
 

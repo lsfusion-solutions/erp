@@ -93,7 +93,7 @@ public class EquipmentServer {
                         if (remote != null) {
 
                             processTransactionInfo(remote, equServerID);
-                            sendSalesInfo(remote, equServerID);
+                            sendSalesInfo(remote, equServerID, equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime);
                             logger.info("transaction complete");
                         }
 
@@ -162,7 +162,7 @@ public class EquipmentServer {
         }
     }
 
-    private void sendSalesInfo(EquipmentServerInterface remote, String equServerID) throws SQLException, IOException {
+    private void sendSalesInfo(EquipmentServerInterface remote, String equServerID, Integer numberAtATime) throws SQLException, IOException {
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(equServerID);
         Map<Date, Set<String>> requestSalesInfo = remote.readRequestSalesInfo(equServerID);
 
@@ -196,7 +196,7 @@ public class EquipmentServer {
 
                         SalesBatch salesBatch = clsHandler.readSalesInfo(cashRegisterInfoList);
                         if (salesBatch != null) {
-                            String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID);
+                            String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID, numberAtATime);
                             if (result != null) {
                                 logger.info("Equipment server error: " + result);
                                 remote.errorEquipmentServerReport(equServerID, new Throwable(result));
