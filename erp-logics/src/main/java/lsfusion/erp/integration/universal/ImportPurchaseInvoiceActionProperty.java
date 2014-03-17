@@ -1611,20 +1611,23 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             ScriptingLogicsModule moduleLM = (ScriptingLogicsModule) context.getBL().getModule(getSplittedPart(propertyImportType, "\\.", 0));
 
             if (moduleLM != null) {
-                Map<String, String> articlesMap = getArticlesMap(session, moduleLM, sidProperty);
+                List<Object> articles = getArticlesMap(session, moduleLM, sidProperty);
+                Set<String> articleSet = articles == null ? null : (Set<String>) articles.get(0);
+                Map<String, String> articlePropertyMap = articles == null ? null : (Map<String, String>) articles.get(1);
                 Map<String, Object[]> duplicateArticles = new HashMap<String, Object[]>();
                 primaryList.addAll(secondaryList);
                 for (PurchaseInvoiceDetail invoiceDetail : primaryList) {
-                    String oldPropertyArticle = articlesMap.get(invoiceDetail.idArticle);
+                    String oldPropertyArticle = articlePropertyMap.get(invoiceDetail.idArticle);
                     Object propertyValue = getField(invoiceDetail, staticNameImportType);
-                    if (propertyValue != null && oldPropertyArticle != null && !oldPropertyArticle.equals(propertyValue) && !duplicateArticles.containsKey(invoiceDetail.idArticle)) {
+                    if (propertyValue != null && oldPropertyArticle != null && !oldPropertyArticle.equals(propertyValue) 
+                            && !(propertyValue.toString().contains(oldPropertyArticle)) && !duplicateArticles.containsKey(invoiceDetail.idArticle)) {
                         duplicateArticles.put(invoiceDetail.idArticle, new Object[]{oldPropertyArticle, propertyValue});
                     }
                 }
 
                 HashMap<String, String> overridingArticles = null;
                 if (!duplicateArticles.isEmpty()) {
-                    overridingArticles = (HashMap<String, String>) context.requestUserInteraction(new ImportPreviewClientAction(duplicateArticles));
+                    overridingArticles = (HashMap<String, String>) context.requestUserInteraction(new ImportPreviewClientAction(duplicateArticles, articleSet));
                     if (overridingArticles == null)
                         return false;
                 }
@@ -1639,10 +1642,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         return true;
     }
     
-    private Map<String, String> getArticlesMap(DataSession session, ScriptingLogicsModule LM, String sidProperty) 
+    private List<Object> getArticlesMap(DataSession session, ScriptingLogicsModule LM, String sidProperty) 
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {        
         
-        Map<String, String> articlesMap = new HashMap<String, String>();
+        Set<String> articleSet = new HashSet<String>();
+        Map<String, String> articlePropertyMap = new HashMap<String, String>();
 
         KeyExpr articleExpr = new KeyExpr("Article");
         ImRevMap<Object, KeyExpr> articleKeys = MapFact.singletonRev((Object) "Article", articleExpr);
@@ -1651,19 +1655,18 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         articleQuery.addProperty("idArticle", LM.findLCPByCompoundOldName("idArticle").getExpr(session.getModifier(), articleExpr));
         articleQuery.addProperty(sidProperty, LM.findLCPByCompoundOldName(sidProperty).getExpr(session.getModifier(), articleExpr));
         articleQuery.and(LM.findLCPByCompoundOldName("idArticle").getExpr(session.getModifier(), articleExpr).getWhere());
-        articleQuery.and(LM.findLCPByCompoundOldName(sidProperty).getExpr(session.getModifier(), articleExpr).getWhere());
-
+        
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> articleResult = articleQuery.execute(session.sql);
 
         for (ImMap<Object, Object> entry : articleResult.values()) {
 
             String idArticle = (String) entry.get("idArticle");
             String property = (String) entry.get(sidProperty);
-
-            articlesMap.put(idArticle, property);
+            if(property != null)
+                articlePropertyMap.put(idArticle, property);
+            articleSet.add(idArticle);           
         }
-
-        return articlesMap;
+        return Arrays.asList(articleSet, articlePropertyMap);
     }
 
     private Boolean showField(List<PurchaseInvoiceDetail> data, String fieldName) {

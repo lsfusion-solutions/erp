@@ -9,18 +9,20 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class ImportPreviewDialog extends JDialog {
+    Set<String> articleSet;
     final JTableCheck table;
     private HashMap<String, String> result;
     
-    public ImportPreviewDialog(Map<String, Object[]> articles) {
+    public ImportPreviewDialog(Map<String, Object[]> articles, Set<String> articleSet) {
         super(null, "Пересечение кодов артикулов", ModalityType.APPLICATION_MODAL);
         setMinimumSize(new Dimension(600, 250));
-
         setLocationRelativeTo(null);
+        this.articleSet = articleSet;
 
-        String[] columns = new String[]{"Код артикула", "Старое свойство", "Новое свойство", "Новый код артикула"};
+        String[] columns = new String[]{"Код артикула", "Старое свойство", "Новое свойство", "Изменить код артикула"};
         int rowCount = articles.size();
         Object[][] data = new Object[rowCount][columns.length];
 
@@ -29,7 +31,7 @@ public class ImportPreviewDialog extends JDialog {
             data[i][0] = entry.getKey() == null ? "" : entry.getKey();
             data[i][1] = entry.getValue() == null ? "" : entry.getValue()[0];
             data[i][2] = entry.getValue() == null ? "" : entry.getValue()[1];
-            data[i][3] = "";
+            data[i][3] = Boolean.FALSE;
             i++;
         }
 
@@ -69,9 +71,13 @@ public class ImportPreviewDialog extends JDialog {
         result = new HashMap<String, String>();
         for (Object[] row : table.getCheckTableModel().data) {
             String oldArticle = (String) row[0];
-            String newArticle = (String) row[3];
-            if(!newArticle.isEmpty())
+            String newArticle = oldArticle + ".";
+            boolean changeArticle = (Boolean) row[3];
+            if(changeArticle) {                
+                while(articleSet.contains(newArticle))
+                    newArticle += ".";
                 result.put(oldArticle, newArticle);
+            }
         }
         this.dispose();
     }

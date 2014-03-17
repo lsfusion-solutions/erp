@@ -69,9 +69,8 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
                 String[] splittedIndexes = indexes.split("\\+");
                 for (int i = 0; i < splittedIndexes.length; i++)
                     splittedIndexes[i] = splittedIndexes[i].contains("=") ? splittedIndexes[i] : splittedIndexes[i].trim();
-                if(keyImportTypeDetail == null)
-                    defaultColumns.put(field[field.length - 1], new ImportColumnDetail(captionProperty, indexes, splittedIndexes, replaceOnlyNull));
-                else
+                defaultColumns.put(field[field.length - 1], new ImportColumnDetail(captionProperty, indexes, splittedIndexes, replaceOnlyNull));
+                if(keyImportTypeDetail != null)
                     customColumns.put(field[field.length - 1], new ImportColumnDetail(captionProperty, indexes, splittedIndexes, replaceOnlyNull,
                             moduleName, sidProperty, keyImportTypeDetail));
             }
