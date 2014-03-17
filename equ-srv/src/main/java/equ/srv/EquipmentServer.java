@@ -664,7 +664,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             if (zReportLM != null && salesInfoList != null && !salesInfoList.isEmpty()) {
 
                 if (numberAtATime == null)
-                    numberAtATime = 100;
+                    numberAtATime = salesInfoList.size();
 
                 for (int start = 0; true; start += numberAtATime) {
 
