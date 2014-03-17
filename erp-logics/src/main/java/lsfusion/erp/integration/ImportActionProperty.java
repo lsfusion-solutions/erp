@@ -42,7 +42,7 @@ public class ImportActionProperty {
         this.context = context;
         this.warePurchaseInvoiceLM = (ScriptingLogicsModule) context.getBL().getModule("WarePurchaseInvoice");
         this.storeLM = (ScriptingLogicsModule) context.getBL().getModule("Store");
-        this.writeOffItemLM = (ScriptingLogicsModule) context.getBL().getModule("WriteOffItem");
+        this.writeOffItemLM = (ScriptingLogicsModule) context.getBL().getModule("WriteOffPurchaseItem");
         this.pricingPurchaseLM = (ScriptingLogicsModule) context.getBL().getModule("PricingPurchase");
         this.purchaseInvoiceWholesalePriceLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoiceWholesalePrice");
     }
