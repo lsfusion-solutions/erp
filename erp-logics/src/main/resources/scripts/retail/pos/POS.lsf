@@ -495,6 +495,18 @@ searchSkuReturnReceipt 'Поиск' = ACTION (receipt) {
 
 // Дисконтные карты
 
+overChangeBarcodeDiscountCard = ACTION (string, receipt) {
+    IF discountCardString(string) AND receipt IS Receipt AND string IS STRING[15] THEN {
+        IF dateToDiscountCard(discountCardString(string)) < dateReceipt(receipt) THEN
+            MESSAGE 'Закончился срок действия карты'
+        ELSE
+            discountCardReceipt(receipt) <- discountCardString(string); 
+        consumedChangeBarcodeSaleReceipt() <- TRUE;
+    }
+} TOOLBAR;
+
+overChangeBarcodeSaleReceipt(string, receipt) += overChangeBarcodeDiscountCard(string, receipt);
+
 FORM inputDiscountCardNumberReceipt 'Ввод номера дисконтной карты'
     OBJECTS (n = STRING[18], s = STRING[2]) FIXED PANEL
     PROPERTIES number = OBJVALUE(n), series = OBJVALUE(s)
@@ -511,26 +523,15 @@ DESIGN inputDiscountCardNumberReceipt FROM DEFAULT{
 inputDiscountCardNumberReceipt 'Ввести номер' = ACTION (receipt) {
     FORM inputDiscountCardNumberReceipt MODAL;
     IF formResult() == FormResult.ok THEN {
-        IF NOT chosenString('s') == '' THEN {
-            IF discountCardSeriesNumber(CONCAT '', chosenString('s'), chosenString('n')) THEN {
-                IF dateToDiscountCard(discountCardSeriesNumber(CONCAT '', chosenString('s'), chosenString('n')))<dateReceipt(receipt) THEN
-                    MESSAGE 'Закончился срок действия карты'
-                ELSE
-                    ASSIGN discountCardReceipt(receipt) <- discountCardSeriesNumber(CONCAT '', chosenString('s'), chosenString('n'));
-            }
+        LOCAL discountCard = DiscountCard();
+        discountCard() <- discountCardString(CONCAT '', chosenString('s'), chosenString('n'));         
+        IF discountCard() THEN {
+            IF dateToDiscountCard(discountCard()) < dateReceipt(receipt) THEN
+                MESSAGE 'Закончился срок действия карты'
             ELSE
-                MESSAGE 'Дисконтная карта с такой серией и номером не найдена';
-        }
-        ELSE {
-            IF discountCardNumber(chosenString('n')) THEN {
-                IF dateToDiscountCard(discountCardNumber(chosenString('n')))<dateReceipt(receipt) THEN
-                    MESSAGE 'Закончился срок действия карты'
-                ELSE
-                    ASSIGN discountCardReceipt(receipt) <- discountCardNumber(chosenString('n'));
-            }
-            ELSE
-                MESSAGE 'Дисконтная карта с таким номером не найдена';
-        }
+                discountCardReceipt(receipt) <- discountCard();
+        } ELSE
+            MESSAGE 'Дисконтная карта с такой серией и номером не найдена';
     }
 } IN receiptDiscount EDITKEY 'F5';
 
