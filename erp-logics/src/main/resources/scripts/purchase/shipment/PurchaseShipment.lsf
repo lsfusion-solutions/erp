@@ -27,6 +27,9 @@ expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDet
 
 @defineInvoiceShipmentBatch();
 
+overCostPriceShipmentDetail = ABSTRACT CASE NUMERIC[14,2] (ShipmentDetail);
+costPriceShipmentDetail(d) = OVERRIDE priceShipmentDetail(d), overCostPriceShipmentDetail(d);
+
 isShippedInvoice = shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice));
 
 statusShippedInvoice 'Статус приемки' (invoice)= IF isShippedInvoice (invoice) AND toShipInvoiceDetailInvoice(invoice)  
@@ -204,8 +207,9 @@ CLASS ShipmentBatch 'Партия на основе закупки';
 quantityShipmentBatch (batch) = quantityShipmentDetail(shipmentDetailShipmentBatch(batch));
 quantityBatch(b) += quantityShipmentBatch(b);
 priceShipmentBatch (batch) = priceShipmentDetail(shipmentDetailShipmentBatch(batch));
+costPriceShipmentBatch (batch) = costPriceShipmentDetail(shipmentDetailShipmentBatch(batch));
 
-@implementBatch(ShipmentBatch, sku, stock, price);
+@implementBatch(ShipmentBatch, sku, stock, costPrice);
 manufactureDateBatch(batch) += manufactureDateShipmentDetail(shipmentDetailShipmentBatch(batch)); 
 idBatch(ledger) += idBatchShipmentDetail(shipmentDetailShipmentBatch(ledger));
 expiryDateBatch (ledger) += expiryDateShipmentDetail(shipmentDetailShipmentBatch(ledger));
