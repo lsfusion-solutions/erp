@@ -71,6 +71,7 @@ public class ImportExcelLegalEntitiesActionProperty extends ImportExcelActionPro
             String numberAccount = parseString(sheet.getCell(5, i).getContents());
             String idBank = parseString(sheet.getCell(6, i).getContents());
             String nameCountry = parseString(sheet.getCell(7, i).getContents());
+            nameCountry = nameCountry == null ? null : nameCountry.toUpperCase();
             Boolean isSupplier = parseBoolean(sheet.getCell(8, i).getContents());
             Boolean isCompany = parseBoolean(sheet.getCell(9, i).getContents());
             Boolean isCustomer = parseBoolean(sheet.getCell(10, i).getContents());
