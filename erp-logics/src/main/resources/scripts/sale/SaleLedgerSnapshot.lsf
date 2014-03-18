@@ -11,6 +11,7 @@ saleSumSkuStockSnapshot 'Сумма продажа' = DATA NUMERIC[16,2] (Sku, S
 saleCostSumSkuStockSnapshot 'Себестоимость продажа' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 saleVATSumSkuStockSnapshot 'НДС продажа' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 saleMarkupSumSkuStockSnapshot 'Надбавка продажа' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
+saleMarkupPercSkuStockSnapshot 'Надбавка, % средн.' = saleMarkupSumSkuStockSnapshot(sku, stock, snapshot)*100.00 / saleCostSumSkuStockSnapshot(sku, stock, snapshot);
 
 //-- Batch
 saleQuantityBatchStockSnapshot 'Кол-во продажа' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
@@ -18,6 +19,7 @@ saleSumBatchStockSnapshot 'Сумма продажа' = DATA NUMERIC[16,2] (Batc
 saleCostSumBatchStockSnapshot 'Себестоимость продажа' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 saleVATSumBatchStockSnapshot 'НДС продажа' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 saleMarkupSumBatchStockSnapshot 'Надбавка продажа' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot); 
+saleMarkupPercBatchStockSnapshot 'Надбавка, % средн.' = saleMarkupSumBatchStockSnapshot(batch, stock, snapshot)*100.00 / saleCostSumBatchStockSnapshot(batch, stock, snapshot);
 
 //-- группа/склад       
 saleQuantitySkuGroupStockSnapshot 'Кол-во продажа' (group, stock, snapshot) =
@@ -34,8 +36,9 @@ saleVATSumGroupStockSnapshot 'НДС продажа' (group, stock, snapshot) =
         BY group, stock, snapshot PERSISTENT;         
 saleMarkupSumGroupStockSnapshot 'Надбавка продажа' (group, stock, snapshot) =
     GROUP SUM saleMarkupSumSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
-        BY group, stock, snapshot PERSISTENT;   
-              
+        BY group, stock, snapshot PERSISTENT;              
+saleMarkupPercSkuGroupStockSnapshot 'Надбавка, % средн.' = saleMarkupSumGroupStockSnapshot(group, stock, snapshot)*100.00 / saleCostSumGroupStockSnapshot(group, stock, snapshot);
+                        
 //-- группа          
 saleQuantitySkuGroupSnapshot 'Кол-во продажа' (group, snapshot) =
     GROUP SUM saleQuantitySkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
@@ -47,18 +50,20 @@ saleVATSumGroupSnapshot 'НДС продажа' (group, snapshot) =
     GROUP SUM saleVATSumGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;              
 saleMarkupSumGroupSnapshot 'Надбавка продажа' (group, snapshot) =
     GROUP SUM saleMarkupSumGroupStockSnapshot (group, stock, snapshot) BY group, snapshot; 
+saleMarkupPercSkuGroupSnapshot 'Надбавка, % средн.' = saleMarkupSumGroupSnapshot(group, snapshot)*100.00 / saleCostSumGroupSnapshot(group, snapshot);
         
 //--По складам
 saleQuantityStockSnapshot 'Кол-во продажа' (stock, snapshot) =
     GROUP SUM saleQuantitySkuGroupStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
 saleSumStockSnapshot 'Сумма продажа' (stock, snapshot) =
     GROUP SUM saleSumSkuGroupStockSnapshot (sku, stock, snapshot) BY stock, snapshot;   
-saleCostSumStockSnapshot 'Себестоимость продажа' (group, snapshot) =
+saleCostSumStockSnapshot 'Себестоимость продажа' (stock, snapshot) =
     GROUP SUM saleCostSumGroupStockSnapshot (group, stock, snapshot) BY stock, snapshot;              
-saleVATSumStockSnapshot 'НДС продажа' (group, snapshot) =
+saleVATSumStockSnapshot 'НДС продажа' (stock, snapshot) =
     GROUP SUM saleVATSumGroupStockSnapshot (group, stock, snapshot) BY stock, snapshot;              
-saleMarkupSumStockSnapshot 'Надбавка продажа' (group, snapshot) =
+saleMarkupSumStockSnapshot 'Надбавка продажа' (stock, snapshot) =
     GROUP SUM saleMarkupSumGroupStockSnapshot (group, stock, snapshot) BY stock, snapshot; 
+saleMarkupPercStockSnapshot 'Надбавка, % средн.' = saleMarkupSumStockSnapshot(stock, snapshot)*100.00 / saleCostSumStockSnapshot(stock, snapshot);
  
 //-- По поставщикам
 saleQuantityBatchSupplierSnapshot 'Кол-во продажа' (supplier, snapshot) =
@@ -70,7 +75,9 @@ saleCostSumBatchSupplierSnapshot 'Себестоимость продажа' (su
 saleVATSumBatchSupplierSnapshot 'НДС продажа' (supplier, snapshot) =
     GROUP SUM saleVATSumBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;        
 saleMarkupSumBatchSupplierSnapshot 'Надбавка продажа' (supplier, snapshot) =
-    GROUP SUM saleMarkupSumBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;       
+    GROUP SUM saleMarkupSumBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
+saleMarkupPercBatchSupplierSnapshot 'Надбавка, % средн.' = saleMarkupSumBatchSupplierSnapshot(supplier, snapshot)*100.00 / saleCostSumBatchSupplierSnapshot(supplier, snapshot);
+            
        
 //-- Расширяем ACTION    
 overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
@@ -93,28 +100,29 @@ EXTEND FORM snapshot
 //--sku  
     PROPERTIES(s,st,r) BEFORE inQuantitySkuStockSnapshot(s, st, r) BACKGROUND hintSaleBackground()
                        saleQuantitySkuStockSnapshot, saleCostSumSkuStockSnapshot,
-                       saleVATSumSkuStockSnapshot, saleMarkupSumSkuStockSnapshot, saleSumSkuStockSnapshot    
+                       saleVATSumSkuStockSnapshot, saleMarkupSumSkuStockSnapshot, saleSumSkuStockSnapshot,
+                       saleMarkupPercSkuStockSnapshot    
 //--batch  
     PROPERTIES(bt,ss,r)SHOWIF isBatchSnapshot(r) BEFORE inQuantityBatchStockSnapshot(bt,ss,r) BACKGROUND hintSaleBackground()
                        saleQuantityBatchStockSnapshot, saleCostSumBatchStockSnapshot,
-                       saleVATSumBatchStockSnapshot, saleMarkupSumBatchStockSnapshot, saleSumBatchStockSnapshot    
-                                     
+                       saleVATSumBatchStockSnapshot, saleMarkupSumBatchStockSnapshot, saleSumBatchStockSnapshot,    
+                       saleMarkupPercBatchStockSnapshot              
 //-- По группам                           
     PROPERTIES(sk1,r)  READONLY BEFORE balanceASkuGroupSnapshot(sk1,r) BACKGROUND hintSaleBackground()         
                        saleQuantitySkuGroupSnapshot, saleCostSumGroupSnapshot,
-                       saleVATSumGroupSnapshot, saleMarkupSumGroupSnapshot, saleSumSkuGroupSnapshot                                             
-                       
+                       saleVATSumGroupSnapshot, saleMarkupSumGroupSnapshot, saleSumSkuGroupSnapshot,                                             
+                       saleMarkupPercSkuGroupSnapshot
 //-- По складам                           
     PROPERTIES(ts1,r)  READONLY BEFORE inQuantityStockSnapshot(ts1,r) BACKGROUND hintSaleBackground()                         
                        saleQuantityStockSnapshot, saleCostSumStockSnapshot,
-                       saleVATSumStockSnapshot, saleMarkupSumStockSnapshot, saleSumStockSnapshot 
-
+                       saleVATSumStockSnapshot, saleMarkupSumStockSnapshot, saleSumStockSnapshot, 
+                       saleMarkupPercStockSnapshot
 //-- По поставщикам 
     PROPERTIES(l,r)    READONLY SHOWIF isBatchSnapshot(r) BEFORE inQuantityBatchSupplierSnapshot(l,r) BACKGROUND hintSaleBackground()   
                        saleQuantityBatchSupplierSnapshot, saleCostSumBatchSupplierSnapshot,
-                       saleVATSumBatchSupplierSnapshot, saleMarkupSumBatchSupplierSnapshot, saleSumBatchSupplierSnapshot                           
+                       saleVATSumBatchSupplierSnapshot, saleMarkupSumBatchSupplierSnapshot, saleSumBatchSupplierSnapshot,                           
+                       saleMarkupPercBatchSupplierSnapshot
 ;
-
 //------------------------  Товароооборачиваемость ----------------------//
 
 daysOnStockSkuStockSnapshot 'Дней на складе' = DATA INTEGER (Sku, Stock, Snapshot);
