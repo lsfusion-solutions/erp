@@ -117,9 +117,10 @@ public class EquipmentServer {
 
 
     private void processTransactionInfo(EquipmentServerInterface remote, String equServerID) throws SQLException, RemoteException, FileNotFoundException, UnsupportedEncodingException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, InstantiationException {
+        logger.info("Reading SoftCheckInfo");
         List<SoftCheckInfo> softCheckInfoList = remote.readSoftCheckInfo();
         if (softCheckInfoList != null && !softCheckInfoList.isEmpty()) {
-
+            logger.info("Sending SoftCheckInfo started");
             for (SoftCheckInfo entry : softCheckInfoList) {
                 if (entry.handler != null) {
                     try {
@@ -127,11 +128,12 @@ public class EquipmentServer {
                         entry.sendSoftCheckInfo(clsHandler);
                         remote.finishSoftCheckInfo(entry.invoiceSet);
                     } catch (Exception e) {
-                        logger.error("sendSoftCheckInfo error", e);
+                        logger.error("Sending Soft Check Info error", e);
                         return;
                     }
                 }
             }
+            logger.info("Sending Soft Check Info finished");
         }
 
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(equServerID);
@@ -147,6 +149,7 @@ public class EquipmentServer {
                 }
             }
 
+            logger.info("Sending transactions started");
             for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelMap.entrySet()) {
                 if (entry.getKey() != null) {
                     try {
@@ -159,11 +162,14 @@ public class EquipmentServer {
                 }
             }
             remote.succeedTransaction(transaction.id);
+            logger.info("Sending transactions finished");
         }
     }
 
     private void sendSalesInfo(EquipmentServerInterface remote, String equServerID, Integer numberAtATime) throws SQLException, IOException {
+        logger.info("Reading CashRegisterInfo");
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(equServerID);
+        logger.info("Reading RequestSalesInfo");
         Map<Date, Set<String>> requestSalesInfo = remote.readRequestSalesInfo(equServerID);
 
         Map<String, List<MachineryInfo>> handlerModelCashRegisterMap = new HashMap<String, List<MachineryInfo>>();
@@ -183,12 +189,14 @@ public class EquipmentServer {
 
                         Set succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo(sqlUsername, sqlPassword, sqlIp, sqlPort, sqlDBName);
                         if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
+                            logger.info("Sending succeeded SoftCheckInfo");
                             String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
                             if (result != null)
                                 remote.errorEquipmentServerReport(equServerID, new Throwable(result));
                         }
 
                         if (!requestSalesInfo.isEmpty()) {
+                            logger.info("Requesting SalesInfo");
                             String result = clsHandler.requestSalesInfo(requestSalesInfo);
                             if (result != null)
                                 remote.errorEquipmentServerReport(equServerID, new Throwable(result));
@@ -196,6 +204,7 @@ public class EquipmentServer {
 
                         SalesBatch salesBatch = clsHandler.readSalesInfo(cashRegisterInfoList);
                         if (salesBatch != null) {
+                            logger.info("Sending SalesInfo");
                             String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID, numberAtATime);
                             if (result != null) {
                                 logger.info("Equipment server error: " + result);

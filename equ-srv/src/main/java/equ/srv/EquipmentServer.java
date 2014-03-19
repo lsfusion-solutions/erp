@@ -680,6 +680,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     if (data.isEmpty())
                         return null;
 
+                    logger.info(String.format("Kristal: Sending SalesInfo from %s to %s", start, finish));
+                    
                     DataSession session = getDbManager().createSession();
                     ImportField numberCashRegisterField = new ImportField(zReportLM.findLCPByCompoundOldName("numberCashRegister"));
                     ImportField nppMachineryField = new ImportField(zReportLM.findLCPByCompoundOldName("nppMachinery"));

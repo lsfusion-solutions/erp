@@ -41,6 +41,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             String exchangeDirectory = directory.trim() + "\\ImpExp\\Import\\";
             
             //plu.txt
+            logger.info("Kristal: creating PLU file");
             File flagPluFile = new File(exchangeDirectory + "WAITPLU");
             if (flagPluFile.exists() || flagPluFile.createNewFile()) {
 
@@ -60,6 +61,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
                 writer.close();
 
+                logger.info("Kristal: waiting for deletion of WAITPLU file");
                 if (flagPluFile.delete()) {
                     while (pluFile.exists()) {
                         try {
@@ -72,6 +74,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             }
 
             //message.txt
+            logger.info("Kristal: creating MESSAGE file");
             File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
             if (flagMessageFile.exists() || flagMessageFile.createNewFile()) {
 
@@ -87,6 +90,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     }
                 }
                 writer.close();
+                logger.info("Kristal: waiting for deletion of WAITMESSAGE file");
                 if (flagMessageFile.delete()) {
                     while (messageFile.exists()) {
                         try {
@@ -99,6 +103,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             }
 
             //scale.txt
+            logger.info("Kristal: creating SCALES file");
             File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
             if (flagScaleFile.exists() || flagScaleFile.createNewFile()) {
                 File scaleFile = new File(exchangeDirectory + "scales.txt");
@@ -114,6 +119,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     writer.println(record);
                 }
                 writer.close();
+                logger.info("Kristal: waiting for deletion of WAITSCALES file");
                 if (flagScaleFile.delete()) {
                     while (scaleFile.exists()) {
                         try {
@@ -126,6 +132,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             }
 
             //groups.txt
+            logger.info("Kristal: creating GROUPS file");
             File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
             if (flagGroupsFile.exists() || flagGroupsFile.createNewFile()) {
 
@@ -146,6 +153,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                 }
                 writer.close();
+                logger.info("Kristal: waiting for deletion of WAITGROUPS file");
                 if (flagGroupsFile.delete()) {
                     while (groupsFile.exists()) {
                         try {
@@ -174,13 +182,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             try {
                 flagExists = flagSoftFile.exists() || flagSoftFile.createNewFile();
                 if(!flagExists) {
-                    logger.info("unable to create file " + flagSoftFile.getAbsolutePath());  
+                    logger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath());  
                 }
             } catch(Exception e) {
-                logger.info("unable to create file " + flagSoftFile.getAbsolutePath(), e);
+                logger.info("Kristal: unable to create file " + flagSoftFile.getAbsolutePath(), e);
             }
             if (flagExists) {
                 File softFile = new File(exchangeDirectory + "softcheque" + timestamp + ".txt");
+                logger.info("Kristal: creating " + softFile.getName() + " file");
                 PrintWriter writer = new PrintWriter(
                         new OutputStreamWriter(
                                 new FileOutputStream(softFile), "windows-1251"));
@@ -191,6 +200,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
                 writer.close();
 
+                logger.info("Kristal: waiting for deletion of WAITSOFT file");
                 if (flagSoftFile.delete()) {
                     while (softFile.exists()) {
                         try {
@@ -211,7 +221,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
             java.util.Date dateRequestSalesInfo = entry.getKey();
             Set<String> directoriesList = entry.getValue();
-
+            logger.info("Kristal: creating request files");
             for (String directory : directoriesList) {
 
                 String exchangeDirectory = directory + "\\export\\request\\";
@@ -235,11 +245,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     @Override
     public void finishReadingSalesInfo(KristalSalesBatch salesBatch) {
-        logger.info("Finish Reading started");
+        logger.info("Kristal: Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
             if (f.delete()) {
-                logger.info("file " + readFile + " has been deleted");
+                logger.info("Kristal: file " + readFile + " has been deleted");
             } else {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
@@ -249,6 +259,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public Set<String> requestSucceededSoftCheckInfo(String sqlUsername, String sqlPassword, String sqlIp, String sqlPort, String sqlDBName) throws ClassNotFoundException, SQLException {
 
+        logger.info("Kristal: requesting succeeded SoftCheckInfo");
+        
         Set<String> result = new HashSet<String>();
 
         Connection conn = null;
