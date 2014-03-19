@@ -168,38 +168,46 @@ goodsAcceptedConsignment 'Принял грузополучатель' (consignm
 
 GROUP loadingConsignment 'ПРР' : base;
 
-loadingExecuterConsignment (consignment) = ABSTRACT Employee(Consignment);
-nameLoadingExecuterConsignment 'Исполнитель погрузки' (consignment) = nameContact(loadingExecuterConsignment(consignment)) IN loadingConsignment;
+loadingExecuterConsignment (consignment) = ABSTRACT LegalEntity(Consignment);
+nameLoadingExecuterConsignment 'Исполнитель погрузки' (consignment) = nameLegalEntity(loadingExecuterConsignment(consignment));
+overNameLoadingExecuterConsignment 'Исполнитель погрузки' (consignment)= OVERRIDE 'Грузоотправитель' IF consignment IS Consignment, nameLoadingExecuterConsignment(consignment) IN loadingConsignment;
 
 wayOfLoadingConsignment (consignment) = ABSTRACT WayOfLoading(Consignment);
 nameWayOfLoadingConsignment 'Способ погрузки' (consignment) = nameWayOfLoading(wayOfLoadingConsignment(consignment)) IN loadingConsignment;
 
-unloadingExecuterConsignment (consignment) = ABSTRACT Employee(Consignment);
-nameUnloadingExecuterConsignment 'Исполнитель разгрузки' (consignment) = nameContact(unloadingExecuterConsignment(consignment)) IN loadingConsignment;
+unloadingExecuterConsignment (consignment) = ABSTRACT LegalEntity(Consignment);
+nameUnloadingExecuterConsignment 'Исполнитель разгрузки' (consignment) = nameLegalEntity(unloadingExecuterConsignment(consignment));
+overNameUnloadingExecuterConsignment 'Исполнитель разгрузки' (consignment)= OVERRIDE 'Грузополучатель' IF consignment IS Consignment, nameUnloadingExecuterConsignment(consignment) IN loadingConsignment;
 
 wayOfUnloadingConsignment (consignment) = ABSTRACT WayOfLoading(Consignment);
 nameWayOfUnloadingConsignment 'Способ разгрузки' (consignment) = nameWayOfLoading(wayOfUnloadingConsignment(consignment)) IN loadingConsignment;
 
 codeLoadingConsignment 'Код ПРР' (consignment) = ABSTRACT STRING[3] (Consignment)IN loadingConsignment;
 
+notArrivalTimeConsignment 'Не печатать текущее время прибытия в накладной' () = DATA BOOLEAN ();
+isArrivalTimeConsignment 'Печатать текущее время прибытия в накладной' = ABSTRACT BOOLEAN (Consignment);
+
 dataArrivalTimeConsignment 'Время прибытия' (consignment) = ABSTRACT DATETIME(Consignment);
-arrivalTimeConsignment 'Время прибытия' (consignment) = OVERRIDE currentDateTime() IF consignment IS Consignment,
-                                                                 dataArrivalTimeConsignment(consignment) IN carConsignment;
+arrivalTimeConsignment 'Время прибытия' (consignment) = OVERRIDE currentDateTime() IF  isArrivalTimeConsignment(consignment),
+                                                        currentDateTime() IF consignment IS Consignment AND NOT notArrivalTimeConsignment(),
+                                                        dataArrivalTimeConsignment(consignment) IN carConsignment;
 
 dataDowntime 'Время простоя (мин.)' = DATA  INTEGER ();
 
 EXTEND FORM options
-    PROPERTIES() dataDowntime
+    PROPERTIES() dataDowntime, notArrivalTimeConsignment
 ;
 
 EXTEND DESIGN options {
     consignment  {
         ADD PROPERTY(dataDowntime());
+        ADD PROPERTY(notArrivalTimeConsignment());
     }
 }
 
 dataDowntimeConsignment 'Время простоя' (consignment) = ABSTRACT INTEGER (Consignment);
-downtimeConsignment 'Время простоя' (consignment) = OVERRIDE dataDowntime() IF consignment IS Consignment, 
+downtimeConsignment 'Время простоя' (consignment) = OVERRIDE dataDowntime() IF isArrivalTimeConsignment(consignment), 
+                                                             dataDowntime() IF consignment IS Consignment AND NOT notArrivalTimeConsignment(), 
                                                              dataDowntimeConsignment(consignment) IN carConsignment;
 
 sumTimeMinutes(time, minutes) = [= FORMULA DATETIME '(($1)+($2)*CAST(\'1 minutes\' AS INTERVAL))'](time AS DATETIME, minutes AS LONG);
@@ -209,7 +217,10 @@ departureTimeConsignment 'Время убытия' (consignment) = sumTimeMinute
 raceQuantityConsignment 'Количество ездок' (consignment) = ABSTRACT INTEGER (Consignment) IN carConsignment;
 
 countPagesConsignment 'Кол-во листов в приложении' (consignment) = ABSTRACT INTEGER (Consignment);
-noteConsignment 'Примечание' (consignment) = ABSTRACT VARSTRING[100] (Consignment) MINCHARWIDTH 30 PREFCHARWIDTH 80;
+
+dataNoteConsignment 'Примечание' (consignment) = ABSTRACT VARSTRING[500] (Consignment);
+overNoteConsignment 'Примечание' (consignment) = DATA VARSTRING[500] (Consignment) ;
+noteConsignment 'Примечание' (consignment) = OVERRIDE dataNoteConsignment(consignment), overNoteConsignment(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 80;
 
 namePayerConsignment 'Заказчик перевозки ' (consignment) =
     [= FORMULA VARSTRING[100] 'CAST($1 AS TEXT) ||  \' , \' || CAST($2 AS TEXT)']
@@ -424,8 +435,8 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##nameIssuanceExecutedConsignment=nameIssuanceExecutedConsignment,
                        prefix##forwarderConsignment=forwarderConsignment, prefix##warrantConsignment=warrantConsignment, 
                        prefix##warrantHolderConsignment=warrantHolderConsignment, prefix##goodsAcceptedConsignment=goodsAcceptedConsignment,
-                       prefix##nameLoadingExecuterConsignment=nameLoadingExecuterConsignment, prefix##nameWayOfLoadingConsignment=nameWayOfLoadingConsignment, 
-                       prefix##nameUnloadingExecuterConsignment=nameUnloadingExecuterConsignment, prefix##nameWayOfUnloadingConsignment=nameWayOfUnloadingConsignment, 
+                       prefix##overNameLoadingExecuterConsignment=overNameLoadingExecuterConsignment, prefix##nameWayOfLoadingConsignment=nameWayOfLoadingConsignment, 
+                       prefix##overNameUnloadingExecuterConsignment=overNameUnloadingExecuterConsignment, prefix##nameWayOfUnloadingConsignment=nameWayOfUnloadingConsignment, 
                        prefix##codeLoadingConsignment=codeLoadingConsignment,
                        prefix##arrivalTimeConsignment=arrivalTimeConsignment, prefix##departureTimeConsignment=departureTimeConsignment, 
                        prefix##downtimeConsignment=downtimeConsignment, prefix##raceQuantityConsignment=raceQuantityConsignment,
@@ -533,8 +544,8 @@ FORM consignment 'Атрибуты накладной'
                    fullNamePayerConsignment, UNPPayerConsignment, addressPayerConsignment, shipmentBaseConsignment, addressSupplierStockConsignment, addressCustomerStockConsignment,
                    readdressingConsignment, nameIssuanceAllowedConsignment, nameIssuanceExecutedConsignment,
                    forwarderConsignment, warrantConsignment, warrantHolderConsignment, goodsAcceptedConsignment,
-                   nameLoadingExecuterConsignment, nameWayOfLoadingConsignment, codeLoadingConsignment,
-                   nameUnloadingExecuterConsignment, nameWayOfUnloadingConsignment,
+                   overNameLoadingExecuterConsignment, nameWayOfLoadingConsignment, codeLoadingConsignment,
+                   overNameUnloadingExecuterConsignment, nameWayOfUnloadingConsignment,
                    arrivalTimeConsignment, downtimeConsignment, departureTimeConsignment READONLY, raceQuantityConsignment,
                    quantityConsignmentDetailConsignment, overPackQuantityConsignmentDetailConsignment, grossWeightConsignmentDetailConsignment,
                    sumConsignmentDetailConsignment, sumVATConsignmentDetailConsignment, sumInvoiceConsignmentDetailConsignment,
@@ -730,10 +741,10 @@ META defineConsignmentHeaderInner (object, class)
 
     goodsAccepted###object 'Принял грузополучатель' (object) = DATA VARSTRING[40] (class) IN issuanceConsignment;
 
-    loadingExecuter###object (object) = DATA Employee(class);
+    loadingExecuter###object (object) = DATA LegalEntity(class);
     wayOfLoading###object (object) = DATA WayOfLoading(class);
 
-    unloadingExecuter###object (object) = DATA Employee(class);
+    unloadingExecuter###object (object) = DATA LegalEntity(class);
     wayOfUnloading###object (object) = DATA WayOfLoading(class);
 
     codeLoading###object 'Код ПРР' (object) = DATA STRING[3] (class) IN loadingConsignment;
@@ -780,10 +791,10 @@ META defineConsignmentAbstractHeaderInner(object, class)
 
     goodsAccepted###object 'Принял грузополучатель' (object) = ABSTRACT VARSTRING[40] (class) IN issuanceConsignment;
 
-    loadingExecuter###object (object) = ABSTRACT Employee(class);
+    loadingExecuter###object (object) = ABSTRACT LegalEntity(class);
     wayOfLoading###object (object) = ABSTRACT WayOfLoading(class);
 
-    unloadingExecuter###object (object) = ABSTRACT Employee(class);
+    unloadingExecuter###object (object) = ABSTRACT LegalEntity(class);
     wayOfUnloading###object (object) = ABSTRACT WayOfLoading(class);
 
     codeLoading###object 'Код ПРР' (object) = ABSTRACT STRING[3] (class) IN loadingConsignment;
@@ -854,6 +865,54 @@ META implementConsignmentHeader (concrete)
 
     dataArrivalTimeConsignment (consignment) += OVERRIDE defaultArrivalTime###concrete(consignment), arrivalTime###concrete(consignment);
     dataDowntimeConsignment (consignment) += OVERRIDE defaultDowntime###concrete(consignment), downtime###concrete(consignment);   
+     
+    raceQuantityConsignment (consignment) += raceQuantity###concrete (consignment);
+END
+                                                                
+META implementConsignmentHeaderData (concrete) // без OVERRIDE для dataArrivalTimeConsignment, dataDowntimeConsignment
+    EXTEND CLASS concrete : Consignment;
+
+    dataDateConsignment (consignment) += date###concrete(consignment);
+    numberConsignment (consignment) += number###concrete(consignment);
+    seriesConsignment (consignment) += series###concrete(consignment);
+
+    payerConsignment (consignment) += payer###concrete (consignment);
+
+    dataTruckConsignment (consignment) += dataTruck###concrete (consignment);
+    dataTrailerConsignment (consignment) += dataTrailer###concrete (consignment);
+    dataEmployeeConsignment (consignment) += dataEmployee###concrete (consignment);
+    dataWaybillConsignment (consignment) += waybill###concrete (consignment);
+
+    dataAddressSupplierStockConsignment (consignment) += dataAddressSupplierStock###concrete (consignment);
+    dataAddressCustomerStockConsignment (consignment) += dataAddressCustomerStock###concrete (consignment);
+
+    readdressingConsignment (consignment) += readdressing###concrete (consignment);
+    
+    countPagesConsignment (consignment) += countPages###concrete (consignment);
+
+    overShipmentBaseConsignment (consignment) += overShipmentBase###concrete (consignment);
+
+    issuanceAllowedConsignment (consignment) += issuanceAllowed###concrete (consignment);
+
+    issuanceExecutedConsignment (consignment) += issuanceExecuted###concrete (consignment);
+
+    dataForwarderConsignment (consignment) += dataForwarder###concrete (consignment);
+
+    warrantConsignment (consignment) += warrant###concrete (consignment);
+    warrantHolderConsignment (consignment) += warrantHolder###concrete (consignment);
+
+    goodsAcceptedConsignment (consignment) += goodsAccepted###concrete (consignment);
+
+    loadingExecuterConsignment (consignment) += loadingExecuter###concrete (consignment);
+    wayOfLoadingConsignment (consignment) += wayOfLoading###concrete (consignment);
+
+    unloadingExecuterConsignment (consignment) += unloadingExecuter###concrete (consignment);
+    wayOfUnloadingConsignment (consignment) += wayOfUnloading###concrete (consignment);
+
+    codeLoadingConsignment (consignment) += codeLoading###concrete (consignment);
+
+    dataArrivalTimeConsignment (consignment) += arrivalTime###concrete(consignment);
+    dataDowntimeConsignment (consignment) += downtime###concrete(consignment);   
      
     raceQuantityConsignment (consignment) += raceQuantity###concrete (consignment);
 END
@@ -991,14 +1050,14 @@ nameIssuanceAllowedStock 'Отпуск разрешил' (stock) = nameContact(i
 issuanceExecutedStock  = DATA Employee(Stock);
 nameIssuanceExecutedStock 'Отпуск произвел' (stock) = nameContact(issuanceExecutedStock(stock)) IN invoiceConsignment;
 
-loadingExecuterStock = DATA Employee(Stock);
-nameLoadingExecuterStock 'Исполнитель погрузки' (stock) = nameContact(loadingExecuterStock(stock)) IN invoiceConsignment;
+loadingExecuterStock = DATA LegalEntity(Stock);
+nameLoadingExecuterStock 'Исполнитель погрузки' (stock) = nameLegalEntity(loadingExecuterStock(stock)) IN invoiceConsignment;
 
 wayOfLoadingStock = DATA WayOfLoading(Stock);
 nameWayOfLoadingStock 'Способ погрузки' (stock) = nameWayOfLoading(wayOfLoadingStock(stock)) IN invoiceConsignment;
 
-unloadingExecuterStock = DATA Employee(Stock);
-nameUnloadingExecuterStock 'Исполнитель разгрузки' (stock) = nameContact(unloadingExecuterStock(stock)) IN invoiceConsignment;
+unloadingExecuterStock = DATA LegalEntity(Stock);
+nameUnloadingExecuterStock 'Исполнитель разгрузки' (stock) = nameLegalEntity(unloadingExecuterStock(stock)) IN invoiceConsignment;
 
 wayOfUnloadingStock = DATA WayOfLoading(Stock);
 nameWayOfUnloadingStock 'Способ разгрузки' (stock) = nameWayOfLoading(wayOfUnloadingStock(stock)) IN invoiceConsignment;
