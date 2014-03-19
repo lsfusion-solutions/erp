@@ -227,9 +227,21 @@ iterate(i, from, to) = RECURSION i==from AND from IS INTEGER AND to IS INTEGER S
 // мгновенный расчет себестоимости
 //WHEN SET(isPostedDataSkuLedger(ledger)) DO EXEC resetCostDataSkuLedger (ledger) ORDER orderDataSkuLedger(ledger);
 changedCostDataSkuLedger 'Перерасчитывалась себестоимость' = DATA SESSION BOOLEAN (DataSkuLedger);
-                                                     
+
+changedLedger = DATA SESSION BOOLEAN (DataSkuLedger);
+updateDataSkuLedgerBatchCost() = ACTION {
+    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedLedger(ledger);
+
+    LOCAL orderedLedger = INTEGER (DataSkuLedger);
+    ASSIGN orderedLedger(ledger) <- PARTITION SUM 1 IF changedLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
+
+    FOR iterate(i, 1, [= GROUP MAX orderedLedger(ledger)]()) DO {
+        ASSIGN changedCostDataSkuLedger(ledger) <- TRUE WHERE orderedLedger(ledger) == i;
+        ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch) WHERE orderedLedger(ledger) == i;
+    }
+}
+
 ON {
-    LOCAL changedLedger = BOOLEAN (DataSkuLedger);
     ASSIGN changedLedger(ledger) <- SET(isPostedDataSkuLedger(ledger)) OR ((
                                   CHANGED(quantityDataSkuLedger(ledger))
                                   OR CHANGED(skuDataSkuLedger(ledger))
@@ -240,26 +252,14 @@ ON {
 
     IF [= GROUP MAX changedLedger(ledger)]() THEN
         NEWSESSION SINGLE {
-            ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedLedger(ledger);
-
-            LOCAL orderedLedger = INTEGER (DataSkuLedger);
-            ASSIGN orderedLedger(ledger) <- PARTITION SUM 1 IF changedLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
-
-            FOR iterate(i, 1, [= GROUP MAX orderedLedger(ledger)]()) DO {
-                ASSIGN changedCostDataSkuLedger(ledger) <- TRUE WHERE orderedLedger(ledger) == i;
-                ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch) WHERE orderedLedger(ledger) == i;
-            }
+            updateDataSkuLedgerBatchCost();
         }
 }
 
 setDataSkuLedgerBatchCost 'Дорассчитать себестоимость' = ACTION () NEWSESSION {
-
-    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE needToCostDataSkuLedger(ledger);
-    EXEC apply();
-
-    FOR needToCostDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger) DO {
-        ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
-        EXEC apply();
+    APPLY SINGLE { 
+        changedLedger(ledger) <- needToCostDataSkuLedger(ledger);
+        updateDataSkuLedgerBatchCost();
     }
 } CONFIRM;
 
@@ -268,12 +268,9 @@ resetDataSkuLedgerBatchCost 'Перерассчитать себестоимос
     IF formResult() == FormResult.ok THEN {
 
         FOR d == chosenDate('d') DO {
-            ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE dateDataSkuLedger(ledger) >= d;
-            EXEC apply();
-
-            FOR dateSkuLedger(ledger) >= d AND isPostedDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger) DO {
-                ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch);
-                EXEC apply();
+            APPLY SINGLE { 
+                changedLedger(ledger) <- dateSkuLedger(ledger) >= d AND isPostedDataSkuLedger(ledger);
+                updateDataSkuLedgerBatchCost();
             }
         }
     }
@@ -680,6 +677,8 @@ DESIGN dialogBatchStock FROM DEFAULT {
 
 // ------------------------------------------------- Себестоимость --------------------------- //
 
+currentBalanceSkuLedgerBatch(bil, bt) = currentBalanceBatchStock(bt, stockSkuLedger(bil));
+
 FORM costSkuLedger 'Себестоимость (операции)'
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY dateTimeSkuLedger, descriptionSkuLedger, nameSkuSkuLedger, nameStockSkuLedger,
@@ -693,12 +692,15 @@ FORM costSkuLedger 'Себестоимость (операции)'
 
     OBJECTS bt = Batch
     PROPERTIES(bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, shippedQuantityBatch, costBatch, currentBalanceBatch
-    PROPERTIES(bil, bt)     costSkuLedgerBatch FORCE GRID
+    PROPERTIES(bil, bt)     costSkuLedgerBatch FORCE GRID, currentBalanceSkuLedgerBatch FORCE GRID
     FILTERS skuBatch(bt) == skuSkuLedger(bil)
     ORDER BY dateTimeBatch(bt) DESC
 
     FILTERGROUP inSkuLedgerBatch
         FILTER 'Только расписанные партии' 'F10' costSkuLedgerBatch (bil, bt) DEFAULT
+
+    FILTERGROUP currentBalance
+        FILTER 'Только партии с остатком на складе' 'F11' currentBalanceSkuLedgerBatch (bil, bt)
 
     PROPERTIES() setDataSkuLedgerBatchCost, resetDataSkuLedgerBatchCost, clearDataSkuLedgerBatchCost
 ;
