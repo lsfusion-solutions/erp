@@ -15,10 +15,16 @@ availableQuantityArticleStock 'Доступное к-во (всего)' (article
 prevAvailableQuantityArticleStock 'Доступное к-во (всего)' (article, stock)= GROUP SUM prevAvailableQuantitySkuStock(sku, stock) BY articleItem(sku), stock; 
 prevAvailableQuantityArticleStockBlanketOrder 'Доступное к-во ' (article, stock, order)= GROUP SUM prevAvailableQuantitySkuStockDateTime(sku, stock, shipmentDateTimeBlanketOrder(order)) BY articleItem(sku), stock, order;           
                      
-prevAvailableQuantityArticleBlanketOrderStock 'Доступное к-во (всего)' (article, order, stock)= prevAvailableQuantityArticleStock(article, stock) (+) (PREV(quantityArticleBlanketOrderSupplierStock(article, order, stock)) IF isPostedBlanketOrder(order));
-prevAvailableQuantityBatchBlanketOrderStock 'Доступное к-во (всего)' (batch, order, stock)= prevAvailableQuantityBatchStock(batch, stock) (+) (PREV(quantityBatchBlanketOrderSupplierStock(batch, order, stock)) IF isPostedBlanketOrder(order));
-prevAvailableQuantitySkuBlanketOrderStock 'Доступное к-во (всего)' (sku, order, stock)= prevAvailableQuantitySkuStock(sku, stock) (+) (PREV(quantitySkuBlanketOrderSupplierStock(sku, order, stock)) IF isPostedBlanketOrder(order));
-                                                                 
+prevAvailableQuantityArticleBlanketOrderStock 'Доступное к-во (всего)' (article, order, stock) = prevAvailableQuantityArticleStock(article, stock) (+) (PREV(quantityArticleBlanketOrderSupplierStock(article, order, stock)) IF isPostedBlanketOrder(order));
+prevAvailableQuantityBatchBlanketOrderStock 'Доступное к-во (всего)' (batch, order, stock) = prevAvailableQuantityBatchStock(batch, stock) (+) (PREV(quantityBatchBlanketOrderSupplierStock(batch, order, stock)) IF isPostedBlanketOrder(order));
+prevAvailableQuantitySkuBlanketOrderStock 'Доступное к-во (всего)' (sku, order, stock) = prevAvailableQuantitySkuStock(sku, stock) (+) (PREV(quantitySkuBlanketOrderSupplierStock(sku, order, stock)) IF isPostedBlanketOrder(order));
+
+prevAvailableQuantityBatchBlanketOrderStockStock 'Доступное к-во (всего)' (batch, order, supplierStock, customerStock) =
+    prevAvailableQuantityBatchBlanketOrderStock(batch, order, supplierStock) (-)
+    [= GROUP SUM quantityBlanketOrderDetail(d) IF customerStockBlanketOrderDetail(d) != customerStock  
+             BY batchBlanketOrderDetail(d), blanketOrderBlanketOrderDetail(d), supplierStockBlanketOrderDetail(d), customerStock](batch, order, supplierStock, customerStock);
+//    prevAvailableQuantityBatchStock(batch, stock) (+) (PREV(quantityBatchBlanketOrderSupplierStock(batch, order, stock)) IF isPostedBlanketOrder(order));
+
 //quantitySoldArticleStockBlanketOrderOneWeek 'Продано за последнюю неделю (кол-во)' (article, stock, blanketOrder)= quantitySoldArticleStockDateFromTo(article, stock, subtractDate(dateBlanketOrder(blanketOrder),7), dateBlanketOrder(blanketOrder));        
 //quantitySoldArticleStockBlanketOrderTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (article, stock, blanketOrder)= quantitySoldArticleStockDateFromTo(article, stock, subtractDate(dateBlanketOrder(blanketOrder),14), subtractDate(dateBlanketOrder(blanketOrder),7));      
 
@@ -46,10 +52,10 @@ changeBatchQuantitySkuBlanketOrderStockCustomerStock (sku, blanketOrder, supplie
     
     LOCAL left = NUMERIC[14,3] ();
     left() <- requestedNumeric();
-    FOR skuBatch(batch) == sku DO {
+    FOR skuBatch(batch) == sku ORDER dateTimeBatch(batch) DO {
         
         LOCAL taken = NUMERIC[14,3] ();
-        taken() <- min(left(), prevAvailableQuantityBatchBlanketOrderStock(batch, blanketOrder, supplierStock));
+        taken() <- min(left(), prevAvailableQuantityBatchBlanketOrderStockStock(batch, blanketOrder, supplierStock, customerStock));
         left() <- left() (-) taken();
         
         IF NOT quantityBatchBlanketOrderSupplierStockCustomerStock(batch, blanketOrder, supplierStock, customerStock) == taken() THEN {
