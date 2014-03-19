@@ -11,8 +11,6 @@ countInConsignmentPrintOrder = GROUP SUM 1 IF inConsignmentPrintOrder(order);
 hidePrintAction = TRUE AND NOT countInConsignmentPrintOrder();
 
 toInvoicedPickedOrderDetail 'Не выписано' (orderDetail) = pickingQuantityOrderDetail(orderDetail) (-) invoicedOrderDetail(orderDetail);
-//toInvoicedPickedOrder (order) = GROUP SUM toInvoicedPickedOrderDetail(orderDetail) IF toInvoicedPickedOrderDetail(orderDetail)>0 BY orderOrderDetail(orderDetail);
-toInvoicedPickedOrder (order) = calcPartOrder(order) OR calcFullOrder(order);
 
 countOrderConsignmentPrintTrip = GROUP SUM 1 IF inConsignmentPrintOrder(order) BY tripOrder(order);
 
@@ -25,13 +23,12 @@ printConsignmentOrder 'Создать накладные' = ACTION (order) {
         IF countInConsignmentPrintTrip() > 1 THEN {
             MESSAGE 'Выберите заказы одного рейса';
         } ELSE {
-                FOR inConsignmentPrintOrder(o) DO {
-                    createPickingUserInvoicePostedOrder(o);
-                    FOR createdUserInvoiceOrder(i, o) DO {
-                        tripInvoice(i) <- tripOrder(o);
-                    }
-                }
-                apply();
+            inCreatePickingUserInvoicePostedOrder(o) <- inConsignmentPrintOrder(o);
+            createPickingUserInvoicePostedOrder(order);
+            FOR createdUserInvoiceOrder(i, o) DO {
+                tripInvoice(i) <- tripOrder(o);
+            }
+            apply();
         }
     } ELSE {
         createPickingUserInvoicePostedOrder(order);  
@@ -93,8 +90,8 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
                   nameToOrder, nameToStockOrder, addressToStockOrder, grossWeightOrderPickingOrder, packQuantityOrder, quantityOrderDetailOrder,
                   noteOrder
     PROPERTIES(o) printConsignmentOrder FORCE PANEL TOOLBAR
-    FILTERS isPostedOrder (o) AND toInvoicedPickedOrder(o)
-    //FILTERGROUP toInvoiced FILTER 'Не выписаны' 'F6' toInvoicedPickedOrder(o) DEFAULT
+    FILTERS isPostedOrder (o) AND pickedOrder(o)
+    FILTERGROUP toInvoice FILTER 'Не выписаны' 'F6' toInvoiceOrder(o) DEFAULT
     FILTERGROUP opened FILTER 'Открыт' 'F4' NOT isClosedOrder(o) DEFAULT    
     FILTERGROUP filters FILTER 'Текущие заказы' 'F5' dateOrder(o)<=dt DEFAULT
                         FILTER 'Будущие заказы' 'F6' dateOrder(o)>dt       

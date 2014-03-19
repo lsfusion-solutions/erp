@@ -4,7 +4,14 @@ REQUIRE OrderPickingOrder, Invoice;
 
 NAMESPACE Invoice;
 
-createPickingUserInvoicePostedOrder 'Создать проведенную накладную' = ABSTRACT ACTION LIST (Order);
+inCreatePickingUserInvoicePostedOrder = DATA SESSION BOOLEAN (Order);
+countInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF inCreatePickingUserInvoicePostedOrder(o);
+
+countInCreatePickingUserInvoicePostedOrderParams = GROUP SUM 1 IF inCreatePickingUserInvoicePostedOrder(o)
+                                                         BY fromOrder(o), toOrder(o), fromStockOrder(o), toStockOrder(o);
+countParamsInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF countInCreatePickingUserInvoicePostedOrderParams(from, to, fromStock, toStock); 
+
+createPickingUserInvoicePostedOrder 'Создать проведенную накладную' = ABSTRACT ACTION CASE (Order);
 
 META defineOrderInvoicePickingOrder (sign)
 
@@ -89,12 +96,27 @@ META defineOrderInvoicePickingOrder (sign)
     createPickingUserInvoicePostedOrder 'Создать проведенную накладную по комплектации' = ACTION (order) {
         IF order IS Order THEN {
             userInvoiceOrder(order) <- NULL;
-            FOR ADDOBJ i = UserInvoice DO {
-                isPostedUserInvoice(i) <- TRUE;
-                fillPickingUserInvoiceOrder(i, order);
-                userInvoiceOrder(order) <- i;
-                packQuantityUserInvoice(i) <- packQuantityOrder(order);
-                createdUserInvoiceOrder(i, order) <- TRUE;
+            IF countInCreatePickingUserInvoicePostedOrder() THEN {
+                IF countParamsInCreatePickingUserInvoicePostedOrder() > 1 THEN {
+                    MESSAGE 'По выбранным заказам не может быть создана одна накладная';
+                } ELSE {
+                    FOR ADDOBJ i = UserInvoice DO {
+                        isPostedUserInvoice(i) <- TRUE;
+                        FOR inCreatePickingUserInvoicePostedOrder(o) DO {
+                            fillPickingUserInvoiceOrder(i, o);                        
+                            createdUserInvoiceOrder(i, o) <- TRUE;
+                        }
+                        packQuantityUserInvoice(i) <- [=GROUP SUM packQuantityOrder(o) IF inCreatePickingUserInvoicePostedOrder(o)]();
+                    }
+                }
+            } ELSE {
+                FOR ADDOBJ i = UserInvoice DO {
+                    isPostedUserInvoice(i) <- TRUE;
+                    fillPickingUserInvoiceOrder(i, order);
+                    packQuantityUserInvoice(i) <- packQuantityOrder(order);
+                    createdUserInvoiceOrder(i, order) <- TRUE;
+                    userInvoiceOrder(order) <- i;
+                }
             }
         }
     }
