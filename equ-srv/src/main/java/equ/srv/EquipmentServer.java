@@ -669,6 +669,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (int start = 0; true; start += numberAtATime) {
 
                     int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
+                    
+                    Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
+                    if(lastNumberReceipt != null) {
+                        while(start < finish && salesInfoList.size() > finish && salesInfoList.get(finish).numberReceipt.equals(lastNumberReceipt))
+                            finish++;                        
+                    }
+                    
                     List<SalesInfo> data = start < finish ? salesInfoList.subList(start, finish) : new ArrayList<SalesInfo>();
                     if (data.isEmpty())
                         return null;
