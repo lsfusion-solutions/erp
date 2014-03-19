@@ -19,10 +19,10 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Iterator;
 
-public class UploadImageArticleActionProperty extends ScriptingActionProperty {
+public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface articleInterface;
 
-    public UploadImageArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public UploadImageArticleFromDirectoryActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, LM.findClassByCompoundName("Article"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -728,11 +728,21 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private Integer parseIndex(String index) {
+        if(index == null) return null; 
         try {
-            return Integer.parseInt(index) - 1;
+            return index.matches("\\d+") ? (Integer.parseInt(index) - 1) : getCellIndex(index); 
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private Integer getCellIndex(String column) {
+        Integer result = 0;
+        String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for(int i = 0; i < column.length(); i++) {
+            result += letters.indexOf(column.charAt(i)) + i * 26;
+        }
+        return result;
     }
 
     private String getSubstring(String value, Integer from, Integer to) {

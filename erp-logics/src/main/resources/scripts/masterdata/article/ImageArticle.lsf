@@ -13,7 +13,11 @@ articleImage 'Артикул' = DATA SESSION Article ();
 searchImageArticle 'Искать изображение в сети' = ACTION CUSTOM 'lsfusion.erp.integration.image.SearchImageArticleActionProperty';  
 searchMoreImageArticle 'Следующие' = ACTION CUSTOM 'lsfusion.erp.integration.image.SearchMoreImageArticleActionProperty'; 
 loadImageArticle 'Загрузить изображение в артикул' = ACTION CUSTOM 'lsfusion.erp.integration.image.LoadImageArticleActionProperty'; 
-uploadImageArticle 'Загрузить изображение' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleActionProperty';
+uploadImageArticleFromDirectory 'Загрузить изображение из папки' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleFromDirectoryActionProperty';
+uploadImageArticleFromURL 'Загрузить изображение по ссылке' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleFromURLActionProperty';
+urlImageArticle 'Ссылка' = DATA STRING[100] (Article);
+
+WHEN SESSION CHANGED(urlImageArticle(a)) DO uploadImageArticleFromURL(a); 
 
 idImageArticle 'Идентификатор изображения' = DATA VARSTRING[100] (Article);
 overIdImageArticle (article) = OVERRIDE idArticle(article), idImageArticle(article);
@@ -21,11 +25,13 @@ timeChangedImageArticle 'Время последнего изменения' = D
 pathImageArticles 'Папка с изображениями' = DATA STRING[100] ();
 uploadAllImagesArticle 'Загрузить все изображения' () = ACTION {
     FOR (overIdImageArticle(a)) DO {
-        EXEC uploadImageArticle(a);
+        EXEC uploadImageArticleFromDirectory(a);
     }
 };
 
-EXTEND FORM article PROPERTIES(a) idImageArticle, searchImageArticle, uploadImageArticle;
+EXTEND FORM article 
+PROPERTIES(a) idImageArticle, searchImageArticle, uploadImageArticleFromDirectory, 
+              urlImageArticle;
 
 EXTEND DESIGN article {
     imageBox {
@@ -33,7 +39,8 @@ EXTEND DESIGN article {
         NEW buttonsBox {
             type = CONTAINERH;
             ADD PROPERTY(searchImageArticle(a));
-            ADD PROPERTY(uploadImageArticle(a));
+            ADD PROPERTY(uploadImageArticleFromDirectory(a));
+            ADD PROPERTY(urlImageArticle(a));
         }
     }
 }

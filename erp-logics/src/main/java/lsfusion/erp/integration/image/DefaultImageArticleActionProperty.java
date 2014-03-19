@@ -83,6 +83,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
     }
 
     protected File readImage(String url) {
+        if(url == null) return null;
         File file;
         try {
             URLConnection connection = new URL(url).openConnection();
