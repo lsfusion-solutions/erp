@@ -241,8 +241,9 @@ updateDataSkuLedgerBatchCost() = ACTION {
     }
 }
 
-ON {
-    ASSIGN changedLedger(ledger) <- SET(isPostedDataSkuLedger(ledger)) OR ((
+ON { // eventChangeLedger - так как внутрь рекурсивного события толь
+    LOCAL eventChangedLedger = BOOLEAN (DataSkuLedger); 
+    ASSIGN eventChangedLedger(ledger) <- SET(isPostedDataSkuLedger(ledger)) OR ((
                                   CHANGED(quantityDataSkuLedger(ledger))
                                   OR CHANGED(skuDataSkuLedger(ledger))
                                   OR CHANGED(batchSkuLedger(ledger))
@@ -250,8 +251,9 @@ ON {
                                   OR CHANGED(changedDataSkuLedger(ledger)))
                                  AND isPostedDataSkuLedger(ledger));
 
-    IF [= GROUP MAX changedLedger(ledger)]() THEN
+    IF [= GROUP MAX eventChangedLedger(ledger)]() THEN
         NEWSESSION SINGLE {
+            changedLedger(ledger) <- eventChangedLedger(ledger);
             updateDataSkuLedgerBatchCost();
         }
 }
