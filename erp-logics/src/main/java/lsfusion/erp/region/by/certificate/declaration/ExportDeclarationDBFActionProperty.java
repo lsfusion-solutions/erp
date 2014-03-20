@@ -36,11 +36,7 @@ import java.util.*;
 public class ExportDeclarationDBFActionProperty extends DefaultExportActionProperty {
     private final ClassPropertyInterface declarationInterface;
 
-    //private final String G41A = "796";
-    //private final String G41B = "ШТ";
-    //private final String G317B = "КГ";
     private final String DOP_NOMER = "D4035121";
-
 
     public ExportDeclarationDBFActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, LM.findClassByCompoundName("Declaration"));
@@ -306,7 +302,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         nameValueFieldMap.put("G315A", dd.quantity);
 
         nameValueFieldMap.put("G317A", trim(dd.shortNameUOM, 13));
-        nameValueFieldMap.put("G317ACODE", "796");
+        nameValueFieldMap.put("G317ACODE", dd.codeUOM == null ? "796" : trim(dd.codeUOM, 3));
         nameValueFieldMap.put("G364", G364);
         nameValueFieldMap.put("G35", dd.sumGrossWeight);
         nameValueFieldMap.put("G38", dd.sumNetWeight);
@@ -365,7 +361,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             nameValueFieldMap.put("G315A", dd.quantity);
 
             nameValueFieldMap.put("G317A", trim(dd.shortNameUOM, 13));
-            nameValueFieldMap.put("G317ACODE", "796");
+            nameValueFieldMap.put("G317ACODE", dd.codeUOM == null ? "796" : trim(dd.codeUOM, 3));
             nameValueFieldMap.put("G364", G364);
             nameValueFieldMap.put("G35", dd.sumGrossWeight);
             nameValueFieldMap.put("G38", dd.sumNetWeight);
