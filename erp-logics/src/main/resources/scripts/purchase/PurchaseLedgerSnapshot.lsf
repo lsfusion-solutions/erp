@@ -29,7 +29,29 @@ purchaseQuantityStockSnapshot 'Кол-во закупка' (stock, snapshot) =
 purchaseSumStockSnapshot 'Сумма закупка' (stock, snapshot) =
     GROUP SUM purchaseSumSkuGroupStockSnapshot (sku, stock, snapshot) BY stock, snapshot;  
      
+//-- Sku
+purchaseQuantitySkuStockSnapshotDate 'Кол-во закупка' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
+purchaseSumSkuStockSnapshotDate 'Сумма закупка' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);   
+  
+//--По складам на дату     
+purchaseQuantityStockSnapshotDate 'Кол-во закупка' (stock, snapshot, date) =
+    GROUP SUM purchaseQuantitySkuStockSnapshotDate (sku, stock, snapshot, date)  BY stock, snapshot, date; 
+purchaseSumStockSnapshotDate 'Сумма закупка' (stock, snapshot, date) =
+    GROUP SUM purchaseSumSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;   
+    
+namePurchaseQuantityStock (st) = CONCAT ' ', nameStock(st), ' (кол-во закупка)';
+namePurchaseSumStock (st) = CONCAT ' ', nameStock(st), ' (сумма закупка)';    
+               
 //-- Расширяем ACTION  
+overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
+    IF isDateSnapshot(snapshot) THEN {
+        purchaseQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityPurchaseSkuStockDate(sku, stock, date)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE) AND quantityPurchaseSkuStockDate(sku, stock, date);
+        purchaseSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumPurchaseSkuStockDate(sku, stock, date)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE) AND sumPurchaseSkuStockDate(sku, stock, date);   
+    }
+}; 
+
 overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
     purchaseQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
     purchaseSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);   
@@ -39,6 +61,14 @@ EXTEND FORM snapshot
 //--sku  
     PROPERTIES(s,st,r) AFTER sumBSkuStockSnapshot(s, st, r) BACKGROUND hintPurchaseBackground()
                        purchaseQuantitySkuStockSnapshot, purchaseSumSkuStockSnapshot
+//--sku на дату 
+    PROPERTIES(s3,st3,r,d3) SHOWIF isDateSnapshot(r) AFTER sumBSkuStockSnapshotDate(s3,st3,r,d3) BACKGROUND hintPurchaseBackground()
+                       purchaseQuantitySkuStockSnapshotDate, purchaseSumSkuStockSnapshotDate  
+                                                                  
+//--По складам на дату 
+    PROPERTIES(st4,r,d4) SHOWIF isDateSnapshot(r) BACKGROUND hintPurchaseBackground() AFTER sumBStockSnapshotDate(st4,r,d4)
+                       purchaseQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseQuantityStock(st4), purchaseSumStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseSumStock(st4)
+                                                                                         
 //-- По группам                           
     PROPERTIES(sk1,r)  READONLY AFTER sumBSkuGroupSnapshot(sk1,r) BACKGROUND hintPurchaseBackground() 
                        purchaseQuantitySkuGroupSnapshot, purchaseSumSkuGroupSnapshot
