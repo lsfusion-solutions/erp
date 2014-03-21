@@ -966,10 +966,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 if (showField(userInvoiceDetailsList, "numberCompliance")) {
                     ImportField numberComplianceField = new ImportField(purchaseComplianceLM.findLCPByCompoundOldName("numberCompliance"));
                     ImportKey<?> complianceKey = new ImportKey((ConcreteCustomClass) purchaseComplianceLM.findClassByCompoundName("Compliance"),
-                            purchaseComplianceLM.findLCPByCompoundOldName("complianceId").getMapping(numberComplianceField));
+                            purchaseComplianceLM.findLCPByCompoundOldName("complianceNumber").getMapping(numberComplianceField));
                     keys.add(complianceKey);
                     props.add(new ImportProperty(numberComplianceField, purchaseComplianceLM.findLCPByCompoundOldName("numberCompliance").getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
-                    props.add(new ImportProperty(numberComplianceField, purchaseComplianceLM.findLCPByCompoundOldName("idCompliance").getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
                     props.add(new ImportProperty(numberComplianceField, purchaseComplianceLM.findLCPByCompoundOldName("complianceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                             LM.object(purchaseComplianceLM.findClassByCompoundName("Compliance")).getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
                     fields.add(numberComplianceField);
@@ -1094,7 +1093,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String idSupplierStock = getXLSFieldValue(sheet, i, defaultColumns.get("idSupplierStock"));
                 String currencyDocument = getXLSFieldValue(sheet, i, defaultColumns.get("currencyDocument"));
                 String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, defaultColumns.get("barcodeItem")));
+                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, defaultColumns.get("barcodeItem")), 7);
                 String originalCustomsGroupItem = getXLSFieldValue(sheet, i, defaultColumns.get("originalCustomsGroupItem"));
                 String idBatch = getXLSFieldValue(sheet, i, defaultColumns.get("idBatch"));
                 BigDecimal dataIndexValue = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("dataIndex"));
@@ -1232,7 +1231,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idSupplierStock = getCSVFieldValue(valuesList, defaultColumns.get("idSupplierStock"), count);
             String currencyDocument = getCSVFieldValue(valuesList, defaultColumns.get("currencyDocument"), count);
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, count);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, defaultColumns.get("barcodeItem"), count));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, defaultColumns.get("barcodeItem"), count), 7);
             String idBatch = getCSVFieldValue(valuesList, defaultColumns.get("idBatch"), count);
             BigDecimal dataIndexValue = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("dataIndex"), count);
             Integer dataIndex = dataIndexValue == null ? (primaryList.size() + secondaryList.size() + 1) : dataIndexValue.intValue();
@@ -1362,7 +1361,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idSupplierStock = getXLSXFieldValue(sheet, i, defaultColumns.get("idSupplierStock"));
             String currencyDocument = getXLSXFieldValue(sheet, i, defaultColumns.get("currencyDocument"));
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, defaultColumns.get("barcodeItem")));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, defaultColumns.get("barcodeItem")), 7);
             String idBatch = getXLSXFieldValue(sheet, i, defaultColumns.get("idBatch"));
             BigDecimal dataIndexValue = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("dataIndex"));
             Integer dataIndex = dataIndexValue == null ? (primaryList.size() + secondaryList.size() + 1) : dataIndexValue.intValue();
@@ -1501,7 +1500,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String idSupplierStock = getDBFFieldValue(file, defaultColumns.get("idSupplierStock"), i, charset);
             String currencyDocument = getDBFFieldValue(file, defaultColumns.get("currencyDocument"), i, charset);
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, defaultColumns.get("barcodeItem"), i, charset));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, defaultColumns.get("barcodeItem"), i, charset), 7);
             String idBatch = getDBFFieldValue(file, defaultColumns.get("idBatch"), i, charset);
             BigDecimal dataIndexValue = getDBFBigDecimalFieldValue(file, defaultColumns.get("dataIndex"), i, charset, new BigDecimal(primaryList.size() + secondaryList.size() + 1));
             Integer dataIndex = dataIndexValue == null ? null : dataIndexValue.intValue();

@@ -1006,10 +1006,9 @@ public class ImportActionProperty {
                 if (showField(dataUserInvoiceDetail, "numberCompliance")) {
                     ImportField numberComplianceField = new ImportField(LM.findLCPByCompoundOldName("numberCompliance"));
                     ImportKey<?> complianceKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Compliance"),
-                            LM.findLCPByCompoundOldName("complianceId").getMapping(numberComplianceField));
+                            LM.findLCPByCompoundOldName("complianceNumber").getMapping(numberComplianceField));
                     keys.add(complianceKey);
                     props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundOldName("numberCompliance").getMapping(complianceKey)));
-                    props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundOldName("idCompliance").getMapping(complianceKey)));
                     props.add(new ImportProperty(numberComplianceField, LM.findLCPByCompoundOldName("Purchase.complianceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                             LM.object(LM.findClassByCompoundName("Compliance")).getMapping(complianceKey)));
                     fields.add(numberComplianceField);

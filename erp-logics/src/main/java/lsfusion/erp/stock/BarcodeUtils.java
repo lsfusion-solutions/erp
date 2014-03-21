@@ -3,8 +3,16 @@ package lsfusion.erp.stock;
 public class BarcodeUtils {
 
     public static String appendCheckDigitToBarcode(String barcode) {
+        return appendCheckDigitToBarcode(barcode, null);
+    }
+    
+    public static String appendCheckDigitToBarcode(String barcode, Integer minLength) {
+        
+        if(barcode == null || (minLength != null && barcode.length() < minLength))
+            return null;
+        
         try {
-            if (barcode != null && barcode.length() == 12) {     //EAN-13
+            if (barcode.length() == 12) {     //EAN-13
                 int checkSum = 0;
                 for (int i = 0; i <= 10; i = i + 2) {
                     checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
@@ -14,7 +22,7 @@ public class BarcodeUtils {
                 if (checkSum != 0)
                     checkSum = 10 - checkSum;
                 return barcode.concat(String.valueOf(checkSum));
-            } else if (barcode != null && barcode.length() == 7) {  //EAN-8
+            } else if (barcode.length() == 7) {  //EAN-8
                 int checkSum = 0;
                 for (int i = 0; i <= 6; i = i + 2) {
                     checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i))) * 3;

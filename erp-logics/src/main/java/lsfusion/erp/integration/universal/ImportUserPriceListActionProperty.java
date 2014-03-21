@@ -539,9 +539,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String idUserPriceList = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idUserPriceList"));
             String idItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idItem"));
             String idItemGroup = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idItemGroup"));
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")));
-            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")));
-            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("packBarcode")));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")), 7);
+            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")), 7);
+            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("packBarcode")), 7);
             BigDecimal amountPackBarcode = getXLSBigDecimalFieldValue(sheet, i, importColumns.getColumns().get("amountPackBarcode"));
             String articleItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("articleItem"));
             String captionItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("captionItem"));
@@ -590,9 +590,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             if (count >= startRow) {
                 
                 String idUserPriceList = getCSVFieldValue(valuesList, importColumns.getColumns().get("idUserPriceList"), count);
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("barcodeItem"), count));
-                String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("extraBarcodeItem"), count));
-                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("packBarcode"), count));
+                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("barcodeItem"), count), 7);
+                String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("extraBarcodeItem"), count), 7);
+                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("packBarcode"), count), 7);
                 BigDecimal amountPackBarcode = getCSVBigDecimalFieldValue(valuesList, importColumns.getColumns().get("amountPackBarcode"), count);
                 String articleItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("articleItem"), count);
                 String idItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("idItem"), count);
@@ -638,9 +638,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String idUserPriceList = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idUserPriceList"));
             String idItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idItem"));
             String idItemGroup = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idItemGroup"));
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")));
-            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")));
-            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("packBarcode")));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")),7);
+            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")), 7);
+            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("packBarcode")), 7);
             BigDecimal amountPackBarcode = getXLSXBigDecimalFieldValue(sheet, i, importColumns.getColumns().get("amountPackBarcode"));
             String articleItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("articleItem"));
             String captionItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("captionItem"));
@@ -696,9 +696,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             Object entry[] = dbfReader.nextRecord(Charset.forName(charset));
 
             String idUserPriceList = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idUserPriceList"), i);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("barcodeItem"), i));
-            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("extraBarcodeItem"), i));
-            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("packBarcode"), i));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("barcodeItem"), i), 7);
+            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("extraBarcodeItem"), i), 7);
+            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("packBarcode"), i), 7);
             BigDecimal amountPackBarcode = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("amountPackBarcode"), i);
             String articleItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("articleItem"), i);
             String idItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idItem"), i);

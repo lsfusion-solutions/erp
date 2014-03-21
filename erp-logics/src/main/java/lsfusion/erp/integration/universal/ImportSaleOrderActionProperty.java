@@ -387,7 +387,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String numberOrder = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
             Date dateOrder = getXLSDateFieldValue(sheet, i, importColumns.get("dateDocument"));
             String idOrderDetail = String.valueOf(orderObject) + i;
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.get("barcodeItem")), 7);
             String idBatch = getXLSFieldValue(sheet, i, importColumns.get("idBatch"));
             Integer dataIndex = Integer.parseInt(getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(primaryList.size() + secondaryList.size() + 1)));
             String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
@@ -443,7 +443,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String numberOrder = getCSVFieldValue(valuesList, importColumns.get("numberDocument"), count);
             Date dateOrder = getCSVDateFieldValue(valuesList, importColumns.get("dateDocument"), count);
             String idOrderDetail = String.valueOf(orderObject) + count;
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.get("barcodeItem"), count));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.get("barcodeItem"), count), 7);
             String idBatch = getCSVFieldValue(valuesList, importColumns.get("idBatch"), count);
             Integer dataIndex = Integer.parseInt(getCSVFieldValue(valuesList, importColumns.get("idItem"), count, String.valueOf(primaryList.size() + secondaryList.size() + 1)));
             String idItem = getCSVFieldValue(valuesList, importColumns.get("idItem"), count);
@@ -495,7 +495,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String numberOrder = getXLSXFieldValue(sheet, i, importColumns.get("numberDocument"));
             Date dateOrder = getXLSXDateFieldValue(sheet, i, importColumns.get("dateDocument"));
             String idOrderDetail = String.valueOf(orderObject) + i;
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.get("barcodeItem")), 7);
             String idBatch = getXLSXFieldValue(sheet, i, importColumns.get("idBatch"));
             Integer dataIndex = Integer.parseInt(getXLSXFieldValue(sheet, i, importColumns.get("idItem"), false, String.valueOf(primaryList.size() + secondaryList.size() + 1)));
             String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
@@ -553,7 +553,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"), i, charset);
             Date dateOrder = getDBFDateFieldValue(file, importColumns.get("dateDocument"), i, charset);
             String idOrderDetail = String.valueOf(orderObject) + i;
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, importColumns.get("barcodeItem"), i, charset));
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, importColumns.get("barcodeItem"), i, charset), 7);
             String idBatch = getDBFFieldValue(file, importColumns.get("idBatch"), i, charset);
             Integer dataIndex = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), i, charset, new BigDecimal(primaryList.size() + secondaryList.size() + 1)).intValue();
             String idItem = getDBFFieldValue(file, importColumns.get("idItem"), i, charset);
