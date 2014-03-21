@@ -241,6 +241,40 @@ EXTEND DESIGN article {
 EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() netWeightArticle, grossWeightArticle;
 
 
+// Пол
+CLASS Gender 'Пол';
+TABLE gender (Gender);
+
+@defineExternalizable(gender, VARSTRING[100]);
+nameGender 'Наименование' = DATA VARISTRING[50](Gender);
+
+FORM gender 'Пол'
+    OBJECTS t=Gender FIXED PANEL
+    PROPERTIES(t) nameGender, idGender SHOWIF showIDs()
+    EDIT Gender OBJECT t
+;
+
+FORM genders 'Пол'
+    OBJECTS t=Gender
+    PROPERTIES(t) nameGender READONLY, idGender SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameGender(t)
+    DIALOG Gender OBJECT t
+;
+DESIGN genders FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+genderArticle  = DATA Gender (Article);
+nameGenderArticle 'Пол' (a) = nameGender(genderArticle(a)) IN itemArticle;
+
+genderItem (i) = genderArticle(articleItem(i));
+nameGenderItem 'Пол' (i) = nameGender(genderItem(i));
+
+genderBatch  (batch) = genderItem(skuBatch(batch));
+nameGenderBatch 'Пол' (batch) = nameGender(genderBatch(batch));
+
+EXTEND FORM article PROPERTIES(a) nameGenderArticle;
+EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameGenderArticle;
+
 // Размер
 CLASS Size 'Размер товара';
 TABLE size(Size);
@@ -436,5 +470,6 @@ NAVIGATOR {
         ADD colors;
         ADD sizes;
         ADD sizeGroups;
+        ADD genders;
     }
 }
