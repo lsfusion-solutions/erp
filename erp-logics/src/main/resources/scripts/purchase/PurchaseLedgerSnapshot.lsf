@@ -40,40 +40,65 @@ purchaseSumStockSnapshotDate 'Сумма закупка' (stock, snapshot, date)
     GROUP SUM purchaseSumSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;   
     
 namePurchaseQuantityStock (st) = CONCAT ' ', nameStock(st), ' (кол-во закупка)';
-namePurchaseSumStock (st) = CONCAT ' ', nameStock(st), ' (сумма закупка)';    
-               
+namePurchaseSumStock (st) = CONCAT ' ', nameStock(st), ' (сумма закупка)';  
+  
+isPurchaseSnapshot 'Только закупка' = DATA BOOLEAN (Snapshot) IN evidence;
+                 
 //-- Расширяем ACTION  
 overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
-    IF isDateSnapshot(snapshot) THEN {
-        purchaseQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityPurchaseSkuStockDate(sku, stock, date)) 
-            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE) AND quantityPurchaseSkuStockDate(sku, stock, date);
-        purchaseSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumPurchaseSkuStockDate(sku, stock, date)) 
-            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE) AND sumPurchaseSkuStockDate(sku, stock, date);   
-    }
+    IF isPurchaseSnapshot(snapshot) THEN {
+        IF isDateSnapshot(snapshot) THEN {
+            purchaseQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityPurchaseSkuStockDate(sku, stock, date)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                    AND date <= (dateTo AS DATE) AND quantityPurchaseSkuStockDate(sku, stock, date) AND isQuantitySnapshot(snapshot);
+                    
+            purchaseSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumPurchaseSkuStockDate(sku, stock, date)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                    AND date <= (dateTo AS DATE) AND sumPurchaseSkuStockDate(sku, stock, date) AND isSumSnapshot(snapshot);   
+        }
+        
+        purchaseQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isQuantitySnapshot(snapshot);
+            
+        purchaseSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isSumSnapshot(snapshot);      
+    }    
 }; 
-
-overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
-    purchaseQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
-    purchaseSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);   
-};  
+//-- SHOWIF
+isQuantityPurchaseSnapshot= isQuantitySnapshot(snapshot) AND isPurchaseSnapshot(snapshot);
+isSumPurchaseSnapshot= isSumSnapshot(snapshot) AND isPurchaseSnapshot(snapshot);
+//--
+isQuantityPurchaseDateSnapshot= isQuantitySnapshot(snapshot) AND isPurchaseSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumPurchaseDateSnapshot= isSumSnapshot(snapshot) AND isPurchaseSnapshot(snapshot) AND isDateSnapshot(snapshot);
 
 EXTEND FORM snapshot
+    PROPERTIES(r) BACKGROUND hintPurchaseBackground() isPurchaseSnapshot
 //--sku  
     PROPERTIES(s,st,r) AFTER sumBSkuStockSnapshot(s, st, r) BACKGROUND hintPurchaseBackground()
-                       purchaseQuantitySkuStockSnapshot, purchaseSumSkuStockSnapshot
+                       purchaseQuantitySkuStockSnapshot SHOWIF isQuantityPurchaseSnapshot(r), 
+                       purchaseSumSkuStockSnapshot SHOWIF isSumPurchaseSnapshot(r)
 //--sku на дату 
-    PROPERTIES(s3,st3,r,d3) SHOWIF isDateSnapshot(r) AFTER sumBSkuStockSnapshotDate(s3,st3,r,d3) BACKGROUND hintPurchaseBackground()
-                       purchaseQuantitySkuStockSnapshotDate, purchaseSumSkuStockSnapshotDate  
+    PROPERTIES(s3,st3,r,d3) AFTER sumBSkuStockSnapshotDate(s3,st3,r,d3) BACKGROUND hintPurchaseBackground()
+                       purchaseQuantitySkuStockSnapshotDate SHOWIF isQuantityPurchaseDateSnapshot(r), 
+                       purchaseSumSkuStockSnapshotDate SHOWIF isSumPurchaseDateSnapshot(r)  
                                                                   
 //--По складам на дату 
-    PROPERTIES(st4,r,d4) SHOWIF isDateSnapshot(r) BACKGROUND hintPurchaseBackground() AFTER sumBStockSnapshotDate(st4,r,d4)
-                       purchaseQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseQuantityStock(st4), purchaseSumStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseSumStock(st4)
+    PROPERTIES(st4,r,d4) BACKGROUND hintPurchaseBackground() AFTER sumBStockSnapshotDate(st4,r,d4)
+                       purchaseQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseQuantityStock(st4) SHOWIF isQuantityPurchaseDateSnapshot(r), 
+                       purchaseSumStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseSumStock(st4) SHOWIF isSumPurchaseDateSnapshot(r)
                                                                                          
 //-- По группам                           
     PROPERTIES(sk1,r)  READONLY AFTER sumBSkuGroupSnapshot(sk1,r) BACKGROUND hintPurchaseBackground() 
-                       purchaseQuantitySkuGroupSnapshot, purchaseSumSkuGroupSnapshot
+                       purchaseQuantitySkuGroupSnapshot SHOWIF isQuantityPurchaseSnapshot(r), 
+                       purchaseSumSkuGroupSnapshot SHOWIF isSumPurchaseSnapshot(r)
 //-- По складам                           
     PROPERTIES(ts1,r)  READONLY AFTER sumBStockSnapshot(ts1,r) BACKGROUND hintPurchaseBackground()                         
-                       purchaseQuantityStockSnapshot, purchaseSumStockSnapshot
+                       purchaseQuantityStockSnapshot SHOWIF isQuantityPurchaseSnapshot(r), 
+                       purchaseSumStockSnapshot SHOWIF isSumPurchaseSnapshot(r)
 ;
+EXTEND DESIGN snapshot {
+    row5 {
+        ADD PROPERTY(isPurchaseSnapshot(r));                                            
+    } 
+}
  

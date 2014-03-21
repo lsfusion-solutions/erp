@@ -33,15 +33,25 @@ WHEN SESSION SET(o IS Snapshot) DO {
     IF o IS Snapshot AND NOT toDateSnapshot(o) THEN toDateSnapshot(o) <- currentDate();
 };
 
-isBatchSnapshot 'По партиям' = DATA BOOLEAN (Snapshot) IN documentHeader;
-isSkuSnapshot 'По товарам' (s) = s IS Snapshot AND NOT isBatchSnapshot(s) IN documentHeader;
+//-- Параметры отчета
+GROUP evidence 'Признаки' : base;
+
+isBatchSnapshot 'По партиям' = DATA BOOLEAN (Snapshot) IN evidence;
+
+isQuantitySnapshot 'Только количество' = DATA BOOLEAN (Snapshot) IN evidence;
+isSumSnapshot 'Только сумма' = DATA BOOLEAN (Snapshot) IN evidence;
+
+isBalanceBSnapshot 'Только начало' = DATA BOOLEAN (Snapshot) IN evidence;
+isInSnapshot 'Только приход' = DATA BOOLEAN (Snapshot) IN evidence;
+isOutSnapshot 'Только расход' = DATA BOOLEAN (Snapshot) IN evidence;
+isBalanceASnapshot 'Только конец' = DATA BOOLEAN (Snapshot) IN evidence;
 
 //-- Sku на дату
 
 TABLE skuStockSnapshotDate (Sku, Stock, Snapshot, DATE);  
 
-isDateSnapshot 'На дату' = DATA BOOLEAN (Snapshot) IN documentHeader;
-isNotDateSnapshot 'Без дат' (s) = s IS Snapshot AND NOT isDateSnapshot(s) IN documentHeader;
+isDateSnapshot 'На дату' = DATA BOOLEAN (Snapshot) IN evidence;
+isNotDateSnapshot 'Без дат' (s) = s IS Snapshot AND NOT isDateSnapshot(s);
 
 balanceBSkuStockSnapshotDate 'Кол-во начало' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
 sumBSkuStockSnapshotDate 'Сумма начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
@@ -256,43 +266,74 @@ overTakeBatchSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE);
 
 takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
     apply();    
-    IF countIncludeSkuSnapshot(snapshot) AND countIncludeStockSnapshot(snapshot) THEN {        
-        balanceBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateFrom)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
-        sumBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumBSkuStockDate(sku, stock, dateFrom)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+    IF countIncludeSkuSnapshot(snapshot) AND countIncludeStockSnapshot(snapshot) THEN {      
+        IF isQuantitySnapshot(snapshot) THEN {         
         
-        inQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
-        inSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
-
-        outQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
-        outSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);        
-        
-        balanceASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceASkuStockDate(sku, stock, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
-        sumASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumASkuStockDate(sku, stock, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);   
-        
-        IF isDateSnapshot(snapshot) THEN {                          
-            inQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityInSkuStockDate(sku, stock, date)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE) AND quantityInSkuStockDate(sku, stock, date);
-            inSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumInSkuStockDate(sku, stock, date)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE) AND sumInSkuStockDate(sku, stock, date);
+            balanceBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateFrom)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceBSnapshot(snapshot);
+            
+            inQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isInSnapshot(snapshot);
     
-            outQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityOutSkuStockDate(sku, stock, date)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE) AND quantityOutSkuStockDate(sku, stock, date);
-            outSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumOutSkuStockDate(sku, stock, date)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) AND date <= (dateTo AS DATE) AND sumOutSkuStockDate(sku, stock, date);        
+            outQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isOutSnapshot(snapshot);     
+            
+            balanceASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceASkuStockDate(sku, stock, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceASnapshot(snapshot);
+ 
+        }
+        IF isSumSnapshot(snapshot) THEN {         
+
+            sumBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumBSkuStockDate(sku, stock, dateFrom)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceBSnapshot(snapshot);
+
+            inSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isInSnapshot(snapshot);         
+
+            outSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isOutSnapshot(snapshot);        
+            
+            sumASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumASkuStockDate(sku, stock, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceASnapshot(snapshot);   
+        }        
+        IF isDateSnapshot(snapshot) THEN {  
+            IF isQuantitySnapshot(snapshot) THEN { 
+                inQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityInSkuStockDate(sku, stock, date)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND quantityInSkuStockDate(sku, stock, date) AND isInSnapshot(snapshot);
+        
+                outQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityOutSkuStockDate(sku, stock, date)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND quantityOutSkuStockDate(sku, stock, date) AND isOutSnapshot(snapshot);
+            }               
+            IF isSumSnapshot(snapshot) THEN { 
+                inSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumInSkuStockDate(sku, stock, date)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND sumInSkuStockDate(sku, stock, date) AND isOutSnapshot(snapshot);
+        
+                outSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumOutSkuStockDate(sku, stock, date)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND sumOutSkuStockDate(sku, stock, date) AND isOutSnapshot(snapshot);              
+            }               
+      
             
             LOCAL dateCur = DATE();           
             dateCur() <- dateFrom;           
             WHILE dateCur() <= dateTo DO {
 
                 balanceBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateCur())) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND balanceBSkuStockDate(sku, stock, date);
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND balanceBSkuStockDate(sku, stock, date)  
+                        AND isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
                 sumBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumBSkuStockDate(sku, stock, dateCur())) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND sumBSkuStockDate(sku, stock, date);
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND sumBSkuStockDate(sku, stock, date)
+                        AND isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
            
-                balanceBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateCur())) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND balanceBSkuStockDate(sku, stock, date);
-                sumBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumBSkuStockDate(sku, stock, dateCur())) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND sumBSkuStockDate(sku, stock, date);           
+                balanceASkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](balanceASkuStockDate(sku, stock, dateCur())) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND balanceBSkuStockDate(sku, stock, date)
+                        AND isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot);
+                sumASkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumASkuStockDate(sku, stock, dateCur())) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND sumBSkuStockDate(sku, stock, date)
+                        AND isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot);           
 
                 dateCur() <- sumDate(dateCur(), 1);
             }                    
@@ -301,23 +342,38 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
         overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo);      
                      
         IF isBatchSnapshot(snapshot) THEN {   
-    
-            balanceBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceBBatchStockDate(batch, stock, dateFrom)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
-            sumBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceBBatchStockDate(batch, stock, dateFrom)*costBatch(batch)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
-            
-            inQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
-            inSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
-    
-            outQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
-            outSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));           
-            
-            balanceABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceABatchStockDate(batch, stock, dateTo)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
-            sumABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));        
-       
+            IF isQuantitySnapshot(snapshot) THEN {
+                balanceBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceBBatchStockDate(batch, stock, dateFrom)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceBSnapshot(snapshot);
+                
+                inQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isInSnapshot(snapshot);
+        
+                outQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isOutSnapshot(snapshot);
+                
+                balanceABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceABatchStockDate(batch, stock, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceASnapshot(snapshot);
+            }
+            IF isSumSnapshot(snapshot) THEN { 
+                sumBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceBBatchStockDate(batch, stock, dateFrom)*costBatch(batch)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceBSnapshot(snapshot);
+                
+                inSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isInSnapshot(snapshot);
+        
+                outSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isOutSnapshot(snapshot);           
+                
+                sumABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceASnapshot(snapshot);               
+            }    
+                               
             overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo);     
         }
         
         overTakeSnapshotDateFromTo(snapshot, dateFrom, dateTo);
+        
         apply();    
     } ELSE {
         MESSAGE 'Не выбраны группы товаров или склады для отчета';
@@ -338,12 +394,47 @@ filterMoveStockSnapshotDate (st, r, d) = GROUP SUM 1 IF filterMoveSkuStockSnapsh
 filterMoveBatchStockSnapshot (bt,ss,r)= balanceBBatchStockSnapshot(bt,ss,r) OR balanceABatchStockSnapshot(bt,ss,r) OR 
                                         inQuantityBatchStockSnapshot(bt,ss,r) OR outQuantityBatchStockSnapshot(bt,ss,r) PERSISTENT;
 
-FORM snapshot 'Отчет'
+//-- SHOWIF
+isQuantityBalanceBSnapshot= isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
+isQuantityInSnapshot= isQuantitySnapshot(snapshot) AND isInSnapshot(snapshot);
+isQuantityOutSnapshot= isQuantitySnapshot(snapshot) AND isOutSnapshot(snapshot);
+isQuantityBalanceASnapshot= isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot);
 
+isSumBalanceBSnapshot= isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
+isSumInSnapshot= isSumSnapshot(snapshot) AND isInSnapshot(snapshot);
+isSumOutSnapshot= isSumSnapshot(snapshot) AND isOutSnapshot(snapshot);
+isSumBalanceASnapshot= isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot);
+//--
+isQuantityBalanceBBatchSnapshot= isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isQuantityInBatchSnapshot= isQuantitySnapshot(snapshot) AND isInSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isQuantityOutBatchSnapshot= isQuantitySnapshot(snapshot) AND isOutSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isQuantityBalanceABatchSnapshot= isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
+
+isSumBalanceBBatchSnapshot= isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isSumInBatchSnapshot= isSumSnapshot(snapshot) AND isInSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isSumOutBatchSnapshot= isSumSnapshot(snapshot) AND isOutSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isSumBalanceABatchSnapshot= isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
+
+//--
+isQuantityBalanceBDateSnapshot= isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isQuantityInDateSnapshot= isQuantitySnapshot(snapshot) AND isInSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isQuantityOutDateSnapshot= isQuantitySnapshot(snapshot) AND isOutSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isQuantityBalanceADateSnapshot= isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
+
+isSumBalanceBDateSnapshot= isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumInDateSnapshot= isSumSnapshot(snapshot) AND isInSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumOutDateSnapshot= isSumSnapshot(snapshot) AND isOutSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumBalanceADateSnapshot= isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
+
+FORM snapshot 'Отчет'                                   
     OBJECTS r = Snapshot FIXED PANEL
     PROPERTIES (r) nameNumeratorSnapshot, 
                    numberSnapshot, seriesSnapshot, dateSnapshot, timeSnapshot,
-                   noteSnapshot, fromDateSnapshot, toDateSnapshot, isBatchSnapshot, isDateSnapshot 
+                   noteSnapshot, fromDateSnapshot, toDateSnapshot, 
+                   isQuantitySnapshot, isSumSnapshot, isBalanceBSnapshot BACKGROUND hintBalanceBBackground(), 
+                   isInSnapshot BACKGROUND hintInBackground(), isOutSnapshot BACKGROUND hintOutBackground(), 
+                   isBalanceASnapshot BACKGROUND hintBalanceABackground(),
+                   isBatchSnapshot, isDateSnapshot 
 //-- выбор складов                  
     TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parentStockGroup, ts2 = Stock
     PROPERTIES OBJVALUE(a2) READONLY, allStockIncludeSnapshot(r) TODRAW a2, 
@@ -385,10 +476,14 @@ FORM snapshot 'Отчет'
                       st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
                       isCompanyStock(st)
 
-    PROPERTIES(s, st, r) BACKGROUND hintBalanceBBackground() balanceBSkuStockSnapshot, sumBSkuStockSnapshot 
-    PROPERTIES(s, st, r) BACKGROUND hintInBackground() inQuantitySkuStockSnapshot, inSumSkuStockSnapshot
-    PROPERTIES(s, st, r) BACKGROUND hintOutBackground() outQuantitySkuStockSnapshot, outSumSkuStockSnapshot
-    PROPERTIES(s, st, r) BACKGROUND hintBalanceABackground() balanceASkuStockSnapshot, sumASkuStockSnapshot                                                                                                                                               
+    PROPERTIES(s, st, r) BACKGROUND hintBalanceBBackground() balanceBSkuStockSnapshot SHOWIF isQuantityBalanceBSnapshot(r), 
+                         sumBSkuStockSnapshot SHOWIF isSumBalanceBSnapshot(r) 
+    PROPERTIES(s, st, r) BACKGROUND hintInBackground() inQuantitySkuStockSnapshot SHOWIF isQuantityInSnapshot(r), 
+                         inSumSkuStockSnapshot SHOWIF isSumInSnapshot(r)
+    PROPERTIES(s, st, r) BACKGROUND hintOutBackground() outQuantitySkuStockSnapshot SHOWIF isQuantityOutSnapshot(r), 
+                         outSumSkuStockSnapshot SHOWIF isSumOutSnapshot(r)
+    PROPERTIES(s, st, r) BACKGROUND hintBalanceABackground() balanceASkuStockSnapshot SHOWIF isQuantityBalanceASnapshot(r), 
+                         sumASkuStockSnapshot SHOWIF isSumBalanceASnapshot(r)                                                                                      
                                                              
     FILTERGROUP filtersSold
         FILTER 'С движением' 'F11' filterMoveSkuStockSnapshot(s,st,r) DEFAULT
@@ -406,10 +501,14 @@ FORM snapshot 'Отчет'
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ss) DEFAULT
     ORDER BY          dateTimeBatch(bt)
 
-    PROPERTIES(bt, ss, r) SHOWIF isBatchSnapshot(r) BACKGROUND hintBalanceBBackground() balanceBBatchStockSnapshot, sumBBatchStockSnapshot 
-    PROPERTIES(bt, ss, r) SHOWIF isBatchSnapshot(r)BACKGROUND hintInBackground() inQuantityBatchStockSnapshot, inSumBatchStockSnapshot
-    PROPERTIES(bt, ss, r) SHOWIF isBatchSnapshot(r) BACKGROUND hintOutBackground() outQuantityBatchStockSnapshot, outSumBatchStockSnapshot                              
-    PROPERTIES(bt, ss, r) SHOWIF isBatchSnapshot(r) BACKGROUND hintBalanceABackground() balanceABatchStockSnapshot, sumABatchStockSnapshot
+    PROPERTIES(bt, ss, r) BACKGROUND hintBalanceBBackground() balanceBBatchStockSnapshot SHOWIF isQuantityBalanceBBatchSnapshot(r), 
+                          sumBBatchStockSnapshot SHOWIF isSumBalanceBBatchSnapshot(r) 
+    PROPERTIES(bt, ss, r) BACKGROUND hintInBackground() inQuantityBatchStockSnapshot SHOWIF isQuantityInBatchSnapshot(r), 
+                          inSumBatchStockSnapshot SHOWIF isSumInBatchSnapshot(r)
+    PROPERTIES(bt, ss, r) BACKGROUND hintOutBackground() outQuantityBatchStockSnapshot SHOWIF isQuantityOutBatchSnapshot(r), 
+                          outSumBatchStockSnapshot SHOWIF isSumOutBatchSnapshot(r)                             
+    PROPERTIES(bt, ss, r) BACKGROUND hintBalanceABackground() balanceABatchStockSnapshot SHOWIF isQuantityBalanceABatchSnapshot(r), 
+                          sumABatchStockSnapshot SHOWIF isSumBalanceABatchSnapshot(r)
     
     FILTERGROUP filtersSoldBatch
         FILTER 'С движением' 'F11' filterMoveBatchStockSnapshot(bt,ss,r) DEFAULT
@@ -423,10 +522,10 @@ FORM snapshot 'Отчет'
     PROPERTIES READONLY nameSkuGroup(sk1)
     ORDER BY nameSkuGroup(sk1)
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk1) DEFAULT    
-    PROPERTIES(sk1,r) READONLY BACKGROUND hintBalanceBBackground() balanceBSkuGroupSnapshot, sumBSkuGroupSnapshot 
-//    PROPERTIES(sk1,r) READONLY BACKGROUND hintInBackground() inQuantitySkuGroupSnapshot, inSumSkuGroupSnapshot
-//    PROPERTIES(sk1,r) READONLY BACKGROUND hintOutBackground() outQuantitySkuGroupSnapshot, outSumSkuGroupSnapshot
-    PROPERTIES(sk1,r) READONLY BACKGROUND hintBalanceABackground() balanceASkuGroupSnapshot, sumASkuGroupSnapshot                
+    PROPERTIES(sk1,r) READONLY BACKGROUND hintBalanceBBackground() balanceBSkuGroupSnapshot SHOWIF isQuantityBalanceBSnapshot(r), 
+                      sumBSkuGroupSnapshot SHOWIF isSumBalanceBSnapshot(r)
+    PROPERTIES(sk1,r) READONLY BACKGROUND hintBalanceABackground() balanceASkuGroupSnapshot SHOWIF isQuantityBalanceASnapshot(r), 
+                      sumASkuGroupSnapshot SHOWIF isSumBalanceASnapshot(r)               
        
 //-- По складам           
     TREE stockTree1 a1 = STRING[3], sg1 = StockGroup PARENT parentStockGroup
@@ -442,10 +541,14 @@ FORM snapshot 'Отчет'
             isCompanyStock(ts1)     
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ts1) DEFAULT               
 
-    PROPERTIES(ts1,r) READONLY BACKGROUND hintBalanceBBackground() balanceBStockSnapshot, sumBStockSnapshot 
-    PROPERTIES(ts1,r) READONLY BACKGROUND hintInBackground() inQuantityStockSnapshot, inSumStockSnapshot
-    PROPERTIES(ts1,r) READONLY BACKGROUND hintOutBackground() outQuantityStockSnapshot, outSumStockSnapshot
-    PROPERTIES(ts1,r) READONLY BACKGROUND hintBalanceABackground() balanceAStockSnapshot, sumAStockSnapshot  
+    PROPERTIES(ts1,r) READONLY BACKGROUND hintBalanceBBackground() balanceBStockSnapshot SHOWIF isQuantityBalanceBSnapshot(r), 
+                      sumBStockSnapshot SHOWIF isSumBalanceBSnapshot(r)   
+    PROPERTIES(ts1,r) READONLY BACKGROUND hintInBackground() inQuantityStockSnapshot SHOWIF isQuantityInSnapshot(r), 
+                      inSumStockSnapshot SHOWIF isSumInSnapshot(r)  
+    PROPERTIES(ts1,r) READONLY BACKGROUND hintOutBackground() outQuantityStockSnapshot SHOWIF isQuantityOutSnapshot(r), 
+                      outSumStockSnapshot SHOWIF isSumOutSnapshot(r)  
+    PROPERTIES(ts1,r) READONLY BACKGROUND hintBalanceABackground() balanceAStockSnapshot SHOWIF isQuantityBalanceASnapshot(r), 
+                      sumAStockSnapshot SHOWIF isSumBalanceASnapshot(r)   
                                   
     FILTERGROUP filtersSoldStock
         FILTER 'С движением' 'F11' balanceBStockSnapshot(ts1,r) OR balanceAStockSnapshot(ts1,r) OR 
@@ -462,10 +565,14 @@ FORM snapshot 'Отчет'
     FILTERGROUP inactiveLegalEntity FILTER 'Активная орг-ия' 'shift F10' activeLegalEntity(l) DEFAULT
     FILTERS isSupplierLegalEntity(l)                                              
                                               
-    PROPERTIES(l,r) READONLY SHOWIF isBatchSnapshot(r) BACKGROUND hintBalanceBBackground() balanceBBatchSupplierSnapshot, sumBBatchSupplierSnapshot 
-    PROPERTIES(l,r) READONLY SHOWIF isBatchSnapshot(r) BACKGROUND hintInBackground() inQuantityBatchSupplierSnapshot, inSumBatchSupplierSnapshot
-    PROPERTIES(l,r) READONLY SHOWIF isBatchSnapshot(r) BACKGROUND hintOutBackground() outQuantityBatchSupplierSnapshot, outSumBatchSupplierSnapshot
-    PROPERTIES(l,r) READONLY SHOWIF isBatchSnapshot(r) BACKGROUND hintBalanceABackground() balanceABatchSupplierSnapshot, sumABatchSupplierSnapshot                                                                                                                                                              
+    PROPERTIES(l,r) READONLY BACKGROUND hintBalanceBBackground() balanceBBatchSupplierSnapshot SHOWIF isQuantityBalanceBBatchSnapshot(r), 
+                    sumBBatchSupplierSnapshot  SHOWIF isSumBalanceBBatchSnapshot(r)
+    PROPERTIES(l,r) READONLY BACKGROUND hintInBackground() inQuantityBatchSupplierSnapshot SHOWIF isQuantityInBatchSnapshot(r), 
+                    inSumBatchSupplierSnapshot  SHOWIF isSumInBatchSnapshot(r)
+    PROPERTIES(l,r) READONLY BACKGROUND hintOutBackground() outQuantityBatchSupplierSnapshot SHOWIF isQuantityOutBatchSnapshot(r), 
+                    outSumBatchSupplierSnapshot  SHOWIF isSumOutBatchSnapshot(r)
+    PROPERTIES(l,r) READONLY BACKGROUND hintBalanceABackground() balanceABatchSupplierSnapshot SHOWIF isQuantityBalanceABatchSnapshot(r), 
+                    sumABatchSupplierSnapshot  SHOWIF isSumBalanceABatchSnapshot(r)                                                                                                                                                             
  
     FILTERGROUP filtersSoldSupplier
         FILTER 'С движением' 'F11' balanceBBatchSupplierSnapshot(l,r) OR balanceABatchSupplierSnapshot(l,r) OR 
@@ -475,20 +582,7 @@ FORM snapshot 'Отчет'
         FILTER 'С продажей' 'F8' outQuantityBatchSupplierSnapshot(l,r)    
         
 //-- По SKU на дату         
-        
-//    TREE stockTree3 a3 = STRING[3], sg3 = StockGroup PARENT parentStockGroup, ts3 = Stock
-//    PROPERTIES READONLY OBJVALUE(a3), nameStockGroup(sg3), nameStock(ts3)
-//    ORDER BY nameStockGroup(sg3)
-//    FILTERS stringEqualsAll(a3),
-//            stockGroupStock(ts3) == sg3,
-//            isCompanyStock(ts3)
-//    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ts3) DEFAULT    
-//    
-//    TREE skuTree3 sk3 = SkuGroup PARENT parentSkuGroup
-//    PROPERTIES READONLY nameSkuGroup(sk3)
-//    ORDER BY nameSkuGroup(sk3)
-//    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
-    
+           
     OBJECTS           sts3=(st3=Stock, s3=Sku, d3=DATE) 
     PROPERTIES        READONLY SHOWIF isDateSnapshot(r) valD3 =OBJVALUE(d3), nameSku(s3), idBarcodeSku(s3), nameStock(st3), nameSkuGroup1Sku(s3), nameSkuGroup2Sku(s3),
                       nameSkuGroup3Sku(s3), nameSkuGroup4Sku(s3), nameSkuGroup5Sku(s3)
@@ -501,10 +595,14 @@ FORM snapshot 'Отчет'
                       st3 == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st3) AND NOT ts OR st3 IS Stock AND NOT sg AND NOT ts,
                       isCompanyStock(st3)
 
-    PROPERTIES(s3,st3,r,d3) SHOWIF isDateSnapshot(r) BACKGROUND hintBalanceBBackground() balanceBSkuStockSnapshotDate, sumBSkuStockSnapshotDate 
-    PROPERTIES(s3,st3,r,d3) SHOWIF isDateSnapshot(r) BACKGROUND hintInBackground() inQuantitySkuStockSnapshotDate, inSumSkuStockSnapshotDate
-    PROPERTIES(s3,st3,r,d3) SHOWIF isDateSnapshot(r) BACKGROUND hintOutBackground() outQuantitySkuStockSnapshotDate, outSumSkuStockSnapshotDate
-    PROPERTIES(s3,st3,r,d3) SHOWIF isDateSnapshot(r) BACKGROUND hintBalanceABackground() balanceASkuStockSnapshotDate, sumASkuStockSnapshotDate                                                                                                                                               
+    PROPERTIES(s3,st3,r,d3) BACKGROUND hintBalanceBBackground() balanceBSkuStockSnapshotDate SHOWIF isQuantityBalanceBDateSnapshot(r), 
+                            sumBSkuStockSnapshotDate SHOWIF isSumBalanceBDateSnapshot(r)  
+    PROPERTIES(s3,st3,r,d3) BACKGROUND hintInBackground() inQuantitySkuStockSnapshotDate SHOWIF isQuantityInDateSnapshot(r), 
+                            inSumSkuStockSnapshotDate SHOWIF isSumInDateSnapshot(r) 
+    PROPERTIES(s3,st3,r,d3) BACKGROUND hintOutBackground() outQuantitySkuStockSnapshotDate SHOWIF isQuantityOutDateSnapshot(r), 
+                            outSumSkuStockSnapshotDate SHOWIF isSumOutDateSnapshot(r) 
+    PROPERTIES(s3,st3,r,d3) BACKGROUND hintBalanceABackground() balanceASkuStockSnapshotDate SHOWIF isQuantityBalanceADateSnapshot(r), 
+                            sumASkuStockSnapshotDate SHOWIF isSumBalanceADateSnapshot(r)                                                                                                                                                  
                                                              
     FILTERGROUP filtersSold
         FILTER 'С движением' 'F11' filterMoveSkuStockSnapshotDate(s3,st3,r,d3) DEFAULT
@@ -521,14 +619,14 @@ FORM snapshot 'Отчет'
     PROPERTIES READONLY  valD4 =OBJVALUE(d4)  
     FILTERS           filterMoveSnapshotDate (r, d4)
         
-    PROPERTIES(st4,r,d4) SHOWIF isDateSnapshot(r) BACKGROUND hintBalanceBBackground() balanceBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameBalanceBStock(st4), 
-                         sumBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameSumBStock(st4)
-    PROPERTIES(st4,r,d4) SHOWIF isDateSnapshot(r) BACKGROUND hintInBackground() inQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER nameInQuantityStock(st4), 
-                         inSumStockSnapshotDate COLUMNS 'g' (st4) HEADER nameInSumStock(st4)
-    PROPERTIES(st4,r,d4) SHOWIF isDateSnapshot(r) BACKGROUND hintOutBackground() outQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER nameOutQuantityStock(st4), 
-                         outSumStockSnapshotDate COLUMNS 'g' (st4) HEADER nameOutSumStock(st4)
-    PROPERTIES(st4,r,d4) SHOWIF isDateSnapshot(r) BACKGROUND hintBalanceABackground() balanceAStockSnapshotDate COLUMNS 'g' (st4) HEADER nameBalanceAStock(st4), 
-                         sumAStockSnapshotDate COLUMNS 'g' (st4) HEADER nameSumAStock(st4)                                       
+    PROPERTIES(st4,r,d4) BACKGROUND hintBalanceBBackground() balanceBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameBalanceBStock(st4) SHOWIF isQuantityBalanceBDateSnapshot(r), 
+                         sumBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameSumBStock(st4) SHOWIF isSumBalanceBDateSnapshot(r)
+    PROPERTIES(st4,r,d4) BACKGROUND hintInBackground() inQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER nameInQuantityStock(st4) SHOWIF isQuantityInDateSnapshot(r), 
+                         inSumStockSnapshotDate COLUMNS 'g' (st4) HEADER nameInSumStock(st4) SHOWIF isSumInDateSnapshot(r)
+    PROPERTIES(st4,r,d4) BACKGROUND hintOutBackground() outQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER nameOutQuantityStock(st4) SHOWIF isQuantityOutDateSnapshot(r), 
+                         outSumStockSnapshotDate COLUMNS 'g' (st4) HEADER nameOutSumStock(st4) SHOWIF isSumOutDateSnapshot(r)
+    PROPERTIES(st4,r,d4) BACKGROUND hintBalanceABackground() balanceAStockSnapshotDate COLUMNS 'g' (st4) HEADER nameBalanceAStock(st4) SHOWIF isQuantityBalanceADateSnapshot(r), 
+                         sumAStockSnapshotDate COLUMNS 'g' (st4) HEADER nameSumAStock(st4) SHOWIF isSumBalanceADateSnapshot(r)                                       
    
     EDIT Snapshot OBJECT r
 ;
@@ -544,6 +642,7 @@ DESIGN snapshot FROM DEFAULT {
                 ADD PROPERTY (fromDateSnapshot(r));
                 ADD PROPERTY (toDateSnapshot(r));
             }
+            ADD r.documentHeader;           
         };
         NEW top {                     
             fill = 1;
@@ -551,14 +650,45 @@ DESIGN snapshot FROM DEFAULT {
             NEW paramContainer {
                 fill = 1;
                 caption = 'Параметры';
-                ADD r.documentHeader;                   
+                ADD r.evidence {
+                    type = CONTAINERH;                      
+                    NEW row1 {
+                        type = CONTAINERV; 
+                        caption = 'Основные';    
+                        ADD PROPERTY(isBatchSnapshot(r));
+                        ADD PROPERTY(isDateSnapshot(r));
+                    }
+                    NEW row2 {
+                        type = CONTAINERV;
+                        caption = 'Количественые';
+                        ADD PROPERTY(isQuantitySnapshot(r));
+                        ADD PROPERTY(isSumSnapshot(r));                        
+                    }
+                    NEW row3 {
+                        caption = 'Остатки';
+                        ADD PROPERTY(isBalanceBSnapshot(r));
+                        ADD PROPERTY(isBalanceASnapshot(r));                                                                                                     
+                    }   
+                    NEW row4 {
+                        type = CONTAINERV;
+                        caption = 'Движение';
+                        ADD PROPERTY(isInSnapshot(r));  
+                        ADD PROPERTY(isOutSnapshot(r));                     
+                    }                                                                          
+                    NEW row5 {
+                        type = CONTAINERV;
+                        caption = 'Оборот';  
+                        type = COLUMNS;
+                        columns = 2;                          
+                    }                                                         
+                }                                   
                 ADD r.documentPrm;
-                 NEW select{
+                NEW select{
                     fill = 1;
                     type = SPLITH;
                     ADD stockTree2.tree.box { fill = 1; caption = 'Выбор складов'; }   
                     ADD skuTree2.tree.box { fill = 1; caption = 'Выбор групп'; }   
-                 }   
+                }   
             }
             
             NEW resultContainer {
