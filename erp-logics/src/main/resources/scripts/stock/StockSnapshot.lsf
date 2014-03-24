@@ -6,7 +6,7 @@ NAMESPACE Stock;
 
 //////////////////////Отчет ////////////////////////////
 
-CLASS Snapshot 'Отчет';
+CLASS Snapshot 'Отчет по товарообороту';
 TABLE snapshot (Snapshot);
 
 hintBalanceBBackground 'Лавандовый' = RGB(255,238,238) IF TRUE;     
@@ -22,11 +22,14 @@ hintOutBackground 'Бороды Абдель-Керима' = RGB(213, 213, 213) 
 @defineDocumentHeaderCreated(Snapshot);
 @deriveDocumentHeaderTimePrefix(Snapshot, );
 @defineDocumentHeaderNumber(Snapshot);
-@defineNumeratedDefault(Snapshot, 'Отчет', 'ОО');
-@defineDocumentHeaderDescription (Snapshot, 'Отчет');
+@defineNumeratedDefault(Snapshot, 'Отчет по товарообороту', 'ОО');
+@defineDocumentHeaderDescription (Snapshot, 'Отчет по товарообороту');
 
 fromDateSnapshot 'Дата с' = DATA DATE (Snapshot) IN documentHeader;
 toDateSnapshot 'Дата по' = DATA DATE (Snapshot) IN documentHeader;
+
+startTimeSnapshot 'Время начала формирования' = DATA DATETIME (Snapshot) IN created;
+finishTimeSnapshot 'Время окончания формирования' = DATA DATETIME (Snapshot) IN created;
 
 WHEN SESSION SET(o IS Snapshot) DO {
     IF o IS Snapshot AND NOT fromDateSnapshot(o) THEN fromDateSnapshot(o) <- currentDate();
@@ -221,6 +224,8 @@ sumABatchSupplierSnapshot 'Сумма конец' (supplier, snapshot) =
     
 //-- Выбор складов
 TABLE snapshotStockGroup (Snapshot, StockGroup); 
+TABLE snapshotStock (Snapshot, Stock);
+
 allStockIncludeSnapshot 'Вкл' = DATA BOOLEAN (Snapshot);
 dataIncludeSnapshotStockGroup 'Вкл' = DATA BOOLEAN (Snapshot, StockGroup);
 dataIncludeSnapshotStock 'Вкл' = DATA BOOLEAN (Snapshot, Stock);
@@ -240,6 +245,22 @@ includeSnapshotStock 'Вкл' (snapshot, stock) =
              dataIncludeSnapshotStock(snapshot, stock)) IF isCompanyStock(stock) PERSISTENT;
              
 countIncludeStockSnapshot  (snapshot) = GROUP SUM 1 IF includeSnapshotStock(snapshot, stock) BY snapshot;      
+
+
+nameIncludeStockGroupsSnapshot 'Группы складов (все)' (document)= 
+    GROUP CONCAT nameStockGroup(stockGroup) IF dataIncludeSnapshotStockGroup(document, stockGroup), ', ' 
+    BY document 
+    ORDER stockGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+nameIncludeStocksSnapshot 'Склады (все)' (document)= 
+    GROUP CONCAT nameStock(stock) IF dataIncludeSnapshotStock(document, stock), ', ' 
+    BY document 
+    ORDER stock
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    
+nameIncludeStockGroupsStockSnapshot 'Группы складов, склады (все)' (document) = CONCAT '; ', nameIncludeStockGroupsSnapshot(document), 
+                                                                                             nameIncludeStocksSnapshot(document) MINCHARWIDTH 20 PREFCHARWIDTH 40;   
         
 //-- Выбор групп товара  
 TABLE snapshotSkuGroup (Snapshot, SkuGroup);  
@@ -259,13 +280,30 @@ includeSnapshotSku 'Вкл' (snapshot, sku) = includeSnapshotSkuGroup(snapshot, 
                     
 countIncludeSkuSnapshot 'Вкл' (snapshot) = GROUP SUM 1 IF includeSnapshotSku(snapshot, sku) BY snapshot;                    
 
+nameIncludeSkuGroupsSnapshot 'Группы товаров (все)' (document)= 
+    GROUP CONCAT nameSkuGroup(skuGroup) IF dataIncludeSnapshotSkuGroup(document, skuGroup), ', ' 
+    BY document 
+    ORDER skuGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
 //------------------------------- ACTION -------------------------------//   
 overTakeSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE); 
 overTakeSkuSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE);
 overTakeBatchSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE);
 
+statusSnapshot 'Статус отчета' (snapshot) = CASE
+                                          WHEN finishTimeSnapshot(snapshot) THEN 'Сформирован'
+                                          WHEN snapshot IS Snapshot THEN 'Не сформирован'
+                                          MINCHARWIDTH 10 PREFCHARWIDTH 15
+                                      ;
+backgroundStatusSnapshot 'Цвет' (snapshot) =  CASE                                             
+                                          WHEN finishTimeSnapshot(snapshot) THEN RGB(212,255,212)
+                                          WHEN snapshot IS Snapshot THEN RGB(255,200,216)
+                                      ;
+
 takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
-    apply();    
+    apply(); 
+    startTimeSnapshot(snapshot) <- currentDateTime();   
     IF countIncludeSkuSnapshot(snapshot) AND countIncludeStockSnapshot(snapshot) THEN {      
         IF isQuantitySnapshot(snapshot) THEN {         
         
@@ -370,17 +408,17 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
             }    
                                
             overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo);     
-        }
-        
+        }         
         overTakeSnapshotDateFromTo(snapshot, dateFrom, dateTo);
         
-        apply();    
+        apply(); 
+        finishTimeSnapshot(snapshot) <- currentDateTime();      
     } ELSE {
         MESSAGE 'Не выбраны группы товаров или склады для отчета';
     }    
 } CONFIRM;
 
-takeDataSnapshot 'Заполнить данные' (snapshot) = takeSnapshotDateFromTo(snapshot, fromDateSnapshot(snapshot), toDateSnapshot(snapshot)) CONFIRM;
+takeDataSnapshot 'Сформировать отчет' (snapshot) = takeSnapshotDateFromTo(snapshot, fromDateSnapshot(snapshot), toDateSnapshot(snapshot)) CONFIRM;
 
 filterMoveSkuStockSnapshot (s, st, r) = balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) OR 
                                         inQuantitySkuStockSnapshot(s,st,r) OR outQuantitySkuStockSnapshot(s,st,r) PERSISTENT;
@@ -426,7 +464,7 @@ isSumInDateSnapshot= isSumSnapshot(snapshot) AND isInSnapshot(snapshot) AND isDa
 isSumOutDateSnapshot= isSumSnapshot(snapshot) AND isOutSnapshot(snapshot) AND isDateSnapshot(snapshot);
 isSumBalanceADateSnapshot= isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
 
-FORM snapshot 'Отчет'                                   
+FORM snapshot 'Отчет по товарообороту'                                   
     OBJECTS r = Snapshot FIXED PANEL
     PROPERTIES (r) nameNumeratorSnapshot, 
                    numberSnapshot, seriesSnapshot, dateSnapshot, timeSnapshot,
@@ -747,15 +785,29 @@ DESIGN snapshot FROM DEFAULT {
 
 @extendFormFilterLegalEntityAccess(LegalEntity, l, snapshot, supplier);
 
-FORM snapshots 'Отчеты'
+FORM snapshots 'Отчеты по товарообороту'
 
     OBJECTS r = Snapshot
     PROPERTIES (r) READONLY numberSnapshot, seriesSnapshot, dateSnapshot, timeSnapshot,
-                   fromDateSnapshot, toDateSnapshot, isBatchSnapshot, isDateSnapshot, noteSnapshot 
+                   fromDateSnapshot, toDateSnapshot, statusSnapshot BACKGROUND backgroundStatusSnapshot(r), 
+                   startTimeSnapshot, finishTimeSnapshot, noteSnapshot, nameIncludeStockGroupsStockSnapshot, nameIncludeSkuGroupsSnapshot,
+                   isBatchSnapshot, isDateSnapshot, isQuantitySnapshot, isSumSnapshot, isBalanceBSnapshot BACKGROUND hintBalanceBBackground(), 
+                   isInSnapshot BACKGROUND hintInBackground(),
+                   isOutSnapshot BACKGROUND hintOutBackground(), isBalanceASnapshot BACKGROUND hintBalanceABackground()                  
+                   
     PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
-                        
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUserSnapshot, createdTimeSnapshot, createdHostnameComputerSnapshot   
+                         
     DIALOG Snapshot OBJECT r
 ;
+DESIGN snapshots FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+        ADD r.box;
+        ADD r.created; 
+        ADD functions.box;
+    }    
+}
 
 NAVIGATOR {
     stockReports {
