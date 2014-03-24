@@ -83,7 +83,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<Object, Object>(generalLedgerKeys);
 
         String[] generalLedgerProperties = new String[]{"dateGeneralLedger", "numberGLDocumentGeneralLedger",
-                "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger"};
+                "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger", 
+                "idOperationGeneralLedger"};
         for (String property : generalLedgerProperties) {
             generalLedgerQuery.addProperty(property, getLCP(property).getExpr(generalLedgerExpr));
         }
@@ -131,7 +132,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             idCredit = idCredit == null ? null : trim(idCredit.replace(".", ""), 5);
 
             BigDecimal sumGeneralLedger = (BigDecimal) resultValues.get("sumGeneralLedger").getValue(); //N_SUM                                
-
+            String idOperationGeneralLedger = trim((String) resultValues.get("idOperationGeneralLedger").getValue(), 3); //K_OP  
+            
             String nameDebit = (String) resultValues.get("idDebitGeneralLedgerDimensionType").getValue();
             Integer orderDebit = (Integer) resultValues.get("orderDebitGeneralLedgerDimensionType").getValue();
             if (orderDebit != null) {
@@ -154,7 +156,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             }
 
             generalLedgerMap.put(generalLedgerObject, Arrays.asList((Object) dateGeneralLedger, numberGeneralLedger,
-                    description, idDebit, idCredit, sumGeneralLedger));
+                    description, idDebit, idCredit, sumGeneralLedger, idOperationGeneralLedger));
         }
 
         File dbfFile = File.createTempFile("export", "dbf");
@@ -163,7 +165,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         for (Map.Entry<DataObject, List<Object>> entry : generalLedgerMap.entrySet()) {
             DataObject key = entry.getKey();
             List<Object> values = entry.getValue();
-            dbfwriter.addRecord(new Object[]{values.get(0), values.get(1), null, values.get(2), null, values.get(3), //6 
+            dbfwriter.addRecord(new Object[]{values.get(0), values.get(1), null, values.get(2), values.get(6), values.get(3), //6 
                     values.get(4), debit1Map.get(key), debit2Map.get(key), debit3Map.get(key), credit1Map.get(key), //11
                     credit2Map.get(key), credit3Map.get(key), values.get(5), null, null, 0, "00", "TMC"});  //19   
         }
