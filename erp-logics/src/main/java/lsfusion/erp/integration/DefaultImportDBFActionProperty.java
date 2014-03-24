@@ -1,5 +1,6 @@
 package lsfusion.erp.integration;
 
+import lsfusion.base.IOUtils;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -10,6 +11,8 @@ import org.apache.commons.lang.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -64,5 +67,21 @@ public class DefaultImportDBFActionProperty extends DefaultImportActionProperty 
 
     protected Boolean getDBFBooleanFieldValue(DBF importFile, String fieldName, String charset, Boolean defaultValue) throws UnsupportedEncodingException {
         return "T".equals(getDBFFieldValue(importFile, fieldName, charset, String.valueOf(defaultValue)));
+    }
+
+    public String getDBFCharset(File file) throws IOException {
+        byte charsetByte = IOUtils.getFileBytes(file)[29];
+        String charset;
+        switch (charsetByte) {
+            case (byte) 0x65:
+                charset = "cp866";
+                break;
+            case (byte) 0xC9:
+                charset = "cp1251";
+                break;
+            default:
+                charset = "cp866";
+        }
+        return charset;
     }
 }
