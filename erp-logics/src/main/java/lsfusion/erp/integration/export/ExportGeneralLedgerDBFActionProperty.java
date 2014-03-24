@@ -101,7 +101,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         if (dateTo != null)
             generalLedgerQuery.and(getLCP("dateGeneralLedger").getExpr(generalLedgerExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
 
-        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> generalLedgerResult = generalLedgerQuery.executeClasses(context);
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> generalLedgerResult = generalLedgerQuery.executeClasses(context,
+                MapFact.addOrderExcl(MapFact.singletonOrder("dateGeneralLedger", false), MapFact.singletonOrder("numberGLDocumentGeneralLedger", false)));
 
         if (generalLedgerResult.size() == 0)
             return null;
