@@ -300,24 +300,25 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         List<String> filePathList = new ArrayList<String>();
         for (Map.Entry<String, String> entry : cashRegisterDirectories.entrySet()) {
 
-            try {
-                if (entry.getValue() != null) {
 
-                    String exchangeDirectory = entry.getValue().trim() + "\\Export\\";
+            if (entry.getValue() != null) {
 
-                    File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-                        @Override
-                        public boolean accept(File pathname) {
-                            return pathname.getName().startsWith("ReportCheque1C") && pathname.getPath().endsWith(".xml");
-                        }
-                    });
+                String exchangeDirectory = entry.getValue().trim() + "\\Export\\";
 
-                    if(filesList == null || filesList.length==0)
-                        logger.info("Kristal: No checks found in " + exchangeDirectory);
-                    else {
-                        logger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+                File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
+                    @Override
+                    public boolean accept(File pathname) {
+                        return pathname.getName().startsWith("ReportCheque1C") && pathname.getPath().endsWith(".xml");
+                    }
+                });
 
-                        for (File file : filesList) {
+                if (filesList == null || filesList.length == 0)
+                    logger.info("Kristal: No checks found in " + exchangeDirectory);
+                else {
+                    logger.info("Kristal: found " + filesList.length + " file(s) in " + exchangeDirectory);
+
+                    for (File file : filesList) {
+                        try {
                             String fileName = file.getName();
                             logger.info("Kristal: reading " + file.getName());
                             long currentDate = Calendar.getInstance().getTime().getTime();
@@ -395,11 +396,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                 }
                                 filePathList.add(file.getAbsolutePath());
                             }
+                        } catch (JDOMException e) {
+                            logger.error(e);
                         }
                     }
                 }
-            } catch (JDOMException e) {
-                throw Throwables.propagate(e);
             }
         }
         return new KristalSalesBatch(salesInfoList, filePathList);
