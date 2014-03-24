@@ -351,6 +351,30 @@ NAVIGATOR {
     }
 }
 
+replaceSizeSize = ABSTRACT ACTION LIST (Size, Size);
+inSize 'Отм.' = DATA SESSION BOOLEAN (Size);
+
+replaceSize 'Объединить' = ACTION (size) {
+    FOR inSize(s) DO{
+        IF s != size THEN {
+            sizeItem(item) <- size WHERE sizeItem(item) == s;
+            
+            replaceSizeSize(s,size);
+            
+            inSize(s) <- NULL;
+            DELETE s;
+        } ELSE {
+            MESSAGE 'Выделенный артикул не может совпадать с объединяемым';
+        }
+    }
+    apply();
+} CONFIRM;
+
+
+EXTEND FORM sizes
+    PROPERTIES(t) inSize BEFORE nameSize(t), replaceSize FORCE PANEL TOOLBAR
+;
+
 //-------------------------- Размерная сетка ------------------------//
 CLASS SizeGroup 'Размерная сетка';
 TABLE sizeGroup(SizeGroup);
@@ -433,6 +457,32 @@ EXTEND DESIGN articles {
         ADD i.box;
     }
 } 
+
+// ------------------------- Объединение артикулов ---------------------- //
+
+replaceArticleArticle = ABSTRACT ACTION LIST (Article, Article);
+inArticle 'Отм.' = DATA SESSION BOOLEAN (Article);
+
+replaceArticle 'Объединить' = ACTION (article) {
+    FOR inArticle(a) DO{
+        IF a != article THEN {
+            articleItem(item) <- article WHERE articleItem(item) == a;
+            
+            replaceArticleArticle(a,article);
+            
+            inArticle(a) <- NULL;
+            DELETE a;
+        } ELSE {
+            MESSAGE 'Выделенный артикул не может совпадать с объединяемым';
+        }
+    }
+    apply();
+} CONFIRM;
+
+
+EXTEND FORM articles
+    PROPERTIES(a) inArticle BEFORE captionArticle(a), replaceArticle FORCE PANEL TOOLBAR
+;
 
 // ------------------------- Автоматическое проставление свойств товара для артикула ---------------------- //
 META defineEventChangedArticle(property)
