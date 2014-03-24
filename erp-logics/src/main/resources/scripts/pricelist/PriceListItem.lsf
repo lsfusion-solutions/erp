@@ -1,0 +1,27 @@
+MODULE PriceListItem;
+
+REQUIRE PriceList, Item;
+
+NAMESPACE PriceList;
+
+//Производитель
+filterManufacturerUserPriceList = DATA SESSION Manufacturer (UserPriceList);
+nameFilterManufacturerUserPriceList 'Производитель' (userPriceList) = nameManufacturer(filterManufacturerUserPriceList(userPriceList)); 
+   
+filterManufacturerUserPriceListSku (userPriceList, sku) =
+    filterManufacturerUserPriceList(userPriceList) == manufacturerItem(sku) OR sku IS Item AND NOT filterManufacturerUserPriceList(userPriceList);    
+   
+filterManufacturerUserPriceListBatch (userPriceList, batch) =
+    filterManufacturerUserPriceList(userPriceList) == manufacturerBatch(batch) OR batch IS Batch AND NOT filterManufacturerUserPriceList(userPriceList);      
+
+EXTEND FORM userPriceList
+    PROPERTIES(p) FORCE PANEL nameFilterManufacturerUserPriceList
+    FILTERS filterManufacturerUserPriceListSku(p, s2)
+    FILTERS filterManufacturerUserPriceListBatch(p, b)
+;
+
+EXTEND DESIGN userPriceList {
+    filtersContainer {
+        ADD PROPERTY(nameFilterManufacturerUserPriceList(p));
+    }
+}

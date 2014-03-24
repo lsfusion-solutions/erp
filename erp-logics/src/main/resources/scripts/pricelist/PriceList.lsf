@@ -1,6 +1,6 @@
 MODULE PriceList;
 
-REQUIRE PriceListLedger, StockTax, Item;
+REQUIRE PriceListLedger, StockTax;
 
 NAMESPACE PriceList;
 
@@ -393,16 +393,6 @@ filterPriceListTypeUserPriceListBatchStock (userPriceList, batch, stock) =
     currentPriceBatchPriceListStock (batch, userPriceList, stock) OR
     (batch IS Batch AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
     
-//Производитель
-filterManufacturerUserPriceList = DATA SESSION Manufacturer (UserPriceList);
-nameFilterManufacturerUserPriceList 'Производитель' (userPriceList) = nameManufacturer(filterManufacturerUserPriceList(userPriceList)); 
-   
-filterManufacturerUserPriceListSku (userPriceList, sku) =
-    filterManufacturerUserPriceList(userPriceList) == manufacturerItem(sku) OR sku IS Item AND NOT filterManufacturerUserPriceList(userPriceList);    
-   
-filterManufacturerUserPriceListBatch (userPriceList, batch) =
-    filterManufacturerUserPriceList(userPriceList) == manufacturerBatch(batch) OR batch IS Batch AND NOT filterManufacturerUserPriceList(userPriceList);      
-
 isParentGroupSupplierGroupBatch(group, batch) = isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(supplierBatch(batch)), group);
 
 FORM userPriceList 'Прайс'
@@ -485,7 +475,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES(ts2) SELECTOR nameStock
     FILTERS inPriceListStock(p, ts2),
             isCompanyStock(ts2)
-    PROPERTIES(p) FORCE PANEL nameFilterPriceListTypeUserPriceList, nameFilterManufacturerUserPriceList
+    PROPERTIES(p) FORCE PANEL nameFilterPriceListTypeUserPriceList
 
     OBJECTS s2=Sku
     PROPERTIES inSkuUserPriceList(s2, p) ON CHANGE changeInSkuUserPriceList(s2, p)
@@ -493,8 +483,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES READONLY currentPriceSkuPriceListStock(s2, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)
     PROPERTIES(s2, p, to, ts2) currentPriceSkuPriceListDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
     FILTERS filterPriceListTypeUserPriceListSkuStock(p, s2, ts2),
-            groupTypeUserPriceList(p) == groupTypeGroup(sk2),
-            filterManufacturerUserPriceListSku(p, s2)
+            groupTypeUserPriceList(p) == groupTypeGroup(sk2)
     FILTERGROUP filters3
         FILTER 'С остатком' 'F10' currentBalanceSkuStock(s2, ts2) DEFAULT
 
@@ -514,7 +503,6 @@ FORM userPriceList 'Прайс'
     PROPERTIES(b, p, to, ts2) currentPriceBatchPriceListDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
     FILTERS filterPriceListTypeUserPriceListBatchStock(p, b, ts2),
             isParentSkuGroupBatch(sk2, b),
-            filterManufacturerUserPriceListBatch(p, b),
             isParentGroupSupplierGroupBatch(f, b)   
     FILTERGROUP filters4
         FILTER 'С остатком' 'F10' prevCurrentBalanceBatchStock(b, ts2) DEFAULT
@@ -641,7 +629,6 @@ DESIGN userPriceList FROM DEFAULT {
                     caption = 'Фильтры';
                     type = CONTAINERH;
                     ADD PROPERTY(nameFilterPriceListTypeUserPriceList(p));
-                    ADD PROPERTY(nameFilterManufacturerUserPriceList(p));
                 }
             }
             NEW detailFourthContainer{
