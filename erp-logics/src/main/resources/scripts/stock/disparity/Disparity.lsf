@@ -110,11 +110,20 @@ sumInSkuLedger (ledger) += sumInputDisparityDetail(ledger);
 seriesBatch (ledger) += seriesDisparity(disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger)));
 numberBatch (ledger) += numberDisparity(disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger)));
 
+supplierDisparityDetail = DATA LegalEntity (DisparityDetail);
+supplierDisparityDetail(detail) <- prevSupplierBatch(batchDisparityDetail(detail)) WHEN CHANGED(batchDisparityDetail(detail));
+nameSupplierDisparityDetail = nameLegalEntity(supplierDisparityDetail(detail) );
+
 stockDocumentLedgerSkuLedger(ledger) += disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger));
 
 nameBatch(batch) += CONCAT '', STRING[10](dateDisparityDetail(disparityDetailInputDisparityDetail(batch))),
                              '/ ' + seriesNumberDisparity(disparityDisparityDetail(disparityDetailInputDisparityDetail(batch))),
                              '/ ' + nameLegalEntityStockDisparityDetail(disparityDetailInputDisparityDetail(batch));
+
+supplierInputDisparityDetail = supplierDisparityDetail(disparityDetailInputDisparityDetail(detail));
+supplierBatch(batch) += supplierInputDisparityDetail(batch);
+
+@implementSystemLedgerPriceListTypeBatch(account, InputDisparityDetail, supplier, stock);                           
 
 //------------------------------------------- Пересорт товара----------------------------------------------------//
 
@@ -220,6 +229,7 @@ editSkuLedger(d) += editDisparityDetail(d);
 @extendFormDocumentSkuStock(disparity, disparity, dis, legalEntityStock, );
 
 @defineDocumentBatchStockPriceListTypeSystemLedger(disparity, accountPriceListType, );
+  
 @extendFormDocumentBatchStock(disparity, disparity, dis, legalEntityStock, );
 
 editDisparity 'Редактировать' (disparity) = ACTION EDITFORM Disparity;
