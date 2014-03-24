@@ -102,8 +102,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         if (dateTo != null)
             generalLedgerQuery.and(getLCP("dateGeneralLedger").getExpr(generalLedgerExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
 
-        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> generalLedgerResult = generalLedgerQuery.executeClasses(context,
-                MapFact.addOrderExcl(MapFact.singletonOrder("dateGeneralLedger", false), MapFact.singletonOrder("numberGLDocumentGeneralLedger", false)));
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> generalLedgerResult = generalLedgerQuery.executeClasses(context);
 
         if (generalLedgerResult.size() == 0)
             return null;
@@ -162,15 +161,36 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         File dbfFile = File.createTempFile("export", "dbf");
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), fields, "CP866");
 
+        List<GeneralLedger> generalLedgerList = new ArrayList<GeneralLedger>();
         for (Map.Entry<DataObject, List<Object>> entry : generalLedgerMap.entrySet()) {
             DataObject key = entry.getKey();
             List<Object> values = entry.getValue();
-            dbfwriter.addRecord(new Object[]{values.get(0), values.get(1), null, values.get(2), values.get(6), values.get(3), //6 
-                    values.get(4), debit1Map.get(key), debit2Map.get(key), debit3Map.get(key), credit1Map.get(key), //11
-                    credit2Map.get(key), credit3Map.get(key), values.get(5), null, null, 0, "00", "TMC"});  //19   
+            generalLedgerList.add(new GeneralLedger((Date) values.get(0), (String) values.get(1), (String) values.get(2),
+                    (String) values.get(6), (String) values.get(3), (String) values.get(4), debit1Map.get(key),
+                    debit2Map.get(key), debit3Map.get(key), credit1Map.get(key), credit2Map.get(key),
+                    credit3Map.get(key), (BigDecimal) values.get(5)));
+        }
+        
+        Collections.sort(generalLedgerList, COMPARATOR);
+
+        for(GeneralLedger gl : generalLedgerList) {
+        dbfwriter.addRecord(new Object[]{gl.dateGeneralLedger, gl.numberGeneralLedger, null, gl.descriptionGeneralLedger, //4
+                gl.idOperationGeneralLedger, gl.idDebitGeneralLedger, gl.idCreditGeneralLedger, gl.anad1, gl.anad2, //9 
+                gl.anad3, gl.anak1, gl.anak2, gl.anak3, gl.sumGeneralLedger, null, null, 0, "00", "TMC"}); //19
         }
         dbfwriter.close();
 
         return dbfFile;
     }
+
+    private static Comparator<GeneralLedger> COMPARATOR = new Comparator<GeneralLedger>() {
+        public int compare(GeneralLedger g1, GeneralLedger g2) {
+            int result = g1.dateGeneralLedger == null ? (g2.dateGeneralLedger == null ? 0 : -1) : 
+                    (g2.dateGeneralLedger == null ? 1 : g1.dateGeneralLedger.compareTo(g2.dateGeneralLedger));
+            if (result == 0)
+                result = g1.numberGeneralLedger == null ? (g2.numberGeneralLedger == null ? 0 : -1) : 
+                        (g2.numberGeneralLedger == null ? 1 : g1.numberGeneralLedger.compareTo(g2.numberGeneralLedger));
+            return result;
+        }
+    };
 }
