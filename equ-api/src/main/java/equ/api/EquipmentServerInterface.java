@@ -23,6 +23,10 @@ public interface EquipmentServerInterface extends Remote {
     List<TerminalInfo> readTerminalInfo(String equServerID) throws RemoteException, SQLException;
 
     List<TerminalDocumentTypeInfo> readTerminalDocumentTypeInfo() throws RemoteException, SQLException;
+    
+    List<OrderInfo> readOrderInfo(String equServerID) throws RemoteException, SQLException;
+
+    List<LegalEntityInfo> readLegalEntityInfo(String equServerID) throws RemoteException, SQLException;
 
     String sendSalesInfo(List<SalesInfo> salesInfoList, String equServerID, Integer numberAtATime) throws IOException, SQLException;
 

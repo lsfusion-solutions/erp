@@ -12,5 +12,8 @@ public abstract class TerminalHandler<S extends SalesBatch> extends MachineryHan
 
     public abstract void finishSendingTerminalDocumentInfo(List<TerminalInfo> terminalInfoList,
                                                            List<TerminalDocumentInfo> terminalDocumentInfoList) throws IOException;
+    
+    public abstract void saveTransactionInfo(TransactionInfo transactionInfo) throws IOException;
 
+    public abstract TransactionInfo loadTransactionInfo(String dbPath) throws IOException;
 }

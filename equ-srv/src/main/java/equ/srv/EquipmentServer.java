@@ -62,6 +62,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule scalesLM;
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule terminalLM;
+    private ScriptingLogicsModule purchaseOrderLM;
 
     private boolean started = false;
 
@@ -109,6 +110,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         scalesLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentScales");
         priceCheckerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentPriceChecker");
         terminalLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentTerminal");
+        purchaseOrderLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseOrder");
     }
 
     @Override
@@ -208,7 +210,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
                 if (scalesItemLM != null) {
                     for (String property : extraSkuProperties) {
-                        skuQuery.addProperty(property, equLM.findLCPByCompoundOldName(property).getExpr(transactionObject.getExpr(), barcodeExpr));
+                        skuQuery.addProperty(property, scalesItemLM.findLCPByCompoundOldName(property).getExpr(transactionObject.getExpr(), barcodeExpr));
                     }
                 }
 
@@ -231,14 +233,16 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String canonicalNameSkuGroup = null;
                     if (itemLM != null) {
                         ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
-                        String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
-                        hierarchyItemGroup.add(idItemGroup);
-                        ObjectValue parentSkuGroup;
-                        while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
-                            hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
-                            skuGroupObject = parentSkuGroup;
+                        if (skuGroupObject instanceof DataObject) {
+                            String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
+                            hierarchyItemGroup.add(idItemGroup);
+                            ObjectValue parentSkuGroup;
+                            while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
+                                hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
+                                skuGroupObject = parentSkuGroup;
+                            }
+                            canonicalNameSkuGroup = idItemGroup == null ? "" : trim((String) equLM.findLCPByCompoundOldName("canonicalNameSkuGroup").read(session, itemLM.findLCPByCompoundOldName("itemGroupId").readClasses(session, new DataObject(idItemGroup))));
                         }
-                        canonicalNameSkuGroup = idItemGroup == null ? "" : trim((String) equLM.findLCPByCompoundOldName("canonicalNameSkuGroup").read(session, itemLM.findLCPByCompoundOldName("itemGroupId").readClasses(session, new DataObject(idItemGroup))));
                     }
                     Integer cellScalesObject = composition == null ? null : (Integer) equLM.findLCPByCompoundOldName("cellScalesGroupScalesComposition").read(session, groupObject, new DataObject(composition, StringClass.text));
                     Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) equLM.findLCPByCompoundOldName("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) equLM.findClassByCompoundName("CellScales")));
@@ -570,6 +574,70 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
+    public List<OrderInfo> readOrderInfo(String equServerID) throws RemoteException, SQLException {
+        List<OrderInfo> orderInfoList = new ArrayList<OrderInfo>();
+
+        if (purchaseOrderLM != null) {
+
+            DataSession session = getDbManager().createSession();
+
+            KeyExpr purchaseOrderExpr = new KeyExpr("purchase.order");
+
+            ImRevMap<Object, KeyExpr> purchaseOrderKeys = MapFact.singletonRev((Object) "purchase.order", purchaseOrderExpr);
+            QueryBuilder<Object, Object> purchaseOrderQuery = new QueryBuilder<Object, Object>(purchaseOrderKeys);
+
+            try {
+                purchaseOrderQuery.addProperty("Purchase.numberOrder", purchaseOrderLM.findLCPByCompoundOldName("Purchase.numberOrder").getExpr(purchaseOrderExpr));
+
+                purchaseOrderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("Purchase.isPostedOrder").getExpr(purchaseOrderExpr).getWhere());
+                purchaseOrderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("Purchase.isOpenedOrder").getExpr(purchaseOrderExpr).getWhere());
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> purchaseOrderResult = purchaseOrderQuery.execute(session.sql);
+                for (int i = 0, size = purchaseOrderResult.size(); i < size; i++) {
+                    String numberOrder = trim((String) purchaseOrderResult.getValue(i).get("Purchase.numberOrder"));
+
+                    orderInfoList.add(new OrderInfo(numberOrder));
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException e) {
+                throw Throwables.propagate(e);
+            } catch (SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return orderInfoList;
+    }
+
+    @Override
+    public List<LegalEntityInfo> readLegalEntityInfo(String equServerID) throws RemoteException, SQLException {
+        List<LegalEntityInfo> legalEntityInfoList = new ArrayList<LegalEntityInfo>();
+
+        DataSession session = getDbManager().createSession();
+
+        KeyExpr legalEntityExpr = new KeyExpr("LegalEntity");
+
+        ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "legalEntity", legalEntityExpr);
+        QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<Object, Object>(legalEntityKeys);
+
+        try {
+            legalEntityQuery.addProperty("idLegalEntity", equLM.findLCPByCompoundOldName("idLegalEntity").getExpr(legalEntityExpr));
+            legalEntityQuery.addProperty("nameLegalEntity", equLM.findLCPByCompoundOldName("nameLegalEntity").getExpr(legalEntityExpr));
+
+            legalEntityQuery.and(equLM.findLCPByCompoundOldName("nameLegalEntity").getExpr(legalEntityExpr).getWhere());
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session.sql);
+            for (int i = 0, size = legalEntityResult.size(); i < size; i++) {
+                String idLegalEntity = (String) legalEntityResult.getValue(i).get("idLegalEntity");
+                String nameLegalEntity = (String) legalEntityResult.getValue(i).get("nameLegalEntity");
+
+                legalEntityInfoList.add(new LegalEntityInfo(idLegalEntity, nameLegalEntity, null));
+            }
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
+        }
+        return legalEntityInfoList;
+    }
+
+    @Override
     public String sendSalesInfo(List<SalesInfo> salesInfoList, String equipmentServer, Integer numberAtATime) throws IOException, SQLException {
         try {
 
@@ -817,7 +885,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     equLM.findLCPByCompoundOldName("dataEquipmentServerLog").change(message, session, logObject);
                     equLM.findLCPByCompoundOldName("dateEquipmentServerLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
 
-                    new IntegrationService(session, new ImportTable(paymentImportFields, dataPayment), Arrays.asList(paymentKey, paymentTypeKey, receiptKey/*, cashRegisterKey*/),
+                    new IntegrationService(session, new ImportTable(paymentImportFields, dataPayment), Arrays.asList(paymentKey, paymentTypeKey, receiptKey),
                             paymentProperties).synchronize(true);
 
                     String result = session.applyMessage(getBusinessLogics());

@@ -144,7 +144,7 @@ public class EquipmentServer {
         }
     }
 
-/*    private void saveTransactionInfo(EquipmentServerInterface remote, String equServerID) throws IOException, SQLException {
+    private void saveTransactionInfo(EquipmentServerInterface remote, String equServerID) throws IOException, SQLException {
         logger.info("Saving transaction info");
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(equServerID);
         Collections.sort(transactionInfoList, COMPARATOR);
@@ -167,7 +167,7 @@ public class EquipmentServer {
                 }
             }          
         }
-    }*/
+    }
 
     private void sendSalesInfo(EquipmentServerInterface remote, String equServerID, Integer numberAtATime) throws SQLException, IOException {
         logger.info("Reading CashRegisterInfo");
