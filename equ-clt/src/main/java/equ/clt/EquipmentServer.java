@@ -4,9 +4,7 @@ import equ.api.*;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.rmi.ConnectException;
@@ -93,9 +91,12 @@ public class EquipmentServer {
                         if (remote != null) {
 
                             processTransactionInfo(remote, equServerID);
+                            //saveTransactionInfo(remote, equServerID);
                             sendSalesInfo(remote, equServerID, equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime);
                             sendTerminalInfo(remote, equServerID);
                             sendSoftCheckInfo(remote);
+                            //sendOrderInfo(remote, equServerID);
+                            //sendLegalEntityInfo(remote, equServerID);
                             logger.info("Transaction completed");
                         }
 
@@ -107,7 +108,7 @@ public class EquipmentServer {
                     try {
                         Thread.sleep(millis);
                     } catch (InterruptedException e) {
-                        logger.info("Thread has been interrupted : ", e);
+                        logger.error("Thread has been interrupted : ", e);
                         break;
                     }
                 }
@@ -122,33 +123,51 @@ public class EquipmentServer {
 
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(equServerID);
         Collections.sort(transactionInfoList, COMPARATOR);
-        for (TransactionInfo<MachineryInfo> transaction : transactionInfoList) {
+        for (TransactionInfo<MachineryInfo> transactionInfo : transactionInfoList) {
 
-            Map<String, List<MachineryInfo>> handlerModelMap = new HashMap<String, List<MachineryInfo>>();
-            for (MachineryInfo machinery : transaction.machineryInfoList) {
-                if (machinery.handlerModel != null) {
-                    if (!handlerModelMap.containsKey(machinery.handlerModel))
-                        handlerModelMap.put(machinery.handlerModel, new ArrayList<MachineryInfo>());
-                    handlerModelMap.get(machinery.handlerModel).add(machinery);
-                }
-            }
+            Map<String, List<MachineryInfo>> handlerModelMap = getHandlerModelMap(transactionInfo);
 
             logger.info("Sending transactions started");
             for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelMap.entrySet()) {
                 if (entry.getKey() != null) {
                     try {
                         Object clsHandler = getHandler(entry.getValue().get(0).handlerModel.trim(), remote);
-                        transaction.sendTransaction(clsHandler, entry.getValue());
+                        transactionInfo.sendTransaction(clsHandler, entry.getValue());
                     } catch (Exception e) {
-                        remote.errorTransactionReport(transaction.id, e);
+                        remote.errorTransactionReport(transactionInfo.id, e);
                         return;
                     }
                 }
             }
-            remote.succeedTransaction(transaction.id);
+            remote.succeedTransaction(transactionInfo.id);
             logger.info("Sending transactions finished");
         }
     }
+
+/*    private void saveTransactionInfo(EquipmentServerInterface remote, String equServerID) throws IOException, SQLException {
+        logger.info("Saving transaction info");
+        List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(equServerID);
+        Collections.sort(transactionInfoList, COMPARATOR);
+        
+        for (TransactionInfo<MachineryInfo> transactionInfo : transactionInfoList) {
+
+            Map<String, List<MachineryInfo>> handlerModelMap = getHandlerModelMap(transactionInfo);
+
+            for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelMap.entrySet()) {
+                if (entry.getKey() != null) {
+                    try {
+                        String handlerModel = entry.getValue().get(0).handlerModel.trim();
+                        Object clsHandler = getHandler(handlerModel, remote);
+                        if(clsHandler instanceof TerminalHandler)
+                            ((TerminalHandler) clsHandler).saveTransactionInfo(transactionInfo);
+                    } catch (Exception e) {
+                        remote.errorTransactionReport(transactionInfo.id, e);
+                        return;
+                    }
+                }
+            }          
+        }
+    }*/
 
     private void sendSalesInfo(EquipmentServerInterface remote, String equServerID, Integer numberAtATime) throws SQLException, IOException {
         logger.info("Reading CashRegisterInfo");
@@ -176,15 +195,14 @@ public class EquipmentServer {
                             logger.info("Sending succeeded SoftCheckInfo");
                             String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
                             if (result != null)
-                                remote.errorEquipmentServerReport(equServerID, new Throwable(result));
+                                reportEquipmentServerError(remote, equServerID, result);
                         }
 
                         if (!requestSalesInfo.isEmpty()) {
                             logger.info("Requesting SalesInfo");
                             String result = clsHandler.requestSalesInfo(requestSalesInfo);
                             if (result != null) {
-                                logger.info("Equipment server error: " + result);
-                                remote.errorEquipmentServerReport(equServerID, new Throwable(result));
+                                reportEquipmentServerError(remote, equServerID, result);
                             }
                         }
 
@@ -193,8 +211,7 @@ public class EquipmentServer {
                             logger.info("Sending SalesInfo");
                             String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID, numberAtATime);
                             if (result != null) {
-                                logger.info("Equipment server error: " + result);
-                                remote.errorEquipmentServerReport(equServerID, new Throwable(result));
+                                reportEquipmentServerError(remote, equServerID, result);
                             }
                             else {
                                 logger.info("Finish Reading starts");
@@ -202,8 +219,8 @@ public class EquipmentServer {
                             }
                         }
                     }
-                } catch (Exception e) {
-                    logger.error("Exception: ", e);
+                } catch (Throwable e) {
+                    logger.error("Equipment server error: ", e);
                     remote.errorEquipmentServerReport(equServerID, e.fillInStackTrace());
                     return;
                 }
@@ -229,12 +246,11 @@ public class EquipmentServer {
                     List<TerminalDocumentInfo> terminalDocumentInfoList = ((TerminalHandler) clsHandler).readTerminalDocumentInfo(terminalInfoList);
                     String result = remote.sendTerminalDocumentInfo(terminalDocumentInfoList, equServerID);
                     if (result != null) {
-                        logger.info("Equipment server error: " + result);
-                        remote.errorEquipmentServerReport(equServerID, new Throwable(result));
+                        reportEquipmentServerError(remote, equServerID, result);
                     } else
                         ((TerminalHandler) clsHandler).finishSendingTerminalDocumentInfo(terminalInfoList, terminalDocumentInfoList);
                 } catch (Exception e) {
-                    logger.info("Equipment server error", e);
+                    logger.error("Equipment server error", e);
                     remote.errorEquipmentServerReport(equServerID, e.fillInStackTrace());
                     return;
                 }
@@ -262,7 +278,27 @@ public class EquipmentServer {
             logger.info("Sending Soft Check Info finished");
         }
     }
+    
+/*    private void sendOrderInfo(EquipmentServerInterface remote, String equServerID) throws RemoteException, SQLException {
+        List<OrderInfo> orderInfoList = remote.readOrderInfo(equServerID);
+    }
 
+    private void sendLegalEntityInfo(EquipmentServerInterface remote, String equServerID) throws RemoteException, SQLException {
+        List<LegalEntityInfo> legalEntityList = remote.readLegalEntityInfo(equServerID);
+    }
+    */
+    private Map<String, List<MachineryInfo>> getHandlerModelMap(TransactionInfo<MachineryInfo> transactionInfo) {
+        Map<String, List<MachineryInfo>> handlerModelMap = new HashMap<String, List<MachineryInfo>>();
+        for (MachineryInfo machinery : transactionInfo.machineryInfoList) {
+            if (machinery.handlerModel != null) {
+                if (!handlerModelMap.containsKey(machinery.handlerModel))
+                    handlerModelMap.put(machinery.handlerModel, new ArrayList<MachineryInfo>());
+                handlerModelMap.get(machinery.handlerModel).add(machinery);
+            }
+        }
+        return handlerModelMap;
+    }
+    
     private Object getHandler(String handlerModel, EquipmentServerInterface remote) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException {
         Object clsHandler;
         if (handlerMap.containsKey(handlerModel))
@@ -280,6 +316,11 @@ public class EquipmentServer {
         }
         ((MachineryHandler) clsHandler).setRemoteObject(remote);
         return clsHandler;
+    }
+    
+    private void reportEquipmentServerError(EquipmentServerInterface remote, String equServerID, String result) throws RemoteException, SQLException {
+        logger.error("Equipment server error: " + result);
+        remote.errorEquipmentServerReport(equServerID, new Throwable(result));
     }
 
     private static Comparator<TransactionInfo> COMPARATOR = new Comparator<TransactionInfo>() {

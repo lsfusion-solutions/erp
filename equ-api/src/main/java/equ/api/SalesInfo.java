@@ -13,7 +13,6 @@ public class SalesInfo implements Serializable {
     public Integer numberReceipt;
     public Date dateReceipt;
     public Time timeReceipt;
-    public BigDecimal sumReceipt;
     public BigDecimal sumCard;
     public BigDecimal sumCash;
     public String barcodeItem;
@@ -27,7 +26,7 @@ public class SalesInfo implements Serializable {
     public String filename;
 
     public SalesInfo(String numberCashRegister, Integer nppMachinery, String directoryCashRegister, String numberZReport, Integer numberReceipt, Date dateReceipt,
-                     Time timeReceipt, BigDecimal sumReceipt, BigDecimal sumCard, BigDecimal sumCash, String barcodeItem, BigDecimal quantityReceiptDetail,
+                     Time timeReceipt, BigDecimal sumCard, BigDecimal sumCash, String barcodeItem, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail, BigDecimal discountSumReceipt,
                      String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename) {
         this.numberCashRegister = numberCashRegister;
@@ -37,7 +36,6 @@ public class SalesInfo implements Serializable {
         this.numberReceipt = numberReceipt;
         this.dateReceipt = dateReceipt;
         this.timeReceipt = timeReceipt;
-        this.sumReceipt = sumReceipt;
         this.sumCard = sumCard;
         this.sumCash = sumCash;
         this.barcodeItem = barcodeItem;

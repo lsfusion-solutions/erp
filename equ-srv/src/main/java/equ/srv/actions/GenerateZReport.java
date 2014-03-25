@@ -147,7 +147,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                         for (int receiptNumber = 1; receiptNumber <= addDeviation(receiptCount, 0.25, r); receiptNumber++) {
 
                             Integer numberReceiptDetail = 0;
-                            BigDecimal sumReceipt = BigDecimal.ZERO;
+                            BigDecimal sumCash = BigDecimal.ZERO;
                             List<SalesInfo> receiptSalesInfoList = new ArrayList<SalesInfo>();
 
                             Time time = new Time(r.nextLong() % date.getTime());
@@ -163,10 +163,10 @@ public class GenerateZReport extends ScriptingActionProperty {
                                     if ((quantityReceiptDetail.doubleValue() > 0) && (currentReceiptDetailCount >= numberReceiptDetail)) {
                                         BigDecimal sumReceiptDetail = quantityReceiptDetail.multiply(itemZReportInfo.price == null ? BigDecimal.ZERO : itemZReportInfo.price);
                                         numberReceiptDetail++;
-                                        sumReceipt = sumReceipt.add(sumReceiptDetail);
+                                        sumCash = sumCash.add(sumReceiptDetail);
                                         BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(r.nextDouble() > 0.8 ? (sumReceiptDetail.doubleValue() * r.nextInt(10) / 100) : 0);
                                         SalesInfo salesInfo = new SalesInfo(numberCashRegister, Integer.parseInt(numberCashRegister), null, numberZReport,
-                                                receiptNumber, date, time, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode == null ? null : itemZReportInfo.barcode.trim(),
+                                                receiptNumber, date, time, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode == null ? null : itemZReportInfo.barcode.trim(),
                                                 quantityReceiptDetail, itemZReportInfo.price, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, null);
                                         receiptSalesInfoList.add(salesInfo);
                                         itemZReportInfo.count = itemZReportInfo.count.subtract(quantityReceiptDetail);
@@ -176,8 +176,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                                 }
                             }
                             for (SalesInfo s : receiptSalesInfoList) {
-                                s.sumReceipt = sumReceipt;
-                                s.sumCash = sumReceipt;
+                                s.sumCash = sumCash;
                             }
                             salesInfoList.addAll(receiptSalesInfoList);
                         }

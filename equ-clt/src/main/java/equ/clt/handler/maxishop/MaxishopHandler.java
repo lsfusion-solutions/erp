@@ -140,7 +140,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                                     java.sql.Date date = new java.sql.Date(new SimpleDateFormat("yyyymmdd").parse(new String(importFile.getField("JFDATE").getBytes(), "Cp1251").trim()).getTime());
                                     String timeString = new String(importFile.getField("JFTIME").getBytes(), "Cp1251").trim();
                                     Time time = Time.valueOf(timeString.substring(0, 2) + ":" + timeString.substring(2, 4) + ":" + timeString.substring(4, 6));
-                                    BigDecimal sumReceipt = new BigDecimal(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim());
+                                    BigDecimal sumCash = new BigDecimal(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim());
                                     String barcodeReceiptDetail = new String(importFile.getField("JFPLUCODE").getBytes(), "Cp1251").trim().replace("E", "");
                                     BigDecimal quantityReceiptDetail = new BigDecimal(new String(importFile.getField("JFQUANT").getBytes(), "Cp1251").trim());
                                     BigDecimal priceReceiptDetail = new BigDecimal(new String(importFile.getField("JFPRICE").getBytes(), "Cp1251").trim());
@@ -151,7 +151,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                                         numberReceiptDetail = 1;
                                         oldReceiptNumber = receiptNumber;
                                     }
-                                    salesInfoList.add(new SalesInfo(entry.getKey(), Integer.parseInt(entry.getKey()), null, zReportNumber, receiptNumber, date, time, sumReceipt, BigDecimal.ZERO, sumReceipt, barcodeReceiptDetail,
+                                    salesInfoList.add(new SalesInfo(entry.getKey(), Integer.parseInt(entry.getKey()), null, zReportNumber, receiptNumber, date, time, BigDecimal.ZERO, sumCash, barcodeReceiptDetail,
                                             quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, fileName));
                                     numberReceiptDetail++;
                                 }
