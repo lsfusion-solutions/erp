@@ -341,6 +341,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                         for (Object cashNode : cashesList) {
 
                                             String numberCashRegister = ((Element) cashNode).getAttributeValue("CASHNUMBER");
+                                            Integer intNumberCashRegister = readIntegerXMLAttribute((Element) cashNode, "CASHNUMBER");
                                             List gangsList = ((Element) cashNode).getChildren("GANG");
 
                                             for (Object gangNode : gangsList) {
@@ -352,9 +353,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                     Element receiptElement = (Element) receiptNode;
 
-                                                    Integer numberReceipt = Integer.parseInt((receiptElement).getAttributeValue("ID"));
-                                                    BigDecimal sumReceipt = new BigDecimal(receiptElement.getAttributeValue("SUMMA"));
-                                                    BigDecimal discountSumReceipt = new BigDecimal(receiptElement.getAttributeValue("DISCSUMM"));
+                                                    Integer numberReceipt = readIntegerXMLAttribute(receiptElement, "ID");
+                                                    BigDecimal sumReceipt = readBigDecimalXMLAttribute(receiptElement, "SUMMA");
+                                                    BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
                                                     long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy hh:mm:ss"}).getTime();
                                                     Date dateReceipt = new Date(dateTimeReceipt);
                                                     Time timeReceipt = new Time(dateTimeReceipt);
@@ -367,9 +368,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     for (Object paymentNode : paymentsList) {
                                                         Element paymentElement = (Element) paymentNode;
                                                         if (paymentElement.getAttributeValue("PAYTYPE").equals("0")) {
-                                                            sumCash = sumCash.add(new BigDecimal(paymentElement.getAttributeValue("DOCSUMM")));
+                                                            sumCash = safeAdd(sumCash, readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"));
                                                         } else if (paymentElement.getAttributeValue("PAYTYPE").equals("3")) {
-                                                            sumCard = sumCard.add(new BigDecimal(paymentElement.getAttributeValue("DOCSUMM")));
+                                                            sumCard = safeAdd(sumCard, readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"));
                                                         }
                                                     }
 
@@ -378,13 +379,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                         Element receiptDetailElement = (Element) receiptDetailNode;
 
                                                         String barcode = receiptDetailElement.getAttributeValue("CODE");
-                                                        BigDecimal quantity = new BigDecimal(receiptDetailElement.getAttributeValue("QUANTITY"));
-                                                        BigDecimal price = new BigDecimal(receiptDetailElement.getAttributeValue("PRICE"));
-                                                        BigDecimal sumReceiptDetail = new BigDecimal(receiptDetailElement.getAttributeValue("SUMMA"));
-                                                        BigDecimal discountSumReceiptDetail = new BigDecimal(receiptDetailElement.getAttributeValue("DISCSUMM"));
-                                                        Integer numberReceiptDetail = Integer.parseInt(receiptDetailElement.getAttributeValue("POSNUMBER"));
+                                                        BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
+                                                        BigDecimal price = readBigDecimalXMLAttribute(receiptDetailElement, "PRICE");
+                                                        BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA");
+                                                        BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "DISCSUMM");
+                                                        Integer numberReceiptDetail = readIntegerXMLAttribute(receiptDetailElement, "POSNUMBER");
 
-                                                        salesInfoList.add(new SalesInfo(numberCashRegister, Integer.parseInt(numberCashRegister), entry.getValue().trim(),
+                                                        salesInfoList.add(new SalesInfo(numberCashRegister, intNumberCashRegister, entry.getValue().trim(),
                                                                 numberZReport, numberReceipt, dateReceipt, timeReceipt, sumReceipt, sumCard, sumCash, barcode,
                                                                 quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
                                                                 numberReceiptDetail, fileName));
@@ -397,7 +398,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                 filePathList.add(file.getAbsolutePath());
                             }
                         } catch (JDOMException e) {
-                            logger.error(e);
+                            logger.error("File: " + file.getAbsolutePath(), e);
                         }
                     }
                 }
@@ -433,5 +434,43 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         }
         idItemGroup = idItemGroup.substring(0, idItemGroup.length() - 1);
         return idItemGroup;
+    }
+
+    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+    }
+
+    private BigDecimal readBigDecimalXMLAttribute(Element element, String field) {
+        if(element == null) 
+            return null;
+        String value = element.getAttributeValue(field);
+        if(value == null || value.isEmpty()) {
+            logger.error("Attribute " + field + " is empty");
+            return null;
+        }
+        try {
+        return new BigDecimal(value);
+        } catch (Exception e) {
+            logger.error(e);
+            return null;
+        }
+    }
+
+    private Integer readIntegerXMLAttribute(Element element, String field) {
+        if(element == null) 
+            return null;
+        String value = element.getAttributeValue(field);
+        if(value == null || value.isEmpty()) {
+            logger.error("Attribute " + field + " is empty");
+            return null;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (Exception e) {
+            logger.error(e);
+            return null;
+        }
     }
 }
