@@ -397,7 +397,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                 }
                                 filePathList.add(file.getAbsolutePath());
                             }
-                        } catch (JDOMException e) {
+                        } catch (Exception e) {
                             logger.error("File: " + file.getAbsolutePath(), e);
                         }
                     }
