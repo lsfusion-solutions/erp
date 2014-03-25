@@ -216,7 +216,7 @@ EXTEND FORM snapshot
                        saleMarkupSumStockSnapshotDate COLUMNS 'g' (st4) HEADER nameSaleMarkupSumStock(st4) SHOWIF isSumSaleDateSnapshot(r), 
                        saleMarkupPercStockSnapshotDate COLUMNS 'g' (st4) HEADER nameSaleMarkupPercStock(st4) SHOWIF isSumSaleDateSnapshot(r)                                                                 
 //-- batch
-    PROPERTIES(bt,ss,r)SHOWIF isBatchSnapshot(r) BEFORE inQuantityBatchStockSnapshot(bt,ss,r) BACKGROUND hintSaleBackground()
+    PROPERTIES(bt,ss,r) BACKGROUND hintSaleBackground() BEFORE inQuantityBatchStockSnapshot(bt,ss,r) 
                        saleQuantityBatchStockSnapshot SHOWIF isQuantitySaleBatchSnapshot(r), 
                        saleCostSumBatchStockSnapshot SHOWIF isSumSaleBatchSnapshot(r),
                        saleVATSumBatchStockSnapshot SHOWIF isSumSaleBatchSnapshot(r), 
@@ -310,6 +310,54 @@ calcSaleSkuParamsInterval 'Рассчитать продажи в день и т
 
 overTakeSnapshotDateFromTo(snapshot, dateFrom, dateTo) +=  calcSaleSkuParamsInterval(snapshot, dateFrom, dateTo);
 
+daysOnStockBatchStockSnapshot 'Дней на складе' = DATA INTEGER (Batch, Stock, Snapshot);
+cumBalanceBatchStockSnapshot 'Накопленный остаток' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+
+averageSoldBatchStockSnapshot 'Продаж в день' (batch, stock, snapshot) =  
+    saleQuantityBatchStockSnapshot(batch, stock, snapshot) /
+    daysOnStockBatchStockSnapshot(batch, stock, snapshot);
+
+turnoverBatchStockSnapshot 'Товароооборачиваемость, дн.' (batch, stock, snapshot) = cumBalanceBatchStockSnapshot(batch, stock, snapshot) /
+    (saleSumBatchStockSnapshot(batch, stock, snapshot) IF saleSumBatchStockSnapshot(batch, stock, snapshot) != 0);
+    
+//-- По поставщикам   
+cumBalanceSupplierSnapshot 'Накопленный остаток' (supplier, snapshot) =
+    GROUP SUM cumBalanceBatchStockSnapshot(batch, stock, snapshot) BY supplierBatch(batch), snapshot;  
+    
+turnoverSupplierSnapshot 'Товароооборачиваемость, дн.' (supplier, snapshot) = cumBalanceSupplierSnapshot(supplier, snapshot) /
+    (saleSumBatchSupplierSnapshot(supplier, snapshot) IF saleSumBatchSupplierSnapshot(supplier, snapshot) != 0);      
+    
+
+overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo) +=  ACTION (snapshot, dateFrom, dateTo) {
+    IF turnoverSkuSnapshot(snapshot) AND dateFrom IS DATE AND dateTo IS DATE THEN {
+    
+        LOCAL daysOnStock = INTEGER (Batch, Stock);
+        LOCAL balance = NUMERIC[16,2] (Batch, Stock);
+        LOCAL cumBalance = NUMERIC[16,2] (Batch, Stock);
+        LOCAL dateCur = DATE();    
+    
+        dateCur() <- dateFrom;
+        balance(batch, stock) <- balanceBBatchStockDate(batch, stock, dateFrom)*costBatch(batch) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+        daysOnStock(batch, stock) <- NULL;
+        
+        WHILE dateCur() <= dateTo DO {
+            daysOnStock(batch, stock) <- daysOnStock(batch, stock) (+)
+                       (1 IF ((balance(batch, stock) > 0) OR (quantityBatchStockDate(batch, stock, dateCur()) > 0))) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+            cumBalance(batch, stock) <- cumBalance(batch, stock) (+) balance(batch, stock);  
+            balance(batch, stock) <- balance(batch, stock) (+)
+                       signedQuantityBatchStockDate(batch, stock, dateCur())*costBatch(batch) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, batch);
+    
+            dateCur() <- sumDate(dateCur(), 1);
+        }
+    
+        daysOnStockBatchStockSnapshot(batch, stock, snapshot) <- daysOnStock(batch, stock);
+        cumBalanceBatchStockSnapshot(batch, stock, snapshot) <- cumBalance(batch, stock);
+    } 
+}
+
+//-- SHOWIF
+isTurnoverBatchSnapshot= turnoverSkuSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+
 EXTEND FORM snapshot
 
     PROPERTIES(r)      turnoverSkuSnapshot
@@ -327,6 +375,15 @@ EXTEND FORM snapshot
                        daysOnStockSkuStockSnapshot, 
                        averageSoldSkuStockSnapshot, 
                        turnoverSkuStockSnapshot  
+//-- batch
+    PROPERTIES(bt,ss,r) SHOWIF isTurnoverBatchSnapshot(r) BACKGROUND hintSaleBackground() 
+                       daysOnStockBatchStockSnapshot, 
+                       averageSoldBatchStockSnapshot, 
+                       turnoverBatchStockSnapshot     
+//-- По поставщикам                           
+    PROPERTIES(l,r)  READONLY SHOWIF isTurnoverBatchSnapshot(r) BACKGROUND hintSaleBackground()                         
+                       turnoverSupplierSnapshot                              
+                       
 ;  
                      
 EXTEND DESIGN snapshot {
