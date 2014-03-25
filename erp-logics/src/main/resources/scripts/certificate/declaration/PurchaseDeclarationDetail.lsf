@@ -1031,3 +1031,64 @@ EXTEND DESIGN declaration {
 inDeclarationDetailCustomsDocument (dd, cd) = GROUP SUM 1 IF 
     inCustomsDocumentUserInvoice(cd, ui) AND inDeclarationDetailUserInvoice(dd, ui) AND declarationCustomsDocument(cd) == declarationDeclarationDetail(dd)
     BY dd, cd;  
+
+// -------------------------- Дополнительные платежи для декларации ---------------------------- //
+
+CLASS Payment 'Платеж' ;
+TABLE payment (Payment);
+
+@defineDocumentRelation(declaration, Payment, );
+@defineDocumentDetailIndex(declaration, Payment);
+@defineDocumentDetailActions(declaration, Payment);
+
+namePayment 'Наименование' = DATA VARISTRING[50](Payment);
+
+currencyPayment = DATA Currency (Payment);
+nameCurrencyPayment 'Валюта' = nameCurrency(currencyPayment(p)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+shortNameCurrencyPayment 'Валюта' = shortNameCurrency(currencyPayment(p)) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+
+sumPayment 'Сумма' = DATA NUMERIC[16,2](Payment);
+
+rateExchangePayment 'Курс' = DATA NUMERIC[14,3](Payment);
+
+rateSumPayment 'Сумма (конверт.)'= sumPayment(p)*rateExchangePayment(p); 
+
+calcRateExchangePayment 'Курс накладных' (p) = rateOnTypeExchangeCurrencyDate(typeExchangeDeclaration(declarationPayment(p)), currencyPayment(p), dateDeclaration(declarationPayment(p)));
+rateExchangePayment(p) <- calcRateExchangePayment(p) WHEN CHANGED (dateDeclaration(declarationPayment(p))) OR
+                                                          CHANGED (typeExchangeDeclaration(declarationPayment(p))) OR
+                                                          CHANGED (currencyPayment(p));
+
+isChargePayment 'Услуга' = DATA BOOLEAN (Payment);
+
+sumIsCgargePaymentDeclaration 'Сумма платежей по услугам (конверт.)' (declaration) = GROUP SUM rateSumPayment(p) IF isChargePayment(p) BY declarationPayment(p);
+sumNotCgargePaymentDeclaration 'Сумма платежей не по услугам (конверт.)'(declaration) = GROUP SUM rateSumPayment(p) IF NOT isChargePayment(p) BY declarationPayment(p);
+
+WHEN SESSION FORMS declaration
+    CHANGED(sumIsCgargePaymentDeclaration(d)) DO
+        chargeSumDeclaration (d) <- NUMERIC[16,2](sumIsCgargePaymentDeclaration(d));
+
+WHEN SESSION FORMS declaration
+    CHANGED(sumNotCgargePaymentDeclaration(d)) DO
+        deliverySumDeclaration (d) <- NUMERIC[16,2](sumNotCgargePaymentDeclaration(d));
+        
+EXTEND FORM declaration
+    OBJECTS p = Payment
+ 
+    PROPERTIES (p) indexPayment, namePayment, nameCurrencyPayment, sumPayment, rateExchangePayment, rateSumPayment READONLY, isChargePayment,
+                   ADDOBJ, deleteid=DELETESESSION
+    ORDER BY indexPayment(p)
+
+    PROPERTIES(d) TODRAW p deletePaymentDeclaration
+    FILTERS declarationPayment(p) == d        
+; 
+
+EXTEND DESIGN declaration {
+    detail {
+        NEW extraDocuments {
+            caption = 'Дополнительные платежи';
+            ADD p.box;
+        }
+    }
+}    
+ 
+ 
