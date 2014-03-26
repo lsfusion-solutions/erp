@@ -207,7 +207,9 @@ public class EquipmentServer {
                         }
 
                         SalesBatch salesBatch = clsHandler.readSalesInfo(cashRegisterInfoList);
-                        if (salesBatch != null) {
+                        if (salesBatch == null) {
+                            logger.info("SalesInfo is empty");
+                        } else {
                             logger.info("Sending SalesInfo");
                             String result = remote.sendSalesInfo(salesBatch.salesInfoList, equServerID, numberAtATime);
                             if (result != null) {

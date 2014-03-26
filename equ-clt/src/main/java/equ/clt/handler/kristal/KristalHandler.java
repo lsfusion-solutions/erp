@@ -319,10 +319,12 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     for (File file : filesList) {
                         try {
                             String fileName = file.getName();
-                            logger.info("Kristal: reading " + file.getName());
-                            long currentDate = Calendar.getInstance().getTime().getTime();
-                            long receiptDetailDate = DateUtils.parseDate(fileName.replace("ReportCheque1C_", "").replace(".xml", ""), new String[]{"yyyyMMddHHmmss"}).getTime();
-                            if ((currentDate - receiptDetailDate) > 60000) {
+                            logger.info("Kristal: reading " + fileName);
+                            //long currentDate = Calendar.getInstance().getTime().getTime();
+                            //long receiptDetailDate = DateUtils.parseDate(fileName.replace("ReportCheque1C_", "").replace(".xml", ""), new String[]{"yyyyMMddHHmmss"}).getTime();
+                            if (isFileLocked(file)) {
+                                logger.info("Kristal: " + fileName + " is locked");  
+                            } else {
                                 SAXBuilder builder = new SAXBuilder();
 
                                 Document document = builder.build(file);
@@ -414,7 +416,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
             }
         }
-        return new KristalSalesBatch(salesInfoList, filePathList);
+        return ((salesInfoList == null || salesInfoList.isEmpty()) && (filePathList == null || filePathList.isEmpty())) ? null : 
+                new KristalSalesBatch(salesInfoList, filePathList);
     }
 
     private String trimLeadingZeroes (String input) {
@@ -489,5 +492,28 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             logger.error(e);
             return null;
         }
+    }
+
+    public static boolean isFileLocked(File file) {
+        boolean isLocked = false;
+        RandomAccessFile fos = null;
+        try {
+            fos = new RandomAccessFile(file, "rw");
+        } catch (FileNotFoundException e) {
+            isLocked = true;
+        } catch (Exception e) {
+            logger.error(e);
+            isLocked = true;
+        } finally {
+            try {
+                if (fos != null) {
+                    fos.close();
+                }
+            } catch (Exception e) {
+                logger.error(e);
+                isLocked = true;
+            }
+        }
+        return isLocked;
     }
 }
