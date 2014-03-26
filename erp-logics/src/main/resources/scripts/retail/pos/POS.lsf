@@ -576,7 +576,7 @@ posSumDiscountCard 'Сумма продаж' (discountCard) = GROUP SUM sumRecei
 posReturnSumDiscountCard 'Сумма возвратов' (discountCard) = GROUP SUM sumReceiptReturnDetail(d) IF NOT discountCardReceiptDetail(d) BY discountCardReceipt(receiptSaleReceiptReturnDetail(d)) PERSISTENT; 
 cumulativeSumDiscountCard 'Накопленная сумма' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) PERSISTENT;
 
-prevCumulativeSumReceipt (receipt) = OVERRIDE 0 IF receipt IS Receipt, [= PREV(cumulativeSumDiscountCard(discountCard))](discountCardReceipt(receipt));
+prevCumulativeSumReceipt 'Накопленная сумма' (receipt) = OVERRIDE 0 IF receipt IS Receipt, [= PREV(cumulativeSumDiscountCard(discountCard))](discountCardReceipt(receipt));
 cumulativeSumReceiptPromotion (receipt, promotion) = IF useCurrentReceiptPromotion(promotion) THEN cumulativeSumDiscountCard(discountCardReceipt(receipt))
                                                                                               ELSE prevCumulativeSumReceipt (receipt);
 
@@ -750,7 +750,7 @@ FORM POS
                                           searchSkuReturnReceipt, scanBarcodeReturnReceipt,
                                           postReceipt, postCardReceipt, postCashReceipt, cancelReceipt,
                                           numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt,
-                                          inputDiscountCardNumberReceipt, clearDiscountCardReceipt, fiscalSkipReceipt
+                                          prevCumulativeSumReceipt, clearDiscountCardReceipt, fiscalSkipReceipt
 
     OBJECTS d = ReceiptDetail FIXED GRID
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID BACKGROUND backgroundReceiptDetail(r, d)  
@@ -824,11 +824,11 @@ DESIGN POS FROM DEFAULT {
                 fill = 1;
                 type = CONTAINERH;
                 ADD PROPERTY(numberDiscountCardReceipt(r)) { alignment = STRETCH; caption = 'Номер'; focusable = FALSE; font = 'bold 22'; }
+                ADD PROPERTY(prevCumulativeSumReceipt(r)) { alignment = STRETCH; caption = 'Сумма'; focusable = FALSE; font = 'bold 22'; }
                 NEW receiptDiscountActions {
                     fill = 1;
                     type = CONTAINERH;
                     childrenAlignment = TRAILING;
-                    ADD PROPERTY(inputDiscountCardNumberReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 14'; }
                     ADD PROPERTY(clearDiscountCardReceipt(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 14'; }
                 }
             }
