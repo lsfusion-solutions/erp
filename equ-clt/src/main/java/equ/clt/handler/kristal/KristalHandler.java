@@ -499,9 +499,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         RandomAccessFile fos = null;
         try {
             fos = new RandomAccessFile(file, "rw");
-        } catch (FileNotFoundException e) {
-            isLocked = true;
-        } catch (Exception e) {
+        }  catch (Exception e) {
             logger.error(e);
             isLocked = true;
         } finally {
