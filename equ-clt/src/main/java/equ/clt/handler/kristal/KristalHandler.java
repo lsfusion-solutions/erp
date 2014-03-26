@@ -11,6 +11,8 @@ import org.jdom.input.SAXBuilder;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.sql.*;
 import java.sql.Date;
 import java.text.ParseException;
@@ -496,21 +498,32 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     public static boolean isFileLocked(File file) {
         boolean isLocked = false;
-        RandomAccessFile fos = null;
+        FileChannel channel = null;
+        FileLock lock = null;
         try {
-            fos = new RandomAccessFile(file, "rw");
-        }  catch (Exception e) {
-            logger.error(e);
+            channel = new RandomAccessFile(file, "rw").getChannel();
+            lock = channel.tryLock();           
+            if (lock == null)
+                isLocked = true;
+        } catch (Exception e) {
+            logger.info(e);
             isLocked = true;
         } finally {
-            try {
-                if (fos != null) {
-                    fos.close();
+            if(lock != null) {
+                try {
+                    lock.release();
+                } catch (Exception e) {
+                    logger.info(e);
+                    isLocked = true;
                 }
-            } catch (Exception e) {
-                logger.error(e);
-                isLocked = true;
             }
+            if(channel != null)
+                try {
+                    channel.close();
+                } catch (IOException e) {
+                    logger.info(e);
+                    isLocked = true;
+                }
         }
         return isLocked;
     }
