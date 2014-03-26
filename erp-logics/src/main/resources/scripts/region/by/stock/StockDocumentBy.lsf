@@ -16,7 +16,7 @@ FORM printStockDocumentBy 'Товарный отчет'
     PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentStockDateInterval, countOutStockDocumentStockDateInterval,
                sumItemIncStockDocumentStockDateInterval, sumContainerIncStockDocumentStockDateInterval,
                subtotalItemIncStockDocumentStockDateInterval, subtotalContainerIncStockDocumentStockDateInterval,
-               sumItemOutStockDocumentStoreDateInterval, sumContainerOutStockDocumentStockDateInterval
+               sumItemOutStockDocumentStockDateInterval, sumContainerOutStockDocumentStockDateInterval
 
     OBJECTS il = IncStockDocumentLedger
     PROPERTIES(il) SELECTOR iDateTime = dateTimeStockDocumentLedger, iObjName = objectClassName, iDescription = descriptionStockDocumentLedger,
@@ -44,9 +44,100 @@ EXTEND FORM sumStockDocumentLedger
 
     PROPERTIES printStockDocumentBy(dtFrom, dtTo, ds) TODRAW params FORCE PANEL
 ;
-
 EXTEND DESIGN sumStockDocumentLedger{
     print {
         ADD PROPERTY(printStockDocumentBy(dtFrom,dtTo,ds));
+    }
+}
+
+// -------------------------------------- Суммы по операциям за интервал --------------------------------------------- //
+
+FORM printStockDocumentOperationBy 'Товарный отчет'
+    OBJECTS params = (dtFrom = DATE, dtTo = DATE) FIXED PANEL,
+            ds = Stock FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dtFrom), objTo = OBJVALUE(dtTo)
+    PROPERTIES(ds) SELECTOR fullNameStock, nameLegalEntityStock, nameContactResponsiblePersonStock, namePositionResponsiblePersonStock, nameContactBookerStock,
+                            namePositionBookerStock, nameContactControllerStock, namePositionControllerStock, UNPStock
+
+    PROPERTIES sumAccountBDocumentLedgerDate(ds, dtFrom), sumItemAccountBDocumentLedgerDate(ds, dtFrom), sumContainerAccountBDocumentLedgerDate(ds, dtFrom),
+               sumItemAccountADocumentLedgerDate(ds, dtTo), sumContainerAccountADocumentLedgerDate(ds, dtTo), sumAccountADocumentLedgerDate(ds, dtTo)
+    PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentStockDateInterval, countOutStockDocumentStockDateInterval,
+               sumItemIncStockDocumentStockDateInterval, sumContainerIncStockDocumentStockDateInterval,
+               subtotalItemIncStockDocumentStockDateInterval, subtotalContainerIncStockDocumentStockDateInterval,
+               sumItemOutStockDocumentStockDateInterval, sumContainerOutStockDocumentStockDateInterval
+//-- Приход                 
+    OBJECTS o1 = Operation           
+    PROPERTIES(o1) nameOperation, idOperation
+    PROPERTIES(ds,dtFrom,dtTo,o1) countIncStockDocumentStockDateIntervalOperation, sumItemIncStockDocumentStockDateIntervalOperation,
+               sumContainerIncStockDocumentStockDateIntervalOperation            
+    
+    FILTERS countIncStockDocumentStockDateIntervalOperation(ds,dtFrom,dtTo,o1)
+    
+    OBJECTS il = IncStockDocumentLedger
+    PROPERTIES(il) dateTimeStockDocumentLedger, objectClassName, descriptionStockDocumentLedger,
+                   sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger
+    FILTERS isPostedStockDocumentLedger(il),
+            stockStockDocumentLedger(il) == ds,
+            dateStockDocumentLedger(il) >= dtFrom,
+            dateStockDocumentLedger(il) <= dtTo,
+            operationStockDocumentLedger(il) == o1              
+    ORDER BY dateTimeStockDocumentLedger(il)
+    
+    
+    PROPERTIES(ds,dtFrom,dtTo) countNotOperationIncStockDocumentStockDateInterval, sumItemNotOperationIncStockDocumentStockDateInterval,
+               sumContainerNotOperationIncStockDocumentStockDateInterval  
+
+    OBJECTS il1 = IncStockDocumentLedger
+    PROPERTIES(il1) dateTimeStockDocumentLedger, objectClassName, descriptionStockDocumentLedger,
+                   sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger
+    FILTERS isPostedStockDocumentLedger(il1) AND NOT operationStockDocumentLedger(il1),
+            stockStockDocumentLedger(il1) == ds,
+            dateStockDocumentLedger(il1) >= dtFrom,
+            dateStockDocumentLedger(il1) <= dtTo
+    ORDER BY dateTimeStockDocumentLedger(il1)                       
+//-- Расход    
+    OBJECTS o2 = Operation           
+    PROPERTIES(o2) nameOperation, idOperation
+    PROPERTIES(ds,dtFrom,dtTo,o2) countOutStockDocumentStockDateIntervalOperation, sumItemOutStockDocumentStockDateIntervalOperation,
+               sumContainerOutStockDocumentStockDateIntervalOperation                       
+    FILTERS countOutStockDocumentStockDateIntervalOperation(ds,dtFrom,dtTo,o2)
+        
+    OBJECTS ol = OutStockDocumentLedger
+    PROPERTIES(ol) dateTimeStockDocumentLedger, objectClassName, descriptionStockDocumentLedger,
+                   sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger
+    FILTERS isPostedStockDocumentLedger(ol),
+            stockStockDocumentLedger(ol) == ds,
+            dateStockDocumentLedger(ol) >= dtFrom,
+            dateStockDocumentLedger(ol) <= dtTo,
+            operationStockDocumentLedger(ol) == o2
+    ORDER BY dateTimeStockDocumentLedger(ol)
+    
+
+    PROPERTIES(ds,dtFrom,dtTo) countNotOperationOutStockDocumentStockDateInterval, sumItemNotOperationOutStockDocumentStockDateInterval,
+               sumContainerNotOperationOutStockDocumentStockDateInterval     
+
+    OBJECTS ol2 = OutStockDocumentLedger
+    PROPERTIES(ol2) dateTimeStockDocumentLedger, objectClassName, descriptionStockDocumentLedger,
+                   sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger
+    FILTERS isPostedStockDocumentLedger(ol2) AND NOT operationStockDocumentLedger(ol2),
+            stockStockDocumentLedger(ol2) == ds,
+            dateStockDocumentLedger(ol2) >= dtFrom,
+            dateStockDocumentLedger(ol2) <= dtTo
+            
+    ORDER BY dateTimeStockDocumentLedger(ol2)
+;
+
+printStockDocumentOperationBy 'По операциям' (dateFrom, dateTo, stock) =
+    ACTION FORM printStockDocumentOperationBy OBJECTS dtFrom = dateFrom, dtTo = dateTo, ds = stock PRINT  IMAGE 'print.png' IN print;
+
+EXTEND FORM sumStockDocumentLedger
+
+    PROPERTIES printStockDocumentOperationBy(dtFrom, dtTo, ds) TODRAW params FORCE PANEL
+;
+
+EXTEND DESIGN sumStockDocumentLedger{
+    print {
+        type = CONTAINERH;
+        ADD PROPERTY(printStockDocumentOperationBy(dtFrom,dtTo,ds));
     }
 }
