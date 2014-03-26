@@ -4,6 +4,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.Compare;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -140,6 +141,8 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, boolean keyIsDigit,
                                           DataSession session, String keyType, boolean checkExistence) 
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if(keyColumn != null && keyColumn.equals("barcodeItem"))
+            keyColumnValue = BarcodeUtils.appendCheckDigitToBarcode(keyColumnValue, 7);
         return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+")) 
                 && (!checkExistence || getLCP(getItemKeyGroupAggr(keyType)).read(session, new DataObject(keyColumnValue)) != null);
     }
