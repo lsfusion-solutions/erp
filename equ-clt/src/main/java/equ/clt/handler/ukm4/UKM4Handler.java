@@ -165,16 +165,16 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
     @Override
     public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
-        Map<String, String> cashRegisterDirectories = new HashMap<String, String>();
+        Map<Integer, String> cashRegisterDirectories = new HashMap<Integer, String>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if ((cashRegister.directory != null) && (!cashRegisterDirectories.containsValue(cashRegister.directory)))
-                cashRegisterDirectories.put(cashRegister.cashRegisterNumber, cashRegister.directory);
+                cashRegisterDirectories.put(cashRegister.number, cashRegister.directory);
             if ((cashRegister.port != null) && (!cashRegisterDirectories.containsValue(cashRegister.port)))
-                cashRegisterDirectories.put(cashRegister.cashRegisterNumber, cashRegister.port);
+                cashRegisterDirectories.put(cashRegister.number, cashRegister.port);
         }
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
         List<String> readFiles = new ArrayList<String>();
-        for (Map.Entry<String, String> entry : cashRegisterDirectories.entrySet()) {
+        for (Map.Entry<Integer, String> entry : cashRegisterDirectories.entrySet()) {
             DBF importSailFile = null;
             DBF importDiscFile = null;
             DBF importCardFile = null;
@@ -261,7 +261,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                             receiptNumberSumReceipt.put(receiptNumber, new BigDecimal[]{safeAdd(tempSum1,(operation <= 1 ? sumReceiptDetail : null)),
                                     safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
 
-                            salesInfoList.add(new SalesInfo(cashRegisterNumber, Integer.parseInt(cashRegisterNumber), entry.getValue().trim(), zNumber, 
+                            salesInfoList.add(new SalesInfo(Integer.parseInt(cashRegisterNumber), entry.getValue().trim(), zNumber, 
                                     receiptNumber, date, time, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail, 
                                     operation % 2 == 1 ? quantityReceiptDetail : (quantityReceiptDetail==null ? null : quantityReceiptDetail.negate()),
                                     priceReceiptDetail, 

@@ -165,7 +165,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                                         numberReceiptDetail++;
                                         sumCash = sumCash.add(sumReceiptDetail);
                                         BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(r.nextDouble() > 0.8 ? (sumReceiptDetail.doubleValue() * r.nextInt(10) / 100) : 0);
-                                        SalesInfo salesInfo = new SalesInfo(numberCashRegister, Integer.parseInt(numberCashRegister), null, numberZReport,
+                                        SalesInfo salesInfo = new SalesInfo(Integer.parseInt(numberCashRegister), null, numberZReport,
                                                 receiptNumber, date, time, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode == null ? null : itemZReportInfo.barcode.trim(),
                                                 quantityReceiptDetail, itemZReportInfo.price, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, null);
                                         receiptSalesInfoList.add(salesInfo);

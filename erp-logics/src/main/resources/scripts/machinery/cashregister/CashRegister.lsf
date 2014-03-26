@@ -52,18 +52,18 @@ isGroupCashRegister (machinery) = machinery IS GroupCashRegister;
 groupCashRegisterCashRegister = DATA GroupCashRegister (CashRegister);
 groupMachineryMachinery(machinery) += groupCashRegisterCashRegister(machinery);
 
+cashRegisterNppGroupCashRegisterNpp (g, npp) = GROUP AGGR cashRegister BY nppGroupMachinery(groupCashRegisterCashRegister(cashRegister)), nppMachinery(cashRegister);  
+
 cashRegisterModelCashRegister = DATA CashRegisterModel (CashRegister);
 modelMachinery(machinery) += cashRegisterModelCashRegister(machinery);
 
 departmentStoreCashRegister (cashRegister) = departmentStoreGroupCashRegister(groupCashRegisterCashRegister(cashRegister));
 
-numberCashRegister 'Регистрационный номер кассы' = DATA VARSTRING[100] (CashRegister) IN base;
-cashRegisterNumber (cashRegister) = GROUP AGGR cashRegister BY numberCashRegister (cashRegister) WHERE cashRegister IS CashRegister;
+registrationNumberCashRegister 'Регистрационный номер кассы' = DATA VARSTRING[100] (CashRegister) IN base;
 
 dateCashRegister 'Дата фискализации кассового аппарата' = DATA DATE (CashRegister) IN base;
 
 directoryCashRegister 'Директория обмена с кассой' = DATA VARSTRING[100] (CashRegister) IN base;
-cashRegisterNppDirectory (npp, directory) = GROUP MAX cashRegister BY nppMachinery(cashRegister), directoryCashRegister(cashRegister);  
 
 comPortCashRegister 'Порт кассы' = DATA INTEGER (CashRegister) IN base;
 baudRateCashRegister 'Скорость кассы' = DATA INTEGER (CashRegister) IN base;
@@ -83,7 +83,7 @@ cashRegisterComputer (computer) = GROUP AGGR cashRegister BY computerCashRegiste
 currentCashRegister 'Текущая касса' = cashRegisterComputer(currentComputer());
 
 departmentStoreCurrentCashRegister 'Подразделение' = departmentStoreCashRegister(currentCashRegister());
-numberCurrentCashRegister 'Номер кассы' = numberCashRegister(currentCashRegister());
+numberCurrentCashRegister 'Номер кассы' = nppMachinery(currentCashRegister());
 sidModelCurrentCashRegister 'Код модели' = sidModelMachinery(currentCashRegister());
 comPortCurrentCashRegister 'Порт' = comPortCashRegister(currentCashRegister());
 baudRateCurrentCashRegister 'Скорость весов' = baudRateCashRegister(currentCashRegister());
@@ -95,7 +95,7 @@ maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSu
  
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister FIXED PANEL
-    PROPERTIES(c) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberCashRegister, directoryCashRegister, comPortCashRegister, baudRateCashRegister, nameModelMachinery,
+    PROPERTIES(c) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, directoryCashRegister, comPortCashRegister, baudRateCashRegister, nameModelMachinery,
                   dateCashRegister, hostnameComputerCashRegister
     EDIT CashRegister OBJECT c
 ;
@@ -107,7 +107,7 @@ FORM groupCashRegister 'Группа касс'
                     namePriceListTypeGroupMachinery
 
     OBJECTS c=CashRegister
-    PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, numberCashRegister,
+    PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery,
                     directoryCashRegister, comPortCashRegister, baudRateCashRegister, nameModelMachinery,
                     dateCashRegister, hostnameComputerCashRegister, nameLegalEntityCashRegister, ADDOBJ, DELETESESSION
 
@@ -128,7 +128,7 @@ FORM groupsCashRegister 'Группы касс'
     PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     PROPERTIES(c) READONLY nppMachinery, descriptionMachinery, portMachinery,
-                           numberCashRegister, directoryCashRegister, comPortCashRegister, baudRateCashRegister, nameModelMachinery,
+                           directoryCashRegister, comPortCashRegister, baudRateCashRegister, nameModelMachinery,
                            dateCashRegister, nameLegalEntityCashRegister
     FILTERS groupCashRegisterCashRegister(c) == grc
 ;

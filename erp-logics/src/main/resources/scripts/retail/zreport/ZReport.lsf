@@ -28,7 +28,6 @@ TABLE zReport (ZReport);
 
 @deriveDocumentHeaderTimePrefix(ZReport, );
 @defineDocumentHeaderDepartmentStore(zReport);
-@defineExternalizable(zReport, VARSTRING[100]);
 
 castBasisZReport =
     FORMULA VARSTRING[100] '\'Z-отчет №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
@@ -36,9 +35,7 @@ castBasisZReport =
 @defineDocumentHeaderNumber(ZReport);
 
 cashRegisterZReport (zReport) = DATA CashRegister(ZReport);
-numberCashRegisterZReport 'Касса Z-отчета' (zReport) = numberCashRegister(cashRegisterZReport(zReport)) IN documentPrm;
-zReportNumberCashRegister (numberZReport, numberCashRegister) = GROUP AGGR zReport BY numberZReport (zReport), numberCashRegisterZReport (zReport) WHERE zReport IS ZReport;
-zReportNumberNppDirectory (numberZReport, nppMachinery, directoryCashRegister) = GROUP AGGR zReport BY numberZReport (zReport), nppMachinery(cashRegisterZReport(zReport)), directoryCashRegister(cashRegisterZReport(zReport)) WHERE zReport IS ZReport;
+numberCashRegisterZReport 'Касса Z-отчета' (zReport) = nppMachinery(cashRegisterZReport(zReport)) IN documentPrm;
 
 maxNumberZReport(cashRegister) = GROUP MAX numberZReport(zReport)  BY cashRegisterZReport (zReport);
 basisZReport 'Основание' (zReport) = castBasisZReport(numberZReport(zReport), numberCashRegisterZReport(zReport), dateZReport(zReport)) IN documentPrm;
@@ -53,25 +50,29 @@ descriptionZReport 'Название документа' (zReport) =  VARSTRING[
 //----------------------------------------------- Чеки ---------------------------------------------------//
 
 CLASS Receipt 'Чек';
+TABLE receipt (Receipt);
 
 @defineCreated(Receipt);
 @defineExternalizable(receipt, VARSTRING[100]);
 
+
 CLASS ABSTRACT ReceiptDetail 'Строка чека';
+TABLE receiptDetail (ReceiptDetail);
+
 CLASS ReceiptSaleDetail 'Строка продажи' : ReceiptDetail;
+TABLE receiptSaleDetail (ReceiptSaleDetail);
+
 CLASS ReceiptReturnDetail 'Строка возврата' : ReceiptDetail;
+TABLE receiptReturnDetail (ReceiptReturnDetail);
 
 @defineExternalizable(receiptDetail, VARSTRING[100]);
 
-TABLE receipt (Receipt);
-TABLE receiptDetail (ReceiptDetail);
-TABLE receiptSaleDetail (ReceiptSaleDetail);
-TABLE receiptReturnDetail (ReceiptReturnDetail);
+numberReceiptDetail 'Номер позиции чека' = DATA INTEGER (ReceiptDetail); 
 
 @defineDocumentRelation(zReport, Receipt);
 numberZReportReceipt 'Номер Z-отчета' (receipt) = numberZReport(zReportReceipt(receipt)) IN recognize;
 cashRegisterReceipt (receipt) = cashRegisterZReport(zReportReceipt(receipt));
-numberCashRegisterReceipt 'Номер кассы' (receipt) = numberCashRegister(cashRegisterReceipt(receipt)) IN recognize;
+numberCashRegisterReceipt 'Номер кассы' (receipt) = nppMachinery(cashRegisterReceipt(receipt)) IN recognize;
 
 groupCashRegisterReceipt (receipt) = groupCashRegisterCashRegister(cashRegisterReceipt(receipt));
 
@@ -191,8 +192,6 @@ numberReceipt 'Номер чека' (receipt) = DATA INTEGER (Receipt) IN docume
 numberReceiptReceiptDetail 'Номер чека' (receiptDetail) = numberReceipt(receiptReceiptDetail(receiptDetail));
 
 maxNumberReceiptZReport 'Максимальный номер чека' (zReport) = GROUP MAX numberReceipt(receipt) BY zReportReceipt(receipt) PERSISTENT;
-
-receiptZReportNumberCashRegister (zReport, receipt, cashRegister) = GROUP AGGR receipt BY numberZReport(zReportReceipt(receipt)), numberReceipt(receipt), numberCashRegister(cashRegisterZReport(zReportReceipt(receipt))) WHERE receipt IS Receipt;
 
 GROUP receiptDiscount 'Дисконтная карта' : public;
 
@@ -317,37 +316,6 @@ discountSumReceipt 'Сумма скидки по чеку' (receipt) = discountS
 @defineDocumentHeaderSkuQuantity(receipt, sku);
 @defineDocumentHeaderSkuQuantity(receipt, receiptSaleDetail, sku);
 
-// импорт-экспорт чеков
-
-exportReceiptsZReport 'Экспортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportCustomActionProperty';
-exportReceiptsFolderZReport 'Экспортировать чеки (в папку)' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportFolderActionProperty';
-importReceiptsZReport 'Импортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ImportReceiptsZReportActionProperty';
-
-exportReceipt 'Экспортировать' (receipt) = DATA SESSION BOOLEAN (Receipt);
-exportedIncrementReceipt 'Экспортировано (инкрементно)' (receipt) = DATA BOOLEAN (Receipt);
-pathExportReceipts 'Путь' = DATA VARSTRING[100] ();
-
-exportIncrementReceipts 'Экспортировать (инкрементно) чеки' = ACTION() {
-    FOR z IS ZReport DO {
-        exportReceipt(r) <- NOT exportedIncrementReceipt(r) WHERE zReportReceipt(r) == z;    
-        exportReceiptsFolderZReport(z);
-    }
-}
-
-EXTEND FORM integrationData
-    PROPERTIES() exportIncrementReceipts, pathExportReceipts
-;
-
-EXTEND DESIGN integrationData {
-    pane {
-        NEW exportReceiptsPane {
-            caption = 'Экспорт чеков';
-            ADD PROPERTY(exportIncrementReceipts());
-            ADD PROPERTY(pathExportReceipts());
-        }
-    }
-}
-
 // -------------------------------------------------- НДС ------------------------------------------------ //
 
 overVATRetailSkuDepartmentStoreDateTime = ABSTRACT Range (Sku, DepartmentStore, DATETIME);
@@ -387,10 +355,6 @@ VATReceiptDetail(d) += VATReceiptSaleDetail(d);
 VATReceiptDetail(d) += VATReceiptReturnDetail(d);
 
 // используется только для приема реализации из внешних касс
-numberReceiptDetail 'Номер позиции чека' = DATA INTEGER (ReceiptDetail);
-receiptDetailZReportReceiptNumberCashRegister (zReport, receipt, receiptDetail, cashRegister) = GROUP AGGR receiptDetail BY numberZReport(zReportReceiptDetail(receiptDetail)), numberReceipt(receiptReceiptDetail(receiptDetail)), numberReceiptDetail(receiptDetail), numberCashRegister(cashRegisterZReport(zReportReceiptDetail(receiptDetail))) WHERE receiptDetail IS ReceiptDetail;
-//
-
 descriptionReceipt 'Название документа' (receipt) = [= FORMULA VARSTRING[200] '\'Чек № \' || CAST($1 AS TEXT) || \' от \' || CAST($2 AS TEXT) '](
                                                numberReceipt(receipt), dateTimeReceipt(receipt));
 
@@ -493,7 +457,6 @@ paymentMeansPayment (payment) = paymentMeansPaymentType(paymentTypePayment(payme
 namePaymentMeansPayment 'Форма оплаты' (payment) = staticCaption(paymentMeansPayment(payment));
 
 numberPayment 'Номер платежа' (payment) = DATA INTEGER (Payment);
-paymentZReportReceiptNumberCashRegister (zReport, receipt, number, cashRegister) = GROUP AGGR payment BY numberZReport(zReportReceipt(receiptPayment(payment))), numberReceipt(receiptPayment(payment)), numberPayment(payment), numberCashRegister(cashRegisterZReport(zReportReceipt(receiptPayment(payment)))) WHERE payment IS Payment;
 
 sumPayment 'Сумма платежа' (payment) = DATA NUMERIC[16,2] (Payment);
 
@@ -575,7 +538,7 @@ FORM zReport 'Z-отчет'
     OBJECTS b=Receipt, d=ReceiptDetail
     PROPERTIES(b) numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
                   sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
-                  discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt, exportReceipt, exportedIncrementReceipt, 
+                  discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt,
                   ADDOBJ, DELETESESSION
     FILTERS zReportReceipt(b)==z
 
@@ -655,14 +618,12 @@ FORM zReports 'Z-отчеты'
     PROPERTIES (z) closeZReport SHOWIF isOpenedZReport(z), openZReport SHOWIF isClosedZReport(z)
 
     PROPERTIES (z) deletez=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftOpenedZReport(z),
-                            exportReceiptsZReport FORCE PANEL TOOLBAR, importReceiptsZReport FORCE PANEL TOOLBAR,
                             postZReport SHOWIF isDraftOpenedZReport(z), unpostZReport SHOWIF isPostedOpenedZReport(z)
 
     OBJECTS b=Receipt
     PROPERTIES(b) READONLY  numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
                             sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
                             discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt
-    PROPERTIES(b)           exportReceipt, exportedIncrementReceipt
 
     FILTERS zReportReceipt(b)==z
     ORDER BY                numberReceipt(b)
@@ -720,6 +681,57 @@ NAVIGATOR {
         }
     }
 }
+
+// ---------------------------------- Импорт/Экспорт чеков ---------------------------------- //
+
+exportReceiptsZReport 'Экспортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportCustomActionProperty';
+exportReceiptsFolderZReport 'Экспортировать чеки (в папку)' = ACTION CUSTOM 'lsfusion.erp.retail.ExportReceiptsZReportFolderActionProperty';
+
+// todo : избавиться от этого GROUP AGGR
+zReportNumberCashRegister (numberZReport, cashRegister) = GROUP NAGGR zReport BY numberZReport (zReport), numberCashRegisterZReport (zReport) WHERE zReport IS ZReport;
+receiptZReportNumberCashRegister (zReport, receipt, cashRegister) = GROUP AGGR receipt BY numberZReport(zReportReceipt(receipt)), numberReceipt(receipt), nppMachinery(cashRegisterZReport(zReportReceipt(receipt))) WHERE receipt IS Receipt;
+
+// todo : вместо него может быть idReceiptDetail
+receiptDetailZReportReceiptNumberCashRegister (zReport, receipt, receiptDetail, cashRegister) = GROUP NAGGR receiptDetail BY numberZReport(zReportReceiptDetail(receiptDetail)), numberReceipt(receiptReceiptDetail(receiptDetail)), numberReceiptDetail(receiptDetail), nppMachinery(cashRegisterZReport(zReportReceiptDetail(receiptDetail))) WHERE receiptDetail IS ReceiptDetail;
+
+paymentZReportReceiptNumberCashRegister (zReport, receipt, number, cashRegister) = GROUP NAGGR payment BY numberZReport(zReportReceipt(receiptPayment(payment))), numberReceipt(receiptPayment(payment)), numberPayment(payment), nppMachinery(cashRegisterZReport(zReportReceipt(receiptPayment(payment)))) WHERE payment IS Payment;
+
+importReceiptsZReport 'Импортировать чеки' = ACTION CUSTOM 'lsfusion.erp.retail.ImportReceiptsZReportActionProperty';
+
+exportReceipt 'Экспортировать' (receipt) = DATA SESSION BOOLEAN (Receipt);
+exportedIncrementReceipt 'Экспортировано (инкрементно)' (receipt) = DATA BOOLEAN (Receipt);
+pathExportReceipts 'Путь' = DATA VARSTRING[100] ();
+
+exportIncrementReceipts 'Экспортировать (инкрементно) чеки' = ACTION() {
+    FOR z IS ZReport DO {
+        exportReceipt(r) <- NOT exportedIncrementReceipt(r) WHERE zReportReceipt(r) == z;    
+        exportReceiptsFolderZReport(z);
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() exportIncrementReceipts, pathExportReceipts
+;
+
+EXTEND DESIGN integrationData {
+    pane {
+        NEW exportReceiptsPane {
+            caption = 'Экспорт чеков';
+            ADD PROPERTY(exportIncrementReceipts());
+            ADD PROPERTY(pathExportReceipts());
+        }
+    }
+}
+
+EXTEND FORM zReport
+    PROPERTIES(b) exportReceipt, exportedIncrementReceipt 
+;
+
+EXTEND FORM zReports
+    PROPERTIES(z) exportReceiptsZReport FORCE PANEL TOOLBAR, importReceiptsZReport FORCE PANEL TOOLBAR
+    PROPERTIES(b) exportReceipt, exportedIncrementReceipt 
+;
+
 // ----------------------------------------------- Стандартные значения ------------------------------------- //
 
 loadDefaultPaymentType 'Добавить тип оплаты' = ACTION(string, paymentMeans, sid) {
@@ -738,4 +750,3 @@ loadDefaultPaymentTypes 'Загрузить стандартные типы оп
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultPaymentTypes);
-

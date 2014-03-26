@@ -21,7 +21,7 @@ nameLegalEntityCashDocument 'Компания' (cashDocument) = nameLegalEntityD
 basisCashDocument 'Основание' = ABSTRACT VARSTRING[100] (CashDocument) IN documentPrm;
 
 cashRegisterCashDocument = ABSTRACT CashRegister(CashDocument);
-numberCashRegisterCashDocument 'Касса' (cashDocument) = numberCashRegister(cashRegisterCashDocument(cashDocument)) IN documentPrm;
+numberCashRegisterCashDocument 'Касса' (cashDocument) = nppMachinery(cashRegisterCashDocument(cashDocument)) IN documentPrm;
 
 isPostedCashDocument 'Закрыт' = ABSTRACT BOOLEAN (CashDocument);
 
@@ -94,7 +94,7 @@ basisCashOperation 'Основание' = ABSTRACT VARSTRING[100] (CashOperation
 cashRegisterCashOperation = ABSTRACT CashRegister(CashOperation);
 cashRegisterModelCashOperation (cashOperation) = cashRegisterModelCashRegister(cashRegisterCashOperation(cashOperation));
 sidCashRegisterModelCashOperation 'Код модели' (cashOperation) = sidModel(cashRegisterModelCashOperation (cashOperation));
-numberCashRegisterCashOperation 'Касса' (cashOperation) = numberCashRegister(cashRegisterCashOperation(cashOperation)) IN documentPrm;
+numberCashRegisterCashOperation 'Касса' (cashOperation) = nppMachinery(cashRegisterCashOperation(cashOperation)) IN documentPrm;
 
 fiscalServiceCashOperation 'Движение денег в фискальном регистраторе' (cashOperation) = ABSTRACT ACTION LIST (CashOperation) CONFIRM;
 fiscalServiceCashRegisterCashOperation 'Движение денег в фискальном регистраторе' (cashOperation) = ACTION IF cashRegisterCashOperation(cashOperation) == currentCashRegister() THEN fiscalServiceCashOperation(cashOperation);
@@ -120,7 +120,7 @@ isIncomeCashOperation (cashOperation) = cashOperation IS IncomeCashOperation;
 @defineDocumentHeaderDepartmentStore(incomeCashOperation);
 
 cashRegisterIncomeCashOperation (incomeCashOperation) = DATA CashRegister (IncomeCashOperation);
-numberCashRegisterIncomeCashOperation 'Касса внесения денег' (incomeCashOperation) = numberCashRegister(cashRegisterIncomeCashOperation(incomeCashOperation)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+numberCashRegisterIncomeCashOperation 'Касса внесения денег' (incomeCashOperation) = nppMachinery(cashRegisterIncomeCashOperation(incomeCashOperation)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 sumCashIncomeCashOperation 'Сумма внесения' = DATA NUMERIC[16,2] (IncomeCashOperation) IN documentSum;
 castBasisIncomeCashOperation =
     FORMULA VARSTRING[100] '\'Внесение денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
@@ -172,7 +172,7 @@ isOutcomeCashOperation (cashOperation) = cashOperation IS OutcomeCashOperation;
 @defineDocumentHeaderDepartmentStore(outcomeCashOperation);
 
 cashRegisterOutcomeCashOperation (outcomeCashOperation) = DATA CashRegister (OutcomeCashOperation);
-numberCashRegisterOutcomeCashOperation 'Касса изъятия денег' (outcomeCashOperation) = numberCashRegister(cashRegisterOutcomeCashOperation(outcomeCashOperation)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+numberCashRegisterOutcomeCashOperation 'Касса изъятия денег' (outcomeCashOperation) = nppMachinery(cashRegisterOutcomeCashOperation(outcomeCashOperation)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 sumCashOutcomeCashOperation 'Сумма изъятия' = DATA NUMERIC[16,2] (OutcomeCashOperation) IN documentSum;
 castBasisOutcomeCashOperation =
     FORMULA VARSTRING[100] '\'Изъятие денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
@@ -229,7 +229,7 @@ FORM addIncomeCashOperation 'Внесение денег'
     PROPERTIES(d) nameDepartmentStore SELECTOR
 
     OBJECTS c = CashRegister
-    PROPERTIES(c) READONLY numberCashRegister
+    PROPERTIES(c) READONLY nppMachinery
     PROPERTIES(c) sumCashForIncomeCashOperation
 
     FILTERS departmentStoreCashRegister(c) == d
@@ -327,7 +327,7 @@ FORM addOutcomeCashOperation 'Изъятие денег'
     PROPERTIES(d) nameDepartmentStore SELECTOR
 
     OBJECTS c = CashRegister
-    PROPERTIES(c) READONLY numberCashRegister
+    PROPERTIES(c) READONLY nppMachinery
     PROPERTIES(c) sumCashForOutcomeCashOperation
 
     FILTERS departmentStoreCashRegister(c) == d

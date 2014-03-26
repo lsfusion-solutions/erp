@@ -260,7 +260,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(cashRegisterKeys);
 
-                    String[] cashRegisterProperties = new String[]{"directoryCashRegister", "portMachinery", "nppMachinery", "numberCashRegister",
+                    String[] cashRegisterProperties = new String[]{"nppGroupMachineryMachinery", "nppMachinery", "directoryCashRegister", "portMachinery",
                             "nameModelMachinery", "handlerModelMachinery"};
                     for (String property : cashRegisterProperties) {
                         cashRegisterQuery.addProperty(property, cashRegisterLM.findLCPByCompoundOldName(property).getExpr(cashRegisterKey));
@@ -271,13 +271,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> row : cashRegisterResult.valueIt()) {
-                        String directoryCashRegister = (String) row.get("directoryCashRegister");
-                        String portMachinery = (String) row.get("portMachinery");
+                        Integer nppGroup = (Integer) row.get("nppGroupMachinery");
                         Integer nppMachinery = (Integer) row.get("nppMachinery");
-                        String numberCashRegister = (String) row.get("numberCashRegister");
                         String nameModel = (String) row.get("nameModelMachinery");
                         String handlerModel = (String) row.get("handlerModelMachinery");
-                        cashRegisterInfoList.add(new CashRegisterInfo(nppMachinery, numberCashRegister, nameModel, handlerModel, portMachinery, directoryCashRegister));
+                        String directoryCashRegister = (String) row.get("directoryCashRegister");
+                        String portMachinery = (String) row.get("portMachinery");
+                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroup, nppMachinery, nameModel, handlerModel, portMachinery, directoryCashRegister));
                     }
 
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
@@ -295,7 +295,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr scalesKey = scalesKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> scalesQuery = new QueryBuilder<PropertyInterface, Object>(scalesKeys);
 
-                    String[] scalesProperties = new String[]{"portMachinery", "nppMachinery", "nameCheckModelCheck", "handlerModelMachinery"};
+                    String[] scalesProperties = new String[]{"portMachinery", "numberCashRegister", "nameCheckModelCheck", "handlerModelMachinery"};
                     for (String property : scalesProperties) {
                         scalesQuery.addProperty(property, scalesLM.findLCPByCompoundOldName(property).getExpr(scalesKey));
                     }
@@ -306,7 +306,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     for (ImMap<Object, Object> values : scalesResult.valueIt()) {
                         String portMachinery = (String) values.get("portMachinery");
-                        Integer nppMachinery = (Integer) values.get("nppMachinery");
+                        Integer nppMachinery = (Integer) values.get("numberCashRegister");
                         String nameModel = (String) values.get("nameModelMachinery");
                         String handlerModel = (String) values.get("handlerModelMachinery");
                         scalesInfoList.add(new ScalesInfo(nppMachinery, nameModel, handlerModel, portMachinery, directory,
@@ -324,7 +324,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr checkKey = checkKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> checkQuery = new QueryBuilder<PropertyInterface, Object>(checkKeys);
 
-                    String[] checkProperties = new String[]{"portMachinery", "nppMachinery", "nameCheckModelCheck"};
+                    String[] checkProperties = new String[]{"portMachinery", "numberCashRegister", "nameCheckModelCheck"};
                     for (String property : checkProperties) {
                         checkQuery.addProperty(property, priceCheckerLM.findLCPByCompoundOldName(property).getExpr(checkKey));
                     }
@@ -334,7 +334,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> checkResult = checkQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> values : checkResult.valueIt()) {
-                        priceCheckerInfoList.add(new PriceCheckerInfo((Integer) values.get("nppMachinery"), (String) values.get("nameCheckModelCheck"),
+                        priceCheckerInfoList.add(new PriceCheckerInfo((Integer) values.get("numberCashRegister"), (String) values.get("nameCheckModelCheck"),
                                 null, (String) values.get("portMachinery")));
                     }
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(),
@@ -349,7 +349,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr terminalKey = terminalKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> terminalQuery = new QueryBuilder<PropertyInterface, Object>(terminalKeys);
 
-                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
+                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "numberCashRegister", "nameModelMachinery", "handlerModelMachinery"};
                     for (String property : terminalProperties) {
                         terminalQuery.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalKey));
                     }
@@ -359,7 +359,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> values : terminalResult.valueIt()) {
-                        terminalInfoList.add(new TerminalInfo((String) values.get("directoryTerminal"), (Integer) values.get("nppMachinery"),
+                        terminalInfoList.add(new TerminalInfo((String) values.get("directoryTerminal"), (Integer) values.get("numberCashRegister"),
                                 (String) values.get("nameModelMachinery"), (String) values.get("handlerModelMachinery"),
                                 (String) values.get("portMachinery")));
                     }
@@ -444,12 +444,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(cashRegisterKeys);
 
-                    cashRegisterQuery.addProperty("directoryCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryCashRegister").getExpr(cashRegisterKey));
-                    cashRegisterQuery.addProperty("portMachinery", cashRegisterLM.findLCPByCompoundOldName("portMachinery").getExpr(cashRegisterKey));
+                    cashRegisterQuery.addProperty("nppGroupMachineryMachinery", cashRegisterLM.findLCPByCompoundOldName("nppGroupMachineryMachinery").getExpr(cashRegisterKey));
                     cashRegisterQuery.addProperty("nppMachinery", cashRegisterLM.findLCPByCompoundOldName("nppMachinery").getExpr(cashRegisterKey));
-                    cashRegisterQuery.addProperty("numberCashRegister", cashRegisterLM.findLCPByCompoundOldName("numberCashRegister").getExpr(cashRegisterKey));
                     cashRegisterQuery.addProperty("nameModelMachinery", cashRegisterLM.findLCPByCompoundOldName("nameModelMachinery").getExpr(cashRegisterKey));
                     cashRegisterQuery.addProperty("handlerModelMachinery", cashRegisterLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterKey));
+                    cashRegisterQuery.addProperty("portMachinery", cashRegisterLM.findLCPByCompoundOldName("portMachinery").getExpr(cashRegisterKey));
+                    cashRegisterQuery.addProperty("directoryCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryCashRegister").getExpr(cashRegisterKey));
 
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
                     cashRegisterQuery.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare((groupMachineryObject).getExpr(), Compare.EQUALS));
@@ -457,7 +457,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> row : cashRegisterResult.values()) {
-                        cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppMachinery"), (String) row.get("numberCashRegister"),
+                        cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachineryMachinery"), (Integer) row.get("nppMachinery"),
                                 (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"),
                                 (String) row.get("directoryCashRegister")));
                     }
@@ -491,7 +491,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr terminalKey = terminalKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> terminalQuery = new QueryBuilder<PropertyInterface, Object>(terminalKeys);
 
-                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
+                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "numberCashRegister", "nameModelMachinery", "handlerModelMachinery"};
                     for (String property : terminalProperties) {
                         terminalQuery.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalKey));
                     }
@@ -501,7 +501,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> row : terminalResult.valueIt()) {
-                        terminalInfoList.add(new TerminalInfo((String) row.get("directoryTerminal"), (Integer) row.get("nppMachinery"),
+                        terminalInfoList.add(new TerminalInfo((String) row.get("directoryTerminal"), (Integer) row.get("numberCashRegister"),
                                 (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery")));
                     }
                 }
@@ -665,10 +665,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     logger.info(String.format("Kristal: Sending SalesInfo from %s to %s", start, finish));
                     
                     DataSession session = getDbManager().createSession();
-                    ImportField numberCashRegisterField = new ImportField(zReportLM.findLCPByCompoundOldName("numberCashRegister"));
+                    ImportField nppGroupMachineryField = new ImportField(zReportLM.findLCPByCompoundOldName("nppGroupMachineryMachinery"));
                     ImportField nppMachineryField = new ImportField(zReportLM.findLCPByCompoundOldName("nppMachinery"));
-                    ImportField directoryCashRegisterField = new ImportField(zReportLM.findLCPByCompoundOldName("directoryCashRegister"));
 
+                    ImportField idZReportField = new ImportField(zReportLM.findLCPByCompoundOldName("idZReport"));
                     ImportField numberZReportField = new ImportField(zReportLM.findLCPByCompoundOldName("numberZReport"));
 
                     ImportField idReceiptField = new ImportField(zReportLM.findLCPByCompoundOldName("idReceipt"));
@@ -706,8 +706,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     List<ImportProperty<?>> returnProperties = new ArrayList<ImportProperty<?>>();
                     List<ImportProperty<?>> paymentProperties = new ArrayList<ImportProperty<?>>();
 
-                    ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClassByCompoundName("ZReport"), zReportLM.findLCPByCompoundOldName("zReportNumberNppDirectory").getMapping(numberZReportField, nppMachineryField, directoryCashRegisterField));
-                    ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClassByCompoundName("CashRegister"), zReportLM.findLCPByCompoundOldName("cashRegisterNppDirectory").getMapping(nppMachineryField, directoryCashRegisterField));
+                    ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClassByCompoundName("ZReport"), zReportLM.findLCPByCompoundOldName("zReportId").getMapping(idZReportField));
+                    ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClassByCompoundName("CashRegister"), zReportLM.findLCPByCompoundOldName("cashRegisterNppGroupCashRegisterNpp").getMapping(nppGroupMachineryField, nppMachineryField));
                     ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClassByCompoundName("Receipt"), zReportLM.findLCPByCompoundOldName("receiptId").getMapping(idReceiptField));
                     ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClassByCompoundName("Sku"), zReportLM.findLCPByCompoundOldName("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
                     ImportKey<?> discountCardKey = null;
@@ -790,10 +790,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     List<List<Object>> dataPayment = new ArrayList<List<Object>>();
 
                     for (SalesInfo sale : data) {
-                        String idReceipt = sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberCashRegister;
-                        String idReceiptDetail = sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberReceiptDetail + "_" + sale.numberCashRegister;
+                        String idZReport = sale.numberGroupCashRegister + "_" + sale.numberCashRegister + "_" + sale.numberZReport; 
+                        String idReceipt = sale.numberGroupCashRegister + "_" + sale.numberCashRegister + "_" + sale.numberZReport + "_" + sale.numberReceipt;
+                        String idReceiptDetail = sale.numberGroupCashRegister + "_" + sale.numberCashRegister + "_"  + sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberReceiptDetail;
                         if (sale.quantityReceiptDetail.doubleValue() < 0) {
-                            List<Object> row = Arrays.<Object>asList(sale.numberCashRegister, sale.nppMachinery, sale.directoryCashRegister, sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.numberGroupCashRegister, sale.numberCashRegister, idZReport, sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
                                     idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail.negate(),
                                     sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail,
@@ -802,7 +803,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 row.add(sale.seriesNumberDiscountCard);
                             dataReturn.add(row);
                         } else {
-                            List<Object> row = Arrays.<Object>asList(sale.numberCashRegister, sale.nppMachinery, sale.directoryCashRegister, sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.numberGroupCashRegister, sale.numberCashRegister, idZReport, sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
                                     idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail,
@@ -819,16 +820,16 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         }
                     }
 
-                    List<ImportField> saleImportFields = Arrays.asList(numberCashRegisterField, nppMachineryField, directoryCashRegisterField,
-                            numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
+                    List<ImportField> saleImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
+                            idZReportField, numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
                             numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                             quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
                             discountSumReceiptSaleDetailField, discountSumSaleReceiptField);
                     if (discountCardLM != null)
                         saleImportFields.add(seriesNumberDiscountCardField);
 
-                    List<ImportField> returnImportFields = Arrays.asList(numberCashRegisterField, nppMachineryField, directoryCashRegisterField,
-                            numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
+                    List<ImportField> returnImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
+                            idZReportField, numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
                             numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                             quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
                             discountSumReceiptReturnDetailField, discountSumReturnReceiptField);
@@ -862,19 +863,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             sumPaymentField, numberPaymentField);
 
                     String message = "Загружено записей: " + (dataSale.size() + dataReturn.size());
-                    List<String> cashRegisterNumbers = new ArrayList<String>();
+                    List<Integer> cashRegisterNumbers = new ArrayList<Integer>();
                     List<String> fileNames = new ArrayList<String>();
                     Set<String> dates = new HashSet<String>();
                     for (SalesInfo salesInfo : data) {
-                        if (!cashRegisterNumbers.contains(salesInfo.numberCashRegister.trim()))
-                            cashRegisterNumbers.add(salesInfo.numberCashRegister.trim());
+                        if (!cashRegisterNumbers.contains(salesInfo.numberCashRegister))
+                            cashRegisterNumbers.add(salesInfo.numberCashRegister);
                         if ((salesInfo.filename != null) && (!fileNames.contains(salesInfo.filename.trim())))
                             fileNames.add(salesInfo.filename.trim());
                         if(salesInfo.dateReceipt != null)
                             dates.add(new SimpleDateFormat("dd.MM.yyyy").format(salesInfo.dateReceipt));
                     }
                     message += "\nИз касс: ";
-                    for (String cashRegisterNumber : cashRegisterNumbers)
+                    for (Integer cashRegisterNumber : cashRegisterNumbers)
                         message += cashRegisterNumber + ", ";
                     message = message.substring(0, message.length() - 2);
 
