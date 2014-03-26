@@ -40,6 +40,7 @@ import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class EquipmentServer extends LifecycleAdapter implements EquipmentServerInterface, InitializingBean {
@@ -863,11 +864,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String message = "Загружено записей: " + (dataSale.size() + dataReturn.size());
                     List<String> cashRegisterNumbers = new ArrayList<String>();
                     List<String> fileNames = new ArrayList<String>();
+                    Set<String> dates = new HashSet<String>();
                     for (SalesInfo salesInfo : data) {
                         if (!cashRegisterNumbers.contains(salesInfo.numberCashRegister.trim()))
                             cashRegisterNumbers.add(salesInfo.numberCashRegister.trim());
                         if ((salesInfo.filename != null) && (!fileNames.contains(salesInfo.filename.trim())))
                             fileNames.add(salesInfo.filename.trim());
+                        if(salesInfo.dateReceipt != null)
+                            dates.add(new SimpleDateFormat("dd.MM.yyyy").format(salesInfo.dateReceipt));
                     }
                     message += "\nИз касс: ";
                     for (String cashRegisterNumber : cashRegisterNumbers)
@@ -878,6 +882,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     for (String filename : fileNames)
                         message += filename + ", ";
                     message = message.substring(0, message.length() - 2);
+                    
+                    if(!dates.isEmpty()) {
+                        message += "\nЗа даты: ";
+                        for (String date : dates)
+                            message += date + ", ";
+                        message = message.substring(0, message.length() - 2);
+                    }
 
                     DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClassByCompoundName("EquipmentServerLog"));
                     Object equipmentServerObject = equLM.findLCPByCompoundOldName("sidToEquipmentServer").read(session, new DataObject(equipmentServer, StringClass.get(20)));
