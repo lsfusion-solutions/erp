@@ -14,13 +14,6 @@ REQUIRE System,
 
 PRIORITY Stock;
 
-CLASS ABSTRACT DiscountSkuGroup 'Дисконтная группа товаров';
-
-nameDiscountSkuGroup 'Наименование' = ABSTRACT VARISTRING[150](DiscountSkuGroup);
-
-TABLE discountSkuGroupSku(DiscountSkuGroup, Sku);
-inDiscountSkuGroupSku 'Вкл' = ABSTRACT BOOLEAN (DiscountSkuGroup, Sku) PERSISTENT;
-
 priceListTypeDiscountCard = DATA PriceListType (DiscountCard);
 namePriceListTypeDiscountCard 'Вид цен для дисконтных карт' (DiscountCard) = namePriceListType(priceListTypeDiscountCard(DiscountCard));
 
@@ -168,16 +161,6 @@ namePriceListTypePromotionCondition 'Вид цены' (promotionCondition) = nam
 
 userSetPromotionCondition 'Задается кассиром' (promotionCondition) = userSetPromotion(promotionPromotionCondition(promotionCondition));
 
-// discountSkuGroup
-TABLE promotionConditionDiscountSkuGroup (PromotionCondition, DiscountSkuGroup);
-allDiscountSkuGroupPromotionCondition 'Все дисконтные группы товаров' = DATA BOOLEAN (PromotionCondition);
-inDataPromotionConditionDiscountSkuGroup 'В условии' = DATA BOOLEAN (PromotionCondition, DiscountSkuGroup);
-inPromotionConditionDiscountSkuGroup 'В условии' = OVERRIDE allDiscountSkuGroupPromotionCondition(promotionCondition) AND discountSkuGroup IS DiscountSkuGroup,
-                                                            inDataPromotionConditionDiscountSkuGroup(promotionCondition, discountSkuGroup) PERSISTENT;
-countPromotionConditionSku 'Кол-во дисконтных групп' = GROUP SUM 1 IF inPromotionConditionDiscountSkuGroup(promotionCondition, discountSkuGroup)
-                                                                  AND inDiscountSkuGroupSku(discountSkuGroup, sku) BY promotionCondition, sku;
-
-
 // skuGroup
 TABLE promotionConditionSkuGroup (PromotionCondition, SkuGroup);
 inDataPromotionConditionSkuGroup 'В условии' = DATA BOOLEAN (PromotionCondition, SkuGroup);
@@ -192,7 +175,7 @@ inDataPromotionConditionSku 'В условии' = DATA BOOLEAN (PromotionConditi
 overInPromotionConditionSku 'В условии' = ABSTRACT BOOLEAN (PromotionCondition, Sku);
 
 inPromotionConditionSku 'В условии' (c, sku) = OVERRIDE
-    (countPromotionConditionSku(c, sku) OR (allDiscountSkuGroupPromotionCondition(c) AND sku IS Sku)) AND inParentPromotionConditionSkuGroup(c, skuGroupSku(sku)),                                                                            
+    TRUE IF inParentPromotionConditionSkuGroup(c, skuGroupSku(sku)),                                                                            
     overInPromotionConditionSku(c, sku),
     inDataPromotionConditionSku(c, sku);
 
@@ -233,14 +216,6 @@ FORM promotion 'Акция'
     ORDER BY skuTreeName
     PROPERTIES(sg, skg) inPromotionConditionSkuGroup
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(skg) DEFAULT
-
-    OBJECTS dg=DiscountSkuGroup
-    PROPERTIES(sg) allDiscountSkuGroupPromotionCondition TODRAW dg FORCE PANEL
-    PROPERTIES(dg) READONLY nameDiscountSkuGroup
-    PROPERTIES(sg, dg) inPromotionConditionDiscountSkuGroup
-
-    FILTERGROUP filterDiscountSkuGroup
-        FILTER 'Только отмеченные' 'F11' inPromotionConditionDiscountSkuGroup(sg, dg)
 
     OBJECTS sk = Sku
     PROPERTIES(sk)    READONLY idBarcodeSku, nameSku
@@ -349,16 +324,11 @@ DESIGN promotion FROM DEFAULT {
                     type = SPLITH;
                     caption = 'Товары';
 
-                    NEW skuGroupContainer {
-                        fill = 1;
-                        type = SPLITV;
-                        ADD skuTree.tree.box;
-                        ADD dg.box {
-                            ADD dg.panel BEFORE dg.grid.box;
-                        }
-                    }
-                    ADD sk.box {
+                    ADD skuTree.tree.box;
+                    NEW skuPane {
                         fill = 2;
+                        type = TABBED;
+                        ADD sk.box;
                     }
                 }
             }
@@ -408,8 +378,6 @@ copyPromotion 'Копировать' = ACTION (promotion) NEWSESSION {
             sumDiscountPromotionCondition(pc) <- sumDiscountPromotionCondition(promotionCondition);
             sumReceiptPromotionCondition(pc) <- sumReceiptPromotionCondition(promotionCondition);
 
-            allDiscountSkuGroupPromotionCondition(pc) <- allDiscountSkuGroupPromotionCondition(promotionCondition);
-            inDataPromotionConditionDiscountSkuGroup(pc, discountSkuGroup) <- inDataPromotionConditionDiscountSkuGroup(promotionCondition, discountSkuGroup);
             inDataPromotionConditionSkuGroup(pc, skuGroup) <- inDataPromotionConditionSkuGroup(promotionCondition, skuGroup);
             inDataPromotionConditionSku(pc, sku) <- inDataPromotionConditionSku(promotionCondition, sku);
         }
