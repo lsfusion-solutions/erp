@@ -123,7 +123,7 @@ public class EquipmentServer {
 
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(equServerID);
         Collections.sort(transactionInfoList, COMPARATOR);
-        for (TransactionInfo<MachineryInfo> transactionInfo : transactionInfoList) {
+        for (TransactionInfo<MachineryInfo, ItemInfo> transactionInfo : transactionInfoList) {
 
             Map<String, List<MachineryInfo>> handlerModelMap = getHandlerModelMap(transactionInfo);
 
@@ -149,7 +149,7 @@ public class EquipmentServer {
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(equServerID);
         Collections.sort(transactionInfoList, COMPARATOR);
         
-        for (TransactionInfo<MachineryInfo> transactionInfo : transactionInfoList) {
+        for (TransactionInfo<MachineryInfo, ItemInfo> transactionInfo : transactionInfoList) {
 
             Map<String, List<MachineryInfo>> handlerModelMap = getHandlerModelMap(transactionInfo);
 
@@ -175,18 +175,18 @@ public class EquipmentServer {
         logger.info("Reading RequestSalesInfo");
         Map<Date, Set<String>> requestSalesInfo = remote.readRequestSalesInfo(equServerID);
 
-        Map<String, List<MachineryInfo>> handlerModelCashRegisterMap = new HashMap<String, List<MachineryInfo>>();
+        Map<String, List<CashRegisterInfo>> handlerModelCashRegisterMap = new HashMap<String, List<CashRegisterInfo>>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            if (!handlerModelCashRegisterMap.containsKey(cashRegister.nameModel))
-                handlerModelCashRegisterMap.put(cashRegister.nameModel, new ArrayList<MachineryInfo>());
-            handlerModelCashRegisterMap.get(cashRegister.nameModel).add(cashRegister);
+            if (!handlerModelCashRegisterMap.containsKey(cashRegister.handlerModel))
+                handlerModelCashRegisterMap.put(cashRegister.handlerModel, new ArrayList<CashRegisterInfo>());
+            handlerModelCashRegisterMap.get(cashRegister.handlerModel).add(cashRegister);
         }
 
-        for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelCashRegisterMap.entrySet()) {
+        for (Map.Entry<String, List<CashRegisterInfo>> entry : handlerModelCashRegisterMap.entrySet()) {
             if (entry.getKey() != null) {
 
                 try {
-                    String handlerModel = entry.getValue().get(0).handlerModel;
+                    String handlerModel = entry.getKey();//entry.getValue().get(0).handlerModel;
                     if (handlerModel != null) {
                         CashRegisterHandler clsHandler = (CashRegisterHandler) getHandler(handlerModel, remote);
 
@@ -289,7 +289,7 @@ public class EquipmentServer {
         List<LegalEntityInfo> legalEntityList = remote.readLegalEntityInfo(equServerID);
     }
     */
-    private Map<String, List<MachineryInfo>> getHandlerModelMap(TransactionInfo<MachineryInfo> transactionInfo) {
+    private Map<String, List<MachineryInfo>> getHandlerModelMap(TransactionInfo<MachineryInfo, ItemInfo> transactionInfo) {
         Map<String, List<MachineryInfo>> handlerModelMap = new HashMap<String, List<MachineryInfo>>();
         for (MachineryInfo machinery : transactionInfo.machineryInfoList) {
             if (machinery.handlerModel != null) {

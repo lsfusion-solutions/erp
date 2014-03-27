@@ -78,8 +78,7 @@ public class DigiHandler extends ScalesHandler {
                     new OutputStreamWriter(
                             new FileOutputStream(f), "CP866"));
             String row = "";
-            for (ItemInfo item : transactionInfo.itemsList) {
-
+            for (ScalesItemInfo item : transactionInfo.itemsList) {
                 String recordNumber = addZeros(item.idBarcode, 8, false);
                 String statusCode = item.isWeightItem ? "7C000DA003" : "7D000DA003";
                 String price = addZeros(String.valueOf(item.price.intValue()), 8, false);

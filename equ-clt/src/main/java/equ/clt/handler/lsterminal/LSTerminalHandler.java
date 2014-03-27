@@ -47,16 +47,16 @@ public class LSTerminalHandler extends TerminalHandler {
     @Override
     public void saveTransactionInfo(TransactionInfo transactionInfo) throws IOException {
         
-        Integer nppGroupMachinery = ((TerminalInfo)transactionInfo.machineryInfoList.get(0)).number;
+        Integer nppGroupMachinery = ((TransactionTerminalInfo)transactionInfo).machineryInfoList.get(0).number;
         File directory = new File("\\db");
         if (directory.exists() || directory.mkdir()) {
             String dbPath = directory.getAbsolutePath() + "\\" + nppGroupMachinery + ".db";
             try {
                 Class.forName("org.sqlite.JDBC");
                 Connection connection = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
-                createTableIfNotExists(connection);
-
-                updateTable(connection, transactionInfo);
+                
+                createItemTableIfNotExists(connection);
+                updateItemTable(connection, (TransactionTerminalInfo) transactionInfo);
 
                 connection.close();               
 
@@ -89,39 +89,70 @@ public class LSTerminalHandler extends TerminalHandler {
 
     }
     
-    private void createTableIfNotExists(Connection connection) throws SQLException {
+    private void createItemTableIfNotExists(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE IF NOT EXISTS item " +
-                "(barcode CHAR(15) PRIMARY KEY     NOT NULL," +
-                " price            REAL            NOT NULL)";
+                "(barcode CHAR(20) PRIMARY KEY     NOT NULL," +
+                "name     CHAR(50)                 NOT NULL," +
+                "price    REAL                     NOT NULL," +
+                "quantity REAL                     NOT NULL," +
+                "image    CHAR(20)                 )";
         statement.executeUpdate(sql);
         statement.close();
     }
     
-    private void updateTable(Connection connection, TransactionInfo transactionInfo) throws SQLException {
+    private void updateItemTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
         Statement statement = connection.createStatement();
         String sql = "BEGIN TRANSACTION;";
-        for (Object itemObject : transactionInfo.itemsList) {
-            ItemInfo item = (ItemInfo) itemObject;
-            if(item.idBarcode != null && item.price != null)
-                sql += String.format("INSERT OR REPLACE INTO item VALUES(%s, %s);", item.idBarcode, item.price);
+        for (TerminalItemInfo item : transactionInfo.itemsList) {
+            if(item.idBarcode != null && item.name != null && item.price != null && item.quantity != null)
+                sql += String.format("INSERT OR REPLACE INTO item VALUES(%s, %s, %s, %s, %s);", 
+                        item.idBarcode, item.name, item.price, item.quantity, item.image);
         }
         sql += "COMMIT;";               
         statement.executeUpdate(sql);
         statement.close();
     }
 
-    private TransactionInfo readTransactionInfo(Connection connection) throws SQLException {
+    private void createAssortmentTableIfNotExists(Connection connection) throws SQLException {
+        Statement statement = connection.createStatement();
+        String sql = "CREATE TABLE IF NOT EXISTS assortment " +
+                "(supplier CHAR(20)      NOT NULL," +
+                " barcode   CHAR(20)      NOT NULL)";
+        statement.executeUpdate(sql);
+        statement.close();
+    }
+
+    private void updateAssortmentTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
+        Statement statement = connection.createStatement();
+        String sql = "BEGIN TRANSACTION;";
+        for (TerminalItemInfo item : transactionInfo.itemsList) {
+            if(/*item.idSupplier != null && */item.idBarcode != null)
+                sql += String.format("INSERT OR REPLACE INTO assortment VALUES(%s, %s);",
+                        null/*item.idSupplier*/, item.idBarcode);
+        }
+        sql += "COMMIT;";
+        statement.executeUpdate(sql);
+        statement.close();
+    }
+    
+    
+    
+    
+    private TransactionTerminalInfo readTransactionInfo(Connection connection) throws SQLException {
         
-        List<ItemInfo> itemsList = new ArrayList<ItemInfo>();
+        List<TerminalItemInfo> itemsList = new ArrayList<TerminalItemInfo>();
         
         Statement statement = connection.createStatement();
         String sql = "SELECT barcode, price FROM item;";
         ResultSet resultSet = statement.executeQuery(sql);
         while (resultSet.next()) {
             String barcode = resultSet.getString("barcode");
+            String name = resultSet.getString("name");
             BigDecimal price = new BigDecimal(resultSet.getDouble("price"));
-            itemsList.add(new ItemInfo(barcode, null, price, null, null, null, null, null, null, false, null, null, null));
+            BigDecimal quantity = new BigDecimal(resultSet.getDouble("quantity"));
+            String image = resultSet.getString("image");
+            itemsList.add(new TerminalItemInfo(barcode, name, price, null, false, null, quantity, image));
             
         }
         resultSet.close();

@@ -51,7 +51,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         new OutputStreamWriter(
                                 new FileOutputStream(pluFile), "windows-1251"));
 
-                for (ItemInfo item : transactionInfo.itemsList) {
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
                     String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + item.name + "|" +
                             (item.isWeightItem ? "кг.|" : "ШТ|") + (item.isWeightItem ? "1|" : "0|") +
@@ -84,7 +84,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         new OutputStreamWriter(
                                 new FileOutputStream(messageFile), "windows-1251"));
 
-                for (ItemInfo item : transactionInfo.itemsList) {
+                for (Object itemObject : transactionInfo.itemsList) {
+                    ItemInfo item = (ItemInfo) itemObject;
                     if (item.composition != null && !item.composition.equals("")) {
                         String record = "+|" + item.idBarcode + "|" + item.composition + "|||";
                         writer.println(record);
@@ -112,7 +113,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         new OutputStreamWriter(
                                 new FileOutputStream(scaleFile), "windows-1251"));
 
-                for (ItemInfo item : transactionInfo.itemsList) {
+                for (Object itemObject : transactionInfo.itemsList) {
+                    ItemInfo item = (ItemInfo) itemObject;
                     String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + "22|" + item.name + "||" +
                             "1|0|1|"/*effectiveLife & GoodLinkToScales*/ +
                             (item.composition != null ? item.idBarcode : "0")/*ingredientNumber*/ + "|" +
@@ -144,7 +146,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                 new FileOutputStream(groupsFile), "windows-1251"));
 
                 Set<String> numberGroupItems = new HashSet<String>();
-                for (ItemInfo item : transactionInfo.itemsList) {
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     String idItemGroup = makeIdItemGroup(item.hierarchyItemGroup);
                     if (!numberGroupItems.contains(idItemGroup)) {
                         String record = "+|" + item.nameItemGroup + "|" + idItemGroup;
@@ -289,17 +291,20 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
 
-        Map<String, Integer> directories = new HashMap<String, Integer>();
-        for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            if (cashRegister.directory != null && !directories.containsKey(cashRegister.directory))
-                directories.put(cashRegister.directory, cashRegister.numberGroup);
+        Set<String> directorySet = new HashSet<String>();
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
+        for (CashRegisterInfo c : cashRegisterInfoList) {
+            if (c.directory != null)
+                directorySet.add(c.directory);
+            if(c.directory != null && c.number != null && c.numberGroup != null)
+                directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
         }
 
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
         List<String> filePathList = new ArrayList<String>();
-        for (Map.Entry<String, Integer> entry : directories.entrySet()) {
+        for (String directory : directorySet) {
 
-            String exchangeDirectory = entry.getKey().trim() + "\\Export\\";
+            String exchangeDirectory = directory + "\\Export\\";
 
             File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                 @Override
@@ -317,8 +322,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     try {
                         String fileName = file.getName();
                         logger.info("Kristal: reading " + fileName);
-                        //long currentDate = Calendar.getInstance().getTime().getTime();
-                        //long receiptDetailDate = DateUtils.parseDate(fileName.replace("ReportCheque1C_", "").replace(".xml", ""), new String[]{"yyyyMMddHHmmss"}).getTime();
                         if (isFileLocked(file)) {
                             logger.info("Kristal: " + fileName + " is locked");  
                         } else {
@@ -338,7 +341,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                     for (Object cashNode : cashesList) {
 
-                                        Integer intNumberCashRegister = readIntegerXMLAttribute((Element) cashNode, "CASHNUMBER");
+                                        Integer numberCashRegister = readIntegerXMLAttribute((Element) cashNode, "CASHNUMBER");
                                         List gangsList = ((Element) cashNode).getChildren("GANG");
 
                                         for (Object gangNode : gangsList) {
@@ -384,7 +387,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "DISCSUMM");
                                                     Integer numberReceiptDetail = readIntegerXMLAttribute(receiptDetailElement, "POSNUMBER");
 
-                                                    currentSalesInfoList.add(new SalesInfo(entry.getValue(), intNumberCashRegister,
+                                                    currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                             numberZReport, numberReceipt, dateReceipt, timeReceipt, sumCard, sumCash, barcode,
                                                             quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
                                                             numberReceiptDetail, fileName));

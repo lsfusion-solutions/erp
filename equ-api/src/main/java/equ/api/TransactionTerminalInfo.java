@@ -3,10 +3,10 @@ package equ.api;
 import java.io.IOException;
 import java.util.List;
 
-public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo> {
+public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, TerminalItemInfo> {
     public Boolean snapshot;
     
-    public TransactionTerminalInfo(Integer id, String dateTimeCode, List<ItemInfo> itemsList, List<TerminalInfo> machineryInfoList,
+    public TransactionTerminalInfo(Integer id, String dateTimeCode, List<TerminalItemInfo> itemsList, List<TerminalInfo> machineryInfoList,
                                    Boolean snapshot) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;

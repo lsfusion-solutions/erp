@@ -3,9 +3,9 @@ package equ.api;
 import java.io.IOException;
 import java.util.List;
 
-public class TransactionPriceCheckerInfo extends TransactionInfo<PriceCheckerInfo> {
+public class TransactionPriceCheckerInfo extends TransactionInfo<PriceCheckerInfo, PriceCheckerItemInfo> {
 
-    public TransactionPriceCheckerInfo(Integer id, String dateTimeCode, List<ItemInfo> itemsList,
+    public TransactionPriceCheckerInfo(Integer id, String dateTimeCode, List<PriceCheckerItemInfo> itemsList,
                                        List<PriceCheckerInfo> machineryInfoList) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;

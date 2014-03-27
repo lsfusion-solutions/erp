@@ -185,7 +185,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, transactionObject, dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT});
             }
 
-            List<ItemInfo> skuTransactionList;
             for (Object[] transaction : transactionObjects) {
 
                 DataObject groupObject = (DataObject) transaction[0];
@@ -195,7 +194,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 Date date = new Date(((Timestamp) ((DataObject) transaction[4]).getValue()).getTime());
                 Boolean snapshotTransaction = (Boolean) transaction[5];
 
-                skuTransactionList = new ArrayList<ItemInfo>();
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
                 ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
 
@@ -217,42 +215,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 skuQuery.and(equLM.findLCPByCompoundOldName("inMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr).getWhere());
 
-                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> skuResult = skuQuery.executeClasses(session);
-
-                for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
-                    String barcode = trim((String) row.get("idBarcode").getValue());
-                    String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
-                    BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
-                    Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
-                    Boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
-                    BigDecimal daysExpiry = scalesItemLM == null ? null : (BigDecimal) row.get("daysExpiryMachineryPriceTransactionBarcode").getValue();
-                    Integer hoursExpiry = scalesItemLM == null ? null : (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
-                    Integer labelFormat = scalesItemLM == null ? null : (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
-                    String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
-
-                    List<String> hierarchyItemGroup = new ArrayList<String>();
-                    String canonicalNameSkuGroup = null;
-                    if (itemLM != null) {
-                        ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
-                        if (skuGroupObject instanceof DataObject) {
-                            String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
-                            hierarchyItemGroup.add(idItemGroup);
-                            ObjectValue parentSkuGroup;
-                            while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
-                                hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
-                                skuGroupObject = parentSkuGroup;
-                            }
-                            canonicalNameSkuGroup = idItemGroup == null ? "" : trim((String) equLM.findLCPByCompoundOldName("canonicalNameSkuGroup").read(session, itemLM.findLCPByCompoundOldName("itemGroupId").readClasses(session, new DataObject(idItemGroup))));
-                        }
-                    }
-                    Integer cellScalesObject = composition == null ? null : (Integer) equLM.findLCPByCompoundOldName("cellScalesGroupScalesComposition").read(session, groupObject, new DataObject(composition, StringClass.text));
-                    Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) equLM.findLCPByCompoundOldName("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) equLM.findClassByCompoundName("CellScales")));
-
-                    skuTransactionList.add(new ItemInfo(barcode, name, price, daysExpiry, hoursExpiry, expiryDate, labelFormat, composition,
-                            compositionNumberCellScales, isWeight, hierarchyItemGroup, canonicalNameSkuGroup, nppGroupMachinery));
-                }
+                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> skuResult = skuQuery.executeClasses(session);                
 
                 if (cashRegisterLM != null && transactionObject.objectClass.equals(cashRegisterLM.findClassByCompoundName("CashRegisterPriceTransaction"))) {
+                    
+                    String directoryGroupCashRegister = (String) cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").read(session, groupObject);
+                    
                     List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<CashRegisterInfo>();
                     LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) cashRegisterLM.is(cashRegisterLM.findClassByCompoundName("CashRegister"));
 
@@ -260,7 +228,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(cashRegisterKeys);
 
-                    String[] cashRegisterProperties = new String[]{"nppGroupMachineryMachinery", "nppMachinery", "directoryCashRegister", "portMachinery",
+                    String[] cashRegisterProperties = new String[]{"nppGroupMachineryMachinery", "nppMachinery", "portMachinery",
                             "nameModelMachinery", "handlerModelMachinery"};
                     for (String property : cashRegisterProperties) {
                         cashRegisterQuery.addProperty(property, cashRegisterLM.findLCPByCompoundOldName(property).getExpr(cashRegisterKey));
@@ -271,17 +239,44 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> row : cashRegisterResult.valueIt()) {
-                        Integer nppGroup = (Integer) row.get("nppGroupMachinery");
+                        Integer nppGroup = (Integer) row.get("nppGroupMachineryMachinery");
                         Integer nppMachinery = (Integer) row.get("nppMachinery");
                         String nameModel = (String) row.get("nameModelMachinery");
                         String handlerModel = (String) row.get("handlerModelMachinery");
-                        String directoryCashRegister = (String) row.get("directoryCashRegister");
                         String portMachinery = (String) row.get("portMachinery");
-                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroup, nppMachinery, nameModel, handlerModel, portMachinery, directoryCashRegister));
+                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroup, nppMachinery, nameModel, handlerModel, portMachinery, directoryGroupCashRegister));
                     }
 
+                    List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<CashRegisterItemInfo>();
+                    for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
+                        String barcode = trim((String) row.get("idBarcode").getValue());
+                        String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
+                        Boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
+                        String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
+
+                        List<String> hierarchyItemGroup = new ArrayList<String>();
+                        String canonicalNameSkuGroup = null;
+                        if (itemLM != null) {
+                            ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
+                            if (skuGroupObject instanceof DataObject) {
+                                String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
+                                hierarchyItemGroup.add(idItemGroup);
+                                ObjectValue parentSkuGroup;
+                                while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
+                                    hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
+                                    skuGroupObject = parentSkuGroup;
+                                }
+                                canonicalNameSkuGroup = idItemGroup == null ? "" : trim((String) equLM.findLCPByCompoundOldName("canonicalNameSkuGroup").read(session, itemLM.findLCPByCompoundOldName("itemGroupId").readClasses(session, new DataObject(idItemGroup))));
+                            }
+                        }
+                        
+                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, composition,
+                                isWeight, hierarchyItemGroup, canonicalNameSkuGroup, nppGroupMachinery));
+                    }
+                    
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, date, skuTransactionList, cashRegisterInfoList));
+                            dateTimeCode, date, cashRegisterItemInfoList, cashRegisterInfoList));
 
                 } else if (scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClassByCompoundName("ScalesPriceTransaction"))) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<ScalesInfo>();
@@ -313,8 +308,40 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 pieceCodeGroupScales, weightCodeGroupScales));
                     }
 
+                    List<ScalesItemInfo> scalesItemInfoList = new ArrayList<ScalesItemInfo>();
+                    for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
+                        String barcode = trim((String) row.get("idBarcode").getValue());
+                        String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
+                        Boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
+                        BigDecimal daysExpiry = scalesItemLM == null ? null : (BigDecimal) row.get("daysExpiryMachineryPriceTransactionBarcode").getValue();
+                        Integer hoursExpiry = scalesItemLM == null ? null : (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
+                        Integer labelFormat = scalesItemLM == null ? null : (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
+                        String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
+
+                        List<String> hierarchyItemGroup = new ArrayList<String>();
+                        if (itemLM != null) {
+                            ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
+                            if (skuGroupObject instanceof DataObject) {
+                                String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
+                                hierarchyItemGroup.add(idItemGroup);
+                                ObjectValue parentSkuGroup;
+                                while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
+                                    hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
+                                    skuGroupObject = parentSkuGroup;
+                                }
+                            }
+                        }
+                        Integer cellScalesObject = composition == null ? null : (Integer) equLM.findLCPByCompoundOldName("cellScalesGroupScalesComposition").read(session, groupObject, new DataObject(composition, StringClass.text));
+                        Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) equLM.findLCPByCompoundOldName("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) equLM.findClassByCompoundName("CellScales")));
+
+                        scalesItemInfoList.add(new ScalesItemInfo(barcode, name, price, composition,
+                                isWeight, hierarchyItemGroup, daysExpiry, hoursExpiry, expiryDate, labelFormat, compositionNumberCellScales));
+                    }
+
                     transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, skuTransactionList, scalesInfoList, snapshotTransaction));
+                            dateTimeCode, scalesItemInfoList, scalesInfoList, snapshotTransaction));
 
                 } else if (priceCheckerLM != null && transactionObject.objectClass.equals(priceCheckerLM.findClassByCompoundName("PriceCheckerPriceTransaction"))) {
                     List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<PriceCheckerInfo>();
@@ -337,8 +364,34 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         priceCheckerInfoList.add(new PriceCheckerInfo((Integer) values.get("numberCashRegister"), (String) values.get("nameCheckModelCheck"),
                                 null, (String) values.get("portMachinery")));
                     }
+
+                    List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<PriceCheckerItemInfo>();
+                    for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
+                        String barcode = trim((String) row.get("idBarcode").getValue());
+                        String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
+                        Boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
+                        String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
+
+                        List<String> hierarchyItemGroup = new ArrayList<String>();
+                        if (itemLM != null) {
+                            ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
+                            if (skuGroupObject instanceof DataObject) {
+                                String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
+                                hierarchyItemGroup.add(idItemGroup);
+                                ObjectValue parentSkuGroup;
+                                while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
+                                    hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
+                                    skuGroupObject = parentSkuGroup;
+                                }                                
+                            }
+                        }
+                        
+                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(barcode, name, price, composition, isWeight, hierarchyItemGroup));
+                    }
+                    
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, skuTransactionList, priceCheckerInfoList));
+                            dateTimeCode, priceCheckerItemInfoList, priceCheckerInfoList));
 
 
                 } else if (terminalLM != null && transactionObject.objectClass.equals(terminalLM.findClassByCompoundName("TerminalPriceTransaction"))) {
@@ -363,8 +416,35 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 (String) values.get("nameModelMachinery"), (String) values.get("handlerModelMachinery"),
                                 (String) values.get("portMachinery")));
                     }
+
+                    List<TerminalItemInfo> terminalItemInfoList = new ArrayList<TerminalItemInfo>();
+                    for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
+                        String barcode = trim((String) row.get("idBarcode").getValue());
+                        String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
+                        Boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
+                        String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
+
+                        List<String> hierarchyItemGroup = new ArrayList<String>();
+                        if (itemLM != null) {
+                            ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
+                            if (skuGroupObject instanceof DataObject) {
+                                String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
+                                hierarchyItemGroup.add(idItemGroup);
+                                ObjectValue parentSkuGroup;
+                                while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
+                                    hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
+                                    skuGroupObject = parentSkuGroup;
+                                }                               
+                            }
+                        }
+                        
+                        terminalItemInfoList.add(new TerminalItemInfo(barcode, name, price, composition,
+                                isWeight, hierarchyItemGroup, null/*quantity*/, null/*image*/));
+                    }
+                    
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, skuTransactionList, terminalInfoList, snapshotTransaction));
+                            dateTimeCode, terminalItemInfoList, terminalInfoList, snapshotTransaction));
                 }
             }
             return transactionList;
@@ -392,16 +472,16 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
                 query.addProperty("stockGroupMachinery", equLM.findLCPByCompoundOldName("stockGroupMachinery").getExpr(groupMachineryExpr));
-                query.addProperty("directoryCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryCashRegister").getExpr(cashRegisterExpr));
+                query.addProperty("directoryGroupCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupMachineryExpr));
                 query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupMachineryExpr).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
                 query.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupMachineryExpr, Compare.EQUALS));
-                query.and(cashRegisterLM.findLCPByCompoundOldName("directoryCashRegister").getExpr(cashRegisterExpr).getWhere());
+                query.and(cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupMachineryExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
                 for (int i = 0, size = result.size(); i < size; i++) {
 
                     DataObject departmentStoreObject = (DataObject) result.getValue(i).get("stockGroupMachinery");
-                    String directoryCashRegister = (String) result.getValue(i).get("directoryCashRegister").getValue();
+                    String directoryGroupCashRegister = (String) result.getValue(i).get("directoryGroupCashRegister").getValue();
                     boolean requestSalesInfoStock = equLM.findLCPByCompoundOldName("requestSalesInfoStock").read(session, departmentStoreObject) != null;
                     Date dateRequestSalesInfoStock = (Date) equLM.findLCPByCompoundOldName("dateRequestSalesInfoStock").read(session, departmentStoreObject);
 
@@ -411,7 +491,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     if (requestSalesInfoStock) {
                         equLM.findLCPByCompoundOldName("requestSalesInfoStock").change((Object) null, session, departmentStoreObject);
                         Set<String> directories = directoriesMap.containsKey(dateRequestSalesInfoStock) ? directoriesMap.get(dateRequestSalesInfoStock) : new HashSet<String>();
-                        directories.add(directoryCashRegister);
+                        directories.add(directoryGroupCashRegister);
                         directoriesMap.put(dateRequestSalesInfoStock, directories);
                     }
                 }
@@ -435,32 +515,30 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 DataSession session = getDbManager().createSession();
 
-                List<DataObject> groupMachineryObjects = readGroupMachineryObjectList(session, equServerID);
-                for (DataObject groupMachineryObject : groupMachineryObjects) {
+                KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
+                KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
 
-                    LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) cashRegisterLM.is(cashRegisterLM.findClassByCompoundName("CashRegister"));
+                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "GroupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-                    ImRevMap<PropertyInterface, KeyExpr> cashRegisterKeys = isCashRegister.getMapKeys();
-                    KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();
-                    QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(cashRegisterKeys);
+                query.addProperty("nppMachinery", cashRegisterLM.findLCPByCompoundOldName("nppMachinery").getExpr(cashRegisterExpr));
+                query.addProperty("nameModelMachinery", cashRegisterLM.findLCPByCompoundOldName("nameModelMachinery").getExpr(cashRegisterExpr));
+                query.addProperty("handlerModelMachinery", cashRegisterLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterExpr));
+                query.addProperty("portMachinery", cashRegisterLM.findLCPByCompoundOldName("portMachinery").getExpr(cashRegisterExpr));
+                query.addProperty("directoryGroupCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupCashRegisterExpr));
+                query.addProperty("nppGroupMachinery", cashRegisterLM.findLCPByCompoundOldName("nppGroupMachinery").getExpr(groupCashRegisterExpr));
 
-                    cashRegisterQuery.addProperty("nppGroupMachineryMachinery", cashRegisterLM.findLCPByCompoundOldName("nppGroupMachineryMachinery").getExpr(cashRegisterKey));
-                    cashRegisterQuery.addProperty("nppMachinery", cashRegisterLM.findLCPByCompoundOldName("nppMachinery").getExpr(cashRegisterKey));
-                    cashRegisterQuery.addProperty("nameModelMachinery", cashRegisterLM.findLCPByCompoundOldName("nameModelMachinery").getExpr(cashRegisterKey));
-                    cashRegisterQuery.addProperty("handlerModelMachinery", cashRegisterLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterKey));
-                    cashRegisterQuery.addProperty("portMachinery", cashRegisterLM.findLCPByCompoundOldName("portMachinery").getExpr(cashRegisterKey));
-                    cashRegisterQuery.addProperty("directoryCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryCashRegister").getExpr(cashRegisterKey));
+                query.and(cashRegisterLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
+                query.and(cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
+                query.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
+                query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
 
-                    cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
-                    cashRegisterQuery.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare((groupMachineryObject).getExpr(), Compare.EQUALS));
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session.sql);
 
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session.sql);
-
-                    for (ImMap<Object, Object> row : cashRegisterResult.values()) {
-                        cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachineryMachinery"), (Integer) row.get("nppMachinery"),
-                                (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"),
-                                (String) row.get("directoryCashRegister")));
-                    }
+                for (ImMap<Object, Object> row : result.values()) {
+                    cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
+                            (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"),
+                            (String) row.get("directoryGroupCashRegister")));
                 }
             }
             return cashRegisterInfoList;
@@ -665,7 +743,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     logger.info(String.format("Kristal: Sending SalesInfo from %s to %s", start, finish));
                     
                     DataSession session = getDbManager().createSession();
-                    ImportField nppGroupMachineryField = new ImportField(zReportLM.findLCPByCompoundOldName("nppGroupMachineryMachinery"));
+                    ImportField nppGroupMachineryField = new ImportField(zReportLM.findLCPByCompoundOldName("nppGroupMachinery"));
                     ImportField nppMachineryField = new ImportField(zReportLM.findLCPByCompoundOldName("nppMachinery"));
 
                     ImportField idZReportField = new ImportField(zReportLM.findLCPByCompoundOldName("idZReport"));
@@ -714,6 +792,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     if (discountCardLM != null)
                         discountCardKey = new ImportKey((ConcreteCustomClass) discountCardLM.findClassByCompoundName("DiscountCard"), discountCardLM.findLCPByCompoundOldName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateReceiptField));
 
+                    saleProperties.add(new ImportProperty(idZReportField, zReportLM.findLCPByCompoundOldName("idZReport").getMapping(zReportKey)));
                     saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findLCPByCompoundOldName("numberZReport").getMapping(zReportKey)));
                     saleProperties.add(new ImportProperty(nppMachineryField, zReportLM.findLCPByCompoundOldName("cashRegisterZReport").getMapping(zReportKey),
                             zReportLM.object(zReportLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
@@ -749,6 +828,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findLCPByCompoundOldName("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
                             zReportLM.object(zReportLM.findClassByCompoundName("Sku")).getMapping(skuKey)));
 
+                    returnProperties.add(new ImportProperty(idZReportField, zReportLM.findLCPByCompoundOldName("idZReport").getMapping(zReportKey)));
                     returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findLCPByCompoundOldName("numberZReport").getMapping(zReportKey)));
                     returnProperties.add(new ImportProperty(nppMachineryField, zReportLM.findLCPByCompoundOldName("cashRegisterZReport").getMapping(zReportKey),
                             zReportLM.object(zReportLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));

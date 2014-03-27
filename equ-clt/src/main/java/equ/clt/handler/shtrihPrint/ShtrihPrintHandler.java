@@ -25,7 +25,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
         Variant result = Dispatch.call(shtrihDispatch, "Connect");
         if (result.toString().equals("0")) {
-            for (ItemInfo item : transactionInfo.itemsList) {
+            for (ScalesItemInfo item : transactionInfo.itemsList) {
                 Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                 int deltaDaysExpiry = item.expirationDate == null ? 0 : (int) ((item.expirationDate.getTime() - System.currentTimeMillis()) / 1000 / 3600 / 24);
                 Integer shelfLife = item.daysExpiry == null ? (deltaDaysExpiry >= 0 ? deltaDaysExpiry : 0) : item.daysExpiry.intValue();
