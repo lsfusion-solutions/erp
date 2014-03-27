@@ -219,7 +219,6 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                             String zNumber = new String(importCardFile.getField("ZNUMBER").getBytes(), "Cp1251").trim();
                             Integer receiptNumber = new Integer(new String(importCardFile.getField("CHECKNUMBE").getBytes(), "Cp1251").trim());
                             String cardNumber = new String(importCardFile.getField("CARDNUMBER").getBytes(), "Cp1251").trim();
-                            //Integer cardNumber = new Integer(cardNumberString.substring(cardNumberString.length()-4, cardNumberString.length()));
 
                             String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber;
                             discountCardMap.put(sid, cardNumber);

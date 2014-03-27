@@ -152,7 +152,7 @@ public class LSTerminalHandler extends TerminalHandler {
             BigDecimal price = new BigDecimal(resultSet.getDouble("price"));
             BigDecimal quantity = new BigDecimal(resultSet.getDouble("quantity"));
             String image = resultSet.getString("image");
-            itemsList.add(new TerminalItemInfo(barcode, name, price, null, false, null, quantity, image));
+            itemsList.add(new TerminalItemInfo(barcode, name, price, null, false, quantity, image));
             
         }
         resultSet.close();

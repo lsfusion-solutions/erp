@@ -2,7 +2,6 @@ package equ.api;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.List;
 
 public class ItemInfo implements Serializable {
     public String idBarcode;
@@ -10,14 +9,12 @@ public class ItemInfo implements Serializable {
     public BigDecimal price;
     public String composition;
     public boolean isWeightItem;
-    public List<String> hierarchyItemGroup;
     
-    public ItemInfo(String idBarcode, String name, BigDecimal price, String composition, boolean isWeightItem, List<String> hierarchyItemGroup) {
+    public ItemInfo(String idBarcode, String name, BigDecimal price, String composition, boolean isWeightItem) {
         this.idBarcode = idBarcode;
         this.name = name;
         this.price = price;
         this.composition = composition;
         this.isWeightItem = isWeightItem;
-        this.hierarchyItemGroup = hierarchyItemGroup;
     }
 }

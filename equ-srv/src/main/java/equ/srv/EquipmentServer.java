@@ -272,7 +272,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         }
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, composition,
-                                isWeight, hierarchyItemGroup, canonicalNameSkuGroup, nppGroupMachinery));
+                                isWeight, canonicalNameSkuGroup, hierarchyItemGroup, nppGroupMachinery));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
@@ -290,7 +290,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr scalesKey = scalesKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> scalesQuery = new QueryBuilder<PropertyInterface, Object>(scalesKeys);
 
-                    String[] scalesProperties = new String[]{"portMachinery", "numberCashRegister", "nameCheckModelCheck", "handlerModelMachinery"};
+                    String[] scalesProperties = new String[]{"portMachinery", "nppMachinery", "nameCheckModelCheck", "handlerModelMachinery"};
                     for (String property : scalesProperties) {
                         scalesQuery.addProperty(property, scalesLM.findLCPByCompoundOldName(property).getExpr(scalesKey));
                     }
@@ -301,7 +301,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     for (ImMap<Object, Object> values : scalesResult.valueIt()) {
                         String portMachinery = (String) values.get("portMachinery");
-                        Integer nppMachinery = (Integer) values.get("numberCashRegister");
+                        Integer nppMachinery = (Integer) values.get("nppMachinery");
                         String nameModel = (String) values.get("nameModelMachinery");
                         String handlerModel = (String) values.get("handlerModelMachinery");
                         scalesInfoList.add(new ScalesInfo(nppMachinery, nameModel, handlerModel, portMachinery, directory,
@@ -337,7 +337,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) equLM.findLCPByCompoundOldName("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) equLM.findClassByCompoundName("CellScales")));
 
                         scalesItemInfoList.add(new ScalesItemInfo(barcode, name, price, composition,
-                                isWeight, hierarchyItemGroup, daysExpiry, hoursExpiry, expiryDate, labelFormat, compositionNumberCellScales));
+                                isWeight, daysExpiry, hoursExpiry, expiryDate, labelFormat, compositionNumberCellScales, hierarchyItemGroup));
                     }
 
                     transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(),
@@ -351,7 +351,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr checkKey = checkKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> checkQuery = new QueryBuilder<PropertyInterface, Object>(checkKeys);
 
-                    String[] checkProperties = new String[]{"portMachinery", "numberCashRegister", "nameCheckModelCheck"};
+                    String[] checkProperties = new String[]{"portMachinery", "nppMachinery", "nameCheckModelCheck"};
                     for (String property : checkProperties) {
                         checkQuery.addProperty(property, priceCheckerLM.findLCPByCompoundOldName(property).getExpr(checkKey));
                     }
@@ -361,7 +361,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> checkResult = checkQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> values : checkResult.valueIt()) {
-                        priceCheckerInfoList.add(new PriceCheckerInfo((Integer) values.get("numberCashRegister"), (String) values.get("nameCheckModelCheck"),
+                        priceCheckerInfoList.add(new PriceCheckerInfo((Integer) values.get("nppMachinery"), (String) values.get("nameCheckModelCheck"),
                                 null, (String) values.get("portMachinery")));
                     }
 
@@ -371,23 +371,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         Boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
-                        String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
-
-                        List<String> hierarchyItemGroup = new ArrayList<String>();
-                        if (itemLM != null) {
-                            ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
-                            if (skuGroupObject instanceof DataObject) {
-                                String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
-                                hierarchyItemGroup.add(idItemGroup);
-                                ObjectValue parentSkuGroup;
-                                while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
-                                    hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
-                                    skuGroupObject = parentSkuGroup;
-                                }                                
-                            }
-                        }
-                        
-                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(barcode, name, price, composition, isWeight, hierarchyItemGroup));
+                        String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();                        
+                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(barcode, name, price, composition, isWeight));
                     }
                     
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(),
@@ -402,7 +387,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr terminalKey = terminalKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> terminalQuery = new QueryBuilder<PropertyInterface, Object>(terminalKeys);
 
-                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "numberCashRegister", "nameModelMachinery", "handlerModelMachinery"};
+                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
                     for (String property : terminalProperties) {
                         terminalQuery.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalKey));
                     }
@@ -412,7 +397,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> values : terminalResult.valueIt()) {
-                        terminalInfoList.add(new TerminalInfo((String) values.get("directoryTerminal"), (Integer) values.get("numberCashRegister"),
+                        terminalInfoList.add(new TerminalInfo((String) values.get("directoryTerminal"), (Integer) values.get("nppMachinery"),
                                 (String) values.get("nameModelMachinery"), (String) values.get("handlerModelMachinery"),
                                 (String) values.get("portMachinery")));
                     }
@@ -424,23 +409,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         Boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
                         String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
-
-                        List<String> hierarchyItemGroup = new ArrayList<String>();
-                        if (itemLM != null) {
-                            ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
-                            if (skuGroupObject instanceof DataObject) {
-                                String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
-                                hierarchyItemGroup.add(idItemGroup);
-                                ObjectValue parentSkuGroup;
-                                while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
-                                    hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
-                                    skuGroupObject = parentSkuGroup;
-                                }                               
-                            }
-                        }
                         
                         terminalItemInfoList.add(new TerminalItemInfo(barcode, name, price, composition,
-                                isWeight, hierarchyItemGroup, null/*quantity*/, null/*image*/));
+                                isWeight, null/*quantity*/, null/*image*/));
                     }
                     
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(),
@@ -569,7 +540,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr terminalKey = terminalKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> terminalQuery = new QueryBuilder<PropertyInterface, Object>(terminalKeys);
 
-                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "numberCashRegister", "nameModelMachinery", "handlerModelMachinery"};
+                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
                     for (String property : terminalProperties) {
                         terminalQuery.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalKey));
                     }
@@ -579,7 +550,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> row : terminalResult.valueIt()) {
-                        terminalInfoList.add(new TerminalInfo((String) row.get("directoryTerminal"), (Integer) row.get("numberCashRegister"),
+                        terminalInfoList.add(new TerminalInfo((String) row.get("directoryTerminal"), (Integer) row.get("nppMachinery"),
                                 (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery")));
                     }
                 }
