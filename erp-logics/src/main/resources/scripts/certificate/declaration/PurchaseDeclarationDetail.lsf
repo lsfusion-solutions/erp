@@ -576,6 +576,28 @@ fillExportedDeclaration (declaration) = ACTION (declaration) {
     isExportedDeclaration(declaration) <- TRUE;
     userNumberDeclarationDetail(d) <- numberDeclarationDetail(d) WHERE declarationDeclarationDetail(d)== declaration;
 }
+
+changeNumberDeclarationDetail(d) = ACTION (d) {
+    REQUEST INTEGER INPUT;
+    IF isExportedDeclaration(declarationDeclarationDetail(d)) THEN {
+        IF requestedInteger() > userNumberDeclarationDetail(d) THEN {
+            userNumberDeclarationDetail(e) <- userNumberDeclarationDetail(e) - 1 
+                WHERE userNumberDeclarationDetail(e) > userNumberDeclarationDetail(d) AND 
+                      userNumberDeclarationDetail(e) <= requestedInteger() AND
+                      declarationDeclarationDetail(e) == declarationDeclarationDetail(d);         
+        } ELSE {
+            userNumberDeclarationDetail(e) <- userNumberDeclarationDetail(e) + 1 
+                WHERE userNumberDeclarationDetail(e) < userNumberDeclarationDetail(d) AND 
+                      userNumberDeclarationDetail(e) >= requestedInteger() AND
+                      declarationDeclarationDetail(e) == declarationDeclarationDetail(d);         
+        }
+//        userNumberDeclarationDetail(e) <- NULL WHERE declarationDeclarationDetail(e) == declarationDeclarationDetail(d);
+//        userNumberDeclarationDetail(e) <- PARTITION SUM 1 BY declarationDeclarationDetail(e) ORDER userNumberDeclarationDetail(e), e WHERE declarationDeclarationDetail(e) == declarationDeclarationDetail(d);
+//        userNumberDeclarationDetail(e) <- userNumberDeclarationDetail(e) + 1 WHERE declarationDeclarationDetail(e) == declarationDeclarationDetail(d) AND userNumberDeclarationDetail(e) >= requestedInteger();
+    }
+    userNumberDeclarationDetail(d) <- requestedInteger();
+}
+
     
 // Делаем, чтобы номера были уникальными
 declarationDetailDeclarationNumber (declaration, number) = GROUP AGGR d BY declarationDeclarationDetail(d), numberDeclarationDetail(d) WHERE d IS DeclarationDetail;
@@ -832,7 +854,7 @@ backgroundVATCustomsExceptionDeclarationDetail 'Цвет' (declarationDetail) = 
 EXTEND FORM declaration
     OBJECTS dd=DeclarationDetail
     PROPERTIES(di, dd) inDeclarationInvoiceDetailDeclarationDetail
-    PROPERTIES(dd) numberDeclarationDetail, invoicesDeclarationDetail READONLY, nameCustomsDeclarationDetail, shortNameUOMDeclarationDetail,
+    PROPERTIES(dd) numberDeclarationDetail ON CHANGE changeNumberDeclarationDetail(dd), invoicesDeclarationDetail READONLY, nameCustomsDeclarationDetail, shortNameUOMDeclarationDetail,
                    nameCountryDeclarationDetail, sumNetWeightDeclarationDetail, sumGrossWeightDeclarationDetail,
                    codeCustomsGroupDeclarationDetail, nameVATCustomsExceptionDeclarationDetail BACKGROUND backgroundVATCustomsExceptionDeclarationDetail(dd),
                    quantityDeclarationDetail, priceDeclarationDetail, sumDeclarationDetail, deliverySumDeclarationDetail, chargeSumDeclarationDetail, homeSumDeclarationDetail,
