@@ -1,17 +1,27 @@
-package equ.api;
+package equ.api.terminal;
+
+import equ.api.TransactionInfo;
+import equ.api.terminal.*;
 
 import java.io.IOException;
 import java.util.List;
 
 public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, TerminalItemInfo> {
+    public List<TerminalHandbookType> terminalHandbookTypeList;
+    public List<TerminalDocumentType> terminalDocumentTypeList;
+    public List<TerminalOrder> terminalOrderList;
     public Boolean snapshot;
     
     public TransactionTerminalInfo(Integer id, String dateTimeCode, List<TerminalItemInfo> itemsList, List<TerminalInfo> machineryInfoList,
-                                   Boolean snapshot) {
+                                   List<TerminalHandbookType> terminalHandbookTypeList, List<TerminalDocumentType> terminalDocumentTypeList,
+                                   List<TerminalOrder> terminalOrderList, Boolean snapshot) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
+        this.terminalHandbookTypeList = terminalHandbookTypeList;
+        this.terminalDocumentTypeList = terminalDocumentTypeList;
+        this.terminalOrderList = terminalOrderList;
         this.snapshot = snapshot;
     }
 

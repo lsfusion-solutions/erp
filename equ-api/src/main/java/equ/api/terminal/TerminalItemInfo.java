@@ -1,4 +1,6 @@
-package equ.api;
+package equ.api.terminal;
+
+import equ.api.ItemInfo;
 
 import java.math.BigDecimal;
 
@@ -6,9 +8,9 @@ public class TerminalItemInfo extends ItemInfo {
     public BigDecimal quantity;
     public String image;
     
-    public TerminalItemInfo(String idBarcode, String name, BigDecimal price, String composition, boolean isWeightItem,
+    public TerminalItemInfo(String barcode, String name, BigDecimal price, String composition, boolean isWeightItem,
                             BigDecimal quantity, String image) {
-        super(idBarcode, name, price, composition, isWeightItem);        
+        super(barcode, name, price, composition, isWeightItem);        
         this.quantity = quantity;
         this.image = image;
     }

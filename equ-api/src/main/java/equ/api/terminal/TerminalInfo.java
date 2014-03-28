@@ -1,4 +1,6 @@
-package equ.api;
+package equ.api.terminal;
+
+import equ.api.MachineryInfo;
 
 public class TerminalInfo extends MachineryInfo {
     public String directory;

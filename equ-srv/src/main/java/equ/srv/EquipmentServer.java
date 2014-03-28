@@ -2,6 +2,7 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
+import equ.api.terminal.*;
 import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -187,7 +188,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             for (Object[] transaction : transactionObjects) {
 
-                DataObject groupObject = (DataObject) transaction[0];
+                DataObject groupMachineryObject = (DataObject) transaction[0];
                 Integer nppGroupMachinery = (Integer) transaction[1];
                 DataObject transactionObject = (DataObject) transaction[2];
                 String dateTimeCode = (String) transaction[3];
@@ -219,7 +220,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 if (cashRegisterLM != null && transactionObject.objectClass.equals(cashRegisterLM.findClassByCompoundName("CashRegisterPriceTransaction"))) {
                     
-                    String directoryGroupCashRegister = (String) cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").read(session, groupObject);
+                    String directoryGroupCashRegister = (String) cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").read(session, groupMachineryObject);
+                    java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findLCPByCompoundOldName("startDateGroupCashRegister").read(session, groupMachineryObject);
                     
                     List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<CashRegisterInfo>();
                     LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) cashRegisterLM.is(cashRegisterLM.findClassByCompoundName("CashRegister"));
@@ -234,7 +236,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         cashRegisterQuery.addProperty(property, cashRegisterLM.findLCPByCompoundOldName(property).getExpr(cashRegisterKey));
                     }
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
-                    cashRegisterQuery.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupObject, Compare.EQUALS));
+                    cashRegisterQuery.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupMachineryObject, Compare.EQUALS));
 
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session.sql);
 
@@ -244,7 +246,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String nameModel = (String) row.get("nameModelMachinery");
                         String handlerModel = (String) row.get("handlerModelMachinery");
                         String portMachinery = (String) row.get("portMachinery");
-                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroup, nppMachinery, nameModel, handlerModel, portMachinery, directoryGroupCashRegister));
+                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroup, nppMachinery, nameModel, handlerModel, portMachinery, directoryGroupCashRegister, startDateGroupCashRegister));
                     }
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<CashRegisterItemInfo>();
@@ -280,9 +282,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 } else if (scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClassByCompoundName("ScalesPriceTransaction"))) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<ScalesInfo>();
-                    String directory = (String) scalesLM.findLCPByCompoundOldName("directoryGroupScales").read(session, groupObject);
-                    String pieceCodeGroupScales = (String) scalesLM.findLCPByCompoundOldName("pieceCodeGroupScales").read(session, groupObject);
-                    String weightCodeGroupScales = (String) scalesLM.findLCPByCompoundOldName("weightCodeGroupScales").read(session, groupObject);
+                    String directory = (String) scalesLM.findLCPByCompoundOldName("directoryGroupScales").read(session, groupMachineryObject);
+                    String pieceCodeGroupScales = (String) scalesLM.findLCPByCompoundOldName("pieceCodeGroupScales").read(session, groupMachineryObject);
+                    String weightCodeGroupScales = (String) scalesLM.findLCPByCompoundOldName("weightCodeGroupScales").read(session, groupMachineryObject);
 
                     LCP<PropertyInterface> isScales = (LCP<PropertyInterface>) scalesLM.is(scalesLM.findClassByCompoundName("Scales"));
 
@@ -295,7 +297,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         scalesQuery.addProperty(property, scalesLM.findLCPByCompoundOldName(property).getExpr(scalesKey));
                     }
                     scalesQuery.and(isScales.property.getExpr(scalesKeys).getWhere());
-                    scalesQuery.and(scalesLM.findLCPByCompoundOldName("groupScalesScales").getExpr(scalesKey).compare(groupObject, Compare.EQUALS));
+                    scalesQuery.and(scalesLM.findLCPByCompoundOldName("groupScalesScales").getExpr(scalesKey).compare(groupMachineryObject, Compare.EQUALS));
 
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> scalesResult = scalesQuery.execute(session.sql);
 
@@ -315,10 +317,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
                         Boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
-                        BigDecimal daysExpiry = scalesItemLM == null ? null : (BigDecimal) row.get("daysExpiryMachineryPriceTransactionBarcode").getValue();
-                        Integer hoursExpiry = scalesItemLM == null ? null : (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
-                        Integer labelFormat = scalesItemLM == null ? null : (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
-                        String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
+                        BigDecimal daysExpiry = (BigDecimal) row.get("daysExpiryMachineryPriceTransactionBarcode").getValue();
+                        Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
+                        Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
+                        String composition = (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
 
                         List<String> hierarchyItemGroup = new ArrayList<String>();
                         if (itemLM != null) {
@@ -333,7 +335,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 }
                             }
                         }
-                        Integer cellScalesObject = composition == null ? null : (Integer) equLM.findLCPByCompoundOldName("cellScalesGroupScalesComposition").read(session, groupObject, new DataObject(composition, StringClass.text));
+                        Integer cellScalesObject = composition == null ? null : (Integer) equLM.findLCPByCompoundOldName("cellScalesGroupScalesComposition").read(session, groupMachineryObject, new DataObject(composition, StringClass.text));
                         Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) equLM.findLCPByCompoundOldName("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) equLM.findClassByCompoundName("CellScales")));
 
                         scalesItemInfoList.add(new ScalesItemInfo(barcode, name, price, composition,
@@ -356,7 +358,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         checkQuery.addProperty(property, priceCheckerLM.findLCPByCompoundOldName(property).getExpr(checkKey));
                     }
                     checkQuery.and(isCheck.property.getExpr(checkKeys).getWhere());
-                    checkQuery.and(priceCheckerLM.findLCPByCompoundOldName("groupPriceCheckerPriceChecker").getExpr(checkKey).compare(groupObject, Compare.EQUALS));
+                    checkQuery.and(priceCheckerLM.findLCPByCompoundOldName("groupPriceCheckerPriceChecker").getExpr(checkKey).compare(groupMachineryObject, Compare.EQUALS));
 
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> checkResult = checkQuery.execute(session.sql);
 
@@ -381,23 +383,26 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 } else if (terminalLM != null && transactionObject.objectClass.equals(terminalLM.findClassByCompoundName("TerminalPriceTransaction"))) {
                     List<TerminalInfo> terminalInfoList = new ArrayList<TerminalInfo>();
+                    
+                    String directoryGroupTerminal = (String) terminalLM.findLCPByCompoundOldName("directoryGroupTerminal").read(session, groupMachineryObject);
+                    
                     LCP<PropertyInterface> isTerminal = (LCP<PropertyInterface>) terminalLM.is(terminalLM.findClassByCompoundName("Terminal"));
 
                     ImRevMap<PropertyInterface, KeyExpr> terminalKeys = isTerminal.getMapKeys();
                     KeyExpr terminalKey = terminalKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> terminalQuery = new QueryBuilder<PropertyInterface, Object>(terminalKeys);
 
-                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
+                    String[] terminalProperties = new String[]{"portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
                     for (String property : terminalProperties) {
                         terminalQuery.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalKey));
                     }
                     terminalQuery.and(isTerminal.property.getExpr(terminalKeys).getWhere());
-                    terminalQuery.and(terminalLM.findLCPByCompoundOldName("groupTerminalTerminal").getExpr(terminalKey).compare(groupObject, Compare.EQUALS));
+                    terminalQuery.and(terminalLM.findLCPByCompoundOldName("groupTerminalTerminal").getExpr(terminalKey).compare(groupMachineryObject, Compare.EQUALS));
 
                     ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session.sql);
 
                     for (ImMap<Object, Object> values : terminalResult.valueIt()) {
-                        terminalInfoList.add(new TerminalInfo((String) values.get("directoryTerminal"), (Integer) values.get("nppMachinery"),
+                        terminalInfoList.add(new TerminalInfo(directoryGroupTerminal, (Integer) values.get("nppMachinery"),
                                 (String) values.get("nameModelMachinery"), (String) values.get("handlerModelMachinery"),
                                 (String) values.get("portMachinery")));
                     }
@@ -413,9 +418,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         terminalItemInfoList.add(new TerminalItemInfo(barcode, name, price, composition,
                                 isWeight, null/*quantity*/, null/*image*/));
                     }
-                    
+
+                    List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session);
+                    List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeList(session);                   
+                    List<TerminalOrder> terminalOrderList = readTerminalOrderList(session);
+
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, terminalItemInfoList, terminalInfoList, snapshotTransaction));
+                            dateTimeCode, terminalItemInfoList, terminalInfoList, terminalHandbookTypeList,
+                            terminalDocumentTypeList, terminalOrderList, snapshotTransaction));
                 }
             }
             return transactionList;
@@ -424,6 +434,78 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         } catch (SQLHandledException e) {
             throw Throwables.propagate(e);
         }
+    }
+    
+    private List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<TerminalHandbookType> terminalHandbookTypeList = new ArrayList<TerminalHandbookType>();
+        KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        String[] properties = new String[]{"idTerminalHandbookType", "staticCaption"};
+        for (String property : properties) {
+            query.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalHandbookTypeExpr));
+        }
+        query.and(terminalLM.findLCPByCompoundOldName("idTerminalHandbookType").getExpr(terminalHandbookTypeExpr).getWhere());
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        for(ImMap<Object, Object> entry : result.values()) {
+            String id = trim((String) entry.get("idTerminalHandbookType"));
+            String name = trim((String) entry.get("staticCaption"));
+            terminalHandbookTypeList.add(new TerminalHandbookType(id, name));
+        }
+        return terminalHandbookTypeList;
+    }
+    
+    private List<TerminalDocumentType> readTerminalDocumentTypeList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<TerminalDocumentType>();
+        KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalDocumentType", terminalDocumentTypeExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        String[] properties = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType"};
+        for (String property : properties) {
+            query.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalDocumentTypeExpr));
+        }
+        query.and(terminalLM.findLCPByCompoundOldName("idTerminalDocumentType").getExpr(terminalDocumentTypeExpr).getWhere());
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        for(ImMap<Object, Object> entry : result.values()) {
+            String id = trim((String) entry.get("idTerminalDocumentType"));
+            String name = trim((String) entry.get("nameTerminalDocumentType"));
+            terminalDocumentTypeList.add(new TerminalDocumentType(id, name));
+        }
+        return terminalDocumentTypeList;
+    }
+
+    private List<TerminalOrder> readTerminalOrderList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        if (purchaseOrderLM != null) {
+
+            List<TerminalOrder> terminalOrderList = new ArrayList<TerminalOrder>();
+            KeyExpr orderExpr = new KeyExpr("order");
+            KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
+            ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
+            QueryBuilder<Object, Object> orderQuery = new QueryBuilder<Object, Object>(orderKeys);
+            String[] orderProperties = new String[]{"dateOrder", "numberOrder", "supplierOrder"};
+            for (String property : orderProperties) {
+                orderQuery.addProperty(property, purchaseOrderLM.findLCPByCompoundOldName(property).getExpr(orderExpr));
+            }
+            String[] orderDetailProperties = new String[]{"idBarcodeSkuOrderDetail", "priceOrderDetail", "quantityOrderDetail"};
+            for (String property : orderDetailProperties) {
+                orderQuery.addProperty(property, purchaseOrderLM.findLCPByCompoundOldName(property).getExpr(orderDetailExpr));
+            }
+            orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
+            orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("numberOrder").getExpr(orderExpr).getWhere());
+            orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
+            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> orderResult = orderQuery.executeClasses(session);
+            for (ImMap<Object, ObjectValue> entry : orderResult.values()) {
+                Date dateOrder = (Date) entry.get("dateOrder").getValue();
+                String numberOrder = trim((String) entry.get("numberOrder").getValue());
+                String idSupplier = trim((String) purchaseOrderLM.findLCPByCompoundOldName("idLegalEntity").read(session, entry.get("supplierOrder")));
+                String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail").getValue());
+                BigDecimal price = (BigDecimal) entry.get("priceOrderDetail").getValue();
+                BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail").getValue();
+                terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, price, quantity));
+            }
+            return terminalOrderList;
+        } else return null;
     }
 
     @Override
@@ -497,6 +579,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.addProperty("handlerModelMachinery", cashRegisterLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterExpr));
                 query.addProperty("portMachinery", cashRegisterLM.findLCPByCompoundOldName("portMachinery").getExpr(cashRegisterExpr));
                 query.addProperty("directoryGroupCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupCashRegisterExpr));
+                query.addProperty("startDateGroupCashRegister", cashRegisterLM.findLCPByCompoundOldName("startDateGroupCashRegister").getExpr(groupCashRegisterExpr));
                 query.addProperty("nppGroupMachinery", cashRegisterLM.findLCPByCompoundOldName("nppGroupMachinery").getExpr(groupCashRegisterExpr));
 
                 query.and(cashRegisterLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
@@ -509,7 +592,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("directoryGroupCashRegister")));
+                            (String) row.get("directoryGroupCashRegister"), (java.sql.Date) row.get("startDateGroupCashRegister")));
                 }
             }
             return cashRegisterInfoList;
@@ -518,174 +601,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         } catch (SQLHandledException e) {
             throw Throwables.propagate(e);
         }
-    }
-
-    @Override
-    public List<TerminalInfo> readTerminalInfo(String equServerID) throws RemoteException, SQLException {
-        try {
-
-            List<TerminalInfo> terminalInfoList = new ArrayList<TerminalInfo>();
-
-            if (terminalLM != null) {
-
-                DataSession session = getDbManager().createSession();
-
-                List<DataObject> groupMachineryObjects = readGroupMachineryObjectList(session, equServerID);
-                for (Object groupMachinery : groupMachineryObjects) {
-                    DataObject groupMachineryObject = (DataObject) groupMachinery;
-
-                    LCP<PropertyInterface> isTerminal = (LCP<PropertyInterface>) terminalLM.is(terminalLM.findClassByCompoundName("Terminal"));
-
-                    ImRevMap<PropertyInterface, KeyExpr> terminalKeys = isTerminal.getMapKeys();
-                    KeyExpr terminalKey = terminalKeys.singleValue();
-                    QueryBuilder<PropertyInterface, Object> terminalQuery = new QueryBuilder<PropertyInterface, Object>(terminalKeys);
-
-                    String[] terminalProperties = new String[]{"directoryTerminal", "portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
-                    for (String property : terminalProperties) {
-                        terminalQuery.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalKey));
-                    }
-                    terminalQuery.and(isTerminal.property.getExpr(terminalKeys).getWhere());
-                    terminalQuery.and(terminalLM.findLCPByCompoundOldName("groupTerminalTerminal").getExpr(terminalKey).compare((groupMachineryObject).getExpr(), Compare.EQUALS));
-
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session.sql);
-
-                    for (ImMap<Object, Object> row : terminalResult.valueIt()) {
-                        terminalInfoList.add(new TerminalInfo((String) row.get("directoryTerminal"), (Integer) row.get("nppMachinery"),
-                                (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery")));
-                    }
-                }
-            }
-            return terminalInfoList;
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLHandledException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public List<TerminalDocumentTypeInfo> readTerminalDocumentTypeInfo() throws RemoteException, SQLException {
-        try {
-
-            List<TerminalDocumentTypeInfo> terminalDocumentTypeInfoList = new ArrayList<TerminalDocumentTypeInfo>();
-
-            if (terminalLM != null) {
-
-                DataSession session = getDbManager().createSession();
-
-                List<LegalEntityInfo> legalEntityInfoList = new ArrayList<LegalEntityInfo>();
-
-                LCP<PropertyInterface> isLegalEntity = (LCP<PropertyInterface>) terminalLM.is(terminalLM.findClassByCompoundName("LegalEntity"));
-
-                ImRevMap<PropertyInterface, KeyExpr> legalEntityKeys = isLegalEntity.getMapKeys();
-                KeyExpr legalEntityKey = legalEntityKeys.singleValue();
-                QueryBuilder<PropertyInterface, Object> legalEntityQuery = new QueryBuilder<PropertyInterface, Object>(legalEntityKeys);
-
-                legalEntityQuery.addProperty("name", terminalLM.findLCPByCompoundOldName("nameLegalEntity").getExpr(legalEntityKey));
-                legalEntityQuery.and(isLegalEntity.property.getExpr(legalEntityKeys).getWhere());
-                ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session.sql);
-                for (int i = 0, size = legalEntityResult.size(); i < size; i++) {
-                    String id = String.valueOf(legalEntityResult.getKey(i).getValue(0));
-                    String name = (String) legalEntityResult.getValue(i).get("name");
-                    DataObject terminalHandbookTypeObject = ((ConcreteCustomClass) terminalLM.findClassByCompoundName("TerminalHandbookType")).getDataObject("terminalHandbookTypeLegalEntity");
-                    String type = (String) terminalLM.findLCPByCompoundOldName("idTerminalHandbookType").read(session, terminalHandbookTypeObject);
-                    legalEntityInfoList.add(new LegalEntityInfo(id, name, type));
-                }
-
-                LCP<PropertyInterface> isTerminalDocumentType = (LCP<PropertyInterface>) terminalLM.is(terminalLM.findClassByCompoundName("TerminalDocumentType"));
-
-                ImRevMap<PropertyInterface, KeyExpr> terminalDocumentTypeKeys = isTerminalDocumentType.getMapKeys();
-                KeyExpr terminalDocumentTypeKey = terminalDocumentTypeKeys.singleValue();
-                QueryBuilder<PropertyInterface, Object> terminalDocumentTypeQuery = new QueryBuilder<PropertyInterface, Object>(terminalDocumentTypeKeys);
-
-                String[] terminalDocumentTypeProperties = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "nameInHandbook1TerminalDocumentType",
-                        "idTerminalHandbookType1TerminalDocumentType", "nameInHandbook2TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
-                for (String property : terminalDocumentTypeProperties) {
-                    terminalDocumentTypeQuery.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalDocumentTypeKey));
-                }
-                terminalDocumentTypeQuery.and(isTerminalDocumentType.property.getExpr(terminalDocumentTypeKeys).getWhere());
-
-                ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalDocumentTypeResult = terminalDocumentTypeQuery.execute(session.sql);
-
-                for (ImMap<Object, Object> values : terminalDocumentTypeResult.valueIt()) {
-
-                    terminalDocumentTypeInfoList.add(new TerminalDocumentTypeInfo((String) values.get("idTerminalDocumentType"),
-                            (String) values.get("nameTerminalDocumentType"), (String) values.get("nameInHandbook1TerminalDocumentType"),
-                            (String) values.get("idTerminalHandbookType1TerminalDocumentType"), (String) values.get("nameInHandbook2TerminalDocumentType"),
-                            (String) values.get("idTerminalHandbookType1TerminalDocumentType"), legalEntityInfoList));
-                }
-            }
-            return terminalDocumentTypeInfoList;
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLHandledException e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public List<OrderInfo> readOrderInfo(String equServerID) throws RemoteException, SQLException {
-        List<OrderInfo> orderInfoList = new ArrayList<OrderInfo>();
-
-        if (purchaseOrderLM != null) {
-
-            DataSession session = getDbManager().createSession();
-
-            KeyExpr purchaseOrderExpr = new KeyExpr("purchase.order");
-
-            ImRevMap<Object, KeyExpr> purchaseOrderKeys = MapFact.singletonRev((Object) "purchase.order", purchaseOrderExpr);
-            QueryBuilder<Object, Object> purchaseOrderQuery = new QueryBuilder<Object, Object>(purchaseOrderKeys);
-
-            try {
-                purchaseOrderQuery.addProperty("Purchase.numberOrder", purchaseOrderLM.findLCPByCompoundOldName("Purchase.numberOrder").getExpr(purchaseOrderExpr));
-
-                purchaseOrderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("Purchase.isPostedOrder").getExpr(purchaseOrderExpr).getWhere());
-                purchaseOrderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("Purchase.isOpenedOrder").getExpr(purchaseOrderExpr).getWhere());
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> purchaseOrderResult = purchaseOrderQuery.execute(session.sql);
-                for (int i = 0, size = purchaseOrderResult.size(); i < size; i++) {
-                    String numberOrder = trim((String) purchaseOrderResult.getValue(i).get("Purchase.numberOrder"));
-
-                    orderInfoList.add(new OrderInfo(numberOrder));
-                }
-            } catch (ScriptingErrorLog.SemanticErrorException e) {
-                throw Throwables.propagate(e);
-            } catch (SQLHandledException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return orderInfoList;
-    }
-
-    @Override
-    public List<LegalEntityInfo> readLegalEntityInfo(String equServerID) throws RemoteException, SQLException {
-        List<LegalEntityInfo> legalEntityInfoList = new ArrayList<LegalEntityInfo>();
-
-        DataSession session = getDbManager().createSession();
-
-        KeyExpr legalEntityExpr = new KeyExpr("LegalEntity");
-
-        ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "legalEntity", legalEntityExpr);
-        QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<Object, Object>(legalEntityKeys);
-
-        try {
-            legalEntityQuery.addProperty("idLegalEntity", equLM.findLCPByCompoundOldName("idLegalEntity").getExpr(legalEntityExpr));
-            legalEntityQuery.addProperty("nameLegalEntity", equLM.findLCPByCompoundOldName("nameLegalEntity").getExpr(legalEntityExpr));
-
-            legalEntityQuery.and(equLM.findLCPByCompoundOldName("nameLegalEntity").getExpr(legalEntityExpr).getWhere());
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session.sql);
-            for (int i = 0, size = legalEntityResult.size(); i < size; i++) {
-                String idLegalEntity = (String) legalEntityResult.getValue(i).get("idLegalEntity");
-                String nameLegalEntity = (String) legalEntityResult.getValue(i).get("nameLegalEntity");
-
-                legalEntityInfoList.add(new LegalEntityInfo(idLegalEntity, nameLegalEntity, null));
-            }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (SQLHandledException e) {
-            throw Throwables.propagate(e);
-        }
-        return legalEntityInfoList;
-    }
+    }  
 
     @Override
     public String sendSalesInfo(List<SalesInfo> salesInfoList, String equipmentServer, Integer numberAtATime) throws IOException, SQLException {
@@ -958,107 +874,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
             } else return null;
 
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        }
-    }
-
-    @Override
-    public String sendTerminalDocumentInfo(List<TerminalDocumentInfo> terminalDocumentInfoList, String equServerID) throws IOException, SQLException {
-        try {
-
-            if (terminalLM != null) {
-
-                DataSession session = getDbManager().createSession();
-                ImportField idTerminalDocumentField = new ImportField(terminalLM.findLCPByCompoundOldName("idTerminalDocument"));
-                ImportField typeTerminalDocumentField = new ImportField(terminalLM.findLCPByCompoundOldName("idTerminalDocumentTypeTerminalDocument"));
-                ImportField idTerminalHandbookType1TerminalDocumentField = new ImportField(terminalLM.findLCPByCompoundOldName("idTerminalHandbookType1TerminalDocument"));
-                ImportField idTerminalHandbookType2TerminalDocumentField = new ImportField(terminalLM.findLCPByCompoundOldName("idTerminalHandbookType2TerminalDocument"));
-                ImportField titleTerminalDocumentField = new ImportField(terminalLM.findLCPByCompoundOldName("titleTerminalDocument"));
-                ImportField quantityTerminalDocumentField = new ImportField(terminalLM.findLCPByCompoundOldName("quantityTerminalDocument"));
-
-                ImportField numberTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("numberTerminalDocumentDetail"));
-                ImportField barcodeTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("barcodeTerminalDocumentDetail"));
-                ImportField nameTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("nameTerminalDocumentDetail"));
-                ImportField quantityTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("quantityTerminalDocumentDetail"));
-                ImportField priceTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("priceTerminalDocumentDetail"));
-                ImportField sumTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("sumTerminalDocumentDetail"));
-
-                ImportField isNewTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("isNewTerminalDocumentDetail"));
-
-                List<ImportProperty<?>> terminalDocumentProperties = new ArrayList<ImportProperty<?>>();
-                List<ImportProperty<?>> terminalDocumentDetailProperties = new ArrayList<ImportProperty<?>>();
-
-                ImportKey<?> terminalDocumentKey = new ImportKey((ConcreteCustomClass) terminalLM.findClassByCompoundName("TerminalDocument"), terminalLM.findLCPByCompoundOldName("terminalDocumentID").getMapping(idTerminalDocumentField));
-
-                terminalDocumentProperties.add(new ImportProperty(idTerminalDocumentField, terminalLM.findLCPByCompoundOldName("idTerminalDocument").getMapping(terminalDocumentKey)));
-                terminalDocumentProperties.add(new ImportProperty(titleTerminalDocumentField, terminalLM.findLCPByCompoundOldName("titleTerminalDocument").getMapping(terminalDocumentKey)));
-                terminalDocumentProperties.add(new ImportProperty(idTerminalHandbookType1TerminalDocumentField, terminalLM.findLCPByCompoundOldName("idTerminalHandbookType1TerminalDocument").getMapping(terminalDocumentKey)));
-                terminalDocumentProperties.add(new ImportProperty(idTerminalHandbookType2TerminalDocumentField, terminalLM.findLCPByCompoundOldName("idTerminalHandbookType2TerminalDocument").getMapping(terminalDocumentKey)));
-                terminalDocumentProperties.add(new ImportProperty(quantityTerminalDocumentField, terminalLM.findLCPByCompoundOldName("quantityTerminalDocument").getMapping(terminalDocumentKey)));
-
-                ImportKey<?> terminalDocumentDetailKey = new ImportKey((ConcreteCustomClass) terminalLM.findClassByCompoundName("TerminalDocumentDetail"), terminalLM.findLCPByCompoundOldName("terminalDocumentDetailIDDocumentIDDetail").getMapping(idTerminalDocumentField, numberTerminalDocumentDetailField));
-
-                terminalDocumentDetailProperties.add(new ImportProperty(numberTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("numberTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-                terminalDocumentDetailProperties.add(new ImportProperty(barcodeTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("barcodeTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-                terminalDocumentDetailProperties.add(new ImportProperty(nameTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("nameTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-                terminalDocumentDetailProperties.add(new ImportProperty(quantityTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("quantityTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-                terminalDocumentDetailProperties.add(new ImportProperty(priceTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("priceTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-                terminalDocumentDetailProperties.add(new ImportProperty(sumTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("sumTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-                terminalDocumentDetailProperties.add(new ImportProperty(isNewTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("isNewTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-                terminalDocumentDetailProperties.add(new ImportProperty(idTerminalDocumentField, terminalLM.findLCPByCompoundOldName("terminalDocumentTerminalDocumentDetail").getMapping(terminalDocumentDetailKey),
-                        terminalLM.object(terminalLM.findClassByCompoundName("TerminalDocument")).getMapping(terminalDocumentKey)));
-
-
-                ImportKey<?> terminalDocumentTypeKey = new ImportKey((ConcreteCustomClass) terminalLM.findClassByCompoundName("TerminalDocumentType"), terminalLM.findLCPByCompoundOldName("terminalDocumentTypeID").getMapping(typeTerminalDocumentField));
-                terminalDocumentProperties.add(new ImportProperty(typeTerminalDocumentField, terminalLM.findLCPByCompoundOldName("idTerminalDocumentType").getMapping(terminalDocumentTypeKey)));
-                terminalDocumentProperties.add(new ImportProperty(typeTerminalDocumentField, terminalLM.findLCPByCompoundOldName("terminalDocumentTypeTerminalDocument").getMapping(terminalDocumentKey),
-                        terminalLM.object(terminalLM.findClassByCompoundName("TerminalDocumentType")).getMapping(terminalDocumentTypeKey)));
-
-                List<List<Object>> dataTerminalDocument = new ArrayList<List<Object>>();
-                List<List<Object>> dataTerminalDocumentDetail = new ArrayList<List<Object>>();
-
-                for (TerminalDocumentInfo docInfo : terminalDocumentInfoList) {
-                    dataTerminalDocument.add(Arrays.<Object>asList(docInfo.idDocument, docInfo.typeDocument, docInfo.handbook1,
-                            docInfo.handbook2, docInfo.title, docInfo.quantity));
-                    Integer number = 1;
-                    for (TerminalDocumentDetailInfo docDetailInfo : docInfo.terminalDocumentDetailInfoList) {
-                        dataTerminalDocumentDetail.add(Arrays.<Object>asList(number, docDetailInfo.barcode, docDetailInfo.name,
-                                docDetailInfo.isNew, docDetailInfo.quantity, docDetailInfo.price, docDetailInfo.sum, docInfo.idDocument));
-                        number++;
-                    }
-                }
-
-                List<ImportField> terminalDocumentImportFields = Arrays.asList(idTerminalDocumentField, typeTerminalDocumentField,
-                        idTerminalHandbookType1TerminalDocumentField, idTerminalHandbookType2TerminalDocumentField,
-                        titleTerminalDocumentField, quantityTerminalDocumentField);
-
-                new IntegrationService(session, new ImportTable(terminalDocumentImportFields, dataTerminalDocument),
-                        Arrays.asList(terminalDocumentKey, terminalDocumentTypeKey),
-                        terminalDocumentProperties).synchronize(true);
-
-                List<ImportField> terminalDocumentDetailImportFields = Arrays.asList(numberTerminalDocumentDetailField,
-                        barcodeTerminalDocumentDetailField, nameTerminalDocumentDetailField, isNewTerminalDocumentDetailField,
-                        quantityTerminalDocumentDetailField, priceTerminalDocumentDetailField, sumTerminalDocumentDetailField,
-                        idTerminalDocumentField);
-
-
-                new IntegrationService(session, new ImportTable(terminalDocumentDetailImportFields, dataTerminalDocumentDetail),
-                        Arrays.asList(terminalDocumentDetailKey, terminalDocumentKey), terminalDocumentDetailProperties).synchronize(true);
-
-
-                if (terminalDocumentInfoList.size() != 0) {
-                    String message = "Загружено записей: " + dataTerminalDocument.size();
-
-                    DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClassByCompoundName("EquipmentServerLog"));
-                    Object equipmentServerObject = equLM.findLCPByCompoundOldName("sidToEquipmentServer").read(session, new DataObject(equServerID, StringClass.get(20)));
-                    equLM.findLCPByCompoundOldName("equipmentServerEquipmentServerLog").change(equipmentServerObject, session, logObject);
-                    equLM.findLCPByCompoundOldName("dataEquipmentServerLog").change(message, session, logObject);
-                    equLM.findLCPByCompoundOldName("dateEquipmentServerLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
-                }
-
-                return session.applyMessage(getBusinessLogics());
-            } else return null;
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }

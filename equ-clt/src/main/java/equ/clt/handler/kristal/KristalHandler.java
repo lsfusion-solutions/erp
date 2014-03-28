@@ -293,11 +293,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         Set<String> directorySet = new HashSet<String>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
+        Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null)
                 directorySet.add(c.directory);
             if(c.directory != null && c.number != null && c.numberGroup != null)
                 directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
+            if(c.directory != null && c.number != null && c.startDate != null)
+                directoryStartDateMap.put(c.directory + "_" + c.number, c.startDate);
         }
 
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
@@ -387,7 +390,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(receiptDetailElement, "DISCSUMM");
                                                     Integer numberReceiptDetail = readIntegerXMLAttribute(receiptDetailElement, "POSNUMBER");
 
-                                                    currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
+                                                    Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
+                                                    if(dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >=0)
+                                                        currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                             numberZReport, numberReceipt, dateReceipt, timeReceipt, sumCard, sumCash, barcode,
                                                             quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
                                                             numberReceiptDetail, fileName));

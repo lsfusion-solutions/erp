@@ -4,7 +4,10 @@ import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public interface EquipmentServerInterface extends Remote {
 
@@ -20,17 +23,7 @@ public interface EquipmentServerInterface extends Remote {
 
     Map<Date, Set<String>> readRequestSalesInfo(String equServerID) throws RemoteException, SQLException;
 
-    List<TerminalInfo> readTerminalInfo(String equServerID) throws RemoteException, SQLException;
-
-    List<TerminalDocumentTypeInfo> readTerminalDocumentTypeInfo() throws RemoteException, SQLException;
-    
-    List<OrderInfo> readOrderInfo(String equServerID) throws RemoteException, SQLException;
-
-    List<LegalEntityInfo> readLegalEntityInfo(String equServerID) throws RemoteException, SQLException;
-
     String sendSalesInfo(List<SalesInfo> salesInfoList, String equServerID, Integer numberAtATime) throws IOException, SQLException;
-
-    String sendTerminalDocumentInfo(List<TerminalDocumentInfo> terminalDocumentInfoList, String equServerID) throws IOException, SQLException;
 
     void succeedTransaction(Integer transactionID) throws RemoteException, SQLException;
 
