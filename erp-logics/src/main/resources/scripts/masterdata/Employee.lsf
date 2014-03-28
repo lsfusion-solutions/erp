@@ -35,11 +35,13 @@ TABLE employee(Employee);
 @defineExternalizable(employee, VARSTRING[100]);
 
 initialsEmployee 'Инициалы (И.О.)' = DATA VARSTRING[10] (Contact) MINCHARWIDTH 5;
-shortNameContact 'Фамилия И.О.' (contact) = CONCAT ' ', lastNameContact(contact), initialsEmployee(contact);
+shortNameContact 'Фамилия И.О.' (contact) = CONCAT ' ', lastNameContact(contact), 
+                                                        (OVERRIDE firstNameContact(contact), initialsEmployee(contact));
 
 namePositionEmployee 'Должность сотрудника' (employee) = namePosition(positionEmployee(employee)) IN base MINCHARWIDTH 15 PREFCHARWIDTH 15;
 
 positionNameEmployee 'Должность ФИО' (employee) =  CONCAT ' ', namePositionEmployee(employee), nameContact(employee) IF employee IS Employee;
+positionShortNameEmployee 'Должность ФИО (инициалы)' (employee) =  CONCAT ' ', namePositionEmployee(employee), shortNameContact(employee) IF employee IS Employee;
 
 limitAccessEmployee 'Ограничить доступ' = DATA BOOLEAN (Employee);
 

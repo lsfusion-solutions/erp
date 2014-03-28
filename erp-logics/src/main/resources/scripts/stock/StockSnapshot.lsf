@@ -190,36 +190,36 @@ nameSumAStock (st) = CONCAT ' ', nameStock(st), ' (сумма конец)';
 
 TABLE batchStockSnapshot (Batch, Stock, Snapshot);  
 balanceBBatchStockSnapshot 'Кол-во начало' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
-sumBBatchStockSnapshot 'Сумма начало' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+sumBBatchStockSnapshot 'Себестоимость начало' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
 inQuantityBatchStockSnapshot 'Кол-во приход' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
-inSumBatchStockSnapshot 'Сумма приход' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+inSumBatchStockSnapshot 'Себестоимость приход' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
 outQuantityBatchStockSnapshot 'Кол-во расход' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
-outSumBatchStockSnapshot 'Сумма расход' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+outSumBatchStockSnapshot 'Себестоимость расход' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
 balanceABatchStockSnapshot 'Кол-во конец' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
-sumABatchStockSnapshot 'Сумма конец' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+sumABatchStockSnapshot 'Себестоимость конец' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
 //-- По поставщикам
 balanceBBatchSupplierSnapshot 'Кол-во начало' (supplier, snapshot) =
     GROUP SUM balanceBBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
-sumBBatchSupplierSnapshot 'Сумма начало' (supplier, snapshot) =
+sumBBatchSupplierSnapshot 'Себестоимость начало' (supplier, snapshot) =
     GROUP SUM sumBBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot; 
     
 inQuantityBatchSupplierSnapshot 'Кол-во приход' (supplier, snapshot) =
     GROUP SUM inQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
-inSumBatchSupplierSnapshot 'Сумма приход' (supplier, snapshot) =
+inSumBatchSupplierSnapshot 'Себестоимость приход' (supplier, snapshot) =
     GROUP SUM inSumBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
  
 outQuantityBatchSupplierSnapshot 'Кол-во расход' (supplier, snapshot) =
     GROUP SUM outQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
-outSumBatchSupplierSnapshot 'Сумма расход' (supplier, snapshot) =
+outSumBatchSupplierSnapshot 'Себестоимость расход' (supplier, snapshot) =
     GROUP SUM outSumBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
     
 balanceABatchSupplierSnapshot 'Кол-во конец' (supplier, snapshot) =
     GROUP SUM balanceABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
-sumABatchSupplierSnapshot 'Сумма конец' (supplier, snapshot) =
+sumABatchSupplierSnapshot 'Себестоимость конец' (supplier, snapshot) =
     GROUP SUM sumABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
     
 //-- Выбор складов
@@ -302,7 +302,7 @@ backgroundStatusSnapshot 'Цвет' (snapshot) =  CASE
                                       ;
 
 takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
-    apply(); 
+    apply();  
     startTimeSnapshot(snapshot) <- currentDateTime();   
     IF countIncludeSkuSnapshot(snapshot) AND countIncludeStockSnapshot(snapshot) THEN {      
         IF isQuantitySnapshot(snapshot) THEN {         
@@ -415,10 +415,19 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
         finishTimeSnapshot(snapshot) <- currentDateTime();      
     } ELSE {
         MESSAGE 'Не выбраны группы товаров или склады для отчета';
-    }    
-} CONFIRM;
+    }           
+};
 
-takeDataSnapshot 'Сформировать отчет' (snapshot) = takeSnapshotDateFromTo(snapshot, fromDateSnapshot(snapshot), toDateSnapshot(snapshot)) CONFIRM;
+takeDataSnapshot 'Сформировать отчет' (snapshot) = ACTION (snapshot) { 
+    IF finishTimeSnapshot(snapshot) THEN {
+        CONFIRM 'Вы действительно хотите выполнить йнствие "Сформировать отчет?"';
+        IF (confirmed()) THEN {            
+            takeSnapshotDateFromTo(snapshot, fromDateSnapshot(snapshot), toDateSnapshot(snapshot));
+        }
+    } ELSE {
+        takeSnapshotDateFromTo(snapshot, fromDateSnapshot(snapshot), toDateSnapshot(snapshot));    
+    }    
+}
 
 filterMoveSkuStockSnapshot (s, st, r) = balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r) OR 
                                         inQuantitySkuStockSnapshot(s,st,r) OR outQuantitySkuStockSnapshot(s,st,r) PERSISTENT;
@@ -506,8 +515,7 @@ FORM snapshot 'Отчет по товарообороту'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
     
     OBJECTS           sts=(st=Stock, s=Sku)
-    PROPERTIES        READONLY nameSku(s), idBarcodeSku(s), nameStock(st), nameSkuGroup1Sku(s), nameSkuGroup2Sku(s),
-                      nameSkuGroup3Sku(s), nameSkuGroup4Sku(s), nameSkuGroup5Sku(s)
+    PROPERTIES        READONLY nameSku(s), idBarcodeSku(s), nameStock(st)
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(st) DEFAULT         
         
     FILTERS           isParentSkuGroupSku(sk, s),
@@ -522,7 +530,8 @@ FORM snapshot 'Отчет по товарообороту'
                          outSumSkuStockSnapshot SHOWIF isSumOutSnapshot(r)
     PROPERTIES(s, st, r) BACKGROUND hintBalanceABackground() balanceASkuStockSnapshot SHOWIF isQuantityBalanceASnapshot(r), 
                          sumASkuStockSnapshot SHOWIF isSumBalanceASnapshot(r)                                                                                      
-                                                             
+    PROPERTIES        READONLY nameSkuGroup1Sku(s), nameSkuGroup2Sku(s),nameSkuGroup3Sku(s), nameSkuGroup4Sku(s), nameSkuGroup5Sku(s)   
+                                                                                
     FILTERGROUP filtersSold
         FILTER 'С движением' 'F11' filterMoveSkuStockSnapshot(s,st,r) DEFAULT
         FILTER 'С остатком' 'F10' balanceBSkuStockSnapshot(s,st,r) OR balanceASkuStockSnapshot(s,st,r)  
@@ -531,13 +540,12 @@ FORM snapshot 'Отчет по товарообороту'
                                                                                                                                                                                       
 //--batch
     OBJECTS           stb=(ss=Stock, bt=Batch) FIXED GRID
-    PROPERTIES        READONLY SHOWIF isBatchSnapshot(r) nameSkuBatch(bt), idBarcodeSkuBatch(bt), nameStock(ss), nameBatch(bt), dateTimeBatch(bt) 
-    PROPERTIES        READONLY SHOWIF isBatchSnapshot(r) nameSkuGroup1Batch(bt), nameSkuGroup2Batch(bt), nameSkuGroup3Batch(bt), nameSkuGroup4Batch(bt), nameSkuGroup5Batch(bt)
+    PROPERTIES        READONLY SHOWIF isBatchSnapshot(r) nameSkuBatch(bt), idBarcodeSkuBatch(bt), nameStock(ss), nameBatch(bt)
     FILTERS           isParentSkuGroupBatch(sk, bt),
                       ss == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, ss) AND NOT ts OR ss IS Stock AND NOT sg AND NOT ts,
                       isCompanyStock(ss)
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ss) DEFAULT
-    ORDER BY          dateTimeBatch(bt)
+
 
     PROPERTIES(bt, ss, r) BACKGROUND hintBalanceBBackground() balanceBBatchStockSnapshot SHOWIF isQuantityBalanceBBatchSnapshot(r), 
                           sumBBatchStockSnapshot SHOWIF isSumBalanceBBatchSnapshot(r) 
@@ -547,7 +555,10 @@ FORM snapshot 'Отчет по товарообороту'
                           outSumBatchStockSnapshot SHOWIF isSumOutBatchSnapshot(r)                             
     PROPERTIES(bt, ss, r) BACKGROUND hintBalanceABackground() balanceABatchStockSnapshot SHOWIF isQuantityBalanceABatchSnapshot(r), 
                           sumABatchStockSnapshot SHOWIF isSumBalanceABatchSnapshot(r)
-    
+    PROPERTIES        READONLY SHOWIF isBatchSnapshot(r) dateBatch(bt), nameSkuGroup1Batch(bt), nameSkuGroup2Batch(bt), 
+                      nameSkuGroup3Batch(bt), nameSkuGroup4Batch(bt), nameSkuGroup5Batch(bt)
+    ORDER BY          dateBatch(bt)            
+        
     FILTERGROUP filtersSoldBatch
         FILTER 'С движением' 'F11' filterMoveBatchStockSnapshot(bt,ss,r) DEFAULT
         FILTER 'С остатком' 'F10' balanceBBatchStockSnapshot(bt,ss,r) OR balanceABatchStockSnapshot(bt,ss,r)  
@@ -621,9 +632,9 @@ FORM snapshot 'Отчет по товарообороту'
         
 //-- По SKU на дату         
            
-    OBJECTS           sts3=(st3=Stock, s3=Sku, d3=DATE) 
-    PROPERTIES        READONLY SHOWIF isDateSnapshot(r) valD3 =OBJVALUE(d3), nameSku(s3), idBarcodeSku(s3), nameStock(st3), nameSkuGroup1Sku(s3), nameSkuGroup2Sku(s3),
-                      nameSkuGroup3Sku(s3), nameSkuGroup4Sku(s3), nameSkuGroup5Sku(s3)
+    OBJECTS           sts3=(st3=Stock, s3=Sku, d3=DATE) FIXED GRID 
+    PROPERTIES        READONLY SHOWIF isDateSnapshot(r) valD3 =OBJVALUE(d3), nameSku(s3), idBarcodeSku(s3), nameStock(st3) 
+    
     ORDER BY          valD3     
     FILTERS           filterMoveSnapshotDate(r,d3)
     
@@ -641,6 +652,8 @@ FORM snapshot 'Отчет по товарообороту'
                             outSumSkuStockSnapshotDate SHOWIF isSumOutDateSnapshot(r) 
     PROPERTIES(s3,st3,r,d3) BACKGROUND hintBalanceABackground() balanceASkuStockSnapshotDate SHOWIF isQuantityBalanceADateSnapshot(r), 
                             sumASkuStockSnapshotDate SHOWIF isSumBalanceADateSnapshot(r)                                                                                                                                                  
+    PROPERTIES        READONLY SHOWIF isDateSnapshot(r) nameSkuGroup1Sku(s3), nameSkuGroup2Sku(s3), nameSkuGroup3Sku(s3), 
+                      nameSkuGroup4Sku(s3), nameSkuGroup5Sku(s3)
                                                              
     FILTERGROUP filtersSold
         FILTER 'С движением' 'F11' filterMoveSkuStockSnapshotDate(s3,st3,r,d3) DEFAULT
@@ -654,7 +667,7 @@ FORM snapshot 'Отчет по товарообороту'
                       includeSnapshotStock(r,st4)
     
     OBJECTS d4=DATE FIXED GRID  
-    PROPERTIES READONLY  valD4 =OBJVALUE(d4)  
+    PROPERTIES READONLY  SHOWIF isDateSnapshot(r) valD4 =OBJVALUE(d4)  
     FILTERS           filterMoveSnapshotDate (r, d4)
         
     PROPERTIES(st4,r,d4) BACKGROUND hintBalanceBBackground() balanceBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameBalanceBStock(st4) SHOWIF isQuantityBalanceBDateSnapshot(r), 
@@ -747,23 +760,29 @@ DESIGN snapshot FROM DEFAULT {
                         NEW secondCase {
                             fill = 3;
                             type = TABBED;
-                            ADD sts.box {caption = 'Товары';}
-                            ADD stb.box {caption = 'Партии';}
-                            NEW dateCase {
-                                caption = 'На дату';
+                            NEW skuContainer{
                                 fill = 1;
+                                caption = 'Товары'; 
                                 type = TABBED;
-                                ADD sts3.box {caption = 'Товар/дата';}
-                                ADD d4.box {caption = 'Дата/склад';}
-                            }               
+                                ADD sts.box {caption = 'Итоги';}
+                                ADD sts3.box {caption = 'Динамика';}
+                            }    
+                            ADD stb.box {caption = 'Партии'; 
+                                PROPERTY(dateBatch(bt)) { caption = 'Дата прихода'; }
+                            }                                                  
                         }   
                     }
                     NEW tabb2 {
                         caption = 'По складам';
                         type = SPLITH; 
                         fill = 1;
-                        ADD stockTree1.tree.box { fill = 1;}     
-                        ADD ts1.box { fill = 3;}                
+                        ADD stockTree1.tree.box;                                                                                 
+                        NEW tabb21 { 
+                            fill = 3;   
+                            type = TABBED;
+                            ADD ts1.box { caption = 'Итоги';}    
+                            ADD d4.box {caption = 'Динамика';}   
+                        }      
                     }
                     ADD skuTree1.tree.box { caption = 'По группам'; }                        
                     ADD l.box { caption = 'По поставщикам'; }   
