@@ -69,6 +69,7 @@ isFullMappingEx (mx)=   sizeHeightSizeMappingEx(mx) OR
 
 countMappingExItem (i)= GROUP SUM 1 IF  isISubstring(captionItem(i), nameSizeMappingEx(mx)) == 1 AND isFullMappingEx(mx) BY i;
 
+backgroundSizeMappingEx (mx)= RGB(224, 224, 255) IF mx IS SizeMappingEx; 
 FORM sizeMappings 'Соответствие размеров'
     OBJECTS m = SizeMapping
     PROPERTIES(m) canonicalNameItemGroupSizeMapping, idItemGroupSizeMapping, 
@@ -86,6 +87,16 @@ FORM sizeMappings 'Соответствие размеров'
                   sizeCupBraSizeMappingEx, sizeHipsSizeMappingEx, sizeWaistSizeMappingEx, 
                   ADDOBJ, DELETESESSION         
                    
+;
+
+isEACArticleSizeMappingEx 'EAC для артикула' = DATA BOOLEAN (SizeMappingEx);
+countMappingExIsEACArticle(a)= GROUP SUM 1 IF  isISubstring(captionArticle(a), nameSizeMappingEx(mx)) == 1 AND isEACArticleSizeMappingEx(mx) BY a;
+mapIsEACArticle 'Заполнить "EAC" по наименованию' (a) =  ACTION (a) {
+    isEACArticle(a) <- TRUE WHERE  countMappingExIsEACArticle (a); 
+} SHORTCUT isEACArticle; 
+
+EXTEND FORM sizeMappings
+    PROPERTIES(mx) BACKGROUND backgroundSizeMappingEx(mx) isEACArticleSizeMappingEx
 ;
 
 sizeMappingItemGroupSizeBrand (g, s, b)= GROUP MAX m BY itemGroupSizeMapping(m), sizeSizeMapping(m), brandSizeMapping(m);
