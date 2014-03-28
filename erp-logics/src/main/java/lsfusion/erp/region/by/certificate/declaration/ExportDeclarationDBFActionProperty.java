@@ -578,7 +578,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                         value = parseDate(stringValue);
                         break;
                     case 'N':
-                        value = Integer.parseInt(stringValue.split("\\.|,")[0]);
+                        value = Long.parseLong(stringValue.split("\\.|,")[0]);
                         break;
                     case 'F':
                         value = new BigDecimal(stringValue);
