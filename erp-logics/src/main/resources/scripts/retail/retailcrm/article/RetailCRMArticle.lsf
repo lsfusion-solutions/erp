@@ -1,6 +1,6 @@
 MODULE RetailCRMArticle;
 
-REQUIRE RetailCRM, ItemArticle;
+REQUIRE RetailCRM, ItemArticle, StockArticle;
 
 PRIORITY Stock;
 
@@ -8,14 +8,24 @@ PRIORITY Stock;
 TABLE promotionConditionArticle (PromotionCondition, Article);
 inDataPromotionConditionArticle 'В условии' = DATA BOOLEAN (PromotionCondition, Article);
 
+promotionConditionsArticle 'В акциях' = GROUP CONCAT ',', namePromotionCondition(c) IF inDataPromotionConditionArticle(c, a)
+                                              BY a
+                                              ORDER c;
+promotionConditionsPromotionConditionArticle 'В других акциях' =
+                                        GROUP CONCAT namePromotionCondition(c) IF inDataPromotionConditionArticle(c, a) AND dateToPromotionCondition(c) >= dateFromPromotionCondition(pc) AND c != pc AS PromotionCondition, ','
+                                              BY pc, a
+                                              ORDER c MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
 overInPromotionConditionSku (condition, sku) += inDataPromotionConditionArticle(condition, articleItem(sku));
 
 EXTEND FORM promotion
 
     OBJECTS ar = Article
-    PROPERTIES(ar)    READONLY idArticle, captionArticle
-    FILTERS           isParentGroupArticle(skg, ar)
-    PROPERTIES(sg, ar)   inDataPromotionConditionArticle
+    PROPERTIES(ar)     READONLY idItemGroupArticle, idArticle, captionArticle, prevCurrentBalanceArticle
+    PROPERTIES(sg, ar) READONLY promotionConditionsPromotionConditionArticle
+    PROPERTIES(sg, ar)          inDataPromotionConditionArticle
+
+    FILTERS                     isParentGroupArticle(skg, ar)
 
     FILTERGROUP filterArticle
         FILTER 'Только отмеченные' 'F10' inDataPromotionConditionArticle(sg, ar)
