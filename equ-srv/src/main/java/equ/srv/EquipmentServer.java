@@ -915,7 +915,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     labelFormatQuery.and(isLabelFormat.property.getExpr(labelFormatKeys).getWhere());
                     labelFormatQuery.and(scalesLM.findLCPByCompoundOldName("scalesModelLabelFormat").getExpr(labelFormatKey).compare((scalesModelObject).getExpr(), Compare.EQUALS));
 
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> labelFormatResult = labelFormatQuery.execute(session.sql);
+                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> labelFormatResult = labelFormatQuery.execute(session);
 
                     for (ImMap<Object, Object> row : labelFormatResult.valueIt()) {
                         byte[] fileLabelFormat = (byte[]) row.get("fileLabelFormat");
