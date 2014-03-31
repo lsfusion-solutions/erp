@@ -62,7 +62,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                 query.addProperty("priceSkuStock", getLCP("priceSkuStock").getExpr(itemExpr, departmentStoreExpr));
                 query.and(getLCP("currentBalanceSkuStock").getExpr(itemExpr, departmentStoreExpr).getWhere());
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session.sql);
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 List<ItemZReportInfo> itemZReportInfoList = new ArrayList<ItemZReportInfo>();
                 List<Integer> departmentStoreList = new ArrayList<Integer>();
@@ -93,7 +93,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                     groupCashRegisterQuery.and(isGroupCashRegister.property.getExpr(groupCashRegisterKeys).getWhere());
                     groupCashRegisterQuery.and(getLCP("departmentStoreGroupCashRegister").getExpr(groupCashRegisterKey).compare((new DataObject(departmentStore, (ConcreteClass) getClass("departmentStore"))).getExpr(), Compare.EQUALS));
 
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> groupCashRegisterResult = groupCashRegisterQuery.execute(session.sql);
+                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> groupCashRegisterResult = groupCashRegisterQuery.execute(session);
 
                     for (ImMap<PropertyInterface, Object> rows : groupCashRegisterResult.keyIt()) {
                         Integer groupCashRegister = (Integer) rows.getValue(0);
@@ -114,7 +114,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
                     cashRegisterQuery.and(getLCP("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare((new DataObject(groupCashRegisterDepartmentStore.getKey(), (ConcreteClass) getClass("groupCashRegister"))).getExpr(), Compare.EQUALS));
 
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session.sql);
+                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
 
                     for (ImMap<Object, Object> values : cashRegisterResult.valueIt()) {
                         String numberCashRegister = (String) values.get("numberCashRegister");

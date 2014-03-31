@@ -85,7 +85,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
             userInvoiceQuery.and(getLCP("numberUserInvoice").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
             userInvoiceQuery.and(getLCP("Purchase.dateUserInvoice").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceResult = userInvoiceQuery.execute(session.sql);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceResult = userInvoiceQuery.execute(session);
 
             for (int i = 0, size = userInvoiceResult.size(); i < size; i++) {
                 DataObject userInvoiceObject = new DataObject(userInvoiceResult.getKey(i).get("UserInvoice"), (ConcreteClass) LM.findClassByCompoundName("UserInvoice"));
@@ -129,7 +129,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
                     userInvoiceDetailQuery.and(getLCP("userInvoiceUserInvoiceDetail").getExpr(context.getModifier(), userInvoiceDetailQuery.getMapExprs().get("UserInvoiceDetail")).compare(userInvoiceObject.getExpr(), Compare.EQUALS));
 
-                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceDetailResult = userInvoiceDetailQuery.execute(context.getSession().sql);
+                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceDetailResult = userInvoiceDetailQuery.execute(context);
 
                     for (ImMap<Object, Object> userInvoiceDetailValues : userInvoiceDetailResult.valueIt()) {
 

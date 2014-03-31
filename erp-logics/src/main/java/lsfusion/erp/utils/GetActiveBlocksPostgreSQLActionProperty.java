@@ -12,6 +12,7 @@ import lsfusion.base.col.interfaces.mutable.MExclSet;
 import lsfusion.server.classes.IntegerClass;
 import lsfusion.server.classes.LogicalClass;
 import lsfusion.server.classes.StringClass;
+import lsfusion.server.data.OperationOwner;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.query.ExecuteEnvironment;
 import lsfusion.server.data.query.QueryExecuteEnvironment;
@@ -95,7 +96,7 @@ public class GetActiveBlocksPostgreSQLActionProperty extends ScriptingActionProp
         propertyReaders.exclAdd("granted", LogicalClass.instance);
         propertyReaders.immutable();
 
-        ImOrderMap rs = session.sql.executeSelect(originalQuery, ExecuteEnvironment.EMPTY, (ImMap<String, ParseInterface>) MapFact.mExclMap(), 
+        ImOrderMap rs = session.sql.executeSelect(originalQuery, OperationOwner.unknown, ExecuteEnvironment.EMPTY, (ImMap<String, ParseInterface>) MapFact.mExclMap(), 
                 QueryExecuteEnvironment.DEFAULT, 0, ((ImSet) keyNames).toRevMap(), (ImMap) keyReaders, ((ImSet) propertyNames).toRevMap(), (ImMap) propertyReaders);
 
         int i = 0;

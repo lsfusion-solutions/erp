@@ -167,7 +167,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
         query.addProperty("codeCustomsGroup", LM.findLCPByCompoundOldName("codeCustomsGroup").getExpr(context.getModifier(), key));
         query.and(isCustomsGroup.getExpr(key).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context.getSession().sql);
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
         for (ImMap<Object, Object> entry : result.values()) {
             String tnved = (String) entry.get("codeCustomsGroup");

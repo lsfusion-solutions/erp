@@ -87,7 +87,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
             itemQuery.and(getLCP("nameAttributeItem").getExpr(context.getModifier(), itemQuery.getMapExprs().get("Item")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemResult = itemQuery.execute(session.sql);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemResult = itemQuery.execute(session);
 
             for (int i = 0, size = itemResult.size(); i < size; i++) {
 

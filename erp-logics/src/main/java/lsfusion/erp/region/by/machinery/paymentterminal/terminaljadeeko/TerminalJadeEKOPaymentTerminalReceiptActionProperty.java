@@ -49,7 +49,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
 
                 paymentQuery.and(getLCP("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context.getSession().sql);
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
                     DataObject paymentMeansCardObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCard");
                     if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
@@ -66,7 +66,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
 
                 boolean isSale = true;
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context.getSession().sql);
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
                 for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
                     BigDecimal quantitySale = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
                     isSale = quantitySale != null;

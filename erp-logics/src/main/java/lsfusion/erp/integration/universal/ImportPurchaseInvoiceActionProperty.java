@@ -1656,7 +1656,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         articleQuery.addProperty(sidProperty, LM.findLCPByCompoundOldName(sidProperty).getExpr(session.getModifier(), articleExpr));
         articleQuery.and(LM.findLCPByCompoundOldName("idArticle").getExpr(session.getModifier(), articleExpr).getWhere());
         
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> articleResult = articleQuery.execute(session.sql);
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> articleResult = articleQuery.execute(session);
 
         for (ImMap<Object, Object> entry : articleResult.values()) {
 

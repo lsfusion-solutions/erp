@@ -88,7 +88,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                     QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<Object, Object>(receiptKeys);
                     receiptQuery.addProperty("numberReceipt", getLCP("numberReceipt").getExpr(context.getModifier(), receiptExpr));
                     receiptQuery.and(getLCP("zReportReceipt").getExpr(context.getModifier(), receiptQuery.getMapExprs().get("receipt")).compare(zReportObject.getExpr(), Compare.EQUALS));
-                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptResult = receiptQuery.execute(session.sql);
+                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptResult = receiptQuery.execute(session);
                     for (ImMap<Object, Object> receiptRows : receiptResult.valueIt()) {
                         Integer number = (Integer) receiptRows.get("numberReceipt");
                         if (number != null && number > numberReceipt)

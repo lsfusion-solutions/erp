@@ -121,7 +121,7 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
                 query.addProperty(propertySID, LM.findLCPByCompoundOldName(propertySID).getExpr(context.getModifier(), key));
             query.and(isDeclarationDetail.getExpr(key).getWhere());
             query.and(LM.findLCPByCompoundOldName("declarationDeclarationDetail").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context.getSession().sql);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
             TreeMap<Integer, Map<String, Object>> sortedRows = new TreeMap<Integer, Map<String, Object>>();
 
@@ -155,7 +155,7 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
 
                 invoiceQuery.and(LM.findLCPByCompoundOldName("inDeclarationDetailUserInvoice").getExpr(new DataObject(entry.getValue().get("declarationDetailID"), (ConcreteClass) LM.findClassByCompoundName("DeclarationDetail")).getExpr(), invoiceExpr).getWhere());
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> invoiceResult = invoiceQuery.execute(context.getSession().sql);
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> invoiceResult = invoiceQuery.execute(context);
 
 
                 for (ImMap<Object, Object> invoiceValues : invoiceResult.valueIt()) {

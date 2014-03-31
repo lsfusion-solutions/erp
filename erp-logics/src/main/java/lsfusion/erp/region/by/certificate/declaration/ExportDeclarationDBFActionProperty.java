@@ -144,7 +144,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             query.addProperty(propertySID, getLCP(propertySID).getExpr(context.getModifier(), key));
         query.and(isDeclarationDetail.getExpr(key).getWhere());
         query.and(getLCP("declarationDeclarationDetail").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context.getSession().sql, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
 
         if (result.size() == 0)
             return null;
@@ -214,7 +214,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         customsDocumentQuery.and(getLCP("inDeclarationDetailCustomsDocument").getExpr(declarationDetailExpr, customsDocumentExpr).getWhere());
         customsDocumentQuery.and(getLCP("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
 
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> customsDocumentResult = customsDocumentQuery.execute(context.getSession().sql, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> customsDocumentResult = customsDocumentQuery.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
 
         for (int i = 0, size = customsDocumentResult.size(); i < size; i++) {
             ImMap<Object, Object> resultValues = customsDocumentResult.getValue(i);
@@ -251,7 +251,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         complianceQuery.and(getLCP("inDeclarationDetailCompliance").getExpr(declarationDetail2Expr, complianceExpr).getWhere());
         complianceQuery.and(getLCP("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetail2Expr).compare(declarationObject.getExpr(), Compare.EQUALS));
 
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> complianceResult = complianceQuery.execute(context.getSession().sql, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> complianceResult = complianceQuery.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
 
         for (int i = 0, size = complianceResult.size(); i < size; i++) {
             ImMap<Object, Object> resultValues = complianceResult.getValue(i);

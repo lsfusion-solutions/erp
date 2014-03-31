@@ -238,7 +238,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
                     cashRegisterQuery.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupMachineryObject, Compare.EQUALS));
 
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session.sql);
+                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
 
                     for (ImMap<Object, Object> row : cashRegisterResult.valueIt()) {
                         Integer nppGroup = (Integer) row.get("nppGroupMachineryMachinery");
@@ -299,7 +299,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     scalesQuery.and(isScales.property.getExpr(scalesKeys).getWhere());
                     scalesQuery.and(scalesLM.findLCPByCompoundOldName("groupScalesScales").getExpr(scalesKey).compare(groupMachineryObject, Compare.EQUALS));
 
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> scalesResult = scalesQuery.execute(session.sql);
+                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> scalesResult = scalesQuery.execute(session);
 
                     for (ImMap<Object, Object> values : scalesResult.valueIt()) {
                         String portMachinery = (String) values.get("portMachinery");
@@ -360,7 +360,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     checkQuery.and(isCheck.property.getExpr(checkKeys).getWhere());
                     checkQuery.and(priceCheckerLM.findLCPByCompoundOldName("groupPriceCheckerPriceChecker").getExpr(checkKey).compare(groupMachineryObject, Compare.EQUALS));
 
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> checkResult = checkQuery.execute(session.sql);
+                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> checkResult = checkQuery.execute(session);
 
                     for (ImMap<Object, Object> values : checkResult.valueIt()) {
                         priceCheckerInfoList.add(new PriceCheckerInfo((Integer) values.get("nppMachinery"), (String) values.get("nameCheckModelCheck"),
@@ -399,7 +399,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     terminalQuery.and(isTerminal.property.getExpr(terminalKeys).getWhere());
                     terminalQuery.and(terminalLM.findLCPByCompoundOldName("groupTerminalTerminal").getExpr(terminalKey).compare(groupMachineryObject, Compare.EQUALS));
 
-                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session.sql);
+                    ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session);
 
                     for (ImMap<Object, Object> values : terminalResult.valueIt()) {
                         terminalInfoList.add(new TerminalInfo(directoryGroupTerminal, (Integer) values.get("nppMachinery"),
@@ -587,7 +587,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
                 query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session.sql);
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
                     cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),

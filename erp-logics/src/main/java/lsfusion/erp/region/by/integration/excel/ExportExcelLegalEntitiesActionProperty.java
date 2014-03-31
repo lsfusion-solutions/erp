@@ -56,7 +56,7 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
 
             legalEntityQuery.and(getLCP("nameLegalEntity").getExpr(context.getModifier(), legalEntityQuery.getMapExprs().get("LegalEntity")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session.sql);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session);
 
             for (int i = 0, size = legalEntityResult.size(); i < size; i++) {
 

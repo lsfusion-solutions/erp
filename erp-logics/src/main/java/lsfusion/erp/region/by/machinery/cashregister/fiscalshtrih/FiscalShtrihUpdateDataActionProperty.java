@@ -54,7 +54,7 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
 
             operatorQuery.and(getLCP("operatorNumberGroupCashRegisterCustomUser").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(session.sql);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(session);
             List<UpdateDataOperator> operatorList = new ArrayList<UpdateDataOperator>();
             for (ImMap<Object, Object> operatorValues : operatorResult.valueIt()) {
                 Integer number = (Integer) operatorValues.get("operatorNumberGroupCashRegisterCustomUser");
@@ -82,7 +82,7 @@ public class FiscalShtrihUpdateDataActionProperty extends ScriptingActionPropert
             rangeQuery.and(getLCP("numberRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).getWhere());
 
             Set<Integer> taxNumbers = new HashSet<Integer>();
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session.sql, MapFact.singletonOrder((Object) "numberRange", false));
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session, MapFact.singletonOrder((Object) "numberRange", false));
             int i = 1;
             for (ImMap<Object, Object> rangeValues : rangeResult.valueIt()) {
                 Integer number = (Integer) rangeValues.get("numberRange");

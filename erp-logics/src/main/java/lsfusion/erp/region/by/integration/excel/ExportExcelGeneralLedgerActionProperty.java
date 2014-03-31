@@ -78,7 +78,7 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
 
             generalLedgerQuery.and(getLCP("sumGeneralLedger").getExpr(context.getModifier(), generalLedgerQuery.getMapExprs().get("GeneralLedger")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> generalLedgerResult = generalLedgerQuery.execute(session.sql);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> generalLedgerResult = generalLedgerQuery.execute(session);
 
             for (ImMap<Object, Object> generalLedgerValue : generalLedgerResult.values()) {
 
