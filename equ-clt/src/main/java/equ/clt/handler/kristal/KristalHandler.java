@@ -29,6 +29,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public void sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
+        logger.info("Kristal: Send Transaction # " + transactionInfo.id);
+        
         List<String> directoriesList = new ArrayList<String>();
         for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
             if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
@@ -55,7 +57,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
                     String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + item.name + "|" +
                             (item.isWeightItem ? "кг.|" : "ШТ|") + (item.isWeightItem ? "1|" : "0|") +
-                            (item.nppGroupMachinery == null ? "1" : item.nppGroupMachinery) + "|"/*section*/ +
+                            (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + "|"/*section*/ +
                             item.price.intValue() + "|" + "0|"/*fixprice*/ + (item.isWeightItem ? "0.001|" : "1|") +
                             idItemGroup + "||||||1";
                     writer.println(record);
@@ -84,8 +86,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         new OutputStreamWriter(
                                 new FileOutputStream(messageFile), "windows-1251"));
 
-                for (Object itemObject : transactionInfo.itemsList) {
-                    ItemInfo item = (ItemInfo) itemObject;
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     if (item.composition != null && !item.composition.equals("")) {
                         String record = "+|" + item.idBarcode + "|" + item.composition + "|||";
                         writer.println(record);
@@ -113,8 +114,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         new OutputStreamWriter(
                                 new FileOutputStream(scaleFile), "windows-1251"));
 
-                for (Object itemObject : transactionInfo.itemsList) {
-                    ItemInfo item = (ItemInfo) itemObject;
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + "22|" + item.name + "||" +
                             "1|0|1|"/*effectiveLife & GoodLinkToScales*/ +
                             (item.composition != null ? item.idBarcode : "0")/*ingredientNumber*/ + "|" +

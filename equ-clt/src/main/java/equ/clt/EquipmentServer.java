@@ -1,7 +1,9 @@
 package equ.clt;
 
 import equ.api.*;
+import equ.api.terminal.TerminalDocumentBatch;
 import equ.api.terminal.TerminalHandler;
+import equ.api.terminal.TerminalInfo;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 
@@ -94,9 +96,9 @@ public class EquipmentServer {
                         if (remote != null) {
 
                             processTransactionInfo(remote, equServerID);
-                            //saveTerminalInfo(remote, equServerID);
                             sendSalesInfo(remote, equServerID, equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime);
                             sendSoftCheckInfo(remote);
+                            //sendTerminalDocumentInfo(remote, equServerID);
                             logger.info("Transaction completed");
                         }
 
@@ -120,10 +122,10 @@ public class EquipmentServer {
 
 
     private void processTransactionInfo(EquipmentServerInterface remote, String equServerID) throws SQLException, RemoteException, FileNotFoundException, UnsupportedEncodingException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, IllegalAccessException, InstantiationException {
-
+        logger.info("Process TransactionInfo");
         List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(equServerID);
         Collections.sort(transactionInfoList, COMPARATOR);
-        for (TransactionInfo<MachineryInfo, ItemInfo> transactionInfo : transactionInfoList) {
+        for (TransactionInfo transactionInfo : transactionInfoList) {
 
             Map<String, List<MachineryInfo>> handlerModelMap = getHandlerModelMap(transactionInfo);
 
@@ -132,6 +134,8 @@ public class EquipmentServer {
                 if (entry.getKey() != null) {
                     try {
                         Object clsHandler = getHandler(entry.getValue().get(0).handlerModel.trim(), remote);
+                        //if(clsHandler instanceof TerminalHandler)
+                        //    ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
                         transactionInfo.sendTransaction(clsHandler, entry.getValue());
                     } catch (Exception e) {
                         remote.errorTransactionReport(transactionInfo.id, e);
@@ -143,35 +147,10 @@ public class EquipmentServer {
             logger.info("Sending transactions finished");
         }
     }
-
-    private void saveTerminalInfo(EquipmentServerInterface remote, String equServerID) throws IOException, SQLException {
-        logger.info("Saving transaction info");
-        List<TransactionInfo> transactionInfoList = remote.readTransactionInfo(equServerID);
-        Collections.sort(transactionInfoList, COMPARATOR);
-        
-        for (TransactionInfo<MachineryInfo, ItemInfo> transactionInfo : transactionInfoList) {
-
-            Map<String, List<MachineryInfo>> handlerModelMap = getHandlerModelMap(transactionInfo);
-
-            for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelMap.entrySet()) {
-                if (entry.getKey() != null) {
-                    try {
-                        Object clsHandler = getHandler(entry.getKey(), remote);
-                        if(clsHandler instanceof TerminalHandler)
-                            ((TerminalHandler) clsHandler).saveTransactionInfo(transactionInfo);
-                    } catch (Exception e) {
-                        remote.errorTransactionReport(transactionInfo.id, e);
-                        return;
-                    }
-                }
-            }          
-        }
-    }
-
+    
     private void sendSalesInfo(EquipmentServerInterface remote, String equServerID, Integer numberAtATime) throws SQLException, IOException {
-        logger.info("Reading CashRegisterInfo");
+        logger.info("Send SalesInfo");
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(equServerID);
-        logger.info("Reading RequestSalesInfo");
         Map<Date, Set<String>> requestSalesInfo = remote.readRequestSalesInfo(equServerID);
 
         Map<String, List<CashRegisterInfo>> handlerModelCashRegisterMap = new HashMap<String, List<CashRegisterInfo>>();
@@ -185,7 +164,7 @@ public class EquipmentServer {
             if (entry.getKey() != null) {
 
                 try {
-                    String handlerModel = entry.getKey();//entry.getValue().get(0).handlerModel;
+                    String handlerModel = entry.getKey();
                     if (handlerModel != null) {
                         CashRegisterHandler clsHandler = (CashRegisterHandler) getHandler(handlerModel, remote);
 
@@ -230,7 +209,7 @@ public class EquipmentServer {
     }
     
     private void sendSoftCheckInfo(EquipmentServerInterface remote) throws RemoteException, SQLException {
-        logger.info("Reading SoftCheckInfo");
+        logger.info("Send SoftCheckInfo");
         List<SoftCheckInfo> softCheckInfoList = remote.readSoftCheckInfo();
         if (softCheckInfoList != null && !softCheckInfoList.isEmpty()) {
             logger.info("Sending SoftCheckInfo started");
@@ -247,6 +226,49 @@ public class EquipmentServer {
                 }
             }
             logger.info("Sending Soft Check Info finished");
+        }
+    }
+
+    private void sendTerminalDocumentInfo(EquipmentServerInterface remote, String equServerID) throws SQLException, IOException {
+        logger.info("Send TerminalDocumentInfo");
+        List<TerminalInfo> terminalInfoList = remote.readTerminalInfo(equServerID);
+        
+        Map<String, List<TerminalInfo>> handlerModelTerminalMap = new HashMap<String, List<TerminalInfo>>();
+        for (TerminalInfo terminal : terminalInfoList) {
+            if (!handlerModelTerminalMap.containsKey(terminal.handlerModel))
+                handlerModelTerminalMap.put(terminal.handlerModel, new ArrayList<TerminalInfo>());
+            handlerModelTerminalMap.get(terminal.handlerModel).add(terminal);
+        }
+
+        for (Map.Entry<String, List<TerminalInfo>> entry : handlerModelTerminalMap.entrySet()) {
+            if (entry.getKey() != null) {
+
+                try {
+                    String handlerModel = entry.getKey();
+                    if (handlerModel != null) {
+                        TerminalHandler clsHandler = (TerminalHandler) getHandler(handlerModel, remote);
+
+                        TerminalDocumentBatch documentBatch = clsHandler.readTerminalDocumentInfo(terminalInfoList);
+                        if (documentBatch == null || documentBatch.documentDetailList == null || documentBatch.documentDetailList.isEmpty()) {
+                            logger.info("TerminalDocumentInfo is empty");
+                        } else {
+                            logger.info("Sending TerminalDocumentInfo");
+                            String result = remote.sendTerminalInfo(documentBatch.documentDetailList, equServerID);
+                            if (result != null) {
+                                reportEquipmentServerError(remote, equServerID, result);
+                            }
+                            else {
+                                logger.info("Finish Reading starts");
+                                clsHandler.finishReadingTerminalDocumentInfo(documentBatch);
+                            }
+                        }
+                    }
+                } catch (Throwable e) {
+                    logger.error("Equipment server error: ", e);
+                    remote.errorEquipmentServerReport(equServerID, e.fillInStackTrace());
+                    return;
+                }
+            }
         }
     }
     

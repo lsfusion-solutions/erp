@@ -69,8 +69,8 @@ FORM terminalHandbookTypes
 ;
 
 TABLE terminalHandbookType(TerminalHandbookType);
-idTerminalHandbookType 'Код' = DATA STRING[10] (TerminalHandbookType) IN base;
-terminalHandbookTypeID (ID) = GROUP AGGR terminalHandbookType BY idTerminalHandbookType (terminalHandbookType) WHERE terminalHandbookType IS TerminalHandbookType;
+
+@defineExternalizable(terminalHandbookType, VARSTRING[100]);  
 
 FORM handbooksTerminalDocumentType 'Виды справочников ТСД'
     OBJECTS h=TerminalHandbookType
@@ -88,8 +88,7 @@ nameGroupTerminalDocumentTypeTerminalDocumentType 'Группа типов до�
 
 nameTerminalDocumentType 'Название' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
 
-idTerminalDocumentType 'Код' = DATA STRING[10] (TerminalDocumentType) IN base;
-terminalDocumentTypeID (ID) = GROUP AGGR terminalDocumentType BY idTerminalDocumentType (terminalDocumentType) WHERE terminalDocumentType IS TerminalDocumentType;
+@defineExternalizable(terminalDocumentType, VARSTRING[100]);
 
 terminalHandbookType1TerminalDocumentType = DATA TerminalHandbookType (TerminalDocumentType);
 idTerminalHandbookType1TerminalDocumentType 'Код' (terminalDocumentType)  = idTerminalHandbookType (terminalHandbookType1TerminalDocumentType(terminalDocumentType));
@@ -148,7 +147,8 @@ FORM groupTerminal 'Группа ТСД'
     OBJECTS grt=GroupTerminal FIXED PANEL
     PROPERTIES(grt) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                     nameGroupTerminalDocumentTypeGroupTerminal,
-                    filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt)
+                    filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt),
+                    directoryGroupTerminal
 
     OBJECTS t=Terminal
     PROPERTIES(t)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, nameModelMachinery,
@@ -165,7 +165,7 @@ FORM groupsTerminal 'Группы ТСД'
     PROPERTIES(grt)  READONLY nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                      nameGroupTerminalDocumentTypeGroupTerminal,
                      filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt),
-                     namePriceListTypeGroupMachinery
+                     namePriceListTypeGroupMachinery, directoryGroupTerminal
 
     PROPERTIES(grt)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
@@ -189,9 +189,7 @@ DESIGN groupsTerminal FROM DEFAULT {
 CLASS TerminalDocument 'Документ ТСД';
 TABLE terminalDocument (TerminalDocument);
 
-idTerminalDocument 'Номер' = DATA INTEGER (TerminalDocument) IN base;
-terminalDocumentID (terminalDocument) = GROUP AGGR terminalDocument BY idTerminalDocument (terminalDocument)
-                                                       WHERE terminalDocument IS TerminalDocument;
+@defineExternalizable(terminalDocument, VARSTRING[100]);  
 
 titleTerminalDocument 'Имя' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
 quantityTerminalDocument 'Количество' = DATA NUMERIC[14,3] (TerminalDocument) IN base;
@@ -211,11 +209,9 @@ terminalDocumentTerminalDocumentDetail = DATA TerminalDocument(TerminalDocumentD
 CLASS TerminalDocumentDetail 'Строка документа ТСД';
 TABLE terminalDocumentDetail (TerminalDocumentDetail);
 
-numberTerminalDocumentDetail 'Номер' = DATA INTEGER (TerminalDocumentDetail) IN base;
-terminalDocumentDetailIDDocumentIDDetail (terminalDocumentDetail, terminalDocument) =
-    GROUP AGGR terminalDocumentDetail BY idTerminalDocument (terminalDocumentTerminalDocumentDetail(terminalDocumentDetail)), numberTerminalDocumentDetail(terminalDocumentDetail)
-          WHERE terminalDocumentDetail IS TerminalDocumentDetail;
+@defineExternalizable(terminalDocumentDetail, VARSTRING[100]);          
 
+numberTerminalDocumentDetail 'Номер' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
 barcodeTerminalDocumentDetail 'Штрих-код' = DATA STRING[15] (TerminalDocumentDetail) IN base;
 quantityTerminalDocumentDetail 'Количество' = DATA NUMERIC[14,3] (TerminalDocumentDetail) IN base;
 priceTerminalDocumentDetail 'Цена' = DATA NUMERIC[14,2] (TerminalDocumentDetail) IN base;
@@ -349,8 +345,8 @@ loadDefaultTerminalDocumentType 'Добавить тип документа ТС
     FOR ADDOBJ tdt = TerminalDocumentType DO {
         ASSIGN nameTerminalDocumentType(tdt) <- nameString;
         ASSIGN groupTerminalDocumentTypeTerminalDocumentType(tdt) <- gtdt;
-        ASSIGN terminalHandbookType1TerminalDocumentType(tdt) <- terminalHandbookTypeID(handbook1String);
-        ASSIGN terminalHandbookType2TerminalDocumentType(tdt) <- terminalHandbookTypeID(handbook2String);
+        ASSIGN terminalHandbookType1TerminalDocumentType(tdt) <- terminalHandbookTypeId(handbook1String);
+        ASSIGN terminalHandbookType2TerminalDocumentType(tdt) <- terminalHandbookTypeId(handbook2String);
         ASSIGN idTerminalDocumentType(tdt) <- idTypeString;
     }
 }

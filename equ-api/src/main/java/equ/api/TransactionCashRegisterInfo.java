@@ -5,14 +5,16 @@ import java.util.Date;
 import java.util.List;
 
 public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInfo, CashRegisterItemInfo> {
-
+    public Integer nppGroupCashRegister;
+    
     public TransactionCashRegisterInfo(Integer id, String dateTimeCode, Date date, List<CashRegisterItemInfo> itemsList,
-                                       List<CashRegisterInfo> machineryInfoList) {
+                                       List<CashRegisterInfo> machineryInfoList, Integer nppGroupCashRegister) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
         this.date = date;
         this.itemsList = itemsList;
         this.machineryInfoList = machineryInfoList;
+        this.nppGroupCashRegister = nppGroupCashRegister;
     }
 
     @Override

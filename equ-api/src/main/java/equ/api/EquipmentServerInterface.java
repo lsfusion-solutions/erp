@@ -1,5 +1,8 @@
 package equ.api;
 
+import equ.api.terminal.TerminalDocumentDetail;
+import equ.api.terminal.TerminalInfo;
+
 import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -34,5 +37,9 @@ public interface EquipmentServerInterface extends Remote {
     EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException, SQLException;
 
     List<byte[][]> readLabelFormats (List<String> scalesModelsList) throws RemoteException, SQLException;
+
+    List<TerminalInfo> readTerminalInfo(String equServerID) throws RemoteException, SQLException;
+
+    String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String equServerID) throws RemoteException, SQLException;
 
 }
