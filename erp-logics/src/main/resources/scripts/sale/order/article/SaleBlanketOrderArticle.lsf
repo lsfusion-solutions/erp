@@ -75,7 +75,7 @@ EXTEND FORM blanketOrder
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ddd) DEFAULT
     OBJECTS bta=(btk=Stock, br=Article)
     PROPERTIES READONLY idArticle(br) SHOWIF showIDs(), captionArticle(br), 
-                      stockNameB = nameStock(btk) SHOWIF notSupplierStockBlanketOrder(o), imageArticle(br) FORCE PANEL 
+                      stockNameB = nameStock(btk) SHOWIF notSupplierStockBlanketOrder(o)//, imageArticle(br) FORCE PANEL 
     FILTERS           isParentGroupArticle(sk, br),
                       (btk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, btk) AND NOT ts OR btk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockBlanketOrder(o) OR
                       btk == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts
@@ -100,14 +100,16 @@ EXTEND FORM blanketOrder
 
     OBJECTS bsa=(bs=Sku, dd=Stock)
     PROPERTIES(bs) READONLY nameSku, nameCol=nameColorItem FORCE GRID, originalSizeItem FORCE GRID
-    PROPERTIES     READONLY stockNameD = nameStock(dd) SHOWIF notSupplierStockBlanketOrder(o)
-    ORDER BY nameCol, nameSku(bs)
-    FILTERS  articleItem(bs)==br
-    FILTERS           isParentSkuGroupSku(sk, bs),
-                      (dd == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, dd) AND NOT ts OR dd IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockBlanketOrder(o) OR
+    PROPERTIES     READONLY stockNameD = nameStock(dd) SHOWIF notSupplierStockBlanketOrder(o),  imageItem(bs) FORCE PANEL
+    ORDER BY nameCol, nameSku(bs), nameSku(bs)
+    
+    FILTERGROUP articleItemFilter  
+            FILTER 'По артикулу' 'ctrl F8' articleItem(bs)==br DEFAULT    
+            FILTER 'По группе' 'ctrl F7' isParentSkuGroupSku(sk, bs)   
+            
+    FILTERS           (dd == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, dd) AND NOT ts OR dd IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockBlanketOrder(o) OR
                       dd == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts
     FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(dd) DEFAULT                  
-    ORDER BY nameSku(bs)
 
     PROPERTIES READONLY quantitySkuBlanketOrderSupplierStock(bs,o,dd) BACKGROUND backgroundQuantitySkuBlanketOrderStock(bs,o,dd)    
     PROPERTIES READONLY prevAvailableQuantitySkuBlanketOrderStock(bs,o,dd)
@@ -179,7 +181,7 @@ EXTEND DESIGN blanketOrder {
                     NEW imageBox {
                         fill = 2;
                         caption = 'Изображение';                     
-                        ADD PROPERTY(imageArticle(br)) {
+                        ADD PROPERTY(imageItem(bs)) {
                             caption = '';
                             fill = 1;
                         }
