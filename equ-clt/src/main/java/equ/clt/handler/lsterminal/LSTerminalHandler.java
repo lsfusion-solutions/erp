@@ -178,16 +178,18 @@ public class LSTerminalHandler extends TerminalHandler {
                                 //String ana3 = getDBFFieldValue(importFile, "ANA3", charset, false, null);
                                 String barcode = trim(getDBFFieldValue(importFile, "BARCODE", charset, false, null));
                                 //String part = trim(getDBFFieldValue(importFile, "PART", charset, false, null));
-                                BigDecimal quantity = getDBFBigDecimalFieldValue(importFile, "VOP", charset, false, null);
-                                BigDecimal price = getDBFBigDecimalFieldValue(importFile, "VOP", charset, false, null);
-                                
+                                BigDecimal quantity = getDBFBigDecimalFieldValue(importFile, "QUANT", charset, false, null);
+                                BigDecimal price = getDBFBigDecimalFieldValue(importFile, "PRICE", charset, false, null);
+                                BigDecimal sum = safeMultiply(quantity, price);
                                 Integer count = barcodeCountMap.get(barcode);
                                 String idTerminalDocumentDetail = numberTerminalDocument + "_" + barcode + (count == null ? "" : ("_" + count));
                                 barcodeCountMap.put(barcode, count == null ? 1 : (count + 1));
                                 
                                 terminalDocumentDetailList.add(new TerminalDocumentDetail(numberTerminalDocument, idTerminalHandbookType1,
-                                        idTerminalHandbookType2, idTerminalDocumentType, idTerminalDocumentDetail, barcode, price, quantity));
+                                        idTerminalHandbookType2, idTerminalDocumentType, idTerminalDocumentDetail, barcode, price, quantity, sum));
                             }
+                            
+                            importFile.close();
                                                         
                             filePathList.add(file.getAbsolutePath());
                         }
@@ -617,5 +619,11 @@ public class LSTerminalHandler extends TerminalHandler {
 
     protected String trim(String input) {
         return input == null ? null : input.trim();
+    }
+
+    protected BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
+            return null;
+        else return operand1.multiply(operand2);
     }
 }

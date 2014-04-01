@@ -4,6 +4,7 @@ import equ.api.*;
 import equ.api.terminal.TerminalDocumentBatch;
 import equ.api.terminal.TerminalHandler;
 import equ.api.terminal.TerminalInfo;
+import equ.api.terminal.TransactionTerminalInfo;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 
@@ -98,7 +99,7 @@ public class EquipmentServer {
                             processTransactionInfo(remote, equServerID);
                             sendSalesInfo(remote, equServerID, equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime);
                             sendSoftCheckInfo(remote);
-                            //sendTerminalDocumentInfo(remote, equServerID);
+                            sendTerminalDocumentInfo(remote, equServerID);
                             logger.info("Transaction completed");
                         }
 
@@ -134,8 +135,8 @@ public class EquipmentServer {
                 if (entry.getKey() != null) {
                     try {
                         Object clsHandler = getHandler(entry.getValue().get(0).handlerModel.trim(), remote);
-                        //if(clsHandler instanceof TerminalHandler)
-                        //    ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
+                        if(clsHandler instanceof TerminalHandler)
+                            ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
                         transactionInfo.sendTransaction(clsHandler, entry.getValue());
                     } catch (Exception e) {
                         remote.errorTransactionReport(transactionInfo.id, e);

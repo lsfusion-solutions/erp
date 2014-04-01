@@ -660,6 +660,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     terminalLM.findLCPByCompoundOldName("terminalDocumentId").getMapping(idTerminalDocumentField));
             keys.add(terminalDocumentKey);
             props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findLCPByCompoundOldName("idTerminalDocument").getMapping(terminalDocumentKey)));
+            props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findLCPByCompoundOldName("titleTerminalDocument").getMapping(terminalDocumentKey)));
             fields.add(idTerminalDocumentField);
             for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                 data.get(i).add(terminalDocumentDetailList.get(i).numberTerminalDocument);
@@ -679,7 +680,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImportField idTerminalDocumentTypeField = new ImportField(terminalLM.findLCPByCompoundOldName("idTerminalDocumentType"));
             ImportKey<?> terminalDocumentTypeKey = new ImportKey((ConcreteCustomClass) terminalLM.findClassByCompoundName("TerminalDocumentType"),
                     terminalLM.findLCPByCompoundOldName("terminalDocumentTypeId").getMapping(idTerminalDocumentTypeField));
-            keys.add(terminalDocumentKey);
+            keys.add(terminalDocumentTypeKey);
             props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findLCPByCompoundOldName("idTerminalDocumentType").getMapping(terminalDocumentTypeKey)));
             props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findLCPByCompoundOldName("terminalDocumentTypeTerminalDocument").getMapping(terminalDocumentKey),
                     terminalLM.object(terminalLM.findClassByCompoundName("TerminalDocumentType")).getMapping(terminalDocumentTypeKey)));
@@ -693,11 +694,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             keys.add(terminalDocumentDetailKey);
             props.add(new ImportProperty(idTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("idTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
             props.add(new ImportProperty(idTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("nameTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+            props.add(new ImportProperty(idTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("numberTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
             props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findLCPByCompoundOldName("terminalDocumentTerminalDocumentDetail").getMapping(terminalDocumentDetailKey),
-                    terminalLM.object(terminalLM.findClassByCompoundName("TerminalDocument")).getMapping(terminalDocumentDetailKey)));
+                    terminalLM.object(terminalLM.findClassByCompoundName("TerminalDocument")).getMapping(terminalDocumentKey)));
             fields.add(idTerminalDocumentDetailField);
             for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                data.get(i).add(terminalDocumentDetailList.get(i).nameTerminalDocumentDetail);
+                data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocumentDetail);
 
             ImportField barcodeTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("barcodeTerminalDocumentDetail"));
             props.add(new ImportProperty(barcodeTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("barcodeTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
@@ -716,6 +718,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             fields.add(quantityTerminalDocumentDetailField);
             for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                 data.get(i).add(terminalDocumentDetailList.get(i).quantityTerminalDocumentDetail);
+
+            ImportField sumTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("sumTerminalDocumentDetail"));
+            props.add(new ImportProperty(sumTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("sumTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+            fields.add(sumTerminalDocumentDetailField);
+            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                data.get(i).add(terminalDocumentDetailList.get(i).sumTerminalDocumentDetail);
             
 
             ImportTable table = new ImportTable(fields, data);
