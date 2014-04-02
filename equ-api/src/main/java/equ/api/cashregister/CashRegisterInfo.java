@@ -1,4 +1,6 @@
-package equ.api;
+package equ.api.cashregister;
+
+import equ.api.MachineryInfo;
 
 import java.sql.Date;
 

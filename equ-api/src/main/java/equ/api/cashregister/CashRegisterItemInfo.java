@@ -1,4 +1,6 @@
-package equ.api;
+package equ.api.cashregister;
+
+import equ.api.ItemInfo;
 
 import java.math.BigDecimal;
 import java.util.List;

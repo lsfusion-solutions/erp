@@ -4,6 +4,7 @@ import equ.api.ScalesHandler;
 import equ.api.*;
 import equ.api.ScalesInfo;
 import equ.api.TransactionScalesInfo;
+import equ.api.ScalesItemInfo;
 
 import java.io.*;
 import java.sql.SQLException;

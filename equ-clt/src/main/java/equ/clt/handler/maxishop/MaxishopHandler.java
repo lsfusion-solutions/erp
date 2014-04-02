@@ -1,6 +1,7 @@
 package equ.clt.handler.maxishop;
 
 import equ.api.*;
+import equ.api.cashregister.*;
 import org.xBaseJ.DBF;
 import org.xBaseJ.Util;
 import org.xBaseJ.fields.*;
@@ -108,7 +109,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList, DBSettings dbSettings) throws IOException, ParseException {
         Map<Integer, String> cashRegisterDirectories = new HashMap<Integer, String>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if ((cashRegister.directory != null) && (!cashRegisterDirectories.containsValue(cashRegister.directory)))
@@ -173,7 +174,12 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
         return null;
     }
-    
+
+    @Override
+    public List<CashDocument> readCashDocumentInfo(Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
+        return null;
+    }
+
     @Override
     public void finishReadingSalesInfo(MaxishopSalesBatch salesBatch) {
         for (String readFile : salesBatch.readFiles) {
@@ -187,7 +193,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(String sqlUsername, String sqlPassword, String sqlIp, String sqlPort, String sqlDBName) {
+    public Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) {
         return null;
     }
 

@@ -2,6 +2,10 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
+import equ.api.cashregister.CashDocument;
+import equ.api.cashregister.CashRegisterInfo;
+import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.api.terminal.*;
 import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
@@ -9,10 +13,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
-import lsfusion.server.classes.ConcreteClass;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.CustomClass;
-import lsfusion.server.classes.StringClass;
+import lsfusion.server.classes.*;
 import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -65,7 +66,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule terminalLM;
     private ScriptingLogicsModule purchaseOrderLM;
-
+    private ScriptingLogicsModule collectionLM;
+    
     private boolean started = false;
 
     public void setLogicsInstance(LogicsInstance logicsInstance) {
@@ -113,6 +115,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         priceCheckerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentPriceChecker");
         terminalLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentTerminal");
         purchaseOrderLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseOrder");
+        collectionLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Collection");
     }
 
     @Override
@@ -155,7 +158,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public List<TransactionInfo> readTransactionInfo(String equServerID) throws RemoteException, SQLException {
+    public List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException {
         try {
 
             DataSession session = getDbManager().createSession();
@@ -171,7 +174,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             for (String property : mptProperties) {
                 query.addProperty(property, equLM.findLCPByCompoundOldName(property).getExpr(key));
             }
-            query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerMachineryPriceTransaction").getExpr(key).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
+            query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerMachineryPriceTransaction").getExpr(key).compare(new DataObject(sidEquipmentServer, StringClass.get(20)), Compare.EQUALS));
             query.and(equLM.findLCPByCompoundOldName("processMachineryPriceTransaction").getExpr(key).getWhere());
 
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
@@ -508,7 +511,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public Map<Date, Set<String>> readRequestSalesInfo(String equServerID) throws RemoteException, SQLException {
+    public Map<Date, Set<String>> readRequestSalesInfo(String sidEquipmentServer) throws RemoteException, SQLException {
 
         Map<Date, Set<String>> directoriesMap = new HashMap<Date, Set<String>>();
 
@@ -525,7 +528,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 query.addProperty("stockGroupMachinery", equLM.findLCPByCompoundOldName("stockGroupMachinery").getExpr(groupMachineryExpr));
                 query.addProperty("directoryGroupCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupMachineryExpr));
-                query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupMachineryExpr).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
+                query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupMachineryExpr).compare(new DataObject(sidEquipmentServer, StringClass.get(20)), Compare.EQUALS));
                 query.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupMachineryExpr, Compare.EQUALS));
                 query.and(cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupMachineryExpr).getWhere());
 
@@ -558,7 +561,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public List<CashRegisterInfo> readCashRegisterInfo(String equServerID) throws RemoteException, SQLException {
+    public List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException {
         try {
 
             List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<CashRegisterInfo>();
@@ -584,7 +587,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.and(cashRegisterLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
                 query.and(cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
                 query.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
-                query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
+                query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).compare(new DataObject(sidEquipmentServer, StringClass.get(20)), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
@@ -603,7 +606,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public List<TerminalInfo> readTerminalInfo(String equServerID) throws RemoteException, SQLException {
+    public List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws RemoteException, SQLException {
         try {
 
             List<TerminalInfo> terminalInfoList = new ArrayList<TerminalInfo>();
@@ -627,7 +630,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.and(terminalLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(terminalExpr).getWhere());
                 query.and(terminalLM.findLCPByCompoundOldName("directoryGroupTerminal").getExpr(groupTerminalExpr).getWhere());
                 query.and(terminalLM.findLCPByCompoundOldName("groupTerminalTerminal").getExpr(terminalExpr).compare(groupTerminalExpr, Compare.EQUALS));
-                query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupTerminalExpr).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
+                query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(groupTerminalExpr).compare(new DataObject(sidEquipmentServer, StringClass.get(20)), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
@@ -645,7 +648,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String equServerID) throws RemoteException, SQLException {
+    public String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException {
 
         try {
 
@@ -744,7 +747,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public String sendSalesInfo(List<SalesInfo> salesInfoList, String equipmentServer, Integer numberAtATime) throws IOException, SQLException {
+    public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
         try {
 
             if (zReportLM != null && salesInfoList != null && !salesInfoList.isEmpty()) {
@@ -999,7 +1002,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
                     DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClassByCompoundName("EquipmentServerLog"));
-                    Object equipmentServerObject = equLM.findLCPByCompoundOldName("sidToEquipmentServer").read(session, new DataObject(equipmentServer, StringClass.get(20)));
+                    Object equipmentServerObject = equLM.findLCPByCompoundOldName("sidToEquipmentServer").read(session, new DataObject(sidEquipmentServer, StringClass.get(20)));
                     equLM.findLCPByCompoundOldName("equipmentServerEquipmentServerLog").change(equipmentServerObject, session, logObject);
                     equLM.findLCPByCompoundOldName("dataEquipmentServerLog").change(message, session, logObject);
                     equLM.findLCPByCompoundOldName("dateEquipmentServerLog").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, logObject);
@@ -1017,6 +1020,152 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    @Override
+    public Set<String> readCashDocumentSet(String sidEquipmentServer) throws IOException, SQLException {
+
+        Set<String> cashDocumentSet = new HashSet<String>();
+
+        try {
+
+            if (collectionLM != null) {
+
+                DataSession session = getDbManager().createSession();
+
+                KeyExpr cashDocumentExpr = new KeyExpr("cashDocument");
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "CashDocument", cashDocumentExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+                query.addProperty("idCashDocument", collectionLM.findLCPByCompoundOldName("idCashDocument").getExpr(cashDocumentExpr));
+                query.and(collectionLM.findLCPByCompoundOldName("idCashDocument").getExpr(cashDocumentExpr).getWhere());
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+
+                for (ImMap<Object, Object> row : result.values()) {
+                    cashDocumentSet.add((String) row.get("idCashDocument"));
+                }
+            }
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
+        }
+        return cashDocumentSet;
+    }
+
+    @Override
+    public String sendCashDocumentInfo(List<CashDocument> cashDocumentList, String sidEquipmentServer) throws IOException, SQLException {
+
+        if (collectionLM != null && cashDocumentList != null) {
+
+            try {
+
+                List<ImportField> fieldsIncome = new ArrayList<ImportField>();
+                List<ImportField> fieldsOutcome = new ArrayList<ImportField>();
+
+                List<ImportProperty<?>> propsIncome = new ArrayList<ImportProperty<?>>();
+                List<ImportProperty<?>> propsOutcome = new ArrayList<ImportProperty<?>>();
+
+                List<ImportKey<?>> keysIncome = new ArrayList<ImportKey<?>>();
+                List<ImportKey<?>> keysOutcome = new ArrayList<ImportKey<?>>();
+                
+                List<List<Object>> dataIncome = new ArrayList<List<Object>>();
+                List<List<Object>> dataOutcome = new ArrayList<List<Object>>();
+
+                ImportField idCashDocumentField = new ImportField(collectionLM.findLCPByCompoundOldName("idCashDocument"));               
+                
+                ImportKey<?> incomeCashOperationKey = new ImportKey((CustomClass) collectionLM.findClassByCompoundName("IncomeCashOperation"),
+                        collectionLM.findLCPByCompoundOldName("cashDocumentId").getMapping(idCashDocumentField));
+                keysIncome.add(incomeCashOperationKey);
+                propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findLCPByCompoundOldName("idCashDocument").getMapping(incomeCashOperationKey)));
+                propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findLCPByCompoundOldName("numberIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(idCashDocumentField);
+
+                ImportKey<?> outcomeCashOperationKey = new ImportKey((CustomClass) collectionLM.findClassByCompoundName("OutcomeCashOperation"),
+                        collectionLM.findLCPByCompoundOldName("cashDocumentId").getMapping(idCashDocumentField));
+                keysOutcome.add(outcomeCashOperationKey);
+                propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findLCPByCompoundOldName("idCashDocument").getMapping(outcomeCashOperationKey)));
+                propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findLCPByCompoundOldName("numberOutcomeCashOperation").getMapping(outcomeCashOperationKey)));                
+                fieldsOutcome.add(idCashDocumentField);
+                
+                ImportField dateIncomeCashOperationField = new ImportField(collectionLM.findLCPByCompoundOldName("dateIncomeCashOperation"));
+                propsIncome.add(new ImportProperty(dateIncomeCashOperationField, collectionLM.findLCPByCompoundOldName("dateIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(dateIncomeCashOperationField);
+
+                ImportField dateOutcomeCashOperationField = new ImportField(collectionLM.findLCPByCompoundOldName("dateOutcomeCashOperation"));
+                propsOutcome.add(new ImportProperty(dateOutcomeCashOperationField, collectionLM.findLCPByCompoundOldName("dateOutcomeCashOperation").getMapping(outcomeCashOperationKey)));                
+                fieldsOutcome.add(dateOutcomeCashOperationField);
+
+                ImportField timeIncomeCashOperationField = new ImportField(collectionLM.findLCPByCompoundOldName("timeIncomeCashOperation"));
+                propsIncome.add(new ImportProperty(timeIncomeCashOperationField, collectionLM.findLCPByCompoundOldName("timeIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(timeIncomeCashOperationField);
+                
+                ImportField timeOutcomeCashOperationField = new ImportField(collectionLM.findLCPByCompoundOldName("timeOutcomeCashOperation"));
+                propsOutcome.add(new ImportProperty(timeOutcomeCashOperationField, collectionLM.findLCPByCompoundOldName("timeOutcomeCashOperation").getMapping(outcomeCashOperationKey)));
+                fieldsOutcome.add(timeOutcomeCashOperationField);
+
+                ImportField numberCashRegisterField = new ImportField(collectionLM.findLCPByCompoundOldName("nppMachinery"));
+                ImportField sidEquipmentServerField = new ImportField(equLM.findLCPByCompoundOldName("sidEquipmentServer"));
+                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) collectionLM.findClassByCompoundName("CashRegister"),
+                        equLM.findLCPByCompoundOldName("cashRegisterNppEquipmentServer").getMapping(numberCashRegisterField, sidEquipmentServerField));
+                
+                keysIncome.add(cashRegisterKey);
+                propsIncome.add(new ImportProperty(numberCashRegisterField, collectionLM.findLCPByCompoundOldName("cashRegisterIncomeCashOperation").getMapping(incomeCashOperationKey),
+                        collectionLM.object(collectionLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));
+                fieldsIncome.add(numberCashRegisterField);
+                fieldsIncome.add(sidEquipmentServerField);
+                
+                keysOutcome.add(cashRegisterKey);
+                propsOutcome.add(new ImportProperty(numberCashRegisterField, collectionLM.findLCPByCompoundOldName("cashRegisterOutcomeCashOperation").getMapping(outcomeCashOperationKey),
+                        collectionLM.object(collectionLM.findClassByCompoundName("CashRegister")).getMapping(cashRegisterKey)));                
+                fieldsOutcome.add(numberCashRegisterField);
+                fieldsOutcome.add(sidEquipmentServerField);                
+
+                ImportField sumCashIncomeCashOperationField = new ImportField(collectionLM.findLCPByCompoundOldName("sumCashIncomeCashOperation"));
+                propsIncome.add(new ImportProperty(sumCashIncomeCashOperationField, collectionLM.findLCPByCompoundOldName("sumCashIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(sumCashIncomeCashOperationField);
+
+                ImportField sumCashOutcomeCashOperationField = new ImportField(collectionLM.findLCPByCompoundOldName("sumCashOutcomeCashOperation"));
+                propsOutcome.add(new ImportProperty(sumCashOutcomeCashOperationField, collectionLM.findLCPByCompoundOldName("sumCashOutcomeCashOperation").getMapping(outcomeCashOperationKey)));
+                fieldsOutcome.add(sumCashOutcomeCashOperationField);
+
+                for (CashDocument cashDocument : cashDocumentList) {
+                    if (cashDocument.sumCashDocument != null) {
+                        if (cashDocument.sumCashDocument.compareTo(BigDecimal.ZERO) >= 0)
+                            dataIncome.add(Arrays.asList((Object) cashDocument.numberCashDocument, cashDocument.dateCashDocument,
+                                    cashDocument.timeCashDocument, cashDocument.numberCashRegister, sidEquipmentServer, cashDocument.sumCashDocument));
+                        else
+                            dataOutcome.add(Arrays.asList((Object) cashDocument.numberCashDocument, cashDocument.dateCashDocument,
+                                    cashDocument.timeCashDocument, cashDocument.numberCashRegister, sidEquipmentServer, cashDocument.sumCashDocument.negate()));
+                    }
+                }
+                
+                
+                ImportTable table = new ImportTable(fieldsIncome, dataIncome);
+                DataSession session = getDbManager().createSession();
+                session.pushVolatileStats();
+                IntegrationService service = new IntegrationService(session, table, keysIncome, propsIncome);
+                service.synchronize(true, false);
+                String resultIncome = session.applyMessage(getBusinessLogics());
+                session.popVolatileStats();
+                session.close();
+
+                if(resultIncome != null)
+                    return resultIncome;
+                
+                table = new ImportTable(fieldsOutcome, dataOutcome);
+                session = getDbManager().createSession();
+                session.pushVolatileStats();
+                service = new IntegrationService(session, table, keysOutcome, propsOutcome);
+                service.synchronize(true, false);
+                String resultOutcome = session.applyMessage(getBusinessLogics());
+                session.popVolatileStats();
+                session.close();
+                
+                return resultOutcome;
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        } else return null;
     }
 
     @Override
@@ -1126,22 +1275,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
-    }
-
-    private List<DataObject> readGroupMachineryObjectList(DataSession session, String equServerID) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        LCP<PropertyInterface> isGroupMachinery = (LCP<PropertyInterface>) equLM.is(equLM.findClassByCompoundName("GroupMachinery"));
-        ImRevMap<PropertyInterface, KeyExpr> keys = isGroupMachinery.getMapKeys();
-        KeyExpr key = keys.singleValue();
-        QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<PropertyInterface, Object>(keys);
-        query.and(equLM.findLCPByCompoundOldName("sidEquipmentServerGroupMachinery").getExpr(key).compare(new DataObject(equServerID, StringClass.get(20)), Compare.EQUALS));
-
-        ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
-        List<DataObject> groupMachineryObjectList = new ArrayList<DataObject>();
-        for (ImMap<PropertyInterface, DataObject> entry : result.keyIt()) {
-            DataObject groupMachineryObject = entry.getValue(0);
-            groupMachineryObjectList.add(groupMachineryObject);
-        }
-        return groupMachineryObjectList;
     }
 
     private String dateTimeCode(Timestamp timeStamp) {

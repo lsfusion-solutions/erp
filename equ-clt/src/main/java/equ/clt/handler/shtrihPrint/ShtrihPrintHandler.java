@@ -4,6 +4,10 @@ import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
 import equ.api.*;
+import equ.api.ScalesHandler;
+import equ.api.ScalesInfo;
+import equ.api.ScalesItemInfo;
+import equ.api.TransactionScalesInfo;
 
 import java.io.IOException;
 import java.util.List;

@@ -2,6 +2,7 @@ package equ.clt.handler.kristal;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
+import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.log4j.Logger;
@@ -260,7 +261,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(String sqlUsername, String sqlPassword, String sqlIp, String sqlPort, String sqlDBName) throws ClassNotFoundException, SQLException {
+    public Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) throws ClassNotFoundException, SQLException {
 
         logger.info("Kristal: requesting succeeded SoftCheckInfo");
         
@@ -269,7 +270,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         Connection conn = null;
         try {
 
-            String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s", sqlIp, sqlPort, sqlDBName, sqlUsername, sqlPassword);
+            String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s", 
+                    dbSettings.sqlIp, dbSettings.sqlPort, dbSettings.sqlDBName, dbSettings.sqlUsername, dbSettings.sqlPassword);
 
             Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
             conn = DriverManager.getConnection(url);
@@ -289,8 +291,51 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public List<CashDocument> readCashDocumentInfo(Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
 
+        logger.info("Kristal: reading CashDocuments");
+
+        List<CashDocument> result = new ArrayList<CashDocument>();
+
+        Connection conn = null;
+        try {
+
+            String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s", 
+                    dbSettings.sqlIp, dbSettings.sqlPort, dbSettings.sqlDBName, dbSettings.sqlUsername, dbSettings.sqlPassword);
+
+            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+            conn = DriverManager.getConnection(url);
+            Statement statement = conn.createStatement();
+            String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber FROM OperGangMoney WHERE Taken='1'";
+            ResultSet rs = statement.executeQuery(queryString);
+            while (rs.next()) {
+                String number = rs.getString("Ck_Number");
+                Timestamp dateTime = rs.getTimestamp("Ck_Date");
+                Date date = new Date(dateTime.getTime());
+                Time time = new Time(dateTime.getTime());
+                BigDecimal sum = rs.getBigDecimal("Ck_Summa");
+                Integer numberCashRegister = rs.getInt("CashNumber");              
+                
+                if(!cashDocumentSet.contains(number))
+                    result.add(new CashDocument(number, date, time, numberCashRegister, sum));
+                
+            }
+        } catch (SQLException e) {
+            logger.error(e);
+        } finally {
+            try {
+            if (conn != null)
+                conn.close();
+            } catch (SQLException e) {
+                logger.error(e);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList, DBSettings dbSettings) throws IOException, ParseException, ClassNotFoundException {
+        
         Set<String> directorySet = new HashSet<String>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
         Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
@@ -419,7 +464,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
             }
         }
-        return ((salesInfoList == null || salesInfoList.isEmpty()) && (filePathList == null || filePathList.isEmpty())) ? null : 
+        return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null : 
                 new KristalSalesBatch(salesInfoList, filePathList);
     }
 

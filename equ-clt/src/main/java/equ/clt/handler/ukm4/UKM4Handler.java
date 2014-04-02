@@ -1,6 +1,7 @@
 package equ.clt.handler.ukm4;
 
 import equ.api.*;
+import equ.api.cashregister.*;
 import org.apache.commons.lang.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.Util;
@@ -164,7 +165,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList, DBSettings dbSettings) throws IOException, ParseException {
         Map<Integer, String> cashRegisterDirectories = new HashMap<Integer, String>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if ((cashRegister.directory != null) && (!cashRegisterDirectories.containsValue(cashRegister.directory)))
@@ -291,7 +292,12 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
         return null;
     }
-    
+
+    @Override
+    public List<CashDocument> readCashDocumentInfo(Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
+        return null;
+    }
+
     @Override
     public void finishReadingSalesInfo(UKM4SalesBatch salesBatch) {
         for (String readFile : salesBatch.readFiles) {
@@ -302,7 +308,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(String sqlUsername, String sqlPassword, String sqlIp, String sqlPort, String sqlDBName) {
+    public Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) {
         return null;
     }
 

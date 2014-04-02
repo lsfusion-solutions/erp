@@ -1,6 +1,13 @@
 package equ.clt.handler.easy;
 
 import equ.api.*;
+import equ.api.cashregister.*;
+import equ.api.PriceCheckerHandler;
+import equ.api.PriceCheckerInfo;
+import equ.api.TransactionPriceCheckerInfo;
+import equ.api.ScalesHandler;
+import equ.api.ScalesInfo;
+import equ.api.TransactionScalesInfo;
 
 import java.io.*;
 import java.text.ParseException;
@@ -48,7 +55,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) {
+        public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList, DBSettings dbSettings) {
             return null;  //To change body of implemented methods use File | Settings | File Templates.
         }
 
@@ -58,12 +65,17 @@ public class EasyCSVHandler {
         }
 
         @Override
+        public List<CashDocument> readCashDocumentInfo(Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
+            return null;
+        }
+
+        @Override
         public void finishReadingSalesInfo(SalesBatch salesBatch) {
             //To change body of implemented methods use File | Settings | File Templates.
         }
 
         @Override
-        public Set<String> requestSucceededSoftCheckInfo(String sqlUsername, String sqlPassword, String sqlIp, String sqlPort, String sqlDBName) {
+        public Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) {
             return null;
         }
     }
@@ -103,7 +115,7 @@ public class EasyCSVHandler {
         }
     }
 
-    public class EasyScalesCSVHandler extends ScalesHandler{
+    public class EasyScalesCSVHandler extends ScalesHandler {
 
         public EasyScalesCSVHandler() {
         }

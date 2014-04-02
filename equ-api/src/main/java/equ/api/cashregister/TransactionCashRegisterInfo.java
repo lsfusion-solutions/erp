@@ -1,4 +1,6 @@
-package equ.api;
+package equ.api.cashregister;
+
+import equ.api.TransactionInfo;
 
 import java.io.IOException;
 import java.util.Date;

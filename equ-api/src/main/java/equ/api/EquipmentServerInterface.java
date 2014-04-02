@@ -1,5 +1,7 @@
 package equ.api;
 
+import equ.api.cashregister.CashDocument;
+import equ.api.cashregister.CashRegisterInfo;
 import equ.api.terminal.TerminalDocumentDetail;
 import equ.api.terminal.TerminalInfo;
 
@@ -20,13 +22,17 @@ public interface EquipmentServerInterface extends Remote {
     
     String sendSucceededSoftCheckInfo(Set invoiceSet) throws RemoteException, SQLException;
     
-    List<TransactionInfo> readTransactionInfo(String equServerID) throws RemoteException, SQLException;
+    List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
-    List<CashRegisterInfo> readCashRegisterInfo(String equServerID) throws RemoteException, SQLException;
+    List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
-    Map<Date, Set<String>> readRequestSalesInfo(String equServerID) throws RemoteException, SQLException;
+    Map<Date, Set<String>> readRequestSalesInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
-    String sendSalesInfo(List<SalesInfo> salesInfoList, String equServerID, Integer numberAtATime) throws IOException, SQLException;
+    String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException;
+
+    Set<String> readCashDocumentSet(String sidEquipmentServer) throws IOException, SQLException;
+
+    String sendCashDocumentInfo(List<CashDocument> cashDocumentList, String sidEquipmentServer) throws IOException, SQLException;
 
     void succeedTransaction(Integer transactionID) throws RemoteException, SQLException;
 
@@ -38,8 +44,8 @@ public interface EquipmentServerInterface extends Remote {
 
     List<byte[][]> readLabelFormats (List<String> scalesModelsList) throws RemoteException, SQLException;
 
-    List<TerminalInfo> readTerminalInfo(String equServerID) throws RemoteException, SQLException;
+    List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
-    String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String equServerID) throws RemoteException, SQLException;
+    String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException;
 
 }
