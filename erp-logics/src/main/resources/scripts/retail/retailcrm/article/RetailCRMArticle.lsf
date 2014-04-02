@@ -23,21 +23,63 @@ promotionConditionsPromotionConditionArticle 'В других акциях' =
 
 overInPromotionConditionSku (condition, sku) += inDataPromotionConditionArticle(condition, articleItem(sku));
 
-EXTEND FORM promotion
+nameBalancerStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(остаток)\''](nameStock(stock)) MINCHARWIDTH 15 PREFCHARWIDTH 20;    
 
+backgroundBalancePromotion (p)= RGB(204,204,255) IF p IS Promotion;
+
+EXTEND FORM promotion
+    OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
+
+    OBJECTS ddd = Stock FIXED GRID
+    FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(ddd) DEFAULT
+    FILTERS     inPromotionStore(sh, storeDepartmentStore(ddd))
+    
     OBJECTS ar = Article
-    PROPERTIES(ar)     READONLY idItemGroupArticle, idArticle, captionArticle, prevCurrentBalanceArticle
+    PROPERTIES(ar)     READONLY idItemGroupArticle, idArticle, captionArticle, prevCurrentBalanceArticle, canonicalNameItemGroupArticle FORCE PANEL,
+                       imageArticle FORCE PANEL
     PROPERTIES(sg, ar) READONLY promotionConditionsPromotionConditionArticle
     PROPERTIES(sg, ar)          inDataPromotionConditionArticle
+    PROPERTIES READONLY prevCurrentBalanceArticleStock(ar,ddd) COLUMNS 'astock' (ddd) HEADER nameBalancerStock(ddd) BACKGROUND backgroundBalancePromotion(sh)   
 
     FILTERS                     isParentGroupArticle(skg, ar)
 
     FILTERGROUP filterArticle
-        FILTER 'Только отмеченные' 'F10' inDataPromotionConditionArticle(sg, ar)
+        FILTER 'Только отмеченные' 'F10' inDataPromotionConditionArticle(sg, ar)                        
 ;
 
 EXTEND DESIGN promotion {
-    skuPane {
-        ADD ar.box FIRST;
-    }
-}                
+    REMOVE ddd.box;
+    row212 {
+        type = SPLITH;
+        NEW row213 {
+            fill = 1;
+            type = SPLITV;
+            ADD skuTree.tree.box;            
+        
+            NEW imageBox {
+                fill = 1;
+                caption = 'Изображение';                     
+                ADD PROPERTY(imageArticle(ar)) {
+                    caption = '';
+                    fill = 1;
+                }
+            }                        
+        }
+        NEW filterBox {
+            type = CONTAINERV;
+            fill = 3.5;
+            ADD params.box {
+                caption = 'Реализация за период'; 
+            } 
+            ADD skuPane {
+                type = TABBED;
+                ADD ar.box;
+                ADD sk.box;
+            } 
+        }
+        
+    }         
+    PROPERTY(prevCurrentBalanceArticleStock(ar,ddd)) { minimumCharWidth = 2; preferredCharWidth = 2;}  
+}
+                

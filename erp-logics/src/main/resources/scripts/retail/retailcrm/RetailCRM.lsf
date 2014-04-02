@@ -326,7 +326,7 @@ DESIGN promotion FROM DEFAULT {
 
                     ADD skuTree.tree.box;
                     NEW skuPane {
-                        fill = 2;
+                        fill = 3;
                         type = TABBED;
                         ADD sk.box;
                     }
@@ -386,15 +386,24 @@ copyPromotion 'Копировать' = ACTION (promotion) NEWSESSION {
     }
 } TOOLBAR;
 
+backgroundPromotion 'Цвет' (promotion) = CASE WHEN dateFromPromotion(promotion) > currentDate() THEN RGB(224,255,224)
+                                              WHEN dateToPromotion(promotion) < currentDate() THEN RGB(255,224,224);
+
 FORM promotions 'Акции'
     OBJECTS sh=Promotion
-    PROPERTIES(sh)     READONLY namePromotion, numberPromotion, seriesPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
-                                timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
-                                hasDiscountCardPromotion, noDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
-                                useCurrentReceiptPromotion, allDiscountCardPromotion
-    PROPERTIES(sh)    copyPromotion, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(sh)  READONLY BACKGROUND backgroundPromotion(sh) 
+                    orderPromotion, namePromotion, numberPromotion, seriesPromotion, dateFromPromotion, dateToPromotion, storesPromotion,
+                    timeOfFromPromotion, timeOfToPromotion, minSumBillPromotion, maxSumBillPromotion,
+                    hasDiscountCardPromotion, noDiscountCardPromotion, minCumulativeSumPromotion, maxCumulativeSumPromotion,
+                    useCurrentReceiptPromotion, allDiscountCardPromotion
+    PROPERTIES(sh)  copyPromotion, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    ORDER BY        orderPromotion(sh)
 
     PROPERTIES (sh) READONLY FORCE PANEL createdNameUserPromotion, createdTimePromotion, createdHostnameComputerPromotion
+    
+    FILTERGROUP inactivePromotion 
+        FILTER 'Текущие' 'F11' dateFromPromotion(sh)<= currentDate() AND dateToPromotion(sh) >= currentDate()
+        FILTER 'Активные' 'F10' (dateFromPromotion(sh)<= currentDate() AND dateToPromotion(sh) >= currentDate()) OR (dateFromPromotion(sh) > currentDate())       
 
 ;
 
