@@ -168,6 +168,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException, 
             xBaseJException, ScriptingErrorLog.SemanticErrorException {
 
+        initModules(context);
+        
         boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
 
         List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, LM, importTypeObject);
@@ -1082,8 +1084,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         if (wb != null) {
             Sheet sheet = wb.getSheet(0);
 
-            Date currentDateDocument = userInvoiceObject == null ? new Date(Calendar.getInstance().getTime().getTime()) :
-                    (Date) getLCP("Purchase.dateUserInvoice").read(session, userInvoiceObject);
+            Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
             currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
 
             for (int i = startRow - 1; i < sheet.getRows(); i++) {
@@ -1214,8 +1215,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         String line;
 
 
-        Date currentDateDocument = userInvoiceObject == null ? new Date(Calendar.getInstance().getTime().getTime()) :
-                (Date) getLCP("Purchase.dateUserInvoice").read(session, userInvoiceObject);
+        Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
         currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
 
         List<String[]> valuesList = new ArrayList<String[]>();
@@ -1349,8 +1349,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
 
-        Date currentDateDocument = userInvoiceObject == null ? new Date(Calendar.getInstance().getTime().getTime()) :
-                (Date) getLCP("Purchase.dateUserInvoice").read(session, userInvoiceObject);
+        Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
         currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
@@ -1483,8 +1482,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         int totalRecordCount = file.getRecordCount();
 
-        Date currentDateDocument = userInvoiceObject == null ? new Date(Calendar.getInstance().getTime().getTime()) : 
-                (Date) getLCP("Purchase.dateUserInvoice").read(session, userInvoiceObject);
+        Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);        
         currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
         for (int i = 0; i < startRow - 1; i++) {
             file.read();
@@ -1702,6 +1700,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
     private String modifyNameCountry(String nameCountry) {
         return nameCountry == null ? null : trim(nameCountry.replace("*", "")).toUpperCase();
+    }
+    
+    private Date getCurrentDateDocument(DataSession session, DataObject userInvoiceObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Date defaultDate = new Date(Calendar.getInstance().getTime().getTime());
+        Date currentDateDocument = userInvoiceObject == null ? defaultDate :
+                (Date) getLCP("Purchase.dateUserInvoice").read(session, userInvoiceObject);
+        return currentDateDocument == null ? defaultDate : currentDateDocument;
     }
 }
 
