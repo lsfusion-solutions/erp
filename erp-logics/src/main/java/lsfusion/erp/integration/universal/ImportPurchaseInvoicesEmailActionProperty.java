@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.universal;
 
+import lsfusion.base.BaseUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -89,6 +90,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                     emailQuery.addProperty("fromAddressEmail", getLCP("fromAddressEmail").getExpr(session.getModifier(), emailExpr));
                     emailQuery.addProperty("fileAttachmentEmail", getLCP("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr));
                     
+                    emailQuery.and(getLCP("emailAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
                     emailQuery.and(getLCP("accountEmail").getExpr(session.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
                     emailQuery.and(getLCP("notImportedAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
                     emailQuery.and(getLCP("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
@@ -100,7 +102,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         ObjectValue attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
                         if (fromAddressEmail != null && emailPattern != null && fromAddressEmail.matches(emailPattern)) {
-                            byte[] fileAttachment = (byte[]) emailEntryValue.get("fileAttachmentEmail").getValue();
+                            byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
                             DataSession currentSession = context.createSession();
                             DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) getClass("Purchase.UserInvoice"));
 
@@ -113,13 +115,11 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                 if (importResult)
                                     getLCP("importedAttachmentEmail").change(true, currentSession, (DataObject) attachmentEmailObject);
-
+                                currentSession.apply(context);
 
                             } catch (Exception e) {
                                 ServerLoggers.systemLogger.error(e);
                             }
-
-                            currentSession.apply(context);
                         }
                     }
                 }
