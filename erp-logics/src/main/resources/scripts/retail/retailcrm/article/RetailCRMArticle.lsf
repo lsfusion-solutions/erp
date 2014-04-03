@@ -8,12 +8,16 @@ PRIORITY Stock;
 TABLE promotionConditionArticle (PromotionCondition, Article);
 inDataPromotionConditionArticle 'В условии' = DATA BOOLEAN (PromotionCondition, Article);
 
-promotionConditionsArticle 'В акциях' = GROUP CONCAT ',', namePromotionCondition(c) IF inDataPromotionConditionArticle(c, a)
+inPromotionConditionArticle 'В условии' (condition, article) = OVERRIDE
+    TRUE IF inParentPromotionConditionSkuGroup(condition, itemGroupArticle(article)),                                                                            
+    inDataPromotionConditionArticle(condition, article); 
+
+promotionConditionsArticle 'В акциях' = GROUP CONCAT ',', namePromotionCondition(c) IF inPromotionConditionArticle(c, a)
                                               BY a
                                               ORDER c;
 promotionConditionsPromotionConditionArticle 'В других акциях' =
                                         GROUP CONCAT namePromotionCondition(c) IF 
-                                                     inDataPromotionConditionArticle(c, a) AND 
+                                                     inPromotionConditionArticle(c, a) AND 
                                                      dateToPromotionCondition(c) >= dateFromPromotionCondition(pc) AND
                                                      dateToPromotionCondition(pc) >= dateFromPromotionCondition(c) AND 
                                                      c != pc AS PromotionCondition, 
@@ -39,13 +43,13 @@ EXTEND FORM promotion
     PROPERTIES(ar)     READONLY idItemGroupArticle, idArticle, captionArticle, prevCurrentBalanceArticle, canonicalNameItemGroupArticle FORCE PANEL,
                        imageArticle FORCE PANEL
     PROPERTIES(sg, ar) READONLY promotionConditionsPromotionConditionArticle
-    PROPERTIES(sg, ar)          inDataPromotionConditionArticle
+    PROPERTIES(sg, ar)          inPromotionConditionArticle
     PROPERTIES READONLY prevCurrentBalanceArticleStock(ar,ddd) COLUMNS 'astock' (ddd) HEADER nameBalancerStock(ddd) BACKGROUND backgroundBalancePromotion(sh)   
 
     FILTERS                     isParentGroupArticle(skg, ar)
 
     FILTERGROUP filterArticle
-        FILTER 'Только отмеченные' 'F10' inDataPromotionConditionArticle(sg, ar)                        
+        FILTER 'В акции' 'F10' inPromotionConditionArticle(sg, ar)                        
 ;
 
 EXTEND DESIGN promotion {
