@@ -1,10 +1,7 @@
 package equ.clt;
 
 import equ.api.*;
-import equ.api.cashregister.CashDocument;
-import equ.api.cashregister.CashRegisterHandler;
-import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.DBSettings;
+import equ.api.cashregister.*;
 import equ.api.terminal.TerminalDocumentBatch;
 import equ.api.terminal.TerminalHandler;
 import equ.api.terminal.TerminalInfo;
@@ -158,54 +155,55 @@ public class EquipmentServer {
         }
 
         for (Map.Entry<String, List<CashRegisterInfo>> entry : handlerModelCashRegisterMap.entrySet()) {
-            if (entry.getKey() != null) {
+            String handlerModel = entry.getKey();
+            
+            if (handlerModel != null) {
 
                 try {
-                    String handlerModel = entry.getKey();
-                    if (handlerModel != null) {
-                        CashRegisterHandler clsHandler = (CashRegisterHandler) getHandler(handlerModel, remote);
+                    CashRegisterHandler clsHandler = (CashRegisterHandler) getHandler(handlerModel, remote);
 
-                        Set succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo(dbSettings);
-                        if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
-                            logger.info("Sending succeeded SoftCheckInfo");
-                            String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
-                            if (result != null)
-                                reportEquipmentServerError(remote, sidEquipmentServer, result);
+                    Set succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo(dbSettings);
+                    if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
+                        logger.info("Sending succeeded SoftCheckInfo");
+                        String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
+                        if (result != null)
+                            reportEquipmentServerError(remote, sidEquipmentServer, result);
+                    }
+
+                    if (!requestSalesInfo.isEmpty()) {
+                        logger.info("Requesting SalesInfo");
+                        String result = clsHandler.requestSalesInfo(requestSalesInfo);
+                        if (result != null) {
+                            reportEquipmentServerError(remote, sidEquipmentServer, result);
                         }
+                    }
 
-                        if (!requestSalesInfo.isEmpty()) {
-                            logger.info("Requesting SalesInfo");
-                            String result = clsHandler.requestSalesInfo(requestSalesInfo);
-                            if (result != null) {
-                                reportEquipmentServerError(remote, sidEquipmentServer, result);
-                            }
-                        }
-
-                        Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
-                        List<CashDocument> cashDocumentList= clsHandler.readCashDocumentInfo(cashDocumentSet, dbSettings);
-                        if (cashDocumentList == null) {
-                            logger.info("No CashDocuments found");
+                    Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
+                    CashDocumentBatch cashDocumentBatch = clsHandler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet, dbSettings);
+                    if (cashDocumentBatch == null) {
+                        logger.info("No CashDocuments found");
+                    } else {
+                        logger.info("Sending CashDocuments");
+                        String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
+                        if (result != null) {
+                            reportEquipmentServerError(remote, sidEquipmentServer, result);
                         } else {
-                            logger.info("Sending CashDocuments");
-                            String result = remote.sendCashDocumentInfo(cashDocumentList, sidEquipmentServer);
-                            if (result != null) {
-                                reportEquipmentServerError(remote, sidEquipmentServer, result);
-                            }
+                            clsHandler.finishReadingCashDocumentInfo(cashDocumentBatch);
                         }
-                        
-                        SalesBatch salesBatch = clsHandler.readSalesInfo(cashRegisterInfoList, dbSettings);
-                        if (salesBatch == null) {
-                            logger.info("SalesInfo is empty");
-                        } else {
-                            logger.info("Sending SalesInfo");
-                            String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
-                            if (result != null) {
-                                reportEquipmentServerError(remote, sidEquipmentServer, result);
-                            }
-                            else {
-                                logger.info("Finish Reading starts");
-                                clsHandler.finishReadingSalesInfo(salesBatch);
-                            }
+                    }
+
+                    SalesBatch salesBatch = clsHandler.readSalesInfo(cashRegisterInfoList, dbSettings);
+                    if (salesBatch == null) {
+                        logger.info("SalesInfo is empty");
+                    } else {
+                        logger.info("Sending SalesInfo");
+                        String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
+                        if (result != null) {
+                            reportEquipmentServerError(remote, sidEquipmentServer, result);
+                        }
+                        else {
+                            logger.info("Finish Reading starts");
+                            clsHandler.finishReadingSalesInfo(salesBatch);
                         }
                     }
                 } catch (Throwable e) {

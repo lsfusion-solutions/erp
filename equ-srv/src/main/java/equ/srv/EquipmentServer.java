@@ -2,10 +2,7 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import equ.api.*;
-import equ.api.cashregister.CashDocument;
-import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.CashRegisterItemInfo;
-import equ.api.cashregister.TransactionCashRegisterInfo;
+import equ.api.cashregister.*;
 import equ.api.terminal.*;
 import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
@@ -204,7 +201,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 QueryBuilder<Object, Object> skuQuery = new QueryBuilder<Object, Object>(skuKeys);
 
                 String[] skuProperties = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
-                        "expiryDateMachineryPriceTransactionBarcode", "isWeightMachineryPriceTransactionBarcode", "skuGroupMachineryPriceTransactionBarcode"};
+                        "expiryDateMachineryPriceTransactionBarcode", "isWeightMachineryPriceTransactionBarcode", "skuGroupMachineryPriceTransactionBarcode",
+                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode"};
                 String[] extraSkuProperties = new String[]{"daysExpiryMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
                         "labelFormatMachineryPriceTransactionBarcode", "compositionMachineryPriceTransactionBarcode"};
                 skuQuery.addProperty("idBarcode", equLM.findLCPByCompoundOldName("idBarcode").getExpr(barcodeExpr));
@@ -256,18 +254,23 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         Boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
+                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode").getValue();
+                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
                         String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
 
-                        List<String> hierarchyItemGroup = new ArrayList<String>();
+                        List<ItemGroup> hierarchyItemGroup = new ArrayList<ItemGroup>();
                         String canonicalNameSkuGroup = null;
                         if (itemLM != null) {
                             ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
                             if (skuGroupObject instanceof DataObject) {
                                 String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
-                                hierarchyItemGroup.add(idItemGroup);
+                                String nameItemGroup = (String) itemLM.findLCPByCompoundOldName("nameItemGroup").read(session, skuGroupObject);
+                                hierarchyItemGroup.add(new ItemGroup(idItemGroup, nameItemGroup));
                                 ObjectValue parentSkuGroup;
                                 while ((parentSkuGroup = equLM.findLCPByCompoundOldName("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
-                                    hierarchyItemGroup.add((String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup));
+                                    String idParentGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, parentSkuGroup);
+                                    String nameParentGroup = (String) itemLM.findLCPByCompoundOldName("nameItemGroup").read(session, parentSkuGroup);
+                                    hierarchyItemGroup.add(new ItemGroup(idParentGroup, nameParentGroup));
                                     skuGroupObject = parentSkuGroup;
                                 }
                                 canonicalNameSkuGroup = idItemGroup == null ? "" : trim((String) equLM.findLCPByCompoundOldName("canonicalNameSkuGroup").read(session, itemLM.findLCPByCompoundOldName("itemGroupId").readClasses(session, new DataObject(idItemGroup))));
@@ -275,7 +278,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         }
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, isWeight, 
-                                composition, canonicalNameSkuGroup, hierarchyItemGroup));
+                                composition, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),

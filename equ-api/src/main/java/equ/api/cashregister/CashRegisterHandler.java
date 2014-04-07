@@ -17,10 +17,12 @@ public abstract class  CashRegisterHandler<S extends SalesBatch> extends Machine
 
     public abstract String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException;
 
-    public abstract List<CashDocument> readCashDocumentInfo(Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException;
-
     public abstract void finishReadingSalesInfo(S salesBatch);
-    
+
+    public abstract CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException;
+
+    public abstract void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch);
+   
     public abstract Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) throws ClassNotFoundException, SQLException;
 
 }

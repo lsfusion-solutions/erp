@@ -240,8 +240,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     writer.write(data);
                     writer.close();
-                }
-                return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                } else
+                    return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
             }
         }
         return null;
@@ -291,7 +291,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public List<CashDocument> readCashDocumentInfo(Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
 
         logger.info("Kristal: reading CashDocuments");
 
@@ -330,7 +330,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 logger.error(e);
             }
         }
-        return result;
+        return new CashDocumentBatch(result, null);
+    }
+
+    @Override
+    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {                        
     }
 
     @Override
@@ -484,13 +488,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         return input;
     }
     
-    private String makeIdItemGroup(List<String> hierarchyItemGroup) {
+    private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup) {
         String idItemGroup = "";
         for (int i = hierarchyItemGroup.size(); i < 5; i++) {
             idItemGroup += "0|";
         }
         for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
-            String id = hierarchyItemGroup.get(i);
+            String id = hierarchyItemGroup.get(i).idItemGroup;
             idItemGroup += (id == null ? "0" : id) + "|";
         }
         idItemGroup = idItemGroup.substring(0, idItemGroup.length() - 1);
