@@ -193,12 +193,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 
     @defineDocumentInterfaceDetailVAT(invoice, country###stockProp###stock, , ); // объявляем шкалу
     overVATUserInvoiceDetail = ABSTRACT Range (UserInvoiceDetail); 
-    WHEN SESSION
-        (CHANGED(skuUserInvoiceDetail(detail)) OR CHANGED (supplierStockUserInvoiceDetail(detail)) OR 
-         CHANGED(dateUserInvoiceDetail(detail)) OR CHANGED(overVATUserInvoiceDetail(detail))) AND NOT CHANGED(VATUserInvoiceDetail(detail)) DO {
-            VATUserInvoiceDetail(detail) <- OVERRIDE VATSkuCountryDate (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail)), dateUserInvoiceDetail(detail)),
-                                                     overVATUserInvoiceDetail(detail);
-        } // записываем шкалу
+    // запись задана после объявления формы
     @deriveDocumentDetailValueVAT(userInvoice); // записываем значение ставки
 
     Invoice.VATInvoiceDetail(detail) += VATInvoiceDetail(detail);
@@ -413,6 +408,12 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
         }
     }
 
+    WHEN SESSION FORMS userInvoice
+        (CHANGED(skuUserInvoiceDetail(detail)) OR CHANGED (supplierStockUserInvoiceDetail(detail)) OR 
+         CHANGED(dateUserInvoiceDetail(detail)) OR CHANGED(overVATUserInvoiceDetail(detail))) AND NOT CHANGED(VATUserInvoiceDetail(detail)) DO {
+            VATUserInvoiceDetail(detail) <- OVERRIDE VATSkuCountryDate (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail)), dateUserInvoiceDetail(detail)),
+                                                     overVATUserInvoiceDetail(detail);
+        } // записываем шкалу
     // Добавляем подбор товаров / партий
     @defineDocumentSkuPriceListTypeAgreement(userInvoice, stockProp);
     @extendFormDocumentSkuPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp###stock);
