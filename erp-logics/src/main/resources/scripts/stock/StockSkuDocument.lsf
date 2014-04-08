@@ -427,8 +427,8 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
         FILTERS           isParentSkuGroupSku(sk, ks),
                           (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
                           st == stockProp###stock###object(concrete) AND NOT sg AND NOT ts,
-                          legalEntityStock(st) == legalEntityProp###object(concrete)                          
-        FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(st) DEFAULT
+                          legalEntityStock(st) == legalEntityProp###object(concrete),
+                          activeStock(st)
 
         FILTERS           nameSku(ks)
         ORDER BY          nameSku(ks)
@@ -439,8 +439,6 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
                           prevCurrentBalanceSkuStock(ks, st) READONLY,
                           allQuantitySku###object(ks, st) ON CHANGE changeAllQuantitySku###object(ks, concrete, st),
                           priceSkuStock###object(ks, st, concrete) READONLY
-        FILTERGROUP filterBalanceSku
-            FILTER 'С остатком ' 'F10' prevCurrentBalanceSkuStock(ks, st) DEFAULT                          
     ;
 
     EXTEND DESIGN form {
@@ -585,10 +583,9 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
 
         FILTERS           isParentSkuGroupBatch(sk, b),
                           (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
-                          sto == stockProp###stock###object(concrete) AND NOT sg AND NOT ts
-        FILTERGROUP inactiveStock FILTER 'Активный склад' 'ctrl F10' activeStock(sto) DEFAULT
-        FILTERGROUP stockFilters
-            FILTER 'Собственные склады' 'F6' legalEntityStock(sto) == legalEntityProp###object(concrete) DEFAULT
+                          sto == stockProp###stock###object(concrete) AND NOT sg AND NOT ts,
+                          legalEntityStock(sto) == legalEntityProp###object(concrete),
+                          activeStock(sto)
         ORDER BY          prevNameSkuBatch(b)
 
         PROPERTIES        quantityBatch###object###stockProp###stock(b, concrete, sto) ON CHANGE changeQuantityBatch###object###stock(b, concrete, sto) 
@@ -597,8 +594,6 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
                           prevCurrentBalanceBatchStock(b, sto) READONLY,
                           allQuantityBatch###object(b, concrete, sto) ON CHANGE changeAllQuantityBatch###object(b, concrete, sto),
                           priceBatchStock###object(b, sto, concrete) READONLY
-        FILTERGROUP filterBalanceBatch
-            FILTER 'С остатком ' 'F10' prevCurrentBalanceBatchStock(b, sto) DEFAULT
     ;
 
     EXTEND DESIGN form {
