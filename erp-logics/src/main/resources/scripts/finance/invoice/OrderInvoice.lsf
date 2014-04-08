@@ -252,11 +252,15 @@ META defineOrderInvoice(sign, stockProp)
     }
 
     userInvoiceOrder = DATA SESSION UserInvoice (Order);
+    
+    TABLE orderUserInvoice (Order, UserInvoice);
+    includeOrderUserInvoice 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) MINCHARWIDTH 10 PREFCHARWIDTH 15;    
     createUserInvoiceOrder 'Создать накладную' = ACTION (order) {
         userInvoiceOrder(order) <- NULL;
         FOR ADDOBJ i = UserInvoice DO {
             fillUserInvoiceOrder(i, order);
             userInvoiceOrder(order) <- i;
+            includeOrderUserInvoice(order,i) <- TRUE;
         }
     }
     Invoice.createUserInvoiceOrder (order) += createUserInvoiceOrder(order);
@@ -393,15 +397,10 @@ META defineOrderInvoice(sign, stockProp)
     } IN order;
 
     EXTEND FORM userInvoice
-        PROPERTIES (i)  fillOrderUserInvoice, ordersInvoice READONLY
         PROPERTIES (d)  descriptionOrderUserInvoiceDetail AFTER invoiceSumUserInvoiceDetail(d)
     ;
 
-    EXTEND DESIGN userInvoice {
-        headerCreateDetail {
-            ADD i.order {type = CONTAINERV;}
-        }
-    }
+
     EXTEND FORM invoices
         PROPERTIES (i)  READONLY ordersInvoice AFTER invoiceSumInvoiceDetailInvoice(i)
         PROPERTIES (d)  READONLY descriptionOrderInvoiceDetail AFTER invoiceSumInvoiceDetail(d)
@@ -409,11 +408,16 @@ META defineOrderInvoice(sign, stockProp)
     
 // Создание инвойса на основе нескольких заказов //
 
-    TABLE orderUserInvoice (Order, UserInvoice);
-    includeOrderUserInvoice 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    includeOrderInvoice 'Вкл. в накладную' = ABSTRACT BOOLEAN (Order, Invoice) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    includeOrdersInvoice 'Заказы в накладной' (invoice) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF includeOrderInvoice(order, invoice) , ', '
+                                                        BY invoice
+                                                        ORDER order IN orders MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;
+                                                                                                               
     includeOrdersUserInvoice 'Заказы в накладной' (userInvoice) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF includeOrderUserInvoice(order, userInvoice) , ', '
                                                         BY userInvoice
                                                         ORDER order IN orders MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;
+    includeOrderInvoice(order,invoice) += includeOrderUserInvoice(order,invoice);                                                    
+                                                        
     FORM includeOrdersUserInvoice 'Заказы'
         OBJECTS i = UserInvoice FIXED PANEL
 
@@ -428,33 +432,68 @@ META defineOrderInvoice(sign, stockProp)
                 supplierStockOrder(o) == supplierStockUserInvoice(i),
                 customerStockOrder(o) == customerStockUserInvoice(i),
                 isPostedOrder(o),
-                toInvoiceOrder(o)
+                toInvoiceOrder(o) OR includeOrderInvoice(o,i)
+                
+                
         PROPERTIES(o,i) BACKGROUND backgroundInvoiceOrder(o) includeOrderUserInvoice BEFORE isPostedOrder(o)
     ;
+    
+    relationInvoiceDetailOrderInvoice (order, invoice) = GROUP SUM 1 BY orderInvoiceDetail(invoiceDetail), invoiceInvoiceDetail(invoiceDetail);
+    notRelationInvoiceDetailOrderInvoice 'Включенные заказы, но по которым не созданы строки' (invoice)= GROUP SUM 1 
+        IF includeOrderUserInvoice(order, invoice) AND NOT  relationInvoiceDetailOrderInvoice(order, invoice) BY invoice; 
+        
+    notIncludeInvoiceDetailOrderInvoice 'Есть строки накладной с сылкой на заказ, который не включен в накладную' (invoice)= GROUP SUM 1 
+        IF relationInvoiceDetailOrderInvoice(order, invoice) AND NOT includeOrderUserInvoice(order, invoice)  BY invoice;         
 
-    dialogIncludeOrdersUserInvoice 'Включить заказы в накладную' (userInvoice) = ACTION FORM includeOrdersUserInvoice OBJECTS i = userInvoice MODAL IN orders;
+    dialogIncludeOrdersUserInvoice 'Включить заказы в накладную' (userInvoice) = ACTION (userInvoice) {
+        FORM includeOrdersUserInvoice OBJECTS i = userInvoice MODAL;
+        IF formResult() == FormResult.ok THEN {
+            IF notRelationInvoiceDetailOrderInvoice(userInvoice) THEN {
+                CONFIRM 'Создать по выбранным заказам строки накладной?';
+                IF (confirmed()) THEN {  
+                    FOR includeOrderUserInvoice(order, userInvoice) AND NOT  relationInvoiceDetailOrderInvoice(order, userInvoice) DO {
+                        
+                        createDetailUserInvoiceOrder(userInvoice, order);
+                        fillPriceUserInvoiceOrder(userInvoice, order);
+   
+                        userInvoiceOrder(order) <- userInvoice;                         
+                    }                                   
+                }              
+            }
+            IF notIncludeInvoiceDetailOrderInvoice(userInvoice) THEN {
+                CONFIRM 'В накладной присутствуют строки с сылкой на заказ, который не включен в накладную. Удалить эти строки?';
+                IF (confirmed()) THEN {  
+                    FOR relationInvoiceDetailOrderInvoice(order, userInvoice) AND NOT includeOrderUserInvoice(order, userInvoice) DO {
+                        
+                        DELETE d WHERE userInvoiceUserInvoiceDetail(d) == userInvoice AND orderUserInvoiceDetail(d) == order;     
+                        userInvoiceOrder(order) <- NULL;                         
+                    }                                   
+                }                       
+            }            
+        }                 
+    } IN orders;
 
     defaultOrderSkuUserInvoice (sku, userInvoice) = GROUP MAX order IF includeOrderUserInvoice(order, userInvoice) 
         AND orderOrderDetail(detail)==order
         BY skuOrderDetail(detail), userInvoice;
 
-    connectOrderUserInvoiceDetail 'Привязать накладную к заказам' = ACTION (detail) {
+    connectOrderUserInvoiceDetail 'Привязать строку накладной к заказу' = ACTION (detail) {
         orderUserInvoiceDetail(detail) <- defaultOrderSkuUserInvoice(skuUserInvoiceDetail(detail), userInvoiceUserInvoiceDetail(detail)) 
                                                     WHERE defaultOrderSkuUserInvoice(skuUserInvoiceDetail(detail), userInvoiceUserInvoiceDetail(detail));
-    };
+    } SHORTCUT descriptionOrderUserInvoiceDetail;
 
-    connectOrderUserInvoice 'Привязать накладную к заказам' = ACTION (userInvoice) {
+    connectOrderUserInvoice 'Привязать все строки накладной к заказам' = ACTION (userInvoice) {
         FOR userInvoiceUserInvoiceDetail(detail) == userInvoice DO {
             EXEC connectOrderUserInvoiceDetail(detail);
         }
-    } IN orders;
+    } SHORTCUT descriptionOrderUserInvoiceDetail;
 
     WHEN SESSION FORMS userInvoice
         CHANGED(skuUserInvoiceDetail(detail)) AND NOT orderUserInvoiceDetail(detail)       
             DO EXEC connectOrderUserInvoiceDetail(detail);
 
     EXTEND FORM userInvoice
-        PROPERTIES(i) dialogIncludeOrdersUserInvoice, includeOrdersUserInvoice READONLY, connectOrderUserInvoice
+        PROPERTIES(i) dialogIncludeOrdersUserInvoice, includeOrdersUserInvoice READONLY//, connectOrderUserInvoice
     ;
     EXTEND DESIGN userInvoice {
         headerCreateDetail {
