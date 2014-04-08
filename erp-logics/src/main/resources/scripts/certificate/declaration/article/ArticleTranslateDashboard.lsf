@@ -113,9 +113,17 @@ quantityInvoiceDetailArticleUser 'Кол-во товара в документе
     GROUP SUM quantityInvoiceDetailArticleInvoice(article, invoice) IF inPurchaseInvoiceUser(invoice, user)
         BY article, user;
         
+        
+dictionaryComposition = DATA Dictionary ();   
+nameDictionaryComposition 'Словарь для состава' = nameDictionary(dictionaryComposition());
+
+dictionaryCaption = DATA Dictionary ();   
+nameDictionaryCaption 'Словарь для наименования' = nameDictionary(dictionaryCaption());   
+                 
 FORM articleTranslateDashboard 'Перевод'
 
-    PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
+    PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser(), nameDictionaryCaption(),
+               nameDictionaryComposition()
 
     TREE groupTree g=ItemGroup PARENT parentItemGroup
     PROPERTIES READONLY nameItemGroup(g), recCountNotCompletedTranslateArticlesItemGroup(g)
@@ -167,13 +175,22 @@ FORM articleTranslateDashboard 'Перевод'
     FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))
         
 ;
-
+                                                                                                         
 DESIGN articleTranslateDashboard FROM DEFAULT {
-    NEW filter {
-        caption = 'Фильтр';
+    NEW top{
         type = CONTAINERH;
-        ADD PROPERTY(seriesNumberDateInvoicesCurrentUser());
-        ADD PROPERTY(selectPurchaseInvoicesCurrentUser());
+        NEW filter {
+            caption = 'Фильтр';
+            type = CONTAINERH;
+            ADD PROPERTY(seriesNumberDateInvoicesCurrentUser());
+            ADD PROPERTY(selectPurchaseInvoicesCurrentUser());
+        }
+        NEW dictionary {
+            caption = 'Словари';
+            type = CONTAINERH;
+            ADD PROPERTY(nameDictionaryCaption());
+            ADD PROPERTY(nameDictionaryComposition());        
+        }
     }
     NEW pane {
         type = SPLITH;
@@ -249,6 +266,29 @@ fillDefaultCaptionArticles 'Перевести для всех название'
         fillDefaultCaptionArticle(article);
     }
 } SHORTCUT captionArticle;
+
+  
+translateCaptionArticle 'Перевести название по словарю' = ACTION (article) {
+    translateDictionary(dictionaryCaption(), originalCaptionArticle(article));
+    captionArticle(article) <- VARISTRING[100](translationResult());
+} SHORTCUT captionArticle;  
+
+translateCaptionArticles 'Перевести для всех название по словарю' = ACTION () {
+    FOR [= FILTER articleTranslateDashboard.a](article) DO {
+        translateCaptionArticle(article);
+    }
+} SHORTCUT captionArticle;
+//--
+translateCompositionArticle 'Перевести состав по словарю' = ACTION (article) {
+    translateDictionary(dictionaryComposition(), originalCompositionArticle(article));
+    compositionArticle(article) <- VARSTRING[255](translationResult());
+} SHORTCUT compositionArticle;  
+
+translateCompositionArticles 'Перевести для всех состав по словарю' = ACTION () {
+    FOR [= FILTER articleTranslateDashboard.a](article) DO {
+        translateCompositionArticle(article);
+    }
+} SHORTCUT compositionArticle;
 
 //--
 countArticleCompositionOriginal (string, original) = GROUP SUM 1 BY compositionArticle(article), originalCompositionArticle(article);
