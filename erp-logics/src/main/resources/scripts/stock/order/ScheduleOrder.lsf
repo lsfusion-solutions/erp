@@ -233,6 +233,20 @@ META defineScheduleOrder(sign, stockProp)
                        shipmentDateUserOrder(userOrder)==dateSupplyScheduleOrderDetail(scheduleOrderDetail) AND
                        dateOrder(userOrder)==dateOrderScheduleOrderDetail(scheduleOrderDetail)
                BY scheduleOrderDetail PERSISTENT;
+               
+    lastScheduleOrderDetailDateSupplierStockCustomerStock (d,s,ss,c,cs) = 
+        GROUP LAST sd
+               BY d, supplierScheduleOrderDetail(sd), supplierStockScheduleOrderDetail(sd), customerScheduleOrderDetail(sd), customerStockScheduleOrderDetail(sd)
+               ORDER dateOrderScheduleOrderDetail(sd), sd 
+               WHERE dateOrderScheduleOrderDetail(sd) <= (d AS DATE);             
+    isLastScheduleOrderDetailDate (sd,d)= lastScheduleOrderDetailDateSupplierStockCustomerStock(d,supplierScheduleOrderDetail(sd), supplierStockScheduleOrderDetail(sd), customerScheduleOrderDetail(sd), customerStockScheduleOrderDetail(sd)) == sd;           
+
+    lastScheduleOrderDetailSupplierStockCustomerStock (s,ss,c,cs) = 
+        GROUP LAST sd
+               BY supplierScheduleOrderDetail(sd), supplierStockScheduleOrderDetail(sd), customerScheduleOrderDetail(sd), customerStockScheduleOrderDetail(sd)
+               ORDER dateOrderScheduleOrderDetail(sd), sd 
+               WHERE sd IS ScheduleOrderDetail;             
+    isLastScheduleOrderDetail (sd)= lastScheduleOrderDetailSupplierStockCustomerStock(supplierScheduleOrderDetail(sd), supplierStockScheduleOrderDetail(sd), customerScheduleOrderDetail(sd), customerStockScheduleOrderDetail(sd)) == sd;   
 
     overCreateOrder = ABSTRACT ACTION LIST (UserOrder);
 
@@ -415,11 +429,12 @@ META defineScheduleOrder(sign, stockProp)
                 customerStockScheduleOrderDetail(sd) == customerStock() OR (sd IS ScheduleOrderDetail AND NOT customerStock())
 
         FILTERGROUP dateFilter
-            FILTER 'Заказы по графику без заказов' 'F9' sd IS ScheduleOrderDetail  AND NOT quantityOrdersScheduleOrderDetail(sd) DEFAULT
+            FILTER 'Без заказов' 'F11' sd IS ScheduleOrderDetail  AND NOT quantityOrdersScheduleOrderDetail(sd) DEFAULT
         FILTERGROUP countFilter
-            FILTER 'Заказы по графику на дату' 'F10' dateOrderScheduleOrderDetail(sd) <= d DEFAULT            
-                              
-            
+            FILTER 'Последний на дату' 'F10' isLastScheduleOrderDetailDate(sd,d) DEFAULT      
+            FILTER 'На дату' 'F9' dateOrderScheduleOrderDetail(sd) <= d                                                  
+            FILTER 'Последний' 'F8' isLastScheduleOrderDetail(sd)
+             
         OBJECTS o = Order
         PROPERTIES (o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
                                 nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder,
@@ -436,7 +451,7 @@ META defineScheduleOrder(sign, stockProp)
                 customerStockOrder(o) == customerStock() OR (o IS Order AND NOT customerStock())            
         
         FILTERGROUP dateFilter
-            FILTER 'Заказы на дату' 'F10' dateOrder(o) == d DEFAULT                       
+            FILTER 'На дату' 'F10' dateOrder(o) == d DEFAULT                       
     ;
 
     DESIGN scheduleOrderDetails FROM DEFAULT{
