@@ -439,16 +439,16 @@ createAgreementSupplierCustomer 'Добавить' = ACTION (supplier, customer)
 
 EXTEND FORM legalEntity
 
-    OBJECTS ags=Agreement
-    PROPERTIES(ags, s, l) isDefaultAgreementSupplierCustomer
-    PROPERTIES(ags, l) inAgreementCustomer
-    PROPERTIES(ags) READONLY nameAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
+    OBJECTS ags=Agreement FIXED GRID
+    PROPERTIES(ags, s, l) SHOWIF isCustomerLegalEntity(l) isDefaultAgreementSupplierCustomer
+    PROPERTIES(ags, l) SHOWIF isCustomerLegalEntity(l) inAgreementCustomer
+    PROPERTIES(ags) SHOWIF isCustomerLegalEntity(l) READONLY nameAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
                              fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
                              nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement,
                              nameRRPPriceListTypeAgreement, nameCurrencyRRPPriceListTypeAgreement READONLY
 
-    PROPERTIES(ags) DELETESESSION, EDITSESSIONFORM, copySessionAgreement
-    PROPERTIES createAgreementSupplierCustomer(s, l) TODRAW ags FORCE PANEL TOOLBAR, addAgreementsSupplierCustomer(s, l) TODRAW ags FORCE PANEL TOOLBAR
+    PROPERTIES(ags) SHOWIF isCustomerLegalEntity(l) DELETESESSION, EDITSESSIONFORM, copySessionAgreement
+    PROPERTIES SHOWIF isCustomerLegalEntity(l) createAgreementSupplierCustomer(s, l) TODRAW ags FORCE PANEL TOOLBAR, addAgreementsSupplierCustomer(s, l) TODRAW ags FORCE PANEL TOOLBAR
     FILTERS inAgreementCustomer(ags, l) AND inAgreementSupplier(ags, s),
             isSellerLegalEntity(s),
             l != s
@@ -456,16 +456,16 @@ EXTEND FORM legalEntity
 //    FILTERGROUP filtersSupplier
 //        FILTER 'Есть соглашение' 'F11' countAgreementSupplierCustomer(s, l)
 
-    OBJECTS agc=Agreement
-    PROPERTIES(agc, c) READONLY inAgreementCustomer
-    PROPERTIES(agc, l, c) isDefaultAgreementSupplierCustomer
-    PROPERTIES(agc) READONLY nameAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
+    OBJECTS agc=Agreement FIXED  GRID 
+    PROPERTIES(agc, c) SHOWIF isSupplierLegalEntity(l) READONLY inAgreementCustomer
+    PROPERTIES(agc, l, c) SHOWIF isSupplierLegalEntity(l) isDefaultAgreementSupplierCustomer
+    PROPERTIES(agc) SHOWIF isSupplierLegalEntity(l) READONLY nameAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
                              fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
                              nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement,
                              nameRRPPriceListTypeAgreement, nameCurrencyRRPPriceListTypeAgreement READONLY
-    PROPERTIES(agc) DELETESESSION, EDITSESSIONFORM, copySessionAgreement
+    PROPERTIES(agc) SHOWIF isSupplierLegalEntity(l) DELETESESSION, EDITSESSIONFORM, copySessionAgreement
 
-    PROPERTIES createAgreementSupplierCustomer(l, c) TODRAW agc FORCE PANEL TOOLBAR, addAgreementsCustomerSupplier (c,l) TODRAW agc FORCE PANEL TOOLBAR
+    PROPERTIES SHOWIF isSupplierLegalEntity(l) createAgreementSupplierCustomer(l, c) TODRAW agc FORCE PANEL TOOLBAR, addAgreementsCustomerSupplier (c,l) TODRAW agc FORCE PANEL TOOLBAR
     FILTERS inAgreementCustomer(agc, c) AND inAgreementSupplier(agc, l),
             isBuyerLegalEntity(c),
             c != l

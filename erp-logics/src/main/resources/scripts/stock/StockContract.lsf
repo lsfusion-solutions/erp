@@ -143,24 +143,29 @@ NAVIGATOR {
 
 // ----------------------------- Расширяем форму организаций ------------------------------------------- //
 
+isCustomerLegalEntityUserContractSku(l,css) = isCustomerLegalEntity(l) AND isUserContractSku(css);
+isSupplierLegalEntityUserContractSku(l,csc) = isSupplierLegalEntity(l) AND isUserContractSku(csc);
 EXTEND FORM legalEntity
 
-    OBJECTS css = UserContractSku
-    PROPERTIES(css) READONLY seriesNumberUserContractSku, nameTypeContractSku, dateFromContract,
+    OBJECTS css = UserContractSku FIXED GRID
+    PROPERTIES(css) SHOWIF isCustomerLegalEntity(l) READONLY seriesNumberUserContractSku, nameTypeContractSku, dateFromContract,
                     dateToContract, nameCurrencyContract, noteContract
-    PROPERTIES addUserContractSkuSupplierCustomer(s, l) TODRAW css FORCE PANEL TOOLBAR
-    PROPERTIES(css)  EDITSESSIONFORM, DELETESESSION SHOWIF isUserContractSku(css)
+    PROPERTIES      SHOWIF isCustomerLegalEntity(l) addUserContractSkuSupplierCustomer(s, l) TODRAW css FORCE PANEL TOOLBAR
+    PROPERTIES(css) SHOWIF isCustomerLegalEntity(l) EDITSESSIONFORM
+    PROPERTIES(css) DELETESESSION SHOWIF isCustomerLegalEntityUserContractSku(l,css)
+    
     FILTERS customerContractSku(css) == l,
             supplierContractSku(css) == s
 
 //    FILTERGROUP filters
 //        FILTER 'Есть договор' 'F10' countContractPartyAPartyB(s, l)
 
-    OBJECTS csc = UserContractSku
-    PROPERTIES(csc) READONLY seriesNumberUserContractSku, nameTypeContractSku, dateFromContract,
+    OBJECTS csc = UserContractSku FIXED  GRID
+    PROPERTIES(csc) SHOWIF isSupplierLegalEntity(l) READONLY seriesNumberUserContractSku, nameTypeContractSku, dateFromContract,
                     dateToContract, nameCurrencyContract, noteContract
-    PROPERTIES addUserContractSkuSupplierCustomer(l, c) TODRAW csc FORCE PANEL TOOLBAR
-    PROPERTIES(csc) EDITSESSIONFORM, DELETESESSION SHOWIF isUserContractSku(csc)
+    PROPERTIES SHOWIF isSupplierLegalEntity(l) addUserContractSkuSupplierCustomer(l, c) TODRAW csc FORCE PANEL TOOLBAR
+    PROPERTIES(csc) SHOWIF isSupplierLegalEntity(l) EDITSESSIONFORM
+    PROPERTIES(csc) DELETESESSION SHOWIF isSupplierLegalEntityUserContractSku(l,csc)
     FILTERS customerContractSku(csc) == c,
             supplierContractSku(csc) == l
 
