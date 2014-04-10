@@ -53,26 +53,6 @@ roundPriceRoundCondition (price, roundCondition) = NUMERIC[14,2](
             round(price AS NUMERIC[14,2], priceRoundRoundCondition(roundCondition))
     ) COMPLEX; // для COMPLEX
 
-// -------------------- Группы для округления --------------- //
-
-CLASS ABSTRACT RoundGroup 'Группа округлений';
-TABLE roundGroup(RoundGroup);
-
-nameRoundGroup 'Наименование' = ABSTRACT VARISTRING[150](RoundGroup);
-
-TABLE roundConditionRoundGroup (RoundCondition, RoundGroup);
-inRoundConditionRoundGroup 'Вкл' = DATA BOOLEAN (RoundCondition, RoundGroup);
-
-roundConditionUniqueCurrencyRoundGroup(currency, roundGroup) = GROUP AGGR roundCondition
-                                                                     BY currencyRoundCondition(roundCondition), roundGroup
-                                                                     WHERE inRoundConditionRoundGroup(roundCondition, roundGroup) PERSISTENT;
-
-TABLE currencyRoundGroup(Currency, RoundGroup);
-roundConditionCurrencyRoundGroup (currency, roundGroup) = OVERRIDE defaultRoundConditionCurrency(currency) IF roundGroup IS RoundGroup,
-                                                                   roundConditionUniqueCurrencyRoundGroup(currency, roundGroup);
-
-roundPriceCurrencyRoundGroup(price, currency, roundGroup) = roundPriceRoundCondition(price, roundConditionCurrencyRoundGroup(currency, roundGroup));
-
 roundPriceCurrency(price, currency) = round(price, defaultRoundCurrency(currency));
 
 FORM priceIntervals 'Округления цен'
@@ -83,21 +63,13 @@ FORM priceIntervals 'Округления цен'
     OBJECTS rc=RoundCondition
     PROPERTIES(rc) nameRoundCondition, denominatorPriceRoundCondition, minPriceRoundCondition, priceRoundRoundCondition, ADDOBJ, DELETESESSION
     PROPERTIES(rc, c) isDefaultRoundConditionCurrency
+    
     OBJECTS p=PriceInterval
     PROPERTIES(p) fromPriceInterval, toPriceInterval, modifierPriceInterval, ADDOBJ, DELETESESSION
 
-    OBJECTS rg=RoundGroup
-    PROPERTIES(rg) READONLY nameRoundGroup
-    PROPERTIES(rc, rg) inRoundConditionRoundGroup
-
     OBJECTS nu=NUMERIC[14,3] FIXED PANEL
     PROPERTIES val = OBJVALUE(nu)
-
-    PROPERTIES(nu, c, rg) READONLY roundPriceCurrencyRoundGroup
-
-    FILTERGROUP filterGroup
-        FILTER 'Только отмеченные' 'F10' inRoundConditionRoundGroup(rc, rg)
-
+    PROPERTIES(nu, rc) READONLY roundPriceRoundCondition
 
     FILTERS currencyRoundCondition(rc) == c,
             roundConditionPriceInterval(p) == rc
@@ -117,23 +89,18 @@ DESIGN priceIntervals FROM DEFAULT {
 
         ADD rc.box;
         ADD p.box;
-        NEW wor21 {
-            fill = 1;
+        ADD nu.box {
+            caption = 'Тестовая форма';
             type = CONTAINERH;
-            ADD rg.box;
-            ADD nu.box {
-                caption = 'Тестовая форма';
-                type = CONTAINERH;
-                ADD PROPERTY (val) {
-                    caption = 'Введите число для примера';
-                    panelLabelAbove = TRUE;
-                    font = 'bold 36';
-                }
-                ADD PROPERTY (roundPriceCurrencyRoundGroup(nu, c, rg)) {
-                    caption = 'Результат';
-                    panelLabelAbove = TRUE;
-                    font = 'bold 36';
-                }
+            ADD PROPERTY (val) {
+                caption = 'Введите число для примера';
+                panelLabelAbove = TRUE;
+                font = 'bold 36';
+            }
+            ADD PROPERTY (roundPriceRoundCondition(nu, rc)) {
+                caption = 'Результат';
+                panelLabelAbove = TRUE;
+                font = 'bold 36';
             }
         }
     }
@@ -228,9 +195,3 @@ loadDefaultPriceIntervals 'Загрузить стандартные округ�
 
 @implementLoadDefaultData(loadDefaultPriceIntervals);
 
-// --------------------------------------------------- Для SKU ------------------------------------ //
-
-roundGroupSku = ABSTRACT RoundGroup (Sku) PERSISTENT;
-TABLE roundGroupSku(RoundGroup, Sku);
-
-roundPriceCurrencySku 'Округление для товара' (price, currency, sku) = roundPriceCurrencyRoundGroup(price, currency, roundGroupSku(sku));
