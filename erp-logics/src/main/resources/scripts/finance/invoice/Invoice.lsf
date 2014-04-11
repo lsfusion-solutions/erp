@@ -40,14 +40,19 @@ CLASS ABSTRACT InvoiceDetail 'Строка накладной' : DocumentDetail;
 @defineDocumentAbstractDetailSku(invoice, sku);
 
 @defineDocumentAbstractDetailQuantity(invoice);
-@defineDocumentDetailGrossWeight(invoice, sku);
-@defineDocumentAbstractDetailQuantityPrefix(invoice, pack, ' (упаковок)');
 
+sumNetWeightInvoiceDetail 'Вес нетто, кг' = ABSTRACT NUMERIC[9,3] (InvoiceDetail);
+sumNetWeightTonInvoiceDetail 'Вес нетто, т' (d) = round6(sumNetWeightInvoiceDetail(d) / 1000);
+@defineDocumentHeaderNetWeightCustomPrefix (invoice, invoiceDetail, sum, ', кг'); 
+  
+sumGrossWeightInvoiceDetail 'Вес брутто, кг' = ABSTRACT NUMERIC[9,3] (InvoiceDetail);
+sumGrossWeightTonInvoiceDetail 'Вес брутто, т' (d) = round6(sumGrossWeightInvoiceDetail(d) / 1000);
+@defineDocumentHeaderGrossWeightCustomPrefix (invoice, invoiceDetail, sum, ', кг');
+
+@defineDocumentAbstractDetailQuantityPrefix(invoice, pack, ' (упаковок)');
 
 @defineDocumentHeaderQuantity(invoice);
 @defineDocumentHeaderSkuQuantity(invoice, sku);
-
-@defineDocumentHeaderGrossWeight(invoice);
 
 @defineDocumentAbstractHeaderCurrency (invoice);
 
@@ -238,7 +243,28 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     @defineDocumentInterfaceHeaderItemSumDouble (invoice, range, , , , VAT);  //сумма без НДС поставщика (с разбивкой по таре, товару...) по документу и по шкале
     @defineAddDetailDialogSkuStock(userInvoice, sku, stockProp###stock, dialogSku);
     @defineAddDetailDialogBarcode(userInvoice, sku);
-
+    //-- вес
+    sumNetWeightInvoiceDetail 'Вес нетто, кг' = ABSTRACT NUMERIC[9,3] (InvoiceDetail);
+    sumNetWeightUserInvoiceDetail 'Вес нетто, кг' = DATA NUMERIC[9,3] (UserInvoiceDetail);
+    sumNetWeightInvoiceDetail(d) += sumNetWeightUserInvoiceDetail(d);
+    Invoice.sumNetWeightInvoiceDetail(d) += sumNetWeightInvoiceDetail(d);
+    
+    sumGrossWeightInvoiceDetail 'Вес брутто, кг' = ABSTRACT NUMERIC[9,3] (InvoiceDetail);        
+    sumGrossWeightUserInvoiceDetail 'Вес брутто, кг' = DATA NUMERIC[9,3] (UserInvoiceDetail);
+    sumGrossWeightInvoiceDetail(d) += sumGrossWeightUserInvoiceDetail(d);
+    Invoice.sumGrossWeightInvoiceDetail(d) += sumGrossWeightInvoiceDetail(d);
+       
+    sumNetWeightUserInvoiceDetail(d) <- netWeightSku(skuUserInvoiceDetail(d)) * quantityUserInvoiceDetail(d)
+        WHEN CHANGED(skuUserInvoiceDetail(d)) OR CHANGED(quantityUserInvoiceDetail(d));
+    sumGrossWeightUserInvoiceDetail(d) <- grossWeightSku(skuUserInvoiceDetail(d)) * quantityUserInvoiceDetail(d)
+        WHEN CHANGED(skuUserInvoiceDetail(d)) OR CHANGED(quantityUserInvoiceDetail(d));
+                  
+    @defineDocumentHeaderNetWeightCustomPrefix (invoice, invoiceDetail, sum, ', кг');       
+    @defineDocumentHeaderNetWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг');  
+    @defineDocumentHeaderGrossWeightCustomPrefix (invoice, invoiceDetail, sum, ', кг');
+    @defineDocumentHeaderGrossWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг'); 
+     
+        
     countInvoiceDetailStockInvoice (stock, invoice) = GROUP SUM 1 BY stockProp###stock###invoiceDetail(invoiceDetail), invoiceInvoiceDetail(invoiceDetail);
 
     @implementDocumentSupplierCustomer(invoice);
@@ -295,7 +321,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                        numberVATUserInvoiceDetail ON CHANGE changeNumberVATUserInvoiceDetail(d) BACKGROUND backgroundVATUserInvoiceDetail(d),
                        valueVATUserInvoiceDetail ON CHANGE changeValueVATUserInvoiceDetail(d) BACKGROUND backgroundVATUserInvoiceDetail(d),
                        invoicePriceUserInvoiceDetail ON CHANGE changeInvoicePriceUserInvoiceDetail(d),
-                       VATSumUserInvoiceDetail, invoiceSumUserInvoiceDetail, ADDOBJ, deleteid=DELETESESSION
+                       VATSumUserInvoiceDetail, invoiceSumUserInvoiceDetail, sumNetWeightUserInvoiceDetail BACKGROUND backgroundSkuUserInvoiceDetail(d), 
+                       sumGrossWeightUserInvoiceDetail BACKGROUND backgroundSkuUserInvoiceDetail(d), ADDOBJ, deleteid=DELETESESSION
         ORDER BY indexUserInvoiceDetail(d)
 
         PROPERTIES(i) TODRAW d fillDocumentInvoice, addDetailDialogSkuStockUserInvoiceDetailUserInvoice,

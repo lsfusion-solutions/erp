@@ -1,0 +1,35 @@
+MODULE TripPurchaseInvoiceCharge;
+
+REQUIRE PurchaseInvoiceCharge, TripInvoice;
+
+NAMESPACE  Trip;
+
+sumChargeTrip 'Сумма услуг' = DATA NUMERIC[16,2] (Trip) PREFCHARWIDTH 15;
+
+sumGrossWeightPurchaseInvoicedTrip 'Суммарный вес накладных' (trip) = GROUP SUM Purchase.sumGrossWeightInvoiceDetailInvoice(invoice) IF invoice IS Purchase.UserInvoice BY tripInvoice(invoice);
+calcGrossSumInvoiceTrip 'Сумма услуг' (invoice, trip)= NUMERIC[16,2](sumChargeTrip(trip)* Purchase.sumGrossWeightInvoiceDetailInvoice(invoice)/sumGrossWeightPurchaseInvoicedTrip(trip));
+
+signChargeInvoicesTrip 'Расписать сумму услуг' = ACTION (trip) {
+    IF sumChargeTrip(trip) THEN {
+        FOR tripInvoice(invoice)==trip AND invoice IS Purchase.UserInvoice DO {
+            setChargePercentUserInvoice(invoice, calcGrossSumInvoiceTrip (invoice, trip) * 100.000000 / (incomeSumUserInvoice(invoice) IF incomeSumUserInvoice(invoice) != 0));
+            FOR Purchase.userInvoiceUserInvoiceDetail(d) == invoice DO{
+                Purchase.chargePriceUserInvoiceDetail(d) <- Purchase.chargePercentUserInvoiceDetail(d) * Purchase.incomePriceUserInvoiceDetail(d) / 100.000000;
+            }
+        }
+    } ELSE {
+        MESSAGE 'Не задана сумма услуг';
+    }
+}
+
+EXTEND FORM trip
+    PROPERTIES(t) sumChargeTrip, signChargeInvoicesTrip FORCE PANEL TODRAW i TOOLBAR
+    PROPERTIES(i) READONLY FORCE GRID chargeSumInvoiceDetailInvoice
+    PROPERTIES(id) READONLY FORCE GRID chargeSumInvoiceDetail
+;
+
+EXTEND DESIGN trip {
+    invoice {       
+        ADD PROPERTY(sumChargeTrip(t));
+    }
+}

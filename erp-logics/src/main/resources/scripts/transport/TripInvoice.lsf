@@ -14,7 +14,8 @@ diffCountOrderInvoiceTrip 'Кол-во заказов без накладных'
 
 quantityInvoicedTripSku 'Кол-во в накладных' (trip, sku) = GROUP SUM quantityInvoiceDetail(invoiceDetail) BY tripInvoice(invoiceInvoiceDetail(invoiceDetail)), skuInvoiceDetail(invoiceDetail);
 
-grossWeightInvoicedTrip 'Суммарный вес накладных' (trip) = GROUP SUM grossWeightInvoiceDetailInvoice(invoice) BY tripInvoice(invoice);
+grossWeightInvoicedTrip 'Суммарный вес накладных' (trip) = GROUP SUM sumGrossWeightInvoiceDetailInvoice(invoice) BY tripInvoice(invoice);
+netWeightInvoicedTrip 'Суммарный вес накладных (нетто)' (trip) = GROUP SUM sumNetWeightInvoiceDetailInvoice(invoice) BY tripInvoice(invoice);
 
 createConsignmentTrip 'Создать накладные по заказам' (trip) = ACTION (trip) {
     FOR tripOrder(order) == trip DO {
@@ -37,7 +38,8 @@ EXTEND FORM trip
 
     OBJECTS i=Invoice
     PROPERTIES (t, i) inTripInvoice
-    PROPERTIES (i) READONLY numberInvoice, seriesInvoice, dateInvoice, nameFromInvoice, nameFromStockInvoice, nameToInvoice, nameToStockInvoice
+    PROPERTIES (i) READONLY numberInvoice, seriesInvoice, dateInvoice, nameFromInvoice, nameFromStockInvoice, nameToInvoice, 
+                   nameToStockInvoice, sumGrossWeightInvoiceDetailInvoice, sumNetWeightInvoiceDetailInvoice
 
     PROPERTIES quantityInvoicedTripSku(t, sk) AFTER quantityOrderedTripSku(t,sk)
 
@@ -51,7 +53,8 @@ EXTEND FORM trip
             supplierInvoice(i) == supplierTrip() OR (i IS Invoice AND NOT supplierTrip())
 
     OBJECTS id=InvoiceDetail
-    PROPERTIES (id) READONLY idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail, quantityInvoiceDetail, grossWeightInvoiceDetail, nameFromStockInvoiceDetail, nameToStockInvoiceDetail
+    PROPERTIES (id) READONLY idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail, quantityInvoiceDetail, 
+                    nameFromStockInvoiceDetail, nameToStockInvoiceDetail, sumGrossWeightInvoiceDetail, sumNetWeightInvoiceDetail
     FILTERS invoiceInvoiceDetail(id)==i
 
     OBJECTS i2=Invoice
@@ -67,7 +70,25 @@ EXTEND FORM trip
 ;
 
 EXTEND DESIGN trip {
-
+    headContainer {
+        NEW extraContainer {
+            type = CONTAINERH;
+            ADD filterContainer {
+                type = CONTAINERH;
+                caption = 'Фильтрация';
+                ADD PROPERTY(nameSupplierTrip()) {
+                    caption = 'Поставщик';
+                };
+                ADD PROPERTY(nameCustomerTrip()){
+                    caption = 'Покупатель';
+                };
+            }
+            NEW invoice {
+                type = CONTAINERH;
+                caption = 'Накладные';
+            }
+        }
+    }
     sumContainer {
         ADD PROPERTY(grossWeightInvoicedTrip(t)) AFTER PROPERTY(grossWeightOrderedTrip(t));
     };

@@ -1,0 +1,30 @@
+MODULE TripInvoiceWeight;
+
+REQUIRE Invoice, TripInvoice;
+
+NAMESPACE  Trip;
+
+grossWeightTrip 'Вес брутто, кг' = DATA NUMERIC[16,3] (Trip) PREFCHARWIDTH 15;
+
+coeffNetWeightTripInvoiceDetail 'Удельный вес' (d) =
+    NUMERIC[22,8](sumNetWeightInvoiceDetail(d)) / netWeightInvoicedTrip(tripInvoice(invoiceInvoiceDetail(d)));
+
+signGrossWeightInvoicesTrip 'Расписать вес брутто' = ACTION (trip) {
+    IF grossWeightTrip(trip) THEN {
+        sumGrossWeightInvoiceDetail(d) <- NUMERIC[9,3](coeffNetWeightTripInvoiceDetail(d)* grossWeightTrip(trip))
+            WHERE d IS InvoiceDetail AND tripInvoice(invoiceInvoiceDetail(d)) == trip;
+
+    } ELSE {
+        MESSAGE 'Не задан вес брутто, кг';
+    }
+}
+
+EXTEND FORM trip
+    PROPERTIES(t) grossWeightTrip, signGrossWeightInvoicesTrip FORCE PANEL TODRAW i TOOLBAR
+;
+
+EXTEND DESIGN trip {
+    invoice {       
+        ADD PROPERTY(grossWeightTrip(t));
+    }
+}
