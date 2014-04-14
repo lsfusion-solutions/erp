@@ -22,7 +22,10 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 public class ImportDeclarationDBFActionProperty extends DefaultImportActionProperty {
     private final ClassPropertyInterface declarationInterface;
@@ -72,7 +75,9 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
 
     private void importDeclaration(ExecutionContext context, DataObject declarationObject, DBF dbfFile, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
-        List<List<Object>> data = readDeclarationFromDBF(dbfFile);
+        DataSession session = context.createSession();
+        
+        List<List<Object>> data = readDeclarationFromDBF(session, declarationObject, dbfFile);
 
         List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
         List<ImportField> fields = new ArrayList<ImportField>();
@@ -99,18 +104,17 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
 
         ImportTable table = new ImportTable(fields, data);
 
-        DataSession session = context.createSession();
         if(!disableVolatileStats)
             session.pushVolatileStats();
         IntegrationService service = new IntegrationService(session, table, keys, props);
         service.synchronize(true, false);
+        session.apply(context);
         if(!disableVolatileStats)
-            session.apply(context);
-        session.popVolatileStats();
+            session.popVolatileStats();
         session.close();
     }
 
-    private List<List<Object>> readDeclarationFromDBF(DBF importFile) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException {
+    private List<List<Object>> readDeclarationFromDBF(DataSession session, DataObject declarationObject, DBF importFile) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
 
         int recordCount = importFile.getRecordCount();
 
@@ -122,18 +126,23 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
 
             importFile.read();
 
-            String g471 = getFieldValue(importFile, "G471", "cp866", false, null);
+            String g471 = trim(getFieldValue(importFile, "G471", "cp866", false, null));
 
-            if (g471 != null && (g471.trim().equals("2010") || g471.trim().equals("5010"))) {
-                second = !second;
+            if (g471 != null) {
+                if ((g471.equals("2010") || g471.equals("5010"))) {
+                    second = !second;
 
-                Integer numberDeclarationDetail = getIntegerFieldValue(importFile, "G32", "cp866", false, null);
-                BigDecimal homeSum = getBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
-                BigDecimal g474 = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);  //dutySum - VATSum
-                if (second) {
-                    data.add(Arrays.asList((Object) numberDeclarationDetail, dutySum, g474, homeSum));
-                } else {
-                    dutySum = g474;
+                    Integer numberDeclarationDetail = getIntegerFieldValue(importFile, "G32", "cp866", false, null);
+                    BigDecimal homeSum = getBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
+                    BigDecimal g474 = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);  //dutySum - VATSum
+                    if (second) {
+                        data.add(Arrays.asList((Object) numberDeclarationDetail, dutySum, g474, homeSum));
+                    } else {
+                        dutySum = g474;
+                    }
+                }  else if(g471.equals("1010")) {
+                    BigDecimal g474 = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);  //dutySum - VATSum
+                    getLCP("registrationSumDeclaration").change(g474, session, declarationObject);
                 }
             }
         }
@@ -143,7 +152,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
 
     private String getFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
         try {
-            String result = new String(importFile.getField(fieldName).getBytes(), charset).trim();
+            String result = trim(new String(importFile.getField(fieldName).getBytes(), charset));
             return result.isEmpty() || (zeroIsNull && result.equals("0")) ? defaultValue : result;
         } catch (xBaseJException e) {
             return defaultValue;
