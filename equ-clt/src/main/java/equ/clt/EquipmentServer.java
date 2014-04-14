@@ -32,21 +32,11 @@ public class EquipmentServer {
     
     DBSettings dbSettings;
 
-    public EquipmentServer(final String sidEquipmentServer, final String serverUrl, final String serverDB, final String sqlUsername,
+    public EquipmentServer(final String sidEquipmentServer, final String serverHost, final int serverPort, final String serverDB, final String sqlUsername,
                            final String sqlPassword, final String sqlIp, final String sqlPort, final String sqlDBName) {
         this.dbSettings = new DBSettings(sqlUsername, sqlPassword, sqlIp, sqlPort, sqlDBName);
         
-        final String serverHost;
-        final int serverPort;
-        int dotIndex = serverUrl.indexOf(":");
-        if (dotIndex > 0) {
-            serverHost = serverUrl.substring(0, dotIndex);
-            serverPort = Integer.parseInt(serverUrl.substring(dotIndex + 1));
-        } else {
-            serverHost = serverUrl;
-            //default port
-            serverPort = Registry.REGISTRY_PORT;
-        }
+        final int connectPort = serverPort > 0 ? serverPort : Registry.REGISTRY_PORT;
 
         thread = new Thread(new Runnable() {
 
@@ -61,7 +51,7 @@ public class EquipmentServer {
                     try {
                         if (remote == null) {
                             try {
-                                remote = RMIUtils.rmiLookup(serverHost, serverPort, serverDB, "EquipmentServer");
+                                remote = RMIUtils.rmiLookup(serverHost, connectPort, serverDB, "EquipmentServer");
                             } catch (ConnectException e) {
                                 logger.error("Naming lookup error : ", e);
                             } catch (NoSuchObjectException e) {

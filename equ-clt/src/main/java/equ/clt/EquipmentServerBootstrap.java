@@ -10,6 +10,7 @@ import java.io.IOException;
 public class EquipmentServerBootstrap {
 
     private static FileSystemXmlApplicationContext springContext;
+    private static String serverHost;
 
     public EquipmentServerBootstrap() {
     }
@@ -21,9 +22,10 @@ public class EquipmentServerBootstrap {
     public static void start() throws IOException {
         logger.info("Server is starting...");
 
-        RMIUtils.initRMI();
-
         initSpringContext();
+        
+        RMIUtils.initRMI();
+        RMIUtils.overrideRMIHostName(serverHost);
 
         try {
             equ = (EquipmentServer) springContext.getBean("equipmentServer");
@@ -35,6 +37,7 @@ public class EquipmentServerBootstrap {
 
     private static void initSpringContext() {
         springContext = new FileSystemXmlApplicationContext("conf/settings.xml");
+        serverHost = (String) springContext.getBean("serverHost");
     }
 
     public static void stop() {
