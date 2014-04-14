@@ -113,12 +113,6 @@ isDefaultAgreementSupplierCustomer 'Соглашение по умолчанию
 
 // ----------------------------------------------- Виды цен --------------------------------- //
 
-// -- Вид цены (RRP)
-RRPPriceListTypeAgreement 'Вид цены (RRP)' (agreement) = DATA PriceListType (Agreement);
-nameRRPPriceListTypeAgreement 'Вид цены (RRP)' (agreement) = namePriceListType(RRPPriceListTypeAgreement(agreement));
-currencyRRPPriceListTypeAgreement (agreement) = currencyPriceListType(RRPPriceListTypeAgreement(agreement));
-nameCurrencyRRPPriceListTypeAgreement 'Валюта (RRP)' (agreement)= nameCurrency(currencyPriceListType(RRPPriceListTypeAgreement(agreement))) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-
 // -- Основной вид цены
 priceListTypeAgreement 'Вид цены' (agreement) = DATA PriceListType (Agreement);
 namePriceListTypeAgreement 'Вид цены' (agreement) = namePriceListType(priceListTypeAgreement(agreement));
@@ -178,8 +172,7 @@ FORM agreement 'Соглашение'
     OBJECTS a = Agreement FIXED PANEL
     PROPERTIES(a) nameAgreement, nameNumeratorAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
                   fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
-                  nameCurrencyAgreement, namePriceListTypeAgreement, descriptionPaymentConditionAgreement, nameGroupTypeAgreement, noteAgreement,
-                  nameRRPPriceListTypeAgreement, nameCurrencyRRPPriceListTypeAgreement READONLY
+                  nameCurrencyAgreement, namePriceListTypeAgreement, descriptionPaymentConditionAgreement, nameGroupTypeAgreement, noteAgreement
 
     TREE supplierGroupTree f = LegalEntityGroup PARENT parentLegalEntityGroup
     PROPERTIES READONLY fTreeName = nameLegalEntityGroup(f)
@@ -247,17 +240,11 @@ DESIGN agreement FROM DEFAULT {
             ADD PROPERTY (toDateAgreement(a));
             ADD PROPERTY (toTimeAgreement(a));
         }
-        NEW rrpContainer{
-            caption = 'RRP';
-            type = CONTAINERH;
-            ADD PROPERTY(nameRRPPriceListTypeAgreement(a));
-            ADD PROPERTY(nameCurrencyRRPPriceListTypeAgreement(a));
-        }
     }
     NEW propContainer{
         caption = 'Параметры документа';
         type = COLUMNS;
-        columns = 3;
+        columns = 2;
         ADD PROPERTY(nameCurrencyAgreement(a));
         ADD PROPERTY(namePriceListTypeAgreement(a));
         ADD PROPERTY(descriptionPaymentConditionAgreement(a));
@@ -307,8 +294,7 @@ FORM agreements 'Соглашения'
     OBJECTS a = Agreement
     PROPERTIES(a) READONLY nameAgreement, seriesNumberAgreement, dateTimeAgreement,
                            fromDateTimeAgreement, toDateTimeAgreement,
-                           nameCurrencyAgreement, namePriceListTypeAgreement, customerAgreement, supplierAgreement, noteAgreement,
-                           nameRRPPriceListTypeAgreement, nameCurrencyRRPPriceListTypeAgreement READONLY
+                           nameCurrencyAgreement, namePriceListTypeAgreement, customerAgreement, supplierAgreement, noteAgreement
 
     PROPERTIES(a) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
@@ -323,33 +309,36 @@ NAVIGATOR {
 
 // ---------------------------------------------- Копирование соглащений --------------------------------------- //
 
-copyPropertiesAgreement = ACTION (s, d) {
-    ASSIGN dateAgreement(d) <- dateAgreement(s);
-    ASSIGN timeAgreement(d) <- timeAgreement(s);
-    ASSIGN fromDateAgreement(d) <- fromDateAgreement(s);
-    ASSIGN fromTimeAgreement(d) <- fromTimeAgreement(s);
-    ASSIGN toDateAgreement(d) <- toDateAgreement(s);
-    ASSIGN toTimeAgreement(d) <- toTimeAgreement(s);
+overCopyAgreement = ABSTRACT ACTION LIST (Agreement, Agreement);
 
-    ASSIGN currencyAgreement(d) <- currencyAgreement(s);
-    ASSIGN priceListTypeAgreement(d) <- priceListTypeAgreement(s);
-    ASSIGN RRPPriceListTypeAgreement(d) <- RRPPriceListTypeAgreement(s);
-    ASSIGN noteAgreement(d) <- noteAgreement(s);
-    ASSIGN groupTypeAgreement(d) <- groupTypeAgreement(s);
+copyDataAgreement = ACTION (s, d) {
+    dateAgreement(d) <- dateAgreement(s);
+    timeAgreement(d) <- timeAgreement(s);
+    fromDateAgreement(d) <- fromDateAgreement(s);
+    fromTimeAgreement(d) <- fromTimeAgreement(s);
+    toDateAgreement(d) <- toDateAgreement(s);
+    toTimeAgreement(d) <- toTimeAgreement(s);
 
-    ASSIGN dataInAgreementCustomer(d, customer) <- dataInAgreementCustomer (s, customer);
-    ASSIGN dataInAgreementCustomerGroup(d, legalEntityGroup) <- dataInAgreementCustomerGroup(s, legalEntityGroup);
+    currencyAgreement(d) <- currencyAgreement(s);
+    priceListTypeAgreement(d) <- priceListTypeAgreement(s);
+    noteAgreement(d) <- noteAgreement(s);
+    groupTypeAgreement(d) <- groupTypeAgreement(s);
 
-    ASSIGN dataInAgreementSupplier(d, customer) <- dataInAgreementSupplier (s, customer);
-    ASSIGN dataInAgreementSupplierGroup(d, legalEntityGroup) <- dataInAgreementSupplierGroup(s, legalEntityGroup);
+    dataInAgreementCustomer(d, customer) <- dataInAgreementCustomer (s, customer);
+    dataInAgreementCustomerGroup(d, legalEntityGroup) <- dataInAgreementCustomerGroup(s, legalEntityGroup);
 
-    ASSIGN dataPriceListTypeAgreementGroup(d, group) <- dataPriceListTypeAgreementGroup(s, group);
-    ASSIGN dataPriceListTypeAgreementSku(d, sku) <- dataPriceListTypeAgreementSku(s, sku);
+    dataInAgreementSupplier(d, customer) <- dataInAgreementSupplier (s, customer);
+    dataInAgreementSupplierGroup(d, legalEntityGroup) <- dataInAgreementSupplierGroup(s, legalEntityGroup);
+
+    dataPriceListTypeAgreementGroup(d, group) <- dataPriceListTypeAgreementGroup(s, group);
+    dataPriceListTypeAgreementSku(d, sku) <- dataPriceListTypeAgreementSku(s, sku);
+    
+    overCopyAgreement(s, d);
 }
 
 copyAgreement 'Копировать' = ACTION (agreement) NEWSESSION {
     FOR ADDOBJ a = Agreement DO {
-        EXEC copyPropertiesAgreement(agreement, a);
+        copyDataAgreement(agreement, a);
 
         FORM agreement OBJECTS a = a MANAGESESSION DOCKEDMODAL;
     };
@@ -357,7 +346,7 @@ copyAgreement 'Копировать' = ACTION (agreement) NEWSESSION {
 
 copySessionAgreement 'Копировать' = ACTION (agreement) {
     FOR ADDOBJ a = Agreement DO {
-        EXEC copyPropertiesAgreement(agreement, a);
+        EXEC copyDataAgreement(agreement, a);
 
         FORM agreement OBJECTS a = a DOCKEDMODAL;
 
@@ -386,8 +375,7 @@ FORM agreementsCustomer 'Соглашения'
     OBJECTS ag=Agreement
     PROPERTIES(ag) READONLY nameAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
                             fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
-                            nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement,
-                            nameRRPPriceListTypeAgreement, nameCurrencyRRPPriceListTypeAgreement READONLY
+                            nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement
 
     PROPERTIES inAgreement(ag)
 ;
@@ -444,8 +432,7 @@ EXTEND FORM legalEntity
     PROPERTIES(ags, l) SHOWIF isCustomerLegalEntity(l) inAgreementCustomer
     PROPERTIES(ags) SHOWIF isCustomerLegalEntity(l) READONLY nameAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
                              fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
-                             nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement,
-                             nameRRPPriceListTypeAgreement, nameCurrencyRRPPriceListTypeAgreement READONLY
+                             nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement
 
     PROPERTIES(ags) SHOWIF isCustomerLegalEntity(l) DELETESESSION, EDITSESSIONFORM, copySessionAgreement
     PROPERTIES SHOWIF isCustomerLegalEntity(l) createAgreementSupplierCustomer(s, l) TODRAW ags FORCE PANEL TOOLBAR, addAgreementsSupplierCustomer(s, l) TODRAW ags FORCE PANEL TOOLBAR
@@ -461,8 +448,7 @@ EXTEND FORM legalEntity
     PROPERTIES(agc, l, c) SHOWIF isSupplierLegalEntity(l) isDefaultAgreementSupplierCustomer
     PROPERTIES(agc) SHOWIF isSupplierLegalEntity(l) READONLY nameAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
                              fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
-                             nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement,
-                             nameRRPPriceListTypeAgreement, nameCurrencyRRPPriceListTypeAgreement READONLY
+                             nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement
     PROPERTIES(agc) SHOWIF isSupplierLegalEntity(l) DELETESESSION, EDITSESSIONFORM, copySessionAgreement
 
     PROPERTIES SHOWIF isSupplierLegalEntity(l) createAgreementSupplierCustomer(l, c) TODRAW agc FORCE PANEL TOOLBAR, addAgreementsCustomerSupplier (c,l) TODRAW agc FORCE PANEL TOOLBAR

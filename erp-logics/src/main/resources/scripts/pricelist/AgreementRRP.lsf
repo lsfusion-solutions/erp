@@ -1,0 +1,33 @@
+MODULE AgreementRRP;
+
+REQUIRE Agreement;
+
+NAMESPACE Agreement;
+
+// -- Вид цены (RRP)
+RRPPriceListTypeAgreement 'Вид цены (RRP)' (agreement) = DATA PriceListType (Agreement);
+nameRRPPriceListTypeAgreement 'Вид цены (RRP)' (agreement) = namePriceListType(RRPPriceListTypeAgreement(agreement));
+currencyRRPPriceListTypeAgreement (agreement) = currencyPriceListType(RRPPriceListTypeAgreement(agreement));
+nameCurrencyRRPPriceListTypeAgreement 'Валюта (RRP)' (agreement)= nameCurrency(currencyPriceListType(RRPPriceListTypeAgreement(agreement))) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
+EXTEND FORM agreement
+    PROPERTIES(a) nameRRPPriceListTypeAgreement
+;
+
+EXTEND DESIGN agreement {
+    firstContainer {
+        NEW rrpContainer{
+            caption = 'RRP';
+            type = CONTAINERH;
+            ADD PROPERTY(nameRRPPriceListTypeAgreement(a));
+        }
+    }
+}
+
+EXTEND FORM agreements
+    PROPERTIES(a) READONLY nameRRPPriceListTypeAgreement
+;
+
+overCopyAgreement(s, d) += ACTION (s, d) {
+    RRPPriceListTypeAgreement(d) <- RRPPriceListTypeAgreement(s);
+}
