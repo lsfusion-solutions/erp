@@ -7,6 +7,11 @@ NAMESPACE Purchase;
 
 @defineScheduleOrder(' (закупка)', purchase);
 
+WHEN SESSION FORMS scheduleOrder CHANGED(supplierScheduleOrder(o)) DO {
+    supplierStockScheduleOrder(o) <- defaultSupplierStockEmployeeLegalEntity(currentUser(), supplierScheduleOrder(o))
+        IF countAccessSupplierStockEmployeeLegalEntity (currentUser(), supplierScheduleOrder(o)) == 1;
+}
+
 CONSTRAINT supplierScheduleOrder(scheduleOrder) AND NOT isSupplierLegalEntity(supplierScheduleOrder(scheduleOrder))
     CHECKED BY supplierScheduleOrder MESSAGE 'Для заказа выбрано в качестве поставщика организация, не являющаяся поставщиком';
 CONSTRAINT customerScheduleOrder(scheduleOrder) AND NOT isCompanyLegalEntity(customerScheduleOrder(scheduleOrder))

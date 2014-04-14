@@ -1,0 +1,65 @@
+MODULE ScheduleOrderPriceList;
+
+REQUIRE ScheduleOrder, PriceList;
+
+NAMESPACE  ScheduleOrder;
+
+//--
+META addScheduleOrder(filter, cap) 
+    countPriceLists###filter###stockDate 'Поставщики, у которых есть действующие прайсы' (filter, stock, date) = GROUP SUM 1 
+        IF is###filter###legalEntity(companyPriceList(priceList)) AND isPostedPriceList(priceList) AND fromDatePriceList(priceList) <= (date AS DATE) 
+        AND NOT (toDatePriceList(priceList) < (date AS DATE)) AND inPriceListStock(priceList, stock)
+            BY companyPriceList(priceList), stock, date;
+        
+    countScheduleOrders###filter###stockDate 'Поставщики, у которых есть действующие графики заказов' (filter, stock, date) = GROUP SUM 1 IF startDateScheduleOrder(order) <= (date AS DATE) AND NOT (endDateScheduleOrder(order) < (date AS DATE)) 
+        BY supplierScheduleOrder(order), customerStockScheduleOrder(order), date;  
+          
+    filterLegalEntity###filter###stockDate 'Поставщики, у которых есть прайсы и нет графика заказов' (filter, stock, date) = countPriceLists###filter###stockDate  (filter, stock, date) IF NOT countScheduleOrders###filter###stockDate (filter, stock, date);
+    filterLegalEntity###filter###Date 'Поставщики, у которых есть прайсы и нет графика заказов' (filter, date)= GROUP SUM 1 IF filterLegalEntity###filter###stockDate(filter, stock, date) BY filter, date;
+    
+    addScheduleOrder###filter###stock 'Добавить' = ACTION (filter, stock) {
+        FOR ADDOBJ o = ScheduleOrder DO {
+            supplierScheduleOrder(o) <- filter;
+            supplierStockScheduleOrder(o) <- default###filter###stockEmployeeLegalEntity(currentUser(), supplierScheduleOrder(o))
+                WHERE countAccess###filter###stockEmployeeLegalEntity (currentUser(), supplierScheduleOrder(o)) == 1;
+                                
+            customerScheduleOrder(o) <- legalEntityStock(stock);
+            customerStockScheduleOrder(o) <- stock;                       
+            
+            FORM scheduleOrder OBJECTS s=o MANAGESESSION DOCKEDMODAL;
+            IF NOT formResult() == FormResult.ok THEN {
+                DELETE o;
+            }
+        };
+    } TOOLBAR IMAGE 'add.png';
+    
+    EXTEND FORM scheduleOrderDashboard
+        
+        OBJECTS l=LegalEntity
+        PROPERTIES(l) READONLY nameLegalEntity
+        FILTERS is###filter###legalEntity(l)
+        FILTERS filterLegalEntity###filter###Date(l,d)
+        
+        OBJECTS st=Stock
+        PROPERTIES(st) READONLY nameStock               
+        PROPERTIES(l,st) addScheduleOrder###filter###stock
+        
+        FILTERS filterLegalEntity###filter###stockDate(l,st,d)
+    ;
+    
+    EXTEND DESIGN scheduleOrderDashboard {
+    
+        NEW tabContainer AFTER header {
+            fill = 1;
+            type = TABBED;
+            ADD s.box;
+            NEW legalEntity {
+                caption = cap###', для которых есть прайс, но нет графика';
+                fill = 1;
+                type = CONTAINERH;
+                ADD l.box { caption = cap;}
+                ADD st.box;
+            }
+        }
+    }
+END
