@@ -492,7 +492,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             for (String property : orderProperties) {
                 orderQuery.addProperty(property, purchaseOrderLM.findLCPByCompoundOldName(property).getExpr(orderExpr));
             }
-            String[] orderDetailProperties = new String[]{"idBarcodeSkuOrderDetail", "nameBarcodeSkuOrderDetail", "priceOrderDetail", "quantityOrderDetail"};
+            String[] orderDetailProperties = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail", "quantityOrderDetail"};
             for (String property : orderDetailProperties) {
                 orderQuery.addProperty(property, purchaseOrderLM.findLCPByCompoundOldName(property).getExpr(orderDetailExpr));
             }
