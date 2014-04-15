@@ -500,12 +500,13 @@ public class LSTerminalHandler extends TerminalHandler {
     private void createOrderTableIfNotExists(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE IF NOT EXISTS orders " +
-                "(date     CHAR(10)             NOT NULL," +
-                " number   CHAR(20) PRIMARY KEY NOT NULL," +
+                "(date     CHAR(10) NOT NULL," +
+                " number   CHAR(20) NOT NULL," +
                 " supplier  CHAR(20)," +
                 " barcode   CHAR(20)," +
                 " price    REAL," +
-                " quantity REAL)";
+                " quantity REAL, " +
+                "PRIMARY KEY ( number, barcode))";
         statement.executeUpdate(sql);
         statement.close();
     }
