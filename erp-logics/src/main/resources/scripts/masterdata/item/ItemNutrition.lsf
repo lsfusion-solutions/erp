@@ -7,12 +7,17 @@ NAMESPACE Item;
 GROUP itemNutrition 'Энергетическая ценность' : public;
 
 energyItem 'Энергетическая ценность на 100г, ккал' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
-
 fatsItem 'Жиры на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
 carbohydratesItem 'Углеводы на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
 proteinsItem 'Белки на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
-
 containsGMOItem 'Содержит ГМО' = DATA BOOLEAN (Item) IN itemNutrition;
+
+@defineItemAttribute(energy, 'Энергетическая ценность', itemNutrition);
+
+EXTEND FORM itemGroup PROPERTIES(g) userShowEnergyItemGroup;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showEnergyItemGroup BACKGROUND backgroundShowEnergyItemGroup(g) BEFORE deleteg;
+
+EXTEND FORM item PROPERTIES(i) energyItem SHOWIF showEnergyItem(i);
 
 overCopyItem(s, d) += ACTION (s, d) {
     ASSIGN energyItem(d) <- energyItem(s);
@@ -22,7 +27,9 @@ overCopyItem(s, d) += ACTION (s, d) {
     ASSIGN containsGMOItem(d) <- containsGMOItem(s);
 }
 
-EXTEND FORM item PROPERTIES(i) energyItem, fatsItem, carbohydratesItem, proteinsItem, containsGMOItem;
+EXTEND FORM item 
+    PROPERTIES(i) SHOWIF showEnergyItem(i) energyItem, fatsItem, carbohydratesItem, proteinsItem, containsGMOItem
+;
 EXTEND DESIGN item {
     itemPrimaryColumn2 {
         ADD i.itemNutrition {
@@ -30,3 +37,7 @@ EXTEND DESIGN item {
         }
     }
 }
+EXTEND FORM items 
+    PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showEnergyItemGroup(g)
+                  energyItem, fatsItem, carbohydratesItem, proteinsItem, containsGMOItem
+;

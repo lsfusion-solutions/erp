@@ -66,7 +66,24 @@ calcSaleArticleParamsInterval 'Рассчитать продажи в день �
                                          cumBalance(a, stock) / quantitySoldArticleStockDateFromTo (a, stock, dateFrom, dateTo)
                                       ELSE
                                         9999.99;
-} TOOLBAR;
+} TOOLBAR; 
+
+
+balanceBInReportArticleDate 'Итого (остаток на начало)' (ar,dFrom)= GROUP SUM balanceBArticleStockDate(ar,st,dFrom) IF inArticleReportStock(st) BY ar, dFrom;
+quantitySoldInReportArticleDateFromTo 'Итого (продано кол-во)' (ar,dFrom,dTo)= GROUP SUM quantitySoldArticleStockDateFromTo(ar,st,dFrom,dTo) IF inArticleReportStock(st) BY ar, dFrom, dTo;
+balanceAInReportArticleDate 'Итого (остаток на конец)' (ar,dTo)= GROUP SUM balanceAArticleStockDate(ar,st,dTo) IF inArticleReportStock(st) BY ar, dTo;
+
+sumBInReportArticleDate 'Итого (сумма на начало)' (ar,dFrom)= GROUP SUM sumBArticleStockDate(ar,st,dFrom) IF inArticleReportStock(st) BY ar, dFrom;
+sumSoldInReportArticleDateFromTo 'Итого (продано сумма)' (ar,dFrom,dTo)= GROUP SUM sumSoldArticleStockDateFromTo(ar,st,dFrom,dTo) IF inArticleReportStock(st) BY ar, dFrom, dTo;
+sumAInReportArticleDate 'Итого (сумма на конец)' (ar,dTo)= GROUP SUM sumAArticleStockDate(ar,st,dTo) IF inArticleReportStock(st) BY ar, dTo; 
+
+balanceBInReportSkuDate 'Итого (остаток на начало)' (ks,dFrom)= GROUP SUM balanceBSkuStockDate(ks,st,dFrom) IF inArticleReportStock(st) BY ks, dFrom;
+quantitySoldInReportSkuDateFromTo 'Итого (продано кол-во)' (ks,dFrom,dTo)= GROUP SUM quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo) IF inArticleReportStock(st) BY ks, dFrom, dTo;
+balanceAInReportSkuDate 'Итого (остаток на конец)' (ks,dTo)= GROUP SUM balanceASkuStockDate(ks,st,dTo) IF inArticleReportStock(st) BY ks, dTo;
+
+sumBInReportSkuDate 'Итого (сумма на начало)' (ks,dFrom)= GROUP SUM sumBSkuStockDate(ks,st,dFrom) IF inArticleReportStock(st) BY ks, dFrom;
+sumSoldInReportSkuDateFromTo 'Итого (продано сумма)' (ks,dFrom,dTo)= GROUP SUM sumSoldSkuStockDateFromTo(ks,st,dFrom,dTo) IF inArticleReportStock(st) BY ks, dFrom, dTo;
+sumAInReportSkuDate 'Итого (сумма на конец)' (ks,dTo)= GROUP SUM sumASkuStockDate(ks,st,dTo) IF inArticleReportStock(st) BY ks, dTo; 
 
 FORM saleArticle 'Продажи по артикулам'
 
@@ -97,14 +114,20 @@ FORM saleArticle 'Продажи по артикулам'
     OBJECTS ar = Article 
     PROPERTIES(ar) READONLY idArticle, captionArticle,
                    nameSkuGroup3Article, nameSkuGroup4Article, imageArticle FORCE PANEL
-    PROPERTIES     READONLY balanceBArticleStockDate(ar,st,dFrom)  COLUMNS (st) HEADER nameArticleBalanceBStock(st)
-    PROPERTIES     READONLY quantitySoldArticleStockDateFromTo(ar,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleQuantitySoldStock(st)
-    PROPERTIES     READONLY balanceAArticleStockDate(ar,st,dTo)  COLUMNS (st) HEADER nameArticleBalanceAStock(st)
+    PROPERTIES     READONLY balanceBArticleStockDate(ar,st,dFrom)  COLUMNS (st) HEADER nameArticleBalanceBStock(st), 
+                   balanceBInReportArticleDate(ar,dFrom)
+    PROPERTIES     READONLY quantitySoldArticleStockDateFromTo(ar,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleQuantitySoldStock(st),
+                   quantitySoldInReportArticleDateFromTo(ar,dFrom,dTo)
+    PROPERTIES     READONLY balanceAArticleStockDate(ar,st,dTo)  COLUMNS (st) HEADER nameArticleBalanceAStock(st),
+                   balanceAInReportArticleDate(ar,dTo)
 
-    PROPERTIES     READONLY sumBArticleStockDate(ar,st,dFrom)  COLUMNS (st) HEADER nameArticleSumBStock(st)
-    PROPERTIES     READONLY sumSoldArticleStockDateFromTo(ar,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleSumSoldStock(st)
-    PROPERTIES     READONLY sumAArticleStockDate(ar,st,dTo)  COLUMNS (st) HEADER nameArticleSumAStock(st)    
-
+    PROPERTIES     READONLY sumBArticleStockDate(ar,st,dFrom)  COLUMNS (st) HEADER nameArticleSumBStock(st),
+                   sumBInReportArticleDate(ar,dFrom)
+    PROPERTIES     READONLY sumSoldArticleStockDateFromTo(ar,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleSumSoldStock(st),
+                   sumSoldInReportArticleDateFromTo(ar,dFrom,dTo)
+    PROPERTIES     READONLY sumAArticleStockDate(ar,st,dTo)  COLUMNS (st) HEADER nameArticleSumAStock(st),    
+                   sumAInReportArticleDate(ar,dTo)
+                   
     PROPERTIES     READONLY daysOnStockArticleStock(ar, st) COLUMNS (st) HEADER nameArticleDaysOnStockStock(st) 
     PROPERTIES     READONLY averageReportSoldArticleStock(ar, st) COLUMNS (st) HEADER nameArticleAverageReportSoldStock(st) 
     PROPERTIES     READONLY turnoverArticleStock(ar, st) COLUMNS (st) HEADER nameArticleTurnoverStock(st) 
@@ -124,13 +147,19 @@ FORM saleArticle 'Продажи по артикулам'
     FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(sts) DEFAULT                         
     OBJECTS ks = Sku 
     PROPERTIES(ks) READONLY idBarcodeSku, nameSku, nameSkuGroup3Sku, nameSkuGroup4Sku                            
-    PROPERTIES     READONLY balanceBSkuStockDate(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleBalanceBStock(st)
-    PROPERTIES     READONLY quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleQuantitySoldStock(st)
-    PROPERTIES     READONLY balanceASkuStockDate(ks,st,dTo)  COLUMNS (st) HEADER nameArticleBalanceAStock(st)
+    PROPERTIES     READONLY balanceBSkuStockDate(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleBalanceBStock(st),
+                   balanceBInReportSkuDate(ks,dFrom)
+    PROPERTIES     READONLY quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleQuantitySoldStock(st),
+                   quantitySoldInReportSkuDateFromTo(ks,dFrom,dTo)
+    PROPERTIES     READONLY balanceASkuStockDate(ks,st,dTo)  COLUMNS (st) HEADER nameArticleBalanceAStock(st),
+                   balanceAInReportSkuDate(ks,dTo) 
     
-    PROPERTIES     READONLY sumBSkuStockDate(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleSumBStock(st)
-    PROPERTIES     READONLY sumSoldSkuStockDateFromTo(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleSumSoldStock(st)
-    PROPERTIES     READONLY sumASkuStockDate(ks,st,dTo)  COLUMNS (st) HEADER nameArticleSumAStock(st)                                 
+    PROPERTIES     READONLY sumBSkuStockDate(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleSumBStock(st),
+                   sumBInReportSkuDate(ks,dFrom)
+    PROPERTIES     READONLY sumSoldSkuStockDateFromTo(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleSumSoldStock(st),
+                   sumSoldInReportSkuDateFromTo(ks,dFrom,dTo)
+    PROPERTIES     READONLY sumASkuStockDate(ks,st,dTo)  COLUMNS (st) HEADER nameArticleSumAStock(st),
+                   sumAInReportSkuDate(ks,dTo)                  
                              
     FILTERS           articleItem(ks) == ar  
               
@@ -204,14 +233,22 @@ DESIGN saleArticle FROM DEFAULT {
     PROPERTY(quantitySoldArticleStockDateFromTo(ar,st,dFrom,dTo)) { background = #CCFFCC; minimumCharWidth = 2; preferredCharWidth = 2;}
     PROPERTY(sumSoldArticleStockDateFromTo(ar,st,dFrom,dTo)) { background = #CCFFCC; }
     PROPERTY(balanceAArticleStockDate(ar,st,dTo)) { background = #BDE3FF; minimumCharWidth = 2; preferredCharWidth = 2;}
-    PROPERTY(sumAArticleStockDate(ar,st,dTo)) { background = #BDE3FF; }
-    
+    PROPERTY(sumAArticleStockDate(ar,st,dTo)) { background = #BDE3FF; }        
+
+    PROPERTY(balanceBInReportArticleDate(ar,dFrom)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(quantitySoldInReportArticleDateFromTo(ar,dFrom,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(balanceAInReportArticleDate(ar,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+   
     PROPERTY(balanceBSkuStockDate(ks,st,dFrom)) { background = #FFEEEE; minimumCharWidth = 2; preferredCharWidth = 2;}
     PROPERTY(sumBSkuStockDate(ks,st,dFrom)) { background = #FFEEEE; }
     PROPERTY(quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo)) { background = #CCFFCC; minimumCharWidth = 2; preferredCharWidth = 2;}
     PROPERTY(sumSoldSkuStockDateFromTo(ks,st,dFrom,dTo)) { background = #CCFFCC; }
     PROPERTY(balanceASkuStockDate(ks,st,dTo)) { background = #BDE3FF; minimumCharWidth = 2; preferredCharWidth = 2;}
     PROPERTY(sumASkuStockDate(ks,st,dTo)) { background = #BDE3FF; }
+
+    PROPERTY(balanceBInReportSkuDate(ks,dFrom)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(quantitySoldInReportSkuDateFromTo(ks,dFrom,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(balanceAInReportSkuDate(ks,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
     
     PROPERTY(quantitySaleLedger(s)) { background = #CCFFCC; }
     PROPERTY(sumSaleLedger(s)) { background = #CCFFCC; }

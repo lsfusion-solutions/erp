@@ -31,6 +31,8 @@ nameBalancerStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' |
 
 backgroundBalancePromotion (p)= RGB(204,204,255) IF p IS Promotion;
 
+prevCurrentBalanceArticlePromotion 'Итого (остаток)' (ar, sh) = GROUP SUM prevCurrentBalanceArticleStock(ar,ddd) IF inPromotionStore(sh, storeDepartmentStore(ddd)) BY ar, sh;
+
 EXTEND FORM promotion
     OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
@@ -44,8 +46,8 @@ EXTEND FORM promotion
                        imageArticle FORCE PANEL
     PROPERTIES(sg, ar) READONLY promotionConditionsPromotionConditionArticle
     PROPERTIES(sg, ar)          inPromotionConditionArticle
-    PROPERTIES READONLY prevCurrentBalanceArticleStock(ar,ddd) COLUMNS 'astock' (ddd) HEADER nameBalancerStock(ddd) BACKGROUND backgroundBalancePromotion(sh)   
-
+    PROPERTIES READONLY prevCurrentBalanceArticleStock(ar,ddd) COLUMNS 'astock' (ddd) HEADER nameBalancerStock(ddd) BACKGROUND backgroundBalancePromotion(sh),
+                       prevCurrentBalanceArticlePromotion(ar,sh)
     FILTERS                     isParentGroupArticle(skg, ar)
 
     FILTERGROUP filterArticle
@@ -85,6 +87,7 @@ EXTEND DESIGN promotion {
         }
         
     }         
-    PROPERTY(prevCurrentBalanceArticleStock(ar,ddd)) { minimumCharWidth = 2; preferredCharWidth = 2;}  
+    PROPERTY(prevCurrentBalanceArticleStock(ar,ddd)) { minimumCharWidth = 2; preferredCharWidth = 2;} 
+    PROPERTY(prevCurrentBalanceArticlePromotion(ar,sh)) { minimumCharWidth = 4; preferredCharWidth = 4;}  
 }
                 
