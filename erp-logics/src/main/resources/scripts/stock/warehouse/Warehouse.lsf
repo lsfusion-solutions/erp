@@ -189,8 +189,42 @@ addWarehouseLegalEntity 'Добавить склад' = ACTION (legalEntity) {
     }
 }
 
-EXTEND FORM legalEntity
+allWarehouseGroup = DATA WarehouseGroup ();
+nameAllWarehouseGroup 'Группа складов по умолчанию для организаций' = nameWarehouseGroup(allWarehouseGroup());
 
+EXTEND FORM options PROPERTIES() nameAllWarehouseGroup;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(nameAllWarehouseGroup());
+    }
+}
+
+
+defaultWarehouseLegalEntity= GROUP MAX stock IF inLegalEntityStock(legalEntity, stock) AND stock IS Warehouse BY legalEntity; 
+adressDefaultWarehouseLegalEntity 'Адрес основного склада' (legalEntity) = addressWarehouse(defaultWarehouseLegalEntity(legalEntity)) IN law;
+
+changeWarehouseLegalEntity = ACTION (legalEntity){
+    REQUEST VARSTRING[100] INPUT;
+    IF requestedString() THEN {
+        IF defaultWarehouseLegalEntity(legalEntity) THEN {
+            addressWarehouse(w) <- requestedString() WHERE w == defaultWarehouseLegalEntity(legalEntity);        
+        } ELSE {
+            FOR ADDOBJ w = Warehouse DO {
+                legalEntityWarehouse(w) <- legalEntity;
+                warehouseGroupWarehouse(w) <- allWarehouseGroup();                
+                addressWarehouse(w) <- requestedString();    
+                nameWarehouse(w) <- VARISTRING[150]('Склад '+(nameLegalEntity(legalEntityWarehouse(w))));    
+            }
+        }
+    } ELSE {
+        IF defaultWarehouseLegalEntity(legalEntity) THEN {
+            addressWarehouse(w) <- NULL WHERE w == defaultWarehouseLegalEntity(legalEntity);        
+        }   
+    }
+}
+
+EXTEND FORM legalEntity
+    PROPERTIES(l) adressDefaultWarehouseLegalEntity ON CHANGE changeWarehouseLegalEntity(l)
     PROPERTIES addWarehouseLegalEntity(l) TODRAW st FORCE PANEL TOOLBAR
 ;
 
