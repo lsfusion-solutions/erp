@@ -6,12 +6,12 @@ import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
 import lsfusion.base.IOUtils;
+import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.File;
@@ -21,8 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public abstract class ExportExcelActionProperty extends ScriptingActionProperty {
-
+public abstract class ExportExcelActionProperty extends DefaultIntegrationActionProperty {
+    
     public abstract Map<String, byte[]> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException;
 
     public static Map<String, byte[]> createFile(String fileName, List<String> columns, List<List<String>> rows) throws IOException, WriteException {

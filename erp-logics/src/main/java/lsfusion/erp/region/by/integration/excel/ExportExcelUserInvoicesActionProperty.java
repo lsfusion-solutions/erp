@@ -14,23 +14,17 @@ import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProperty {
     private final ClassPropertyInterface dateFromInterface;
     private final ClassPropertyInterface dateToInterface;
-
-    //Опциональные модули
-    private ScriptingLogicsModule pricingPurchaseLM;
-    private ScriptingLogicsModule purchaseInvoiceWholesaleLM;
 
     public ExportExcelUserInvoicesActionProperty(ScriptingLogicsModule LM) {
         super(LM, DateClass.instance, DateClass.instance);
@@ -61,8 +55,8 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
 
-        pricingPurchaseLM = (ScriptingLogicsModule) context.getBL().getModule("PricingPurchase");
-        purchaseInvoiceWholesaleLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoiceWholesalePrice");
+        ScriptingLogicsModule pricingPurchaseLM = (ScriptingLogicsModule) context.getBL().getModule("PricingPurchase");
+        ScriptingLogicsModule purchaseInvoiceWholesaleLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoiceWholesalePrice");
 
         List<List<String>> data = new ArrayList<List<String>>();
 

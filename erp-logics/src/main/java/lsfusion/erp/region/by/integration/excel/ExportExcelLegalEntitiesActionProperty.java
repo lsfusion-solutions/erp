@@ -10,13 +10,14 @@ import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.io.IOException;
-import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionProperty {
 
@@ -37,6 +38,8 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
 
+        ScriptingLogicsModule legalEntityByLM = (ScriptingLogicsModule) context.getBL().getModule("LegalEntityBy");
+        
         List<List<String>> data = new ArrayList<List<String>>();
 
         DataSession session = context.getSession();
@@ -46,13 +49,15 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
             KeyExpr legalEntityExpr = new KeyExpr("LegalEntity");
             ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
 
-            String[] legalEntityProperties = new String[]{"nameLegalEntity", "fullNameLegalEntity", "UNPLegalEntity",
+            String[] legalEntityProperties = new String[]{"nameLegalEntity", "fullNameLegalEntity",
                     "shortNameOwnershipLegalEntity", "nameLegalEntityGroupLegalEntity", "addressLegalEntity",
                     "phoneLegalEntity"};
             QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<Object, Object>(legalEntityKeys);
             for (String uiProperty : legalEntityProperties) {
                 legalEntityQuery.addProperty(uiProperty, getLCP(uiProperty).getExpr(context.getModifier(), legalEntityExpr));
             }
+            if(legalEntityByLM != null)
+                legalEntityQuery.addProperty("UNPLegalEntity", legalEntityByLM.findLCPByCompoundOldName("UNPLegalEntity").getExpr(context.getModifier(), legalEntityExpr));
 
             legalEntityQuery.and(getLCP("nameLegalEntity").getExpr(context.getModifier(), legalEntityQuery.getMapExprs().get("LegalEntity")).getWhere());
 

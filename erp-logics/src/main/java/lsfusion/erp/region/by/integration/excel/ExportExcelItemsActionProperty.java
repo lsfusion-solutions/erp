@@ -9,7 +9,6 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.StringClass;
-import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
@@ -17,24 +16,18 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
-
-    //Опциональные модули
-    private ScriptingLogicsModule wareItemLM;
-    private ScriptingLogicsModule writeOffRateItemLM;
 
     public ExportExcelItemsActionProperty(ScriptingLogicsModule LM) {
         super(LM);
@@ -56,9 +49,10 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
 
-        wareItemLM = (ScriptingLogicsModule) context.getBL().getModule("WareItemLM");
-        writeOffRateItemLM = (ScriptingLogicsModule) context.getBL().getModule("WriteOffRateItem");
-
+        ScriptingLogicsModule wareItemLM = (ScriptingLogicsModule) context.getBL().getModule("WareItemLM");
+        ScriptingLogicsModule writeOffRateItemLM = (ScriptingLogicsModule) context.getBL().getModule("WriteOffRateItem");
+        ScriptingLogicsModule salePackLM = (ScriptingLogicsModule) context.getBL().getModule("SalePack");
+        
         List<List<String>> data = new ArrayList<List<String>>();
 
         DataSession session = context.getSession();
@@ -73,9 +67,12 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
             QueryBuilder<Object, Object> itemQuery = new QueryBuilder<Object, Object>(itemKeys);
             String[] itemProperties = new String[]{"itemGroupItem", "nameAttributeItem", "UOMItem",
                     "brandItem", "countryItem", "idBarcodeSku", "isWeightItem", "netWeightItem", "grossWeightItem",
-                    "compositionItem", "Purchase.amountPackSku", "Sale.amountPackSku"};
+                    "compositionItem", "Purchase.amountPackSku"};
             for (String iProperty : itemProperties) {
                 itemQuery.addProperty(iProperty, getLCP(iProperty).getExpr(context.getModifier(), itemExpr));
+            }
+            if(salePackLM != null) {
+                itemQuery.addProperty("Sale.amountPackSku", salePackLM.findLCPByCompoundOldName("Sale.amountPackSku").getExpr(context.getModifier(), itemExpr)); 
             }
 
             if (wareItemLM != null) {
