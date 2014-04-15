@@ -9,14 +9,16 @@ public class TerminalOrder implements Serializable {
     public String number;
     public String supplier;
     public String barcode;
+    public String name;
     public BigDecimal price;
     public BigDecimal quantity;
 
-    public TerminalOrder(Date date, String number, String supplier, String barcode, BigDecimal price, BigDecimal quantity) {
+    public TerminalOrder(Date date, String number, String supplier, String barcode, String name, BigDecimal price, BigDecimal quantity) {
         this.date = date;
         this.number = number;
         this.supplier = supplier;
         this.barcode = barcode;
+        this.name = name;
         this.price = price;
         this.quantity = quantity;
     }

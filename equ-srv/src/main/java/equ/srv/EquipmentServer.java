@@ -492,7 +492,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             for (String property : orderProperties) {
                 orderQuery.addProperty(property, purchaseOrderLM.findLCPByCompoundOldName(property).getExpr(orderExpr));
             }
-            String[] orderDetailProperties = new String[]{"idBarcodeSkuOrderDetail", "priceOrderDetail", "quantityOrderDetail"};
+            String[] orderDetailProperties = new String[]{"idBarcodeSkuOrderDetail", "nameBarcodeSkuOrderDetail", "priceOrderDetail", "quantityOrderDetail"};
             for (String property : orderDetailProperties) {
                 orderQuery.addProperty(property, purchaseOrderLM.findLCPByCompoundOldName(property).getExpr(orderDetailExpr));
             }
@@ -505,9 +505,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 String numberOrder = trim((String) entry.get("numberOrder").getValue());
                 String idSupplier = trim((String) purchaseOrderLM.findLCPByCompoundOldName("idLegalEntity").read(session, entry.get("supplierOrder")));
                 String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail").getValue());
+                String name = trim((String) entry.get("nameSkuOrderDetail").getValue());
                 BigDecimal price = (BigDecimal) entry.get("priceOrderDetail").getValue();
                 BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail").getValue();
-                terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, price, quantity));
+                terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price, quantity));
             }
             return terminalOrderList;
         } else return null;

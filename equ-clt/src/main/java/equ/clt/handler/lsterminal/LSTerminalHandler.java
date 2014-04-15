@@ -289,6 +289,14 @@ public class LSTerminalHandler extends TerminalHandler {
                             formatValue(item.idBarcode), formatValue(item.name), formatValue(item.price),
                             formatValue(item.quantity), formatValue(item.image));
             }
+
+            //чит: добавляем товары из заказов, но только те, которых ещё нет в базе
+            for(TerminalOrder order : transactionInfo.terminalOrderList) {
+                if(order.barcode != null)
+                    sql += String.format("INSERT OR IGNORE INTO item VALUES('%s', '%s', '%s', '%s', '%s');",
+                            formatValue(order.barcode), formatValue(order.name), formatValue(order.price), "", "");
+            }
+            
             sql += "COMMIT;";
             statement.executeUpdate(sql);
             statement.close();
@@ -504,6 +512,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 " number   CHAR(20) NOT NULL," +
                 " supplier  CHAR(20)," +
                 " barcode   CHAR(20)," +
+                " name   CHAR(50)," +
                 " price    REAL," +
                 " quantity REAL, " +
                 "PRIMARY KEY ( number, barcode))";
@@ -517,9 +526,10 @@ public class LSTerminalHandler extends TerminalHandler {
             String sql = "BEGIN TRANSACTION;";
             for (TerminalOrder order : transactionInfo.terminalOrderList) {
                 if (order.number != null)
-                    sql += String.format("INSERT OR REPLACE INTO orders VALUES('%s', '%s', '%s', '%s', '%s', '%s');",
+                    sql += String.format("INSERT OR REPLACE INTO orders VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s');",
                             formatValue(order.date), formatValue(order.number), formatValue(order.supplier),
-                            formatValue(order.barcode), formatValue(order.price), formatValue(order.quantity));
+                            formatValue(order.barcode), formatValue(order.name), formatValue(order.price), 
+                            formatValue(order.quantity));
             }
             sql += "COMMIT;";
             statement.executeUpdate(sql);
@@ -548,16 +558,17 @@ public class LSTerminalHandler extends TerminalHandler {
         List<TerminalOrder> terminalOrderList = new ArrayList<TerminalOrder>();
 
         Statement statement = connection.createStatement();
-        String sql = "SELECT date, number, supplier, barcode, price, quantity FROM orders;";
+        String sql = "SELECT date, number, supplier, barcode, name, price, quantity FROM orders;";
         ResultSet resultSet = statement.executeQuery(sql);
         while (resultSet.next()) {
             String date = resultSet.getString("date");
             String number = resultSet.getString("number");
             String idSupplier = resultSet.getString("supplier");
             String barcode = resultSet.getString("barcode");
+            String name = resultSet.getString("name");
             BigDecimal price = new BigDecimal(resultSet.getDouble("price"));
             BigDecimal quantity = new BigDecimal(resultSet.getDouble("quantity"));
-            terminalOrderList.add(new TerminalOrder(dateFormat.parse(date), number, idSupplier, barcode, price, quantity));
+            terminalOrderList.add(new TerminalOrder(dateFormat.parse(date), number, idSupplier, barcode, name, price, quantity));
         }
         resultSet.close();
         statement.close();
