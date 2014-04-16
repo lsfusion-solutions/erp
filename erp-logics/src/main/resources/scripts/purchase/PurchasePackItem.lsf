@@ -1,0 +1,23 @@
+MODULE PurchasePackItem;
+
+REQUIRE PackItem, PurchasePack;
+
+NAMESPACE Purchase;
+
+EXTEND FORM item
+    PROPERTIES(i) purchaseAmount = amountPackSku ON CHANGE changePackSku(i)
+    PROPERTIES(b) packBarcode ON CHANGE changePackBarcodeSku(b,i) BEFORE deleteb
+;
+EXTEND DESIGN item {
+    itemPack {
+        ADD PROPERTY(purchaseAmount) {
+            caption = 'Количество в упаковке (закупка)'; 
+        }
+    }
+}
+
+overCopyItemBarcode(d, s, i) += ACTION (d, s, i) {
+    IF packBarcode(s) THEN {
+        packBarcodeSku(i) <- d;
+    }
+}
