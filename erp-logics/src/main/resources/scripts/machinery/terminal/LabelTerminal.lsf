@@ -1,0 +1,29 @@
+MODULE LabelTerminal;
+
+REQUIRE Label, Terminal;
+
+NAMESPACE Label;
+
+addDetailDialogTerminalLabelTransactionDetailLabelTransaction 'Импорт из ТСД' (labelTransaction) = ACTION (labelTransaction) {
+    FORM terminalDocuments MODAL;
+    IF formResult() == FormResult.ok THEN {
+        LOCAL document = TerminalDocument ();
+        
+        document() <- chosenObject('td');
+        usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document()  ;
+
+        FOR terminalDocumentTerminalDocumentDetail(tdd) == document()  DO {
+            FOR ADDOBJ o = LabelTransactionDetail DO {
+                labelTransactionLabelTransactionDetail(o) <- labelTransaction;
+                skuLabelTransactionDetail(o) <- skuBarcode(barcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateLabelTransaction(labelTransaction)));
+                barcodeLabelTransactionDetail(o) <- barcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateLabelTransaction(labelTransaction));
+                quantityLabelTransactionDetail(o) <- INTEGER(quantityTerminalDocumentDetail(tdd));
+                createAttributeLabelTransactionDetail(o);
+            }
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM customLabelTransaction
+    PROPERTIES(l) TODRAW d addDetailDialogTerminalLabelTransactionDetailLabelTransaction
+;

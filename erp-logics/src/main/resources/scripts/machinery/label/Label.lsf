@@ -298,17 +298,45 @@ deleteNotSelectedLabelTransactionDetail 'Удалить кроме отмече�
 
 FORM customLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
-    PROPERTIES(l) nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, descriptionLabelTransaction, dateLabelTransaction, timeLabelTransaction,
-                  nameStoreLabelTransaction, nameLegalEntityLabelTransaction
-
+    PROPERTIES(l) nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, dateLabelTransaction, timeLabelTransaction,
+                  descriptionLabelTransaction READONLY 
+                   
     OBJECTS d = LabelTransactionDetail
-    PROPERTIES(d) selectedLabelTransactionDetail, idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
+    PROPERTIES(d) selectedLabelTransactionDetail, idBarcodeLabelTransactionDetail READONLY, nameSkuLabelTransactionDetail READONLY, nameBatchLabelTransactionDetail,
                   quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail,
-                  ADDOBJ, DELETESESSION
+                  DELETESESSION
     FILTERS labelTransactionLabelTransactionDetail(d) == l
     
-    PROPERTIES(l) deleteNotSelectedLabelTransactionDetail TODRAW d 
+    PROPERTIES(l) TODRAW d deleteNotSelectedLabelTransactionDetail                      
+    
+    EDIT LabelTransaction OBJECT l    
 ;
+DESIGN customLabelTransaction FROM DEFAULT{
+    main {
+        preferredSize = (1024, 768);
+        ADD l.box;
+        NEW specification.box {
+            fill = 1;
+            ADD d.box {
+                caption = 'Спецификация';
+            }
+        }
+        ADD functions.box;
+    }
+}        
+
+addLabelTransactionDepartmentStore 'Добавить' = ACTION (dep) NEWSESSION {
+    FOR ADDOBJ l = LabelTransaction DO {
+        ASSIGN departmentStoreLabelTransaction(l) <- dep;
+        FORM customLabelTransaction OBJECTS l=l DOCKEDMODAL;
+        IF formResult() == FormResult.ok THEN {                              
+            FORM printLabelTransaction OBJECTS l = l PRINT;
+            apply();
+        }            
+    }
+} TOOLBAR IMAGE 'add.png';
+
+printToLabelTransaction 'Печать ценников' (labelTransaction) = ACTION FORM printLabelTransaction OBJECTS l = labelTransaction PRINT  IMAGE 'print.png' IN print;
 
 FORM labelTransactions 'Печать ценников'
     OBJECTS d = DepartmentStore FIXED PANEL
@@ -317,8 +345,11 @@ FORM labelTransactions 'Печать ценников'
     OBJECTS l = LabelTransaction
     PROPERTIES(l) READONLY nameLabelTypeLabelTransaction, descriptionLabelTransaction, dateLabelTransaction, timeLabelTransaction
     PROPERTIES(l) READONLY createdNameUserLabelTransaction, createdTimeLabelTransaction, createdHostnameComputerLabelTransaction
-    PROPERTIES(l) DELETESESSION
+    PROPERTIES(d) addLabelTransactionDepartmentStore TODRAW l FORCE PANEL TOOLBAR 
+    PROPERTIES(l) EDITFORM , DELETE FORCE PANEL TOOLBAR 
+    PROPERTIES(l) printToLabelTransaction FORCE PANEL 
     FILTERS departmentStoreLabelTransaction(l) == d
+    ORDER BY dateLabelTransaction(l), timeLabelTransaction(l)
 
     OBJECTS dt = LabelTransactionDetail
     PROPERTIES(dt) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
@@ -336,7 +367,18 @@ DESIGN labelTransactions FROM DEFAULT {
             fill = 1;
 
             ADD l.box;
-            ADD dt.box;
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+    
+                ADD dt.box {
+                    caption = 'Спецификация';
+                } 
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    ADD l.print;
+                } 
+            }              
         }
         ADD functions.box;
     }
@@ -348,7 +390,7 @@ documentQuantityLabelTransactionDetail = DATA SESSION NUMERIC[14,3] (LabelTransa
 documentPriceLabelTransactionDetail = DATA SESSION NUMERIC[14,2] (LabelTransactionDetail);
 
 calcPriceLabelTransactionDetail (d) =
-    IF batchLabelTransactionDetail(d) THEN
+    IF  batchLabelTransactionDetail(d) THEN
         prevPriceAPriceListTypeBatchStockDateTime(priceListTypeLabelTransactionDetail(d),
                                                   batchLabelTransactionDetail(d),
                                                   departmentStoreLabelTransactionDetail(d),
@@ -407,6 +449,99 @@ EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressPhoneLegalEn
 EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressPhoneLegalEntityLabelTransactionDetail;
 EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressPhoneLegalEntityLabelTransactionDetail;
 
+//-------------------------------------- Подбор ------------------------//
+
+addDetailDialogSkuLabelTransactionDetailLabelTransaction 'Подбор товаров' = ACTION (labelTransaction) {
+    FORM dialogSku MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR dialogSkuQuantity(sku) INLINE ADDOBJ w = LabelTransactionDetail DO {
+            labelTransactionLabelTransactionDetail(w) <- labelTransaction;
+            skuLabelTransactionDetail(w) <- sku;
+            barcodeLabelTransactionDetail(w) <- barcodeSku(sku);
+            quantityLabelTransactionDetail(w) <- INTEGER(dialogSkuQuantity(sku));
+            documentQuantityLabelTransactionDetail(w) <- dialogSkuQuantity(sku); 
+            createAttributeLabelTransactionDetail(w);               
+        }
+    }
+    dialogSkuQuantity(sku) <- NULL;
+} TOOLBAR;
+
+addDetailDialogSkuStockLabelTransactionDetailLabelTransaction 'Подбор товаров' = ACTION (labelTransaction) {
+    dialogSkuStock() <- departmentStoreLabelTransaction(labelTransaction);
+    dialogSkuAll(sku) <- NULL;
+
+    addDetailDialogSkuLabelTransactionDetailLabelTransaction(labelTransaction);
+} TOOLBAR;
+            
+@defineDocumentDetailActions(labelTransaction);
+
+@defineDocumentHeaderSkuQuantity(labelTransaction, sku);
+
+//-- Подбор товар/партии
+
+labelTransactionDetailSkuLabelTransactionDepartmentStore (sku, labelTransaction, stock) =  GROUP MAX labelTransactionDetail
+    BY skuLabelTransactionDetail(labelTransactionDetail), labelTransactionLabelTransactionDetail(labelTransactionDetail), departmentStoreLabelTransactionDetail(labelTransactionDetail);
+labelTransactionDetailSkuLabelTransaction (sku, labelTransaction) = labelTransactionDetailSkuLabelTransactionDepartmentStore(sku, labelTransaction, departmentStoreLabelTransaction(labelTransaction));
+
+currentBalanceSkuLabelTransaction 'Остаток' (sku, labelTransaction) = currentBalanceSkuStock(sku, departmentStoreLabelTransaction(labelTransaction));
+prevCurrentBalanceSkuLabelTransaction 'Остаток' (sku, labelTransaction) = prevCurrentBalanceSkuStock(sku, departmentStoreLabelTransaction(labelTransaction));
+backgroundQuantitySkuLabelTransaction 'Цвет' (sku, labelTransaction) = ABSTRACT CASE COLOR (Sku, LabelTransaction);  
+
+changeQuantityValueSkuLabelTransaction = ACTION (sku, labelTransaction) {
+    IF labelTransactionDetailSkuLabelTransaction(sku, labelTransaction) THEN {
+        IF requestedNumeric() THEN {
+            quantityLabelTransactionDetail(labelTransactionDetail) <- INTEGER(requestedNumeric()) WHERE labelTransactionDetail == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);
+            documentQuantityLabelTransactionDetail(labelTransactionDetail) <- requestedNumeric() WHERE labelTransactionDetail == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);
+        } ELSE {
+            DELETE d WHERE d == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);
+        }
+    } ELSE {
+        IF requestedNumeric() THEN {
+            FOR ADDOBJ d = LabelTransactionDetail DO {
+                labelTransactionLabelTransactionDetail(d) <- labelTransaction;
+                skuLabelTransactionDetail(d) <- sku;
+                barcodeLabelTransactionDetail(d) <- barcodeSku(sku);
+                quantityLabelTransactionDetail (d) <- INTEGER(requestedNumeric());
+                documentQuantityLabelTransactionDetail(d) <- requestedNumeric();
+                createAttributeLabelTransactionDetail(d);
+            }
+        }
+    }
+}
+
+changeQuantitySkuLabelTransaction = ACTION (sku, labelTransaction) {
+    REQUEST NUMERIC[14,3] INPUT;
+    EXEC changeQuantityValueSkuLabelTransaction(sku, labelTransaction);
+}
+
+// Выбор всего остатка
+allQuantitySkuLabelTransaction 'Весь остаток' = DATA SESSION BOOLEAN (Sku, LabelTransaction);
+changeAllQuantitySkuLabelTransaction = ACTION (sku, labelTransaction) {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        requestedNumeric() <- NULL;
+        allQuantitySkuLabelTransaction (sku,labelTransaction) <- TRUE;
+        requestedNumeric() <- prevCurrentBalanceSkuLabelTransaction(sku,labelTransaction);
+        changeQuantityValueSkuLabelTransaction(sku, labelTransaction);
+    } ELSE {
+        allQuantitySkuLabelTransaction (sku,labelTransaction) <- NULL;
+        requestedNumeric() <- NULL;
+        changeQuantityValueSkuLabelTransaction(sku, labelTransaction);
+    }
+}
+priceSkuLabelTransaction 'Цена' (sku, labelTransaction) = prevPriceBPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelTypeLabelTransaction(labelTransaction)), sku, departmentStoreLabelTransaction(labelTransaction), dateTimeLabelTransaction(labelTransaction));
+
+@extendFormDocumentSku(labelTransaction, customLabelTransaction, l);
+                           
+EXTEND FORM customLabelTransaction 
+    
+    PROPERTIES(l) TODRAW d addDetailDialogSkuStockLabelTransactionDetailLabelTransaction, deleteNotSelectedLabelTransactionDetail
+    
+    FILTERGROUP filter
+        FILTER 'С остатком ' 'F10' prevCurrentBalanceSkuLabelTransaction(ks, l) DEFAULT
+        FILTER 'В документе ' 'F9' quantityLabelTransactionDetailSkuLabelTransaction(ks, l)
+                  
+;
 // ------------------------- Подключение печати ценников в документ --------------------- //
 META defineDocumentLabelTransaction (document, skuProp, stockProp)
     create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {
