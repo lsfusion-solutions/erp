@@ -6,7 +6,22 @@ NAMESPACE Purchase;
 
 //-----------------------------------------------------------------------------------------------------------//
 
-quantitySoldSkuStockUserOrder 'Продано' (sku, stock, userOrder) = quantitySoldSkuStockDateFromTo(sku, stock, fromShipmentDateUserOrder(userOrder), dateUserOrder(userOrder));
+dateFromSoldPeriodUserOrder 'Дата с' = DATA DATE (UserOrder);
+dateToSoldPeriodUserOrder 'Дата по' = DATA DATE (UserOrder);
+
+WHEN SESSION SET(o IS UserOrder) DO {
+    IF o IS UserOrder AND NOT dateFromSoldPeriodUserOrder(o) THEN dateFromSoldPeriodUserOrder(o) <- currentDate();
+    IF o IS UserOrder AND NOT dateToSoldPeriodUserOrder(o) THEN dateToSoldPeriodUserOrder(o) <- currentDate();
+};
+
+WHEN SESSION FORMS userOrder CHANGED (fromShipmentDateUserOrder(o)) DO {
+    dateFromSoldPeriodUserOrder(o) <-  fromShipmentDateUserOrder(o);   
+}
+WHEN SESSION FORMS userOrder CHANGED (dateUserOrder(o)) DO {
+    dateToSoldPeriodUserOrder(o) <-  dateUserOrder(o);   
+}
+
+quantitySoldSkuStockUserOrder 'Продано' (sku, stock, userOrder) = quantitySoldSkuStockDateFromTo(sku, stock, dateFromSoldPeriodUserOrder(userOrder), dateToSoldPeriodUserOrder(userOrder));
 recQuantitySkuStockUserOrder  (sku, stock, userOrder) = stockReserveStockSkuDate(stock, sku, dateUserOrder(userOrder))  (+) quantitySoldSkuStockUserOrder(sku, stock, userOrder) (-)
                                                         (currentReservePurchaseSkuStock(sku, stock) IF userOrder IS UserOrder)  (-) (currentBalanceSkuStock(sku, stock) IF userOrder IS UserOrder);
 
@@ -39,7 +54,21 @@ fillRecommendedQuantityStockUserOrder 'Заполнить рекомендуем
 } TOOLBAR CONFIRM;
 
 EXTEND FORM userOrder
+    PROPERTIES(o) TODRAW sts FORCE PANEL dateFromSoldPeriodUserOrder, dateToSoldPeriodUserOrder
+
     PROPERTIES READONLY AFTER prevCurrentBalanceSkuStock(ks,st) stockReserveSkuStockUserOrder(ks,st,o), quantitySoldSkuStockUserOrder(ks,st,o)
     PROPERTIES READONLY AFTER quantitySkuUserOrderCustomerStock(ks, o, st)
         recommendedQuantitySkuStockUserOrder(ks,st,o) ON SHORTCUT fillRecommendedQuantityStockUserOrder(o)
 ;
+
+EXTEND DESIGN userOrder {
+    sts.box {           
+        NEW filterDate FIRST {
+            caption= 'Период для расчета продаж';
+            type = CONTAINERH;
+            ADD PROPERTY (dateFromSoldPeriodUserOrder(o));
+            ADD PROPERTY (dateToSoldPeriodUserOrder(o));
+      
+        }
+    }
+}
