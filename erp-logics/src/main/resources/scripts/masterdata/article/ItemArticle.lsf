@@ -278,8 +278,16 @@ FORM genders 'Пол'
 ;
 DESIGN genders FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
+genderBrand  = DATA Gender (Brand);
+nameGenderBrand 'Пол' (b) = nameGender(genderBrand(b)) IN itemArticle;
+EXTEND FORM brand PROPERTIES(t) nameGenderBrand;
+EXTEND FORM brands PROPERTIES(t) BEFORE deleteb READONLYIF isReadonly() nameGenderBrand;
+
 genderArticle  = DATA Gender (Article);
 nameGenderArticle 'Пол' (a) = nameGender(genderArticle(a)) IN itemArticle;
+
+overGenderArticle (article) = OVERRIDE genderBrand(brandArticle(article)), genderArticle(article);
+overNameGenderArticle 'Пол' (a) = nameGender(overGenderArticle(a));
 
 genderItem (i) = genderArticle(articleItem(i));
 nameGenderItem 'Пол' (i) = nameGender(genderItem(i));
