@@ -605,6 +605,12 @@ editPricing(p) += editUserPricing(p);
 
 isUserOpenedPricing(p)=  isOpenedPricing(p) AND isUserPricing(p);
 
+editPricingDetail 'Редактировать' = ABSTRACT ACTION LIST (PricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+editUserPricingDetail(d) = ACTION (d) NEWSESSION {
+    FORM userPricing OBJECTS p = userPricingUserPricingDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+}
+editPricingDetail(d) += editUserPricingDetail(d);  
+
 FORM pricings 'Акты расценки' TITLE 'Акты расценки'
     OBJECTS p = Pricing
     PROPERTIES (p) READONLYIF isReadonly() isClosedPricing, isPostedPricing, isReturnPricing, numberPricing, seriesPricing, datePricing, timePricing,
@@ -823,5 +829,7 @@ pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(retai
 //pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += retailPricePricingDetail(ledger) WHEN CLASS(retailPricePricingDetail(ledger)) AND type == SystemLedgerPriceListType.accountPriceListType;
 
 inPriceListLedgerStock (ledger, stock) += departmentStorePricingDetail(ledger) == stock;
+
+editPriceListLedger(d) += editPricingDetail(d);
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userPricing, supplierPricingPriceListType, , sku, departmentStore);
