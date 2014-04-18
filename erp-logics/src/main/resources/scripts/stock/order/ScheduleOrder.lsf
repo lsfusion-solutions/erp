@@ -25,6 +25,9 @@ TABLE scheduleOrder(ScheduleOrder);
 CLASS ABSTRACT ScheduleOrderDetail 'Заказ по графику';
 TABLE scheduleOrderDetail(ScheduleOrderDetail);
 
+//isClosedScheduleOrderDetail 'Аннулирован' = ABSTRACT BOOLEAN (ScheduleOrderDetail);
+//isOpenedScheduleOrderDetail= d IS ScheduleOrderDetail AND NOT isClosedScheduleOrderDetail(d);
+
 startDateScheduleOrder 'Дата начала' = ABSTRACT DATE (ScheduleOrder) IN base;
 endDateScheduleOrder 'Дата окончания' = ABSTRACT DATE (ScheduleOrder) IN base;
 
@@ -120,7 +123,16 @@ META defineScheduleOrder(sign, stockProp)
 
     dateOrderScheduleOrderDetail 'Дата заказа' = DATA DATE (ScheduleOrderDetail) IN base;
     dateSupplyScheduleOrderDetail 'Дата поставки' = DATA DATE (ScheduleOrderDetail) IN base;
+    
+    isClosedScheduleOrderDetail  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
+    isOpenedScheduleOrderDetail  'Не аннулирован' (o) = o IS ScheduleOrderDetail  AND NOT isClosedScheduleOrderDetail (o) PERSISTENT;
 
+    closeScheduleOrderDetail  'Аннулировать' (o) = ACTION NEWSESSION AUTOAPPLY { isClosedScheduleOrderDetail (o) <- TRUE; } TOOLBAR CONFIRM;
+
+    openScheduleOrderDetail  'Отменить аннулирование' (o) = ACTION NEWSESSION AUTOAPPLY { isClosedScheduleOrderDetail (o) <- NULL; } TOOLBAR CONFIRM;
+    
+//    isClosedScheduleOrderDetail(d) += isClosedScheduleOrderDetail(d);
+    
     scheduleOrderScheduleOrderDetail 'График поставок' = DATA ScheduleOrder(ScheduleOrderDetail) NOT NULL DELETE;
 
     CONSTRAINT scheduleOrderScheduleOrderDetail(scheduleOrderDetail1) == scheduleOrderScheduleOrderDetail(scheduleOrderDetail2) AND
@@ -216,9 +228,9 @@ META defineScheduleOrder(sign, stockProp)
     monthInDateScheduleOrderDetail 'Месяц'(scheduleOrderDetail) = extractMonthName(dateSupplyScheduleOrderDetail(scheduleOrderDetail));
     DOWInDateScheduleOrderDetail 'День недели'(scheduleOrderDetail) = extractDOWName(dateSupplyScheduleOrderDetail(scheduleOrderDetail));
 
-    orderScheduleOrderDetail = STRUCT(dateSupplyScheduleOrderDetail(scheduleOrderDetail), scheduleOrderDetail) PERSISTENT;
+    orderScheduleOrderDetail = STRUCT(dateSupplyScheduleOrderDetail(scheduleOrderDetail), scheduleOrderDetail) IF isOpenedScheduleOrderDetail(scheduleOrderDetail) PERSISTENT;
 
-    concatNextScheduleOrderDetail(scheduleOrderDetail, scheduleOrder) = GROUP MIN orderScheduleOrderDetail(scheduleOrderDetail1) IF
+    concatNextScheduleOrderDetail(scheduleOrderDetail, scheduleOrder) = GROUP MIN orderScheduleOrderDetail(scheduleOrderDetail1) IF 
                                                                                   dateSupplyScheduleOrderDetail(scheduleOrderDetail1) > dateSupplyScheduleOrderDetail(scheduleOrderDetail)
                                                                                BY scheduleOrderDetail, scheduleOrderScheduleOrderDetail(scheduleOrderDetail1);
 
@@ -231,21 +243,22 @@ META defineScheduleOrder(sign, stockProp)
         GROUP SUM 1 IF supplierStockOrder(userOrder)==supplierStockScheduleOrderDetail(scheduleOrderDetail) AND
                        customerStockOrder(userOrder)==customerStockScheduleOrderDetail(scheduleOrderDetail) AND
                        shipmentDateUserOrder(userOrder)==dateSupplyScheduleOrderDetail(scheduleOrderDetail) AND
-                       dateOrder(userOrder)==dateOrderScheduleOrderDetail(scheduleOrderDetail)
+                       dateOrder(userOrder)==dateOrderScheduleOrderDetail(scheduleOrderDetail) AND
+                       isOpenedScheduleOrderDetail(scheduleOrderDetail)
                BY scheduleOrderDetail PERSISTENT;
                
     lastScheduleOrderDetailDateSupplierStockCustomerStock (d,s,ss,c,cs) = 
         GROUP LAST sd
                BY d, supplierScheduleOrderDetail(sd), supplierStockScheduleOrderDetail(sd), customerScheduleOrderDetail(sd), customerStockScheduleOrderDetail(sd)
                ORDER dateOrderScheduleOrderDetail(sd), sd 
-               WHERE dateOrderScheduleOrderDetail(sd) <= (d AS DATE);             
+               WHERE dateOrderScheduleOrderDetail(sd) <= (d AS DATE) AND isOpenedScheduleOrderDetail(sd);             
     isLastScheduleOrderDetailDate (sd,d)= lastScheduleOrderDetailDateSupplierStockCustomerStock(d,supplierScheduleOrderDetail(sd), supplierStockScheduleOrderDetail(sd), customerScheduleOrderDetail(sd), customerStockScheduleOrderDetail(sd)) == sd;           
 
     lastScheduleOrderDetailSupplierStockCustomerStock (s,ss,c,cs) = 
         GROUP LAST sd
                BY supplierScheduleOrderDetail(sd), supplierStockScheduleOrderDetail(sd), customerScheduleOrderDetail(sd), customerStockScheduleOrderDetail(sd)
                ORDER dateOrderScheduleOrderDetail(sd), sd 
-               WHERE sd IS ScheduleOrderDetail;             
+               WHERE isOpenedScheduleOrderDetail(sd);             
     isLastScheduleOrderDetail (sd)= lastScheduleOrderDetailSupplierStockCustomerStock(supplierScheduleOrderDetail(sd), supplierStockScheduleOrderDetail(sd), customerScheduleOrderDetail(sd), customerStockScheduleOrderDetail(sd)) == sd;   
 
     overCreateOrder = ABSTRACT ACTION LIST (UserOrder);
@@ -290,7 +303,7 @@ META defineScheduleOrder(sign, stockProp)
         PROPERTIES(s, d) inDayScheduleOrder SHOWIF toShowGenDayMonth(s)
 
         OBJECTS sd=ScheduleOrderDetail
-        PROPERTIES (sd) dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail
+        PROPERTIES (sd) isClosedScheduleOrderDetail, dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail
         PROPERTIES (sd) READONLY monthInDateScheduleOrderDetail, DOWInDateScheduleOrderDetail,
                         nameSupplierScheduleOrderDetail, nameSupplierStockScheduleOrderDetail,
                         nameCustomerScheduleOrderDetail, nameCustomerStockScheduleOrderDetail
@@ -418,12 +431,15 @@ META defineScheduleOrder(sign, stockProp)
         PROPERTIES () nameSupplier, nameCustomer, nameSupplierStock, nameCustomerStock
 
         OBJECTS sd=ScheduleOrderDetail
-        PROPERTIES (sd) READONLY dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail,
+        PROPERTIES (sd) READONLY isClosedScheduleOrderDetail, dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail,
                         monthInDateScheduleOrderDetail, DOWInDateScheduleOrderDetail,
                         nameSupplierScheduleOrderDetail, nameSupplierStockScheduleOrderDetail,
                         nameCustomerScheduleOrderDetail, nameCustomerStockScheduleOrderDetail, quantityOrdersScheduleOrderDetail
         PROPERTIES (sd) createScheduleUserOrder, editScheduleOrderDetail
-
+        PROPERTIES (sd) closeScheduleOrderDetail  SHOWIF isOpenedScheduleOrderDetail (sd), openScheduleOrderDetail  SHOWIF isClosedScheduleOrderDetail (sd)
+//        FILTERGROUP openFilter
+//            FILTER 'Не аннулированные' 'F6' isOpenedScheduleOrderDetail(sd)  
+                    
         ORDER BY dateSupplyScheduleOrderDetail(sd)
 
         FILTERS supplierScheduleOrderDetail(sd) == supplier() OR (sd IS ScheduleOrderDetail AND NOT supplier()),
@@ -485,11 +501,14 @@ META defineScheduleOrder(sign, stockProp)
         PROPERTIES(s) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
         OBJECTS sd=ScheduleOrderDetail
-        PROPERTIES(sd) READONLY dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail,
+        PROPERTIES(sd) READONLY isClosedScheduleOrderDetail, dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail,
                        monthInDateScheduleOrderDetail, DOWInDateScheduleOrderDetail,
                        nameSupplierScheduleOrderDetail, nameSupplierStockScheduleOrderDetail,
                        nameCustomerScheduleOrderDetail, nameCustomerStockScheduleOrderDetail
-
+        PROPERTIES (sd) closeScheduleOrderDetail  SHOWIF isOpenedScheduleOrderDetail (sd), openScheduleOrderDetail  SHOWIF isClosedScheduleOrderDetail (sd)
+        FILTERGROUP openFilter
+            FILTER 'Не аннулированные' 'F6' isOpenedScheduleOrderDetail(sd) DEFAULT  
+            
         ORDER BY dateSupplyScheduleOrderDetail(sd)
 
         FILTERS supplierScheduleOrderDetail(sd) == supplier() OR (sd IS ScheduleOrderDetail AND NOT supplier()),
