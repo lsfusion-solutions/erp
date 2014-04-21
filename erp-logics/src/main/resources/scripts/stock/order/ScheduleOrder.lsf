@@ -48,6 +48,15 @@ nameCustomerStockScheduleOrder 'Склад покупателя' (scheduleOrder)
 addScheduleOrderSupplierCustomer 'Добавить' = ABSTRACT ACTION LIST (LegalEntity, LegalEntity) IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 editScheduleOrder 'Редактировать' = ABSTRACT ACTION LIST (ScheduleOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
+countDaysPreOrders 'Кол-во дней для предварительных заказов' = DATA INTEGER ();
+
+EXTEND FORM options PROPERTIES() countDaysPreOrders;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(countDaysPreOrders());
+    }
+}
+
 META defineScheduleOrder(sign, stockProp)
 
     CLASS ScheduleOrder 'График поставок'##sign : ScheduleOrder.ScheduleOrder;
@@ -151,22 +160,35 @@ META defineScheduleOrder(sign, stockProp)
 
     customerStockScheduleOrderDetail(scheduleOrderDetail) = customerStockScheduleOrder(scheduleOrderScheduleOrderDetail(scheduleOrderDetail));
     nameCustomerStockScheduleOrderDetail 'Склад покупателя' (scheduleOrderDetail) = nameStock(customerStockScheduleOrderDetail(scheduleOrderDetail));
+    
+    countDetailsScheduleOrderDateSupplyDateOrder (scheduleOrder, dateSupply, dateOrder)= GROUP SUM 1 
+        BY  scheduleOrderScheduleOrderDetail(d), dateSupplyScheduleOrderDetail(d), dateOrderScheduleOrderDetail(d);   
 
     tmpDate = DATA SESSION DATE();
     tmpDateP = DATA SESSION DATE();
     tmpDateS = DATA SESSION DATE();
 
     createScheduleOrder 'Сгенерировать предварительные заказы' = ACTION (scheduleOrder) {
+    LOCAL toDate = DATE ();    
+        toDate() <- NULL;
+        IF NOT endDateScheduleOrder(scheduleOrder) THEN {               
+            toDate() <- sumDate(currentDate(), countDaysPreOrders());    
+        }
+    
         // генерация через N дней
         IF typeScheduleOrder(scheduleOrder) == GenType.genDays THEN {
             ASSIGN tmpDate() <- dayLastOrderScheduleOrder(scheduleOrder);
             // итерируемся по всем датам через n дней
-            WHILE tmpDate() <= endDateScheduleOrder(scheduleOrder) DO {
-                IF tmpDate() >= startDateScheduleOrder(scheduleOrder) THEN {
+            WHILE tmpDate() <= (OVERRIDE toDate(), endDateScheduleOrder(scheduleOrder)) DO {
+            
+                IF tmpDate() >= ( IF endDateScheduleOrder(scheduleOrder) THEN startDateScheduleOrder(scheduleOrder) ELSE currentDate()) THEN {
                     FOR ADDOBJ o = ScheduleOrderDetail DO {
                         ASSIGN dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDate(), dayBeforeScheduleOrder(scheduleOrder));
                         ASSIGN dateSupplyScheduleOrderDetail(o) <- tmpDate();
                         ASSIGN scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
+                        
+                        // удаляем ненужны, т.е. если уже был заказ с аналогичными датами заказа и поставки
+                        DELETE o WHERE countDetailsScheduleOrderDateSupplyDateOrder(scheduleOrderScheduleOrderDetail(o), dateSupplyScheduleOrderDetail(o), dateOrderScheduleOrderDetail(o)) > 1 ;
                     };
                 };
                 ASSIGN tmpDate() <- sumDate(tmpDate(), dayAfterScheduleOrder(scheduleOrder));
@@ -175,9 +197,9 @@ META defineScheduleOrder(sign, stockProp)
 
         // генерация по числам
         IF typeScheduleOrder(scheduleOrder) == GenType.genNumber THEN {
-            ASSIGN tmpDate() <- startDateScheduleOrder(scheduleOrder);
+            ASSIGN tmpDate() <- (IF endDateScheduleOrder(scheduleOrder) THEN startDateScheduleOrder(scheduleOrder) ELSE currentDate());
             // итерируемся по всем датам через 1 день
-            WHILE tmpDate() <= endDateScheduleOrder(scheduleOrder) DO {
+            WHILE tmpDate() <= (OVERRIDE toDate(), endDateScheduleOrder(scheduleOrder)) DO {
                 IF isWordInCSV(extractDay(tmpDate()), stringNumberScheduleOrder(scheduleOrder)) == 1 THEN {
                     FOR ADDOBJ o = ScheduleOrderDetail DO {
                         ASSIGN tmpDateS() <- tmpDate();
@@ -195,6 +217,8 @@ META defineScheduleOrder(sign, stockProp)
                         };
                         ASSIGN dateSupplyScheduleOrderDetail(o) <- tmpDateS();
                         ASSIGN dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDateS(), dayBeforeScheduleOrder(scheduleOrder));
+                        // удаляем ненужны, т.е. если уже был заказ с аналогичными датами заказа и поставки
+                        DELETE o WHERE countDetailsScheduleOrderDateSupplyDateOrder(scheduleOrderScheduleOrderDetail(o), dateSupplyScheduleOrderDetail(o), dateOrderScheduleOrderDetail(o)) > 1 ;
                     };
                 };
                 ASSIGN tmpDate() <- sumDate(tmpDate(), 1);
@@ -203,16 +227,18 @@ META defineScheduleOrder(sign, stockProp)
 
         // генерация по дням и месяцам
         IF typeScheduleOrder(scheduleOrder) == GenType.genDayMonth THEN {
-            ASSIGN tmpDate() <- startDateScheduleOrder(scheduleOrder);
+            ASSIGN tmpDate() <- (IF endDateScheduleOrder(scheduleOrder) THEN startDateScheduleOrder(scheduleOrder) ELSE currentDate());
             // итерируемся по всем датам через 1 день
-            WHILE tmpDate() <= endDateScheduleOrder(scheduleOrder) DO {
+            WHILE tmpDate() <= (OVERRIDE toDate(), endDateScheduleOrder(scheduleOrder)) DO {
                 ASSIGN tmpDateP() <- tmpDate();
-                WHILE tmpDate() < sumDate(tmpDateP(), 7) AND tmpDate() <= endDateScheduleOrder(scheduleOrder) DO {
+                WHILE tmpDate() < sumDate(tmpDateP(), 7) AND tmpDate() <= (OVERRIDE toDate(), endDateScheduleOrder(scheduleOrder)) DO {
                     IF inMonthScheduleOrder(scheduleOrder, extractMonth(tmpDate())) AND inDayScheduleOrder(scheduleOrder, extractDOW(tmpDate())) THEN {
                         FOR ADDOBJ o = ScheduleOrderDetail DO {
                             ASSIGN dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDate(), dayBeforeScheduleOrder(scheduleOrder));
                             ASSIGN dateSupplyScheduleOrderDetail(o) <- tmpDate();
                             ASSIGN scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
+                            // удаляем ненужны, т.е. если уже был заказ с аналогичными датами заказа и поставки
+                            DELETE o WHERE countDetailsScheduleOrderDateSupplyDateOrder(scheduleOrderScheduleOrderDetail(o), dateSupplyScheduleOrderDetail(o), dateOrderScheduleOrderDetail(o)) > 1 ;
                         };
                     };
                     ASSIGN tmpDate() <- sumDate(tmpDate(), 1);
