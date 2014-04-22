@@ -1,6 +1,6 @@
 MODULE PurchaseShipmentPharmacy;
 
-REQUIRE PurchaseShipment, PurchaseInvoicePharmacy, StockPharmacy, Country, Item;
+REQUIRE PurchaseShipment, PurchaseInvoicePharmacy, StockPharmacy, Country, Item, ItemPharmacyBy;
 
 NAMESPACE Purchase;
 
@@ -61,14 +61,39 @@ changeNetWeightSkuShipmentDetail = ACTION (detail) {
     }
 } 
 
+manufacturerSkuShipmentDetail(detail) = manufacturerItem(skuShipmentDetail(detail));
+nameManufacturerSkuShipmentDetail 'Производитель лекарственного средства' (detail) = nameManufacturer(manufacturerSkuShipmentDetail(detail));
+
+changeManufacturerSkuShipmentDetail = ACTION (detail) {
+    REQUEST OBJECT m FORM manufacturerDialog MODAL;
+    
+    IF formResult() == FormResult.ok THEN {
+        manufacturerItem(sku) <- requestedObject() WHERE skuShipmentDetail(detail) == sku;    
+    }
+} 
+
+pharmacyPriceGroupSkuShipmentDetail(detail) = pharmacyPriceGroupItem(skuShipmentDetail(detail));
+namePharmacyPriceGroupSkuShipmentDetail 'Тип лекарственного средства' (detail) = namePharmacyPriceGroup(pharmacyPriceGroupSkuShipmentDetail(detail));
+
+changePharmacyPriceGroupSkuShipmentDetail = ACTION (detail) {
+    REQUEST OBJECT g FORM pharmacyPriceGroups MODAL;
+    
+    IF formResult() == FormResult.ok THEN {
+        pharmacyPriceGroupItem(sku) <- requestedObject() WHERE skuShipmentDetail(detail) == sku;    
+    }
+}
+
 EXTEND FORM userShipment
-    PROPERTIES(d) BEFORE nameBatchUserShipmentDetail(d) nameImportCountryUserShipmentDetail SHOWIF showImportCountry(),
+    PROPERTIES(d) BEFORE nameBatchUserShipmentDetail(d) nameManufacturerSkuShipmentDetail ON CHANGE changeManufacturerSkuShipmentDetail(d),
+                                                     namePharmacyPriceGroupSkuShipmentDetail ON CHANGE changePharmacyPriceGroupSkuShipmentDetail(d), 
+                                                     nameImportCountryUserShipmentDetail SHOWIF showImportCountry(),
                                                      netWeightSkuShipmentDetail ON CHANGE changeNetWeightSkuShipmentDetail(d) ,
                                                      seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy()
 ;
 
 EXTEND FORM shipments
-    PROPERTIES(d) READONLY BEFORE nameBatchShipmentDetail(d) nameImportCountryShipmentDetail SHOWIF showImportCountry(),
+    PROPERTIES(d) READONLY BEFORE nameBatchShipmentDetail(d) nameManufacturerSkuShipmentDetail, namePharmacyPriceGroupSkuShipmentDetail,
+                                                          nameImportCountryShipmentDetail SHOWIF showImportCountry(),
                                                           netWeightSkuShipmentDetail,
                                                           seriesPharmacyShipmentDetail SHOWIF showSeriesPharmacy()
 ;
