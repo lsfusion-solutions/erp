@@ -48,12 +48,16 @@ nameCustomerStockScheduleOrder 'Склад покупателя' (scheduleOrder)
 addScheduleOrderSupplierCustomer 'Добавить' = ABSTRACT ACTION LIST (LegalEntity, LegalEntity) IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 editScheduleOrder 'Редактировать' = ABSTRACT ACTION LIST (ScheduleOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-countDaysPreOrders 'Кол-во дней для предварительных заказов' = DATA INTEGER ();
+GROUP schedule 'График' : public;
+countDaysPreOrders 'Кол-во дней для предварительных заказов' = DATA INTEGER () IN schedule;
 
-EXTEND FORM options PROPERTIES() countDaysPreOrders;
+addScheduleOrderDetail 'Сгенерировать заказы по графикам без даты окончания' = ABSTRACT ACTION LIST () IN schedule;
+
+EXTEND FORM options PROPERTIES() countDaysPreOrders, addScheduleOrderDetail;
 EXTEND DESIGN options {
     commons {
         ADD PROPERTY(countDaysPreOrders());
+        ADD PROPERTY(addScheduleOrderDetail());
     }
 }
 
@@ -169,7 +173,7 @@ META defineScheduleOrder(sign, stockProp)
     tmpDateS = DATA SESSION DATE();
 
     createScheduleOrder 'Сгенерировать предварительные заказы' = ACTION (scheduleOrder) {
-    LOCAL toDate = DATE ();    
+        LOCAL toDate = DATE ();    
         toDate() <- NULL;
         IF NOT endDateScheduleOrder(scheduleOrder) THEN {               
             toDate() <- sumDate(currentDate(), countDaysPreOrders());    
@@ -249,7 +253,14 @@ META defineScheduleOrder(sign, stockProp)
 
         //EXEC apply();
     } TOOLBAR;
-
+    
+    addScheduleOrderDetail() = ACTION () NEWSESSION AUTOAPPLY {
+        FOR o IS ScheduleOrder AND NOT endDateScheduleOrder(o) DO {
+            EXEC createScheduleOrder(o); 
+        }              
+    }  
+    
+    ScheduleOrder.addScheduleOrderDetail() += addScheduleOrderDetail();
 
     monthInDateScheduleOrderDetail 'Месяц'(scheduleOrderDetail) = extractMonthName(dateSupplyScheduleOrderDetail(scheduleOrderDetail));
     DOWInDateScheduleOrderDetail 'День недели'(scheduleOrderDetail) = extractDOWName(dateSupplyScheduleOrderDetail(scheduleOrderDetail));
