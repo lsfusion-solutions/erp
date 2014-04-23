@@ -25,3 +25,21 @@ EXTEND DESIGN userPriceList {
         ADD PROPERTY(nameFilterManufacturerUserPriceList(p));
     }
 }
+
+currentPricePriceListTypeSkuStockCompany 'Прайсовая цена' (type, sku, stock, company) = activePriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, currentDateTime());
+
+EXTEND FORM item
+    OBJECTS tlc = (tc = DataPriceListType, lc = LegalEntity) FIXED GRID
+    FILTERS   currentPricePriceListTypeSkuStockCompany  (tc, i, st2, lc)
+    
+    PROPERTIES  READONLY nameDataPriceListType(tc), nameLegalEntity(lc), includeVATPriceListType(tc), 
+                nameCurrencyDataPriceListType(tc), nameRoundConditionPriceListType(tc) 
+    PROPERTIES(tc, i, st2, lc) READONLY currentPricePriceListTypeSkuStockCompany                            
+                      
+;
+EXTEND DESIGN item {
+    calcPriceListTypePrm {
+        ADD tlc.box;
+    }
+}
+
