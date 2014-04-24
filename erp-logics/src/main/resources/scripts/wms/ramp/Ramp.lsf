@@ -1,6 +1,6 @@
 MODULE Ramp;
 
-REQUIRE Stock, WMS;
+REQUIRE Stock, WMS, SkuLedger;
 
 NAMESPACE Ramp;
 
@@ -48,6 +48,30 @@ FORM intervalTypes 'Типы интервала'
 ;
 DESIGN intervalTypes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
+//------------------------- Группы рамп -----------------------------//
+
+CLASS  RampGroup 'Группа рамп';
+TABLE rampGroup (RampGroup);
+
+nameRampGroup 'Наименование' = DATA VARISTRING[100](RampGroup);
+
+TABLE rampGroupRampGroup(RampGroup, RampGroup);
+@defineHierarchy(rampGroup, RampGroup);
+
+FORM rampGroup 'Группа рамп'
+    OBJECTS g=RampGroup FIXED PANEL
+    PROPERTIES(g) nameRampGroup, nameParentRampGroup
+    EDIT RampGroup OBJECT g
+;
+
+FORM rampGroups 'Группы рамп'
+    TREE treeGroups g=RampGroup PARENT parentRampGroup
+    PROPERTIES READONLY nameRampGroup(g), canonicalNameRampGroup (g)
+    PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
+    ORDER BY canonicalNameRampGroup(g)
+    DIALOG RampGroup OBJECT g
+;
+
 //------------------------- Рампа -----------------------------//
 
 CLASS  Ramp 'Рампа';
@@ -55,6 +79,13 @@ TABLE ramp (Ramp);
 
 nameRamp 'Наименование' = DATA VARISTRING[100](Ramp);
 @defineExternalizable(ramp, VARSTRING[100]);
+
+rampGroupRamp = DATA RampGroup (Ramp) AUTOSET;
+nameRampGroupRamp 'Группа' (ramp) = nameRampGroup(rampGroupRamp(ramp));
+
+TABLE rampGroupRamp(RampGroup, Ramp);
+isParentRampGroupRamp (rampGroup, ramp) = isParentRampGroupRampGroup(rampGroupRamp(ramp), rampGroup);
+canonicalNameRamp 'Каноническое имя' (ramp) = canonicalNameRampGroup(rampGroupRamp(ramp));
 
 intervalTypeRamp= DATA IntervalType (Ramp);
 nameIntervalTypeRamp 'Тип интервала' (r) = nameIntervalType(intervalTypeRamp(r));
@@ -68,10 +99,25 @@ countIntervalStock 'Кол-во интервалов' (st) = GROUP SUM 1 IF inRa
 
 CONSTRAINT stockRamp(r) AND NOT isCompanyStock(stockRamp(r))
     CHECKED BY stockRamp MESSAGE 'Для рампы должен быть задан склад компании';    
+    
+//--
+inDataRampSkuGroup 'Вкл.' = DATA BOOLEAN (Ramp, SkuGroup);
+levelParentRampSkuGroup (ramp, group) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF inDataRampSkuGroup(ramp, parent)
+                                                              BY ramp, group PERSISTENT;
 
+nearestParentRampSkuGroup (ramp, group) = skuGroupSkuGroupLevel(group, levelParentRampSkuGroup (ramp, group));
+nearestInRampSkuGroup  (ramp, group) =
+    inDataRampSkuGroup(ramp, nearestParentRampSkuGroup (ramp, group)) PERSISTENT;
+
+inRampSkuGroup 'Вкл.' (ramp, group) = OVERRIDE nearestInRampSkuGroup(ramp, group), inDataRampSkuGroup(ramp, group) PERSISTENT;
+
+inRampSku 'Вкл.' (ramp, sku) = inRampSkuGroup(ramp, skuGroupSku(sku));
+// Пока что простенькая логика привязки групп товаров к рампам, возможно надо будет переделать
+
+  
 FORM ramp 'Рампа'
     OBJECTS r=Ramp FIXED PANEL
-    PROPERTIES(r) nameRamp, nameIntervalTypeRamp, nameStockRamp 
+    PROPERTIES(r) nameRamp, nameIntervalTypeRamp, nameStockRamp, nameRampGroupRamp
     
     OBJECTS i= Interval
     PROPERTIES(i) READONLY timeInterval
@@ -81,11 +127,19 @@ FORM ramp 'Рампа'
     EDIT Ramp OBJECT r
 ;
 FORM ramps 'Рампы'
+    TREE rampTree sg = RampGroup PARENT parentRampGroup
+    PROPERTIES READONLY nameRampGroup(sg)
+    
     OBJECTS r=Ramp 
     PROPERTIES(r) READONLY nameRamp, nameIntervalTypeRamp, nameStockRamp
     PROPERTIES(r) ADDFORM, EDITFORM
     ORDER BY      nameRamp(r)
+    FILTERS isParentRampGroupRamp(sg, r)
     
+    TREE skuTree gg = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY nameSkuGroup(gg)         
+    PROPERTIES inRampSkuGroup(r,gg)      
+        
     OBJECTS i= Interval
     PROPERTIES(i) READONLY timeInterval
     ORDER BY timeInterval(i)
@@ -93,12 +147,42 @@ FORM ramps 'Рампы'
     
     DIALOG Ramp OBJECT r
 ;
-DESIGN ramps FROM DEFAULT { main{ preferredSize = (600, 400); } }
+DESIGN ramps FROM DEFAULT { 
+    main{ 
+        preferredSize = (1024, 768); 
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            NEW treeBox {
+                fill = 1;
+                type = SPLITV;
+                ADD rampTree.tree.box {
+                    caption = 'Группы рамп';
+                }
+                ADD skuTree.tree.box {
+                    caption = 'Группы товаров';
+                }                
+            }    
+            NEW detailContainer {
+                fill = 2;
+                type = SPLITV;
+                ADD r.box {                            
+                    r.grid {
+                        defaultComponent = TRUE;
+                    }
+                }
+                ADD i.box;
+            }
+        }
+        ADD functions.box;
+    }
+}
 
 NAVIGATOR {
     WMSNavigator {
         NEW rampNavigator 'Рампа' {
             ADD intervalTypes;
+            ADD rampGroups; 
             ADD ramps;
         }
     }

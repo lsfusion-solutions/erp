@@ -39,6 +39,8 @@ changeOrderRampInterval = ACTION (o,r,i) {
     }        
 }
 
+inRampOrder (ramp, order) = GROUP SUM 1 IF inRampSku(ramp, skuOrderDetail(detail)) BY ramp, orderOrderDetail(detail);
+
 FORM orderRamp 'Рампы'
     OBJECTS o=Order FIXED PANEL 
     OBJECTS st=Stock FIXED PANEL 
@@ -46,7 +48,8 @@ FORM orderRamp 'Рампы'
     OBJECTS r=Ramp 
     PROPERTIES(r) READONLY nameRamp
     ORDER BY      nameRamp(r)
-    FILTERS stockRamp(r) == st       
+    FILTERS stockRamp(r) == st,
+            inRampOrder(r,o)
     
     OBJECTS i= Interval
     PROPERTIES(i) READONLY BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) timeInterval
