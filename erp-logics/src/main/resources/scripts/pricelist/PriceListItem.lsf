@@ -27,14 +27,34 @@ EXTEND DESIGN userPriceList {
 }
 
 currentPricePriceListTypeSkuStockCompany 'Прайсовая цена' (type, sku, stock, company) = activePriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, currentDateTime());
+activeLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime (type, sku, stock, company, dateTime) =
+    GROUP LAST ledger
+          BY type, skuPriceListLedger(ledger), stock, companyPriceListLedger(ledger), dateTimeIn
+          ORDER fromDateTimePriceListLedger(ledger), ledger
+          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
+                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;                                   
+currentActiveLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime (type, sku, stock, company) = activeLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, currentDateTime());                                
+
+
+changePricePriceListTypeSkuStockCompany = ACTION (type, sku, stock, company) {   //-- todo: что делать если нет детейла?
+    REQUEST NUMERIC[14,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF currentActiveLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company) THEN {
+            pricePriceListLedgerLedgerPriceListType(ledger, type) <- requestedNumeric() WHERE ledger == currentActiveLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company);
+        }    
+    } ELSE {
+        DELETE ledger WHERE ledger == currentActiveLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company);
+    }
+};                
 
 EXTEND FORM item
     OBJECTS tlc = (tc = DataPriceListType, lc = LegalEntity) FIXED GRID
-    FILTERS   currentPricePriceListTypeSkuStockCompany  (tc, i, st2, lc)
-    
+        FILTERGROUP filters
+            FILTER 'С действующей ценой' 'F10' currentPricePriceListTypeSkuStockCompany  (tc, i, st2, lc) DEFAULT
+            
     PROPERTIES  READONLY nameDataPriceListType(tc), nameLegalEntity(lc), includeVATPriceListType(tc), 
                 nameCurrencyDataPriceListType(tc), nameRoundConditionPriceListType(tc) 
-    PROPERTIES(tc, i, st2, lc) READONLY currentPricePriceListTypeSkuStockCompany                            
+    PROPERTIES(tc, i, st2, lc)  currentPricePriceListTypeSkuStockCompany ON CHANGE  changePricePriceListTypeSkuStockCompany(tc, i, st2, lc)                           
                       
 ;
 EXTEND DESIGN item {
