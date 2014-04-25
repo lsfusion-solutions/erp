@@ -36,11 +36,20 @@ filterSoldArticleDateFromTo 'С продажей' (ar,dFrom,dTo) = GROUP SUM qua
 daysOnStockArticleStock 'Дней на складе' = DATA SESSION INTEGER (Article, Stock);
 averageReportSoldArticleStock 'Продаж в день' = DATA SESSION NUMERIC[14,3] (Article, Stock);
 turnoverArticleStock 'Товароооборачиваемость' = DATA SESSION NUMERIC[14,2] (Article, Stock);
+//-- Итого по всем выделенным складам 
+daysOnStockArticle 'Дней на складе (итого)' = DATA SESSION INTEGER (Article);
+averageReportSoldArticle 'Продаж в день  (итого)' = DATA SESSION NUMERIC[14,3] (Article);
+turnoverArticle 'Товароооборачиваемость  (итого)' = DATA SESSION NUMERIC[14,2] (Article);
 
 filterBalanceSkuDateFromTo 'С остатком' (ks,dFrom, dTo) = GROUP SUM 1 IF inArticleReportStock(st) AND (balanceBSkuStockDate(ks,st,dFrom) OR balanceASkuStockDate(ks,st,dTo))
     BY ks,dFrom, dTo;
 filterSoldSkuDateFromTo 'С продажей' (ks,dFrom,dTo) = GROUP SUM quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo) IF inArticleReportStock(st) 
-    BY ks,dFrom,dTo;   
+    BY ks,dFrom,dTo; 
+      
+quantitySoldInArticleDateFromTo 'Продано за интервал (кол-во)' (article, dateFrom, dateTo) = GROUP SUM
+        quantitySoldArticleStockDateFromTo(article, stock, dateFrom, dateTo) IF inArticleReportStock(stock)
+        BY article, dateFrom, dateTo;      
+      
 
 calcSaleArticleParamsInterval 'Рассчитать продажи в день и товарооборачиваемость' = ACTION (dateFrom, dateTo) {
     LOCAL balance = NUMERIC[14,3] (Article, Stock);
@@ -51,12 +60,15 @@ calcSaleArticleParamsInterval 'Рассчитать продажи в день �
     balance(a, stock) <- balanceBArticleStockDate(a, stock, dateFrom) WHERE inArticleReportStock(stock);
     daysOnStockArticleStock(a, stock) <- NULL;
     
+    daysOnStockArticle(a) <- NULL;
+    
     WHILE dateCur() <= dateTo DO {
         daysOnStockArticleStock(a, stock) <- daysOnStockArticleStock(a, stock) (+)
                    (1 IF ((balance(a, stock) > 0) OR (quantityArticleStockDate(a, stock, dateCur()) > 0)));
         cumBalance(a, stock) <- cumBalance(a, stock) (+) balance(a, stock);  
         balance(a, stock) <- balance(a, stock) (+)
                    signedQuantityArticleStockDate(a, stock, dateCur());
+        daysOnStockArticle(a) <- daysOnStockArticle(a) (+) (1 IF [ = GROUP SUM 1 IF ((balance(a, stock) > 0) OR (quantityArticleStockDate(a, stock, dateCur()) > 0)) AND inArticleReportStock(stock) BY a](a));                                                
 
         dateCur() <- sumDate(dateCur(), 1);
     }
@@ -66,6 +78,13 @@ calcSaleArticleParamsInterval 'Рассчитать продажи в день �
                                          cumBalance(a, stock) / quantitySoldArticleStockDateFromTo (a, stock, dateFrom, dateTo)
                                       ELSE
                                         9999.99;
+                                        
+    averageReportSoldArticle(a) <- quantitySoldInArticleDateFromTo (a, dateFrom, dateTo) / daysOnStockArticle(a);
+    turnoverArticle(a) <- IF quantitySoldInArticleDateFromTo (a, dateFrom, dateTo) != 0 THEN
+                                         [ = GROUP SUM cumBalance(a, stock) IF inArticleReportStock(stock) BY a](a) / quantitySoldInArticleDateFromTo (a, dateFrom, dateTo)
+                                      ELSE
+                                        9999.99;                                    
+                                        
 } TOOLBAR; 
 
 
@@ -128,9 +147,12 @@ FORM saleArticle 'Продажи по артикулам'
     PROPERTIES     READONLY sumAArticleStockDate(ar,st,dTo)  COLUMNS (st) HEADER nameArticleSumAStock(st),    
                    sumAInReportArticleDate(ar,dTo)
                    
-    PROPERTIES     READONLY daysOnStockArticleStock(ar, st) COLUMNS (st) HEADER nameArticleDaysOnStockStock(st) 
-    PROPERTIES     READONLY averageReportSoldArticleStock(ar, st) COLUMNS (st) HEADER nameArticleAverageReportSoldStock(st) 
-    PROPERTIES     READONLY turnoverArticleStock(ar, st) COLUMNS (st) HEADER nameArticleTurnoverStock(st) 
+    PROPERTIES     READONLY daysOnStockArticleStock(ar, st) COLUMNS (st) HEADER nameArticleDaysOnStockStock(st),
+                   daysOnStockArticle(ar)
+    PROPERTIES     READONLY averageReportSoldArticleStock(ar, st) COLUMNS (st) HEADER nameArticleAverageReportSoldStock(st),
+                   averageReportSoldArticle(ar)
+    PROPERTIES     READONLY turnoverArticleStock(ar, st) COLUMNS (st) HEADER nameArticleTurnoverStock(st),
+                   turnoverArticle(ar) 
 
     PROPERTIES(dFrom, dTo) calcSaleArticleParamsInterval FORCE PANEL TODRAW ar
                 
