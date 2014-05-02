@@ -93,6 +93,9 @@ isAppliedPromotionReceiptSaleDetailPromotionCondition 'Акция применя
     IF userSetPromotionCondition(promotionCondition) THEN setUserPromotionReceiptSaleDetailPromotionCondition(receiptSaleDetail, promotionCondition)
       ELSE receiptSaleDetail IS ReceiptSaleDetail AND promotionCondition IS PromotionCondition;
 
+// оптимизация
+possibleReceiptPromotion = GROUP SUM inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail)) IF quantityReceiptSaleDetail(detail) BY receiptReceiptSaleDetail(detail), promotionPromotionCondition(promotionCondition);
+
 calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) {
 
     quantityReceiptSaleDetailPromotionCondition(detail, condition) <- NULL WHERE receiptReceiptSaleDetail(detail) == receipt;
@@ -112,7 +115,7 @@ calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) 
         LOCAL leftSumReceiptSaleDetail = NUMERIC[16,3] (ReceiptSaleDetail);
         leftSumReceiptSaleDetail(detail) <- (priceSumReceiptSaleDetail(detail) (-) promotionSumReceiptSaleDetail(detail)) WHERE receiptReceiptSaleDetail(detail) == receipt;
 
-        FOR promotionGroupPromotion(promotion) == promotionGroup AND inReceiptPromotion(receipt, promotion) ORDER orderPromotion(promotion) DO {
+        FOR promotionGroupPromotion(promotion) == promotionGroup AND inReceiptPromotion(receipt, promotion) AND possibleReceiptPromotion(receipt, promotion) ORDER orderPromotion(promotion) DO {
             LOCAL quantityPromotionCondition = NUMERIC[14,3] (PromotionCondition);
             quantityPromotionCondition(promotionCondition) <- [= GROUP SUM leftQuantityReceiptSaleDetail(detail)
                                                                          IF inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail))
