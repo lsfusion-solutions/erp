@@ -119,8 +119,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             String fileName = "catalog-goods_" + dateFormat.format(cal.getTime());
 
             XMLOutputter xmlOutput = new XMLOutputter();
-            xmlOutput.setFormat(Format.getPrettyFormat());
-            FileWriter fw = new FileWriter(exchangeDirectory + "//" + fileName + ".xml");
+            xmlOutput.setFormat(Format.getPrettyFormat().setEncoding("windows-1251"));
+            PrintWriter fw = new PrintWriter(
+                                new OutputStreamWriter(
+                                    new FileOutputStream(exchangeDirectory + "//" + fileName + ".xml"), "windows-1251"));
             xmlOutput.output(doc, fw);
             fw.close();
         }
@@ -162,7 +164,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 String exchangeDirectory = directory + "\\reports\\source\\";
 
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), "utf-8"));
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), "windows-1251"));
 
                     String data = String.format("date: %s\nreport: purchases", new SimpleDateFormat("dd.MM.yyyy").format(dateRequestSalesInfo));
 
