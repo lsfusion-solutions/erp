@@ -22,6 +22,11 @@ public class CustomReader<T> implements Reader<Integer> {
     }
 
     @Override
+    public int getSize(Integer value) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String writeDeconc(SQLSyntax syntax, TypeEnvironment env) {
         throw new UnsupportedOperationException();
     }
