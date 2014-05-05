@@ -11,6 +11,7 @@ import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.erp.integration.OverJDBField;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -83,8 +84,16 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                     if (entry.getKey().toLowerCase().equals("g40.dbf"))
                         outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG40(dbfFields)));
 
-                    if (entry.getKey().toLowerCase().equals("g44.dbf"))
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG44(dbfFields, g44)));
+                    if (entry.getKey().toLowerCase().equals("g44.dbf")) {
+                        File tempFile = File.createTempFile("g44", "dbf");
+                        IOUtils.putFileBytes(tempFile, entry.getValue());
+                        DBF g44DBF = new DBF(tempFile.getAbsolutePath());
+                        int recordCount = g44DBF.getRecordCount();
+                        if(recordCount != g44.g44DetailList.size()) {
+                            context.requestUserInteraction(new MessageClientAction("Разное количество строк в исходном и формирующемся файлах g44", "Ошибка"));
+                        } else
+                            outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG44(dbfFields, g44)));
+                    }
 
                     if (entry.getKey().toLowerCase().equals("g47.dbf") && declaration != null)
                         outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG47(dbfFields, declaration)));
@@ -99,7 +108,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                         outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG316(dbfFields)));
 
                 }
-                context.delayUserInterfaction(new ExportFileClientAction(outputFiles));
+                if(outputFiles.size() > 0)
+                    context.delayUserInterfaction(new ExportFileClientAction(outputFiles));
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
