@@ -25,41 +25,39 @@ EXTEND DESIGN userPriceList {
         ADD PROPERTY(nameFilterManufacturerUserPriceList(p));
     }
 }
-
-currentPricePriceListTypeSkuStockCompany 'Прайсовая цена' (type, sku, stock, company) = activePriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, currentDateTime());
-activeLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime (type, sku, stock, company, dateTime) =
+                 
+currentPricePriceListTypeSkuStock 'Текущая цена' (type, sku, stock) = activePriceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime());
+activeLedgerPriceALedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) =
     GROUP LAST ledger
-          BY type, skuPriceListLedger(ledger), stock, companyPriceListLedger(ledger), dateTimeIn
+          BY type, skuPriceListLedger(ledger), stock,  dateTimeIn
           ORDER fromDateTimePriceListLedger(ledger), ledger
           WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
                 fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;                                   
-currentActiveLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime (type, sku, stock, company) = activeLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, currentDateTime());                                
+currentActiveLedgerPriceALedgerPriceListTypeSkuStock (type, sku, stock) = activeLedgerPriceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime());     
 
-
-changePricePriceListTypeSkuStockCompany = ACTION (type, sku, stock, company) {   //-- todo: что делать если нет детейла?
+changePricePriceListTypeSkuStock = ACTION (type, sku, stock) {   //-- todo: что делать если нет детейла?
     REQUEST NUMERIC[14,2] INPUT;
     IF requestedNumeric() THEN {
-        IF currentActiveLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company) THEN {
-            pricePriceListLedgerLedgerPriceListType(ledger, type) <- requestedNumeric() WHERE ledger == currentActiveLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company);
+        IF currentActiveLedgerPriceALedgerPriceListTypeSkuStock(type, sku, stock) THEN {
+            pricePriceListLedgerLedgerPriceListType(ledger, type) <- requestedNumeric() WHERE ledger == currentActiveLedgerPriceALedgerPriceListTypeSkuStock(type, sku, stock);
         }    
     } ELSE {
-        DELETE ledger WHERE ledger == currentActiveLedgerPriceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company);
+        DELETE ledger WHERE ledger == currentActiveLedgerPriceALedgerPriceListTypeSkuStock(type, sku, stock);
     }
 };                
 
 EXTEND FORM item
-    OBJECTS tlc = (tc = DataPriceListType, lc = LegalEntity) FIXED GRID
+    OBJECTS tc = DataPriceListType FIXED GRID
         FILTERGROUP filters
-            FILTER 'С действующей ценой' 'F10' currentPricePriceListTypeSkuStockCompany  (tc, i, st2, lc) DEFAULT
+            FILTER 'С текущей ценой' 'F10' currentPricePriceListTypeSkuStock  (tc, i, st2) DEFAULT
             
-    PROPERTIES  READONLY nameDataPriceListType(tc), nameLegalEntity(lc), includeVATPriceListType(tc), 
-                nameCurrencyDataPriceListType(tc), nameRoundConditionPriceListType(tc) 
-    PROPERTIES(tc, i, st2, lc)  currentPricePriceListTypeSkuStockCompany ON CHANGE  changePricePriceListTypeSkuStockCompany(tc, i, st2, lc)                           
+    PROPERTIES  READONLY nameDataPriceListType(tc), includeVATPriceListType(tc), nameCurrencyDataPriceListType(tc), nameRoundConditionPriceListType(tc) 
+    PROPERTIES(tc, i, st2)  currentPricePriceListTypeSkuStock ON CHANGE  changePricePriceListTypeSkuStock(tc, i, st2)                           
                       
 ;
 EXTEND DESIGN item {
     calcPriceListTypePrm {
-        ADD tlc.box;
+        ADD tc.box;
     }
 }
 

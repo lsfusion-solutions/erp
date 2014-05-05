@@ -132,6 +132,21 @@ activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
     activePriceListLedger(ledger) AND inPriceListLedgerLedgerPriceListType(ledger, type) AND inPriceListLedgerStock(ledger, stock) PERSISTENT INDEXED;
 
 // По товарам
+activePriceBLedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
+    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
+          BY type, skuPriceListLedger(ledger), stock, dateTimeIn
+          ORDER fromDateTimePriceListLedger(ledger), ledger
+          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
+                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+
+activePriceALedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
+    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
+          BY type, skuPriceListLedger(ledger), stock, dateTimeIn
+          ORDER fromDateTimePriceListLedger(ledger), ledger
+          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
+                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+
+// Только с ценами
 priceBLedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
     GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
           BY type, skuPriceListLedger(ledger), stock, dateTimeIn
@@ -145,7 +160,6 @@ priceALedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime
           ORDER fromDateTimePriceListLedger(ledger), ledger
           WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
                 fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
-
 META defineLastLedgerPriceListTypeSkuStock(property, caption)
     property##BLedgerPriceListTypeSkuStockDateTime caption (type, sku, stock, dateTime) =
         GROUP LAST property##PriceListLedger(ledger)
