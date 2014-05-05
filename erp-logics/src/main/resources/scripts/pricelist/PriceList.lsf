@@ -395,8 +395,6 @@ filterPriceListTypeUserPriceListBatchStock (userPriceList, batch, stock) =
     currentPriceBatchPriceListStock (batch, userPriceList, stock) OR
     (batch IS Batch AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
     
-isParentGroupSupplierGroupBatch(group, batch) = isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(supplierBatch(batch)), group);
-
 FORM userPriceList 'Прайс'
     OBJECTS p = UserPriceList FIXED PANEL
     PROPERTIES(p) isPostedUserPriceList, nameNumeratorUserPriceList, numberUserPriceList, seriesUserPriceList,
@@ -492,9 +490,6 @@ FORM userPriceList 'Прайс'
     FILTERS isParentGroupSku(sk2, s2)
     ORDER BY inputName2
 
-    TREE supplierGroupTree f = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY fTreeName = nameLegalEntityGroup(f) 
-    
     OBJECTS b=Batch
     PROPERTIES inBatchUserPriceList(b, p) ON CHANGE changeInBatchUserPriceList(b, p) 
     PROPERTIES READONLY idBarcodeSkuBatch(b)
@@ -504,8 +499,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES READONLY currentPriceBatchPriceListStock(b, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)                                                 
     PROPERTIES(b, p, to, ts2) currentPriceBatchPriceListDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
     FILTERS filterPriceListTypeUserPriceListBatchStock(p, b, ts2),
-            isParentSkuGroupBatch(sk2, b),
-            isParentGroupSupplierGroupBatch(f, b)   
+            isParentSkuGroupBatch(sk2, b)
     FILTERGROUP filters4
         FILTER 'С остатком' 'F10' prevCurrentBalanceBatchStock(b, ts2) DEFAULT
     ORDER BY nameSkuBatch(b)
@@ -636,21 +630,14 @@ DESIGN userPriceList FROM DEFAULT {
             NEW detailFourthContainer{
                 fill = 1;
                 type = SPLITH;
-                NEW leftColumnContainer2 {
+                NEW treeContainer {
                     fill = 1;
-                    type = SPLITV;
-                    NEW treeContainer{
-                        fill = 1;
-                        ADD PROPERTY(nameGroupTypeP);
-                        ADD skuTree2.tree.box {
-                            caption = 'Товары';
-                        }                        
-                    }
-                    ADD supplierGroupTree.tree.box{
-                        caption = 'Поставщики';
-                    }                    
+                    ADD PROPERTY(nameGroupTypeP);
+                    ADD skuTree2.tree.box {
+                        caption = 'Товары';
+                    }                        
                 }
-                NEW tabContainer{
+                NEW tabContainer {
                     type = TABBED;
                     fill = 3;
                     ADD s2.box;
