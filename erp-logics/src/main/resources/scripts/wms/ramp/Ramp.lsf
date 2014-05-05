@@ -101,6 +101,7 @@ CONSTRAINT stockRamp(r) AND NOT isCompanyStock(stockRamp(r))
     CHECKED BY stockRamp MESSAGE 'Для рампы должен быть задан склад компании';    
     
 //--
+TABLE rampSkuGroup(Ramp, SkuGroup);
 inDataRampSkuGroup 'Вкл.' = DATA BOOLEAN (Ramp, SkuGroup);
 levelParentRampSkuGroup (ramp, group) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF inDataRampSkuGroup(ramp, parent)
                                                               BY ramp, group PERSISTENT;
@@ -113,6 +114,8 @@ inRampSkuGroup 'Вкл.' (ramp, group) = OVERRIDE nearestInRampSkuGroup(ramp, gr
 
 inRampSku 'Вкл.' (ramp, sku) = inRampSkuGroup(ramp, skuGroupSku(sku));
 // Пока что простенькая логика привязки групп товаров к рампам, возможно надо будет переделать
+
+countSkuGroupsRamp (ramp) = GROUP SUM 1 IF inDataRampSkuGroup(ramp, skuGroup) BY ramp;
 
   
 FORM ramp 'Рампа'
@@ -134,7 +137,7 @@ FORM ramps 'Рампы'
     PROPERTIES(r) READONLY nameRamp, nameIntervalTypeRamp, nameStockRamp
     PROPERTIES(r) ADDFORM, EDITFORM
     ORDER BY      nameRamp(r)
-    FILTERS isParentRampGroupRamp(sg, r)
+    FILTERS isParentRampGroupRamp(sg, r) 
     
     TREE skuTree gg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY nameSkuGroup(gg)         

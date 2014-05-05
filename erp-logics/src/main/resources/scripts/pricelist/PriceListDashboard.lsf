@@ -58,6 +58,13 @@ inSkuCustomUser = DATA BOOLEAN (Sku, CustomUser);
 
 // ---------------------------- По организациям ----------------------- //
 // c
+activeLedgerALedgerPriceListTypeSkuCompanyDateTime (type, sku, company, dateTime) =
+    GROUP LAST ledger
+          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
+          ORDER fromDateTimePriceListLedger(ledger), ledger
+          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListType(ledger, type) AND
+                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+editActiveLedgerALedgerPriceListTypeSkuCompanyDateTime'Редактировать' (type, sku, company, dateTime) = editPriceListLedger(activeLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime));                                            
 
 EXTEND FORM priceListDashboard
     OBJECTS c = LegalEntity FIXED PANEL
@@ -74,8 +81,8 @@ EXTEND FORM priceListDashboard
     ORDER BY nameSku(csk)
     FILTERS isParentSkuGroupSku(cskg, csk)
 
-    PROPERTIES READONLY cPrice = activePriceALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt), // последний прайс, в котором есть цена
-                        activeDescriptionALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt)
+    PROPERTIES READONLY cPrice = activePriceALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) // последний прайс, в котором есть цена
+    PROPERTIES activeDescriptionALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) ON SHORTCUT editActiveLedgerALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt)
     // на больших объемах возможно будет тормозить
     FILTERS countStockAPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) // фильтруем все товары, которые входят в ассортимент хотя бы одного склада
 
@@ -230,6 +237,14 @@ EXTEND DESIGN priceListDashboard {
 
 // ---------------------------- По складам ---------------------------- //
 // s
+ledgerALedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) =
+    GROUP LAST ledger
+          BY type, skuPriceListLedger(ledger), stock, dateTimeIn
+          ORDER fromDateTimePriceListLedger(ledger), ledger
+          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
+                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+editLedgerALedgerPriceListTypeSkuStockDateTime 'Редактировать' (type, sku, stock, dateTime) = editPriceListLedger(ledgerALedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime));                
+
 
 EXTEND FORM priceListDashboard
     OBJECTS s = Stock FIXED PANEL
@@ -249,8 +264,8 @@ EXTEND FORM priceListDashboard
     FILTERS isParentSkuGroupSku(sskg, ssk)
 
     PROPERTIES(pt, ssk, s, dt) READONLY sPrice = priceALedgerPriceListTypeSkuStockDateTime,
-                                        nameCompanyALedgerPriceListTypeSkuStockDateTime,
-                                        descriptionALedgerPriceListTypeSkuStockDateTime
+                                        nameCompanyALedgerPriceListTypeSkuStockDateTime
+    PROPERTIES(pt, ssk, s, dt) descriptionALedgerPriceListTypeSkuStockDateTime ON SHORTCUT editLedgerALedgerPriceListTypeSkuStockDateTime(pt, ssk, s, dt) 
     FILTERS priceALedgerPriceListTypeSkuStockDateTime(pt, ssk, s, dt)
 
     OBJECTS sst = Stock
@@ -396,6 +411,15 @@ EXTEND DESIGN priceListDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
+addUserPriceListLegalEntity 'Добавить' = ACTION (legalEntity) NEWSESSION {
+    FOR ADDOBJ p = UserPriceList DO {
+        companyUserPriceList(p) <- legalEntity;
+        FORM userPriceList OBJECTS p=p MODAL;
+        IF formResult() == FormResult.ok THEN
+            EXEC apply();
+    }
+} TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+
 EXTEND FORM priceListDashboard
     PROPERTIES(c) pNameCompany = nameLegalEntity SELECTOR
 
@@ -408,6 +432,8 @@ EXTEND FORM priceListDashboard
     ORDER BY fromDateUserPriceList(p), fromTimeUserPriceList(p)
     FILTERS inPriceListDataPriceListType(p, pt),
             companyUserPriceList(p) == c
+    PROPERTIES(c) addUserPriceListLegalEntity FORCE PANEL TODRAW p       
+            
 ;
 EXTEND DESIGN priceListDashboard {
     detail {
