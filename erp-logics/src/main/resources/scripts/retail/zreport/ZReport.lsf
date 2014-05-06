@@ -186,6 +186,18 @@ changeDialogSkuReceiptDetail  = ACTION (detail) {
 batchReceiptDetail(detail) += batchReceiptSaleDetail(detail);
 batchReceiptDetail(detail) += batchReceiptReturnDetail(detail);
 
+changeBatchReceiptDetail = ACTION (detail) {
+    FORM dialogBatchStock OBJECTS st = departmentStoreReceiptDetail(detail),
+                             t = dateTimeReceiptDetail(detail),
+                             sk = skuReceiptDetail(detail) MODAL SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        batchReceiptDetail(detail) <- chosenObject('bt');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        batchReceiptDetail(detail) <- NULL;
+    }
+}
+
 explicitBatchLedgerReceipt(receipt) = explicitBatchLedgerDepartmentStore(departmentStoreZReport(zReportReceipt(receipt)));
 notExplicitBatchLedgerReceipt(receipt) = departmentStoreZReport(zReportReceipt(receipt)) AND NOT explicitBatchLedgerReceipt(receipt);
 
@@ -546,7 +558,9 @@ FORM zReport 'Z-отчет'
     PROPERTIES(b) TODRAW d addDetailDialogSkuStockReceiptSaleDetailReceipt, addDetailDialogSkuStockReceiptReturnDetailReceipt
                            // todo : добавить операции возврата по штрих-коду
 
-    PROPERTIES(d) typeReceiptDetail READONLY, idBarcodeReceiptDetail, nameSkuReceiptDetail ON CHANGE changeDialogSkuReceiptDetail(d) FORCE GRID, nameBatchReceiptDetail SHOWIF explicitBatchLedgerReceipt(b),
+    PROPERTIES(d) typeReceiptDetail READONLY, idBarcodeReceiptDetail, 
+                  nameSkuReceiptDetail ON CHANGE changeDialogSkuReceiptDetail(d) FORCE GRID, 
+                  nameBatchReceiptDetail ON CHANGE changeBatchReceiptDetail(d) SHOWIF explicitBatchLedgerReceipt(b),
                   descriptionSaleReceiptReturnDetail FORCE GRID READONLY,
                   quantityReceiptDetail, quantityReturnedReceiptSaleDetail FORCE GRID, priceReceiptDetail,
                   sumReceiptDetail, discountPercentReceiptSaleDetail FORCE GRID, discountSumReceiptDetail FORCE GRID,

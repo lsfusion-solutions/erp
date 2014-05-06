@@ -1120,7 +1120,7 @@ nameCustomerStockDocument 'Склад покупателя'(document) = nameStoc
 documentDocumentDetail = ABSTRACT Document(DocumentDetail);
 
 skuDocumentDetail = ABSTRACT Sku(DocumentDetail);
-nameSkuDocumentDetail 'Товар' (documentDetail) = nameSku(skuDocumentDetail(documentDetail));
+nameSkuDocumentDetail 'Товар' (d) = nameSku(skuDocumentDetail(d));
 quantityDocumentDetail 'Кол-во' = ABSTRACT NUMERIC[14,3] (DocumentDetail);
 priceDocumentDetail 'Цена' = ABSTRACT NUMERIC[14,2] (DocumentDetail);
 indexDocumentDetail 'Номер' = ABSTRACT INTEGER(DocumentDetail);
@@ -1154,16 +1154,18 @@ META implementDocument(object)
 
     documentDocumentDetail(detail) += object###object##Detail(detail);
 
+    overFillDocument###object##DetailDocumentDetail = ABSTRACT ACTION CASE (###object##Detail, DocumentDetail); 
     fillDocument###object 'Подбор документа' = ACTION (user###object) {
         FORM documents MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL chosenDocument = Document();
-            ASSIGN chosenDocument() <- chosenObject('d');
+            chosenDocument() <- chosenObject('d');
             FOR documentDocumentDetail(documentDetail) == chosenDocument() ADDOBJ i = User###object##Detail DO {
-                ASSIGN user###object##User###object##Detail(i) <- user###object;
-                ASSIGN skuUser###object##Detail(i) <- skuDocumentDetail(documentDetail);
-                ASSIGN quantityUser###object##Detail(i) <- quantityDocumentDetail(documentDetail);
-                ASSIGN priceUser###object##Detail(i) <- priceDocumentDetail(documentDetail);
+                user###object##User###object##Detail(i) <- user###object;
+                skuUser###object##Detail(i) <- skuDocumentDetail(documentDetail);
+                quantityUser###object##Detail(i) <- quantityDocumentDetail(documentDetail);
+                priceUser###object##Detail(i) <- priceDocumentDetail(documentDetail);
+                overFillDocument###object##DetailDocumentDetail(i, documentDetail);
             }
         }
     } TOOLBAR;
@@ -1179,3 +1181,19 @@ META implementDocumentSupplierCustomer(object)
     customerDocument(object) += customer###object(object);
     customerStockDocument(object) += customerStock###object(object);
 END
+
+// ------------------------- Партии ---------------------------- //
+batchDocumentDetail = ABSTRACT Batch(DocumentDetail);
+nameBatchDocumentDetail 'Партия' (d) = nameBatch(batchDocumentDetail(d));
+
+META implementDocumentBatch(object)
+    batchDocumentDetail(detail) += batch###object##Detail(detail);
+    
+    overFillDocument###object##DetailDocumentDetail (i, d) += ACTION (i, d) {
+        batchUser###object##Detail(i) <- batchDocumentDetail(d);
+    }
+END
+
+EXTEND FORM documents
+    PROPERTIES(dd) nameBatchDocumentDetail AFTER nameSkuDocumentDetail(dd) 
+;

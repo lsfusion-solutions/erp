@@ -192,11 +192,6 @@ changeBatchUserWriteOffDetail = ACTION (detail) {
 @defineDocumentInterfaceDetailDataSum(writeOff);
 @deriveDocumentDetailSum(userWriteOff, quantity);
 
-priceUserWriteOffDetail (detail)  <- IF batchUserWriteOffDetail(detail)
-                THEN priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batchUserWriteOffDetail(detail), stockUserWriteOffDetail(detail), dateTimeUserWriteOffDetail(detail))
-                ELSE priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuUserWriteOffDetail(detail), stockUserWriteOffDetail(detail), dateTimeUserWriteOffDetail(detail))
-                WHEN CHANGED(skuUserWriteOffDetail(detail)) OR CHANGED(batchUserWriteOffDetail(detail)) OR CHANGED(stockUserWriteOffDetail(detail)) OR CHANGED (dateTimeUserWriteOffDetail(detail));
-
 @defineDocumentInterfaceHeaderQuantity(writeOff);
 @defineDocumentHeaderSkuQuantity(writeOff, sku);
 @defineDocumentHeaderSkuQuantity(userWriteOff, sku);
@@ -219,6 +214,8 @@ nameReasonUserWriteOff 'Причина списания' (userWriteOff) = nameRe
 @defineDocumentInterfaceLegalEntity (writeOff, contact, 'Контрагент');
 
 @implementDocument(writeOff);
+@implementDocumentBatch(writeOff);
+
 supplierStockDocument(writeOff) += stockWriteOff(writeOff);
 
 isStockSkuWriteOffDetail (writeOffDetail) = isStockSku(skuWriteOffDetail(writeOffDetail));
@@ -321,8 +318,14 @@ DESIGN userWriteOff FROM DEFAULT{
 }
 
 WHEN SESSION FORMS userWriteOff CHANGED(batchUserWriteOffDetail(detail)) DO {
-    skuUserWriteOffDetail (detail)  <- skuBatch(batchUserWriteOffDetail(detail)) IF batchUserWriteOffDetail(detail);
+    skuUserWriteOffDetail (detail)  <- skuBatch(batchUserWriteOffDetail(detail)) WHERE batchUserWriteOffDetail(detail);
 }
+
+WHEN SESSION FORMS userWriteOff 
+    CHANGED(skuUserWriteOffDetail(detail)) OR CHANGED(batchUserWriteOffDetail(detail)) OR CHANGED(stockUserWriteOffDetail(detail)) OR CHANGED (dateTimeUserWriteOffDetail(detail)) DO
+    priceUserWriteOffDetail (detail)  <- IF batchUserWriteOffDetail(detail)
+                    THEN priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batchUserWriteOffDetail(detail), stockUserWriteOffDetail(detail), dateTimeUserWriteOffDetail(detail))
+                    ELSE priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuUserWriteOffDetail(detail), stockUserWriteOffDetail(detail), dateTimeUserWriteOffDetail(detail));
 
 //-- SKU
 @defineDocumentSkuStockPriceListTypeSystemLedger(userWriteOff, accountPriceListType, );
