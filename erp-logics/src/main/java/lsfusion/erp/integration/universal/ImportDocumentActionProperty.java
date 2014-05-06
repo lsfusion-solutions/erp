@@ -26,6 +26,10 @@ import java.util.*;
 
 public abstract class ImportDocumentActionProperty extends ImportUniversalActionProperty {
 
+    public static int IMPORT_RESULT_OK = 1;
+    public static int IMPORT_RESULT_EMPTY = 0;
+    public static int IMPORT_RESULT_ERROR = -1;
+
     public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
     }

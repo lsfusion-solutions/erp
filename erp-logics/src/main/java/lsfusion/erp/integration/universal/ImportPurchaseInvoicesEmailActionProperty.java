@@ -22,6 +22,8 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.Calendar;
 
 public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentActionProperty {
 
@@ -70,8 +72,9 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                     QueryBuilder<Object, Object> emailQuery = new QueryBuilder<Object, Object>(emailKeys);
                     emailQuery.addProperty("fromAddressEmail", getLCP("fromAddressEmail").getExpr(session.getModifier(), emailExpr));
+                    emailQuery.addProperty("dateTimeReceivedEmail", getLCP("dateTimeReceivedEmail").getExpr(session.getModifier(), emailExpr));
                     emailQuery.addProperty("fileAttachmentEmail", getLCP("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr));
-                    
+
                     emailQuery.and(getLCP("emailAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
                     emailQuery.and(getLCP("accountEmail").getExpr(session.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
                     emailQuery.and(getLCP("notImportedAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
@@ -82,6 +85,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                     for (int j = 0, sizej = emailResult.size(); j < sizej; j++) {
                         ImMap<Object, ObjectValue> emailEntryValue = emailResult.getValue(j);
                         ObjectValue attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
+                        Timestamp dateTimeReceivedEmail = (Timestamp) emailEntryValue.get("dateTimeReceivedEmail").getValue();
+                        boolean isOld = (Calendar.getInstance().getTime().getTime() - dateTimeReceivedEmail.getTime()) > (2*24*60*60*1000); //старше 2 суток
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
                         if (fromAddressEmail != null && emailPattern != null && fromAddressEmail.matches(emailPattern)) {
                             byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
@@ -90,13 +95,17 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                             try {
 
-                                boolean importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, 
+                                int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
                                         currentSession, invoiceObject, importTypeObject, fileAttachment, fileExtension,
                                         importDocumentSettings, staticNameImportType, true);
+                                if(importResult >=IMPORT_RESULT_OK)
+                                    currentSession.apply(context);
 
-                                if (importResult)
-                                    getLCP("importedAttachmentEmail").change(true, currentSession, (DataObject) attachmentEmailObject);
-                                currentSession.apply(context);
+                                if (importResult >= IMPORT_RESULT_OK || (importResult == IMPORT_RESULT_EMPTY && isOld)) {
+                                    DataSession postImportSession = context.createSession();
+                                    getLCP("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                    postImportSession.apply(context);
+                                }
 
                             } catch (Exception e) {
                                 ServerLoggers.systemLogger.error(e);

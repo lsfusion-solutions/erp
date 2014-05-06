@@ -152,7 +152,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         }
     }
     
-    public boolean makeImport(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject userInvoiceObject,
+    public int makeImport(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject userInvoiceObject,
                               DataObject importTypeObject, byte[] file, String fileExtension, ImportDocumentSettings importSettings,
                               String staticNameImportType, boolean checkInvoiceExistence)
             throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException, 
@@ -175,17 +175,17 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, checkInvoiceExistence, file, fileExtension,
                 importSettings, staticNameImportType);
 
-        boolean result1 = (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1) && 
+        int result1 = (userInvoiceDetailData == null || userInvoiceDetailData.size() < 1) ? IMPORT_RESULT_EMPTY :
             importUserInvoices(userInvoiceDetailData.get(0), context, session, importColumns.get(0), importColumns.get(1),
                     userInvoiceObject, importSettings.getPrimaryKeyType(), operationObject, supplierObject,
                     supplierStockObject, customerObject, customerStockObject, disableVolatileStats);
 
-        boolean result2 = (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 2) &&
+        int result2 = (userInvoiceDetailData == null || userInvoiceDetailData.size() < 2) ? IMPORT_RESULT_EMPTY :
             importUserInvoices(userInvoiceDetailData.get(1), context, session, importColumns.get(0), importColumns.get(1),
                     userInvoiceObject, importSettings.getSecondaryKeyType(), operationObject, supplierObject,
                     supplierStockObject, customerObject, customerStockObject, disableVolatileStats);
         
-        return result1 && result2;
+        return (result1==IMPORT_RESULT_ERROR || result2==IMPORT_RESULT_ERROR) ? IMPORT_RESULT_ERROR : (result1 + result2);
     }
 
     public void initModules(ExecutionContext context) {
@@ -203,7 +203,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         this.purchaseShipmentLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseShipment");
     }
 
-    public boolean importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, ExecutionContext context, DataSession session,
+    public int importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, ExecutionContext context, DataSession session,
                                       LinkedHashMap<String, ImportColumnDetail> defaultColumns, LinkedHashMap<String, ImportColumnDetail> customColumns,
                                       DataObject userInvoiceObject, String keyType, ObjectValue operationObject,
                                       ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject,
@@ -1004,8 +1004,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 }
             }
 
-            
-
             ImportTable table = new ImportTable(fields, data);
 
             if (!disableVolatileStats)
@@ -1014,8 +1012,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if (!disableVolatileStats)
                 service.synchronize(true, false);
             session.popVolatileStats();
-        }
-        return true;
+            return IMPORT_RESULT_OK;
+        }   else return IMPORT_RESULT_EMPTY;
     }
 
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataSession session, DataObject userInvoiceObject,
