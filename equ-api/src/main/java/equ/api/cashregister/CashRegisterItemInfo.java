@@ -13,9 +13,9 @@ public class CashRegisterItemInfo extends ItemInfo {
     public String shortNameUOM;
     
     public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean isWeightItem,
-                                String composition, String nameItemGroup, List<ItemGroup> hierarchyItemGroup,
-                                String idUOM, String shortNameUOM) {
-        super(idBarcode, name, price, isWeightItem);
+                                boolean passScalesItem, String composition, String nameItemGroup,
+                                List<ItemGroup> hierarchyItemGroup, String idUOM, String shortNameUOM) {
+        super(idBarcode, name, price, isWeightItem, passScalesItem);
         this.composition = composition;
         this.nameItemGroup = nameItemGroup;
         this.hierarchyItemGroup = hierarchyItemGroup;

@@ -332,7 +332,7 @@ public class LSTerminalHandler extends TerminalHandler {
             BigDecimal price = new BigDecimal(resultSet.getDouble("price"));
             BigDecimal quantity = new BigDecimal(resultSet.getDouble("quantity"));
             String image = resultSet.getString("image");
-            itemsList.add(new TerminalItemInfo(barcode, name, price, false, quantity, image));
+            itemsList.add(new TerminalItemInfo(barcode, name, price, false, false, quantity, image));
 
         }
         resultSet.close();
@@ -388,7 +388,7 @@ public class LSTerminalHandler extends TerminalHandler {
         while (resultSet.next()) {
             //String supplier = resultSet.getString("supplier");
              String barcode = resultSet.getString("barcode");
-            handbookTypeList.add(new TerminalItemInfo(barcode, null, null,false, null, null));
+            handbookTypeList.add(new TerminalItemInfo(barcode, null, null, false, false, null, null));
         }
         resultSet.close();
         statement.close();

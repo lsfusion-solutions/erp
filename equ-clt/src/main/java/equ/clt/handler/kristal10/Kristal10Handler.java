@@ -72,7 +72,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 addStringElement(barcode, "default-code", "true");
                 good.addContent(barcode);
 
-                addStringElement(good, "product-type", item.isWeightItem ? "ProductWeightEntity" : "ProductPieceEntity");
+                String productType = item.isWeightItem ? "ProductWeightEntity" : (item.passScalesItem ? "ProductPieceWeightEntity" : "ProductPieceEntity");
+                addStringElement(good, "product-type", productType);
 
                 //parent: good
                 Element priceEntry = new Element("price-entry");
