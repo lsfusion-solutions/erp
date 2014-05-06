@@ -102,6 +102,20 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return stockMapping;
     }
 
+    public ImportDocumentSettings readImportDocumentSettings(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, String> stockMapping = readStockMapping(session, LM, importTypeObject);
+        String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
+        boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
+        String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
+        boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
+        Integer startRow = (Integer) getLCP("startRowImportType").read(session, importTypeObject);
+        startRow = startRow == null ? 1 : startRow;
+        Boolean isPosted = (Boolean) getLCP("isPostedImportType").read(session, importTypeObject);
+        String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject), ";");
+        String propertyImportType = trim((String) getLCP("propertyImportTypeDetailImportType").read(session, importTypeObject));
+        return new ImportDocumentSettings(stockMapping, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, csvSeparator, propertyImportType);
+    }
+
     public String parseKeyType(String keyType) {
         String[] primaryParts = keyType == null ? null : keyType.split("\\.");
         return primaryParts == null ? null : trim(primaryParts[primaryParts.length - 1]);
@@ -139,7 +153,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     }
     
     protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, boolean keyIsDigit,
-                                          DataSession session, String keyType, boolean checkExistence) 
+                                          DataSession session, String keyType, boolean checkExistence)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if(keyColumn != null && keyColumn.equals("barcodeItem"))
             keyColumnValue = BarcodeUtils.appendCheckDigitToBarcode(keyColumnValue, 7);

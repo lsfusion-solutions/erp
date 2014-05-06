@@ -10,6 +10,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.stock.BarcodeUtils;
+import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
@@ -87,30 +88,21 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(session, importTypeObject));
 
-                String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
-                boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
-                String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-                boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
-
-                String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject), ";");
-                Integer startRow = (Integer) getLCP("startRowImportType").read(session, importTypeObject);
-                startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
-                Boolean isPosted = (Boolean) getLCP("isPostedImportType").read(session, importTypeObject);
-
                 ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierObject = getLCP("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierStockObject = getLCP("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
 
-                String propertyImportType = trim((String) getLCP("propertyImportTypeDetailImportType").read(session, importTypeObject));
                 String nameFieldImportType = trim((String) getLCP("staticNameImportTypeDetailImportType").read(session, importTypeObject));
                 String[] splittedFieldImportType = nameFieldImportType == null ? null : nameFieldImportType.split("\\.");
                 String fieldImportType = splittedFieldImportType == null ? null : splittedFieldImportType[splittedFieldImportType.length - 1];
                 
                 List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, LM, importTypeObject);
-                Map<String, String> stockMapping = readStockMapping(session, LM, importTypeObject);
-                
+                Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, LM, false);
+
+                ImportDocumentSettings importSettings = readImportDocumentSettings(session, importTypeObject);
+
                 if (importColumns != null && fileExtension != null) {
 
                     CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
@@ -121,21 +113,20 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         for (byte[] file : fileList) {
 
                             List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, session,
-                                    userInvoiceObject, importColumns.get(0), importColumns.get(1), stockMapping, file, fileExtension, startRow,
-                                    isPosted, csvSeparator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, 
-                                    propertyImportType, fieldImportType);
+                                    userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, false,
+                                    file, fileExtension, importSettings, fieldImportType);
 
                             if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1)
                                 importUserInvoices(userInvoiceDetailData.get(0), context, session, importColumns.get(0), 
-                                        importColumns.get(1), userInvoiceObject, primaryKeyType, operationObject, 
-                                        supplierObject, supplierStockObject, customerObject, customerStockObject, 
-                                        disableVolatileStats);
+                                        importColumns.get(1), userInvoiceObject, importSettings.getPrimaryKeyType(),
+                                        operationObject, supplierObject, supplierStockObject, customerObject,
+                                        customerStockObject, disableVolatileStats);
 
                             if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 2)
                                 importUserInvoices(userInvoiceDetailData.get(1), context, session, importColumns.get(0),
-                                        importColumns.get(1), userInvoiceObject, secondaryKeyType, operationObject,
-                                        supplierObject, supplierStockObject, customerObject, customerStockObject,
-                                        disableVolatileStats);
+                                        importColumns.get(1), userInvoiceObject, importSettings.getSecondaryKeyType(),
+                                        operationObject, supplierObject, supplierStockObject, customerObject,
+                                        customerStockObject, disableVolatileStats);
 
                             session.apply(context);
                             session.close();
@@ -162,9 +153,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
     
     public boolean makeImport(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject userInvoiceObject,
-                              DataObject importTypeObject, byte[] file, String fileExtension, Integer startRow, Boolean isPosted,
-                              String csvSeparator, String primaryKeyType, boolean checkExistence, String secondaryKeyType, 
-                              boolean keyIsDigit, String propertyImportType, String staticNameImportType) 
+                              DataObject importTypeObject, byte[] file, String fileExtension, ImportDocumentSettings importSettings,
+                              String staticNameImportType, boolean checkInvoiceExistence)
             throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException, 
             xBaseJException, ScriptingErrorLog.SemanticErrorException {
 
@@ -173,7 +163,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
 
         List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, LM, importTypeObject);
-        Map<String, String> stockMapping = readStockMapping(session, LM, importTypeObject);
+        Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, LM, checkInvoiceExistence);
 
         ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
         ObjectValue supplierObject = getLCP("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
@@ -182,19 +172,18 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, session,
-                userInvoiceObject, importColumns.get(0), importColumns.get(1), stockMapping, file, fileExtension, 
-                startRow, isPosted, csvSeparator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit,
-                propertyImportType, staticNameImportType);
+                userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, checkInvoiceExistence, file, fileExtension,
+                importSettings, staticNameImportType);
 
         boolean result1 = (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1) && 
-            importUserInvoices(userInvoiceDetailData.get(0), context, session, importColumns.get(0), importColumns.get(1), 
-                    userInvoiceObject, primaryKeyType, operationObject, supplierObject, supplierStockObject,
-                    customerObject, customerStockObject, disableVolatileStats);
+            importUserInvoices(userInvoiceDetailData.get(0), context, session, importColumns.get(0), importColumns.get(1),
+                    userInvoiceObject, importSettings.getPrimaryKeyType(), operationObject, supplierObject,
+                    supplierStockObject, customerObject, customerStockObject, disableVolatileStats);
 
         boolean result2 = (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 2) &&
-            importUserInvoices(userInvoiceDetailData.get(1), context, session, importColumns.get(0), importColumns.get(1), 
-                    userInvoiceObject, secondaryKeyType, operationObject, supplierObject, supplierStockObject,
-                    customerObject, customerStockObject, disableVolatileStats);
+            importUserInvoices(userInvoiceDetailData.get(1), context, session, importColumns.get(0), importColumns.get(1),
+                    userInvoiceObject, importSettings.getSecondaryKeyType(), operationObject, supplierObject,
+                    supplierStockObject, customerObject, customerStockObject, disableVolatileStats);
         
         return result1 && result2;
     }
@@ -216,9 +205,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
     public boolean importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, ExecutionContext context, DataSession session,
                                       LinkedHashMap<String, ImportColumnDetail> defaultColumns, LinkedHashMap<String, ImportColumnDetail> customColumns,
-                                      DataObject userInvoiceObject, String keyType, ObjectValue operationObject, ObjectValue supplierObject,
-                                      ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject,
-                                      boolean disableVolatileStats)
+                                      DataObject userInvoiceObject, String keyType, ObjectValue operationObject,
+                                      ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject,
+                                      ObjectValue customerStockObject, boolean disableVolatileStats)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
 
@@ -230,32 +219,27 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             List<List<Object>> data = initData(userInvoiceDetailsList.size());
 
-            ImportField idUserInvoiceField = null;
-            ImportKey<?> userInvoiceKey = null;
-            if (userInvoiceObject == null) {
-                idUserInvoiceField = new ImportField(getLCP("idUserInvoice"));
-                userInvoiceKey = new ImportKey((ConcreteCustomClass) getClass("Purchase.UserInvoice"),
-                        getLCP("userInvoiceId").getMapping(idUserInvoiceField));
-                keys.add(userInvoiceKey);
-                props.add(new ImportProperty(idUserInvoiceField, getLCP("idUserInvoice").getMapping(userInvoiceKey), getReplaceOnlyNull(defaultColumns, "idUserInvoice")));
+            //проверка на всякий случай. Не забыть убрать
+            //assert userInvoiceObject != null;
+
+            if (showField(userInvoiceDetailsList, "idUserInvoice")) {
+                ImportField idUserInvoiceField = new ImportField(getLCP("idUserInvoice"));
+                props.add(new ImportProperty(idUserInvoiceField, getLCP("idUserInvoice").getMapping(userInvoiceObject), getReplaceOnlyNull(defaultColumns, "idUserInvoice")));
                 fields.add(idUserInvoiceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "numberUserInvoice")) {
-                if (userInvoiceObject == null)
-                    addDataField(props, fields, defaultColumns, "numberUserInvoice", "numberUserInvoice", userInvoiceKey);
-                else
                     addDataField(props, fields, defaultColumns, "numberUserInvoice", "numberUserInvoice", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).numberUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "dateUserInvoice")) {
-                if (userInvoiceObject == null)
-                    addDataField(props, fields, defaultColumns, "dateUserInvoice", "dateUserInvoice", userInvoiceKey);
-                else
+                //if (userInvoiceObject == null)
+                //    addDataField(props, fields, defaultColumns, "dateUserInvoice", "dateUserInvoice", userInvoiceKey);
+                //else
                     addDataField(props, fields, defaultColumns, "dateUserInvoice", "dateUserInvoice", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).dateUserInvoice);
@@ -266,10 +250,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) getClass("Currency"),
                         getLCP("currencyShortName").getMapping(shortNameCurrencyField));
                 keys.add(currencyKey);
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty(shortNameCurrencyField, getLCP("currencyUserInvoice").getMapping(userInvoiceKey),
-                            LM.object(getClass("Currency")).getMapping(currencyKey), getReplaceOnlyNull(defaultColumns, "currencyUserInvoice")));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty(shortNameCurrencyField, getLCP("currencyUserInvoice").getMapping(userInvoiceKey),
+                //            LM.object(getClass("Currency")).getMapping(currencyKey), getReplaceOnlyNull(defaultColumns, "currencyUserInvoice")));
+                //else
                     props.add(new ImportProperty(shortNameCurrencyField, getLCP("currencyUserInvoice").getMapping(userInvoiceObject),
                             LM.object(getClass("Currency")).getMapping(currencyKey), getReplaceOnlyNull(defaultColumns, "currencyUserInvoice")));
                 fields.add(shortNameCurrencyField);
@@ -282,27 +266,27 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     getLCP("userInvoiceDetailId").getMapping(idUserInvoiceDetailField));
             keys.add(userInvoiceDetailKey);
             props.add(new ImportProperty(idUserInvoiceDetailField, getLCP("idUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idUserInvoiceDetail")));
-            if (userInvoiceObject == null)
-                props.add(new ImportProperty(idUserInvoiceField, getLCP("Purchase.userInvoiceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                        LM.object(getClass("UserInvoice")).getMapping(userInvoiceKey), getReplaceOnlyNull(defaultColumns, "idUserInvoice")));
-            else
+            //if (userInvoiceObject == null)
+            //    props.add(new ImportProperty(idUserInvoiceField, getLCP("Purchase.userInvoiceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+            //            LM.object(getClass("UserInvoice")).getMapping(userInvoiceKey), getReplaceOnlyNull(defaultColumns, "idUserInvoice")));
+            //else
                 props.add(new ImportProperty(userInvoiceObject, getLCP("Purchase.userInvoiceUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idUserInvoiceDetail")));
             fields.add(idUserInvoiceDetailField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idUserInvoiceDetail);
 
             if (operationObject instanceof DataObject) {
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty((DataObject) operationObject, getLCP("Purchase.operationUserInvoice").getMapping(userInvoiceKey)));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty((DataObject) operationObject, getLCP("Purchase.operationUserInvoice").getMapping(userInvoiceKey)));
+                //else
                     props.add(new ImportProperty((DataObject) operationObject, getLCP("Purchase.operationUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (supplierObject instanceof DataObject) {
                 props.add(new ImportProperty((DataObject) supplierObject, getLCP("Purchase.supplierUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty((DataObject) supplierObject, getLCP("Purchase.supplierUserInvoice").getMapping(userInvoiceKey)));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty((DataObject) supplierObject, getLCP("Purchase.supplierUserInvoice").getMapping(userInvoiceKey)));
+                //else
                     props.add(new ImportProperty((DataObject) supplierObject, getLCP("Purchase.supplierUserInvoice").getMapping(userInvoiceObject)));
             }
 
@@ -314,10 +298,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 keys.add(supplierKey);
                 props.add(new ImportProperty(idSupplierField, getLCP("supplierUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                         LM.object(getClass("LegalEntity")).getMapping(supplierKey), getReplaceOnlyNull(defaultColumns, "idSupplier")));
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty(idSupplierField, getLCP("supplierUserInvoice").getMapping(userInvoiceKey),
-                            LM.object(getClass("LegalEntity")).getMapping(supplierKey), getReplaceOnlyNull(defaultColumns, "idSupplier")));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty(idSupplierField, getLCP("supplierUserInvoice").getMapping(userInvoiceKey),
+                //            LM.object(getClass("LegalEntity")).getMapping(supplierKey), getReplaceOnlyNull(defaultColumns, "idSupplier")));
+                //else
                     props.add(new ImportProperty(idSupplierField, getLCP("supplierUserInvoice").getMapping(userInvoiceObject),
                             LM.object(getClass("LegalEntity")).getMapping(supplierKey), getReplaceOnlyNull(defaultColumns, "idSupplier")));
                 fields.add(idSupplierField);
@@ -334,10 +318,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 keys.add(supplierStockKey);
                 props.add(new ImportProperty(idSupplierStockField, getLCP("supplierStockUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                         LM.object(getClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty(idSupplierStockField, getLCP("supplierStockUserInvoice").getMapping(userInvoiceKey),
-                            LM.object(getClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty(idSupplierStockField, getLCP("supplierStockUserInvoice").getMapping(userInvoiceKey),
+                //            LM.object(getClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
+                //else
                     props.add(new ImportProperty(idSupplierStockField, getLCP("supplierStockUserInvoice").getMapping(userInvoiceObject),
                             LM.object(getClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
                 fields.add(idSupplierStockField);
@@ -348,25 +332,25 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             if (supplierStockObject instanceof DataObject) {
                 props.add(new ImportProperty((DataObject) supplierStockObject, getLCP("Purchase.supplierStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty((DataObject) supplierStockObject, getLCP("Purchase.supplierStockUserInvoice").getMapping(userInvoiceKey)));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty((DataObject) supplierStockObject, getLCP("Purchase.supplierStockUserInvoice").getMapping(userInvoiceKey)));
+                //else
                     props.add(new ImportProperty((DataObject) supplierStockObject, getLCP("Purchase.supplierStockUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (customerObject instanceof DataObject) {
                 props.add(new ImportProperty((DataObject) customerObject, getLCP("Purchase.customerUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty((DataObject) customerObject, getLCP("Purchase.customerUserInvoice").getMapping(userInvoiceKey)));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty((DataObject) customerObject, getLCP("Purchase.customerUserInvoice").getMapping(userInvoiceKey)));
+                //else
                     props.add(new ImportProperty((DataObject) customerObject, getLCP("Purchase.customerUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (customerStockObject instanceof DataObject) {
                 props.add(new ImportProperty((DataObject) customerStockObject, getLCP("Purchase.customerStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty((DataObject) customerStockObject, getLCP("Purchase.customerStockUserInvoice").getMapping(userInvoiceKey)));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty((DataObject) customerStockObject, getLCP("Purchase.customerStockUserInvoice").getMapping(userInvoiceKey)));
+                //else
                     props.add(new ImportProperty((DataObject) customerStockObject, getLCP("Purchase.customerStockUserInvoice").getMapping(userInvoiceObject)));
             }
 
@@ -525,10 +509,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ImportKey<?> customerKey = new ImportKey((ConcreteCustomClass) getClass("LegalEntity"),
                         getLCP("legalEntityId").getMapping(idCustomerField));
                 keys.add(customerKey);
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty(idCustomerField, getLCP("Purchase.customerUserInvoice").getMapping(userInvoiceKey),
-                            LM.object(getClass("LegalEntity")).getMapping(customerKey), getReplaceOnlyNull(defaultColumns, "idBCustomer")));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty(idCustomerField, getLCP("Purchase.customerUserInvoice").getMapping(userInvoiceKey),
+                //            LM.object(getClass("LegalEntity")).getMapping(customerKey), getReplaceOnlyNull(defaultColumns, "idBCustomer")));
+                //else
                     props.add(new ImportProperty(idCustomerField, getLCP("Purchase.customerUserInvoice").getMapping(userInvoiceObject),
                             LM.object(getClass("LegalEntity")).getMapping(customerKey), getReplaceOnlyNull(defaultColumns, "idBCustomer")));
                 fields.add(idCustomerField);
@@ -541,10 +525,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ImportKey<?> customerStockKey = new ImportKey((CustomClass) getClass("Stock"),
                         getLCP("stockId").getMapping(idCustomerStockField));
                 keys.add(customerStockKey);
-                if (userInvoiceObject == null)
-                    props.add(new ImportProperty(idCustomerStockField, getLCP("Purchase.customerStockUserInvoice").getMapping(userInvoiceKey),
-                            LM.object(getClass("Stock")).getMapping(customerStockKey), getReplaceOnlyNull(defaultColumns, "idCustomerStock")));
-                else
+                //if (userInvoiceObject == null)
+                //    props.add(new ImportProperty(idCustomerStockField, getLCP("Purchase.customerStockUserInvoice").getMapping(userInvoiceKey),
+                //            LM.object(getClass("Stock")).getMapping(customerStockKey), getReplaceOnlyNull(defaultColumns, "idCustomerStock")));
+                //else
                     props.add(new ImportProperty(idCustomerStockField, getLCP("Purchase.customerStockUserInvoice").getMapping(userInvoiceObject),
                             LM.object(getClass("Stock")).getMapping(customerStockKey), getReplaceOnlyNull(defaultColumns, "idCustomerStock")));
                 fields.add(idCustomerStockField);
@@ -728,9 +712,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
             
             if (showField(userInvoiceDetailsList, "isPosted")) {
-                if (userInvoiceObject == null)
-                    addDataField(props, fields, defaultColumns, "isPostedUserInvoice", "isPosted", userInvoiceKey);
-                else
+                //if (userInvoiceObject == null)
+                //    addDataField(props, fields, defaultColumns, "isPostedUserInvoice", "isPosted", userInvoiceKey);
+                //else
                     addDataField(props, fields, defaultColumns, "isPostedUserInvoice", "isPosted", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).isPosted);
@@ -1002,12 +986,17 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         customKey = itemKey;
                     else if (customColumn.key.equals("article"))
                         customKey = articleKey;
-                    else if (customColumn.key.equals("document"))
-                        customKey = userInvoiceKey;
+                    //else if (customColumn.key.equals("document"))
+                    //    customKey = userInvoiceKey;
                     else if (customColumn.key.equals("documentDetail"))
                         customKey = userInvoiceDetailKey;
                     if (customKey != null) {
                         props.add(new ImportProperty(customField, customModuleLM.findLCPByCompoundOldName(customColumn.property).getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
+                        fields.add(customField);
+                        for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                            data.get(i).add(userInvoiceDetailsList.get(i).customValues.get(entry.getKey()));
+                    } else if(customColumn.key.equals("document")) {
+                        props.add(new ImportProperty(customField, customModuleLM.findLCPByCompoundOldName(customColumn.property).getMapping(userInvoiceObject), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).customValues.get(entry.getKey()));
@@ -1031,29 +1020,29 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataSession session, DataObject userInvoiceObject,
                                                                            Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, 
-                                                                           Map<String, String> stockMapping, byte[] file, String fileExtension, Integer startRow, Boolean isPosted,
-                                                                           String csvSeparator, String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
-                                                                           String propertyImportType, String staticNameImportType)
+                                                                           Set<String> purchaseInvoiceSet, boolean checkInvoiceExistence,
+                                                                           byte[] file, String fileExtension, ImportDocumentSettings importSettings,
+                                                                           String staticNameImportType)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
 
         if (fileExtension.equals("DBF"))
             userInvoiceDetailsList = importUserInvoicesFromDBF(context, session, file, defaultColumns, customColumns, 
-                    stockMapping, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted,
-                    userInvoiceObject, propertyImportType, staticNameImportType);
+                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
+                    staticNameImportType);
         else if (fileExtension.equals("XLS"))
             userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, defaultColumns, customColumns,
-                    stockMapping, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted,
-                    userInvoiceObject, propertyImportType, staticNameImportType);
+                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
+                    staticNameImportType);
         else if (fileExtension.equals("XLSX"))
             userInvoiceDetailsList = importUserInvoicesFromXLSX(context, session, file, defaultColumns, customColumns, 
-                    stockMapping, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted,
-                    userInvoiceObject, propertyImportType, staticNameImportType);
+                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
+                    staticNameImportType);
         else if (fileExtension.equals("CSV"))
             userInvoiceDetailsList = importUserInvoicesFromCSV(context, session, file, defaultColumns, customColumns, 
-                    stockMapping, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, 
-                    csvSeparator, userInvoiceObject, propertyImportType, staticNameImportType);
+                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
+                    staticNameImportType);
         else
             userInvoiceDetailsList = null;
 
@@ -1062,16 +1051,16 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, DataSession session, byte[] importFile, 
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
-                                                                        Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence, String secondaryKeyType,
-                                                                        boolean keyIsDigit, Integer startRow, Boolean isPosted, DataObject userInvoiceObject, 
-                                                                        String propertyImportType, String staticNameImportType)
+                                                                        Set<String> purchaseInvoiceSet, boolean checkInvoiceExistence,
+                                                                        ImportDocumentSettings importSettings, DataObject userInvoiceObject,
+                                                                        String staticNameImportType)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
 
-        String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
+        String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
+        String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
 
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
@@ -1087,7 +1076,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
             currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
 
-            for (int i = startRow - 1; i < sheet.getRows(); i++) {
+            for (int i = importSettings.getStartRow() - 1; i < sheet.getRows(); i++) {
                 String numberDocument = getXLSFieldValue(sheet, i, defaultColumns.get("numberDocument"));
                 String idDocument = getXLSFieldValue(sheet, i, defaultColumns.get("idDocument"), numberDocument);
                 Date dateDocument = getXLSDateFieldValue(sheet, i, defaultColumns.get("dateDocument"));
@@ -1112,7 +1101,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String nameOriginCountry = modifyNameCountry(getXLSFieldValue(sheet, i, defaultColumns.get("nameOriginCountry")));
                 String importCountryBatch = getXLSFieldValue(sheet, i, defaultColumns.get("importCountryBatch"));
                 String idCustomerStock = getXLSFieldValue(sheet, i, defaultColumns.get("idCustomerStock"));
-                idCustomerStock = stockMapping.containsKey(idCustomerStock) ? stockMapping.get(idCustomerStock) : idCustomerStock;
+                idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
                 ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
                 ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
                 String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
@@ -1169,47 +1158,47 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
                     customValues.put(column.getKey(), getXLSFieldValue(sheet, i, column.getValue()));
                 }
-                
-                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, isPosted, 
-                        idDocument, numberDocument, dateDocument, idSupplier, idSupplierStock, currencyDocument, 
-                        idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, 
-                        originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer, 
-                        nameManufacturer, sidOrigin2Country, nameCountry, nameOriginCountry, importCountryBatch, 
-                        idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT, 
-                        defaultCountry, invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum, 
-                        rateExchange, numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate, 
-                        pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle, 
-                        idColor, nameColor, idCollection, nameCollection, idSize, nameSize, nameOriginalSize, 
-                        idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox, idTheme, nameTheme,
-                        netWeight, netWeightSum, grossWeight, grossWeightSum, composition, originalComposition);
 
-                String primaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
-                String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
-                    primaryList.add(purchaseInvoiceDetail);
-                else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
-                    primaryList.add(purchaseInvoiceDetail);
+                if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+                    PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, importSettings.isPosted(),
+                            idDocument, numberDocument, dateDocument, idSupplier, idSupplierStock, currencyDocument,
+                            idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup,
+                            originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer,
+                            nameManufacturer, sidOrigin2Country, nameCountry, nameOriginCountry, importCountryBatch,
+                            idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT,
+                            defaultCountry, invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum,
+                            rateExchange, numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate,
+                            pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
+                            idColor, nameColor, idCollection, nameCollection, idSize, nameSize, nameOriginalSize,
+                            idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox, idTheme, nameTheme,
+                            netWeight, netWeightSum, grossWeight, grossWeightSum, composition, originalComposition);
+
+                    String primaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
+                    String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
+                    if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                        primaryList.add(purchaseInvoiceDetail);
+                    else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
+                        primaryList.add(purchaseInvoiceDetail);
+                }
             }
             currentTimestamp = null;
 
-            return checkArticles(context, session, propertyImportType, staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
+            return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
         } else
             return null;
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext context, DataSession session, byte[] importFile, 
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
-                                                                        Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence, 
-                                                                        String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, 
-                                                                        String csvSeparator, DataObject userInvoiceObject, String propertyImportType,
-                                                                        String staticNameImportType)
+                                                                        Set<String> purchaseInvoiceSet, boolean checkInvoiceExistence,
+                                                                        ImportDocumentSettings importSettings, DataObject userInvoiceObject, String staticNameImportType)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
 
-        String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
+        String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
+        String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
         
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile), "cp1251"));
         String line;
@@ -1220,10 +1209,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         List<String[]> valuesList = new ArrayList<String[]>();
         while ((line = br.readLine()) != null) {
-                valuesList.add(line.split(csvSeparator));
+                valuesList.add(line.split(importSettings.getCsvSeparator()));
         }
 
-        for (int count = startRow; count <= valuesList.size(); count++) {
+        for (int count = importSettings.getStartRow(); count <= valuesList.size(); count++) {
             
             String numberDocument = getCSVFieldValue(valuesList, defaultColumns.get("numberDocument"), count);
             String idDocument = getCSVFieldValue(valuesList, defaultColumns.get("idDocument"), count, numberDocument);
@@ -1249,7 +1238,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameOriginCountry = modifyNameCountry(getCSVFieldValue(valuesList, defaultColumns.get("nameOriginCountry"), count));
             String importCountryBatch = getCSVFieldValue(valuesList, defaultColumns.get("importCountryBatch"), count);
             String idCustomerStock = getCSVFieldValue(valuesList, defaultColumns.get("idCustomerStock"), count);
-            idCustomerStock = stockMapping.containsKey(idCustomerStock) ? stockMapping.get(idCustomerStock) : idCustomerStock;
+            idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
             ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
@@ -1306,45 +1295,47 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
                 customValues.put(column.getKey(), getCSVFieldValue(valuesList, column.getValue(), count));
             }
-            
-            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, isPosted, idDocument,
-                    numberDocument, dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail,
-                    barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, 
-                    originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry, 
-                    nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, 
-                    VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry, invoiceSum, manufacturingPrice, 
-                    contractPrice, shipmentPrice, shipmentSum, rateExchange, numberCompliance, dateCompliance,
-                    declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle, 
-                    captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize, 
-                    nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox,
-                    idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition, 
-                    originalComposition);
 
-            String primaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(primaryKeyColumn), count);
-            String secondaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(secondaryKeyColumn), count);
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
-                primaryList.add(purchaseInvoiceDetail);
-            else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
-                secondaryList.add(purchaseInvoiceDetail);
+            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, importSettings.isPosted(), idDocument,
+                        numberDocument, dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail,
+                        barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem,
+                        originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry,
+                        nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum,
+                        VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry, invoiceSum, manufacturingPrice,
+                        contractPrice, shipmentPrice, shipmentSum, rateExchange, numberCompliance, dateCompliance,
+                        declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle,
+                        captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize,
+                        nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox,
+                        idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition,
+                        originalComposition);
 
+                String primaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(primaryKeyColumn), count);
+                String secondaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(secondaryKeyColumn), count);
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session,
+                        importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                    primaryList.add(purchaseInvoiceDetail);
+                else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
+                    secondaryList.add(purchaseInvoiceDetail);
+            }
         }
         currentTimestamp = null;
 
-        return checkArticles(context, session, propertyImportType, staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
+        return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(ExecutionContext context, DataSession session, byte[] importFile, 
                                                                          Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, 
-                                                                         Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence,
-                                                                         String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, 
-                                                                         DataObject userInvoiceObject, String propertyImportType, String staticNameImportType)
+                                                                         Set<String> purchaseInvoiceSet, boolean checkInvoiceExistence,
+                                                                         ImportDocumentSettings importSettings, DataObject userInvoiceObject,
+                                                                         String staticNameImportType)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
 
-        String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
+        String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
+        String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
 
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
@@ -1352,7 +1343,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
         currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
 
-        for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
+        for (int i = importSettings.getStartRow() - 1; i <= sheet.getLastRowNum(); i++) {
 
             String numberDocument = getXLSXFieldValue(sheet, i, defaultColumns.get("numberDocument"));
             String idDocument = getXLSXFieldValue(sheet, i, defaultColumns.get("idDocument"), numberDocument);
@@ -1378,7 +1369,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameOriginCountry = modifyNameCountry(getXLSXFieldValue(sheet, i, defaultColumns.get("nameOriginCountry")));
             String importCountryBatch = getXLSXFieldValue(sheet, i, defaultColumns.get("importCountryBatch"));
             String idCustomerStock = getXLSXFieldValue(sheet, i, defaultColumns.get("idCustomerStock"));
-            idCustomerStock = stockMapping.containsKey(idCustomerStock) ? stockMapping.get(idCustomerStock) : idCustomerStock;
+            idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
             ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
@@ -1435,44 +1426,47 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
                 customValues.put(column.getKey(), getXLSXFieldValue(sheet, i, column.getValue()));
             }
-            
-            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, isPosted, idDocument,
-                    numberDocument, dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail,
-                    barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, 
-                    originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry, 
-                    nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, 
-                    VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry, invoiceSum, manufacturingPrice, 
-                    contractPrice, shipmentPrice, shipmentSum, rateExchange, numberCompliance, dateCompliance, 
-                    declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle, 
-                    captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize,
-                    nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox,
-                    idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition, 
-                    originalComposition);
 
-            String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
-            String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
-                primaryList.add(purchaseInvoiceDetail);
-            else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
-                primaryList.add(purchaseInvoiceDetail);
+            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, importSettings.isPosted(), idDocument,
+                        numberDocument, dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail,
+                        barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem,
+                        originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry,
+                        nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum,
+                        VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry, invoiceSum, manufacturingPrice,
+                        contractPrice, shipmentPrice, shipmentSum, rateExchange, numberCompliance, dateCompliance,
+                        declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle,
+                        captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize,
+                        nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox,
+                        idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition,
+                        originalComposition);
+
+                String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
+                String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(),
+                        session, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                    primaryList.add(purchaseInvoiceDetail);
+                else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
+                    primaryList.add(purchaseInvoiceDetail);
+            }
         }
         currentTimestamp = null;
 
-        return checkArticles(context, session, propertyImportType, staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
+        return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(ExecutionContext context, DataSession session, byte[] importFile, 
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
-                                                                        Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence,
-                                                                        String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted,
-                                                                        DataObject userInvoiceObject, String propertyImportType, String staticNameImportType)
+                                                                        Set<String> purchaseInvoiceSet, boolean checkInvoiceExistence,
+                                                                        ImportDocumentSettings importSettings, DataObject userInvoiceObject,
+                                                                        String staticNameImportType)
             throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
         List<PurchaseInvoiceDetail> secondaryList = new ArrayList<PurchaseInvoiceDetail>();
 
-        String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
-        String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
+        String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
+        String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
         
         File tempFile = File.createTempFile("purchaseInvoice", ".dbf");
         IOUtils.putFileBytes(tempFile, importFile);
@@ -1484,11 +1478,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);        
         currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
-        for (int i = 0; i < startRow - 1; i++) {
+        for (int i = 0; i < importSettings.getStartRow() - 1; i++) {
             file.read();
         }
 
-        for (int i = startRow - 1; i < totalRecordCount; i++) {
+        for (int i = importSettings.getStartRow() - 1; i < totalRecordCount; i++) {
 
             file.read();
 
@@ -1516,7 +1510,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String nameOriginCountry = modifyNameCountry(getDBFFieldValue(file, defaultColumns.get("nameOriginCountry"), i, charset));
             String importCountryBatch = getDBFFieldValue(file, defaultColumns.get("importCountryBatch"), i, charset);
             String idCustomerStock = getDBFFieldValue(file, defaultColumns.get("idCustomerStock"), i, charset);
-            idCustomerStock = stockMapping.containsKey(idCustomerStock) ? stockMapping.get(idCustomerStock) : idCustomerStock;
+            idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
             ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
             ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
             String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
@@ -1573,32 +1567,39 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
                 customValues.put(column.getKey(), getDBFFieldValue(file, column.getValue(), i, charset));
             }
-            
-            PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, isPosted, idDocument,
-                    numberDocument, dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail,
-                    barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem, 
-                    originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry, 
-                    nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum, 
-                    VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry, invoiceSum, manufacturingPrice, 
-                    contractPrice, shipmentPrice, shipmentSum, rateExchange, numberCompliance, dateCompliance, 
-                    declaration, expiryDate, manufactureDate, pharmacyPriceGroup, seriesPharmacy, idArticle, 
-                    captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize,
-                    nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox,
-                    idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition, 
-                    originalComposition);
 
-            String primaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(primaryKeyColumn), i, charset);
-            String secondaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(secondaryKeyColumn), i, charset);
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
-                primaryList.add(purchaseInvoiceDetail);
-            else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
-                secondaryList.add(purchaseInvoiceDetail);
+            if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, importSettings.isPosted(), idDocument,
+                        numberDocument, dateDocument, idSupplier, idSupplierStock, currencyDocument, idUserInvoiceDetail,
+                        barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem, captionItem,
+                        originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, nameCountry,
+                        nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock, quantity, price, sum,
+                        VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry, invoiceSum, manufacturingPrice,
+                        contractPrice, shipmentPrice, shipmentSum, rateExchange, numberCompliance, dateCompliance,
+                        declaration, expiryDate, manufactureDate, pharmacyPriceGroup, seriesPharmacy, idArticle,
+                        captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize,
+                        nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox,
+                        idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition,
+                        originalComposition);
+
+                String primaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(primaryKeyColumn), i, charset);
+                String secondaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(secondaryKeyColumn), i, charset);
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), session,
+                        importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                    primaryList.add(purchaseInvoiceDetail);
+                else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
+                    secondaryList.add(purchaseInvoiceDetail);
+            }
         }
 
         currentTimestamp = null;
         file.close();
        
-        return checkArticles(context, session, propertyImportType, staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
+        return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
+    }
+
+    private boolean checkInvoice(Set<String> invoiceSet, String idInvoice, boolean checkInvoiceExistence) {
+        return !checkInvoiceExistence || !invoiceSet.contains(idInvoice);
     }
 
     private boolean checkArticles(ExecutionContext context, DataSession session, String propertyImportType,
@@ -1665,6 +1666,30 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             articleSet.add(idArticle);           
         }
         return Arrays.asList(articleSet, articlePropertyMap);
+    }
+
+    protected static Set<String> getPurchaseInvoiceSet(DataSession session, ScriptingLogicsModule LM, boolean checkInvoiceExistence) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        if(!checkInvoiceExistence)
+            return null;
+
+        Set<String> purchaseInvoiceSet = new HashSet<String>();
+
+        KeyExpr key = new KeyExpr("purchase.invoice");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "Purchase.Invoice", key);
+        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+
+        query.addProperty("Purchase.idUserInvoice", LM.findLCPByCompoundOldName("Purchase.idUserInvoice").getExpr(session.getModifier(), key));
+        query.and(LM.findLCPByCompoundOldName("Purchase.idUserInvoice").getExpr(key).getWhere());
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+
+        for (ImMap<Object, Object> entry : result.valueIt()) {
+
+            String idUserInvoice = (String) entry.get("Purchase.idUserInvoice");
+            if(idUserInvoice != null)
+                purchaseInvoiceSet.add(idUserInvoice);
+        }
+        return purchaseInvoiceSet;
     }
 
     private Boolean showField(List<PurchaseInvoiceDetail> data, String fieldName) {

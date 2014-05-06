@@ -43,16 +43,6 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
             importTypeQuery.addProperty("autoImportEmailImportType", getLCP("autoImportEmailImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("autoImportAccountImportType", getLCP("autoImportAccountImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("captionFileExtensionImportType", getLCP("captionFileExtensionImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("startRowImportType", getLCP("startRowImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("isPostedImportType", getLCP("isPostedImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("separatorImportType", getLCP("separatorImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionPrimaryKeyTypeImportType", getLCP("captionPrimaryKeyTypeImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionSecondaryKeyTypeImportType", getLCP("captionSecondaryKeyTypeImportType").getExpr(session.getModifier(), importTypeKey));
-
-            importTypeQuery.addProperty("autoImportSupplierImportType", getLCP("autoImportSupplierImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportSupplierStockImportType", getLCP("autoImportSupplierStockImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerImportType", getLCP("autoImportCustomerImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerStockImportType", getLCP("autoImportCustomerStockImportType").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
             importTypeQuery.and(getLCP("autoImportImportType").getExpr(importTypeKey).getWhere());
@@ -68,18 +58,10 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 ObjectValue emailObject = entryValue.get("autoImportEmailImportType");
                 String emailPattern = emailObject instanceof DataObject ? ((String) ((DataObject) emailObject).object).replace("*", ".*") : null;
                 String fileExtension = trim((String) entryValue.get("captionFileExtensionImportType").getValue());
-                Integer startRow = (Integer) entryValue.get("startRowImportType").getValue();
-                startRow = startRow == null ? 1 : startRow;
-                Boolean isPosted = (Boolean) entryValue.get("isPostedImportType").getValue();
-                String csvSeparator = trim((String) getLCP("separatorImportType").read(session, importTypeObject));
-                csvSeparator = csvSeparator == null ? ";" : csvSeparator;
-                String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
-                boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
-                String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-                boolean keyIsDigit = getLCP("keyIsDigitImportType").read(session, importTypeObject) != null;
-                String propertyImportType = (String) getLCP("propertyImportTypeDetailImportType").read(session, importTypeObject);
                 String staticNameImportType = (String) getLCP("staticNameImportTypeDetailImportType").read(session, importTypeObject);
-                
+
+                ImportDocumentSettings importDocumentSettings = readImportDocumentSettings(session, importTypeObject);
+
                 if (fileExtension != null && emailObject instanceof DataObject && accountObject instanceof DataObject) {
 
                     KeyExpr emailExpr = new KeyExpr("email");
@@ -110,8 +92,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                 boolean importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, 
                                         currentSession, invoiceObject, importTypeObject, fileAttachment, fileExtension,
-                                        startRow, isPosted, csvSeparator, primaryKeyType, checkExistence, secondaryKeyType,
-                                        keyIsDigit, propertyImportType, staticNameImportType);
+                                        importDocumentSettings, staticNameImportType, true);
 
                                 if (importResult)
                                     getLCP("importedAttachmentEmail").change(true, currentSession, (DataObject) attachmentEmailObject);

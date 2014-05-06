@@ -33,17 +33,10 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
             ObjectValue importTypeObject = getLCP("importTypeUserInvoices").readClasses(context);
 
             String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(context, importTypeObject));
-            Integer startRow = (Integer) getLCP("startRowImportType").read(context, importTypeObject);
-            startRow = startRow == null ? 1 : startRow;
-            Boolean isPosted = (Boolean) getLCP("isPostedImportType").read(context, importTypeObject);
-            String csvSeparator = trim((String) getLCP("separatorImportType").read(context, importTypeObject), ";");
-            String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(context, importTypeObject));
-            boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(context, importTypeObject) != null;
-            String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(context, importTypeObject));
-            boolean keyIsDigit = getLCP("keyIsDigitImportType").read(context, importTypeObject) != null;
-            String propertyImportType = (String) getLCP("propertyImportTypeDetailImportType").read(context, importTypeObject);
             String staticNameImportType = (String) getLCP("staticNameImportTypeDetailImportType").read(context, importTypeObject);
-            
+
+            ImportDocumentSettings importDocumentSettings = readImportDocumentSettings(context.getSession(), importTypeObject);
+
             if (fileExtension != null) {
 
                 CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
@@ -56,8 +49,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                             DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) getClass("Purchase.UserInvoice"));
 
                             new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                    (DataObject) importTypeObject, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType,
-                                    checkExistence, secondaryKeyType, keyIsDigit, propertyImportType, staticNameImportType);
+                                    (DataObject) importTypeObject, file, fileExtension, importDocumentSettings, staticNameImportType, false);
 
                             currentSession.apply(context);
                         }
