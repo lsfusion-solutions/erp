@@ -170,9 +170,7 @@ public class EquipmentServer {
 
                     Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
                     CashDocumentBatch cashDocumentBatch = clsHandler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet, dbSettings);
-                    if (cashDocumentBatch == null) {
-                        logger.info("No CashDocuments found");
-                    } else {
+                    if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
                         logger.info("Sending CashDocuments");
                         String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
                         if (result != null) {

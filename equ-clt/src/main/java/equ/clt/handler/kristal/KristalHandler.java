@@ -293,8 +293,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
 
-        logger.info("Kristal: reading CashDocuments");
-
         List<CashDocument> result = new ArrayList<CashDocument>();
 
         Connection conn = null;
@@ -330,6 +328,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 logger.error(e);
             }
         }
+        if(result.size()==0)
+            logger.info("Kristal: no CashDocuments found");
+        else
+            logger.info(String.format("Kristal: found %s CashDocument(s)", result.size()));
         return new CashDocumentBatch(result, null);
     }
 
