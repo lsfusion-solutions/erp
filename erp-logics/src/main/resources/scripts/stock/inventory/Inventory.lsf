@@ -300,7 +300,7 @@ TABLE collationSheetSku (CollationSheet, Sku);
 inManyCollationSheetSku 'Вкл в ведомость' = DATA BOOLEAN (ManyCollationSheet, Sku) IN base;
 quantityBalanceCollationSheetSku 'Кол-во по остаткам' (collationSheet, sku) = DATA NUMERIC[14,3] (CollationSheet, Sku);
 priceBalanceCollationSheetSku 'Цена по остаткам' (collationSheet, sku) = DATA NUMERIC[14,2] (CollationSheet, Sku);
-
+sumBalanceCollationSheetSku 'Сумма по остаткам' (collationSheet, sku) = DATA NUMERIC[16,2] (CollationSheet, Sku);
 //---------------------------- Состав сличительной ведомости (Партия) ----------------------------//
 
 TABLE collationSheetBatch (CollationSheet, Batch);
@@ -317,6 +317,9 @@ recalculateBalanceInventory 'Заполнить остатки' (inventory) = AC
     ASSIGN quantityBalanceCollationSheetSku(collationSheet, sku)
         <- balanceBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)))
         WHERE inventoryCollationSheet(collationSheet) == inventory;
+    ASSIGN sumBalanceCollationSheetSku(collationSheet, sku)
+        <- NUMERIC[16,2](sumBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet))))
+        WHERE inventoryCollationSheet(collationSheet) == inventory;        
 
     IF isBatchInventory (inventory) THEN {
         ASSIGN quantityBalanceCollationSheetBatch(collationSheet, batch)
@@ -338,6 +341,9 @@ recalculatePriceCollationSheet 'Пересчитать цены в сличит�
 
     ASSIGN priceBalanceCollationSheetSku(collationSheet, sku)
         <- priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)));
+    ASSIGN sumBalanceCollationSheetSku(collationSheet, sku)
+        <- NUMERIC[16,2](sumBSkuStockDateTime(sku, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet))));
+        
     IF isBatchCollationSheet (collationSheet) THEN {
         ASSIGN priceBalanceCollationSheetBatch(collationSheet, batch)
             <- priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stockCollationSheet(collationSheet), dateTimeInventory(inventoryCollationSheet(collationSheet)));
@@ -460,8 +466,8 @@ priceBalanceCollationSheetBatch(collationSheet, batch) <- priceBLedgerPriceListT
 
 // ------------------------------------ Итоги по сличительной ведомости (Sku) ------------------------------------ //
 
-sumBalanceCollationSheetSku 'Сумма по остаткам' (collationSheet, sku) =
-    NUMERIC[16,2](roundPriceCurrency(quantityBalanceCollationSheetSku(collationSheet, sku) * priceBalanceCollationSheetSku(collationSheet, sku), currencyStock(stockCollationSheet(collationSheet))));
+//sumBalanceCollationSheetSku 'Сумма по остаткам' (collationSheet, sku) =
+//    NUMERIC[16,2](roundPriceCurrency(quantityBalanceCollationSheetSku(collationSheet, sku) * priceBalanceCollationSheetSku(collationSheet, sku), currencyStock(stockCollationSheet(collationSheet))));
 
 quantitySkuBalanceCollationSheet 'Кол-во по остаткам' (collationSheet) =
     GROUP SUM quantityBalanceCollationSheetSku(collationSheet, sku) IF includeCollationSheetSku(collationSheet, sku) BY collationSheet PERSISTENT;
@@ -602,10 +608,10 @@ TABLE inventorySkuDetail (InventorySkuDetail);
 CLASS OutInventorySkuDetail 'Недостача инвентаризации' : InventorySkuDetail;
 CLASS InInventorySkuDetail 'Излишки инвентаризации' : InventorySkuDetail;
 
-needToOutLedgerCollationSheetSku (collationSheet, sku) = quantityShortageCollationSheetSku(collationSheet, sku) > 0
+needToOutLedgerCollationSheetSku (collationSheet, sku) = (quantityShortageCollationSheetSku(collationSheet, sku) > 0  OR (sumShortageCollationSheetSku(collationSheet, sku) > 0 AND NOT quantityShortageCollationSheetSku(collationSheet, sku)))
     AND includeCollationSheetSku(collationSheet, sku) AND isPostedCollationSheet(collationSheet) AND NOT isBatchCollationSheet(collationSheet);
 
-needToInLedgerCollationSheetSku (collationSheet, sku) = quantityShortageCollationSheetSku(collationSheet, sku) < 0
+needToInLedgerCollationSheetSku (collationSheet, sku) = (quantityShortageCollationSheetSku(collationSheet, sku) < 0 OR (sumShortageCollationSheetSku(collationSheet, sku) < 0 AND NOT quantityShortageCollationSheetSku(collationSheet, sku)))
     AND includeCollationSheetSku(collationSheet, sku) AND isPostedCollationSheet(collationSheet) AND NOT isBatchCollationSheet(collationSheet);
 
 @defineAggregation(collationSheet, sku, outInventorySkuDetail, needToOutLedger);
