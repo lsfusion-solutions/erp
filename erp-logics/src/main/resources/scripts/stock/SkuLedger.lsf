@@ -376,6 +376,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     balanceA##postfix##GroupStockDateTime 'Остаток (после)'###caption (group,  stock, dateTime) =
         GROUP SUM balanceA##postfix##SkuStockDateTime (sku, stock, dateTime) IF isParentGroupSku(group, sku)
         BY group, stockSkuLedger(ledger), dateTime;
+        
+    balanceB##postfix##StockDate 'Остаток на начало дня' (stock, date) = GROUP SUM balanceB##postfix##SkuStockDate(sku, stock, date) BY stock, date;
 
     currentBalance##postfix##Sku 'Остаток (всего)'###caption (sku) = GROUP SUM currentBalance##postfix##SkuStock(sku, stock) BY sku;
 
@@ -437,6 +439,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     sumB##postfix##SkuStockDate 'Сумма на начало дня'###caption (sku, stock, date) = currentSum##postfix##SkuStock(sku, stock)
                                                                       (-) [= GROUP SUM signedSum##postfix##SkuStockDate (sku, stock, dateIn) IF dateIn >= date
                                                                                  BY sku, stock, date](sku, stock, date);
+
+    sumB##postfix##StockDate 'Сумма на начало дня' (stock, date) = GROUP SUM sumB##postfix##SkuStockDate(sku, stock, date) BY stock, date;
 
     sumB##postfix##SkuGroupStockDate 'Сумма на начало дня (по группе)' (group, stock, date) =
         GROUP SUM sumB##postfix##SkuStockDate (sku, stock, date)
@@ -588,6 +592,15 @@ balanceBBatchStockDateTime 'Остаток (до)' (batch, stock, dateTime) = cu
 balanceABatchStockDateTime 'Остаток (после)' (batch, stock, dateTime) = currentBalanceBatchStock(batch, stock)
     (-) [= GROUP SUM signedQuantityActiveSkuLedgerBatch (ledger, batch) IF dateTimeSkuLedger(ledger) > dateTime
     BY batch, stockSkuLedger(ledger), dateTime](batch, stock, dateTime);
+
+// Остатки по себестоимости
+costBBatchStockDate 'Себестоимость на начало дня' (batch, stock, date) = balanceBBatchStockDate(batch, stock, date) * costBatch(batch);
+  
+costABatchStockDate 'Себестоимость на конец дня' (batch, stock, dateTo) = balanceABatchStockDate(batch, stock, dateTo) * costBatch(batch);          
+
+// Итоги по складам
+costBStockDate 'Себестоимость на начало дня' = GROUP SUM costBBatchStockDate(b, s, d) BY s, d;
+costAStockDate 'Себестоимость на конец дня' = GROUP SUM costABatchStockDate(b, s, d) BY s, d;
 
 //---------------------------------------------- За период ------------------------------------------//
 
