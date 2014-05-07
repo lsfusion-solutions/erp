@@ -171,10 +171,25 @@ isOutcomeCashOperation (cashOperation) = cashOperation IS OutcomeCashOperation;
 
 @defineDocumentHeaderTime(OutcomeCashOperation);
 @deriveDocumentHeaderTimePrefix(OutcomeCashOperation, );
-@defineDocumentHeaderDepartmentStore(outcomeCashOperation);
 
 cashRegisterOutcomeCashOperation (outcomeCashOperation) = DATA CashRegister (OutcomeCashOperation);
 numberCashRegisterOutcomeCashOperation 'Касса изъятия денег' (outcomeCashOperation) = nppMachinery(cashRegisterOutcomeCashOperation(outcomeCashOperation)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+departmentStoreOutcomeCashOperation = departmentStoreCashRegister(cashRegisterOutcomeCashOperation(outcomeCashOperation));
+nameDepartmentStoreOutcomeCashOperation 'Отдел магазина' (outcomeCashOperation) = nameDepartmentStore(departmentStoreOutcomeCashOperation(outcomeCashOperation)) IN documentHeader
+        MINCHARWIDTH 20 PREFCHARWIDTH 20;
+fullNameDepartmentStoreOutcomeCashOperation 'Отдел магазина' (outcomeCashOperation) = fullNameDepartmentStore(departmentStoreOutcomeCashOperation(outcomeCashOperation)) IN documentHeader
+        MINCHARWIDTH 20 PREFCHARWIDTH 20;
+        
+legalEntityStockOutcomeCashOperation (outcomeCashOperation) = legalEntityDepartmentStore(departmentStoreOutcomeCashOperation(outcomeCashOperation));
+nameLegalEntityStockOutcomeCashOperation 'Компания (Отдел магазина)' (outcomeCashOperation) = nameLegalEntity(legalEntityStockOutcomeCashOperation (outcomeCashOperation));
+fullNameLegalEntityStockOutcomeCashOperation 'Компания (Отдел магазина) полное наим-ие' (outcomeCashOperation) = fullNameLegalEntity(legalEntityStockOutcomeCashOperation (outcomeCashOperation));       
+addressLegalEntityStockOutcomeCashOperation 'Адрес компании (Отдел магазина)' (outcomeCashOperation) = addressLegalEntity(legalEntityStockOutcomeCashOperation (outcomeCashOperation));
+
+addressStockOutcomeCashOperation 'Адрес (Отдел магазина)' (outcomeCashOperation) = addressDepartmentStore(departmentStoreOutcomeCashOperation(outcomeCashOperation));
+
+countryOutcomeCashOperation (outcomeCashOperation) = countryStock(departmentStoreOutcomeCashOperation(outcomeCashOperation));
+                
 sumCashOutcomeCashOperation 'Сумма изъятия' = DATA NUMERIC[16,2] (OutcomeCashOperation) IN documentSum;
 castBasisOutcomeCashOperation =
     FORMULA VARSTRING[100] '\'Изъятие денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
@@ -395,7 +410,6 @@ addOutcomeCashOperationForm 'Изъятие денег' () = ACTION () NEWSESSIO
         LOCAL fail = BOOLEAN();
         FOR sumCashForOutcomeCashOperation(cashRegister) ADDOBJ c = OutcomeCashOperation DO {
             cashRegisterOutcomeCashOperation(c) <- cashRegister;
-            departmentStoreOutcomeCashOperation(c) <- departmentStoreCashRegister(cashRegister);
             sumCashOutcomeCashOperation(c) <- sumCashForOutcomeCashOperation(cashRegister);
             generateSeriesNumberOutcomeCashOperation(c);
             fiscalServiceCashRegisterCashOperation(c);
