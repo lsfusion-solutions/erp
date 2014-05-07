@@ -146,6 +146,13 @@ END
 
 //------------------------  derive or change ------------------------------------//
 
+pricingBaseCalcPriceListType 'Считать розничную цену от базовой в расценке' = DATA BOOLEAN (CalcPriceListType);
+pricingDocumentCalcPriceListType = p IS CalcPriceListType AND NOT pricingBaseCalcPriceListType(p) PERSISTENT;
+
+EXTEND FORM calcPriceListType
+    PROPERTIES(c) pricingBaseCalcPriceListType
+;
+
 META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form)
 
     WHEN SESSION 
@@ -155,7 +162,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
          CHANGED(stockProp###idetail(detail)) OR
          CHANGED(dateTime###idetail(detail)) OR
          CHANGED(value###prefix###VAT###idetail(detail)))
-        AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND priceListType IS CalcPriceListType NOINLINE (priceListType) INLINE DO {
+        AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND pricingDocumentCalcPriceListType(priceListType) NOINLINE (priceListType) INLINE DO {
             prefix###markup###idetail(detail) <- markupCalcPriceListTypeSku(priceListType, sku###idetail(detail))
                                                          WHERE prefix###priceListType###idetail(detail) == priceListType;
             prefix###price###idetail(detail) <- roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
@@ -173,7 +180,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
          CHANGED(dateTime###idetail(detail)) OR
          CHANGED(batch###idetail(detail)) OR
          CHANGED(value###prefix###VAT###idetail(detail)))
-        AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND NOT priceListType IS CalcPriceListType NOINLINE (priceListType) INLINE DO {
+        AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND NOT pricingDocumentCalcPriceListType(priceListType) NOINLINE (priceListType) INLINE DO {
 
             prefix###price###idetail(detail) <- IF batch###idetail(detail) THEN
                                                             prevPriceBPriceListTypeBatchStockDateTime(priceListType,
