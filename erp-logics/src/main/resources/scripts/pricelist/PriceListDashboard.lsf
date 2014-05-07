@@ -411,10 +411,13 @@ EXTEND DESIGN priceListDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-addUserPriceListLegalEntity 'Добавить' = ACTION (legalEntity) NEWSESSION {
+addUserPriceListLegalEntityPriceListType 'Добавить' = ACTION (legalEntity, type) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
         companyUserPriceList(p) <- legalEntity;
-        FORM userPriceList OBJECTS p=p MODAL;
+        inPriceListDataPriceListType(p, type) <- TRUE;
+        showPriceListPriceListType(p, type) <- TRUE;
+        
+        FORM userPriceList OBJECTS p=p MANAGESESSION DOCKEDMODAL;
         IF formResult() == FormResult.ok THEN
             EXEC apply();
     }
@@ -432,10 +435,10 @@ EXTEND FORM priceListDashboard
     ORDER BY fromDateUserPriceList(p), fromTimeUserPriceList(p)
     FILTERS inPriceListDataPriceListType(p, pt),
             companyUserPriceList(p) == c
-    PROPERTIES(c) addUserPriceListLegalEntity FORCE PANEL TODRAW p       
+    PROPERTIES(c,pt) addUserPriceListLegalEntityPriceListType FORCE PANEL TODRAW p       
     FILTERGROUP inactivePriceList
         FILTER 'Текущие' 'F11' isActivePriceListDateTime(p,dt)            
-        FILTER 'Активные' 'F10' isActivePriceListDateTime(p,dt) OR (fromDateTimePriceList(p) > dt)    
+        FILTER 'Активные' 'F10' isActivePriceListDateTime(p,dt) OR (fromDateTimePriceList(p) > dt) DEFAULT   
             
 ;
 EXTEND DESIGN priceListDashboard {
