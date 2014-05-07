@@ -52,7 +52,61 @@ CONSTRAINT userDefaultCurrencyOperation(operation) AND NOT inCurrencyOperation(u
     CHECKED BY userDefaultCurrencyOperation MESSAGE 'Валюта по умолчанию должны быть в списке отмечанных валют';
 
 //Определение операции для прайсов
-@defineDocumentOperationContainer(priceList, p);
+//@defineDocumentOperationContainer(priceList, p){
+//    @defineDocumentOperationContainer(priceList, p, isPostedPriceList, nameCurrency, first){
+//    
+//        operationPriceList = ABSTRACT Operation (PriceList) PERSISTENT;
+//        nameOperationPriceList 'Операция' = nameOperation(operationPriceList(priceList));
+//        idOperationPriceList 'ID операции' = idOperation(operationPriceList(priceList));
+//        operationUserPriceList = DATA Operation (UserPriceList);
+//        nameOperationUserPriceList 'Операция' = nameOperation(operationUserPriceList(userPriceList));
+//        idOperationUserPriceList 'ID операции' = idOperation(operationUserPriceList(userPriceList));
+//        operationPriceList(priceList) += operationUserPriceList(priceList);
+//    
+//        operationPriceListDetail 'Операция' (priceListDetail) = operationPriceList(priceListPriceListDetail(priceListDetail));
+//        operationUserPriceListDetail 'Операция' (userPriceListDetail) = operationUserPriceList(userPriceListUserPriceListDetail(userPriceListDetail));
+//    
+//        EXTEND FORM userPriceList
+//            PROPERTIES(p) nameOperationUserPriceList
+//        ;
+//    
+//        EXTEND DESIGN userPriceList{
+//            first {
+//                ADD PROPERTY(nameOperationUserPriceList(p));
+//            }
+//            PROPERTY(nameOperationUserPriceList(p)) {minimumCharWidth = 30; preferredCharWidth = 40;} 
+//        }
+//        EXTEND FORM priceLists
+//            PROPERTIES(p) READONLYIF isReadonly() nameOperationPriceList BEFORE nameCurrencyPriceList(p)
+//        ;
+//    };
+//};
+    
+operationPriceList = ABSTRACT Operation (PriceList) PERSISTENT;
+nameOperationPriceList 'Операция' = nameOperation(operationPriceList(priceList));
+idOperationPriceList 'ID операции' = idOperation(operationPriceList(priceList));
+operationUserPriceList = DATA Operation (UserPriceList);
+nameOperationUserPriceList 'Операция' = nameOperation(operationUserPriceList(userPriceList));
+idOperationUserPriceList 'ID операции' = idOperation(operationUserPriceList(userPriceList));
+operationPriceList(priceList) += operationUserPriceList(priceList);
+
+operationPriceListDetail 'Операция' (priceListDetail) = operationPriceList(priceListPriceListDetail(priceListDetail));
+operationUserPriceListDetail 'Операция' (userPriceListDetail) = operationUserPriceList(userPriceListUserPriceListDetail(userPriceListDetail));
+
+EXTEND FORM userPriceList
+    PROPERTIES(p) nameOperationUserPriceList
+;
+
+EXTEND DESIGN userPriceList{
+    first {
+        ADD PROPERTY(nameOperationUserPriceList(p));
+    }
+    PROPERTY(nameOperationUserPriceList(p)) {minimumCharWidth = 30; preferredCharWidth = 40;} 
+}
+EXTEND FORM priceLists
+    PROPERTIES(p) READONLYIF isReadonly() BACKGROUND backgroundPriceList(p) nameOperationPriceList BEFORE nameCurrencyPriceList(p)
+;
+
 @defineDocumentOperationRole(userPriceList);
 
 inUserPriceListDataPriceListType(priceList, dataPriceListType) <- changeDataPriceListTypeOperation(dataPriceListType, operationUserPriceList(priceList))

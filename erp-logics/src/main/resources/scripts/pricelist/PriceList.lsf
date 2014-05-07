@@ -354,18 +354,23 @@ fillDocumentPriceList 'Подбор документа' = ACTION (userPriceList)
 } TOOLBAR;
 
 // ---------------------- Активность --------------------------- //
-
-isActivePriceList(priceList) = (fromDateTimePriceList(priceList) < currentDateTime() AND toDateTimePriceList(priceList) > currentDateTime()) OR
-                               (fromDateTimePriceList(priceList) < currentDateTime() AND NOT toDateTimePriceList(priceList));
-isActivePriceListDetail(priceListDetail) = (fromDateTimePriceListDetail(priceListDetail) < currentDateTime() AND toDateTimePriceListDetail(priceListDetail) > currentDateTime()) OR
-                               (fromDateTimePriceListDetail(priceListDetail) < currentDateTime() AND NOT toDateTimePriceListDetail(priceListDetail));
+isActivePriceListDateTime(priceList, dateTime) = (fromDateTimePriceList(priceList) <= (dateTime AS DATETIME) AND toDateTimePriceList(priceList) >= dateTime) OR
+                                                 (fromDateTimePriceList(priceList) <= (dateTime AS DATETIME) AND NOT toDateTimePriceList(priceList));
+isActivePriceList(priceList) = isActivePriceListDateTime(priceList, currentDateTime());
+//(fromDateTimePriceList(priceList) <= currentDateTime() AND toDateTimePriceList(priceList) >= currentDateTime()) OR
+//                               (fromDateTimePriceList(priceList) <= currentDateTime() AND NOT toDateTimePriceList(priceList));
+isActivePriceListDetail(priceListDetail) = (fromDateTimePriceListDetail(priceListDetail) <= currentDateTime() AND toDateTimePriceListDetail(priceListDetail) >= currentDateTime()) OR
+                               (fromDateTimePriceListDetail(priceListDetail) <= currentDateTime() AND NOT toDateTimePriceListDetail(priceListDetail));
 
 // Цвета
-backgroundPriceList 'Цвет' (priceList) =
-    IF currentDateTime() > toDateTimePriceList(priceList)
-        THEN RGB(255, 226, 226) IF priceList IS PriceList
-    ELSE
-        RGB(226, 255, 226) IF fromDateTimePriceList(priceList) > currentDateTime();
+//backgroundPriceList 'Цвет' (priceList) =
+//    IF currentDateTime() > toDateTimePriceList(priceList)
+//        THEN RGB(255, 226, 226) IF priceList IS PriceList
+//    ELSE
+//        RGB(226, 255, 226) IF fromDateTimePriceList(priceList) > currentDateTime();
+        
+backgroundPriceList 'Цвет' (priceList) = CASE WHEN fromDateTimePriceList(priceList) > currentDateTime() THEN RGB(224,255,224)
+                                              WHEN toDateTimePriceList(priceList) < currentDateTime() THEN RGB(255,224,224);        
 
 backgroundPriceListDetail 'Цвет' (priceListDetail) =  ABSTRACT CASE COLOR (PriceListDetail);
 //    IF currentDateTime() > toDateTimePriceListDetail(priceListDetail)
@@ -974,9 +979,12 @@ FORM priceLists 'Прайсы'
 
     PROPERTIES(d, t) READONLY BACKGROUND backgroundPriceListDetail(d) pricePriceListDetailDataPriceListType COLUMNS (t) HEADER nameDataPriceListType(t)
 
-    FILTERGROUP filters
-        FILTER 'Активные' 'F10' isActivePriceList(p) DEFAULT
-        FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(ts) DEFAULT    
+    FILTERGROUP inactivePriceList
+        FILTER 'Текущие' 'F11' isActivePriceList(p)            
+        FILTER 'Активные' 'F10' isActivePriceList(p) OR (fromDateTimePriceList(p) > currentDateTime())
+        
+    FILTERGROUP inactiveStock 
+        FILTER 'Активный' 'ctrl F10' activeStock(ts) DEFAULT    
 
     FILTERS priceListPriceListDetail(d) == p,
             inPriceListDataPriceListType(p, t),
@@ -1101,13 +1109,17 @@ addUserPriceListLegalEntity 'Добавить' = ACTION (legalEntity) {
 EXTEND FORM legalEntity
 
     OBJECTS p = UserPriceList
-    PROPERTIES(p) READONLY isPostedUserPriceList, numberUserPriceList, seriesUserPriceList, dateUserPriceList, timeUserPriceList,
+    PROPERTIES(p) READONLY BACKGROUND backgroundPriceList(p) isPostedUserPriceList, numberUserPriceList, seriesUserPriceList, dateUserPriceList, timeUserPriceList,
                            fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
                            nameCurrencyUserPriceList, priceListTypesPriceList,
                            stocksPriceList, noteUserPriceList
     PROPERTIES addUserPriceListLegalEntity(l) TODRAW p FORCE PANEL, updateSessionPriceList(p) TODRAW p FORCE PANEL TOOLBAR
     PROPERTIES(p) EDITSESSIONFORM, DELETESESSION FORCE PANEL TOOLBAR
     FILTERS companyUserPriceList(p) == l
+    
+    FILTERGROUP inactivePriceList
+        FILTER 'Текущие' 'F11' isActivePriceList(p)            
+        FILTER 'Активные' 'F10' isActivePriceList(p) OR (fromDateTimePriceList(p) > currentDateTime())    
 ;
 
 EXTEND DESIGN legalEntity{
