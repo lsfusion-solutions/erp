@@ -100,6 +100,17 @@ createdTimeInvoice 'Время создания'= ABSTRACT DATETIME (Invoice) IN
 createdUserInvoice = ABSTRACT CustomUser (Invoice);
 createdNameUserInvoice 'Создан пользователем' (o) = nameContact(createdUserInvoice(o)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
+negativeValueInvoices 'Запретить ввод отрицательных значений в накладных' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() negativeValueInvoices
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(negativeValueInvoices());
+    }
+}
 //----------------------------------------------- Накладная ---------------------------------------------------//
 
 META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
@@ -190,6 +201,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
 
     @defineDocumentInterfaceDetailQuantity(invoice);
     Invoice.quantityInvoiceDetail(detail) += quantityInvoiceDetail(detail);
+    CONSTRAINT negativeValueInvoices() AND detail IS InvoiceDetail AND quantityInvoiceDetail(detail) < 0
+        MESSAGE 'Количество в строке накладной должно быть не отрицательным';
 
     @defineDocumentDetailGrossWeight(invoice, sku);
 

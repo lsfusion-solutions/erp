@@ -91,6 +91,17 @@ isReturnOrder 'Возвратный' = ABSTRACT BOOLEAN (Order);
 
 @defineDocumentAbstractHeaderDescription(Order);
 @defineDocumentDetailDescription(order, OrderDetail);
+
+negativeValueOrders 'Запретить ввод отрицательных значений в заказах' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() negativeValueOrders
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(negativeValueOrders());
+    }
+}
 //----------------------------------------------- Заказ ---------------------------------------------------//
 
 META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, filter)
@@ -215,6 +226,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     @defineDocumentInterfaceDetailQuantity(order);
     Order.quantityOrderDetail(detail) += quantityOrderDetail(detail);
+    CONSTRAINT negativeValueOrders() AND detail IS OrderDetail AND quantityOrderDetail(detail) < 0
+        MESSAGE 'Количество в строке заказа должно быть не отрицательным';
 
     @defineDocumentInterfaceDetailPrice(order); // объявляем цену без НДС
     Order.priceOrderDetail(detail) += priceOrderDetail(detail);
