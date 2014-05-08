@@ -246,7 +246,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 if(!cashIn)
                                     sumCashDocument = sumCashDocument == null ? null : sumCashDocument.negate();
 
-                                long dateTimeCashDocument = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.SSS").parse(readStringXMLAttribute(cashDocumentNode, "regtime")).getTime();
+                                long dateTimeCashDocument = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS").parse(readStringXMLAttribute(cashDocumentNode, "regtime")).getTime();
                                 Date dateCashDocument = new Date(dateTimeCashDocument);
                                 Time timeCashDocument = new Time(dateTimeCashDocument);
 
@@ -330,7 +330,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 Integer numberReceipt = readIntegerXMLAttribute(purchaseNode, "number");
                                 BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(purchaseNode, "discountAmount");
 
-                                long dateTimeReceipt = new SimpleDateFormat("yyyy-MM-dd'T'hh:mm:ss.SSSX").parse(readStringXMLAttribute(purchaseNode, "saletime")).getTime();
+                                long dateTimeReceipt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX").parse(readStringXMLAttribute(purchaseNode, "saletime")).getTime();
                                 Date dateReceipt = new Date(dateTimeReceipt);
                                 Time timeReceipt = new Time(dateTimeReceipt);
 

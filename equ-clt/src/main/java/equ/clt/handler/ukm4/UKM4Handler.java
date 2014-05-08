@@ -247,7 +247,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                             java.sql.Date date = new java.sql.Date(new SimpleDateFormat("yyyymmdd").parse(new String(importSailFile.getField("DATE").getBytes(), "Cp1251").trim()).getTime());
                             String timeString = new String(importSailFile.getField("TIME").getBytes(), "Cp1251").trim();
                             timeString = timeString.length() == 3 ? ("0" + timeString) : timeString;
-                            java.sql.Time time = new java.sql.Time(DateUtils.parseDate(timeString, new String[]{"hhmm"}).getTime());
+                            java.sql.Time time = new java.sql.Time(DateUtils.parseDate(timeString, new String[]{"HHmm"}).getTime());
                             String barcodeReceiptDetail = new String(importSailFile.getField("CARDARTICU").getBytes(), "Cp1251").trim();
                             BigDecimal quantityReceiptDetail = new BigDecimal(new String(importSailFile.getField("QUANTITY").getBytes(), "Cp1251").trim());
                             BigDecimal priceReceiptDetail = new BigDecimal(new String(importSailFile.getField("PRICERUB").getBytes(), "Cp1251").trim());

@@ -409,7 +409,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                 Integer numberReceipt = readIntegerXMLAttribute(receiptElement, "ID");
                                                 BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
-                                                long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy hh:mm:ss"}).getTime();
+                                                long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
                                                 Date dateReceipt = new Date(dateTimeReceipt);
                                                 Time timeReceipt = new Time(dateTimeReceipt);
 
