@@ -6,43 +6,61 @@ NAMESPACE Item;
 
 //------------------------- НДС -------------------------//
 
-@defineHistorizableCustom (VATItemCountry, 'НДС', Range, numberRange, number, item, nameAttributeItem, country, nameCountry, 15, base);
-                        //(property,            caption, type, typeIdentity, object1, object1Identity, object2, object2Identity, fixedCharWidth, group)
-VATSkuCountryDate (item, country, date) += VATItemCountryDate (item, country, date);
+VATItemCountry 'НДС' = DATA Range (Item, Country);
+numberVATItemCountry 'НДС, номер' (i, c) = numberRange(VATItemCountry(i, c));
 
-CONSTRAINT taxRange(dataVATItemCountryDate(item, country, date)) != Tax.taxVAT OR
-           countryRange(dataVATItemCountryDate(item, country, date)) != country AS Country
-           CHECKED BY dataVATItemCountryDate
+VATSkuCountry (item, country) += VATItemCountry (item, country);
+
+CONSTRAINT taxRange(VATItemCountry(item, country)) != Tax.taxVAT OR
+           countryRange(VATItemCountry(item, country)) != country AS Country
+           CHECKED BY VATItemCountry
            MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС : TaxItem';
 
-valueVATItemCountryDate 'НДС, %' (item, country, date) = valueRateRangeDate(VATItemCountryDate(item, country, date), date);
-valueCurrentRateVATItemCountry 'НДС, %' (item, country) = valueCurrentRateRange(VATItemCountry(item, country));
+valueVATItemCountryDate 'НДС, %' (item, country, date) = valueRateRangeDate(VATItemCountry(item, country), date);
 
-overCopyItem(s, d) += ACTION (s, d) {
-    FOR dataVATItemCountryDate(s, country, date) DO {
-        ASSIGN dataVATItemCountryDate(d, country, date) <- dataVATItemCountryDate(s, country, date);
-    }
-}
+VATItem 'НДС' (item) = VATItemCountry(item, defaultCountry()) PERSISTENT;
+numberVATItem 'НДС' (item) = numberRange(VATItem(item));
+valueVATItemDate 'НДС, %' (item, date) = valueRateRangeDate(VATItem(item), date);
 
-overNumberVATItemDefaultCountryDate 'НДС' (item, date)= numberRange(overVATItemCountryDate(item, defaultCountry(), date));
-valueVATItemDefaultCountryDate 'НДС, %' (item, date) = valueRateRangeDate(VATItemCountryDate(item, defaultCountry(), date),date);
-
-changeVATItemDefaultCountryDate = ACTION (item, date) {
+changeNumberVATItem = ACTION (item) {
     REQUEST OBJECT r
-    FORM rangeDialog OBJECTS c = defaultCountry() MODAL SHOWDROP;
+        FORM rangeDialog OBJECTS c = defaultCountry() MODAL SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        dataVATItemCountryDate(item, country, date) <- requestedObject() WHERE country == defaultCountry();
+        VATItemCountry(item, country) <- requestedObject() WHERE country == defaultCountry();
 
     } ELSE IF formResult() == FormResult.drop THEN {
-        dataVATItemCountryDate(item, country, date) <- NULL WHERE country == defaultCountry();
+        VATItemCountry(item, country) <- NULL WHERE country == defaultCountry();
     }
 }
 
 EXTEND FORM item
-    PROPERTIES (i, c, dtr) overNumberVATItemCountryDate, valueVATItemCountryDate READONLY
-    PROPERTIES (i, dtr) overNumberVATItemDefaultCountryDate ON CHANGE changeVATItemDefaultCountryDate(i, dtr), valueVATItemDefaultCountryDate READONLY
+    PROPERTIES (i, c)      numberVATItemCountry 
+    PROPERTIES (i, c, dtr) valueVATItemCountryDate READONLY
+    PROPERTIES (i)         numberVATItem ON CHANGE changeNumberVATItem(i) 
+    PROPERTIES (i, dtr)    valueVATItemDate READONLY
     FILTERGROUP filters1
             FILTER 'Страны, у которых есть НДС' 'F11' countRangeTaxCountry (Tax.taxVAT, c) DEFAULT
 ;
-EXTEND DESIGN item { regionPrm  { ADD PROPERTY(overNumberVATItemDefaultCountryDate(i,dtr));  ADD PROPERTY(valueVATItemDefaultCountryDate(i,dtr));} }
+EXTEND DESIGN item { regionPrm  { ADD PROPERTY(numberVATItem(i));  ADD PROPERTY(valueVATItemDate(i, dtr));} }
 
+overCopyItem(s, d) += ACTION (s, d) {
+    FOR VATItemCountry(s, country) DO {
+        VATItemCountry(d, country) <- VATItemCountry(s, country);
+    }
+}
+
+// Миграция
+dataVATItemCountryDate 'НДС' = DATA Range (Item, Country, DATE);
+
+VATItemCountryDate 'НДС' (item, country, date) =
+     GROUP LAST dataVATItemCountryDate(item, country, dateIn)
+           BY item, country, date
+           ORDER dateIn
+           WHERE dataVATItemCountryDate(item, country, dateIn) AND dateIn <= (date AS DATE) COMPLEX;
+
+migrateVATItem 'Перенести НДС' = ACTION () {
+    VATItemCountry(item, country) <- VATItemCountryDate(item, country, currentDate()) WHERE NOT VATItemCountry(item, country);
+}
+EXTEND FORM migrationData
+    PROPERTIES() migrateVATItem
+;

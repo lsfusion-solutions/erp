@@ -392,7 +392,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) getClass("Country"),
                         getLCP("countryName").getMapping(countryVATField));
                 keys.add(countryKey);
-                props.add(new ImportProperty(valueVATUserPriceListDetailField, getLCP("dataVATItemCountryDate").getMapping(itemKey, countryKey, dateField),
+                props.add(new ImportProperty(valueVATUserPriceListDetailField, getLCP("VATItemCountry").getMapping(itemKey, countryKey),
                         LM.object(getClass("Range")).getMapping(VATKey), getReplaceOnlyNull(importColumns, "valueVAT")));
                 fields.add(countryVATField);
                 for (int i = 0; i < userPriceListDetailsList.size(); i++)

@@ -62,17 +62,17 @@ backgroundCountrySku 'Цвет' (country, sku) = RGB(212, 255, 212) IF countVATC
 
 changeCustomsGroupCountryItemDate = ACTION (country, item, date) {
     REQUEST OBJECT cg
-    FORM customsGroups MODAL SHOWDROP;
+        FORM customsGroups MODAL SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         customsGroupCountryItem(country, item) <- requestedObject();
-        dataVATItemCountryDate(item, country, date) <- IF VATCustomsExceptionCountryItem(country, item) THEN
-                                                           rangeVATCustomsExceptionCountryItem(country, item)
-                                                       ELSE
-                                                           VATCountryItemDate(country, item, date);
+        VATItemCountry(item, country) <- IF VATCustomsExceptionCountryItem(country, item) THEN
+                                            rangeVATCustomsExceptionCountryItem(country, item)
+                                         ELSE
+                                            VATCountryItemDate(country, item, date);
     } ELSE IF formResult() == FormResult.drop THEN {
         customsGroupCountryItem(country, item) <- NULL;
         VATCustomsExceptionCountryItem(country, item) <- NULL;
-        dataVATItemCountryDate(item, country, date) <- NULL;
+        VATItemCountry(item, country) <- NULL;
     }
 }
 
@@ -81,20 +81,20 @@ changeVATCustomsExceptionCountryItemDate = ACTION (country, item, date) {
     FORM VATCustomsExceptions OBJECTS cg = customsGroupCountryItem(country, item) MODAL SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         VATCustomsExceptionCountryItem(country, item) <- requestedObject();
-        dataVATItemCountryDate(item, country, date) <- IF VATCustomsExceptionCountryItem(country, item) THEN
-                                                           rangeVATCustomsExceptionCountryItem(country, item)
-                                                       ELSE
-                                                           VATCountryItemDate(country, item, date);
+        VATItemCountry(item, country) <- IF VATCustomsExceptionCountryItem(country, item) THEN
+                                            rangeVATCustomsExceptionCountryItem(country, item)
+                                         ELSE
+                                            VATCountryItemDate(country, item, date);
     } ELSE IF formResult() == FormResult.drop THEN {
         VATCustomsExceptionCountryItem(country, item) <- NULL;
-        dataVATItemCountryDate(item, country, date) <- VATCountryItemDate(country, item, date);
+        VATItemCountry(item, country) <- VATCountryItemDate(country, item, date);
     }
 }
 
 
 EXTEND FORM item
-    PROPERTIES(c, i) codeCustomsGroupCountryItem BEFORE overNumberVATItemCountryDate(i,c,dtr) ON CHANGE changeCustomsGroupCountryItemDate(c, i, dtr),
-                     nameVATCustomsExceptionCountryItem BEFORE overNumberVATItemCountryDate(i,c,dtr) ON CHANGE changeVATCustomsExceptionCountryItemDate(c, i, dtr) BACKGROUND backgroundCountrySku(c, i)
+    PROPERTIES(c, i) codeCustomsGroupCountryItem BEFORE numberVATItemCountry(i, c) ON CHANGE changeCustomsGroupCountryItemDate(c, i, dtr),
+                     nameVATCustomsExceptionCountryItem BEFORE numberVATItemCountry(i, c) ON CHANGE changeVATCustomsExceptionCountryItemDate(c, i, dtr) BACKGROUND backgroundCountrySku(c, i)
     PROPERTIES(i) codeCustomsGroupDefaultCountryItem ON CHANGE changeCustomsGroupDefaultCountryItem(i),
                   nameVATCustomsExceptionDefaultCountryItem ON CHANGE changeCustomsExceptionDefaultCountryItem(i)
 ;

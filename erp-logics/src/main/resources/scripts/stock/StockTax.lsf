@@ -6,15 +6,15 @@ NAMESPACE Stock;
 
 //------------------------- НДС -------------------------//
 
-VATSkuCountryDate 'НДС' = ABSTRACT Range (Sku, Country, DATE) COMPLEX;
-valueVATSkuCountryDate 'НДС, %' (sku, country, date) = valueRateRangeDate(VATSkuCountryDate(sku, country, date), date);
+VATSkuCountry 'НДС' = ABSTRACT Range (Sku, Country);
+valueVATSkuCountryDate 'НДС, %' (sku, country, date) = valueRateRangeDate(VATSkuCountry(sku, country), date);
 
-VATSkuStockDate 'НДС' (s, st, d) = VATSkuCountryDate(s, countryStock(st), d);
+VATSkuStock 'НДС' (s, st) = VATSkuCountry(s, countryStock(st));
 valueVATSkuStockDate 'НДС, %' (s, st, d) = valueVATSkuCountryDate(s, countryStock(st), d); 
 
 META deriveDocumentDetailVAT (concrete, prefixP, dateProp,  skuProp, stockProp)
-    prefixP###VAT###concrete##Detail(detail) <- VATSkuCountryDate (skuProp###concrete##Detail(detail), countryStock(stockProp###concrete##Detail(detail)), dateProp###concrete##Detail(detail))
-        WHEN DO CHANGED(skuProp###concrete##Detail(detail)) OR CHANGED (stockProp###concrete##Detail(detail)) OR CHANGED (dateProp###concrete##Detail(detail));
+    prefixP###VAT###concrete##Detail(detail) <- VATSkuCountry (skuProp###concrete##Detail(detail), countryStock(stockProp###concrete##Detail(detail)))
+        WHEN DO CHANGED(skuProp###concrete##Detail(detail)) OR CHANGED (stockProp###concrete##Detail(detail)));
 END
 META deriveDocumentDetailVAT (concrete, prefixP, dateProp)
     @deriveDocumentDetailVAT (concrete, prefixP, dateProp,  sku, departmentStore);
@@ -53,9 +53,8 @@ META deriveDocumentDetailVATHeader(object, taxSID, stockProp, skuProp, dateProp)
     taxSID###object###Detail (object###Detail) <-
         IF taxSID###object(object###object###Detail(object###Detail))
             THEN taxSID###object(object###object###Detail(object###Detail))
-            ELSE VATSkuCountryDate (skuProp###object##Detail(object###detail), countryStock(stockProp###object##Detail(object###detail)), dateProp###object##Detail(object###detail))
+            ELSE VATSkuCountry (skuProp###object##Detail(object###detail), countryStock(stockProp###object##Detail(object###detail)))
         WHEN DO CHANGED(taxSID###object(object###object###Detail(object###Detail))) OR
-             CHANGED(dateProp###object##Detail(object###detail)) OR
              CHANGED(stockProp###object##Detail(object###detail)) OR
              CHANGED(skuProp###object##Detail(object###detail));
 END

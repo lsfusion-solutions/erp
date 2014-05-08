@@ -576,7 +576,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ImportKey<?> countryVATKey = new ImportKey((ConcreteCustomClass) taxItemLM.findClassByCompoundName("Country"),
                         taxItemLM.findLCPByCompoundOldName("countryName").getMapping(countryVATField));
                 keys.add(countryVATKey);
-                props.add(new ImportProperty(valueVATUserInvoiceDetailField, taxItemLM.findLCPByCompoundOldName("dataVATItemCountryDate").getMapping(itemKey, countryVATKey, dateField),
+                props.add(new ImportProperty(valueVATUserInvoiceDetailField, taxItemLM.findLCPByCompoundOldName("VATItemCountry").getMapping(itemKey, countryVATKey),
                         LM.object(taxItemLM.findClassByCompoundName("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
                 fields.add(countryVATField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)

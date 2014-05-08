@@ -456,7 +456,7 @@ public class ImportActionProperty {
                 LM.findLCPByCompoundOldName("valueCurrentVATDefaultValue").getMapping(valueVATItemCountryDateField));
         VATKey.skipKey = skipKeys;
         keys.add(VATKey);
-        props.add(new ImportProperty(valueVATItemCountryDateField, LM.findLCPByCompoundOldName("dataVATItemCountryDate").getMapping(itemKey, defaultCountryObject, dateField),
+        props.add(new ImportProperty(valueVATItemCountryDateField, LM.findLCPByCompoundOldName("VATItemCountry").getMapping(itemKey, defaultCountryObject),
                 LM.object(LM.findClassByCompoundName("Range")).getMapping(VATKey)));
         fields.add(valueVATItemCountryDateField);
         for (int i = 0; i < itemsList.size(); i++)
