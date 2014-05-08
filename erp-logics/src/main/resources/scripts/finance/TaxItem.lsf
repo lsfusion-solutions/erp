@@ -20,7 +20,9 @@ valueVATItemCountryDate 'НДС, %' (item, country, date) = valueRateRangeDate(V
 
 VATItem 'НДС' (item) = VATItemCountry(item, defaultCountry()) PERSISTENT;
 numberVATItem 'НДС' (item) = numberRange(VATItem(item));
+
 valueVATItemDate 'НДС, %' (item, date) = valueRateRangeDate(VATItem(item), date);
+valueVATItem 'НДС, %' (item) = valueVATItemDate(item, currentDate());
 
 changeNumberVATItem = ACTION (item) {
     REQUEST OBJECT r
@@ -42,6 +44,10 @@ EXTEND FORM item
             FILTER 'Страны, у которых есть НДС' 'F11' countRangeTaxCountry (Tax.taxVAT, c) DEFAULT
 ;
 EXTEND DESIGN item { regionPrm  { ADD PROPERTY(numberVATItem(i));  ADD PROPERTY(valueVATItemDate(i, dtr));} }
+
+EXTEND FORM items
+    PROPERTIES(i) READONLYIF  isReadonly() numberVATItem, valueVATItem
+;
 
 overCopyItem(s, d) += ACTION (s, d) {
     FOR VATItemCountry(s, country) DO {
