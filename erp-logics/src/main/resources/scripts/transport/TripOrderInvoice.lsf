@@ -1,0 +1,26 @@
+MODULE TripOrderInvoice;
+
+REQUIRE TripOrder, TripInvoice;
+
+NAMESPACE Trip;
+
+quantityTripInvoice (trip, invoice) = GROUP SUM quantityOrderInvoice(order, invoice) IF inTripOrder(trip, order) BY trip, invoice;
+
+diffCountOrderInvoiceTrip 'Кол-во заказов без накладных'(trip) = countOrderTrip(trip) (-) countInvoiceTrip(trip);
+
+createInvoicesOrderTrip 'Создать накладные по заказам' (trip) = ACTION (trip) {
+    FOR tripOrder(order) == trip DO {
+        createUserInvoicePostedOrder(order);
+        FOR createdUserInvoiceOrder (invoice, order) DO {
+            tripInvoice(invoice) <- trip; // IF quantityTripInvoice (trip, invoice)
+        }
+
+        apply();
+    };
+    apply();
+
+} TOOLBAR CONFIRM;
+
+EXTEND FORM trip
+    PROPERTIES createInvoicesOrderTrip(t) TODRAW i
+;

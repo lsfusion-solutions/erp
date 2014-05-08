@@ -1,0 +1,73 @@
+MODULE TripShipment;
+
+REQUIRE TripOrder, OrderShipment;
+
+NAMESPACE Trip;
+
+// поставки
+tripShipment = DATA Trip(Shipment);
+inTripShipment 'Включен' (trip, shipment) = tripShipment(shipment)==trip;
+
+filterTripShipment(trip, shipment) = tripShipment(shipment)==trip OR (trip IS Trip AND shipment IS Shipment AND NOT tripShipment(shipment));
+
+grossWeightShippedTrip 'Суммарный вес поставок' (trip) = GROUP SUM grossWeightShipmentDetailShipment(shipment) BY tripShipment(shipment);
+
+quantityShipmentDetailTripShipment (trip, shipment) = GROUP SUM quantityShipmentDetailOrderShipment (order, shipment) BY tripOrder(order), shipment;
+
+quantityShippedTripSku 'Кол-во в поставках' (trip, sku) = GROUP SUM quantityShipmentDetail(shipmentDetail) BY tripShipment(shipmentShipmentDetail(shipmentDetail)), skuShipmentDetail(shipmentDetail);
+
+EXTEND FORM trip
+    PROPERTIES (t) READONLY grossWeightShippedTrip
+    
+    OBJECTS s=Shipment
+    PROPERTIES (t, s) inTripShipment
+    PROPERTIES(s) READONLY numberShipment, seriesShipment, dateShipment, nameSupplierShipment, nameFromStockShipment,
+                  nameCustomerShipment, nameToStockShipment, grossWeightShipmentDetailShipment
+    PROPERTIES (s) editShipment
+
+    FILTERS isPostedShipment(s)
+
+    FILTERS customerShipment(s) == customerTrip(t) OR (s IS Shipment AND NOT customerTrip(t)),
+            supplierShipment(s) == supplierTrip(t) OR (s IS Shipment AND NOT supplierTrip(t))
+
+    FILTERGROUP filterDateShipment
+        FILTER 'Текущие' 'F9' dateShipment(s) <= dateTrip(t) DEFAULT
+    FILTERGROUP filterShipment
+        FILTER 'Не расписанные или в текущем рейсе' 'F11' filterTripShipment(t, s)
+        FILTER 'В текущем рейсе' 'F10' inTripShipment(t, s) DEFAULT
+
+    OBJECTS sd=ShipmentDetail
+    PROPERTIES(sd) READONLY idBarcodeSkuShipmentDetail, nameSkuShipmentDetail, shortNameUOMSkuShipmentDetail, quantityShipmentDetail, grossWeightShipmentDetail, nameFromStockShipmentDetail, nameToStockShipmentDetail
+    FILTERS shipmentShipmentDetail(sd)==s
+;
+
+EXTEND DESIGN trip {
+    headerSum {
+        ADD PROPERTY(grossWeightShippedTrip(t));
+    }
+    
+    pane {
+        NEW shipments {
+            fill = 1;
+            caption = 'Поставки';
+            ADD s.box;
+            ADD sd.box;
+        }
+    }
+}
+
+EXTEND FORM trips
+    PROPERTIES(t) READONLY grossWeightShippedTrip
+
+    OBJECTS s=Shipment
+    PROPERTIES(s) READONLY numberShipment, seriesShipment, dateShipment, nameSupplierShipment, nameFromStockShipment, nameCustomerShipment, nameToStockShipment, grossWeightShipmentDetailShipment
+    FILTERS inTripShipment(t, s)
+;
+
+EXTEND DESIGN trips {
+    pane {
+        ADD s.box {
+            caption = 'Поставки';
+        }
+    }
+}
