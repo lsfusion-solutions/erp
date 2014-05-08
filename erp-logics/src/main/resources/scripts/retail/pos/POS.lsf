@@ -464,12 +464,12 @@ FORM searchSkuSaleReceipt 'Поиск SKU'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           s = Sku FIXED GRID
-    PROPERTIES        READONLY nameSkuStock(s, st), idBarcodeSku(s)
+    PROPERTIES        READONLY nameSkuStock(s, st)
+    PROPERTIES(s, st) READONLY prevCurrentBalanceSkuStock
+    PROPERTIES(s, r)  READONLY currentPOSPriceSkuReceipt    
+    PROPERTIES        READONLY idBarcodeSku(s)
     FILTERS           isParentSkuGroupSku(sk, s)
     ORDER BY          nameSkuStock(s,st)
-
-    PROPERTIES(s, st) READONLY prevCurrentBalanceSkuStock
-    PROPERTIES(s, r)  READONLY currentPOSPriceSkuReceipt
 
     FILTERGROUP filters
         FILTER 'Товары с остатком' 'F10' prevCurrentBalanceSkuStock(s, st) DEFAULT
@@ -478,17 +478,21 @@ FORM searchSkuSaleReceipt 'Поиск SKU'
 
 DESIGN searchSkuSaleReceipt FROM DEFAULT {
     main{
-        preferredSize = (1024, 768);
+        preferredSize = (1280, 768);
         NEW top BEFORE functions.box {
             fill = 1;
             type = SPLITH;
             ADD skuTree.tree.box { caption = 'Группы'; }
             ADD s.box {
-                fill = 3;
+                fill = 4;
                 s.grid {
                     defaultComponent = TRUE;
                 }
             }
+            PROPERTY(nameSkuStock(s, st)) { font = '16'; minimumCharWidth = 20; preferredCharWidth = 40;}
+            PROPERTY(prevCurrentBalanceSkuStock(s, st)) { font = '16'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(currentPOSPriceSkuReceipt(s, r)) { font = '16'; }
+            PROPERTY(idBarcodeSku(s)) { font = '16'; minimumCharWidth = 14; preferredCharWidth = 14;}
         }
     }
 }
@@ -511,12 +515,14 @@ FORM searchBatchSaleReceipt 'Поиск партии'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           b = Batch FIXED GRID
-    PROPERTIES        READONLY SHOWIF explicitBatchLedgerReceipt(r) nameSkuBatch(b), dateTimeBatch(b), nameBatch(b), idBarcodeSkuBatch(b)
+    PROPERTIES        READONLY nameSkuBatch(b)
+    
+    PROPERTIES(b, st) READONLY prevCurrentBalanceBatchStock
+    PROPERTIES(b, r)  READONLY currentPOSPriceBatchReceipt
+        
+    PROPERTIES        READONLY idBarcodeSkuBatch(b), nameBatch(b)
     FILTERS           isParentSkuGroupSku(sk, skuBatch(b))
     ORDER BY          nameSkuBatch(b)
-
-    PROPERTIES(b, st) READONLY SHOWIF explicitBatchLedgerReceipt(r) prevCurrentBalanceBatchStock
-    PROPERTIES(b, r)  READONLY SHOWIF explicitBatchLedgerReceipt(r) currentPOSPriceBatchReceipt
 
     FILTERGROUP filters
         FILTER 'Товары с остатком' 'F10' prevCurrentBalanceBatchStock(b, st) DEFAULT
@@ -531,11 +537,16 @@ DESIGN searchBatchSaleReceipt FROM DEFAULT {
             type = SPLITH;
             ADD skuTree.tree.box { caption = 'Группы'; }
             ADD b.box {
-                fill = 3;
+                fill = 4;
                 b.grid {
                     defaultComponent = TRUE;
                 }
             }
+            PROPERTY(nameSkuBatch(b)) { font = '16'; minimumCharWidth = 20; preferredCharWidth = 40;}
+            PROPERTY(prevCurrentBalanceBatchStock(b, st)) { font = '16'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(currentPOSPriceBatchReceipt(b, r)) { font = '16'; }
+            PROPERTY(idBarcodeSkuBatch(b)) { font = '16'; minimumCharWidth = 14; preferredCharWidth = 14;}
+            PROPERTY(nameBatch(b)) { font = '16'; minimumCharWidth = 20; preferredCharWidth = 30;}           
         }
     }
 }
@@ -769,7 +780,7 @@ FORM POS
                         prevCurrentBalanceBatchReceiptDetail SHOWIF posExplicitBatchLedgerReceipt(r)
     PROPERTIES(d) SHOWIF currentZReport() FORCE GRID BACKGROUND backgroundReceiptDetail(r, d) 
                         quantityGrid = quantityReceiptDetail ON CHANGE changeQuantityReceiptDetail(d), priceGrid = priceReceiptDetail, sumGrid = sumReceiptDetail, discountPercentReceiptSaleDetail,
-                        discountSumReceiptDetail, numberVATReceiptDetail, valueVATReceiptDetail, sumVATReceiptDetail, deleted=DELETESESSION
+                        discountSumReceiptDetail, valueVATReceiptDetail, sumVATReceiptDetail//, numberVATReceiptDetail, , deleted=DELETESESSION
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE PANEL BACKGROUND backgroundReceiptDetail(r, d) 
                         idBarcodePanel = idBarcodeReceiptDetail,
                         nameSkuPanel = nameSkuReceiptDetail,
@@ -851,21 +862,21 @@ DESIGN POS FROM DEFAULT {
     }
     ADD d.box {
         fill = 1;
-        PROPERTY(indexReceiptDetail(d)) { focusable = FALSE; font = '14'; }
-        PROPERTY(typeReceiptDetail(d)) { focusable = FALSE; font = '14'; }
-        PROPERTY(idBarcodeGrid) { focusable = FALSE; font = '14'; }
-        PROPERTY(nameSkuGrid) { focusable = FALSE; font = '14'; minimumCharWidth = 20; }
-        PROPERTY(prevCurrentBalanceSkuReceiptDetail(d)) { focusable = FALSE; font = '14'; }
-        PROPERTY(prevCurrentBalanceBatchReceiptDetail(d)) { focusable = FALSE; font = '14'; }
-        PROPERTY(quantityGrid) { font = '14'; minimumCharWidth = 5; }
-        PROPERTY(priceGrid) { font = '14'; }
-        PROPERTY(sumGrid) { font = '14'; }
-        PROPERTY(discountPercentReceiptSaleDetail(d)) { font = '14'; minimumCharWidth = 4; }
-        PROPERTY(discountSumReceiptDetail(d)) { font = '14'; }
-        PROPERTY(numberVATReceiptDetail(d)) { font = '14'; minimumCharWidth = 3; }
-        PROPERTY(valueVATReceiptDetail(d)) { font = '14'; minimumCharWidth = 3; }
-        PROPERTY(sumVATReceiptDetail(d)) { font = '14';}
-        PROPERTY(deleted) { focusable = FALSE; font = '14'; }
+        PROPERTY(indexReceiptDetail(d)) { caption = '№'; focusable = FALSE; font = '18'; minimumCharWidth = 2; preferredCharWidth = 2;}
+        PROPERTY(typeReceiptDetail(d)) { focusable = FALSE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
+        PROPERTY(idBarcodeGrid) { focusable = FALSE; font = '18'; }
+        PROPERTY(nameSkuGrid) { focusable = FALSE; font = '18'; minimumCharWidth = 20; }
+        PROPERTY(prevCurrentBalanceSkuReceiptDetail(d)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+        PROPERTY(prevCurrentBalanceBatchReceiptDetail(d)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+        PROPERTY(quantityGrid) { caption = 'К-во'; font = '18'; minimumCharWidth = 2; preferredCharWidth = 3;}
+        PROPERTY(priceGrid) { font = '18'; }
+        PROPERTY(sumGrid) { font = '18'; }
+        PROPERTY(discountPercentReceiptSaleDetail(d)) { font = '18'; minimumCharWidth = 3; preferredCharWidth = 4;}
+        PROPERTY(discountSumReceiptDetail(d)) { font = '18'; }
+//        PROPERTY(numberVATReceiptDetail(d)) { font = '18'; minimumCharWidth = 3; }
+        PROPERTY(valueVATReceiptDetail(d)) { font = '18'; minimumCharWidth = 3; preferredCharWidth = 4;}
+        PROPERTY(sumVATReceiptDetail(d)) { font = '18';}
+//        PROPERTY(deleted) { focusable = FALSE; font = '18'; }
         REMOVE d.toolbar;
     }
     NEW center {
