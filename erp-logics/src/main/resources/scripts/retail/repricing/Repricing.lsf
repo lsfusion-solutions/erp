@@ -483,8 +483,25 @@ EXTEND FORM userRepricing
 
 @defineDocumentOperationRolePrefix(userRepricing, );
 
+toFillQuantityUserRepricingDetailUserRepricing 'Записать в кол-во остатки' = ACTION (repricing) {
+    quantityUserRepricingDetail(d) <- IF batchUserRepricingDetail(d) THEN balanceBBatchStockDateTime(batchUserRepricingDetail(d),   
+                                                                            departmentStoreUserRepricingDetail(d), 
+                                                                            dateTimeUserRepricingDetail(d)) 
+                                                                     ELSE balanceBSkuStockDateTime(skuUserRepricingDetail(d), 
+                                                                            departmentStoreUserRepricingDetail(d), 
+                                                                            dateTimeUserRepricingDetail(d))                                                                      
+                                                                     WHERE userRepricingUserRepricingDetail(d) == repricing;    
+}
+
+toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-во остатки (для всех)' = ACTION () NEWSESSION  AUTOAPPLY {
+    FOR r IS UserRepricing AND balanceOperation(operationUserRepricing(r)) AND NOT isClosedUserRepricing(r) DO {
+        toFillQuantityUserRepricingDetailUserRepricing(r);    
+    }
+}
+
 EXTEND FORM userRepricing
     PROPERTIES(p) nameOperationUserRepricing
+    PROPERTIES(p) TODRAW d toFillQuantityUserRepricingDetailUserRepricing FORCE PANEL TOOLBAR
 ;
 EXTEND DESIGN userRepricing{
     first {
@@ -532,7 +549,7 @@ FORM repricings 'Акты переоценки' TITLE 'Акты переоцен
 
     PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)
     PROPERTIES (p) printRepricing FORCE PANEL
-
+    PROPERTIES () toFillQuantityUserRepricingDetailAllUserRepricings FORCE PANEL TODRAW p
     OBJECTS d = RepricingDetail
     PROPERTIES (d) READONLY indexRepricingDetail, idBarcodeSkuRepricingDetail, nameSkuRepricingDetail, shortNameUOMSkuRepricingDetail,
                nameBatchRepricingDetail, quantityRepricingDetail,
@@ -587,6 +604,10 @@ DESIGN repricings FROM DEFAULT {
                 }
                 NEW machineryContainer {
                     caption = 'Загрузка';
+                }
+                NEW fill {
+                    caption = 'Обновление';
+                    ADD PROPERTY(toFillQuantityUserRepricingDetailAllUserRepricings()); 
                 }
             }
         }
