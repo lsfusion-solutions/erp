@@ -7,10 +7,14 @@ NAMESPACE  Trip;
 sumChargeTrip 'Сумма услуг' = DATA NUMERIC[16,2] (Trip) PREFCHARWIDTH 15;
 
 sumGrossWeightPurchaseInvoicedTrip 'Суммарный вес накладных' (trip) = GROUP SUM Purchase.sumGrossWeightInvoiceDetailInvoice(invoice) IF invoice IS Purchase.UserInvoice BY tripInvoice(invoice);
-calcGrossSumInvoiceTrip 'Сумма услуг' (invoice, trip)= NUMERIC[16,2](sumChargeTrip(trip)* Purchase.sumGrossWeightInvoiceDetailInvoice(invoice)/sumGrossWeightPurchaseInvoicedTrip(trip));
+calcGrossSumInvoiceTrip 'Сумма услуг' (invoice, trip)= NUMERIC[16,2](sumChargeTrip(trip)* 
+                                                        Purchase.sumGrossWeightInvoiceDetailInvoice(invoice) /
+                                                        (sumGrossWeightPurchaseInvoicedTrip(trip) IF sumGrossWeightPurchaseInvoicedTrip(trip)!=0.0));
 
 signChargeInvoicesTrip 'Расписать сумму услуг' = ACTION (trip) {
-    IF sumChargeTrip(trip) THEN {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        sumChargeTrip(trip) <- requestedNumeric();
         FOR tripInvoice(invoice)==trip AND invoice IS Purchase.UserInvoice DO {
             setChargePercentUserInvoice(invoice, calcGrossSumInvoiceTrip (invoice, trip) * 100.000000 / (incomeSumUserInvoice(invoice) IF incomeSumUserInvoice(invoice) != 0));
             FOR Purchase.userInvoiceUserInvoiceDetail(d) == invoice DO{
@@ -18,12 +22,17 @@ signChargeInvoicesTrip 'Расписать сумму услуг' = ACTION (trip
             }
         }
     } ELSE {
-        MESSAGE 'Не задана сумма услуг';
-    }
+        sumChargeTrip(trip) <- NULL;
+        FOR tripInvoice(invoice)==trip AND invoice IS Purchase.UserInvoice DO {
+            chargePercentUserInvoiceDetail(d) <- NULL WHERE Purchase.userInvoiceUserInvoiceDetail(d) == invoice;
+            Purchase.chargePriceUserInvoiceDetail(d) <- NULL WHERE Purchase.userInvoiceUserInvoiceDetail(d) == invoice;
+
+        }        
+    }   
 }
 
 EXTEND FORM trip
-    PROPERTIES(t) sumChargeTrip, signChargeInvoicesTrip FORCE PANEL TODRAW i TOOLBAR
+    PROPERTIES(t) sumChargeTrip ON CHANGE signChargeInvoicesTrip(t)
     PROPERTIES(i) READONLY FORCE GRID chargeSumInvoiceDetailInvoice
     PROPERTIES(id) READONLY FORCE GRID chargeSumInvoiceDetail
 ;

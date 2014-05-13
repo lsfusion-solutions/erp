@@ -10,17 +10,20 @@ coeffNetWeightTripInvoiceDetail 'Удельный вес' (d) =
     NUMERIC[22,8](sumNetWeightInvoiceDetail(d)) / netWeightInvoicedTrip(tripInvoice(invoiceInvoiceDetail(d)));
 
 signGrossWeightInvoicesTrip 'Расписать вес брутто' = ACTION (trip) {
-    IF grossWeightTrip(trip) THEN {
+    REQUEST NUMERIC[16,3] INPUT;
+    IF requestedNumeric() THEN {
+        grossWeightTrip(trip) <- requestedNumeric();
         sumGrossWeightInvoiceDetail(d) <- NUMERIC[9,3](coeffNetWeightTripInvoiceDetail(d)* grossWeightTrip(trip))
             WHERE d IS InvoiceDetail AND tripInvoice(invoiceInvoiceDetail(d)) == trip;
 
     } ELSE {
-        MESSAGE 'Не задан вес брутто, кг';
-    }
+        grossWeightTrip(trip) <- NULL;
+        sumGrossWeightInvoiceDetail(d) <- NULL WHERE d IS InvoiceDetail AND tripInvoice(invoiceInvoiceDetail(d)) == trip;    
+    }        
 }
 
 EXTEND FORM trip
-    PROPERTIES(t) grossWeightTrip, signGrossWeightInvoicesTrip FORCE PANEL TODRAW i TOOLBAR
+    PROPERTIES(t) grossWeightTrip ON CHANGE signGrossWeightInvoicesTrip(t)
 ;
 
 EXTEND DESIGN trip {
