@@ -24,15 +24,16 @@ openOriginalInvoice 'Просмотреть оригинал накладной'
 autoImportEmailImportType 'E-mail поставщика' =  DATA VARSTRING[100](ImportType);
 autoImportAccountImportType 'E-mail аккаунт' =  DATA Account(ImportType);
 autoImportNameAccountImportType 'E-mail аккаунт' (importType) = nameAccount(autoImportAccountImportType(importType));
+autoImportCheckInvoiceExistenceImportType 'Проверять существование накладной' = DATA BOOLEAN (ImportType);
 
 EXTEND FORM importTypes
-PROPERTIES(i) READONLY autoImportEmailImportType SHOWIF autoImportImportType(i), 
-                       autoImportNameAccountImportType SHOWIF autoImportImportType(i)
+PROPERTIES(i) READONLY SHOWIF autoImportImportType(i) autoImportEmailImportType, autoImportNameAccountImportType, 
+                              autoImportCheckInvoiceExistenceImportType
 ;
 
 EXTEND FORM importType
-PROPERTIES(i) autoImportNameAccountImportType FORCE PANEL SHOWIF autoImportImportType(i)
-PROPERTIES(i) autoImportEmailImportType FORCE PANEL SHOWIF autoImportImportType(i)
+PROPERTIES(i) FORCE PANEL SHOWIF autoImportImportType(i) autoImportNameAccountImportType, autoImportEmailImportType,
+                                 autoImportCheckInvoiceExistenceImportType
 
 ;
 
@@ -40,7 +41,7 @@ EXTEND DESIGN importType {
         autoImportContainer {
             ADD PROPERTY(autoImportNameAccountImportType(i));
             ADD PROPERTY(autoImportEmailImportType(i));
-
+            ADD PROPERTY(autoImportCheckInvoiceExistenceImportType(i));
         }
 }
 

@@ -44,6 +44,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
             importTypeQuery.addProperty("autoImportEmailImportType", getLCP("autoImportEmailImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("autoImportAccountImportType", getLCP("autoImportAccountImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportCheckInvoiceExistenceImportType", getLCP("autoImportCheckInvoiceExistenceImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("captionFileExtensionImportType", getLCP("captionFileExtensionImportType").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
@@ -58,6 +59,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                 ObjectValue accountObject = entryValue.get("autoImportAccountImportType");
                 ObjectValue emailObject = entryValue.get("autoImportEmailImportType");
+                boolean checkInvoiceExistence = entryValue.get("autoImportCheckInvoiceExistenceImportType") instanceof DataObject;
                 String emailPattern = emailObject instanceof DataObject ? ((String) ((DataObject) emailObject).object).replace("*", ".*") : null;
                 String fileExtension = trim((String) entryValue.get("captionFileExtensionImportType").getValue());
                 String staticNameImportType = (String) getLCP("staticNameImportTypeDetailImportType").read(session, importTypeObject);
@@ -97,7 +99,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                 int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
                                         currentSession, invoiceObject, importTypeObject, fileAttachment, fileExtension,
-                                        importDocumentSettings, staticNameImportType, true);
+                                        importDocumentSettings, staticNameImportType, checkInvoiceExistence);
                                 if(importResult >=IMPORT_RESULT_OK)
                                     currentSession.apply(context);
 
