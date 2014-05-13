@@ -55,6 +55,7 @@ groupMachineryMachinery(machinery) += groupCashRegisterCashRegister(machinery);
 directoryGroupCashRegister 'Директория обмена с кассами' = DATA VARSTRING[100] (GroupCashRegister) IN base;
 directoryCashRegister 'Директория обмена с кассой' (cashRegister) = directoryGroupCashRegister(groupCashRegisterCashRegister(cashRegister));
 
+giftCardAsDiscountGroupCashRegister 'Пробивать сертификат как скидку' = DATA BOOLEAN (GroupCashRegister) IN base;
 startDateGroupCashRegister 'Дата начала продаж' = DATA DATE (GroupCashRegister) IN base;
 
 cashRegisterNppGroupCashRegisterNpp (g, npp) = GROUP AGGR cashRegister BY nppGroupMachinery(groupCashRegisterCashRegister(cashRegister)), nppMachinery(cashRegister);  
@@ -95,6 +96,7 @@ operatorNumberCurrentCashRegister (user) = operatorNumberGroupCashRegisterCustom
 operatorNumberCurrentCashRegisterCurrentUser () = operatorNumberCurrentCashRegister (currentUser());
 countryCurrentCashRegister 'Страна кассы' = countryCashRegister(currentCashRegister());
 maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSumCashRegisterModel(cashRegisterModelCashRegister(currentCashRegister()));
+giftCardAsDiscountCurrentCashRegister 'Пробивать сертификат как скидку' = giftCardAsDiscountGroupCashRegister(groupCashRegisterCashRegister(currentCashRegister()));
  
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister FIXED PANEL
@@ -108,7 +110,8 @@ FORM groupCashRegister 'Группа касс'
     OBJECTS grc=GroupCashRegister FIXED PANEL
     PROPERTIES(grc) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grc),
-                    namePriceListTypeGroupMachinery, directoryGroupCashRegister, startDateGroupCashRegister
+                    namePriceListTypeGroupMachinery, directoryGroupCashRegister, giftCardAsDiscountGroupCashRegister,
+                    startDateGroupCashRegister
 
     OBJECTS c=CashRegister
     PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery,
@@ -128,7 +131,8 @@ FORM groupCashRegister 'Группа касс'
 FORM groupsCashRegister 'Группы касс'
     OBJECTS grc=GroupCashRegister, c=CashRegister
     PROPERTIES(grc)  READONLY nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                     filterSkuGroupMachinery, directoryGroupCashRegister, startDateGroupCashRegister
+                     filterSkuGroupMachinery, directoryGroupCashRegister, giftCardAsDiscountGroupCashRegister,
+                     startDateGroupCashRegister
     PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     PROPERTIES(c) READONLY nppMachinery, descriptionMachinery, portMachinery,

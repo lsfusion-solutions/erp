@@ -63,7 +63,18 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
         for (String directory : softCheckInfo.directorySet) {
 
-            //creating of file with soft checks
+            //мы пока не знаем формат выгрузки мягких чеков
+            
+            File exchangeFile = new File(directory + "/import/file.txt");
+            
+            logger.info("Atol: creating " + exchangeFile.getName() + " file");
+            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeFile), "windows-1251"));
+            writer.println("$$$ADDSOFTCHEQUE");
+            for (String userInvoice : softCheckInfo.invoiceSet) {
+                
+                writer.println(userInvoice);
+            }
+            writer.close();
             
         }
     }

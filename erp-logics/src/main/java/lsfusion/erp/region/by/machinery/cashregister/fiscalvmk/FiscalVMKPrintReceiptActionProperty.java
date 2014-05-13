@@ -54,6 +54,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 Object operatorNumber = userObject.isNull() ? 0 : getLCP("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
                 BigDecimal sumTotal = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) getLCP("maxSumCurrentCashRegister").read(context);
+                boolean giftCardAsDiscount = getLCP("giftCardAsDiscountCurrentCashRegister").read(context) != null;
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
                     return;
@@ -78,13 +79,16 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     DataObject paymentMeansCashObject = ((ConcreteCustomClass) getClass("PaymentMeans")).getDataObject("paymentMeansCash");
                     DataObject paymentMeansCardObject = ((ConcreteCustomClass) getClass("PaymentMeans")).getDataObject("paymentMeansCard");
                     BigDecimal sumPayment = (BigDecimal) paymentValues.get("sumPayment");
-                    //DataObject paymentMeansGiftCardObject = giftCardLM == null ? null : ((ConcreteCustomClass) giftCardLM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansGiftCard");
-                    if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
-                        sumCash = (BigDecimal) paymentValues.get("sumPayment");
-                    } else if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
-                        sumCard = (BigDecimal) paymentValues.get("sumPayment");
-                    } else if (giftCardLM != null) {
-                        sumGiftCard = sumGiftCard == null ? sumPayment : sumGiftCard.add(sumPayment);
+                    if(sumPayment != null) {
+                        //DataObject paymentMeansGiftCardObject = giftCardLM == null ? null : ((ConcreteCustomClass) giftCardLM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansGiftCard");
+                        if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
+                            sumCash = sumCash == null ? sumPayment : sumCash.add(sumPayment);
+                        } else if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
+                            sumCard = sumCard == null ? sumPayment : sumCard.add(sumPayment);
+                        } else if (giftCardLM != null && !giftCardAsDiscount) {
+                            sumGiftCard = sumGiftCard == null ? sumPayment : sumGiftCard.add(sumPayment);
+                        } else
+                            sumDisc = sumDisc == null ? sumPayment : sumDisc.add(sumPayment);
                     }
                 }
 
