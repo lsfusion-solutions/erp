@@ -131,10 +131,23 @@ META defineScheduleOrder(sign, stockProp)
     TABLE scheduleOrderMonth(ScheduleOrder, Month);
     inMonthScheduleOrder 'Включать' = DATA BOOLEAN (ScheduleOrder, Month);
     inAllMonthScheduleOrder 'Включить все месяцы' = DATA BOOLEAN (ScheduleOrder);
+    inAllMonthScheduleOrder (s) <- TRUE WHEN SET(typeScheduleOrder(s) == GenType.genDayMonth);
     inMonthScheduleOrder(scheduleOrder, month) <- inAllMonthScheduleOrder(scheduleOrder) WHEN SET(inAllMonthScheduleOrder(scheduleOrder) AND month IS Month);
 
-    TABLE scheduleOrderDOW(ScheduleOrder, DOW);
-    inDayScheduleOrder 'Включать' = DATA BOOLEAN (ScheduleOrder, DOW);
+    CLASS ScheduleOrderTime 'День недели';
+    TABLE scheduleOrderTime (ScheduleOrderTime);
+    
+    scheduleOrderScheduleOrderTime 'График поставок' = DATA ScheduleOrder (ScheduleOrderTime) NOT NULL DELETE;
+    
+    orderDOWScheduleOrderTime 'День недели заказа' = DATA DOW (ScheduleOrderTime) NOT NULL;
+    orderNameDOWScheduleOrderTime 'День недели заказа' (d) = staticCaption(orderDOWScheduleOrderTime(d));
+    
+    shipmentDOWScheduleOrderTime 'День недели поставки' = DATA DOW (ScheduleOrderTime) NOT NULL;
+    shipmentNameDOWScheduleOrderTime 'День недели поставки' (d) = staticCaption(shipmentDOWScheduleOrderTime(d));
+
+    shipmentTimeScheduleOrderTime 'Кол-во дней до поставки' (d) = distanceDOWDOW(orderDOWScheduleOrderTime(d), shipmentDOWScheduleOrderTime(d));
+
+    shipmentScheduleOrderTimeScheduleOrderDOW = GROUP AGGR d BY scheduleOrderScheduleOrderTime(d), shipmentDOWScheduleOrderTime(d); 
 
     toShowGenDay (scheduleOrder) = typeScheduleOrder(scheduleOrder) == GenType.genDays;
     toShowGenNumber (scheduleOrder) = typeScheduleOrder(scheduleOrder) == GenType.genNumber;
@@ -180,16 +193,13 @@ META defineScheduleOrder(sign, stockProp)
 
     createScheduleOrder 'Сгенерировать предварительные заказы' = ACTION (scheduleOrder) {
         LOCAL toDate = DATE ();    
-        toDate() <- NULL;
-        IF NOT endDateScheduleOrder(scheduleOrder) THEN {               
-            toDate() <- sumDate(currentDate(), countDaysPreOrders());    
-        }
+        toDate() <- OVERRIDE sumDate(currentDate(), countDaysPreOrders()), endDateScheduleOrder(scheduleOrder);
     
         // генерация через N дней
         IF typeScheduleOrder(scheduleOrder) == GenType.genDays THEN {
             ASSIGN tmpDate() <- dayLastOrderScheduleOrder(scheduleOrder);
             // итерируемся по всем датам через n дней
-            WHILE tmpDate() <= (OVERRIDE toDate(), endDateScheduleOrder(scheduleOrder)) DO {
+            WHILE tmpDate() <= toDate() DO {
             
                 IF tmpDate() >= ( IF endDateScheduleOrder(scheduleOrder) THEN startDateScheduleOrder(scheduleOrder) ELSE currentDate()) THEN {
                     FOR ADDOBJ o = ScheduleOrderDetail DO {
@@ -209,7 +219,7 @@ META defineScheduleOrder(sign, stockProp)
         IF typeScheduleOrder(scheduleOrder) == GenType.genNumber THEN {
             ASSIGN tmpDate() <- (IF endDateScheduleOrder(scheduleOrder) THEN startDateScheduleOrder(scheduleOrder) ELSE currentDate());
             // итерируемся по всем датам через 1 день
-            WHILE tmpDate() <= (OVERRIDE toDate(), endDateScheduleOrder(scheduleOrder)) DO {
+            WHILE tmpDate() <= toDate() DO {
                 IF isWordInCSV(extractDay(tmpDate()), stringNumberScheduleOrder(scheduleOrder)) == 1 THEN {
                     FOR ADDOBJ o = ScheduleOrderDetail DO {
                         ASSIGN tmpDateS() <- tmpDate();
@@ -237,23 +247,25 @@ META defineScheduleOrder(sign, stockProp)
 
         // генерация по дням и месяцам
         IF typeScheduleOrder(scheduleOrder) == GenType.genDayMonth THEN {
-            ASSIGN tmpDate() <- (IF endDateScheduleOrder(scheduleOrder) THEN startDateScheduleOrder(scheduleOrder) ELSE currentDate());
+            tmpDate() <- (IF endDateScheduleOrder(scheduleOrder) THEN startDateScheduleOrder(scheduleOrder) ELSE currentDate());
             // итерируемся по всем датам через 1 день
-            WHILE tmpDate() <= (OVERRIDE toDate(), endDateScheduleOrder(scheduleOrder)) DO {
-                ASSIGN tmpDateP() <- tmpDate();
-                WHILE tmpDate() < sumDate(tmpDateP(), 7) AND tmpDate() <= (OVERRIDE toDate(), endDateScheduleOrder(scheduleOrder)) DO {
-                    IF inMonthScheduleOrder(scheduleOrder, extractMonth(tmpDate())) AND inDayScheduleOrder(scheduleOrder, extractDOW(tmpDate())) THEN {
+            WHILE tmpDate() <= toDate() DO {
+                tmpDateP() <- tmpDate();
+                WHILE tmpDate() < sumDate(tmpDateP(), 7) AND tmpDate() <= toDate() DO {
+                    IF inMonthScheduleOrder(scheduleOrder, extractMonth(tmpDate())) AND shipmentScheduleOrderTimeScheduleOrderDOW(scheduleOrder, extractDOW(tmpDate())) THEN {
                         FOR ADDOBJ o = ScheduleOrderDetail DO {
-                            ASSIGN dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDate(), dayBeforeScheduleOrder(scheduleOrder));
-                            ASSIGN dateSupplyScheduleOrderDetail(o) <- tmpDate();
-                            ASSIGN scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
+                            dateOrderScheduleOrderDetail(o) <- subtractDate(tmpDate(), 
+                                                                            shipmentTimeScheduleOrderTime(shipmentScheduleOrderTimeScheduleOrderDOW(scheduleOrder, 
+                                                                                                                                                  extractDOW(tmpDate()))));
+                            dateSupplyScheduleOrderDetail(o) <- tmpDate();
+                            scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
                             // удаляем ненужны, т.е. если уже был заказ с аналогичными датами заказа и поставки
                             DELETE o WHERE countDetailsScheduleOrderDateSupplyDateOrder(scheduleOrderScheduleOrderDetail(o), dateSupplyScheduleOrderDetail(o), dateOrderScheduleOrderDetail(o)) > 1 ;
                         };
                     };
-                    ASSIGN tmpDate() <- sumDate(tmpDate(), 1);
-                };
-                ASSIGN tmpDate() <- sumDate(tmpDate(), (overPeriodScheduleOrder(scheduleOrder) - 1) * 7);
+                    tmpDate() <- sumDate(tmpDate(), 1);
+                }
+                tmpDate() <- sumDate(tmpDate(), (overPeriodScheduleOrder(scheduleOrder) - 1) * 7);
             };
         };
 
@@ -332,18 +344,18 @@ META defineScheduleOrder(sign, stockProp)
     FORM scheduleOrder 'График поставок'
         OBJECTS s=ScheduleOrder FIXED PANEL
         PROPERTIES (s) nameSupplierScheduleOrder, nameSupplierStockScheduleOrder, nameCustomerScheduleOrder, nameCustomerStockScheduleOrder,
-                       startDateScheduleOrder, endDateScheduleOrder, nameTypeScheduleOrder, dayBeforeScheduleOrder,
+                       startDateScheduleOrder, endDateScheduleOrder, nameTypeScheduleOrder, 
                        overPeriodScheduleOrder SHOWIF toShowGenDayMonth(s), inAllMonthScheduleOrder SHOWIF toShowGenDayMonth(s),
-                       dayLastOrderScheduleOrder SHOWIF toShowGenDay(s), dayAfterScheduleOrder SHOWIF toShowGenDay(s),
-                       stringNumberScheduleOrder SHOWIF toShowGenNumber(s), nameTransferDayScheduleOrder SHOWIF toShowGenNumber(s)
+                       beforeDay = dayBeforeScheduleOrder SHOWIF toShowGenDay(s), dayLastOrderScheduleOrder SHOWIF toShowGenDay(s), dayAfterScheduleOrder SHOWIF toShowGenDay(s), 
+                       beforeNumber = dayBeforeScheduleOrder SHOWIF toShowGenNumber(s), stringNumberScheduleOrder SHOWIF toShowGenNumber(s), nameTransferDayScheduleOrder SHOWIF toShowGenNumber(s)
 
         OBJECTS m=Month FIXED GRID
-        PROPERTIES(m) staticCaption SHOWIF toShowGenDayMonth(s)
+        PROPERTIES(m) READONLY staticCaption SHOWIF toShowGenDayMonth(s)
         PROPERTIES(s, m) inMonthScheduleOrder SHOWIF toShowGenDayMonth(s)
 
-        OBJECTS d=DOW FIXED GRID
-        PROPERTIES(d) staticCaption SHOWIF toShowGenDayMonth(s)
-        PROPERTIES(s, d) inDayScheduleOrder SHOWIF toShowGenDayMonth(s)
+        OBJECTS d=ScheduleOrderTime FIXED GRID
+        PROPERTIES(d) SHOWIF toShowGenDayMonth(s) orderNameDOWScheduleOrderTime, shipmentNameDOWScheduleOrderTime, shipmentTimeScheduleOrderTime, ADDOBJ, DELETESESSION
+        FILTERS scheduleOrderScheduleOrderTime(d) == s
 
         OBJECTS sd=ScheduleOrderDetail
         PROPERTIES (sd) isClosedScheduleOrderDetail, dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail
@@ -401,11 +413,12 @@ META defineScheduleOrder(sign, stockProp)
                             caption = 'Общие';
                             type = CONTAINERH;
                             ADD PROPERTY(nameTypeScheduleOrder(s));
-                            ADD PROPERTY(dayBeforeScheduleOrder(s));
                         }
     
                         NEW paramsCustom {
                             caption = 'Параметры графика';
+                            ADD PROPERTY(beforeDay);
+                            ADD PROPERTY(beforeNumber);
                             ADD PROPERTY(overPeriodScheduleOrder(s));
                             ADD PROPERTY(inAllMonthScheduleOrder(s));
                             ADD PROPERTY(dayLastOrderScheduleOrder(s));
@@ -418,8 +431,8 @@ META defineScheduleOrder(sign, stockProp)
                     NEW days {
                         fill = 1;
                         type = CONTAINERH;
-                        ADD m.box;
                         ADD d.box;
+                        ADD m.box;
                     }
                 }
     
@@ -439,11 +452,12 @@ META defineScheduleOrder(sign, stockProp)
 
     addScheduleOrderSupplierCustomer 'Добавить'##sign = ACTION (supplier, customer) {
         FOR ADDOBJ s = ScheduleOrder DO {
-            ASSIGN supplierScheduleOrder(s) <- supplier;
-            ASSIGN customerScheduleOrder(s) <- customer;
+            supplierScheduleOrder(s) <- supplier;
+            customerScheduleOrder(s) <- customer;
 
-            FORM scheduleOrder OBJECTS s = s MANAGESESSION DOCKEDMODAL;
+            FORM scheduleOrder OBJECTS s = s DOCKEDMODAL;
             IF NOT formResult() == FormResult.ok THEN {
+                DELETE d WHERE scheduleOrderScheduleOrderTime(d) == s;
                 DELETE s;
             }
         }

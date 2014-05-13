@@ -7,9 +7,14 @@ NAMESPACE Purchase;
 
 @defineScheduleOrder(' (закупка)', purchase);
 
-WHEN SESSION FORMS scheduleOrder CHANGED(supplierScheduleOrder(o)) DO {
+WHEN SESSION CHANGED(supplierScheduleOrder(o)) DO {
     supplierStockScheduleOrder(o) <- defaultSupplierStockEmployeeLegalEntity(currentUser(), supplierScheduleOrder(o))
         IF countAccessSupplierStockEmployeeLegalEntity (currentUser(), supplierScheduleOrder(o)) == 1;
+}
+
+WHEN SESSION CHANGED(customerScheduleOrder(o)) DO {
+    customerStockScheduleOrder(o) <- defaultCustomerStockEmployeeLegalEntity(currentUser(), customerScheduleOrder(o))
+        IF countAccessCustomerStockEmployeeLegalEntity (currentUser(), customerScheduleOrder(o)) == 1;
 }
 
 CONSTRAINT supplierScheduleOrder(scheduleOrder) AND NOT isSupplierLegalEntity(supplierScheduleOrder(scheduleOrder))
