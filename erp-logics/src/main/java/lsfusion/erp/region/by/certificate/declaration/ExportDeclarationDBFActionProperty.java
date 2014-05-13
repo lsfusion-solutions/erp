@@ -85,14 +85,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                         outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG40(dbfFields)));
 
                     if (entry.getKey().toLowerCase().equals("g44.dbf")) {
-                        File tempFile = File.createTempFile("g44", "dbf");
-                        IOUtils.putFileBytes(tempFile, entry.getValue());
-                        DBF g44DBF = new DBF(tempFile.getAbsolutePath());
-                        int recordCount = g44DBF.getRecordCount();
-                        if(recordCount != g44.g44DetailList.size()) {
-                            context.requestUserInteraction(new MessageClientAction("Разное количество строк в исходном и формирующемся файлах g44", "Ошибка"));
-                        } else
-                            outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG44(dbfFields, g44)));
+                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG44(dbfFields, g44)));
                     }
 
                     if (entry.getKey().toLowerCase().equals("g47.dbf") && declaration != null)

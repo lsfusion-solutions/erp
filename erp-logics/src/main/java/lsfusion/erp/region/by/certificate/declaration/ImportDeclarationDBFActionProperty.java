@@ -1,11 +1,19 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.col.MapFact;
+import lsfusion.base.col.interfaces.immutable.ImMap;
+import lsfusion.base.col.interfaces.immutable.ImOrderMap;
+import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.interop.Compare;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
+import lsfusion.server.data.expr.KeyExpr;
+import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
@@ -79,39 +87,52 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
         
         List<List<Object>> data = readDeclarationFromDBF(session, declarationObject, dbfFile);
 
-        List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-        List<ImportField> fields = new ArrayList<ImportField>();
-        List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+        KeyExpr declarationDetailExpr = new KeyExpr("DeclarationDetail");
+        ImRevMap<Object, KeyExpr> declarationDetailKeys = MapFact.singletonRev((Object) "declarationDetail", declarationDetailExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(declarationDetailKeys);
+        
+        query.and(getLCP("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
-        ImportField numberDeclarationDetailField = new ImportField(getLCP("numberDeclarationDetail"));
-        ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("DeclarationDetail"),
-                getLCP("declarationDetailDeclarationNumber").getMapping(declarationObject, numberDeclarationDetailField));
-        keys.add(declarationDetailKey);
-        props.add(new ImportProperty(declarationObject, getLCP("declarationDeclarationDetail").getMapping(declarationDetailKey)));
-        fields.add(numberDeclarationDetailField);
+        if(result.size() != data.size())
+            context.requestUserInteraction(new MessageClientAction("Разное количество строк во входном файле G47 и в базе", "Ошибка"));
+        
+        else {
 
-        ImportField dutySumDeclarationDetailField = new ImportField(getLCP("dutySumDeclarationDetail"));
-        props.add(new ImportProperty(dutySumDeclarationDetailField, getLCP("dutySumDeclarationDetail").getMapping(declarationDetailKey)));
-        fields.add(dutySumDeclarationDetailField);
+            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportField> fields = new ArrayList<ImportField>();
+            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-        ImportField VATSumDeclarationDetailField = new ImportField(getLCP("VATSumDeclarationDetail"));
-        props.add(new ImportProperty(VATSumDeclarationDetailField, getLCP("VATSumDeclarationDetail").getMapping(declarationDetailKey)));
-        fields.add(VATSumDeclarationDetailField);
+            ImportField numberDeclarationDetailField = new ImportField(getLCP("numberDeclarationDetail"));
+            ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("DeclarationDetail"),
+                    getLCP("declarationDetailDeclarationNumber").getMapping(declarationObject, numberDeclarationDetailField));
+            keys.add(declarationDetailKey);
+            props.add(new ImportProperty(declarationObject, getLCP("declarationDeclarationDetail").getMapping(declarationDetailKey)));
+            fields.add(numberDeclarationDetailField);
 
-        ImportField homeSumDeclarationDetailField = new ImportField(getLCP("homeSumDeclarationDetail"));
-        props.add(new ImportProperty(homeSumDeclarationDetailField, getLCP("homeSumDeclarationDetail").getMapping(declarationDetailKey)));
-        fields.add(homeSumDeclarationDetailField);
+            ImportField dutySumDeclarationDetailField = new ImportField(getLCP("dutySumDeclarationDetail"));
+            props.add(new ImportProperty(dutySumDeclarationDetailField, getLCP("dutySumDeclarationDetail").getMapping(declarationDetailKey)));
+            fields.add(dutySumDeclarationDetailField);
 
-        ImportTable table = new ImportTable(fields, data);
+            ImportField VATSumDeclarationDetailField = new ImportField(getLCP("VATSumDeclarationDetail"));
+            props.add(new ImportProperty(VATSumDeclarationDetailField, getLCP("VATSumDeclarationDetail").getMapping(declarationDetailKey)));
+            fields.add(VATSumDeclarationDetailField);
 
-        if(!disableVolatileStats)
-            session.pushVolatileStats();
-        IntegrationService service = new IntegrationService(session, table, keys, props);
-        service.synchronize(true, false);
-        session.apply(context);
-        if(!disableVolatileStats)
-            session.popVolatileStats();
-        session.close();
+            ImportField homeSumDeclarationDetailField = new ImportField(getLCP("homeSumDeclarationDetail"));
+            props.add(new ImportProperty(homeSumDeclarationDetailField, getLCP("homeSumDeclarationDetail").getMapping(declarationDetailKey)));
+            fields.add(homeSumDeclarationDetailField);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            if (!disableVolatileStats)
+                session.pushVolatileStats();
+            IntegrationService service = new IntegrationService(session, table, keys, props);
+            service.synchronize(true, false);
+            session.apply(context);
+            if (!disableVolatileStats)
+                session.popVolatileStats();
+            session.close();
+        }
     }
 
     private List<List<Object>> readDeclarationFromDBF(DataSession session, DataObject declarationObject, DBF importFile) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
