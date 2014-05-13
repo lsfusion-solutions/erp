@@ -1,0 +1,35 @@
+MODULE PriceListPurchaseShipment;
+
+REQUIRE PurchaseShipment, PriceList;
+
+NAMESPACE PriceList;
+
+createPriceListPurchaseShipment 'Прайс-лист' = ACTION (shipment) NEWSESSION {
+    FOR ADDOBJ p = UserPriceList DO {
+        fromDateUserPriceList(p) <- Purchase.dateShipment(shipment);
+        fromTimeUserPriceList(p) <- Purchase.timeShipment(shipment);
+        companyUserPriceList(p) <- Purchase.customerShipment(shipment);
+        allStocksUserPriceList(p) <- TRUE;
+        currencyUserPriceList(p) <- Purchase.currencyShipment(shipment);
+
+        FOR Purchase.shipmentShipmentDetail(id)==shipment ADDOBJ pd=UserPriceListDetail DO {
+            userPriceListUserPriceListDetail(pd) <- p;
+            skuPriceListDetail(pd) <- Purchase.skuShipmentDetail(id);
+        }
+
+        FORM userPriceList OBJECTS p = p, tt = Purchase.customerStockShipment(shipment) MANAGESESSION DOCKEDMODAL;
+    }
+
+} TOOLBAR;
+
+EXTEND FORM shipments
+    PROPERTIES(s) createPriceListPurchaseShipment BEFORE copyShipment(s)
+;
+
+EXTEND DESIGN shipments {
+    main {
+        createdContainer {
+            ADD PROPERTY(createPriceListPurchaseShipment(s));
+        }
+    }
+}
