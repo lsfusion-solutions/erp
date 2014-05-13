@@ -95,7 +95,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
         if(result.size() != data.size())
-            context.requestUserInteraction(new MessageClientAction("Разное количество строк во входном файле G47 и в базе", "Ошибка"));
+            context.requestUserInteraction(new MessageClientAction(String.format("Разное количество строк во входном файле G47 (%s) и в базе (%s)", data.size(), result.size()), "Ошибка"));
         
         else {
 
