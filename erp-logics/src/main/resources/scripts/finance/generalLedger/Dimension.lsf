@@ -57,11 +57,18 @@ CONSTRAINT creditUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType)
         MESSAGE 'Субконто (кредит) проводки должен соответствовать субконто';
 
 overCopyGeneralLedger(from, to) += ACTION (from, to) {
-    ASSIGN debitUserGeneralLedgerDimensionType(to, dimensionType) <- debitGeneralLedgerDimensionType(from, dimensionType);
-    ASSIGN creditUserGeneralLedgerDimensionType(to, dimensionType) <- creditGeneralLedgerDimensionType(from, dimensionType);
+    debitUserGeneralLedgerDimensionType(to, dimensionType) <- debitGeneralLedgerDimensionType(from, dimensionType);
+    creditUserGeneralLedgerDimensionType(to, dimensionType) <- creditGeneralLedgerDimensionType(from, dimensionType);
 }
 
 dimensionTypeIdDimensionType (string1) = GROUP AGGR dimensionType BY idDimensionType(dimensionType) WHERE dimensionType IS DimensionType;
+
+// Отбор субконто
+
+inDebitGeneralLedgerDimension (gl, d)= GROUP SUM 1 BY gl, debitGeneralLedgerDimensionType(gl, dt);  
+inCreditGeneralLedgerDimension (gl, d) = GROUP SUM 1 BY gl, creditGeneralLedgerDimensionType(gl, dt);
+
+inGeneralLedgerDimension (gl, d) = inDebitGeneralLedgerDimension(gl, d) OR inCreditGeneralLedgerDimension(gl, d);  
 
 //-- Подсчет сумм одно субконто
 TABLE GLAccountLegalEntityDDate(GLAccount, LegalEntity, Dimension, DATE);
