@@ -204,7 +204,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     CONSTRAINT negativeValueInvoices() AND detail IS InvoiceDetail AND quantityInvoiceDetail(detail) < 0
         MESSAGE 'Количество в строке накладной должно быть не отрицательным';
 
-    @defineDocumentDetailGrossWeight(invoice, sku);
+//    @defineDocumentDetailGrossWeight(invoice, sku);
 
     @defineDocumentInterfaceDetailPrice(invoice); // объявляем цену без НДС
     Invoice.priceInvoiceDetail(detail) += priceInvoiceDetail(detail);
@@ -276,7 +276,17 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     @defineDocumentHeaderNetWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг');  
     @defineDocumentHeaderGrossWeightCustomPrefix (invoice, invoiceDetail, sum, ', кг');
     @defineDocumentHeaderGrossWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг'); 
-     
+    changeGrossWeightInvoice  = ACTION (invoice) {
+        REQUEST NUMERIC[16,3] INPUT;
+        IF requestedNumeric() THEN {           
+            sumGrossWeightInvoiceDetail(d) <- NUMERIC[9,3](sumNetWeightInvoiceDetail(d)/(sumNetWeightInvoiceDetailInvoice(invoice) IF sumNetWeightInvoiceDetailInvoice(invoice) != 0)* requestedNumeric())
+                WHERE d IS InvoiceDetail AND invoiceInvoiceDetail(d) == invoice;
+    
+        } ELSE {
+           
+            sumGrossWeightInvoiceDetail(d) <- NULL WHERE d IS InvoiceDetail AND invoiceInvoiceDetail(d) == invoice;    
+        }        
+    } 
         
     countInvoiceDetailStockInvoice (stock, invoice) = GROUP SUM 1 BY stockProp###stock###invoiceDetail(invoiceDetail), invoiceInvoiceDetail(invoiceDetail);
 
@@ -324,7 +334,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                        nameCurrencyUserInvoice, nameAgreementUserInvoice, namePriceListTypeUserInvoice SHOWIF noAgreementUserInvoice(i), noteUserInvoice,
                        seriesNumberContractSkuUserInvoice, isCommissionUserInvoice
         PROPERTIES (i) countUserInvoiceDetailUserInvoice, quantityUserInvoiceDetailUserInvoice, sumUserInvoiceDetailUserInvoice,
-                       VATSumUserInvoiceDetailUserInvoice, invoiceSumUserInvoiceDetailUserInvoice
+                       VATSumUserInvoiceDetailUserInvoice, invoiceSumUserInvoiceDetailUserInvoice, sumNetWeightInvoiceDetailInvoice, 
+                       sumGrossWeightInvoiceDetailInvoice ON CHANGE changeGrossWeightInvoice(i) 
 
         OBJECTS d = UserInvoiceDetail
         PROPERTIES (d) indexUserInvoiceDetail
@@ -429,6 +440,11 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
                 }
                 ADD i.documentSum {
                     columns = 1;
+                    NEW sumWeight {
+                        caption = 'Вес';
+                        ADD PROPERTY(sumNetWeightInvoiceDetailInvoice(i)); 
+                        ADD PROPERTY(sumGrossWeightInvoiceDetailInvoice(i));                                                                                                                                                                                                                
+                    }
                 }
             }
             NEW specification.box {
