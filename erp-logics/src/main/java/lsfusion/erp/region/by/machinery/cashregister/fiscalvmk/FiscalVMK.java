@@ -49,6 +49,8 @@ public class FiscalVMK {
 
         Boolean vmk_discount(byte[] name, Integer value, int flag);
 
+        Boolean vmk_discountpi(byte[] name, Integer value, int flag);
+
         Boolean vmk_subtotal();
 
         Boolean vmk_prnch(String message);
@@ -241,6 +243,18 @@ public class FiscalVMK {
         }
     }
 
+    public static boolean discountReceipt(ReceiptInstance receipt) {
+        if (receipt.sumDisc == null)
+            return true;
+        boolean discount = receipt.sumDisc.compareTo(BigDecimal.ZERO) < 0;
+        try {
+            logAction("vmk_discountpi", discount ? "Скидка" : "Наценка", (int) Math.abs(receipt.sumDisc.doubleValue()), discount ? 3 : 1);
+            return vmkDLL.vmk.vmk_discountpi(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), (int) Math.abs(receipt.sumDisc.doubleValue()), discount ? 3 : 1);
+        } catch (UnsupportedEncodingException e) {
+            return false;
+        }
+    }
+    
     public static boolean subtotal() {
         logAction("vmk_subtotal");
         if (!vmkDLL.vmk.vmk_subtotal())

@@ -4,6 +4,9 @@ REQUIRE GiftCard, POS;
 
 NAMESPACE POS;
 
+giftCardAsDiscountGroupCashRegister 'Пробивать сертификат как скидку' = DATA BOOLEAN (GroupCashRegister) IN base;
+giftCardAsDiscountCurrentCashRegister 'Пробивать сертификат как скидку' = giftCardAsDiscountGroupCashRegister(groupCashRegisterCashRegister(currentCashRegister()));
+
 //продажа подарочных сертификатов
 overChangeBarcodeGiftCard = ACTION (string, receipt) {
     IF giftCardSeriesNumber(string) AND receipt IS Receipt AND string IS STRING[15] THEN {
@@ -47,6 +50,10 @@ addPaymentGiftCard 'Оплатить сертификатом' = ACTION (receipt
         }
     }
 }
+
+EXTEND FORM groupCashRegister PROPERTIES(grc) giftCardAsDiscountGroupCashRegister;
+
+EXTEND FORM groupsCashRegister PROPERTIES(grc) READONLY giftCardAsDiscountGroupCashRegister;
 
 EXTEND FORM postReceiptPayment
     PROPERTIES addPaymentGiftCard(r) TODRAW p FORCE PANEL SHOWIF allowPaymentGiftCard()
