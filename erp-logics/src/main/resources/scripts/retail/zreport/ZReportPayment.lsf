@@ -45,11 +45,11 @@ calcSumVATReceiptDetailPayment (detail, payment) = sumReceiptDetailPayment(detai
 
 TABLE zReportPaymentMeansRange(ZReport, PaymentMeans, Range);
 sumSkuReceiptDetailZReportPaymentMeansRange 'Сумма по товарам' (zReport, paymentMeans, range) = GROUP SUM sumReceiptDetailPayment(detail, payment) 
-    IF skuReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail) PERSISTENT;
+    IF skuReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail);
     
 sumVATSkuReceiptDetailZReportPaymentMeansRange 'Сумма НДС по товарам' (zReport, paymentMeans, range) = (round0(
     [= GROUP SUM calcSumVATReceiptDetailPayment(detail, payment) IF skuReceiptDetail(detail) 
-        BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail)](zReport, paymentMeans, range))) PERSISTENT;
+        BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail)](zReport, paymentMeans, range)));
 sumVATSkuReceiptDetailZReportRange 'Сумма НДС по товарам' (zReport, range)= NUMERIC[16,2]([=GROUP SUM sumVATSkuReceiptDetailZReportPaymentMeansRange(zReport, paymentMeans, range) BY zReport, range](zReport, range));
 
 sumCashSkuReceiptDetailZReportRange 'Сумма (нал.) по товарам' (zReport, range) = sumSkuReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansCash, range);
