@@ -68,6 +68,8 @@ seriesNumberGLDocumentUserGeneralLedger 'Регистр (серия/номер)'
 operationGLDocumentUserGeneralLedger (generalLedger) = operationGLDocument(GLDocumentUserGeneralLedger(generalLedger));
 
 idOperationGeneralLedger 'Код операции' = ABSTRACT VARSTRING[3] (GeneralLedger);
+idOperationUserGeneralLedger 'Код операции' = DATA VARSTRING[3] (UserGeneralLedger);
+idOperationGeneralLedger(generalLedger) += idOperationUserGeneralLedger(generalLedger);
 
 GLDocumentGeneralLedger (generalLedger) += GLDocumentUserGeneralLedger (generalLedger);
 
@@ -306,7 +308,7 @@ NAVIGATOR {
     }
 }
 
-// ----------------------------------------------- Метакод по созданию проводок -------------------------------------------- //
+// ----------------------------------------------- Метакод по созданию проводок через агрегацию-------------------------------------------- //
 
 //-- Для одного объекта
 META defineGeneralLedgerAggregation (object, prop, companyProp, property, description, debit, credit, accountType)
@@ -420,5 +422,101 @@ META extendFormGeneralLedgerDocument (form, filter, container)
 END
 META extendFormGeneralLedgerDocument (form, filter)
     @extendFormGeneralLedgerDocument (form, filter, documentDetail);
+END
 
+// ----------------------------------------------- Метакод по созданию проводок через ACTION -------------------------------------------- //
+
+createGeneralLedgerDate  = ABSTRACT ACTION LIST (DATE);
+createGeneralLedger 'Создать проводки c даты отчетного периода' = ACTION () {
+    DELETE ud WHERE ud IS UserGeneralLedger AND dateUserGeneralLedger(ud) >= dateReportingGeneralLedger();
+    EXEC createGeneralLedgerDate(dateReportingGeneralLedger());
+    apply();
+} IN generalLedger;
+
+EXTEND FORM options 
+    PROPERTIES() createGeneralLedger
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(createGeneralLedger());
+    }
+}
+
+//-- Для одного объекта
+
+META defineGeneralLedger (object, idGL, companyProp, property, dateProp, timeProp, description, debit, credit, accountType)
+    overCreateUserGeneralLedger###idGL###object = ABSTRACT ACTION LIST (UserGeneralLedger);  
+
+    createUserGeneralLedgerALL###idGL###object###date 'Создать проводки' = ACTION (date) {     
+        FOR property###object(object) AND dateProp###object(object) >= (date AS DATE) ADDOBJ u = UserGeneralLedger DO  {
+            GLDocumentUserGeneralLedger(u) <- object;
+            legalEntityUserGeneralLedger(u) <- companyProp###object(object);
+            isPostedUserGeneralLedger(u) <- isPosted###object(object);
+            descriptionUserGeneralLedger(u) <- description###object(object);
+            dateUserGeneralLedger(u) <- dateProp###object(object);
+            timeUserGeneralLedger(u) <- timeProp###object(object);
+            debitUserGeneralLedger(u) <- GLAccountIdTypeIdGLAccount(accountType, debit);
+            creditUserGeneralLedger(u) <- GLAccountIdTypeIdGLAccount(accountType, credit);
+            sumUserGeneralLedger(u) <- NUMERIC[16,2](property###object(object));   
+            
+            EXEC overCreateUserGeneralLedger###idGL###object(u); 
+        }    
+    }
+    createGeneralLedgerDate(date) += createUserGeneralLedgerALL###idGL###object###date(date);
+END
+// дата 
+META defineGeneralLedger (object, idGL, companyProp, property, description, debit, credit, accountType)
+    @defineGeneralLedger (object, idGL, companyProp, property, date, time, description, debit, credit, accountType);
+END
+
+
+//-- С операцией
+META defineGeneralLedgerOperation(object, idGL, companyProp, property, dateProp, timeProp, description, debit, credit, accountType, keyProp)
+    idGL###property###object(object) = property###object(object) IF id###operation###object(object) == keyProp;
+    @defineGeneralLedger (object, idGL, companyProp, idGL###property, dateProp, timeProp, description, debit, credit, accountType);            
+END
+// дата
+META defineGeneralLedgerOperation(object, idGL, companyProp, property, description, debit, credit, accountType, keyProp)
+    @defineGeneralLedgerOperation(object, idGL, companyProp, property, date, time, description, debit, credit, accountType, keyProp);
+END  
+ 
+  
+// ----------------------------------- Для двух объектов (object1 - документ) --------------------------------------- //
+
+META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, dateProp, timeProp, descriptionProp, debit, credit, accountType)
+
+    overCreateUserGeneralLedger###idGL###object1###object2 = ABSTRACT ACTION LIST (UserGeneralLedger);  
+    overCreateUserGeneralLedgerDimension###idGL###object1###object2 = ABSTRACT ACTION LIST (UserGeneralLedger, Dimension);  
+    createUserGeneralLedgerALL###idGL###object1###object2###date 'Создать проводки' = ACTION (date) {     
+        FOR property###object1###object2(object1, object2) AND dateProp###object1(object1) >= (date AS DATE) ADDOBJ u = UserGeneralLedger DO  {
+            GLDocumentUserGeneralLedger(u) <- object1;
+            legalEntityUserGeneralLedger(u) <- companyProp###object1(object1);
+            isPostedUserGeneralLedger(u) <- isPosted###object1(object1);
+            descriptionUserGeneralLedger(u) <- descriptionProp###object1###object2(object1, object2);
+            dateUserGeneralLedger(u) <- dateProp###object1(object1);
+            timeUserGeneralLedger(u) <- timeProp###object1(object1);
+            debitUserGeneralLedger(u) <- GLAccountIdTypeIdGLAccount(accountType, debit);
+            creditUserGeneralLedger(u) <- GLAccountIdTypeIdGLAccount(accountType, credit);
+            sumUserGeneralLedger(u) <- NUMERIC[16,2](property###object1###object2(object1, object2));   
+            
+            EXEC overCreateUserGeneralLedgerDimension###idGL###object1###object2(u,object2);
+            EXEC overCreateUserGeneralLedger###idGL###object1###object2(u); 
+        }    
+    }
+    createGeneralLedgerDate(date) += createUserGeneralLedgerALL###idGL###object1###object2###date(date);
+END
+// дата 
+META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, descriptionProp, debit, credit, accountType)
+    @defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, date, time, descriptionProp, debit, credit, accountType);
+END
+
+//-- С операцией
+META defineGeneralLedgerDoubleOperation(object1, object2, idGL, companyProp, property, dateProp, timeProp, descriptionProp, debit, credit, accountType, keyProp)
+    idGL###property###object1###object2(object1, object2) = property###object1###object2(object1, object2) IF id###operation###object1(object1) == keyProp;
+    @defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, dateProp, timeProp, descriptionProp, debit, credit, accountType);
+END  
+// дата 
+META defineGeneralLedgerDoubleOperation(object1, object2, idGL, companyProp, property, descriptionProp, debit, credit, accountType, keyProp)
+    @defineGeneralLedgerDoubleOperation(object1, object2, idGL, companyProp, property, date, time, descriptionProp, debit, credit, accountType, keyProp);
 END
