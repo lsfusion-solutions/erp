@@ -13,6 +13,22 @@ codeCustomsGroupDefaultCountryArticle 'ТН ВЭД' (article) = codeCustomsGroup
 
 originalCustomsGroupArticle 'Код ТНВЭД (ориг.)' = DATA STRING[10] (Article) IN base FIXEDCHARWIDTH 10;
 
+// Действие по изменению кода ТНВЭД через ручной ввод
+changeCodeCustomsGroupCountryArticle = ACTION (country, article) {
+    REQUEST STRING[10] INPUT;
+    IF requestedString() THEN {
+        IF customsGroupCode(requestedString()) AND charLength(requestedString()) == 10 THEN {
+            customsGroupCountryArticle(country, article) <- customsGroupCode(requestedString()); 
+        } ELSE {
+            FORM customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroupCode(requestedString()) MODAL;
+            IF formResult() == FormResult.ok THEN {
+                customsGroupCountryArticle(country, article) <- chosenObject('cg');
+            }
+        }
+    } ELSE
+        customsGroupCountryArticle(country, article) <- NULL;
+}
+
 changeCustomsGroupDefaultCountryArticle = ACTION (article) {
     REQUEST OBJECT cg
     FORM customsGroups OBJECTS cz = customsZoneDefaultCountry() MODAL SHOWDROP;

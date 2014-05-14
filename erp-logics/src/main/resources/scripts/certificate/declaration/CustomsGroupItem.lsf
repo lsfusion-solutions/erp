@@ -19,6 +19,22 @@ dataValueVATCountryItemDate 'НДС, %' (country, item, date) = valueRateRangeDa
 
 customsZoneDefaultCountry = customsZoneCountry(defaultCountry());
 
+// Действие по изменению кода ТНВЭД через ручной ввод
+changeCodeCustomsGroupCountryItem = ACTION (country, item) {
+    REQUEST STRING[10] INPUT;
+    IF requestedString() THEN {
+        IF customsGroupCode(requestedString()) AND charLength(requestedString()) == 10 THEN {
+            customsGroupCountryItem(country, item) <- customsGroupCode(requestedString()); 
+        } ELSE {
+            FORM customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroupCode(requestedString()) MODAL;
+            IF formResult() == FormResult.ok THEN {
+                customsGroupCountryItem(country, item) <- chosenObject('cg');
+            }
+        }
+    } ELSE
+        customsGroupCountryItem(country, item) <- NULL;
+}
+
 changeCustomsGroupDefaultCountryItem = ACTION (item) {
     REQUEST OBJECT cg
     FORM customsGroups OBJECTS cz = customsZoneDefaultCountry() MODAL SHOWDROP;

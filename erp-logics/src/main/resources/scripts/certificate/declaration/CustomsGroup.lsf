@@ -24,7 +24,9 @@ hasCodeCustomsGroup 'Есть код' = DATA BOOLEAN (CustomsGroup) IN base;
 dateFromCustomsGroup 'Дата с' = DATA DATE (CustomsGroup) IN base;
 dateToCustomsGroup 'Дата по' = DATA DATE (CustomsGroup) IN base;
 codeCustomsGroup 'Код' = DATA STRING[10](CustomsGroup) IN base MINCHARWIDTH 10;
+
 customsGroupCode (code) = GROUP AGGR customsGroup BY codeCustomsGroup(customsGroup) WHERE customsGroup IS CustomsGroup;
+nearestCustomsGroupCode (code) = GROUP MIN customsGroup IF startsWith(codeCustomsGroup(customsGroup), code AS STRING[10]) == 1 BY code;
 
 numberCustomsGroup 'Номер строки' = DATA INTEGER(CustomsGroup) IN base;
 
@@ -275,7 +277,8 @@ FORM customsGroups 'Позиции ТН ВЭД'
     PROPERTIES(cg) ADDFORM, EDITFORM, deleteg = DELETE FORCE PANEL TOOLBAR
     ORDER BY numberCustomsGroup(cg)
 
-    FILTERS stringEqualsAll(a), customsZoneCustomsGroup(cg) == cz
+    FILTERS stringEqualsAll(a), 
+            customsZoneCustomsGroup(cg) == cz
 
     FILTERGROUP hasCode
         FILTER 'Только с кодом' 'F7' hasCodeCustomsGroup(gcg) DEFAULT
