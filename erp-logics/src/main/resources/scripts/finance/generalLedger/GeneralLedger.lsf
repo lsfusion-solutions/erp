@@ -5,6 +5,8 @@ REQUIRE GLAccountType, Operation;
 CLASS ABSTRACT GLDocument 'Регистр-основание';
 TABLE GLDocument(GLDocument);
 
+GROUP generalLedger 'Проводки' : base;
+
 isPostedGLDocument 'Проведен' = ABSTRACT BOOLEAN (GLDocument) PERSISTENT;
 
 nameGLDocument 'Регистр-основание' = ABSTRACT VARSTRING[200] (GLDocument) PERSISTENT;
@@ -20,13 +22,18 @@ operationGLDocument 'Операция' = ABSTRACT Operation (GLDocument) PERSIST
 
 editGLDocument 'Редактировать регистр' = ABSTRACT ACTION LIST (GLDocument) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-onlineGeneralLedger 'Создавать проводки онлайн' = DATA BOOLEAN ();
+onlineGeneralLedger 'Создавать проводки онлайн' = DATA BOOLEAN () IN generalLedger;
+reportinGeneralLedger 'Запретить редактировать проводки после отчетного периода' = DATA BOOLEAN () IN generalLedger;
+dateReportingGeneralLedger 'Дата отчетного периода' = DATA DATE () IN generalLedger;
+
 EXTEND FORM options
-    PROPERTIES() onlineGeneralLedger
+    PROPERTIES() onlineGeneralLedger, reportinGeneralLedger, dateReportingGeneralLedger
 ;
 EXTEND DESIGN options {
     commons {
-        ADD PROPERTY(onlineGeneralLedger());
+        ADD PROPERTY (onlineGeneralLedger());
+        ADD PROPERTY (reportinGeneralLedger());
+        ADD PROPERTY (dateReportingGeneralLedger());
     }
 }
 //-------------------------- Проводки -------------------------//
@@ -102,6 +109,9 @@ skipUserGeneralLedger 'Не изменять значение' (userGeneralLedge
 skipGeneralLedger (generalLedger) += skipUserGeneralLedger (generalLedger);
 
 editGeneralLedger 'Редактировать' = ABSTRACT ACTION LIST (GeneralLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+
+//CONSTRAINT isPostedGeneralLedger(ledger) AND reportinGeneralLedger() AND dateGeneralLedger(ledger) < dateReportingGeneralLedger() AND CHANGED(sumGeneralLedger(ledger))
+//    MESSAGE 'Запрещено редактировать проводки после отчетного периода';
 
 // ----------------------------- Сальдо ---------------------------//
 
