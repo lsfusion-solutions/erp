@@ -91,33 +91,23 @@ rangeRate = DATA Range (Rate);
 quantityRateRange 'Количество историй' (range) = GROUP SUM 1 IF rate BY rangeRate(rate);
 
 valueRate 'Значение ставки' = DATA NUMERIC[10,5] (Rate) IN recognize NOT NULL;
-dateFromRate 'Действует с' = DATA DATE (Rate) IN base;
-dateToRate 'Действует по' = DATA DATE (Rate) IN base;
+dateFromRate 'Действует с' = DATA DATE (Rate) IN base INDEXED;
 
 valueRateRangeDate 'На дату' (range, date) =
                              GROUP LAST valueRate(rate)
                                    BY rangeRate(rate), date
                                    ORDER rate
-                                   WHERE dateFromRate(rate) <= date AND NOT dateToRate(rate) < date COMPLEX;
+                                   WHERE dateFromRate(rate) <= date COMPLEX;
 
 dateFromRateRangeDate 'Действует (с)' (range, date) =
                              GROUP LAST dateFromRate(rate)
                                    BY rangeRate(rate), date
                                    ORDER rate
-                                   WHERE dateFromRate(rate) <= date AND NOT dateToRate(rate) < date COMPLEX;
-
-dateToRateRangeDate 'Действует (по)' (range, date) =
-                             GROUP LAST dateToRate(rate)
-                                   BY rangeRate(rate), date
-                                   ORDER rate
-                                   WHERE dateFromRate(rate) <= date AND NOT dateToRate(rate) < date COMPLEX;
+                                   WHERE dateFromRate(rate) <= date COMPLEX;
 
 valueCurrentRateRange 'Действующая ставка' (range) = valueRateRangeDate(range, currentDate()) IN base PERSISTENT;
 
 dateFromCurrentRateRange 'Действует (с)' (range) = dateFromRateRangeDate(range, currentDate()) IN base;
-dateToCurrentRateRange 'Действует (по)' (range) = dateToRateRangeDate(range, currentDate()) IN base;
-
-CONSTRAINT rangeRate(rt1) == rangeRate(rt2) AND NOT (dateFromRate(rt2) <= dateFromRate(rt1) OR dateToRate(rt1) < dateFromRate(rt2))  MESSAGE 'ошибка: Одновременно не может быть несколько действующих ставок / или не задано: действует с';
 
 // для импорта
 valueCurrentVATCountryValue 'Шкала НДС по значению' (country, doubleValue) = GROUP AGGR range BY countryRange(range), valueCurrentRateRange (range);
@@ -137,13 +127,13 @@ FORM tax 'Налог'
 
     OBJECTS           ra = Range
     PROPERTIES(ra)    numberRange, nameRangeTypeRange, DELETESESSION
-    PROPERTIES(ra)    READONLY valueCurrentRateRange, dateFromCurrentRateRange, dateToCurrentRateRange
+    PROPERTIES(ra)    READONLY valueCurrentRateRange, dateFromCurrentRateRange
     PROPERTIES(t, c)  addNewRange TODRAW ra
     FILTERS           taxRange(ra) == t
     FILTERS           countryRange(ra) == c
 
     OBJECTS           rt=Rate
-    PROPERTIES(rt)    valueRate, dateFromRate, dateToRate, createdTimeRate, createdNameUserRate, ADDOBJ, DELETESESSION
+    PROPERTIES(rt)    valueRate, dateFromRate, createdTimeRate, createdNameUserRate, ADDOBJ, DELETESESSION
     FILTERS           rangeRate(rt) == ra
 
     TREE treeTaxUnit  a=STRING[3], ug = TaxUnitGroup PARENT parentTaxUnitGroup
@@ -204,7 +194,7 @@ FORM taxes 'Налоги'
     FILTERS           countRangeTaxCountry(t, c)
 
     OBJECTS ra=Range
-    PROPERTIES(ra) READONLY numberRange, valueCurrentRateRange, dateFromCurrentRateRange, dateToCurrentRateRange, nameRangeTypeRange, quantityRateRange
+    PROPERTIES(ra) READONLY numberRange, valueCurrentRateRange, dateFromCurrentRateRange, nameRangeTypeRange, quantityRateRange
     FILTERS                 taxRange(ra) == t,
                             countryRange(ra) == c
 
@@ -236,8 +226,7 @@ DESIGN taxes FROM DEFAULT {
 
 FORM range 'Шкала'
     OBJECTS r=Range
-    PROPERTIES(r) READONLY numberRange, nameTaxRange, nameCountryRange, nameRangeTypeRange, valueCurrentRateRange, dateFromCurrentRateRange,
-                  dateToCurrentRateRange
+    PROPERTIES(r) READONLY numberRange, nameTaxRange, nameCountryRange, nameRangeTypeRange, valueCurrentRateRange, dateFromCurrentRateRange
     PROPERTIES(r) ADDFORM, EDITFORM FORCE PANEL TOOLBAR
     DIALOG Range OBJECT r
 ;
@@ -245,8 +234,7 @@ FORM range 'Шкала'
 FORM rangeDialog 'Шкала'
     OBJECTS c = Country FIXED PANEL
     OBJECTS r=Range
-    PROPERTIES(r) READONLY numberRange, nameTaxRange, nameCountryRange, nameRangeTypeRange, valueCurrentRateRange, dateFromCurrentRateRange,
-                  dateToCurrentRateRange
+    PROPERTIES(r) READONLY numberRange, nameTaxRange, nameCountryRange, nameRangeTypeRange, valueCurrentRateRange, dateFromCurrentRateRange
     PROPERTIES(r) ADDFORM, EDITFORM FORCE PANEL TOOLBAR
     FILTERS countryRange(r) == c
 ;
