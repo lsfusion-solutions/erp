@@ -1,6 +1,6 @@
 MODULE ProductionOrder;
 
-REQUIRE Substitute, PriceListType, PriceListCalc, StockTax;
+REQUIRE Substitute, PriceListType, PriceListCalc, StockTax, ProductionOperation;
 NAMESPACE Production;
 
 // ----------------  Заказ ------------------- //
@@ -858,8 +858,10 @@ NAVIGATOR {
     manufacturingDocuments {
         ADD orders;
     }
+    manufacturingMasterData {
+        ADD operations;
+    }
 }
-
 FORM componentDetails 'Строка компонента'
     OBJECTS d = ComponentDetail
     PROPERTIES(d) READONLY indexComponentDetail, nameSkuComponentDetail, shortNameUOMComponentDetail,
@@ -896,3 +898,64 @@ EXTEND FORM orders
     PROPERTIES(o) FORCE PANEL printRequestForMaterialsOrder
 ;
 EXTEND DESIGN orders {printTab { ADD o.print {align = LEADING;}}}
+
+//------------------------------------------ Опеределение операции для order ------------------------------------//
+
+operationOrder = DATA Operation (Order) PERSISTENT;
+nameOperationOrder 'Операция' = nameOperation(operationOrder(order));
+
+operationProductDetail (d) = operationOrder(orderProductDetail(d));
+nameOperationProductDetail 'Операция' (d)= nameOperation(operationProductDetail (d));
+
+operationComponentDetail (d) = operationOrder(orderComponentDetail(d));
+nameOperationComponentDetail 'Операция' (d)= nameOperation(operationComponentDetail (d));
+
+EXTEND FORM order
+    PROPERTIES(o) nameOperationOrder
+;
+
+EXTEND DESIGN order{
+    o.documentHeader{
+        NEW header1 {
+            type = CONTAINERH; 
+            ADD PROPERTY(isPostedOrder(o));
+            ADD PROPERTY(nameOperationOrder(o));
+        }
+        NEW header2 {
+            type = CONTAINERH; 
+            ADD PROPERTY(nameNumeratorOrder(o));   
+            ADD PROPERTY(numberOrder(o));  
+            ADD PROPERTY(seriesOrder(o));  
+            ADD PROPERTY(dateOrder(o));  
+            ADD PROPERTY(timeOrder(o));  
+        }        
+    }
+}
+EXTEND FORM orders
+    PROPERTIES(o) READONLY nameOperationOrder AFTER nameProductsStockOrder(o)
+;
+
+@defineDocumentOperationStock(order, components, 'Склад компонент');
+@deriveDocumentOperationStock(order, components, order);
+@defineDocumentOperationStock(order, products, 'Склад изделий');
+@deriveDocumentOperationStock(order, products, order);
+
+@defineDocumentOperationRole(order);
+
+@defineDocumentHeaderPriceListType (operation, calcPriceListType, , ' (надбавка-изделие)');
+@deriveDocumentOperationProperty(Order, calcPriceListType);
+@defineDocumentHeaderPriceListType (operation, calcPriceListType, components, ' (надбавка-потребность)');
+@deriveDocumentOperationProperty(Order, componentsCalcPriceListType);
+@defineDocumentHeaderPriceListType (operation, priceListType, , ' (потребность)');
+@deriveDocumentOperationProperty(Order, priceListType);
+
+EXTEND FORM operation
+     PROPERTIES(o) nameCalcPriceListTypeOperation, nameComponentsCalcPriceListTypeOperation, namePriceListTypeOperation
+ ;
+EXTEND DESIGN operation {
+    showContainer {
+        ADD PROPERTY(nameCalcPriceListTypeOperation(o));
+        ADD PROPERTY(nameComponentsCalcPriceListTypeOperation(o));
+        ADD PROPERTY(namePriceListTypeOperation(o));
+    }
+}

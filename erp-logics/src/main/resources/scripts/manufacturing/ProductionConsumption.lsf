@@ -220,6 +220,9 @@ stockDocumentLedgerSkuLedger(ledger) += consumptionConsumptionDetail(ledger);
 @defineDocumentHeaderProperty (order, createConsumption, 'Создать документ списания сырья');
 @defineDocumentDetailProperty (order, componentDetail, createConsumption, 'Создать документ списания сырья');
 
+@defineOperationProperty(createConsumption, 'Создать документ списания сырья', createContainer);
+@deriveDocumentOperationProperty(Order, createConsumption);
+
 EXTEND FORM order
             PROPERTIES(o)  BACKGROUND backgroundConsumptionOrder(o) createConsumptionOrder
             PROPERTIES(cd) BEFORE deletecd BACKGROUND backgroundConsumptionOrder(o) SHOWIF createConsumptionOrder(o) consumedQuantityComponentDetail, consumedSumComponentDetail
@@ -497,5 +500,85 @@ DESIGN consumptions FROM DEFAULT {
 NAVIGATOR {
     manufacturingDocuments {
         ADD consumptions;
+    }
+}
+
+////////////-----------Создание док-та списания сырья на основе производственного заказа-----------------//////////////
+
+requiredQuantitySubstituteOrderSku 'Кол-во (всего) (компонент)' (order, sku) = GROUP SUM quantityComponentDetail(idetail) BY orderComponentDetail(idetail), skuComponentDetail(idetail);
+
+balanceSessionSku= DATA SESSION NUMERIC[16,3] (Sku);
+requiredSessionSku= DATA SESSION NUMERIC[16,3] (Sku);
+
+//priceListTypeConsumption(consumption) += priceListTypeOrder(orderOrderConsumption(consumption));
+
+addUserConsumptionProductionOrder 'Списание сырья' =  ACTION (order) NEWSESSION{
+    balanceSessionSku(sku) <-  NULL;
+    requiredSessionSku(sku) <-  NULL;
+    
+    FOR ADDOBJ o = UserConsumption DO {
+        priceListTypeUserConsumption(o) <- priceListTypeOrder(order);
+        stockUserConsumption(o) <- componentsStockOrder(order);
+        priceListTypeUserConsumption(o) <- priceListTypeOrder(order);
+        noteUserConsumption(o) <- noteOrder(order);
+        
+        balanceSessionSku(sku) <-  NUMERIC[16,3](balanceBSkuStockDateTime(sku, componentsStockOrder(order), dateTimeOrder(order))) WHERE balanceBSkuStockDateTime(sku, componentsStockOrder(order), dateTimeOrder(order));
+        requiredSessionSku(sku) <-  NUMERIC[16,3](requiredQuantitySubstituteOrderSku(order, sku)) WHERE requiredQuantitySubstituteOrderSku(order, sku);
+
+
+        FOR requiredSessionSku(sku) > 0 DO {
+                
+            FOR balanceSessionSku(sku) AND requiredSessionSku(sku) >0  ADDOBJ d = UserConsumptionDetail DO {
+                             
+                    userConsumptionUserConsumptionDetail(d) <- o;
+                    skuUserConsumptionDetail(d) <- sku;
+                    quantityUserConsumptionDetail(d) <- IF balanceSessionSku(sku) >= requiredSessionSku(sku) THEN requiredSessionSku(sku) ELSE balanceSessionSku(sku);
+                    requiredSessionSku(sku) <- requiredSessionSku(sku) (-) quantityUserConsumptionDetail(d);
+                    balanceSessionSku(sku) <- balanceSessionSku(sku) (-) quantityUserConsumptionDetail(d);  
+               
+                                  
+            } 
+            FOR fromSkuSubstitute(substitute) == sku AND balanceSessionSku(toSkuSubstitute(substitute)) > 0  ORDER balanceSessionSku(toSkuSubstitute(substitute)) DO {
+                IF requiredSessionSku(sku) >0 THEN {
+                    FOR ADDOBJ d = UserConsumptionDetail DO {                    
+                        userConsumptionUserConsumptionDetail(d) <- o;
+                        skuUserConsumptionDetail(d) <- toSkuSubstitute(substitute);
+                                                   
+                        quantityUserConsumptionDetail(d) <- IF (balanceSessionSku(toSkuSubstitute(substitute))) >= (requiredSessionSku(sku)* multiplierSubstitute(substitute)) 
+                                                            THEN (requiredSessionSku(sku)* multiplierSubstitute(substitute)) ELSE balanceSessionSku(toSkuSubstitute(substitute)) ;                        
+                        
+                        requiredSessionSku(sku) <- requiredSessionSku(sku) (-) (quantityUserConsumptionDetail(d) / multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0);                            
+                        
+                        balanceSessionSku(s) <- (balanceSessionSku(s) (-) quantityUserConsumptionDetail(d)) WHERE  s == toSkuSubstitute(substitute);   
+                    }    
+                }                                              
+            }                                    
+        }
+        // todo: добавить сообщение, все ли подобраны компоненты
+
+        FORM userConsumption OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+EXTEND FORM orders
+    PROPERTIES(o) addUserConsumptionProductionOrder
+;
+EXTEND DESIGN orders {
+    documentDetail{
+        NEW actionContainer {
+            caption = 'Действия';
+            type = CONTAINERH;
+            NEW createdContainer {
+                caption = 'Создание на основе';
+                type = CONTAINERV;
+    
+                ADD PROPERTY(addUserConsumptionProductionOrder(o));
+            }
+            NEW machineryContainer {
+                caption = 'Загрузка';
+                type = CONTAINERV;
+            }
+        }
+
     }
 }
