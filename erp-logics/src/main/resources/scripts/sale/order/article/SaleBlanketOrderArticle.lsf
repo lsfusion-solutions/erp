@@ -73,13 +73,17 @@ EXTEND FORM blanketOrder
                  
     OBJECTS ddd = Stock FIXED GRID
     FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(ddd) DEFAULT
+    FILTERS inBlanketOrderStock(o,ddd)
+    
     OBJECTS bta=(btk=Stock, br=Article)
     PROPERTIES READONLY idArticle(br) SHOWIF showIDs(), captionArticle(br), 
                       stockNameB = nameStock(btk) SHOWIF notSupplierStockBlanketOrder(o)//, imageArticle(br) FORCE PANEL 
     FILTERS           isParentGroupArticle(sk, br),
                       (btk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, btk) AND NOT ts OR btk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockBlanketOrder(o) OR
-                      btk == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts
-    FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(btk) DEFAULT                  
+                      btk == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts,
+                      legalEntityStock(btk) == supplierBlanketOrder(o),
+                      activeStock(btk)
+
     PROPERTIES READONLY quantityArticleBlanketOrderSupplierStock(br,o,btk) BACKGROUND backgroundQuantityArticleBlanketOrderStock(br,o,btk)  
     PROPERTIES prevAvailableQuantityArticleBlanketOrderStock(br,o,btk) ON CHANGE  reviewReserveArticleStockBlanketOrder(br,btk,o), 
                prevAvailableQuantityArticleStockBlanketOrder(br,btk,o) ON CHANGE  reviewReserveArticleStockBlanketOrder(br,btk,o)
@@ -87,9 +91,6 @@ EXTEND FORM blanketOrder
     PROPERTIES READONLY prevCurrentBalanceArticleStock(br,btk) BACKGROUND backgroundBalanceStockBlanketOrder(o)            
     PROPERTIES READONLY prevCurrentBalanceArticleStock(br,ddd) COLUMNS 'astock' (ddd) HEADER nameBalanceCustomerStock(ddd) BACKGROUND backgroundBalanceCustomerStockBlanketOrder(o)   
  
-                          
-    FILTERGROUP stockFilters
-        FILTER 'Собственные склады' 'F6' legalEntityStock(btk) == supplierBlanketOrder(o) DEFAULT
     ORDER BY          idArticle(br), stockNameB
     
     FILTERGROUP filtr2
@@ -123,8 +124,6 @@ EXTEND FORM blanketOrder
 //    PROPERTIES READONLY quantitySoldSkuStockBlanketOrderTwoWeek(bs,ddd,o) COLUMNS (ddd) HEADER nameSoldCustomerStockTwoWeek(ddd)  
     PROPERTIES READONLY quantitySoldSkuStockDateFromTo(bs,ddd,dFrom, dTo) COLUMNS 'stock' (ddd) HEADER nameSoldCustomerStockDateFromTo(ddd)    
     
-    FILTERS inBlanketOrderStock(o,ddd)
-    
     PROPERTIES READONLY prevAvailableQuantitySkuBlanketOrderStock(ks,o,st) BEFORE prevAvailableQuantitySkuStockBlanketOrder(ks, st, o)
     PROPERTIES READONLY prevAvailableQuantityBatchBlanketOrderStock(b,o,sto) BEFORE  prevAvailableQuantityBatchStockBlanketOrder(b, sto, o)    
 
@@ -136,14 +135,13 @@ EXTEND FORM blanketOrder
                                                        
     OBJECTS bbk=(bbb=Batch, stk=Stock)
     PROPERTIES(bbb) READONLY   idBatch SHOWIF showIDs(), nameSkuBatch, shortNameUOMBatch, nameBatch
-    FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(stk) DEFAULT                
     PROPERTIES(stk) READONLY stkName = nameStock SHOWIF notSupplierStockBlanketOrder(o)                                                                                                    
     
     FILTERS skuBatch(bbb) == bs,
             (stk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockBlanketOrder(o) OR
-            stk == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts                                        
-    FILTERGROUP stockFilters
-        FILTER 'Собственные склады' 'F6' legalEntityStock(stk) == supplierBlanketOrder(o) DEFAULT      
+            stk == supplierStockBlanketOrder(o) AND NOT sg AND NOT ts,
+            legalEntityStock(stk) == supplierBlanketOrder(o),
+            activeStock(stk)
                                             
     PROPERTIES quantityBatchBlanketOrderSupplierStock(bbb, o, stk) READONLY BACKGROUND backgroundQuantityBatchBlanketOrderStock(bbb, o, stk)
     PROPERTIES READONLY prevAvailableQuantityBatchBlanketOrderStock(bbb,o,stk)
