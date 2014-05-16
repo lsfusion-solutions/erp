@@ -229,8 +229,10 @@ META defineDocumentLegalEntityStockAccess(objectClass, prefix, filter, form)
     @defineDocumentLegalEntityAccess(objectClass, prefix, filter);
 
     WHEN SESSION FORMS form CHANGED(prefix###objectClass(o)) DO {
-        prefix###stock###objectClass(o) <- default###filter##StockEmployeeLegalEntity(currentUser(), prefix###objectClass(o))
-            IF countAccess###filter##StockEmployeeLegalEntity (currentUser(), prefix###objectClass(o)) == 1;
+        IF countAccess###filter##StockEmployeeLegalEntity (currentUser(), prefix###objectClass(o)) == 1 THEN
+            prefix###stock###objectClass(o) <- default###filter##StockEmployeeLegalEntity(currentUser(), prefix###objectClass(o));
+        IF NOT inLegalEntityStock(prefix###objectClass(o), prefix###stock###objectClass(o)) THEN 
+            prefix###stock###objectClass(o) <- NULL;
     }
 END
 
