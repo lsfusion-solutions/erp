@@ -510,8 +510,6 @@ requiredQuantitySubstituteOrderSku 'Кол-во (всего) (компонент
 balanceSessionSku= DATA SESSION NUMERIC[16,3] (Sku);
 requiredSessionSku= DATA SESSION NUMERIC[16,3] (Sku);
 
-//priceListTypeConsumption(consumption) += priceListTypeOrder(orderOrderConsumption(consumption));
-
 addUserConsumptionProductionOrder 'Списание сырья' =  ACTION (order) NEWSESSION{
     balanceSessionSku(sku) <-  NULL;
     requiredSessionSku(sku) <-  NULL;
@@ -559,6 +557,71 @@ addUserConsumptionProductionOrder 'Списание сырья' =  ACTION (order
         FORM userConsumption OBJECTS o = o MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
+
+//bruttoQuantityUserConsumptionDetail 'Кол-во' = DATA NUMERIC[16,3] (UserConsumptionDetail); // по строке компонента
+//
+//addUserConsumptionProductionOrder 'Списание сырья' =  ACTION (order) NEWSESSION{
+//    balanceSessionSku(sku) <-  NULL;
+//    
+//    FOR ADDOBJ o = UserConsumption DO {
+//        priceListTypeUserConsumption(o) <- priceListTypeOrder(order);
+//        stockUserConsumption(o) <- componentsStockOrder(order);
+//        priceListTypeUserConsumption(o) <- priceListTypeOrder(order);
+//        noteUserConsumption(o) <- noteOrder(order);
+//        
+//        balanceSessionSku(sku) <-  NUMERIC[16,3](balanceBSkuStockDateTime(sku, componentsStockOrder(order), dateTimeOrder(order))) WHERE balanceBSkuStockDateTime(sku, componentsStockOrder(order), dateTimeOrder(order));
+//        
+//        
+//        
+//        FOR orderComponentDetail(detail) == order DO {
+//            LOCAL required = NUMERIC[16,3] ();
+//            required() <- NULL;
+//            required() <- bruttoQuantityComponentDetail(detail);
+//        
+//            IF required() > 0 THEN {                    
+//                IF balanceSessionSku(skuComponentDetail(detail)) AND required() > 0 THEN { //
+//                        FOR ADDOBJ d = UserConsumptionDetail DO {                                 
+//                            userConsumptionUserConsumptionDetail(d) <- o;
+//                            componentDetailUserConsumptionDetail(d) <- detail;
+//                            
+//                            skuUserConsumptionDetail(d) <- skuComponentDetail(detail);
+//                            quantityUserConsumptionDetail(d) <- IF balanceSessionSku(skuComponentDetail(detail)) >= required()  THEN required() ELSE balanceSessionSku(skuComponentDetail(detail));
+//                            required() <- required() (-) quantityUserConsumptionDetail(d);
+//                            balanceSessionSku(sk) <- balanceSessionSku(sk) (-) quantityUserConsumptionDetail(d) WHERE sk == skuComponentDetail(detail);  
+//                            
+//                            bruttoQuantityUserConsumptionDetail(d) <- quantityUserConsumptionDetail(d);
+//                        }              
+//                } 
+//                FOR fromSkuSubstitute(substitute) == skuComponentDetail(detail) AND balanceSessionSku(toSkuSubstitute(substitute)) > 0  ORDER balanceSessionSku(toSkuSubstitute(substitute)) DO {
+//                    IF required() >0 THEN {
+//                        FOR ADDOBJ d = UserConsumptionDetail DO {                    
+//                            userConsumptionUserConsumptionDetail(d) <- o;
+//                            skuUserConsumptionDetail(d) <- toSkuSubstitute(substitute);
+//                            componentDetailUserConsumptionDetail(d) <- detail;
+//                                                       
+//                            quantityUserConsumptionDetail(d) <- IF (balanceSessionSku(toSkuSubstitute(substitute))) >= (required()* multiplierSubstitute(substitute)) 
+//                                                                THEN (required()* multiplierSubstitute(substitute)) ELSE balanceSessionSku(toSkuSubstitute(substitute)) ;                        
+//                            
+//                            required() <- required() (-) (quantityUserConsumptionDetail(d) / multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0);                            
+//                            
+//                            balanceSessionSku(sk) <- (balanceSessionSku(sk) (-) quantityUserConsumptionDetail(d)) WHERE  sk == toSkuSubstitute(substitute);   
+//                            
+//                            bruttoQuantityUserConsumptionDetail(d) <- (quantityUserConsumptionDetail(d) / multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0);
+//                        }    
+//                    }                                              
+//                }                                    
+//            }
+//        }   
+//        FORM userConsumption OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+//    }
+//} TOOLBAR;
+//
+//EXTEND FORM consumptions
+//    PROPERTIES(d) FORCE GRID READONLY  bruttoQuantityUserConsumptionDetail
+//;
+//EXTEND FORM userConsumption
+//    PROPERTIES(d) FORCE GRID bruttoQuantityUserConsumptionDetail
+//;
 
 EXTEND FORM orders
     PROPERTIES(o) addUserConsumptionProductionOrder
