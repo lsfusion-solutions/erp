@@ -541,10 +541,13 @@ META defineOperationPriceListType(dumb)
 
     TABLE priceListTypeOperation(PriceListType, Operation);
     inPriceListTypeOperation 'Отм.' = DATA BOOLEAN (PriceListType, Operation);
-
+    
+    defaultPriceListTypeOperation 'Вид цены по умолчанию' = DATA PriceListType(Operation);
+    isDefaultPriceListTypeOperation 'По умолчанию' (type, operation) = defaultPriceListTypeOperation(operation) == type;
+    
     EXTEND FORM operation
         OBJECTS pt = PriceListType
-        PROPERTIES(pt, o) inPriceListTypeOperation
+        PROPERTIES(pt, o) inPriceListTypeOperation, isDefaultPriceListTypeOperation
         PROPERTIES(pt) READONLY idPriceListType SHOWIF showIDs(), namePriceListType, nameCurrencyPriceListType, objectClassName
         FILTERGROUP filters
             FILTER 'Показывать отмеченные' 'F9' inPriceListTypeOperation(pt, o)
@@ -558,7 +561,7 @@ META defineOperationPriceListType(dumb)
 
 END
 
-META defineDocumentOperationPriceListType(object, caption)
+META defineDocumentOperationPriceListType(object, caption, form)
     CONSTRAINT operation###object(object) AND priceListType###object(object)
                AND NOT inPriceListTypeOperation(priceListType###object(object), operation###object(object))
         CHECKED BY priceListType###object
@@ -568,4 +571,9 @@ META defineDocumentOperationPriceListType(object, caption)
                AND NOT inPriceListTypeOperation(priceListType###object##Detail(detail), operation###object##Detail(detail))
         CHECKED BY priceListType###object##Detail
         MESSAGE 'Вид цены для строки '###caption###' должен совпадать с отмеченными в операции';
+        
+    WHEN SESSION FORMS form CHANGED(operation###object(object)) DO {
+        IF defaultPriceListTypeOperation(operation###object(object)) THEN
+            priceListType###object(object) <- defaultPriceListTypeOperation(operation###object(object)); 
+    }
 END
