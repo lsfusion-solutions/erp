@@ -30,10 +30,14 @@ EXTEND FORM options
     PROPERTIES() onlineGeneralLedger, reportinGeneralLedger, dateReportingGeneralLedger
 ;
 EXTEND DESIGN options {
-    commons {
-        ADD PROPERTY (onlineGeneralLedger());
-        ADD PROPERTY (reportinGeneralLedger());
-        ADD PROPERTY (dateReportingGeneralLedger());
+    pane {
+        NEW generalLedger  {
+            type = CONTAINERV;
+            caption = 'Проводки';
+            ADD PROPERTY (onlineGeneralLedger());
+            ADD PROPERTY (reportinGeneralLedger());
+            ADD PROPERTY (dateReportingGeneralLedger());
+        }
     }
 }
 //-------------------------- Проводки -------------------------//
@@ -112,8 +116,8 @@ skipGeneralLedger (generalLedger) += skipUserGeneralLedger (generalLedger);
 
 editGeneralLedger 'Редактировать' = ABSTRACT ACTION LIST (GeneralLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-//CONSTRAINT isPostedGeneralLedger(ledger) AND reportinGeneralLedger() AND dateGeneralLedger(ledger) < dateReportingGeneralLedger() AND CHANGED(sumGeneralLedger(ledger))
-//    MESSAGE 'Запрещено редактировать проводки после отчетного периода';
+CONSTRAINT isPostedGeneralLedger(ledger) AND reportinGeneralLedger() AND dateGeneralLedger(ledger) < dateReportingGeneralLedger() AND CHANGED(sumGeneralLedger(ledger))
+    MESSAGE 'Запрещено редактировать проводки после отчетного периода';
 
 // ----------------------------- Сальдо ---------------------------//
 
@@ -438,7 +442,7 @@ EXTEND FORM options
 ;
 
 EXTEND DESIGN options {
-    commons {
+    generalLedger {
         ADD PROPERTY(createGeneralLedger());
     }
 }
