@@ -192,7 +192,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) throws ClassNotFoundException, SQLException {
+    public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
         return null;
     }
 

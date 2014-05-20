@@ -23,6 +23,6 @@ public abstract class  CashRegisterHandler<S extends SalesBatch> extends Machine
 
     public abstract void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch);
    
-    public abstract Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) throws ClassNotFoundException, SQLException;
+    public abstract Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException;
 
 }

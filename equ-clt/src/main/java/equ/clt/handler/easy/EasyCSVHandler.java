@@ -79,7 +79,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) {
+        public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) {
             return null;
         }
     }

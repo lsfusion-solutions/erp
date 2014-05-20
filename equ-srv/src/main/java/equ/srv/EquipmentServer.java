@@ -249,20 +249,23 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<CashRegisterItemInfo>();
-                    for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
-                        String barcode = trim((String) row.get("idBarcode").getValue());
-                        String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
-                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
-                        boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
-                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode").getValue();
-                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
-                        String composition = scalesItemLM == null ? null : (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
+                    for (int i = 0; i < skuResult.size(); i++) {
+                        ImMap<Object, DataObject> keyRow = skuResult.getKey(i);
+                        ImMap<Object, ObjectValue> valueRow = skuResult.getValue(i);
+                        String barcode = trim((String) valueRow.get("idBarcode").getValue());
+                        String name = trim((String) valueRow.get("nameMachineryPriceTransactionBarcode").getValue());
+                        BigDecimal price = (BigDecimal) valueRow.get("priceMachineryPriceTransactionBarcode").getValue();
+                        boolean isWeight = valueRow.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
+                        boolean passScales = valueRow.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
+                        String idUOM = (String) valueRow.get("idUOMMachineryPriceTransactionBarcode").getValue();
+                        String shortNameUOM = (String) valueRow.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
+                        Integer idItem = (Integer) itemLM.findLCPByCompoundOldName("skuBarcode").readClasses(session, keyRow.get("barcode")).getValue();
+                        String composition = scalesItemLM == null ? null : (String) valueRow.get("compositionMachineryPriceTransactionBarcode").getValue();
 
                         List<ItemGroup> hierarchyItemGroup = new ArrayList<ItemGroup>();
                         String canonicalNameSkuGroup = null;
                         if (itemLM != null) {
-                            ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
+                            ObjectValue skuGroupObject = valueRow.get("skuGroupMachineryPriceTransactionBarcode");
                             if (skuGroupObject instanceof DataObject) {
                                 String idItemGroup = (String) itemLM.findLCPByCompoundOldName("idItemGroup").read(session, skuGroupObject);
                                 String nameItemGroup = (String) itemLM.findLCPByCompoundOldName("nameItemGroup").read(session, skuGroupObject);
@@ -279,7 +282,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         }
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, isWeight, passScales,
-                                composition, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM));
+                                idItem, composition, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),

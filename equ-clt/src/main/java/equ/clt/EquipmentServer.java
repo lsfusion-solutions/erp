@@ -151,8 +151,13 @@ public class EquipmentServer {
 
                 try {
                     CashRegisterHandler clsHandler = (CashRegisterHandler) getHandler(handlerModel, remote);
-
-                    Set succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo(dbSettings);
+                    
+                    Set<String> directorySet = new HashSet<String>();
+                    for(CashRegisterInfo cashRegisterInfo : entry.getValue()) {
+                        directorySet.add(cashRegisterInfo.directory);   
+                    }
+                    
+                    Set succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo(directorySet, dbSettings);
                     if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
                         logger.info("Sending succeeded SoftCheckInfo");
                         String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);

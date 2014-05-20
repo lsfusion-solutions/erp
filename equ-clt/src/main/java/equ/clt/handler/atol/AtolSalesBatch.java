@@ -4,11 +4,12 @@ import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 
 import java.util.List;
+import java.util.Map;
 
 public class AtolSalesBatch extends SalesBatch {
-    public List<String> readFiles;
+    public Map<String, Boolean> readFiles;
 
-    public AtolSalesBatch(List<SalesInfo> salesInfoList, List<String> readFiles) {
+    public AtolSalesBatch(List<SalesInfo> salesInfoList, Map<String, Boolean> readFiles) {
         this.salesInfoList = salesInfoList;
         this.readFiles = readFiles;
     }

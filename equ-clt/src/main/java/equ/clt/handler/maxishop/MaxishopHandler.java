@@ -197,7 +197,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) {
+    public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) {
         return null;
     }
 

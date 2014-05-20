@@ -312,7 +312,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(DBSettings dbSettings) {
+    public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) {
         return null;
     }
 
