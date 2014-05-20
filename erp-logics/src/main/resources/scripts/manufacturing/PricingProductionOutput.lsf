@@ -85,6 +85,14 @@ VATMarkupSumProductDetail 'НДС и надбавка' (productDetail) =  NUMERI
 retailVATSumProductDetail 'Сумма НДС' (productDetail) = NUMERIC[16,2](roundPriceCurrency([= X*Y/(100+Y)](VATMarkupSumProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
 retailMarkupSumProductDetail 'Сумма надбавки' (productDetail) = NUMERIC[16,2](VATMarkupSumProductDetail(productDetail) (-) retailVATSumProductDetail(productDetail));
 retailMarkupProductDetail 'Надбавка, %'(productDetail) = NUMERIC[8,3]([= round2(X*100/Y)](retailMarkupSumProductDetail(productDetail), componentsSumProductDetail(productDetail)));
+//--  если стоит галочка isVATOrder
+retVATSumProductDetail 'Сумма НДС' (productDetail) = NUMERIC[16,2](roundPriceCurrency([= X*Y/(100+Y)](outputProductsSumProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
+retMarkupSumProductDetail 'Сумма надбавки' (productDetail) = NUMERIC[16,2](roundPriceCurrency(outputProductsSumProductDetail(productDetail) (-) retVATSumProductDetail(productDetail) (-) componentsSumProductDetail(productDetail), currencyProductDetail(productDetail)));
+retMarkupProductDetail 'Надбавка, %'(productDetail) = NUMERIC[8,3]([= round2(X*100/Y)](retMarkupSumProductDetail(productDetail), componentsSumProductDetail(productDetail)));
+
+overVATSumProductDetail 'Сумма НДС' (d) = IF isVATProductDetail(d) THEN retVATSumProductDetail(d) ELSE retailVATSumProductDetail(d);
+overMarkupSumProductDetail 'Сумма надбавки' (d) = IF isVATProductDetail(d) THEN retMarkupSumProductDetail(d) ELSE retailMarkupSumProductDetail(d);
+overMarkupProductDetail 'Надбавка, %' (d) = IF isVATProductDetail(d) THEN retMarkupProductDetail(d) ELSE retailMarkupProductDetail(d);
 
 pricingCommitteeOutput(output) += pricingCommitteeOrder(orderOrderOutput(output));
 createPricingOutput(output) += createPricingOrder(orderOrderOutput(output));
@@ -94,9 +102,9 @@ supplierPriceOutputDetail(outputDetail) += componentsPriceProductDetail(productD
 supplierSumOutputDetail(outputDetail) += componentsSumProductDetail(productDetailOrderOutputDetail(outputDetail));
 
 valueRetailVATOutputDetail(outputDetail) += valueVATProductDetail(productDetailOrderOutputDetail(outputDetail));
-retailMarkupOutputDetail(outputDetail) += retailMarkupProductDetail(productDetailOrderOutputDetail(outputDetail));
-retailVATSumOutputDetail(outputDetail)+= retailVATSumProductDetail(productDetailOrderOutputDetail(outputDetail));
-retailMarkupSumOutputDetail(outputDetail) += retailMarkupSumProductDetail(productDetailOrderOutputDetail(outputDetail));
+retailMarkupOutputDetail(outputDetail) += overMarkupProductDetail(productDetailOrderOutputDetail(outputDetail));
+retailVATSumOutputDetail(outputDetail)+= overVATSumProductDetail(productDetailOrderOutputDetail(outputDetail));
+retailMarkupSumOutputDetail(outputDetail) += overMarkupSumProductDetail(productDetailOrderOutputDetail(outputDetail));
 retailPriceOutputDetail(outputDetail) += productsPriceProductDetail(productDetailOrderOutputDetail(outputDetail));
 retailSumOutputDetail(outputDetail) += outputProductsSumProductDetail(productDetailOrderOutputDetail(outputDetail));
 
@@ -104,8 +112,7 @@ EXTEND FORM order
     PROPERTIES(o)  BACKGROUND backgroundRetailOrder(o) createPricingOrder, namePricingOperationOrder SHOWIF createPricingOrder(o),
                    namePricingCommitteeOrder SHOWIF createPricingOrder(o)
     PROPERTIES(pd) BACKGROUND backgroundRetailOrder(o) SHOWIF createPricingOrder(o) READONLY BEFORE outputProductsSumProductDetail(pd)
-                   componentsSumProductDetail, retailMarkupProductDetail, retailMarkupSumProductDetail, retailVATSumProductDetail
-
+                   componentsSumProductDetail, overMarkupProductDetail, overMarkupSumProductDetail, overVATSumProductDetail
 ;
 EXTEND DESIGN order {
     headerRow1 {
@@ -121,7 +128,7 @@ EXTEND DESIGN order {
 
 EXTEND FORM orders
     PROPERTIES(pd) BACKGROUND backgroundRetailOrder(o) SHOWIF createPricingOrder(o) READONLY BEFORE outputProductsSumProductDetail(pd)
-                   componentsSumProductDetail, retailMarkupProductDetail, retailMarkupSumProductDetail, retailVATSumProductDetail
+                   componentsSumProductDetail, overMarkupProductDetail, overMarkupSumProductDetail, overVATSumProductDetail
 ;
 
 

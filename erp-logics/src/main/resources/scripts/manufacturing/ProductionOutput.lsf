@@ -225,6 +225,13 @@ outputProductsSumProductDetail(productDetail) <-
     WHEN CHANGED (outputQuantityProductDetail(productDetail)) OR
          CHANGED (productsPriceProductDetail(productDetail)) OR
          CHANGED(currencyProductDetail(productDetail));
+         
+fillOutputQuantityProductDetailOrder 'Заполнить кол-во (произведено) из остатков' (order)= ACTION (order) {
+    createOutputOrder(order) <- TRUE;
+
+    outputQuantityProductDetail(d) <- (- balanceASkuStockDate(skuProductDetail(d), productsStockProductDetail(d), dateProductDetail(d))) 
+        WHERE balanceASkuStockDate(skuProductDetail(d), productsStockProductDetail(d), dateProductDetail(d)) < 0 AND orderProductDetail(d) == order;    
+} TOOLBAR;        
 
 outputProductsSumProductDetailOrder 'Сумма произведенного изделия'(order) = GROUP SUM outputProductsSumProductDetail(detail) BY orderProductDetail(detail) IN documentSum;
 
@@ -234,6 +241,7 @@ showOutputOrder (order) =  order IS Order AND NOT createOutputOrder(order);
 EXTEND FORM order
     PROPERTIES(o)  BACKGROUND backgroundOutputOrder(o) createOutputOrder
     PROPERTIES(o)  BACKGROUND backgroundOutputOrder(o) SHOWIF createOutputOrder(o) outputProductsSumProductDetailOrder
+    PROPERTIES(o) fillOutputQuantityProductDetailOrder TODRAW pd    
 
     PROPERTIES(pd) BEFORE deletepd SHOWIF createOutputOrder(o) BACKGROUND backgroundOutputOrder(o) outputProductsSumProductDetail
 
@@ -295,7 +303,7 @@ seriesNumberOrderOutput 'Серия/номер документа' (orderOutput)
 noteOutput(output) += noteOrder(orderOrderOutput(output));
 currencyOutput (output) += currencyOrder(orderOrderOutput(output));
 
-priceListTypeOutput(output) += calcPriceListTypeOrder(orderOrderOutput(output));
+priceListTypeOutput(output) += productsPriceListTypeOrder(orderOrderOutput(output));
 
 @defineDocumentDescription(orderOutput, OrderOutputDetail, 'Производство на основе заказа');
 descriptionOutput (output) += descriptionOrderOutput(output);

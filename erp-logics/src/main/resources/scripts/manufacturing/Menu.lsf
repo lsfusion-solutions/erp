@@ -8,9 +8,9 @@ REQUIRE Stock,
         Document,
         PriceListType,
         Manufacturing,
-        MenuOperation,
+        ProductionOperation,
         Utils;
-
+PRIORITY Production;
 NAMESPACE Menu;
         
 //------------------------------Меню--------------------------------//        
@@ -303,20 +303,52 @@ DESIGN menus FROM DEFAULT {
 }
 @extendFormEditable(menus);
 @defineFilterIsOpened (menu, menus, m);
-//----------------------------------------------- Операции -----------------------------------------------------//
+////----------------------------------------------- Операции -----------------------------------------------------//
+
+groupTypeOperation = DATA GroupType (Operation);
+nameGroupTypeOperation 'Тип классификатора' (operation) = nameGroupType(groupTypeOperation(operation));
+
+menuPriceListTypeOperation = DATA PriceListType (Operation);
+nameMenuPriceListTypeOperation 'Вид цен (меню)' (operation) = namePriceListType(menuPriceListTypeOperation(operation));
+
+EXTEND FORM operation
+    PROPERTIES(o) nameGroupTypeOperation, nameMenuPriceListTypeOperation
+;
+EXTEND DESIGN operation{
+    showContainer {
+        NEW menu {
+            caption = 'Меню';
+            ADD PROPERTY(nameGroupTypeOperation(o));
+            ADD PROPERTY(nameMenuPriceListTypeOperation(o));
+        }
+    }
+}
 
 @defineDocumentOperationContainer(menu, m);
-@defineDocumentOperationPriceListType(userMenu, ' меню', userMenu);
+//@defineDocumentOperationPriceListType(userMenu, ' меню'){
+//    CONSTRAINT operationUserMenu(userMenu) AND priceListTypeUserMenu(userMenu)
+//               AND NOT inPriceListTypeOperation(priceListTypeUserMenu(userMenu), operationUserMenu(userMenu))
+//        CHECKED BY priceListTypeUserMenu
+//        MESSAGE 'Вид цены для  меню должен совпадать с отмеченными в операции ';
+//
+//    CONSTRAINT operationUserMenuDetail(detail) AND priceListTypeUserMenuDetail(detail)
+//               AND NOT inPriceListTypeOperation(priceListTypeUserMenuDetail(detail), operationUserMenuDetail(detail))
+//        CHECKED BY priceListTypeUserMenuDetail
+//        MESSAGE 'Вид цены для строки  меню должен совпадать с отмеченными в операции';
+//        
+//    WHEN SESSION FORMS form CHANGED(operationUserMenu(userMenu)) DO {
+//        IF defaultPriceListTypeOperation(operationUserMenu(userMenu)) THEN
+//            priceListTypeUserMenu(userMenu) <- defaultPriceListTypeOperation(operationUserMenu(userMenu)); 
+//    }
+//};
 @defineDocumentOperationRole(userMenu);
 @deriveDocumentOperationProperty(userMenu, groupType);
-
+priceListTypeUserMenu (o) <- menuPriceListTypeOperation(operationUserMenu(o))
+    WHEN CHANGED(operationUserMenu(o));
 
 NAVIGATOR {
     manufacturingDocuments 'Документы' {
         ADD menus;
-    }
-    manufacturingMasterData {
-        ADD operations;
     }
 }
 
