@@ -4,6 +4,7 @@ REQUIRE CashRegister, Numerator, Document;
 
 // ----------------------------- Кассовые документы ---------------------------- //
 
+// Интерфейс для по работе с центральной кассой (кассовым счетом)
 CLASS ABSTRACT CashDocument 'Кассовый документ';
 TABLE cashDocument (CashDocument);
 
@@ -82,6 +83,7 @@ fiscalPrintCopyReceipt 'Копия чека'() = ABSTRACT ACTION LIST ();
 
 //--------------------------------- Операции с наличными -------------------------------------------------//
 
+// Интерфес для внесения/изъятия денег с кассы
 CLASS ABSTRACT CashOperation 'Операция с наличными';
 TABLE cashOperation(CashOperation);
 
@@ -209,12 +211,6 @@ sumOutcomeCashOperationDateTime 'Сумма изъятых денег на да�
     curSumOutcomeCashOperation(cashRegister) (-)
     sumAOutcomeCashOperationDateTime(cashRegister, date);
 
-curSumCashCashOperation 'Текущая сумма наличных в кассе(без Z-отчета)' (cashRegister) =
-    curSumIncomeCashOperation(cashRegister) (-) curSumOutcomeCashOperation(cashRegister);
-
-sumCashCashOperationDateTime 'Сумма наличных в кассе на дату/время(без Z-отчета)' (cashRegister, date) =
-    sumIncomeCashOperationDateTime(cashRegister, date) (-) sumOutcomeCashOperationDateTime(cashRegister, date);
-
 dateCashDocument(outcomeCashOperation) += dateOutcomeCashOperation(outcomeCashOperation);
 timeCashDocument(outcomeCashOperation) += timeOutcomeCashOperation(outcomeCashOperation);
 numberCashDocument(outcomeCashOperation) += seriesNumberOutcomeCashOperation(outcomeCashOperation);
@@ -319,7 +315,7 @@ addIncomeCashOperationForm 'Внесение денег' () = ACTION () NEWSESSI
                 sumCashIncomeCashOperation(c) <- sumCashForIncomeCashOperation(cashRegister);
                 generateSeriesNumberIncomeCashOperation(c);
                 fiscalServiceCashRegisterCashOperation(c);
-                IF NOT isCompleteCashOperation(c) THEN
+                IF cashRegisterModelCashRegister(cashRegister) AND NOT isCompleteCashOperation(c) THEN
                     fail() <- TRUE;
             }
         }
@@ -413,7 +409,7 @@ addOutcomeCashOperationForm 'Изъятие денег' () = ACTION () NEWSESSIO
             sumCashOutcomeCashOperation(c) <- sumCashForOutcomeCashOperation(cashRegister);
             generateSeriesNumberOutcomeCashOperation(c);
             fiscalServiceCashRegisterCashOperation(c);
-            IF NOT isCompleteCashOperation(c) THEN
+            IF cashRegisterModelCashRegister(cashRegister) AND NOT isCompleteCashOperation(c) THEN
                 fail() <- TRUE;
         }
          IF NOT fail() THEN
@@ -442,6 +438,7 @@ FORM operationCashRegister 'Кассовые операции'
 
     FILTERS dateCashOperation(c) >= dFrom,
             dateCashOperation(c) <= dTo
+//            cashRegisterCashOperation(c) == currentCashRegister()
 
     PROPERTIES fiscalXReport() SHOWIF currentCashRegister()
     ORDER BY dateCashOperation(c), timeCashOperation(c)

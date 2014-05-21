@@ -1,6 +1,6 @@
 MODULE POS;
 
-REQUIRE ZReportRetailCRM, Dashboard, PaymentTerminal, CashOperation;
+REQUIRE ZReportRetailCRM, Dashboard, PaymentTerminal, CashOperationZReport;
 
 // ----------------------------- Расширяем форму отдела магазина нужными нам параметрами --------------------- //
 
@@ -42,14 +42,8 @@ currentZReport() = zReportCashRegister(currentCashRegister());
 zReportReceipt(r) <- currentZReport() WHEN SET(r IS Receipt);
 
 numberCurrentZReport 'Номер текущего Z-отчета' () = numberZReport(currentZReport()) IN receiptZReport;
-sumCashCurrentZReport() = sumCashZReport(currentZReport());
 
 closedCurrentZReport() = NOT currentZReport();
-
-currentSumCashCurrentCashRegister 'Сумма наличных в кассе' () =
-    curSumIncomeCashOperation(currentCashRegister()) (-) curSumOutcomeCashOperation(currentCashRegister()) (+) sumCashCurrentZReport();
-
-//CONSTRAINT currentSumCashCurrentCashRegister() < 0 AND cashRegister == currentCashRegister() MESSAGE 'Сумма наличных денег в кассе не должна быть отрицательной';
 
 // --------------------------------- Применение акций ----------------------------- //
 
@@ -1022,7 +1016,7 @@ currentZReportDepartmentStore() = currentZReport() IF departmentStoreCurrentCash
 closedCurrentZReportDepartmentStore() = closedCurrentZReport() IF departmentStoreCurrentCashRegister();
 
 EXTEND FORM operationCashRegister
-    PROPERTIES READONLY currentSumCashCurrentCashRegister() TODRAW interval FORCE PANEL
+    PROPERTIES READONLY curSumCurrentCashRegister() TODRAW interval FORCE PANEL
     PROPERTIES() READONLY numberCurrentZReport SHOWIF departmentStoreCurrentCashRegister()
     PROPERTIES() fiscalZReport SHOWIF currentZReportDepartmentStore()
     PROPERTIES() openCurrentZReport SHOWIF closedCurrentZReportDepartmentStore()
@@ -1035,7 +1029,8 @@ EXTEND FORM operationCashRegister
                            numberCashRegisterZReport, sumCashZReport, sumReceiptDetailZReport, basisZReport
     ORDER BY dateZReport(z), timeZReport(z)
     FILTERS dateZReport(z) >= dFrom,
-            dateZReport(z) <= dTo
+            dateZReport(z) <= dTo,
+            cashRegisterZReport(z) == currentCashRegister()
 ;
 
 EXTEND DESIGN operationCashRegister {
