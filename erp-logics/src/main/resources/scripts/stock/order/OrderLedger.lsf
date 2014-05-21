@@ -299,13 +299,15 @@ EXTEND DESIGN options {
 }
 
 allowedNegativeBatchStock 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Batch, Stock);
+allowedNegativeStock 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Stock);
 
 EXTEND FORM currentBalanceBatchStock 
-    PROPERTIES (bt,st) allowedNegativeBatchStock BEFORE nameSkuBatch(bt)  SHOWIF banNegativeBatch()
+    PROPERTIES (bt,st) allowedNegativeBatchStock BEFORE nameSkuBatch(bt) SHOWIF banNegativeBatch()
 ;
 
-CONSTRAINT (currentBalanceBatchStock(bt,st) (+) currentReserveBatchStock(bt,st))< 0.0 AND NOT  ((allowedNegativeBatchStock(bt,st) AND banNegativeBatch()) OR (bt IS Batch AND st IS Stock AND NOT banNegativeBatch()))
-    MESSAGE 'Расходуется больше чем доступно';
+CONSTRAINT currentBalanceBatchStock(bt,st) (+) currentReserveBatchStock(bt,st) < 0.0 AND
+           banNegativeBatch() AND NOT allowedNegativeBatchStock(bt, st) AND NOT allowedNegativeStock(st)
+    MESSAGE 'Текущий резерв по партиям превышает текущий остаток';
 
 //---------------------------------------------- Макросы для имплементаций Продажа-------------------------------------//
 
