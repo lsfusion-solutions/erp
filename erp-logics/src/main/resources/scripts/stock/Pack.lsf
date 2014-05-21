@@ -183,30 +183,29 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
         REQUEST NUMERIC[14,3] INPUT;
         IF detail###Sku###object(sku, object) THEN {
             IF requestedNumeric() THEN {
-                ASSIGN packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
-                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object(sku, object);
+                packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
+                quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object(sku, object);
             } ELSE {
                 DELETE d WHERE d==detail###Sku###object(sku, object);
             }
         } ELSE {
             IF requestedNumeric() THEN
                 FOR ADDOBJ d = ###detail DO {
-                ASSIGN object###detail(d) <- object;
-                ASSIGN data###stockProp###detail (d) <- stockProp###object(object);
-                ASSIGN skuProp###detail(d) <- sku;
-                ASSIGN packQuantity###detail (d) <- requestedNumeric();
-                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail) * amountPack###detail(detail);
-            }
+                    object###detail(d) <- object;
+                    skuProp###detail(d) <- sku;
+                    packQuantity###detail (d) <- requestedNumeric();
+                    quantity###detail(detail) <- packQuantity###detail(detail) * amountPack###detail(detail);
+                }
         }
     }
     changeAmountPackSku###object = ACTION (sku, object) {
         REQUEST NUMERIC[14,3] INPUT;
         IF detail###Sku###object(sku, object) THEN {
             IF requestedNumeric() THEN {
-                ASSIGN amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
-                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object(sku, object) AND packQuantity###detail(detail);
+                amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
+                quantity###detail(detail) <- packQuantity###detail(detail)*amountPack###detail(detail) WHERE detail == detail###Sku###object(sku, object) AND packQuantity###detail(detail);
             } ELSE {
-                ASSIGN amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object(sku, object);
+                amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object(sku, object);
             }
 
         }
