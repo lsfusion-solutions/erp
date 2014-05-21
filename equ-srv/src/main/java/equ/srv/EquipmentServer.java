@@ -167,7 +167,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
             String[] mptProperties = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
-                    "nppGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction"};
+                    "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction"};
             for (String property : mptProperties) {
                 query.addProperty(property, equLM.findLCPByCompoundOldName(property).getExpr(key));
             }
@@ -181,19 +181,22 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 DataObject dateTimeMPT = (DataObject) value.get("dateTimeMachineryPriceTransaction");
                 DataObject groupMachineryMPT = (DataObject) value.get("groupMachineryMachineryPriceTransaction");
                 Integer nppGroupMachineryMPT = (Integer) value.get("nppGroupMachineryMachineryPriceTransaction").getValue();
+                String nameGroupMachineryMPT = (String) value.get("nameGroupMachineryMachineryPriceTransaction").getValue();
                 DataObject transactionObject = result.getKey(i).singleValue();
                 Boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
-                transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, transactionObject, dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT});
+                transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
+                        dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT});
             }
 
             for (Object[] transaction : transactionObjects) {
 
                 DataObject groupMachineryObject = (DataObject) transaction[0];
                 Integer nppGroupMachinery = (Integer) transaction[1];
-                DataObject transactionObject = (DataObject) transaction[2];
-                String dateTimeCode = (String) transaction[3];
-                Date date = new Date(((Timestamp) ((DataObject) transaction[4]).getValue()).getTime());
-                Boolean snapshotTransaction = (Boolean) transaction[5];
+                String nameGroupMachinery = (String) transaction[2];
+                DataObject transactionObject = (DataObject) transaction[3];
+                String dateTimeCode = (String) transaction[4];
+                Date date = new Date(((Timestamp) ((DataObject) transaction[5]).getValue()).getTime());
+                Boolean snapshotTransaction = (Boolean) transaction[6];
 
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
                 ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
@@ -286,7 +289,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, date, cashRegisterItemInfoList, cashRegisterInfoList, nppGroupMachinery));
+                            dateTimeCode, date, cashRegisterItemInfoList, cashRegisterInfoList, nppGroupMachinery, nameGroupMachinery));
 
                 } else if (scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClassByCompoundName("ScalesPriceTransaction"))) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<ScalesInfo>();

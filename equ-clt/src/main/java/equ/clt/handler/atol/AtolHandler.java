@@ -1,9 +1,7 @@
 package equ.clt.handler.atol;
 
 import com.google.common.base.Throwables;
-import equ.api.SalesBatch;
-import equ.api.SalesInfo;
-import equ.api.SoftCheckInfo;
+import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
@@ -53,6 +51,9 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 goodsWriter.println("##@@&&");
                 goodsWriter.println("#");
 
+                goodsWriter.println("$$$ADDENTERPRISES");
+                goodsWriter.println(format(transactionInfo.nppGroupCashRegister, ";") + ";" + format(transactionInfo.nameGroupCashRegister, ";"));
+                
                 if (!transactionInfo.itemsList.isEmpty()) {
                     goodsWriter.println("$$$ADDQUANTITY");
 
@@ -72,7 +73,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     for (Map.Entry<String, String[]> itemGroupEntry : itemGroups.entrySet()) {
                         String itemGroupRecord = format(itemGroupEntry.getKey(), ";") + ";" + format(itemGroupEntry.getValue()[0], 100, ";") + //3
                                 format(itemGroupEntry.getValue()[0], 100, ";") + ";;;" + formatFlags(itemGroupEntry.getValue()[2], ";") + //8
-                                ";;;;;;;" + format(itemGroupEntry.getValue()[1], ";") + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;";
+                                ";;;;;;;" + format(itemGroupEntry.getValue()[1], ";") + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                                (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
                         goodsWriter.println(itemGroupRecord);
                     }
 
@@ -80,7 +82,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                         String idItemGroup = item.hierarchyItemGroup == null || item.hierarchyItemGroup.isEmpty() ? "" : item.hierarchyItemGroup.get(0).idItemGroup;
                         String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
                                 format(item.composition, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.isWeightItem ? "1" : "0", ";") + //8
-                                ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;";
+                                ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" + 
+                                (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
                         goodsWriter.println(record);
                     }
                 }
@@ -113,24 +116,24 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     @Override
     public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
 
-        for (String directory : softCheckInfo.directorySet) {
+/*        for (String directory : softCheckInfo.directorySet) {
             java.util.Date date = Calendar.getInstance().getTime();
-            String timestamp = new SimpleDateFormat("ddMMyyyyHHmmss").format(date);
             String dateString = new SimpleDateFormat("dd.MM.yyyy").format(date);
             String timeString = new SimpleDateFormat("HH:mm:ss").format(date);
             
             String exchangeDirectory = directory + "\\ORDER\\";
 
-            File softFile = new File(exchangeDirectory + "order" + timestamp + ".opn");
-            logger.info("Atol: creating " + softFile.getName() + " file");
-            PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(softFile), "windows-1251"));
-
-            writer.println(String.format(";1;%s;%s;%s;;;;;", dateString, timeString, softCheckInfo.sumUserInvoice));
-            for (String userInvoice : softCheckInfo.invoiceSet) {
-                writer.println(String.format("1;%s;;;1", userInvoice));
+            for(SoftCheckInvoice userInvoice : softCheckInfo.invoiceSet) {
+                File softFile = new File(exchangeDirectory + "order" + userInvoice.number + ".opn");
+                logger.info("Atol: creating " + softFile.getName() + " file");
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(softFile), "windows-1251"));
+                writer.println(String.format(";1;%s;%s;%s;;;;;", dateString, timeString, userInvoice.sum.intValue()));
+                for (SoftCheckInvoiceDetail invoiceDetail : userInvoice.invoiceDetailSet) {
+                    writer.println(String.format("3;%s;;;%s", invoiceDetail.barcode, invoiceDetail.quantity));
+                }
+                writer.close();
             }
-            writer.close();
-        }
+        }*/
     }
 
     @Override
@@ -197,38 +200,30 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     @Override
     public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
 
-        logger.info("Atol: requesting succeeded SoftCheckInfo");
-        
-        try {
-            Set<String> result = new HashSet<String>();
-            for (String directory : directorySet) {
-                String exchangeDirectory = directory + "\\ORDER\\";
-                File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-                    @Override
-                    public boolean accept(File pathname) {
-                        return pathname.getPath().endsWith(".cls");
-                    }
-                });
-                for (File file : filesList) {
-                    Scanner scanner = new Scanner(file);
-                    scanner.nextLine();
-                    String[] line = scanner.nextLine().split(";");
-                    result.add(line[1]);
-                    scanner.close();
-                    
-                    logger.info("Atol: deletion of file " + file.getAbsolutePath());
-                    if (file.delete()) {
-                        logger.info("Atol: file " + file + " has been deleted");
-                    } else {
-                        throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be deleted");
-                    }
-                }
+        /*logger.info("Atol: requesting succeeded SoftCheckInfo");
 
+        Set<String> result = new HashSet<String>();
+        for (String directory : directorySet) {
+            String exchangeDirectory = directory + "\\ORDER\\";
+            File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
+                @Override
+                public boolean accept(File pathname) {
+                    return pathname.getPath().endsWith(".cls");
+                }
+            });
+            for (File file : filesList) {
+                result.add(file.getName().split("\\.")[0].replace("order", ""));
+                
+                logger.info("Atol: deletion of file " + file.getAbsolutePath());
+                if (file.delete()) {
+                    logger.info("Atol: file " + file + " has been deleted");
+                } else {
+                    throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be deleted");
+                }
             }
-            return result;
-        } catch (FileNotFoundException e) {
-            throw Throwables.propagate(e);
         }
+        return result;*/
+        return null;
     }
 
     @Override
