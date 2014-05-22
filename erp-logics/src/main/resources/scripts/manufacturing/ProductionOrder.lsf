@@ -611,6 +611,40 @@ deleteComponentsOrder 'Очистить' =  ACTION (order) {
     resetSubstituteOrder(order);
 } TOOLBAR;
 
+priceStockOrder = DATA Stock(Order);
+namePriceStockOrder 'Склад' = nameStock(priceStockOrder(order));
+
+CONSTRAINT  priceStockOrder(o) AND NOT isCompanyStock(priceStockOrder(o)) CHECKED BY priceStockOrder    
+        MESSAGE 'Склад для цен не является складом компании';
+priceStockSkuOrder 'Цена' (sku, order)= prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order), sku, componentsStockOrder(order), dateTimeOrder(order));                                                                                                                                                               
+
+priceStockOrder (order) <- componentsStockOrder(order)
+    WHEN CHANGED(componentsStockOrder(order));
+    
+FORM multiplier 'Коэффициент'    
+    OBJECTS nu = NUMERIC[8,3] FIXED PANEL
+    PROPERTIES  val= OBJVALUE (nu)
+;
+DESIGN multiplier FROM DEFAULT{
+    nu.box {
+        caption = '';
+        PROPERTY(val) { caption = 'Введите коэффициент цены' ; font = 'bold 36'; } 
+    }
+} 
+
+fillSubstitutePriceOrderSkuFromTo 'Выполнить' = ACTION (order, sku, skuSubstitute) {
+    IF multiplierSubstituteFromToSku(sku, skuSubstitute) THEN {
+        dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order));
+    } ELSE {
+        FORM multiplier MODAL; 
+        IF formResult() == FormResult.ok THEN {
+            dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](chosenNumeric('nu')*priceStockSkuOrder(skuSubstitute,order));
+        }
+    }        
+} TOOLBAR;  
+
+currentBalanceSkuPriceStockOrder 'Текущий остаток' = currentBalanceSkuStock(sku, priceStockOrder(order)); 
+      
 FORM order 'Производственный заказ'
 
     OBJECTS o = Order FIXED PANEL
@@ -662,7 +696,20 @@ FORM order 'Производственный заказ'
         
     PROPERTIES(sk,o) quantityComponentDetailSkuOrder, dataBruttoPriceSkuOrder, 
                     valueVATSkuOrder BACKGROUND backgroundVATOrder(o) SHOWIF showVATOrder(o)
-    FILTERS quantityComponentDetailSkuOrder(sk,o)        
+    FILTERS quantityComponentDetailSkuOrder(sk,o)    
+        
+    PROPERTIES namePriceStockOrder(o)           
+    OBJECTS sku = Sku
+    PROPERTIES(sku) READONLY nameSku, idBarcodeSku, shortNameUOMSku
+    PROPERTIES(sku,o) READONLY currentBalanceSkuPriceStockOrder, priceStockSkuOrder
+    PROPERTIES(sk,sku) READONLY multiplierSubstituteFromToSku FORCE GRID  
+    
+    PROPERTIES fillSubstitutePriceOrderSkuFromTo(o,sk,sku)
+        
+    FILTERGROUP filter1
+        FILTER 'Доступные замены' 'F9' uniqueSubstituteFromToSku(sk,sku) DEFAULT     
+    FILTERGROUP filter1
+        FILTER 'С остатком' 'F8' currentBalanceSkuPriceStockOrder(sku,o) DEFAULT                                                          
 
     EVENTS
         ON OK prePostOrder(o)
@@ -696,14 +743,26 @@ DESIGN order FROM DEFAULT{
             }
             NEW price {
                 caption = 'Цены';
-                type = CONTAINERV;
+                type = SPLITH ;
                 NEW price1 {
-                    caption = 'Цена материалов';
-                    type = CONTAINERH;
-                    ADD PROPERTY(namePriceListTypeOrder(o));
-                    ADD PROPERTY(includeVATOrder(o));
+                    type = CONTAINERV;
+                    NEW price11{
+                        caption = 'Цена материалов';
+                        type = CONTAINERH;
+                        ADD PROPERTY(namePriceListTypeOrder(o));
+                        ADD PROPERTY(includeVATOrder(o));
+                    }
+                    ADD sk.box;  
                 }                
-                ADD sk.box;        
+                       
+                NEW price2 {
+                    type = CONTAINERV;
+                    NEW price21{
+                        caption = 'Фильтр складов для цен';
+                        ADD PROPERTY(namePriceStockOrder(o)); 
+                    }
+                    ADD sku.box;                  
+                }  
             }
         }
 
@@ -794,7 +853,6 @@ copyOrder 'Копировать' = ACTION (order) NEWSESSION {
         FORM order OBJECTS o = o MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
-
 
 
 WHEN SESSION FORMS order CHANGED(bruttoQuantitySkuOrder(sku,order)) OR CHANGED(multiplierSkuOrder(sku, order)) DO                                              
