@@ -11,9 +11,6 @@ quantityBOMSkuOrder (BOM, sku, order) = [= GROUP SUM recBruttoNodeQuantityBOMSku
     BY BOM, sku, order](BOM, sku, order) IF bruttoQuantitySkuOrder(sku, order);
 quantityProductDetailSku 'Норма' (productDetail, sku) = quantityBOMSkuOrder(BOMProduct(productProductDetail(productDetail)), sku, orderProductDetail(productDetail));
 
-totalPriceSkuOrder 'Цена компонента' (sku, order) = OVERRIDE bruttoPriceSkuOrder(sku,order), substitutePriceSkuOrder(sku,order);
-//totalPremiumPriceSkuOrder 'Цена компонента с надбавкой'(sku, order) = totalPriceSkuOrder(sku,order)*multiplierCalcSkuOrder(sku, order);
-
 quantityInBOMProductDetail 'Кол-во изделий в спец.'(productDetail)= quantityProduct(productProductDetail(productDetail));
 productsSumInBOMProductDetail 'Сумма изделий в спец.' = roundPriceCurrency((quantityInBOMProductDetail(productDetail) * productsPriceProductDetail(productDetail)), currencyProductDetail(productDetail));
 
@@ -23,26 +20,16 @@ quantityProductSkuOrder (product, sku, order) = [= GROUP SUM recPricePercentProd
 quantityProductProductDetailSku 'Норма с учетом коэфф.цены'(productDetail, sku) = quantityProductSkuOrder(
     productProductDetail(productDetail), sku, orderProductDetail(productDetail)); // св-во необходимо, т.к. в BOM-ах есть уд.вес цены => мы его включаем в норму. Пока так, в будущем возможно надо будет включать в надбавку.
 
-componentsSumProductDetailSku 'Сумма компонента (с/с)' (productDetail,sku)=  quantityProductProductDetailSku(productDetail, sku) *totalPriceSkuOrder (sku, orderProductDetail(productDetail));
-//premiumComponentsSumProductDetailSku 'Сумма компонента с надбавками' (productDetail, sku)= quantityProductProductDetailSku (productDetail, sku)*totalPriceSkuOrder (sku, orderProductDetail(productDetail))*multiplierCalcSkuOrder(sku, orderProductDetail(productDetail));
-
-//--
-//totalVATSumProductDetailSku 'Сумма НДС' (productDetail, sku)=  premiumComponentsSumProductDetailSku (productDetail, sku)*valueVATSkuOrder(sku, orderProductDetail(productDetail))/(100+valueVATSkuOrder(sku, orderProductDetail(productDetail)));
-//VATSumProductDetail 'Сумма НДС компонентов' (productDetail) = GROUP SUM totalVATSumProductDetailSku (productDetail, sku) BY productDetail;
 //--
 descriptionBOMProductDetail 'Спецификация'(productDetail) = descriptionBOM(BOMProduct(productProductDetail(productDetail)));
 shortNameUOMProductProductDetail 'Ед.изм. в спец.'(productDetail)= shortNameUOMProduct(productProductDetail(productDetail));
 recipesProductDetail 'Номер по сборнику рецептов' (productDetail)= recipesProduct(productProductDetail(productDetail));
 //--
 componentsSumInBOMProductDetail 'Сумма компонента для изделий в спец.' (productDetail)= componentsPriceProductDetail(productDetail)*quantityInBOMProductDetail(productDetail);
-//premiumComponentsSumInBOMProductDetail 'Сумма компонента с надбавкой для изделий в спец.' (productDetail) = calcPremiumComponentsPriceProductDetail(productDetail)*quantityInBOMProductDetail(productDetail);
 //--
 VATMarkupSumInBOMProductDetail 'НДС и надбавка в спец' (productDetail) =  productsSumInBOMProductDetail(productDetail) (-) componentsSumInBOMProductDetail(productDetail);
 retailVATSumInBOMProductDetail 'Сумма НДС в спец' (productDetail) = [= X*Y/(100+Y)](VATMarkupSumInBOMProductDetail(productDetail), valueVATProductDetail(productDetail));
 retailMarkupSumInBOMProductDetail 'Сумма надбавки' (productDetail) =  VATMarkupSumInBOMProductDetail(productDetail) (-) retailVATSumInBOMProductDetail(productDetail);
-
-//retailMarkupPriceProductDetail 'Цена надбавки (ед.)' (productDetail)= retailMarkupSumInBOMProductDetail(productDetail)/quantityInBOMProductDetail(productDetail);
-//retailVATPriceProductDetail 'Цена НДС (ед.)' (productDetail)= retailVATSumInBOMProductDetail(productDetail)/quantityInBOMProductDetail(productDetail);
 
 VATMarkupSumInBOMIsVATProductDetail 'Сумма НДС' (productDetail) = (roundPriceCurrency([= X*Y/(100+Y)](productsSumInBOMProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
 retMarkupSumIsVATProductDetail 'Сумма надбавки' (productDetail) = (roundPriceCurrency(productsSumInBOMProductDetail(productDetail) (-) VATMarkupSumInBOMIsVATProductDetail(productDetail) (-) componentsSumProductDetail(productDetail), currencyProductDetail(productDetail)));
@@ -88,13 +75,14 @@ valueVATComponentDetail 'НДС, %' (d) = valueVATSkuOrder(skuComponentDetail(d)
 quantityProductDetailComponentDetail 'Кол-во с учетом процента цены' (pd, cd)= quantityComponentDetail(cd) * pricePercentProduct(productProductDetail(pd)) / 
     (100*quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd)) IF quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd))!=0) /
     quantityProduct(productProductDetail(pd) IF quantityProduct(productProductDetail(pd))!= 0);
-componentsSumProductDetailComponentDetail 'Сумма компонента (с/с)' (pd,cd)=  quantityProductDetailComponentDetail(pd, cd) *priceComponentDetail(cd);
-//componentsSumProductDetailComponentDetail 'Сумма компонента (с/с)' (pd,cd)=  quantityProductDetailComponentDetail(pd, cd) *priceComponentDetail(cd);
+quantityInBOMProductDetailComponentDetail 'Кол-во с учетом процента цены по всей спецификации' (pd, cd)= quantityComponentDetail(cd) * pricePercentProduct(productProductDetail(pd)) / 
+    (100*quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd)) IF quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd))!=0);    
+    
+componentsSumProductDetailComponentDetail 'Сумма компонента (с/с)' (pd,cd)=  quantityInBOMProductDetailComponentDetail(pd, cd) *priceComponentDetail(cd);
 
 VATSumProductDetailComponentDetail 'Сумма НДС' (pd,cd)= IF isVATComponentDetail(cd) 
     THEN componentsSumProductDetailComponentDetail(pd,cd) *valueVATComponentDetail(cd)/100
-    ELSE componentsSumProductDetailComponentDetail(pd,cd) *(valueVATComponentDetail(cd)/(100+valueVATComponentDetail(cd)))/100;
-//VATSumProductDetailComponentDetail 'Сумма НДС' (pd,cd)= componentsSumProductDetailComponentDetail(pd,cd) *(valueVATComponentDetail(cd)/(100+valueVATComponentDetail(cd)))/100;
+    ELSE componentsSumProductDetailComponentDetail(pd,cd) *(valueVATComponentDetail(cd)/(100+valueVATComponentDetail(cd)));
 
 totalVATSumProductDetail 'Сумма НДС компонентов' (productDetail) = GROUP SUM VATSumProductDetailComponentDetail (pd,cd) BY pd;
 
@@ -114,21 +102,12 @@ FORM costCardOrderBy 'Калькуляционная карта'
 
     FILTERS orderProductDetail(pd)==o
 
-//    OBJECTS s = Sku
-//    PROPERTIES(pd,s)quantityProductDetailSku, quantityProductProductDetailSku, componentsSumProductDetailSku, premiumComponentsSumProductDetailSku, totalVATSumProductDetailSku
-//    PROPERTIES(s,o) nameSkuSkuOrder, idBarcodeSkuSkuOrder, shortNameUOMSkuSkuOrder, totalPriceSkuOrder, valueVATSkuOrder, markupSkuOrder, totalPremiumPriceSkuOrder
-//
-//    FILTERS quantityProductDetailSku(pd,s)
     OBJECTS cd = ComponentDetail
-    PROPERTIES(pd,cd)quantityProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail
+    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail
     PROPERTIES(cd) nameSkuComponentDetail, idBarcodeComponentDetail, shortNameUOMSkuComponentDetail, priceComponentDetail, valueVATComponentDetail
                    
 
-    FILTERS //quantityProductDetailSku(pd,s)    
-            BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd))
-    
-    
-
+    FILTERS BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd))        
 ;
 printCostCardOrder 'Калькуляционная карта' (order) = ACTION FORM costCardOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 
