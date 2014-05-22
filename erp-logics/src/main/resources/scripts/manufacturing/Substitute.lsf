@@ -29,20 +29,14 @@ toShowIncludeSubstitute (substitute) = substitute IS Substitute AND NOT allBOMsS
 nameBOMComponent 'Спецификация' (component) = nameBOM(BOMComponent(component));
 seriesNumberBOMComponent 'Серия/номер спецификации' (component)= seriesNumberBOM(BOMComponent(component));
 
-inMaterialComponent (material, component) = GROUP SUM 1 IF nettoQuantityComponent(component) BY materialComponent(component), component;
-inSubstituteComponent (substitute, component)= inMaterialComponent (fromSkuSubstitute(substitute), component);
-inMaterial (material) = GROUP SUM nettoQuantityComponent(component) BY materialComponent(component);
-
-inclSubstituteComponent 'Вкл.' (substitute, component)=  allBOMsSubstitute(substitute) AND NOT excludeSubstituteComponent(substitute, component) OR
-                                                         includeSubstituteComponent(substitute, component) AND NOT allBOMsSubstitute(substitute);
-
+countComponentMaterial (material) = GROUP SUM 1 BY materialComponent(component);
 
 FORM substitute 'Замена'
 
     OBJECTS sk = Sku
     PROPERTIES(sk) READONLY nameSku, idBarcodeSku, shortNameUOMSku
     FILTERGROUP filters
-        FILTER 'Есть в спецификациях' 'F11' inMaterial(sk) DEFAULT
+        FILTER 'Есть в спецификациях' 'F11' countComponentMaterial(sk) DEFAULT
 
     OBJECTS s=Substitute
     PROPERTIES(s) nameFromSkuSubstitute, nameToSkuSubstitute, multiplierSubstitute, allBOMsSubstitute
@@ -56,7 +50,7 @@ FORM substitute 'Замена'
     PROPERTIES(s,c) SHOWIF allBOMsSubstitute(s) excludeSubstituteComponent
     ORDER BY descriptionComponent(c)
 
-    FILTERS inSubstituteComponent(s,c)
+    FILTERS materialComponent(c) == sk
 ;
 
 DESIGN substitute FROM DEFAULT {
