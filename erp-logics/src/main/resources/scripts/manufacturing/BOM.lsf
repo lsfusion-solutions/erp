@@ -323,34 +323,77 @@ UOMComponent(component) <- UOMMaterial(materialComponent(component)) WHEN CHANGE
 @defineDocumentHeaderQuantityCustomPrefix (BOM, component, netto, ' (нетто компонент)');
 
 // Технология
-technologyComponent = DATA Technology (Component);
-nameTechnologyComponent 'Технология' (component) = nameTechnology(technologyComponent(component));
+TABLE  technologyComponent (Technology, Component);
 
+inTechnologyComponent 'Вкл.' = DATA BOOLEAN (Technology, Component);
+countTechnologiesComponent = GROUP SUM 1 IF inTechnologyComponent(technology, component) BY component;
+
+technologiesInvoice 'Технологии' (component) = GROUP CONCAT VARSTRING[255](nameTechnology(technology)) IF inTechnologyComponent(technology, component) , ', '
+                                         BY component
+                                         ORDER technology
+                                         MINCHARWIDTH 30 PREFCHARWIDTH 50;
+                                         
 inTechnologyMaterial 'Связь' (technology, material) = GROUP SUM 1 IF dataWastageTechnologyMaterialDate(technology, material, date) BY technology, material;
 
-CONSTRAINT technologyComponent(component) AND NOT inTechnologyMaterial(technologyComponent(component), materialComponent(component))
-    CHECKED BY technologyComponent MESSAGE 'Для компонента выбрана технология, у которой нет значения % потерь для SKU';
+CONSTRAINT inTechnologyComponent(technology, component) AND NOT inTechnologyMaterial(technology, materialComponent(component))
+    MESSAGE 'Для компонента выбрана технология, у которой нет значения % потерь для SKU';
+                                         
+FORM componentTechnologies 'Технологии'
+
+    OBJECTS c=Component FIXED  PANEL 
+    PROPERTIES(c)  READONLY nameComponent
+
+    OBJECTS t=Technology
+    PROPERTIES(t)  READONLY nameTechnology
+    PROPERTIES(t,c) inTechnologyComponent
+
+    OBJECTS m=Material
+    PROPERTIES     READONLY nameMaterial(m), shortNameUOMMaterial(m), wastageTechnologyMaterial(t,m)
+    ORDER BY nameMaterial(m)
+
+    FILTERS        inTechnologyMaterial(t, materialComponent(c)),
+                   materialComponent(c) == m    
+;  
+DESIGN componentTechnologies FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+    }
+}                                                                                
+                               
+selectTechnologiesComponent = ACTION (component) {
+    FORM componentTechnologies OBJECTS c = component MODAL;
+}
+                                                                                                                       
 
 // % Потерь
 wastageComponent '% потерь'= DATA NUMERIC[8,3] (Component);
 changeWastageComponent = ACTION (component) {
     REQUEST NUMERIC[8,3] INPUT;
-
-    IF requestedNumeric() IF NOT technologyComponent(component) THEN {
-        ASSIGN wastageComponent(component) <- requestedNumeric();
+    IF requestedNumeric() THEN {
+        IF NOT countTechnologiesComponent(component) THEN {
+            wastageComponent(component) <- requestedNumeric();   
+        }     
     } ELSE {
-        ASSIGN wastageComponent(component) <- NULL;
+        wastageComponent(component) <- NULL;
     }
 }
-backgroundWastageComponent 'Цвет' (component) = RGB(229,229,229) IF technologyComponent(component);
+backgroundWastageComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
 
-wastageComponentDate '% потерь' (component, date) = IF technologyComponent(component) THEN wastageTechnologyMaterialDate(technologyComponent(component),materialComponent(component), date)
+
+// todo: пока считаем, что более двух технологий для компонента не будет включено
+minTechnologyComponent (c) = GROUP MIN t IF inTechnologyComponent(t,c) BY c;
+maxTechnologyComponent (c) = GROUP MAX t IF inTechnologyComponent(t,c) BY c;
+equalsMaxMinTechnologyComponent (c) = minTechnologyComponent (c) == maxTechnologyComponent (c);
+
+minMaxWastageTechnologyMaterialDate (c, date)= IF equalsMaxMinTechnologyComponent (c) THEN wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date)
+    ELSE (100+wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date))/1000.000000 * (100+wastageTechnologyMaterialDate(maxTechnologyComponent(c),materialComponent(c), date))
+;
+
+
+wastageComponentDate '% потерь' (component, date) = IF countTechnologiesComponent(component) THEN minMaxWastageTechnologyMaterialDate(component, date)
                                                     ELSE wastageComponent(component) IF date IS DATE;
 
-curWastageComponent '% потерь' (component) =  wastageComponentDate(component, currentDate());
-
-overCurWastageComponent '% потерь' (component) =  OVERRIDE wastageTechnologyMaterialDate(technologyComponent(component),materialComponent(component), currentDate()),
-                                                           wastageComponent(component);
+overCurWastageComponent '% потерь' (component) = wastageComponentDate(component, currentDate());
 
 // Кол-во брутто
 
@@ -361,23 +404,20 @@ bruttoQuantityComponent(component) <- nettoQuantityComponent(component)/(1 - (wa
                                                                                                                      CHANGED (nettoQuantityComponent(component));
 changeBruttoQuantityComponent = ACTION (component) {
     REQUEST NUMERIC[14,3] INPUT;
-
-    IF requestedNumeric() IF NOT technologyComponent(component) THEN {
-        ASSIGN bruttoQuantityComponent(component) <- requestedNumeric();
+    IF requestedNumeric() THEN {
+        IF NOT countTechnologiesComponent(component) THEN {
+            bruttoQuantityComponent(component) <- requestedNumeric();
+        }     
     } ELSE {
-        ASSIGN bruttoQuantityComponent(component) <- NULL;
-    }
+        bruttoQuantityComponent(component) <- NULL;
+    }                
 }
-backgroundBruttoQuantityComponent 'Цвет' (component) = RGB(229,229,229) IF technologyComponent(component);
+backgroundBruttoQuantityComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
 
-bruttoQuantityComponentDate(component, date) = IF technologyComponent(component) THEN (nettoQuantityComponent(component)/(1 - (wastageTechnologyMaterialDate(technologyComponent(component), materialComponent(component), date)/100)))
+bruttoQuantityComponentDate(component, date) = IF countTechnologiesComponent(component) THEN (nettoQuantityComponent(component)/(1 - (wastageComponentDate(component, date)/100)))
                                                                                  ELSE bruttoQuantityComponent(component) IF date IS DATE;
 
-curBruttoQuantityComponent 'Кол-во (брутто)' (component) =  bruttoQuantityComponentDate(component, currentDate());
-
-overCurBruttoQuantityComponent 'Кол-во (брутто)' (component) =
-    OVERRIDE (nettoQuantityComponent(component)/(1 - (wastageTechnologyMaterialDate(technologyComponent(component),materialComponent(component), currentDate())/100))),
-             bruttoQuantityComponent(component);
+overCurBruttoQuantityComponent 'Кол-во (брутто)' (component) = bruttoQuantityComponentDate(component, currentDate());
 
 FORM components 'Компоненты'
     OBJECTS c=Component
@@ -391,7 +431,6 @@ FORM components 'Компоненты'
 FORM BOM 'Спецификация'
 
     OBJECTS b=BOM FIXED PANEL
-//    OBJECTS dt = DATE FIXED PANEL
 
     PROPERTIES(b) nameBOM, nameNumeratorBOM, numberBOM, seriesBOM, noteBOM
     PROPERTIES(b) READONLY quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM//, bruttoQuantityComponentBOM
@@ -405,13 +444,13 @@ FORM BOM 'Спецификация'
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, nameTechnologyComponent, nettoQuantityComponent,
-                  overCurWastageComponent ON CHANGE changeWastageComponent(c) BACKGROUND backgroundWastageComponent(c) READONLYIF technologyComponent(c),
-                  overCurBruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c) BACKGROUND backgroundBruttoQuantityComponent(c) READONLYIF technologyComponent(c)
+    PROPERTIES(c) indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, technologiesInvoice ON CHANGE selectTechnologiesComponent(c), nettoQuantityComponent,
+                  overCurWastageComponent ON CHANGE changeWastageComponent(c) BACKGROUND backgroundWastageComponent(c) READONLYIF countTechnologiesComponent(c),
+                  overCurBruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c) BACKGROUND backgroundBruttoQuantityComponent(c) READONLYIF countTechnologiesComponent(c)
 
     PROPERTIES(c) ADDOBJ, deletec=DELETESESSION
     PROPERTIES(b) TODRAW c deleteComponentBOM
-    FILTERS       BOMComponent(c) == BOMProduct(p)//b
+    FILTERS       BOMComponent(c) == BOMProduct(p)
 
     EDIT BOM OBJECT b
 ;
@@ -470,7 +509,9 @@ copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
             ASSIGN BOMComponent(c) <- b;
             ASSIGN materialComponent(c) <- materialComponent(component);
             ASSIGN nettoQuantityComponent(c) <- nettoQuantityComponent(component);
-            ASSIGN technologyComponent(c) <- technologyComponent(component);
+            
+            ASSIGN inTechnologyComponent(t,c) <- inTechnologyComponent(t,component) WHERE inTechnologyComponent(t,component);            
+            
             ASSIGN bruttoQuantityComponent(c) <- bruttoQuantityComponent(component);
             ASSIGN wastageComponent(c) <- wastageComponent(component);
         }
@@ -492,7 +533,7 @@ FORM BOMs 'Спецификации'
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) READONLY indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, nameTechnologyComponent, nettoQuantityComponent,
+    PROPERTIES(c) READONLY indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
                   overCurWastageComponent, overCurBruttoQuantityComponent
     FILTERS       BOMComponent(c) == b
 ;
