@@ -279,11 +279,16 @@ UOMProduct(product) <- UOMSku(skuProduct(product)) WHEN CHANGED (skuProduct(prod
 
 
 @defineDocumentRelation (BOM, Product, ' (изделие)');
+
 descriptionProduct 'Название документа' (product) = descriptionBOM(BOMProduct(product));
 
 @defineDocumentDetailIndex (BOM, Product);
 @defineDocumentDetailActionsCustom (BOM, Product);
 
+productsBOM 'Изделия' (BOM) = GROUP CONCAT VARSTRING[255](nameSkuProduct(p)), ', '
+                                       BY BOMProduct(p)
+                                       ORDER indexProduct(p) MINCHARWIDTH 15 PREFCHARWIDTH 30 PERSISTENT;
+                                       
 @defineDocumentDetailQuantityCustomPrefix (product, , );
 
 @defineDocumentHeaderQuantityCustomPrefix (BOM, product, , ' (изделие)');
@@ -328,7 +333,7 @@ idBarcodeSkuComponent 'Штрих-код' (component)= idBarcodeSku(materialComp
 
 componentsBOM 'Компоненты' (BOM) = GROUP CONCAT VARSTRING[255](nameMaterialComponent(component)), ', '
                                        BY BOMComponent(component)
-                                       ORDER indexComponent(component) MINCHARWIDTH 100 PERSISTENT;
+                                       ORDER indexComponent(component) MINCHARWIDTH 15 PREFCHARWIDTH 30 PERSISTENT;
 
 nameComponent 'Компонент' (component) = [= FORMULA VARSTRING[255]  ' CAST($1 AS TEXT) || \' / \' ||  CAST($2 AS TEXT)'](
                                       nameBOM(BOMComponent(component)),
@@ -450,7 +455,8 @@ FORM components 'Компоненты'
 CONSTRAINT materialComponent(c) AND NOT isComponentGroupSku(materialComponent(c)) CHECKED  BY materialComponent
     MESSAGE 'В качестве компонента выбран товар, который не входит в группу: Сырье';
 CONSTRAINT skuProduct(p) AND NOT isProductGroupSku(skuProduct(p)) CHECKED  BY skuProduct
-    MESSAGE 'В качестве изделия выбран товар, который не входит в группу: Готовые изделия';
+    MESSAGE 'В качестве изделия выбран товар, который не входит в группу: Готовые изделия';      
+        
 //------------------------------- Формы -------------------------------------//
 FORM BOM 'Спецификация'
 
@@ -544,11 +550,19 @@ copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
     }
 } TOOLBAR;
 
+
+relationProductsSkuBOM (sku,BOM)= GROUP SUM 1 BY skuProduct(p), BOMProduct(p);
+relationComponentsSkuBOM (sku,BOM)= GROUP SUM 1 BY materialComponent(c), BOMComponent(c);
+
+//editUserInvoiceDetail(d) = ACTION (d) NEWSESSION {
+//    FORM item OBJECTS i = userInvoiceUserInvoiceDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+//}
+
 FORM BOMs 'Спецификации'
 
     OBJECTS b=BOM
 
-    PROPERTIES(b) READONLY nameBOM, numberBOM, seriesBOM, quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM, noteBOM
+    PROPERTIES(b) READONLY nameBOM, numberBOM, seriesBOM, productsBOM, componentsBOM, quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM, noteBOM
     PROPERTIES (b) ADDFORM, EDITFORM, copyBOM, deleteb=DELETE FORCE PANEL TOOLBAR
     PROPERTIES (b) READONLY FORCE PANEL createdNameUserBOM, createdTimeBOM, createdHostnameComputerBOM
 
@@ -560,6 +574,38 @@ FORM BOMs 'Спецификации'
     PROPERTIES(c) READONLY indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
                   overCurWastageComponent, overCurBruttoQuantityComponent
     FILTERS       BOMComponent(c) == b
+    
+    OBJECTS p1 = Sku
+    PROPERTIES(p1) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES     TODRAW p1 addSku(), copySku(p1) 
+    FILTERS        isProductGroupSku(p1)
+    
+    OBJECTS b1=BOM    
+    PROPERTIES(b1) READONLY nameBOM, numberBOM, seriesBOM, productsBOM, componentsBOM, quantityProductBOM, 
+                   nettoQuantityComponentBOM, pricePercentBOM, noteBOM
+    PROPERTIES(b1) EDITFORM              
+    FILTERS        relationProductsSkuBOM(p1,b1)
+          
+    OBJECTS c1 = Component
+    PROPERTIES(c1) READONLY indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
+                  overCurWastageComponent, overCurBruttoQuantityComponent
+    FILTERS       BOMComponent(c1) == b1   
+    
+
+    OBJECTS c2 = Sku
+    PROPERTIES(c2) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES     TODRAW c2 addSku(), copySku(c2) 
+    FILTERS        isComponentGroupSku(c2)                   
+    OBJECTS b2=BOM    
+    PROPERTIES(b2) READONLY nameBOM, numberBOM, seriesBOM, productsBOM, componentsBOM, quantityProductBOM, 
+                   nettoQuantityComponentBOM, pricePercentBOM, noteBOM
+    PROPERTIES(b2) EDITFORM                
+    FILTERS        relationComponentsSkuBOM(c2,b2)           
+    
+    OBJECTS p2 = Product
+    PROPERTIES(p2) READONLY indexProduct, idBarcodeSkuProduct, nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
+    FILTERS        BOMProduct(p2) == b2    
+    
 ;
 
 DESIGN BOMs FROM DEFAULT {
@@ -570,35 +616,62 @@ DESIGN BOMs FROM DEFAULT {
         }
 
         NEW documentContainer BEFORE functions.box {
-            type = SPLITV;
+            type = TABBED ;
             fill = 1;
-
-            ADD b.box;
-
-            NEW documentDetail {
-                type = TABBED;
-                fill = 1;
-
-                ADD p.box {
-                    caption = 'Изделие';
-                }
-                ADD c.box {
-                    caption = 'Компонент';
-                }
-
-                NEW documentHistory {
-                    caption = 'История';
-
-                    ADD b.created;
-                }
-                NEW printTab {
-                    caption = 'Печатные формы';
-                    NEW printContainer {
-                        caption = 'Печать';
-                        type = CONTAINERV;
+            NEW bom {
+                type = SPLITV;
+                caption = 'Спецификация';
+                
+                ADD b.box;
+                NEW documentDetail {
+                    type = TABBED;
+                    fill = 1;
+    
+                    ADD p.box {
+                        caption = 'Изделие';
                     }
-                }
-            }
+                    ADD c.box {
+                        caption = 'Компонент';
+                    }
+    
+                    NEW documentHistory {
+                        caption = 'История';
+    
+                        ADD b.created;
+                    }
+                    NEW printTab {
+                        caption = 'Печатные формы';
+                        NEW printContainer {
+                            caption = 'Печать';
+                            type = CONTAINERV;
+                        }
+                    }
+                }                
+            }                                 
+            NEW product {
+                fill =1;
+                caption = 'Изделие';
+                type = SPLITV;
+                ADD p1.box;
+                NEW product1 {
+                    fill = 1;
+                    type = SPLITH;
+                    ADD b1.box;
+                    ADD c1.box;                    
+                } 
+            }  
+            NEW component {
+                fill =1;
+                caption = 'Компонент';
+                type = SPLITV;
+                ADD c2.box;
+                NEW component1 {
+                    fill = 1;
+                    type = SPLITH;
+                    ADD b2.box;
+                    ADD p2.box;                    
+                } 
+            }                      
         }
     }
 }
