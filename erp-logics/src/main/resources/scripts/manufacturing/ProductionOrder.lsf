@@ -64,12 +64,14 @@ currencyProductDetail (productDetail) = currencyOrder(orderProductDetail(product
 // Sku
 @defineDocumentDetailSkuCustom (productDetail, sku);
 
+CONSTRAINT skuProductDetail(d) AND NOT isProductGroupSku(skuProductDetail(d)) CHECKED  BY skuProductDetail
+    MESSAGE 'В качестве изделия выбран товар, который не входит в группу: Готовые изделия';
+
 productProductDetail = DATA Product (ProductDetail);
 nameProductProductDetail 'Изделие' (productDetail) = nameMaterial(productProductDetail(productDetail)) IN recognize;
 
-UOMProductDetail = DATA UOM (ProductDetail);
+UOMProductDetail = UOMProduct(productProductDetail(productDetail));
 shortNameUOMProductDetail 'Ед.изм.' (productDetail) = shortNameUOM(UOMProductDetail(productDetail)) IN recognize;
-UOMProductDetail(productDetail) <- UOMProduct(productProductDetail(productDetail)) WHEN CHANGED (productProductDetail(productDetail));
 
 CONSTRAINT skuProductDetail(productDetail) != skuProduct(productProductDetail(productDetail)) CHECKED BY productProductDetail
     MESSAGE 'Sku изделия и строки изделия не соответствуют друг другу';
@@ -132,9 +134,11 @@ isVATComponentDetail(componentDetail) = isVATOrder(orderComponentDetail(componen
 componentComponentDetail = DATA Component (ComponentDetail);
 nameComponentComponentDetail 'Компонент' (componentDetail) = nameComponent(componentComponentDetail(componentDetail));
 
-UOMComponentDetail = DATA UOM (ComponentDetail);
+CONSTRAINT bruttoSkuComponentDetail(d) AND NOT isComponentGroupSku(bruttoSkuComponentDetail(d)) CHECKED  BY bruttoSkuComponentDetail
+    MESSAGE 'В качестве компонента выбран товар, который не входит в группу: Сырье';
+    
+UOMComponentDetail = UOMComponent(componentComponentDetail(componentDetail));
 shortNameUOMComponentDetail 'Ед. изм.' (componentDetail) = shortNameUOM(UOMComponentDetail(componentDetail));
-UOMComponentDetail(componentDetail) <- UOMComponent(componentComponentDetail(componentDetail)) WHEN CHANGED (componentComponentDetail(componentDetail));
 
 CONSTRAINT bruttoSkuComponentDetail(componentDetail) != skuMaterial(materialComponent(componentComponentDetail(componentDetail)))
     CHECKED BY componentComponentDetail MESSAGE 'Sku компонента и строки компонента не соответствуют друг другу';
@@ -267,7 +271,7 @@ expandComponentDetail 'Развернуть изделие' = ACTION (componentD
 
 backgroundComponentDetail 'Цвет' (componentDetail) = RGB(255,255,229) IF productComponentDetail(componentDetail);
 
-aaa 'Заполнить из спецификации (рекурсивно)+++++++' = ACTION (order) {
+aaa 'Заполнить из спец. (рекурсивно по компонентам)' = ACTION (order) {
 
     FOR quantityProductsBOMOrder(BOM, order) DO {
 
@@ -377,7 +381,9 @@ FORM substitutesSku 'Sku'
     FILTERGROUP filter1
         FILTER 'Товары с остатком' 'F10' currentBalanceSkuSubstitutesSku(sk) AND stockSubstitutesSku() DEFAULT
     FILTERGROUP filter2
-        FILTER 'Доступные замены' 'F9' uniqueSubstituteFromToSku(s,sk) DEFAULT       
+        FILTER 'Доступные замены' 'F9' uniqueSubstituteFromToSku(s,sk)    
+    FILTERGROUP filter3
+        FILTER 'Сырье' 'F8' isComponentGroupSku(sk) DEFAULT                         
 ;
 
 DESIGN substitutesSku FROM DEFAULT {
@@ -632,7 +638,7 @@ DESIGN multiplier FROM DEFAULT{
     }
 } 
 
-fillSubstitutePriceOrderSkuFromTo 'Выполнить' = ACTION (order, sku, skuSubstitute) {
+fillSubstitutePriceOrderSkuFromTo 'Использовать цену' = ACTION (order, sku, skuSubstitute) {
     IF multiplierSubstituteFromToSku(sku, skuSubstitute) THEN {
         dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order));
     } ELSE {
@@ -707,7 +713,7 @@ FORM order 'Производственный заказ'
     PROPERTIES fillSubstitutePriceOrderSkuFromTo(o,sk,sku)
         
     FILTERGROUP filter1
-        FILTER 'Доступные замены' 'F9' uniqueSubstituteFromToSku(sk,sku) DEFAULT     
+        FILTER 'Доступные замены' 'F9' uniqueSubstituteFromToSku(sk,sku)     
     FILTERGROUP filter1
         FILTER 'С остатком' 'F8' currentBalanceSkuPriceStockOrder(sku,o) DEFAULT                                                          
 

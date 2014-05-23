@@ -10,6 +10,24 @@ REQUIRE EmployeeStock,
         Integration;
 
 
+
+componentGroup = DATA SkuGroup ();
+nameComponentGroup 'Сырье (группа)' () = nameSkuGroup(componentGroup());
+
+productGroup = DATA SkuGroup ();
+nameProductGroup 'Готовые изделия (группа)' () = nameSkuGroup(productGroup());
+
+EXTEND FORM options PROPERTIES() nameComponentGroup, nameProductGroup;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(nameComponentGroup());
+        ADD PROPERTY(nameProductGroup()); 
+    }
+}
+
+isComponentGroupSku 'Фильтр сырье (группа)' (sku) = isParentSkuGroupSku(componentGroup(), sku);
+isProductGroupSku 'Фильтр готовые изделия (группа)' (sku) = isParentSkuGroupSku(productGroup(), sku);
+
 // ---------------- Материалы ------------------- //
 CLASS ABSTRACT Material 'Материал';
 TABLE material(Material);
@@ -105,8 +123,10 @@ FORM technology 'Технология'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
 
     OBJECTS m = Material
-    PROPERTIES(m) nameMaterial, shortNameUOMMaterial
+    PROPERTIES(m) READONLY nameMaterial, shortNameUOMMaterial
     PROPERTIES overWastageTechnologyMaterialDate(t,m,dt)
+    
+    FILTERS isComponentGroupSku(m)
 
     FILTERS isParentSkuGroupMaterial(sg, m)
     ORDER BY nameMaterial(m)
@@ -427,13 +447,17 @@ FORM components 'Компоненты'
     DIALOG Component OBJECT c
 ;
 
+CONSTRAINT materialComponent(c) AND NOT isComponentGroupSku(materialComponent(c)) CHECKED  BY materialComponent
+    MESSAGE 'В качестве компонента выбран товар, который не входит в группу: Сырье';
+CONSTRAINT skuProduct(p) AND NOT isProductGroupSku(skuProduct(p)) CHECKED  BY skuProduct
+    MESSAGE 'В качестве изделия выбран товар, который не входит в группу: Готовые изделия';
 //------------------------------- Формы -------------------------------------//
 FORM BOM 'Спецификация'
 
     OBJECTS b=BOM FIXED PANEL
 
     PROPERTIES(b) nameBOM, nameNumeratorBOM, numberBOM, seriesBOM, noteBOM
-    PROPERTIES(b) READONLY quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM//, bruttoQuantityComponentBOM
+    PROPERTIES(b) READONLY quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM
     OBJECTS p = Product
     PROPERTIES(p) indexProduct 
     PROPERTIES(p) ON EDIT editSkuProduct(p) idBarcodeSkuProduct, nameSkuProduct, shortNameUOMProduct
