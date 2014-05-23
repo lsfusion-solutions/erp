@@ -19,21 +19,35 @@ dataValueVATCountryItemDate 'НДС, %' (country, item, date) = valueRateRangeDa
 
 customsZoneDefaultCountry = customsZoneCountry(defaultCountry());
 
+requestInputChangeCustomsCode 'Возможность ввода ТНВЭД по коду' = DATA BOOLEAN ();
+EXTEND FORM options PROPERTIES() requestInputChangeCustomsCode;
+EXTEND DESIGN options { customs { ADD PROPERTY(requestInputChangeCustomsCode()); } }
+
 // Действие по изменению кода ТНВЭД через ручной ввод
 changeCodeCustomsGroupCountryItem = ACTION (country, item) {
-    REQUEST STRING[10] INPUT;
-    IF requestedString() THEN {
-        IF customsGroupCode(requestedString()) AND charLength(requestedString()) == 10 THEN {
-            customsGroupCountryItem(country, item) <- customsGroupCode(requestedString()); 
-        } ELSE {
-            REQUEST OBJECT cg
-                FORM customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroupCode(requestedString()) MODAL;
-            IF formResult() == FormResult.ok THEN {
-                customsGroupCountryItem(country, item) <- chosenObject('cg');
+    IF requestInputChangeCustomsCode() THEN {
+        REQUEST STRING[10] INPUT;
+        IF requestedString() THEN {
+            IF customsGroupCode(requestedString()) AND charLength(requestedString()) == 10 THEN {
+                customsGroupCountryItem(country, item) <- customsGroupCode(requestedString()); 
+            } ELSE {
+                REQUEST OBJECT cg
+                    FORM customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroupCode(requestedString()) MODAL;
+                IF formResult() == FormResult.ok THEN {
+                    customsGroupCountryItem(country, item) <- chosenObject('cg');
+                }
             }
+        } ELSE
+            customsGroupCountryItem(country, item) <- NULL;
+    } ELSE {
+        REQUEST OBJECT cg
+            FORM customsGroups OBJECTS cz = customsZoneCountry(country) CONTEXTFILTER cg = customsGroupCountryItem(country, item) MODAL SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            customsGroupCountryItem(country, item) <- requestedObject();
+        } ELSE IF formResult() == FormResult.drop THEN {
+            customsGroupCountryItem(country, item) <- NULL;
         }
-    } ELSE
-        customsGroupCountryItem(country, item) <- NULL;
+    }
 }
 
 changeCustomsGroupDefaultCountryItem = ACTION (item) {

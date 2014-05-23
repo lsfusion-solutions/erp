@@ -15,19 +15,29 @@ originalCustomsGroupArticle 'Код ТНВЭД (ориг.)' = DATA STRING[10] (A
 
 // Действие по изменению кода ТНВЭД через ручной ввод
 changeCodeCustomsGroupCountryArticle = ACTION (country, article) {
-    REQUEST STRING[10] INPUT;
-    IF requestedString() THEN {
-        IF customsGroupCode(requestedString()) AND charLength(requestedString()) == 10 THEN {
-            customsGroupCountryArticle(country, article) <- customsGroupCode(requestedString()); 
-        } ELSE {
-            REQUEST OBJECT cg
-                FORM customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroupCode(requestedString()) MODAL;
-            IF formResult() == FormResult.ok THEN {
-                customsGroupCountryArticle(country, article) <- chosenObject('cg');
+    IF requestInputChangeCustomsCode() THEN {
+        REQUEST STRING[10] INPUT;
+        IF requestedString() THEN {
+            IF customsGroupCode(requestedString()) AND charLength(requestedString()) == 10 THEN {
+                customsGroupCountryArticle(country, article) <- customsGroupCode(requestedString()); 
+            } ELSE {
+                REQUEST OBJECT cg
+                    FORM customsGroups OBJECTS cz = customsZoneCountry(country), cg = nearestCustomsGroupCode(requestedString()) MODAL;
+                IF formResult() == FormResult.ok THEN {
+                    customsGroupCountryArticle(country, article) <- chosenObject('cg');
+                }
             }
+        } ELSE
+            customsGroupCountryArticle(country, article) <- NULL;
+    } ELSE {
+        REQUEST OBJECT cg
+            FORM customsGroups OBJECTS cz = customsZoneCountry(country) CONTEXTFILTER cg = customsGroupCountryArticle(country, article) MODAL SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            customsGroupCountryArticle(country, article) <- requestedObject();
+        } ELSE IF formResult() == FormResult.drop THEN {
+            customsGroupCountryArticle(country, article) <- NULL;
         }
-    } ELSE
-        customsGroupCountryArticle(country, article) <- NULL;
+    }
 }
 
 changeCustomsGroupDefaultCountryArticle = ACTION (article) {
