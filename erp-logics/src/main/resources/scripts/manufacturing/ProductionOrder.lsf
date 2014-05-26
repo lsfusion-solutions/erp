@@ -69,6 +69,7 @@ CONSTRAINT skuProductDetail(d) AND NOT isProductGroupSku(skuProductDetail(d)) CH
 
 productProductDetail = DATA Product (ProductDetail);
 nameProductProductDetail 'Изделие' (productDetail) = nameMaterial(productProductDetail(productDetail)) IN recognize;
+idProductProductDetail 'Код изделия' (d) = idProduct(productProductDetail(d));
 
 UOMProductDetail = UOMProduct(productProductDetail(productDetail));
 shortNameUOMProductDetail 'Ед.изм.' (productDetail) = shortNameUOM(UOMProductDetail(productDetail)) IN recognize;
@@ -133,6 +134,7 @@ isVATComponentDetail(componentDetail) = isVATOrder(orderComponentDetail(componen
 
 componentComponentDetail = DATA Component (ComponentDetail);
 nameComponentComponentDetail 'Компонент' (componentDetail) = nameComponent(componentComponentDetail(componentDetail));
+idComponentComponentDetail 'Код компонента' (componentDetail) = idMaterial(materialComponent(componentComponentDetail(componentDetail)));
 
 CONSTRAINT bruttoSkuComponentDetail(d) AND NOT isComponentGroupSku(bruttoSkuComponentDetail(d)) CHECKED  BY bruttoSkuComponentDetail
     MESSAGE 'В качестве компонента выбран товар, который не входит в группу: Сырье';
@@ -658,7 +660,7 @@ FORM order 'Производственный заказ'
                   dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, productsSumProductDetailOrder, quantityComponentDetailOrder
     PROPERTIES(o)  FORCE PANEL nameCalcPriceListTypeOrder, nameProductsPriceListTypeOrder, isVATOrder
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) indexProductDetail, nameSkuProductDetail,  nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
+    PROPERTIES(pd) indexProductDetail, nameSkuProductDetail,  idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
                    calcComponentsPriceProductDetail READONLY , componentsPriceProductDetail
     PROPERTIES(pd) markupProductDetail ON CHANGE changeMarkupProductDetail(pd),
                    productsPriceProductDetail ON CHANGE changeProductsPriceProductDetail(pd), productsSumProductDetail
@@ -669,7 +671,8 @@ FORM order 'Производственный заказ'
     FILTERS orderProductDetail(pd)==o
 
     OBJECTS cd = ComponentDetail
-    PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, nameMaterialComponentDetail, nameComponentComponentDetail,    
+    PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, nameMaterialComponentDetail, 
+                   idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,    
                    nameBOMComponentDetail, shortNameUOMComponentDetail, bruttoQuantityComponentDetail 
     PROPERTIES(cd) BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail ON CHANGE chooseSubstituteComponentDetail(cd), substituteQuantityComponentDetail
     PROPERTIES(cd) priceComponentDetail

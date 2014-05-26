@@ -59,6 +59,8 @@ isProductGroupSku 'Фильтр готовые изделия (группа)' (s
 CLASS ABSTRACT Material 'Материал';
 TABLE material(Material);
 
+@defineExternalizableAbstract(material, VARSTRING[100]);
+
 nameMaterial 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
 UOMMaterial (material) = ABSTRACT UOM (Material) PERSISTENT;
@@ -81,7 +83,7 @@ FORM materials 'Материалы'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
 
     OBJECTS m = Material
-    PROPERTIES(m) READONLY nameMaterial, shortNameUOMMaterial, objectClassName
+    PROPERTIES(m) READONLY idMaterial SHOWIF showIDs(), nameMaterial, shortNameUOMMaterial, objectClassName    
     PROPERTIES() addMaterial TODRAW m
     PROPERTIES(m) editMaterial, copyMaterial
     FILTERS isParentSkuGroupMaterial(sg, m)
@@ -127,6 +129,8 @@ addMaterial () += addSku();
 copyMaterial(sku) += copySku(sku);
 
 skuMaterial(material) += material AS Sku;
+
+idMaterial(sku) += idSku(sku);
 
 // -----------  Технологии -------------- //
 CLASS Technology 'Технология';
@@ -297,6 +301,9 @@ EXTEND FORM technology
         FILTER 'Sku' 'F10' m IS Sku
 ;
 
+@defineExternalizable(product, VARSTRING[100]);
+idMaterial(sku) += idProduct(sku);
+
 skuProduct = DATA Sku (Product);
 nameSkuProduct 'SKU' (product) = nameSku(skuProduct(product)) IN recognize;
 idBarcodeSkuProduct 'Штрих-код' (product)= idBarcodeSku(skuProduct(product));
@@ -317,7 +324,7 @@ descriptionProduct 'Название документа' (product) = description
 
 productsBOM 'Изделия' (BOM) = GROUP CONCAT VARSTRING[255](nameSkuProduct(p)), ', '
                                        BY BOMProduct(p)
-                                       ORDER indexProduct(p) MINCHARWIDTH 15 PREFCHARWIDTH 30 PERSISTENT;
+                                       ORDER indexProduct(p) MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
                                        
 @defineDocumentDetailQuantityCustomPrefix (product, , );
 
@@ -338,8 +345,9 @@ skuMaterial (material) += skuProduct(material);
 
 FORM products 'Изделия'
     OBJECTS p=Product
+    PROPERTIES(p) idProduct SHOWIF showIDs()
     PROPERTIES(p) READONLY descriptionProduct, indexProduct, nameSkuProduct, shortNameUOMProduct, quantityProduct
-    PROPERTIES (p) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
+//    PROPERTIES (p) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
     DIALOG Product OBJECT p
 ;
@@ -360,10 +368,12 @@ descriptionComponent 'Название документа' (component)= descript
 materialComponent = DATA Material (Component);
 nameMaterialComponent 'Материал' (component) = nameMaterial(materialComponent(component));
 idBarcodeSkuComponent 'Штрих-код' (component)= idBarcodeSku(materialComponent(component));
+idMaterialComponent 'Код материала' (component)= idMaterial(materialComponent(component));
+
 
 componentsBOM 'Компоненты' (BOM) = GROUP CONCAT VARSTRING[255](nameMaterialComponent(component)), ', '
                                        BY BOMComponent(component)
-                                       ORDER indexComponent(component) MINCHARWIDTH 15 PREFCHARWIDTH 30 PERSISTENT;
+                                       ORDER indexComponent(component) MINCHARWIDTH 20 PREFCHARWIDTH 50 PERSISTENT;
 
 nameComponent 'Компонент' (component) = [= FORMULA VARSTRING[255]  ' CAST($1 AS TEXT) || \' / \' ||  CAST($2 AS TEXT)'](
                                       nameBOM(BOMComponent(component)),
@@ -475,8 +485,8 @@ overCurBruttoQuantityComponent 'Кол-во (брутто)' (component) = brutto
 
 FORM components 'Компоненты'
     OBJECTS c=Component
-    PROPERTIES(c) READONLY descriptionComponent, indexComponent, nameMaterialComponent, shortNameUOMComponent, nettoQuantityComponent
-    PROPERTIES (c) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
+    PROPERTIES(c) READONLY descriptionComponent, idMaterialComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, nettoQuantityComponent
+//    PROPERTIES (c) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
     DIALOG Component OBJECT c
 ;
@@ -495,7 +505,10 @@ FORM BOM 'Спецификация'
     PROPERTIES(b) READONLY quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM
     OBJECTS p = Product
     PROPERTIES(p) indexProduct 
-    PROPERTIES(p) ON EDIT editSkuProduct(p) idBarcodeSkuProduct, nameSkuProduct, shortNameUOMProduct
+    PROPERTIES(p) ON EDIT editSkuProduct(p) idBarcodeSkuProduct
+    PROPERTIES(p) idProduct SHOWIF showIDs()     
+    PROPERTIES(p) ON EDIT editSkuProduct(p) nameSkuProduct, shortNameUOMProduct
+    
     PROPERTIES(p) quantityProduct, pricePercentProduct
 
     PROPERTIES(p) ADDOBJ, deletep=DELETESESSION
@@ -503,7 +516,7 @@ FORM BOM 'Спецификация'
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, technologiesInvoice ON CHANGE selectTechnologiesComponent(c), nettoQuantityComponent,
+    PROPERTIES(c) indexComponent, idBarcodeSkuComponent, idMaterialComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice ON CHANGE selectTechnologiesComponent(c), nettoQuantityComponent,
                   overCurWastageComponent ON CHANGE changeWastageComponent(c) BACKGROUND backgroundWastageComponent(c) READONLYIF countTechnologiesComponent(c),
                   overCurBruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c) BACKGROUND backgroundBruttoQuantityComponent(c) READONLYIF countTechnologiesComponent(c)
 
@@ -521,7 +534,10 @@ DESIGN BOM FROM DEFAULT{
         NEW specification.box BEFORE functions.box{
             type = TABBED;
             fill = 1;
-            ADD p.box {caption = 'Изделие';}
+            ADD p.box {
+                caption = 'Изделие';
+                PROPERTY (idProduct(p)) { caption = 'Код изделия';}
+            }
             ADD c.box {caption = 'Компонент';}
         }
 
@@ -603,12 +619,11 @@ addBOMSku 'Добавить' = ACTION (sku) NEWSESSION {
     }
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
-
 FORM BOMs 'Спецификации'
 
     OBJECTS b=BOM
 
-    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, productsBOM, componentsBOM, quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM, noteBOM
+    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) productsBOM, nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, componentsBOM, quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM, noteBOM
     PROPERTIES (b) ADDFORM, EDITFORM, copyBOM, deleteb=DELETE FORCE PANEL TOOLBAR
     PROPERTIES (b) READONLY FORCE PANEL createdNameUserBOM, createdTimeBOM, createdHostnameComputerBOM
     FILTERGROUP inactiveBOM
@@ -630,7 +645,7 @@ FORM BOMs 'Спецификации'
     FILTERS        isProductGroupSku(p1)
     
     OBJECTS b1=BOM    
-    PROPERTIES(b1) READONLY nameBOM, numberBOM, seriesBOM, productsBOM, componentsBOM, quantityProductBOM, 
+    PROPERTIES(b1) READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, quantityProductBOM, 
                    nettoQuantityComponentBOM, pricePercentBOM, noteBOM
     PROPERTIES(b1) EDITFORM
     PROPERTIES     addBOMSku(p1) TODRAW b1
@@ -647,7 +662,7 @@ FORM BOMs 'Спецификации'
     PROPERTIES     TODRAW c2 addSku(), editSku(c2), copySku(c2), DELETE(c2) FORCE PANEL TOOLBAR  
     FILTERS        isComponentGroupSku(c2)                   
     OBJECTS b2=BOM    
-    PROPERTIES(b2) READONLY nameBOM, numberBOM, seriesBOM, productsBOM, componentsBOM, quantityProductBOM, 
+    PROPERTIES(b2) READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, quantityProductBOM, 
                    nettoQuantityComponentBOM, pricePercentBOM, noteBOM
     PROPERTIES(b2) EDITFORM                
     FILTERS        relationComponentsSkuBOM(c2,b2)           
