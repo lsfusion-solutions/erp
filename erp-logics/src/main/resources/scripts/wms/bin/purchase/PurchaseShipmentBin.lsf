@@ -4,12 +4,24 @@ REQUIRE PurchaseBin, PurchaseShipment;
 
 NAMESPACE Purchase;
 
+dontSetBinPurchase 'Не заполенять ячейки на приходе' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES dontSetBinPurchase()
+;
+
+EXTEND DESIGN options {
+    purchase {
+        ADD PROPERTY(dontSetBinPurchase());
+    }
+}
+
 @defineDocumentInterfaceDetailBin(shipment);
 overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
     binUserShipmentDetail(d) <- binUserShipmentDetail(detail);
 }
 @extendFormInterfaceDetailBin(shipment, s, , quantity);
-binUserShipmentDetail(detail) <- binStockSku(customerStockUserShipmentDetail(detail), skuUserShipmentDetail(detail))
+binUserShipmentDetail(detail) <- binStockSku(customerStockUserShipmentDetail(detail), skuUserShipmentDetail(detail)) IF NOT dontSetBinPurchase()
     WHEN CHANGED(customerStockUserShipmentDetail(detail)) OR
          CHANGED(skuUserShipmentDetail(detail));
 
@@ -17,7 +29,8 @@ binUserShipmentDetail(detail) <- binStockSku(customerStockUserShipmentDetail(det
 
 //-- invoice
 @defineInvoiceShipmentBin(customerStock);
-binUserInvoiceDetail(detail) <- binStockSku(customerStockUserInvoiceDetail(detail), skuUserInvoiceDetail(detail))
+
+binUserInvoiceDetail(detail) <- binStockSku(customerStockUserInvoiceDetail(detail), skuUserInvoiceDetail(detail)) IF NOT dontSetBinPurchase()
     WHEN CHANGED(customerStockUserInvoiceDetail(detail)) OR
          CHANGED(skuUserInvoiceDetail(detail));
 
