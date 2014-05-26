@@ -144,9 +144,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public void finishSoftCheckInfo(Set<String> invoiceSet) throws RemoteException, SQLException {
+    public void finishSoftCheckInfo(Map<String, String> invoiceMap) throws RemoteException, SQLException {
         if(softCheck != null)
-            softCheck.finishSoftCheckInfo(invoiceSet);
+            softCheck.finishSoftCheckInfo(invoiceMap);
     }
 
     @Override

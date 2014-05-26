@@ -198,8 +198,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         new OutputStreamWriter(
                                 new FileOutputStream(softFile), "windows-1251"));
 
-                for (String userInvoice : softCheckInfo.invoiceSet) {
-                    String record = String.format("%s|0|1|1|1", trimLeadingZeroes(userInvoice));
+                for (Map.Entry<String, String> userInvoice : softCheckInfo.invoiceMap.entrySet()) {
+                    String record = String.format("%s|0|1|1|1", trimLeadingZeroes(userInvoice.getKey()));
                     writer.println(record);
                 }
                 writer.close();

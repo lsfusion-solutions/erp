@@ -41,68 +41,53 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
             String exchangeDirectory = directory + "/IN/";
 
-            File goodsFlagFile = new File(exchangeDirectory + "goods-flag.txt");
-            if (goodsFlagFile.exists()) {
-                throw Throwables.propagate(new RuntimeException("Goods flag file already exists"));
-            } else {
-                File goodsFile = new File(exchangeDirectory + "goods.txt");
-                PrintWriter goodsWriter = new PrintWriter(goodsFile, "cp1251");
+            File goodsFlagFile = createGoodsFlagFile(exchangeDirectory);
+            
+            File goodsFile = new File(exchangeDirectory + "goods.txt");
+            PrintWriter goodsWriter = new PrintWriter(goodsFile, "cp1251");
 
-                goodsWriter.println("##@@&&");
-                goodsWriter.println("#");
+            goodsWriter.println("##@@&&");
+            goodsWriter.println("#");
 
-                goodsWriter.println("$$$ADDENTERPRISES");
-                goodsWriter.println(format(transactionInfo.nppGroupCashRegister, ";") + ";" + format(transactionInfo.nameGroupCashRegister, ";"));
-                
-                if (!transactionInfo.itemsList.isEmpty()) {
-                    goodsWriter.println("$$$ADDQUANTITY");
+            goodsWriter.println("$$$ADDENTERPRISES");
+            goodsWriter.println(format(transactionInfo.nppGroupCashRegister, ";") + ";" + format(transactionInfo.nameGroupCashRegister, ";"));
 
-                    LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<String, String[]>();
-                    for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+            if (!transactionInfo.itemsList.isEmpty()) {
+                goodsWriter.println("$$$ADDQUANTITY");
 
-                        for (int i = item.hierarchyItemGroup.size() - 1; i >= 0; i--) {
-                            String idItemGroup = item.hierarchyItemGroup.get(i).idItemGroup;
-                            if (!itemGroups.containsKey(idItemGroup)) {
-                                String nameItemGroup = item.hierarchyItemGroup.get(i).nameItemGroup;
-                                String parentItemGroup = item.hierarchyItemGroup.size() <= (i + 1) ? null : item.hierarchyItemGroup.get(i + 1).idItemGroup;
-                                itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.isWeightItem ? "1" : "0"});
-                            }
+                LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<String, String[]>();
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+
+                    for (int i = item.hierarchyItemGroup.size() - 1; i >= 0; i--) {
+                        String idItemGroup = item.hierarchyItemGroup.get(i).idItemGroup;
+                        if (!itemGroups.containsKey(idItemGroup)) {
+                            String nameItemGroup = item.hierarchyItemGroup.get(i).nameItemGroup;
+                            String parentItemGroup = item.hierarchyItemGroup.size() <= (i + 1) ? null : item.hierarchyItemGroup.get(i + 1).idItemGroup;
+                            itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.isWeightItem ? "1" : "0"});
                         }
                     }
-
-                    for (Map.Entry<String, String[]> itemGroupEntry : itemGroups.entrySet()) {
-                        String itemGroupRecord = format(itemGroupEntry.getKey(), ";") + ";" + format(itemGroupEntry.getValue()[0], 100, ";") + //3
-                                format(itemGroupEntry.getValue()[0], 100, ";") + ";;;" + formatFlags(itemGroupEntry.getValue()[2], ";") + //8
-                                ";;;;;;;" + format(itemGroupEntry.getValue()[1], ";") + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
-                                (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
-                        goodsWriter.println(itemGroupRecord);
-                    }
-
-                    for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                        String idItemGroup = item.hierarchyItemGroup == null || item.hierarchyItemGroup.isEmpty() ? "" : item.hierarchyItemGroup.get(0).idItemGroup;
-                        String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
-                                format(item.composition, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.isWeightItem ? "1" : "0", ";") + //8
-                                ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" + 
-                                (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
-                        goodsWriter.println(record);
-                    }
                 }
-                goodsWriter.close();
 
-                PrintWriter flagWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(goodsFlagFile), "windows-1251"));
-                flagWriter.close();
-
-                logger.info("Atol: waiting for processing of goods file");
-                while (goodsFlagFile.exists() || !checkGoodsFile(goodsFile.getAbsolutePath())) {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        throw Throwables.propagate(e);
-                    }
+                for (Map.Entry<String, String[]> itemGroupEntry : itemGroups.entrySet()) {
+                    String itemGroupRecord = format(itemGroupEntry.getKey(), ";") + ";" + format(itemGroupEntry.getValue()[0], 100, ";") + //3
+                            format(itemGroupEntry.getValue()[0], 100, ";") + ";;;" + formatFlags(itemGroupEntry.getValue()[2], ";") + //8
+                            ";;;;;;;" + format(itemGroupEntry.getValue()[1], ";") + "0;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                            (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
+                    goodsWriter.println(itemGroupRecord);
                 }
-                logger.info("Atol: deletion of goods file");
-                goodsFile.delete();
+
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                    String idItemGroup = item.hierarchyItemGroup == null || item.hierarchyItemGroup.isEmpty() ? "" : item.hierarchyItemGroup.get(0).idItemGroup;
+                    String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
+                            format(item.composition, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.isWeightItem ? "1" : "0", ";") + //8
+                            ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                            (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
+                    goodsWriter.println(record);
+                }
             }
+            goodsWriter.close();
+            
+            processGoodsFlagFile(goodsFile, goodsFlagFile);
         }
     }
 
@@ -116,24 +101,53 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     @Override
     public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
 
-/*        for (String directory : softCheckInfo.directorySet) {
-            java.util.Date date = Calendar.getInstance().getTime();
-            String dateString = new SimpleDateFormat("dd.MM.yyyy").format(date);
-            String timeString = new SimpleDateFormat("HH:mm:ss").format(date);
-            
-            String exchangeDirectory = directory + "\\ORDER\\";
+        logger.info("Atol: Sending soft checks");
 
-            for(SoftCheckInvoice userInvoice : softCheckInfo.invoiceSet) {
-                File softFile = new File(exchangeDirectory + "order" + userInvoice.number + ".opn");
-                logger.info("Atol: creating " + softFile.getName() + " file");
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(softFile), "windows-1251"));
-                writer.println(String.format(";1;%s;%s;%s;;;;;", dateString, timeString, userInvoice.sum.intValue()));
-                for (SoftCheckInvoiceDetail invoiceDetail : userInvoice.invoiceDetailSet) {
-                    writer.println(String.format("3;%s;;;%s", invoiceDetail.barcode, invoiceDetail.quantity));
-                }
-                writer.close();
+        for (String directory : softCheckInfo.directorySet) {
+
+            String exchangeDirectory = directory + "/IN/";
+
+            File goodsFlagFile = createGoodsFlagFile(exchangeDirectory);
+            File goodsFile = new File(exchangeDirectory + "goods.txt");
+            PrintWriter goodsWriter = new PrintWriter(goodsFile, "cp1251");
+
+            goodsWriter.println("##@@&&");
+            goodsWriter.println("#");
+
+            for (Map.Entry<String, String> invoiceEntry : softCheckInfo.invoiceMap.entrySet()) {
+
+                String record = format("99999", ";") + format(invoiceEntry.getKey(), ";") + format("ПРИХОД", ";") + //3
+                        ";;" + ";" + ";" + formatFlags("0", ";") + //8
+                        ";;;;;;;;" + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
+                        (invoiceEntry.getValue() == null ? "1" : invoiceEntry.getValue()) + ";";
+                goodsWriter.println(record);
+
             }
-        }*/
+            goodsWriter.close();
+            processGoodsFlagFile(goodsFile, goodsFlagFile);
+        }
+    }
+
+    private File createGoodsFlagFile(String exchangeDirectory) {
+        File goodsFlagFile = new File(exchangeDirectory + "goods-flag.txt");
+        if (goodsFlagFile.exists())
+            throw Throwables.propagate(new RuntimeException("Goods flag file already exists"));
+        return goodsFlagFile;
+    }
+
+    private boolean processGoodsFlagFile(File goodsFile, File goodsFlagFile) throws FileNotFoundException, UnsupportedEncodingException {
+        logger.info("Atol: waiting for processing of goods file");
+        PrintWriter flagWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(goodsFlagFile), "windows-1251"));
+        flagWriter.close();        
+        while (goodsFlagFile.exists() || !checkGoodsFile(goodsFile.getAbsolutePath())) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        logger.info("Atol: deletion of goods file");
+        return goodsFile.delete();
     }
 
     @Override
@@ -200,30 +214,59 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     @Override
     public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
 
-        /*logger.info("Atol: requesting succeeded SoftCheckInfo");
+        logger.info("Atol: requesting succeeded SoftCheckInfo");
 
         Set<String> result = new HashSet<String>();
         for (String directory : directorySet) {
-            String exchangeDirectory = directory + "\\ORDER\\";
-            File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return pathname.getPath().endsWith(".cls");
+
+            try {
+
+                String exchangeDirectory = directory + "\\OUT\\";
+
+                File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
+                    @Override
+                    public boolean accept(File pathname) {
+                        return acceptSalesFile(pathname);
+                    }
+                });
+
+                for (File file : filesList) {
+
+                    boolean isCurrent = file.getName().contains("current");
+                    
+                    if (file.getName().contains("_current"))
+                        break;
+                    Scanner scanner = new Scanner(file, "cp1251");
+                    if (!isCurrent && (!scanner.hasNextLine() || !scanner.nextLine().equals("#"))) {
+                        break;
+                    } else {
+                        if (!isCurrent) {
+                            scanner.nextLine(); //db
+                            scanner.nextLine(); //reportNumber
+                        }
+                        while (scanner.hasNextLine()) {
+                            String[] entry = scanner.nextLine().split(";");
+                            String entryType = getStringValue(entry, 3);
+                            boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
+                            String documentType = getStringValue(entry, 22);
+                            String numberSoftCheck = getStringValue(entry, 18);
+                            if (isSale && documentType.equals("2000001"))
+                                result.add(numberSoftCheck);
+                        }
+                        scanner.close();
+
+                    }
                 }
-            });
-            for (File file : filesList) {
-                result.add(file.getName().split("\\.")[0].replace("order", ""));
-                
-                logger.info("Atol: deletion of file " + file.getAbsolutePath());
-                if (file.delete()) {
-                    logger.info("Atol: file " + file + " has been deleted");
-                } else {
-                    throw new RuntimeException("The file " + file.getAbsolutePath() + " can not be deleted");
-                }
+
+                if (result.size() == 0)
+                    logger.info("Atol: no soft checks found");
+                else
+                    logger.info(String.format("Atol: found %s soft check(s)", result.size()));
+            } catch (FileNotFoundException e) {
+                throw Throwables.propagate(e);
             }
         }
-        return result;*/
-        return null;
+        return result;
     }
 
     @Override
@@ -373,6 +416,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
                         Integer numberReceiptDetail = getIntValue(entry, 0);
                         Integer numberReceipt = getIntValue(entry, 5);
+                        String documentType = getStringValue(entry, 22);
 
                         if (isPayment) {
                             for (SalesInfo salesInfo : currentSalesInfoList) {
@@ -392,6 +436,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                     }
                                 }
                             }
+                        } else if(isSale && documentType.equals("2000001")) {
+                            //nothing to do: it's soft check
                         } else if (isSale || isReturn) {
                             Date dateReceipt = getDateValue(entry, 1);
                             Time timeReceipt = getTimeValue(entry, 2);
@@ -420,7 +466,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 }
 
                 for (SalesInfo salesInfo : currentSalesInfoList) {
-                    if (!cancelReceiptSet.contains(salesInfo.numberReceipt))
+                    if (!cancelReceiptSet.contains(salesInfo.numberReceipt) && (notNull(salesInfo.sumCash) || notNull(salesInfo.sumCard)))
                         salesInfoList.add(salesInfo);
                 }
                 filePathList.put(file.getAbsolutePath(), isCurrent);
@@ -428,6 +474,10 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
                 new AtolSalesBatch(salesInfoList, filePathList);
+    }
+    
+    private boolean notNull(BigDecimal value) {
+        return value != null && value.doubleValue() != 0;
     }
 
     private boolean acceptSalesFile(File pathname) {

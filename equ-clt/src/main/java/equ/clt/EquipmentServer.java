@@ -218,14 +218,14 @@ public class EquipmentServer {
                     try {
                         Object clsHandler = getHandler(entry.handler.trim(), remote);                       
                         entry.sendSoftCheckInfo(clsHandler);
-                        remote.finishSoftCheckInfo(entry.invoiceSet);                       
+                        remote.finishSoftCheckInfo(entry.invoiceMap);                       
                     } catch (Exception e) {
-                        logger.error("Sending Soft Check Info error", e);
+                        logger.error("Sending SoftCheckInfo error", e);
                         return;
                     }
                 }
             }
-            logger.info("Sending Soft Check Info finished");
+            logger.info("Sending SoftCheckInfo finished");
         }
     }
 
