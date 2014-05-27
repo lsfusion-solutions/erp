@@ -953,10 +953,21 @@ copyDataItem = ACTION (item, i) {
     EXEC overCopyItem(item, i);
 }
 
-copyItem 'Копировать' = ACTION (item) NEWSESSION {
-    FOR ADDOBJ i = Item DO {
-        copyDataItem(item, i);
-        FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
+copyItem 'Копировать' = ACTION (item) {
+    LOCAL addedItem = Item();
+    IF (item IS Item) THEN {
+        NEWSESSION (addedItem) {
+            FOR ADDOBJ i = Item DO {
+                copyDataItem(item, i);
+                FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
+                IF formResult() == FormResult.ok THEN {
+                    addedItem() <- i;
+                }
+            }
+        }
+        IF (addedItem()) THEN {
+            SEEK items.i addedItem();
+        }
     }
 } EDITKEY 'F5' TOOLBAR;
 
