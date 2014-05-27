@@ -42,7 +42,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
             String exchangeDirectory = directory + "/IN/";
 
             File goodsFlagFile = createGoodsFlagFile(exchangeDirectory);
-            
+
             File goodsFile = new File(exchangeDirectory + "goods.txt");
             PrintWriter goodsWriter = new PrintWriter(goodsFile, "cp1251");
 
@@ -86,7 +86,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 }
             }
             goodsWriter.close();
-            
+
             processGoodsFlagFile(goodsFile, goodsFlagFile);
         }
     }
@@ -138,7 +138,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     private boolean processGoodsFlagFile(File goodsFile, File goodsFlagFile) throws FileNotFoundException, UnsupportedEncodingException {
         logger.info("Atol: waiting for processing of goods file");
         PrintWriter flagWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(goodsFlagFile), "windows-1251"));
-        flagWriter.close();        
+        flagWriter.close();
         while (goodsFlagFile.exists() || !checkGoodsFile(goodsFile.getAbsolutePath())) {
             try {
                 Thread.sleep(1000);
@@ -229,39 +229,40 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                         return acceptSalesFile(pathname);
                     }
                 });
+                if (filesList != null) {
+                    for (File file : filesList) {
 
-                for (File file : filesList) {
+                        boolean isCurrent = file.getName().contains("current");
 
-                    boolean isCurrent = file.getName().contains("current");
-                    
-                    if (file.getName().contains("_current"))
-                        break;
-                    Scanner scanner = new Scanner(file, "cp1251");
-                    if (!isCurrent && (!scanner.hasNextLine() || !scanner.nextLine().equals("#"))) {
-                        break;
-                    } else {
-                        if (!isCurrent) {
-                            scanner.nextLine(); //db
-                            scanner.nextLine(); //reportNumber
+                        if (file.getName().contains("_current"))
+                            break;
+                        Scanner scanner = new Scanner(file, "cp1251");
+                        if (!isCurrent && (!scanner.hasNextLine() || !scanner.nextLine().equals("#"))) {
+                            break;
+                        } else {
+                            if (!isCurrent) {
+                                scanner.nextLine(); //db
+                                scanner.nextLine(); //reportNumber
+                            }
+                            while (scanner.hasNextLine()) {
+                                String[] entry = scanner.nextLine().split(";");
+                                String entryType = getStringValue(entry, 3);
+                                boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
+                                String documentType = getStringValue(entry, 22);
+                                String numberSoftCheck = getStringValue(entry, 18);
+                                if (isSale && documentType.equals("2000001"))
+                                    result.add(numberSoftCheck);
+                            }
+                            scanner.close();
+
                         }
-                        while (scanner.hasNextLine()) {
-                            String[] entry = scanner.nextLine().split(";");
-                            String entryType = getStringValue(entry, 3);
-                            boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
-                            String documentType = getStringValue(entry, 22);
-                            String numberSoftCheck = getStringValue(entry, 18);
-                            if (isSale && documentType.equals("2000001"))
-                                result.add(numberSoftCheck);
-                        }
-                        scanner.close();
-
                     }
-                }
 
-                if (result.size() == 0)
-                    logger.info("Atol: no soft checks found");
-                else
-                    logger.info(String.format("Atol: found %s soft check(s)", result.size()));
+                    if (result.size() == 0)
+                        logger.info("Atol: no soft checks found");
+                    else
+                        logger.info(String.format("Atol: found %s soft check(s)", result.size()));
+                }
             } catch (FileNotFoundException e) {
                 throw Throwables.propagate(e);
             }
@@ -436,7 +437,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                     }
                                 }
                             }
-                        } else if(isSale && documentType.equals("2000001")) {
+                        } else if (isSale && documentType.equals("2000001")) {
                             //nothing to do: it's soft check
                         } else if (isSale || isReturn) {
                             Date dateReceipt = getDateValue(entry, 1);
@@ -475,7 +476,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
                 new AtolSalesBatch(salesInfoList, filePathList);
     }
-    
+
     private boolean notNull(BigDecimal value) {
         return value != null && value.doubleValue() != 0;
     }
