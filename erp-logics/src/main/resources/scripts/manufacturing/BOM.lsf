@@ -59,7 +59,7 @@ isProductGroupSku 'Фильтр готовые изделия (группа)' (s
 CLASS ABSTRACT Material 'Материал';
 TABLE material(Material);
 
-@defineExternalizableAbstract(material, VARSTRING[100]);
+idMaterial 'Внешний код' = ABSTRACT VARSTRING[100] (Material) PERSISTENT INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 nameMaterial 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
@@ -301,12 +301,12 @@ EXTEND FORM technology
         FILTER 'Sku' 'F10' m IS Sku
 ;
 
-@defineExternalizable(product, VARSTRING[100]);
-idMaterial(sku) += idProduct(sku);
-
 skuProduct = DATA Sku (Product);
 nameSkuProduct 'SKU' (product) = nameSku(skuProduct(product)) IN recognize;
 idBarcodeSkuProduct 'Штрих-код' (product)= idBarcodeSku(skuProduct(product));
+
+idProduct 'Код изделия' (product) = idSku(skuProduct(product))IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idMaterial(sku) += idProduct(sku);
 
 editSkuProduct 'Редактировать SKU' (p) = editSku(skuProduct(p));
 
@@ -372,7 +372,7 @@ descriptionComponent 'Название документа' (component)= descript
 materialComponent = DATA Material (Component);
 nameMaterialComponent 'Материал' (component) = nameMaterial(materialComponent(component));
 idBarcodeSkuComponent 'Штрих-код' (component)= idBarcodeSku(materialComponent(component));
-idMaterialComponent 'Код материала' (component)= idMaterial(materialComponent(component));
+idComponent 'Код компонента' (component)= idMaterial(materialComponent(component));
 
 
 componentsBOM 'Компоненты' (BOM) = GROUP CONCAT VARSTRING[255](nameMaterialComponent(component)), ', '
@@ -427,25 +427,10 @@ DESIGN componentTechnologies FROM DEFAULT {
     main {
         preferredSize = (1024, 768);
     }
-}                                                                                
-                               
-selectTechnologiesComponent = ACTION (component) {
-    FORM componentTechnologies OBJECTS c = component MODAL;
-}
-                                                                                                                       
+}                                                                                                                                                                                                                                    
 
 // % Потерь
 wastageComponent '% потерь'= DATA NUMERIC[8,3] (Component);
-changeWastageComponent = ACTION (component) {
-    REQUEST NUMERIC[8,3] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT countTechnologiesComponent(component) THEN {
-            wastageComponent(component) <- requestedNumeric();   
-        }     
-    } ELSE {
-        wastageComponent(component) <- NULL;
-    }
-}
 backgroundWastageComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
 
 
@@ -468,28 +453,56 @@ overCurWastageComponent '% потерь' (component) = wastageComponentDate(comp
 @defineDocumentDetailQuantityCustomPrefix (component, brutto, ' (брутто)');
 @defineDocumentHeaderQuantityCustomPrefix (BOM, component, brutto, ' (брутто компонент)');
 
-bruttoQuantityComponent(component) <- nettoQuantityComponent(component)/(1 - (OVERRIDE 0 IF component IS Component, wastageComponent(component)/100)) WHEN CHANGED (wastageComponent(component)) OR
-                                                                                                                     CHANGED (nettoQuantityComponent(component));
-changeBruttoQuantityComponent = ACTION (component) {
+//bruttoQuantityComponent(component) <- nettoQuantityComponent(component)/(1 - (OVERRIDE 0 IF component IS Component, wastageComponent(component)/100)) 
+//    WHEN CHANGED (wastageComponent(component)) OR CHANGED (nettoQuantityComponent(component));    
+            
+selectTechnologiesComponent = ACTION (component) {
+    FORM componentTechnologies OBJECTS c = component MODAL;
+    bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (overCurWastageComponent(component)/100))); 
+}  
+       
+changeNettoQuantityComponent = ACTION (component) {
     REQUEST NUMERIC[14,3] INPUT;
     IF requestedNumeric() THEN {
-        IF NOT countTechnologiesComponent(component) THEN {
-            bruttoQuantityComponent(component) <- requestedNumeric();
-        }     
+        nettoQuantityComponent(component) <- requestedNumeric();
+        bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (overCurWastageComponent(component)/100))); 
+    } ELSE {
+        nettoQuantityComponent(component) <- NULL;
+    }                
+}   
+                                                                                                                                                                                                                                                                                                                                                      
+changeWastageComponent = ACTION (component) {
+    REQUEST NUMERIC[8,3] INPUT;
+    IF requestedNumeric() THEN {
+        wastageComponent(component) <- requestedNumeric();   
+        bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (overCurWastageComponent(component)/100))); 
+    } ELSE {
+        wastageComponent(component) <- NULL;
+        bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (overCurWastageComponent(component)/100))); 
+    }
+}                                                                                                                                                                                                                                                                                                                                                      
+                                                                                                                                                                                                                                                                                                                                                         
+changeBruttoQuantityComponent = ACTION (component) {
+    REQUEST NUMERIC[14,3] INPUT;
+    IF requestedNumeric() THEN {        
+        bruttoQuantityComponent(component) <- requestedNumeric();
+        wastageComponent(component) <- NUMERIC[8,3]((1-(nettoQuantityComponent(component)/(bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0)))*100);             
     } ELSE {
         bruttoQuantityComponent(component) <- NULL;
+        wastageComponent(component) <- NUMERIC[8,3]((1-(nettoQuantityComponent(component)/(bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0)))*100);             
+        
     }                
 }
 backgroundBruttoQuantityComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
 
-bruttoQuantityComponentDate(component, date) = IF countTechnologiesComponent(component) THEN (nettoQuantityComponent(component)/(1 - (wastageComponentDate(component, date)/100)))
+bruttoQuantityComponentDate(component, date) = IF countTechnologiesComponent(component) THEN NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (wastageComponentDate(component, date)/100)))
                                                                                  ELSE bruttoQuantityComponent(component) IF date IS DATE;
 
 overCurBruttoQuantityComponent 'Кол-во (брутто)' (component) = bruttoQuantityComponentDate(component, currentDate());
 
 FORM components 'Компоненты'
     OBJECTS c=Component
-    PROPERTIES(c) READONLY descriptionComponent, idMaterialComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, nettoQuantityComponent
+    PROPERTIES(c) READONLY descriptionComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, nettoQuantityComponent
 //    PROPERTIES (c) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
     DIALOG Component OBJECT c
@@ -509,9 +522,7 @@ FORM BOM 'Спецификация'
     PROPERTIES(b) READONLY quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM
     OBJECTS p = Product
     PROPERTIES(p) indexProduct 
-    PROPERTIES(p) ON EDIT editSkuProduct(p) idBarcodeSkuProduct
-    PROPERTIES(p) idProduct SHOWIF showIDs()     
-    PROPERTIES(p) ON EDIT editSkuProduct(p) nameSkuProduct, shortNameUOMProduct
+    PROPERTIES(p) ON EDIT editSkuProduct(p) idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct     
     
     PROPERTIES(p) quantityProduct, pricePercentProduct
 
@@ -520,7 +531,8 @@ FORM BOM 'Спецификация'
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) indexComponent, idBarcodeSkuComponent, idMaterialComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice ON CHANGE selectTechnologiesComponent(c), nettoQuantityComponent,
+    PROPERTIES(c) indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, 
+                  shortNameUOMComponent, technologiesInvoice ON CHANGE selectTechnologiesComponent(c), nettoQuantityComponent ON CHANGE  changeNettoQuantityComponent(c),
                   overCurWastageComponent ON CHANGE changeWastageComponent(c) BACKGROUND backgroundWastageComponent(c) READONLYIF countTechnologiesComponent(c),
                   overCurBruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c) BACKGROUND backgroundBruttoQuantityComponent(c) READONLYIF countTechnologiesComponent(c)
 
@@ -635,16 +647,16 @@ FORM BOMs 'Спецификации'
         FILTER 'Активные' 'F10' isActiveBOM(b) OR (fromDateBOM(b) > currentDate()) DEFAULT
         
     OBJECTS p = Product
-    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
+    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) READONLY indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
+    PROPERTIES(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
                   overCurWastageComponent, overCurBruttoQuantityComponent
     FILTERS       BOMComponent(c) == b
     
     OBJECTS p1 = Sku
-    PROPERTIES(p1) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES(p1) READONLY idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
     PROPERTIES     TODRAW p1 addSku(), editSku(p1), copySku(p1), DELETE(p1) FORCE PANEL TOOLBAR 
     FILTERS        isProductGroupSku(p1)
     
@@ -656,13 +668,13 @@ FORM BOMs 'Спецификации'
     FILTERS        relationProductsSkuBOM(p1,b1)
           
     OBJECTS c1 = Component
-    PROPERTIES(c1) READONLY indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
+    PROPERTIES(c1) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
                   overCurWastageComponent, overCurBruttoQuantityComponent
     FILTERS       BOMComponent(c1) == b1   
     
 
     OBJECTS c2 = Sku
-    PROPERTIES(c2) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES(c2) READONLY idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
     PROPERTIES     TODRAW c2 addSku(), editSku(c2), copySku(c2), DELETE(c2) FORCE PANEL TOOLBAR  
     FILTERS        isComponentGroupSku(c2)                   
     OBJECTS b2=BOM    
@@ -672,7 +684,7 @@ FORM BOMs 'Спецификации'
     FILTERS        relationComponentsSkuBOM(c2,b2)           
     
     OBJECTS p2 = Product
-    PROPERTIES(p2) READONLY indexProduct, idBarcodeSkuProduct, nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
+    PROPERTIES(p2) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
     FILTERS        BOMProduct(p2) == b2    
     
 ;
@@ -698,6 +710,7 @@ DESIGN BOMs FROM DEFAULT {
     
                     ADD p.box {
                         caption = 'Изделие';
+                        PROPERTY (idProduct(p)) { caption = 'Код изделия';}
                     }
                     ADD c.box {
                         caption = 'Компонент';
@@ -738,10 +751,67 @@ DESIGN BOMs FROM DEFAULT {
                     fill = 1;
                     type = SPLITH;
                     ADD b2.box;
-                    ADD p2.box;                    
+                    ADD p2.box {
+                        PROPERTY (idProduct(p2)) { caption = 'Код изделия';}
+                    };                    
                 } 
             }                      
         }
+        PROPERTY (idSku(p1)) { caption = 'Код изделия';}
+        PROPERTY (idSku(c2)) { caption = 'Код компонента';}
+    }
+}
+
+
+FORM BOMsDialog 'Спецификации'
+
+    OBJECTS b=BOM
+
+    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) productsBOM, nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, componentsBOM, quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM, noteBOM
+//    PROPERTIES (b) ADDFORM, EDITFORM, copyBOM, deleteb=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES (b) READONLY FORCE PANEL createdNameUserBOM, createdTimeBOM, createdHostnameComputerBOM
+    FILTERGROUP inactiveBOM
+        FILTER 'Текущие' 'F11' isActiveBOM(b)            
+        FILTER 'Активные' 'F10' isActiveBOM(b) OR (fromDateBOM(b) > currentDate()) DEFAULT
+        
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
+    FILTERS       BOMProduct(p) == b
+
+    OBJECTS c = Component
+    PROPERTIES(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
+                  overCurWastageComponent, overCurBruttoQuantityComponent
+    FILTERS       BOMComponent(c) == b
+      
+    DIALOG BOM OBJECT b
+;
+
+DESIGN BOMsDialog FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+        NEW bom BEFORE functions.box {
+            fill = 1;
+            type = SPLITV;
+            
+            ADD b.box;
+            NEW documentDetail {
+                type = TABBED;
+                fill = 1;
+
+                ADD p.box {
+                    caption = 'Изделие';
+                    PROPERTY (idProduct(p)) { caption = 'Код изделия';}
+                }
+                ADD c.box {
+                    caption = 'Компонент';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    ADD b.created;
+                }                
+            }                
+        }                                                              
     }
 }
 

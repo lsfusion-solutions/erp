@@ -134,7 +134,7 @@ isVATComponentDetail(componentDetail) = isVATOrder(orderComponentDetail(componen
 
 componentComponentDetail = DATA Component (ComponentDetail);
 nameComponentComponentDetail 'Компонент' (componentDetail) = nameComponent(componentComponentDetail(componentDetail));
-idComponentComponentDetail 'Код компонента' (componentDetail) = idMaterial(materialComponent(componentComponentDetail(componentDetail)));
+idComponentComponentDetail 'Код компонента' (componentDetail) = idComponent(componentComponentDetail(componentDetail));
 
 CONSTRAINT bruttoSkuComponentDetail(d) AND NOT isComponentGroupSku(bruttoSkuComponentDetail(d)) CHECKED  BY bruttoSkuComponentDetail
     MESSAGE 'В качестве компонента выбран товар, который не входит в группу: Сырье';
@@ -627,7 +627,7 @@ namePriceStockOrder 'Склад' = nameStock(priceStockOrder(order));
 
 CONSTRAINT  priceStockOrder(o) AND NOT isCompanyStock(priceStockOrder(o)) CHECKED BY priceStockOrder    
         MESSAGE 'Склад для цен не является складом компании';
-priceStockSkuOrder 'Цена' (sku, order)= prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order), sku, componentsStockOrder(order), dateTimeOrder(order));                                                                                                                                                               
+priceStockSkuOrder 'Цена' (sku, order)= prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order), sku, priceStockOrder(order), dateTimeOrder(order));                                                                                                                                                               
 
 priceStockOrder (order) <- componentsStockOrder(order)
     WHEN CHANGED(componentsStockOrder(order));
@@ -655,7 +655,24 @@ fillSubstitutePriceOrderSkuFromTo 'Использовать цену' = ACTION (
 } TOOLBAR;  
 
 currentBalanceSkuPriceStockOrder 'Текущий остаток' = currentBalanceSkuStock(sku, priceStockOrder(order)); 
-      
+
+maxSubstitutePriceSkuOrder = GROUP MAX multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
+    currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
+    BY sku, order; 
+minSubstitutePriceSkuOrder = GROUP MIN multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
+    currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
+    BY sku, order; 
+fillSubstitutePriceMaxOrderSkuFrom 'Исп. max цену' = ACTION (order, sku) {
+    IF maxSubstitutePriceSkuOrder(sku, order) THEN {
+        dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](maxSubstitutePriceSkuOrder(sku, order));     
+    }        
+} TOOLBAR;  
+fillSubstitutePriceMinOrderSkuFrom 'Исп. min цену' = ACTION (order, sku) {
+    IF minSubstitutePriceSkuOrder(sku, order) THEN {
+        dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](minSubstitutePriceSkuOrder(sku, order));     
+    }        
+} TOOLBAR;   
+    
 FORM order 'Производственный заказ'
 
     OBJECTS o = Order FIXED PANEL
@@ -712,13 +729,14 @@ FORM order 'Производственный заказ'
                     valueVATSkuOrder BACKGROUND backgroundVATOrder(o) SHOWIF showVATOrder(o)
     FILTERS quantityComponentDetailSkuOrder(sk,o)    
         
-    PROPERTIES namePriceStockOrder(o)           
+    PROPERTIES namePriceStockOrder(o)    
+           
     OBJECTS sku = Sku
     PROPERTIES(sku) READONLY nameSku, idBarcodeSku, shortNameUOMSku
     PROPERTIES(sku,o) READONLY currentBalanceSkuPriceStockOrder, priceStockSkuOrder
     PROPERTIES(sk,sku) READONLY multiplierSubstituteFromToSku FORCE GRID  
     
-    PROPERTIES fillSubstitutePriceOrderSkuFromTo(o,sk,sku)
+    PROPERTIES fillSubstitutePriceOrderSkuFromTo(o,sk,sku), fillSubstitutePriceMaxOrderSkuFrom(o,sk), fillSubstitutePriceMinOrderSkuFrom(o,sk)
         
     FILTERGROUP filter1
         FILTER 'Доступные замены' 'F9' uniqueSubstituteFromToSku(sk,sku)     
@@ -902,12 +920,12 @@ FORM orders 'Производственные заказы'
                                         postedNameUserOrder, postedTimeOrder, postedHostnameComputerOrder
 
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) READONLY indexProductDetail, nameSkuProductDetail, nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
+    PROPERTIES(pd) READONLY indexProductDetail, nameSkuProductDetail, idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
                    calcComponentsPriceProductDetail, componentsPriceProductDetail, markupProductDetail, productsPriceProductDetail, productsSumProductDetail
     FILTERS orderProductDetail(pd)==o
 
     OBJECTS cd = ComponentDetail
-    PROPERTIES(cd) READONLY BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, nameComponentComponentDetail,
+    PROPERTIES(cd) READONLY BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,
                    shortNameUOMComponentDetail, bruttoQuantityComponentDetail 
     PROPERTIES(cd) READONLY BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail, substituteQuantityComponentDetail
     PROPERTIES(cd) READONLY priceComponentDetail
