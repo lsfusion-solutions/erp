@@ -340,7 +340,7 @@ META defineScheduleOrder(sign, stockProp)
         };
     } TOOLBAR;
     @defineDocumentDetailActions(scheduleOrder, ScheduleOrderDetail);
-
+       
     FORM scheduleOrder 'График поставок'
         OBJECTS s=ScheduleOrder FIXED PANEL
         PROPERTIES (s) nameSupplierScheduleOrder, nameSupplierStockScheduleOrder, nameCustomerScheduleOrder, nameCustomerStockScheduleOrder,
@@ -443,7 +443,27 @@ META defineScheduleOrder(sign, stockProp)
             ADD functions.box;
         }
     }
-        
+    
+    overCopyScheduleOrder = ABSTRACT ACTION LIST (ScheduleOrder, ScheduleOrder);
+    copyScheduleOrder 'Копировать' = ACTION (scheduleOrder) NEWSESSION {
+        FOR ADDOBJ o = ScheduleOrder DO {
+            supplierScheduleOrder(o) <- supplierScheduleOrder(scheduleOrder);
+            supplierStockScheduleOrder(o) <- supplierStockScheduleOrder(scheduleOrder);
+            customerScheduleOrder(o) <- customerScheduleOrder(scheduleOrder);
+            customerStockScheduleOrder(o) <- customerStockScheduleOrder(scheduleOrder);
+            typeScheduleOrder(o) <- typeScheduleOrder(scheduleOrder);
+            dayBeforeScheduleOrder(o) <- dayBeforeScheduleOrder(scheduleOrder);
+            dayLastOrderScheduleOrder(o) <- dayLastOrderScheduleOrder(scheduleOrder);
+            dayAfterScheduleOrder(o) <- dayAfterScheduleOrder(scheduleOrder);
+            startDateScheduleOrder(o) <- startDateScheduleOrder(scheduleOrder);
+            endDateScheduleOrder(o) <- endDateScheduleOrder(scheduleOrder);
+            
+            EXEC overCopyScheduleOrder(scheduleOrder, o);
+
+            FORM scheduleOrder OBJECTS s = o MANAGESESSION DOCKEDMODAL;
+        }
+    } TOOLBAR;
+                
     editScheduleOrder 'Редактировать' = ACTION EDITFORM ScheduleOrder TOOLBAR;
 
     ScheduleOrder.editScheduleOrder(scheduleOrder) += editScheduleOrder(scheduleOrder);
@@ -657,7 +677,7 @@ isLastScheduleOrder 'Последний график' (s)=
         PROPERTIES(s) READONLY startDateScheduleOrder, endDateScheduleOrder, nameSupplierScheduleOrder, nameSupplierStockScheduleOrder,
                       nameCustomerScheduleOrder, nameCustomerStockScheduleOrder, nameTypeScheduleOrder
         PROPERTIES(s,d) READONLY countRemainingScheduleOrderDate
-        PROPERTIES(s) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+        PROPERTIES(s) copyScheduleOrder, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
         ORDER BY endDateScheduleOrder(s)
 
         FILTERS supplierScheduleOrder(s) == supplier() OR (s IS ScheduleOrder AND NOT supplier()),
