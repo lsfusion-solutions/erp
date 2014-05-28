@@ -69,6 +69,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
                         getLCP("thumbnailImage").change(IOUtils.getFileBytes(file), context, currentObject);
                         getLCP("urlImage").change(imageUrl, context, currentObject);
                         getLCP("sizeImage").change(width + "x" + height, context, currentObject);
+                        file.delete();
                     }
                 }
                 getLCP("startImage").change(start + 1, context);

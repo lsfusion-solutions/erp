@@ -122,7 +122,8 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
                 writeBottom(writer);
 
                 writer.close();
-
+                inputFile.delete();
+                
                 files.put("GenerateTNVED.lsf", IOUtils.getFileBytes(outputFile));
                 context.delayUserInterfaction(new ExportFileClientAction(files));
             }
@@ -177,6 +178,7 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
                     break;
             }
         }
+        tempFile.delete();
         return result;
     }
 

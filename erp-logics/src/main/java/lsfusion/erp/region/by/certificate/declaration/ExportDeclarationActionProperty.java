@@ -269,8 +269,11 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
             writerTSDocs44.close();
 
             files.put("TSware.csv", IOUtils.getFileBytes(fileTSware));
+            fileTSware.delete();
             files.put("TSmarkings.csv", IOUtils.getFileBytes(fileTSMarkings));
+            fileTSMarkings.delete();
             files.put("TSDocs44.csv", IOUtils.getFileBytes(fileTSDocs44));
+            fileTSDocs44.delete();
             context.delayUserInterfaction(new ExportFileClientAction(files));
 
         } catch (UnsupportedEncodingException e) {

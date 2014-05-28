@@ -46,7 +46,7 @@ public abstract class CreateExcelTemplateActionProperty extends ScriptingActionP
 
         Map<String, byte[]> result = new HashMap<String, byte[]>();
         result.put(fileName + ".xls", IOUtils.getFileBytes(file));
-
+        file.delete();
         return result;
     }
 

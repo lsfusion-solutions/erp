@@ -35,9 +35,10 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
         try {
 
             File file = readImage((String) urlObject.object);
-            if (file != null)
+            if (file != null) {
                 getLCP("imageArticle").change(IOUtils.getFileBytes(file), context, articleObject);
-
+                file.delete();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ScriptingErrorLog.SemanticErrorException e) {

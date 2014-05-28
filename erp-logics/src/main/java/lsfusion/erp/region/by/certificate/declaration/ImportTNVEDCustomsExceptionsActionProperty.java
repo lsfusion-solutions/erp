@@ -144,6 +144,8 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
                     dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
             }
         }
+        file.close();
+        tempFile.delete();
 
         for (Map.Entry<String, List<Object>> entry : dataVATMap.entrySet()) {
             for(String tnved : tnvedSet) {

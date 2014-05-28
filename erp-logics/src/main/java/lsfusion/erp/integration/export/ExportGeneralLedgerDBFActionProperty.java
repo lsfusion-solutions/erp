@@ -42,8 +42,10 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             Date dateTo = (Date) getLCP("dateToExportGeneralLedgerDBF").read(context);
 
             File file = exportGeneralLedgers(context, dateFrom, dateTo);
-            if (file != null)
+            if (file != null) {
                 context.delayUserInterfaction(new ExportFileClientAction("export.dbf", IOUtils.getFileBytes(file)));
+                file.delete();
+            }
             else
                 context.delayUserInterfaction(new MessageClientAction("По заданным параметрам не найдено ни одной проводки", "Ошибка"));
             

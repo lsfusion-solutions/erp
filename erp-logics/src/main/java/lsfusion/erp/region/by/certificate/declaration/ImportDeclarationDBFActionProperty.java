@@ -67,6 +67,8 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
                     DBF dbfFile = new DBF(tempFile.getPath());
 
                     importDeclaration(context, declarationObject, dbfFile, disableVolatileStats);
+                    
+                    tempFile.delete();
 
                 }
             }
@@ -167,6 +169,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
                 }
             }
         }
+        importFile.close();
         return data;
     }
 

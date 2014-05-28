@@ -43,7 +43,7 @@ public class UploadImageArticleFromURLActionProperty extends DefaultImageArticle
                 Timestamp timeChangedImageArticle = new Timestamp(Calendar.getInstance().getTime().getTime());
                 getLCP("imageArticle").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
                 getLCP("timeChangedImageArticle").change(new DataObject(timeChangedImageArticle, DateTimeClass.instance), context, articleObject);
-
+                imageFile.delete();
 
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {

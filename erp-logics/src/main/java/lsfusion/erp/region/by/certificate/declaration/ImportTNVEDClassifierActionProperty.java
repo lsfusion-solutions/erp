@@ -85,6 +85,9 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
             }
             data.add(Arrays.asList((Object) groupID, name + extraName, i, "БЕЛАРУСЬ", hasCode, defaultVAT, defaultDate));
         }
+        file.close();
+        tempFile.delete();
+        
         ImportField codeCustomsGroupField = new ImportField(LM.findLCPByCompoundOldName("codeCustomsGroup"));
         ImportField nameCustomsGroupField = new ImportField(LM.findLCPByCompoundOldName("nameCustomsGroup"));
         ImportField numberCustomsGroupField = new ImportField(LM.findLCPByCompoundOldName("numberCustomsGroup"));
@@ -147,6 +150,9 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
             data.add(Arrays.asList((Object) groupID, parentID));
             groupIDsList.add(groupID);
         }
+        file.close();
+        tempFile.delete();
+        
         ImportField groupIDField = new ImportField(LM.findLCPByCompoundOldName("codeCustomsGroup"));
         ImportField parentIDField = new ImportField(LM.findLCPByCompoundOldName("codeCustomsGroup"));
 

@@ -216,6 +216,8 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
                     break;
             }
         }
+        file.close();
+        tempFile.delete();
 
         Date defaultDateFrom = new Date(2010 - 1900, 0, 1);
         Date defaultDateTo = new Date(2040 - 1900, 11, 31);
@@ -225,7 +227,6 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
             dataVAT.add(Arrays.asList(tnved, entry == null ? tnved + String.valueOf(defaultDateTo) : entry.get(1), entry == null ? BigDecimal.valueOf(20) : entry.get(5),
                     entry == null ? defaultDateFrom : entry.get(6), entry == null ? defaultDateTo : entry.get(7)));
         }
-
         return Arrays.asList(dataDuty, dataVAT);
     }
 

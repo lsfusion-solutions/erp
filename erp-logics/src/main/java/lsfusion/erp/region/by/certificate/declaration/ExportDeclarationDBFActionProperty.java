@@ -281,6 +281,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         Map<String, Object> nameValueFieldMap = getNameValueFieldMap(dbfFields);
 
         File dbfFile = File.createTempFile("decl02", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
 
         String GA = DOP_NOMER + (declaration.number == null ? "" : declaration.number);
@@ -333,6 +334,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         Map<String, Object> nameValueFieldMap = getNameValueFieldMap(dbfFields);
 
         File dbfFile = File.createTempFile("dobl", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
 
         String GA = DOP_NOMER + (declaration.number == null ? "" : declaration.number);
@@ -388,6 +390,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         OverJDBField[] dataFields = getJDBFieldArray(dbfFields);
 
         File dbfFile = File.createTempFile("g18", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
@@ -399,6 +402,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         Map<String, Object> nameValueFieldMap = getNameValueFieldMap(dbfFields);
 
         File dbfFile = File.createTempFile("g20", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
 
         nameValueFieldMap.put("G20I", 1);
@@ -418,6 +422,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         OverJDBField[] dataFields = getJDBFieldArray(dbfFields);
 
         File dbfFile = File.createTempFile("g21", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
@@ -428,6 +433,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         OverJDBField[] dataFields = getJDBFieldArray(dbfFields);
 
         File dbfFile = File.createTempFile("g40", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
@@ -439,6 +445,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         Map<String, Object> nameValueFieldMap = getNameValueFieldMap(dbfFields);
 
         File dbfFile = File.createTempFile("g44", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         for (G44Detail dd : g44.g44DetailList) {
 
@@ -470,6 +477,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         Map<String, Object> nameValueFieldMap = getNameValueFieldMap(dbfFields);
 
         File dbfFile = File.createTempFile("g47", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         for (DeclarationDetail dd : declaration.declarationDetailList) {
             String percentDuty = dd.percentDuty == null ? null : String.valueOf(dd.percentDuty.intValue());
@@ -513,6 +521,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         Map<String, Object> nameValueFieldMap = getNameValueFieldMap(dbfFields);
 
         File dbfFile = File.createTempFile("g313", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         for (DeclarationDetail dd : declaration.declarationDetailList) {
 
@@ -544,6 +553,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         OverJDBField[] dataFields = getJDBFieldArray(dbfFields);
 
         File dbfFile = File.createTempFile("exportGB", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
@@ -554,6 +564,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         OverJDBField[] dataFields = getJDBFieldArray(dbfFields);
 
         File dbfFile = File.createTempFile("g316", "dbf");
+        dbfFile.deleteOnExit();
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
@@ -597,6 +608,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             }
             fieldMap.put(dbfFile.getField(i), value);
         }
+        tempFile.delete();
         return fieldMap;
     }
 
