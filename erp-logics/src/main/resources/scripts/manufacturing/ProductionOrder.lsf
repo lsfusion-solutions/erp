@@ -189,6 +189,7 @@ quantityProductsBOMOrder 'Кол-во спецификаций' (BOM, order) = [
     
 BOMComponentDetail= DATA BOM (ComponentDetail); 
 nameBOMComponentDetail 'Спецификация' = nameBOM(BOMComponentDetail(d));    
+fullNameBOMComponentDetail 'Спецификация (полное название)' = fullNameBOM(BOMComponentDetail(d));    
 
 createComponentsOrder 'Заполнить компоненты из спецификации' = ACTION (order) {
 
@@ -531,8 +532,10 @@ recordMarkupProductDetail(detail) = ACTION (detail) {
 valueVATSkuOrder 'НДС, %' = DATA NUMERIC[10,5] (Sku, Order);
 
 valueVATSkuOrder(sku, order) <- valueVATSkuCountryDate(sku, componentsCountryOrder(order), dateOrder(order)) 
-        WHEN (CHANGED(componentsCountryOrder(order) IF sku IS Sku) OR
-             CHANGED(dateOrder(order) IF sku IS Sku)) 
+        WHEN (CHANGED(componentsCountryOrder(order)) OR
+              CHANGED(dateOrder(order)) OR 
+              CHANGED(includeVATOrder(order)) OR 
+              CHANGED(isVATOrder(order)))
              AND quantityComponentDetailSkuOrder(sku, order)
              AND (includeVATOrder(order) OR isVATOrder(order));                                      
 
@@ -673,7 +676,7 @@ FORM order 'Производственный заказ'
     OBJECTS cd = ComponentDetail
     PROPERTIES(cd) BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, nameMaterialComponentDetail, 
                    idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,    
-                   nameBOMComponentDetail, shortNameUOMComponentDetail, bruttoQuantityComponentDetail 
+                   fullNameBOMComponentDetail, shortNameUOMComponentDetail, bruttoQuantityComponentDetail 
     PROPERTIES(cd) BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail ON CHANGE chooseSubstituteComponentDetail(cd), substituteQuantityComponentDetail
     PROPERTIES(cd) priceComponentDetail
     PROPERTIES(cd) sumComponentDetail
@@ -756,6 +759,7 @@ DESIGN order FROM DEFAULT{
                 caption = 'Цены';
                 type = SPLITH ;
                 NEW price1 {
+                    fill = 1;
                     type = CONTAINERV;
                     NEW price11{
                         caption = 'Цена материалов';
@@ -767,6 +771,7 @@ DESIGN order FROM DEFAULT{
                 }                
                        
                 NEW price2 {
+                    fill = 1;
                     type = CONTAINERV;
                     NEW price21{
                         caption = 'Фильтр складов для цен';
