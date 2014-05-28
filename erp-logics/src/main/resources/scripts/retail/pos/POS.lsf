@@ -398,6 +398,17 @@ createReceiptSaleDetailBatch 'Добавить строку продажи' = AC
     }
 }
 
+countBatchSkuStockReceipt (sk, st, r) = GROUP SUM 1 
+                                                  IF (currentBalanceBatchStock(batch, stock) (-) 
+                                                      [= GROUP SUM quantityReceiptSaleDetail(d) 
+                                                              BY batchReceiptSaleDetail(d), receiptReceiptSaleDetail(d)] (batch, receipt)) > 0
+                                              BY skuBatch(batch), stock, receipt; 
+defaultBatchSkuStockReceipt 'Партия по умолчанию' (sku, stock, receipt) = 
+    GROUP MIN batch IF (currentBalanceBatchStock(batch, stock) (-)
+                        [= GROUP SUM quantityReceiptSaleDetail(d) 
+                                 BY batchReceiptSaleDetail(d), receiptReceiptSaleDetail(d)] (batch, receipt)) > 0
+          BY skuBatch(batch), stock, receipt; 
+
 createReceiptSaleDetailSku 'Добавить строку продажи' = ACTION (receipt, sku, barcode) {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
         seek(d);
@@ -408,8 +419,8 @@ createReceiptSaleDetailSku 'Добавить строку продажи' = ACTI
         priceReceiptSaleDetail(d) <- currentPOSPriceSkuReceipt(sku, receipt);
 //        VATReceiptSaleDetail(d) <- VATSkuStockDate(sku, departmentStoreReceipt(receipt), currentDate());
         IF explicitBatchLedgerReceipt(receiptReceiptSaleDetail(d)) AND
-            countBatchSkuStock(skuReceiptSaleDetail(d), departmentStoreReceipt(receiptReceiptSaleDetail(d))) == 1 THEN {
-                batchReceiptSaleDetail(d) <- defaultBatchSkuStock(skuReceiptSaleDetail(d), departmentStoreReceipt(receiptReceiptSaleDetail(d)));
+            countBatchSkuStockReceipt(skuReceiptSaleDetail(d), departmentStoreReceipt(receiptReceiptSaleDetail(d)), receipt) == 1 THEN {
+                batchReceiptSaleDetail(d) <- defaultBatchSkuStockReceipt(skuReceiptSaleDetail(d), departmentStoreReceipt(receiptReceiptSaleDetail(d)), receipt);
                 priceReceiptSaleDetail(d) <- currentPOSPriceBatchReceipt(batchReceiptSaleDetail(d), receiptReceiptDetail(d));
             } ELSE IF explicitBatchLedgerReceipt(receiptReceiptSaleDetail(d)) THEN {
                 FORM chooseBatchReceipt OBJECTS st = departmentStoreReceiptDetail(d), d = d MODAL;
