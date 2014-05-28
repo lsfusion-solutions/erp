@@ -7,9 +7,10 @@ import java.sql.Date;
 public class CashRegisterInfo extends MachineryInfo {
     public String directory;
     public Date startDate;
+    public Boolean notDetailed;
 
     public CashRegisterInfo(Integer numberGroup, Integer number, String nameModel, String handlerModel,
-                            String port, String directory, Date startDate) {
+                            String port, String directory, Date startDate, Boolean notDetailed) {
         this.numberGroup = numberGroup;
         this.number = number;
         this.nameModel = nameModel;
@@ -17,5 +18,6 @@ public class CashRegisterInfo extends MachineryInfo {
         this.port = port;
         this.directory = directory;
         this.startDate = startDate;
+        this.notDetailed = notDetailed;
     }
 }

@@ -204,6 +204,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                     br.close();
 
                     FileCopyUtils.copy(outputFile, inputFile);
+                    outputFile.delete();
                 }
             } catch (IOException e) {
                 throw Throwables.propagate(e);
@@ -277,7 +278,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
             Set<String> directorySet = new HashSet<String>();
             for (CashRegisterInfo c : cashRegisterInfoList) {
-                if (c.directory != null)
+                if (c.directory != null && c.handlerModel.endsWith("AtolHandler"))
                     directorySet.add(c.directory);
             }
 
@@ -368,7 +369,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
         Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null)
+            if (c.directory != null && c.handlerModel.endsWith("AtolHandler"))
                 directorySet.add(c.directory);
             if (c.directory != null && c.number != null && c.numberGroup != null)
                 directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);

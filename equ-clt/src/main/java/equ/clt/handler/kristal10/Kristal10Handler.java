@@ -200,7 +200,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
         Set<String> directorySet = new HashSet<String>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null)
+            if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler"))
                 directorySet.add(c.directory);
         }
 
@@ -284,7 +284,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
         Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null)
+            if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler"))
                 directorySet.add(c.directory);
             if (c.directory != null && c.number != null && c.numberGroup != null)
                 directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);

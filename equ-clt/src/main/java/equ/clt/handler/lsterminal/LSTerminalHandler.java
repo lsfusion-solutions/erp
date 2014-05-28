@@ -231,10 +231,10 @@ public class LSTerminalHandler extends TerminalHandler {
         if (transactionInfo.terminalDocumentTypeList != null && !transactionInfo.terminalDocumentTypeList.isEmpty()) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
-            for (TerminalDocumentType terminalDocumentType : transactionInfo.terminalDocumentTypeList) {
-                if (terminalDocumentType.id != null)
+            for (TerminalDocumentType tdt : transactionInfo.terminalDocumentTypeList) {
+                if (tdt.id != null)
                     sql += String.format("INSERT OR REPLACE INTO ana VALUES('%s', '%s', '%s', '%s', '%s');",
-                            terminalDocumentType.id, formatValue(terminalDocumentType.name), "", "", "");
+                            (String) formatValue(tdt.analytics1) + formatValue(tdt.id), formatValue(tdt.name), "", "", "");
             }
             sql += "COMMIT;";
             statement.executeUpdate(sql);

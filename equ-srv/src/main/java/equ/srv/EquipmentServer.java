@@ -226,7 +226,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     
                     String directoryGroupCashRegister = (String) cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").read(session, groupMachineryObject);
                     java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findLCPByCompoundOldName("startDateGroupCashRegister").read(session, groupMachineryObject);
-                    
+                    Boolean notDetailedGroupCashRegister = cashRegisterLM.findLCPByCompoundOldName("notDetailedGroupCashRegister").read(session, groupMachineryObject) != null;
+
                     List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<CashRegisterInfo>();
                     LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) cashRegisterLM.is(cashRegisterLM.findClassByCompoundName("CashRegister"));
 
@@ -248,7 +249,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String nameModel = (String) row.get("nameModelMachinery");
                         String handlerModel = (String) row.get("handlerModelMachinery");
                         String portMachinery = (String) row.get("portMachinery");
-                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, nameModel, handlerModel, portMachinery, directoryGroupCashRegister, startDateGroupCashRegister));
+                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, nameModel, handlerModel, portMachinery, directoryGroupCashRegister, startDateGroupCashRegister, notDetailedGroupCashRegister));
                     }
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<CashRegisterItemInfo>();
@@ -590,14 +591,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "GroupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-                query.addProperty("nppMachinery", cashRegisterLM.findLCPByCompoundOldName("nppMachinery").getExpr(cashRegisterExpr));
-                query.addProperty("nameModelMachinery", cashRegisterLM.findLCPByCompoundOldName("nameModelMachinery").getExpr(cashRegisterExpr));
-                query.addProperty("handlerModelMachinery", cashRegisterLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterExpr));
-                query.addProperty("portMachinery", cashRegisterLM.findLCPByCompoundOldName("portMachinery").getExpr(cashRegisterExpr));
-                query.addProperty("directoryGroupCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupCashRegisterExpr));
-                query.addProperty("startDateGroupCashRegister", cashRegisterLM.findLCPByCompoundOldName("startDateGroupCashRegister").getExpr(groupCashRegisterExpr));
-                query.addProperty("nppGroupMachinery", cashRegisterLM.findLCPByCompoundOldName("nppGroupMachinery").getExpr(groupCashRegisterExpr));
-
+                String[] cashRegisterProperties = new String[] {"nppMachinery", "nameModelMachinery", "handlerModelMachinery", "portMachinery"};
+                for(String property : cashRegisterProperties)
+                    query.addProperty(property, cashRegisterLM.findLCPByCompoundOldName(property).getExpr(cashRegisterExpr));
+                String[] groupCashRegisterProperties = new String[] {"directoryGroupCashRegister", "startDateGroupCashRegister", "notDetailedGroupCashRegister", "nppGroupMachinery"};
+                for(String property : groupCashRegisterProperties) 
+                    query.addProperty(property, cashRegisterLM.findLCPByCompoundOldName(property).getExpr(groupCashRegisterExpr));
+                
                 query.and(cashRegisterLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
                 query.and(cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
                 query.and(cashRegisterLM.findLCPByCompoundOldName("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
@@ -608,7 +608,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("directoryGroupCashRegister"), (java.sql.Date) row.get("startDateGroupCashRegister")));
+                            (String) row.get("directoryGroupCashRegister"), (java.sql.Date) row.get("startDateGroupCashRegister"), row.get("notDetailedGroupCashRegister") != null));
                 }
             }
             return cashRegisterInfoList;
