@@ -88,7 +88,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         ImMap<Object, ObjectValue> emailEntryValue = emailResult.getValue(j);
                         ObjectValue attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
                         Timestamp dateTimeReceivedEmail = (Timestamp) emailEntryValue.get("dateTimeReceivedEmail").getValue();
-                        boolean isOld = (Calendar.getInstance().getTime().getTime() - dateTimeReceivedEmail.getTime()) > (2*24*60*60*1000); //старше 2 суток
+                        boolean isOld = (Calendar.getInstance().getTime().getTime() - dateTimeReceivedEmail.getTime()) > (24*60*60*1000); //старше 24 часов
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
                         if (fromAddressEmail != null && emailPattern != null && fromAddressEmail.matches(emailPattern)) {
                             byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
@@ -103,7 +103,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                 if(importResult >=IMPORT_RESULT_OK)
                                     currentSession.apply(context);
 
-                                if (importResult >= IMPORT_RESULT_OK || (importResult == IMPORT_RESULT_EMPTY && isOld)) {
+                                if (importResult >= IMPORT_RESULT_OK || isOld) {
                                     DataSession postImportSession = context.createSession();
                                     getLCP("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
                                     postImportSession.apply(context);
