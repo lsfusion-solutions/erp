@@ -954,25 +954,28 @@ copyDataItem = ACTION (item, i) {
 }
 
 copyItem 'Копировать' = ACTION (item) {
-    LOCAL addedItem = Item();
     IF (item IS Item) THEN {
-        NEWSESSION (addedItem) {
+        NEWSESSION (addedSku) {
             FOR ADDOBJ i = Item DO {
                 copyDataItem(item, i);
                 FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
                 IF formResult() == FormResult.ok THEN {
-                    addedItem() <- i;
+                    addedSku() <- i;
                 }
             }
-        }
-        IF (addedItem()) THEN {
-            SEEK items.i addedItem();
         }
     }
 } EDITKEY 'F5' TOOLBAR;
 
-EXTEND FORM items PROPERTIES (i) copyItem;
-EXTEND DESIGN items { PROPERTY(copyItem(i)) { focusable = FALSE; } }
+copyItemsItem 'Копировать' = ACTION (item) {
+    copyItem(item);
+    IF (addedSku()) THEN {
+        SEEK items.i addedSku();
+    }
+} EDITKEY 'F5' TOOLBAR;
+
+EXTEND FORM items PROPERTIES (i) copyItemsItem;
+EXTEND DESIGN items { PROPERTY(copyItemsItem(i)) { focusable = FALSE; } }
 
 copySku(sku) += copyItem(sku);
 
