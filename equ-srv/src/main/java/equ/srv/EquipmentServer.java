@@ -10,7 +10,10 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
-import lsfusion.server.classes.*;
+import lsfusion.server.classes.ConcreteClass;
+import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.classes.CustomClass;
+import lsfusion.server.classes.StringClass;
 import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -54,16 +57,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule equLM;
 
     //Опциональные модули
-    private ScriptingLogicsModule scalesItemLM;
-    private ScriptingLogicsModule zReportLM;
-    private ScriptingLogicsModule itemLM;
-    private ScriptingLogicsModule discountCardLM;
     private ScriptingLogicsModule cashRegisterLM;
-    private ScriptingLogicsModule scalesLM;
-    private ScriptingLogicsModule priceCheckerLM;
-    private ScriptingLogicsModule terminalLM;
-    private ScriptingLogicsModule purchaseOrderLM;
     private ScriptingLogicsModule collectionLM;
+    private ScriptingLogicsModule discountCardLM;
+    private ScriptingLogicsModule itemLM;
+    private ScriptingLogicsModule legalEntityLM;
+    private ScriptingLogicsModule priceCheckerLM;
+    private ScriptingLogicsModule purchaseOrderLM;
+    private ScriptingLogicsModule scalesLM;
+    private ScriptingLogicsModule scalesItemLM;
+    private ScriptingLogicsModule terminalLM;
+    private ScriptingLogicsModule zReportLM;
     
     private boolean started = false;
 
@@ -103,16 +107,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     protected void onInit(LifecycleEvent event) {
         equLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Equipment");
         Assert.notNull(equLM, "can't find Equipment module");
-        scalesItemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ScalesItem");
-        zReportLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ZReport");
-        itemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Item");
-        discountCardLM = (ScriptingLogicsModule) getBusinessLogics().getModule("DiscountCard");
         cashRegisterLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentCashRegister");
-        scalesLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentScales");
-        priceCheckerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentPriceChecker");
-        terminalLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentTerminal");
-        purchaseOrderLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseOrder");
         collectionLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Collection");
+        discountCardLM = (ScriptingLogicsModule) getBusinessLogics().getModule("DiscountCard");
+        itemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Item");
+        legalEntityLM = (ScriptingLogicsModule) getBusinessLogics().getModule("LegalEntity");
+        priceCheckerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentPriceChecker");
+        purchaseOrderLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseOrder");
+        scalesItemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ScalesItem");
+        scalesLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentScales");
+        terminalLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentTerminal");
+        zReportLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ZReport");
     }
 
     @Override
@@ -435,10 +440,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session);
                     List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeList(session);                   
                     List<TerminalOrder> terminalOrderList = readTerminalOrderList(session);
+                    List<TerminalLegalEntity> terminalLegalEntityList = readTerminalLegalEntityList(session);
 
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(),
                             dateTimeCode, terminalItemInfoList, terminalInfoList, terminalHandbookTypeList,
-                            terminalDocumentTypeList, terminalOrderList, nppGroupTerminal, directoryGroupTerminal, snapshotTransaction));
+                            terminalDocumentTypeList, terminalOrderList, terminalLegalEntityList, nppGroupTerminal, 
+                            directoryGroupTerminal, snapshotTransaction));
                 }
             }
             return transactionList;
@@ -509,6 +516,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
             orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
             orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("numberOrder").getExpr(orderExpr).getWhere());
+            orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("isOpenedOrder").getExpr(orderExpr).getWhere());
             orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> orderResult = orderQuery.executeClasses(session);
             for (ImMap<Object, ObjectValue> entry : orderResult.values()) {
@@ -522,6 +530,29 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price, quantity));
             }
             return terminalOrderList;
+        } else return null;
+    }
+
+    private List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+
+        if (legalEntityLM != null) {
+
+            List<TerminalLegalEntity> terminalLegalEntityList = new ArrayList<TerminalLegalEntity>();
+            KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
+            ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
+            QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<Object, Object>(legalEntityKeys);
+            String[] legalEntityProperties = new String[]{"idLegalEntity", "nameLegalEntity"};
+            for (String property : legalEntityProperties) {
+                legalEntityQuery.addProperty(property, legalEntityLM.findLCPByCompoundOldName(property).getExpr(legalEntityExpr));
+            }
+            legalEntityQuery.and(legalEntityLM.findLCPByCompoundOldName("idLegalEntity").getExpr(legalEntityExpr).getWhere());
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session);
+            for (ImMap<Object, Object> entry : legalEntityResult.values()) {
+                String idLegalEntity = trim((String) entry.get("idLegalEntity"));
+                String nameLegalEntity = trim((String) entry.get("nameLegalEntity"));
+                terminalLegalEntityList.add(new TerminalLegalEntity(idLegalEntity, nameLegalEntity));
+            }
+            return terminalLegalEntityList;
         } else return null;
     }
 

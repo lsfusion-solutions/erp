@@ -35,7 +35,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 String exchangeDirectory = directory + "\\import";
                 if ((new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdir())) {
                     //copy base to exchange directory
-                    FileCopyUtils.copy(new File(makeDBPath(dbPath, nppGroupTerminal)), new File(makeDBPath(exchangeDirectory, nppGroupTerminal)));
+                    FileCopyUtils.copy(new File(makeDBPath(directory + dbPath, nppGroupTerminal)), new File(makeDBPath(exchangeDirectory, nppGroupTerminal)));
                 }
             }
         } catch (Exception e) {
@@ -54,11 +54,12 @@ public class LSTerminalHandler extends TerminalHandler {
         logger.info("LSTerminal: save Transaction #" + transactionInfo.id);
 
         Integer nppGroupTerminal = transactionInfo.nppGroupTerminal;
-        File directory = new File(dbPath);
+        File directory = new File(transactionInfo.directoryGroupTerminal + dbPath);
         if (directory.exists() || directory.mkdir()) {
             try {
                 Class.forName("org.sqlite.JDBC");
-                Connection connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(dbPath, nppGroupTerminal));
+                Connection connection = DriverManager.getConnection("jdbc:sqlite:" + 
+                        makeDBPath(transactionInfo.directoryGroupTerminal + dbPath, nppGroupTerminal));
 
                 createGoodsTableIfNotExists(connection);
                 updateGoodsTable(connection, transactionInfo);
@@ -72,7 +73,10 @@ public class LSTerminalHandler extends TerminalHandler {
                 createANATableIfNotExists(connection);
                 updateANATable(connection, transactionInfo);
 
-                createOrderTableIfNotExists(connection);
+                createVOPTableIfNotExists(connection);
+                updateVOPTable(connection, transactionInfo);
+
+                createOrderTable(connection);
                 updateOrderTable(connection, transactionInfo);
 
                 connection.close();
@@ -228,19 +232,50 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private void updateANATable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
-        if (transactionInfo.terminalDocumentTypeList != null && !transactionInfo.terminalDocumentTypeList.isEmpty()) {
+        if (transactionInfo.terminalLegalEntityList != null && !transactionInfo.terminalLegalEntityList.isEmpty()) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
-            for (TerminalDocumentType tdt : transactionInfo.terminalDocumentTypeList) {
-                if (tdt.id != null)
+            for (TerminalLegalEntity legalEntity : transactionInfo.terminalLegalEntityList) {
+                if (legalEntity.idLegalEntity != null) {
                     sql += String.format("INSERT OR REPLACE INTO ana VALUES('%s', '%s', '%s', '%s', '%s');",
-                            (String) formatValue(tdt.analytics1) + formatValue(tdt.id), formatValue(tdt.name), "", "", "");
+                            "ПС" + formatValue(legalEntity.idLegalEntity), formatValue(legalEntity.nameLegalEntity), "", "", "");
+                }
             }
             sql += "COMMIT;";
             statement.executeUpdate(sql);
             statement.close();
         }
     }
+
+    private void createVOPTableIfNotExists(Connection connection) throws SQLException {
+        Statement statement = connection.createStatement();
+        String sql = "CREATE TABLE IF NOT EXISTS vop " +
+                "(vop  TEXT PRIMARY KEY," +
+                " rvop TEXT," +
+                " naim TEXT," +
+                " van1 TEXT," +
+                " van2 TEXT," +
+                " van3 TEXT," +
+                " FLAGS INTEGER )";
+        statement.executeUpdate(sql);
+        statement.close();
+    }
+
+    private void updateVOPTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
+        if (transactionInfo.terminalDocumentTypeList != null && !transactionInfo.terminalDocumentTypeList.isEmpty()) {
+            Statement statement = connection.createStatement();
+            String sql = "BEGIN TRANSACTION;";
+            for (TerminalDocumentType tdt : transactionInfo.terminalDocumentTypeList) {
+                if (tdt.id != null)
+                    sql += String.format("INSERT OR REPLACE INTO vop VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s');",
+                            formatValue(tdt.id), "", formatValue(tdt.name), formatValue(tdt.analytics1), formatValue(tdt.analytics2), "", "");
+            }
+            sql += "COMMIT;";
+            statement.executeUpdate(sql);
+            statement.close();
+        }
+    }
+
 
     private void createAssortTableIfNotExists(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
@@ -332,9 +367,10 @@ public class LSTerminalHandler extends TerminalHandler {
         }
     }
 
-    private void createOrderTableIfNotExists(Connection connection) throws SQLException {
+    private void createOrderTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
-        String sql = "CREATE TABLE IF NOT EXISTS zayavki " +
+        String sql = "DROP TABLE IF EXISTS zayavki;" +
+                "CREATE TABLE zayavki " +
                 "(dv     TEXT," +
                 " num   TEXT," +
                 " post  TEXT," +
@@ -351,10 +387,12 @@ public class LSTerminalHandler extends TerminalHandler {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
             for (TerminalOrder order : transactionInfo.terminalOrderList) {
-                if (order.number != null)
+                if (order.number != null) {
+                    String supplier = order.supplier == null ? "" : ("ПС" + formatValue(order.supplier));
                     sql += String.format("INSERT OR REPLACE INTO zayavki VALUES('%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(order.date), formatValue(order.number), formatValue(order.supplier),
-                            formatValue(order.barcode), formatValue(order.quantity), formatValue(order.price));
+                            formatValue(order.date), formatValue(order.number), supplier, formatValue(order.barcode), 
+                            formatValue(order.quantity), formatValue(order.price));
+                }
             }
             sql += "COMMIT;";
             statement.executeUpdate(sql);
