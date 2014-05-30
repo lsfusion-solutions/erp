@@ -1,6 +1,6 @@
 MODULE BOMHumidity;
 
-REQUIRE BOM, ItemHumidity;
+REQUIRE BOM, ItemHumidity, ItemNutrition;
 
 
 // ------------------------------------------------------------------- //
@@ -23,7 +23,7 @@ percentHumidityComponent 'Влажность, %' (component) = IF materialCompon
                                               
 percentDrynessComponent 'Массовая доля сухих веществ, %' (c) = 100 - (OVERRIDE 0 IF c IS Component, percentHumidityComponent(c)) IN itemHumidity;
 
-//------------------------- Подсчет данных --------------------------//
+//------------------------- Производственная рецептура --------------------------//
 
 overNetWeightComponent = OVERRIDE netWeightItem(materialComponent(c)), netWeightItem(skuProduct(materialComponent(c))); 
 
@@ -125,7 +125,80 @@ printProductionRecipe 'Производственная рецептура'  = A
         }
 } IMAGE 'print.png' IN print;
 
+//------------------------- Расчет пищевой ценности --------------------------//
 
+recBruttoNetQuantityBOMSkuDate 'В натуре' (BOM, sku, d)= recBruttoQuantityBOMSkuDate(BOM, sku, d) *
+    (OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku));
+
+//-- все берем на 100 грамм
+
+netGramsQuantityProductSkuDate 'Кол-во на 100 гр. изделия в натуре' (p,sku,d)= recBruttoNetQuantityBOMSkuDate(BOMProduct(p), sku, d)/ (overQuantityProduct(p) IF overQuantityProduct(p) !=0) *1000/10;
+netGramsDrynessQuantityProductSkuDate 'Кол-во на 100 гр. изделия в сухих веществах' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)* percentDrynessItem(sku)/100;
+
+
+
+proteinsGramsQuantityProductSkuDate 'Белки в рецепте' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)*proteinsItem(sku)/100;
+fatsGramsQuantityProductSkuDate 'Жиры в рецепте' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)*fatsItem(sku)/100;
+carbohydratesGramsQuantityProductSkuDate 'Углеводы в рецепте' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)*carbohydratesItem(sku)/100;
+energyGramsQuantityProductSkuDate 'Энергетическая ценность в рецепте' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)*energyItem(sku)/100;
+
+
+//-- по всему изделию
+netGramsQuantityProductDate  'Кол-во на 100 гр. изделия в натуре всего' (p,d) = GROUP SUM netGramsQuantityProductSkuDate(p,sku,d) BY p,d;
+netGramsDrynessQuantityProductDate  'Кол-во на 100 гр. изделия в сухих веществах всего' (p,d) = GROUP SUM netGramsDrynessQuantityProductSkuDate(p,sku,d) BY p,d;
+gramsQuantityComponentsProduct 'Кол-во на 100 гр. изделия в сухих веществах по компонентам' (p)= drynessQuantityComponentsBOM(BOMProduct(p))/ (overQuantityProduct(p) IF overQuantityProduct(p) !=0) *1000/10;
+
+coeffGramsDrynessQuantityProductDate 'Коэффициент' (p,d) = gramsQuantityComponentsProduct(p)/netGramsDrynessQuantityProductDate(p,d);
+
+proteinsGramsQuantityProductDate  'Белки в рецепте' (p,d) = GROUP SUM proteinsGramsQuantityProductSkuDate(p,sku,d) BY p,d;
+fatsGramsQuantityProductDate  'Жиры в рецепте' (p,d) = GROUP SUM fatsGramsQuantityProductSkuDate(p,sku,d) BY p,d;
+carbohydratesGramsQuantityProductDate  'Углеводы в рецепте' (p,d) = GROUP SUM carbohydratesGramsQuantityProductSkuDate(p,sku,d) BY p,d;
+energyGramsQuantityProductDate  'Энергетическая ценность в рецепте' (p,d) = GROUP SUM energyGramsQuantityProductSkuDate(p,sku,d) BY p,d;
+
+netProteinsGramsQuantityProductDate  'Белки в рецепте' (p,d) = proteinsGramsQuantityProductDate(p,d)*coeffGramsDrynessQuantityProductDate(p,d);
+netFatsGramsQuantityProductDate  'Жиры в рецепте' (p,d) = fatsGramsQuantityProductDate(p,d)*coeffGramsDrynessQuantityProductDate(p,d);
+netCarbohydratesGramsQuantityProductDate 'Углеводы в рецепте' (p,d) = carbohydratesGramsQuantityProductDate(p,d)*coeffGramsDrynessQuantityProductDate(p,d);
+netEnergyGramsQuantityProductDate 'Энергетическая ценность в рецепте' (p,d) = energyGramsQuantityProductDate(p,d)*coeffGramsDrynessQuantityProductDate(p,d);
+
+calcNetEnergyGramsQuantityProductDate'Энергетическая ценность в рецепте' (p,d) = 
+    netProteinsGramsQuantityProductDate(p,d)*4 (+)
+    netFatsGramsQuantityProductDate(p,d)*9 (+)
+    netCarbohydratesGramsQuantityProductDate(p,d)*4;
+
+FORM nutritionalValue 'Пищевая ценность'
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES (dt) OBJVALUE
+
+    OBJECTS b=BOM FIXED PANEL 
+    PROPERTIES(b)  READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overQuantityProductBOM, overNettoQuantityComponentBOM, pricePercentBOM, noteBOM
+
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY nameSkuProduct, shortNameUOMProduct, percentHumidityProduct, overQuantityProduct, gramsQuantityComponentsProduct
+    PROPERTIES(p,dt) READONLY recBruttoQuantityProductDate, recBruttoDrynessQuantityProductDate
+    PROPERTIES(p) drynessQuantityComponentsProduct, calcPercentHumidityProduct
+    FILTERS       BOMProduct(p) == b    
+    
+    PROPERTIES(p,dt) READONLY netGramsQuantityProductDate, netGramsDrynessQuantityProductDate,
+                     proteinsGramsQuantityProductDate, fatsGramsQuantityProductDate, 
+                     carbohydratesGramsQuantityProductDate, energyGramsQuantityProductDate,
+                     netProteinsGramsQuantityProductDate, netFatsGramsQuantityProductDate,
+                     netCarbohydratesGramsQuantityProductDate, netEnergyGramsQuantityProductDate,
+                     calcNetEnergyGramsQuantityProductDate, coeffGramsDrynessQuantityProductDate                              
+
+    OBJECTS sk = Sku
+    PROPERTIES(sk) READONLY nameSku, percentDrynessItem, proteinsItem, fatsItem, carbohydratesItem, energyItem
+                                                          
+    PROPERTIES(p,sk,dt)  READONLY netGramsQuantityProductSkuDate, netGramsDrynessQuantityProductSkuDate,
+                        proteinsGramsQuantityProductSkuDate, fatsGramsQuantityProductSkuDate, 
+                        carbohydratesGramsQuantityProductSkuDate, energyGramsQuantityProductSkuDate 
+    FILTERS recBruttoQuantityBOMSkuDate(b,sk,dt)                                      
+;
+printNutritionalValue 'Расчет пищевой ценности'  = ACTION (BOM) NEWSESSION AUTOAPPLY {
+    FORM dialogDate MODAL;
+        IF formResult() == FormResult.ok THEN {
+            FORM nutritionalValue OBJECTS dt = chosenDate('d'), b = BOM PRINT;
+        }
+} IMAGE 'print.png' IN print;
 
 
 
@@ -145,7 +218,7 @@ EXTEND FORM BOMs
     PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) showHumidityBOM
     PROPERTIES(p) SHOWIF showHumidityBOM(b) READONLY percentHumidityProduct
     PROPERTIES(c) BACKGROUND  backgroundComponent(c) SHOWIF showHumidityBOM(b) READONLY percentHumidityComponent
-    PROPERTIES(b) FORCE  PANEL printProductionRecipe
+    PROPERTIES(b) FORCE  PANEL printProductionRecipe, printNutritionalValue
     
 ;
 EXTEND FORM BOMsDialog
