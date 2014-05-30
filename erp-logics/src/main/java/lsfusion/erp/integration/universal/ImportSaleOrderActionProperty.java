@@ -582,6 +582,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 secondaryList.add(saleOrderDetail);
         }
         file.close();
+        tempFile.delete();
 
         return Arrays.asList(primaryList, secondaryList);
     }
@@ -590,8 +591,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         try {
             Field field = SaleOrderDetail.class.getField(fieldName);
 
-            for (int i = 0; i < data.size(); i++) {
-                if (field.get(data.get(i)) != null)
+            for (SaleOrderDetail aData : data) {
+                if (field.get(aData) != null)
                     return true;
             }
         } catch (NoSuchFieldException e) {

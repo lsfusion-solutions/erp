@@ -1592,6 +1592,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         currentTimestamp = null;
         file.close();
+        tempFile.delete();
        
         return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
