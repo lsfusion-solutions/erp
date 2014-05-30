@@ -378,9 +378,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     return pathname.getName().startsWith(notDetailed ? "ReportCheque1C" : "ReportGang1C") && pathname.getPath().endsWith(".xml");
                 }
             });
-            
-            for(File file : deletingFilesList) {
-                filePathList.add(file.getAbsolutePath());
+
+            if (deletingFilesList != null) {
+                for (File file : deletingFilesList) {
+                    filePathList.add(file.getAbsolutePath());
+                }
             }
                 
 
