@@ -197,11 +197,14 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 PrintWriter writer = new PrintWriter(
                         new OutputStreamWriter(
                                 new FileOutputStream(softFile), "windows-1251"));
-
+                
+                String logRecord = "softcheque data: ";
                 for (Map.Entry<String, String> userInvoice : softCheckInfo.invoiceMap.entrySet()) {
+                    logRecord += userInvoice.getKey() + ";";
                     String record = String.format("%s|0|1|1|1", trimLeadingZeroes(userInvoice.getKey()));
                     writer.println(record);
                 }
+                writer.println(logRecord);
                 writer.close();
 
                 logger.info("Kristal: waiting for deletion of WAITSOFT file");
