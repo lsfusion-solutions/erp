@@ -278,10 +278,10 @@ nameBOM 'Наименование' = DATA VARISTRING[100](BOM);
 
 @defineNumbered(BOM);
 @defineNumeratedDefault(BOM, 'Спецификации', 'СП');
-
-descriptionBOM 'Название спецификации' (BOM) =
-    [= FORMULA VARSTRING[200]  ' CAST($1 AS TEXT) || \' / \' || CAST($2 AS TEXT) || \' № \' || CAST($3 AS TEXT)'](
-    'Спецификация', nameBOM(BOM), seriesNumberBOM(BOM)) IF BOM IS BOM MINCHARWIDTH 30 PREFCHARWIDTH 50;
+  
+descriptionBOM 'Название спецификации' (BOM) = VARSTRING[200](CONCAT ' ', 'Спецификация / '+nameBOM(BOM), 
+                                                                          '№'+seriesNumberBOM(BOM)) MINCHARWIDTH 30 PREFCHARWIDTH 50; 
+    
 
 fromDateBOM 'Дата с' = DATA DATE (BOM) IN documentPrm;
 toDateBOM 'Дата по' = DATA DATE (BOM) IN documentPrm;
@@ -381,10 +381,10 @@ idComponent 'Код компонента' (component)= idMaterial(materialCompon
 componentsBOM 'Компоненты' (BOM) = GROUP CONCAT VARSTRING[255](nameMaterialComponent(component)), ', '
                                        BY BOMComponent(component)
                                        ORDER indexComponent(component) MINCHARWIDTH 20 PREFCHARWIDTH 50 PERSISTENT;
-
-nameComponent 'Компонент' (component) = [= FORMULA VARSTRING[255]  ' CAST($1 AS TEXT) || \' / \' ||  CAST($2 AS TEXT)'](
-                                      nameBOM(BOMComponent(component)),
-                                      nameMaterialComponent(component)) PERSISTENT;
+                                     
+nameComponent 'Компонент' (component) = VARSTRING[255](CONCAT '/', nameBOM(BOMComponent(component)), 
+                                                     nameMaterialComponent(component)) PERSISTENT;
+                                      
 
 UOMComponent = DATA UOM (Component);
 shortNameUOMComponent 'Ед. изм.' (component) = shortNameUOM(UOMComponent(component));
@@ -419,11 +419,7 @@ FORM componentTechnologies 'Технологии'
 
     OBJECTS t=Technology
     PROPERTIES(t)  READONLY nameTechnology
-    PROPERTIES(t,c) inTechnologyComponent
-
-//    OBJECTS m=Material
-//    PROPERTIES     READONLY nameMaterial(m), shortNameUOMMaterial(m), wastageTechnologyMaterial(t,m)
-//    ORDER BY nameMaterial(m)
+    PROPERTIES(t,c) inTechnologyComponent, wastageTechnologyComponent
 
     FILTERS        inTechnologyMaterial(t, materialComponent(c))
                    //,materialComponent(c) == m    
@@ -444,9 +440,12 @@ minTechnologyComponent (c) = GROUP MIN t IF inTechnologyComponent(t,c) BY c;
 maxTechnologyComponent (c) = GROUP MAX t IF inTechnologyComponent(t,c) BY c;
 equalsMaxMinTechnologyComponent (c) = minTechnologyComponent (c) == maxTechnologyComponent (c);
 
+calcMinMaxWastageTechnologyMaterialDate (c,date)= [= (1-((100-X)*(100-Y)/10000))*100](
+    wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date),
+    wastageTechnologyMaterialDate(maxTechnologyComponent(c),materialComponent(c), date));
+    
 minMaxWastageTechnologyMaterialDate (c, date)= IF equalsMaxMinTechnologyComponent (c) THEN wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date)
-    ELSE (100+wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date))/1000.000000 * (100+wastageTechnologyMaterialDate(maxTechnologyComponent(c),materialComponent(c), date))
-;
+    ELSE calcMinMaxWastageTechnologyMaterialDate(c,date);
 
 wastageComponentDate '% потерь' (component, date) = IF countTechnologiesComponent(component) THEN minMaxWastageTechnologyMaterialDate(component, date)
                                                     ELSE (OVERRIDE 0 IF component IS Component AND date IS DATE, wastageComponent(component) IF date IS DATE);

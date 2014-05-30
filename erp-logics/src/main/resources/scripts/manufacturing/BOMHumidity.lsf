@@ -8,27 +8,20 @@ GROUP humidity 'Влажность' : base;
 
 showHumidityBOM 'Отображать влажность' = DATA BOOLEAN(BOM) IN documentPrm;
 
-// Влажность компонент
-
-percentHumidityComponent 'Влажность, %' = DATA NUMERIC[8,2] (Component) IN itemHumidity;
-percentDrynessComponent 'Массовая доля сухих веществ, %' (c) = 100 - (OVERRIDE 0 IF c IS Component, percentHumidityComponent(c)) IN itemHumidity;
-
+// Влажность изделия
 percentHumidityProduct 'Влажность, %' = DATA NUMERIC[8,2] (Product) IN itemHumidity;
-
-percentHumidityComponent(component) <- IF materialComponent(component) IS Product 
-    THEN percentHumidityProduct(materialComponent(component)) 
-    ELSE percentHumidityItem(materialComponent(component))
-        WHEN CHANGED (materialComponent(component));
-
-// Энергетическая ценность изделий
-
-
-
 changeCompositionProduct 'Записать в товар' = ACTION (product) {
     FOR skuProduct(product) == item DO {
         ASSIGN percentHumidityItem(item) <- percentHumidityProduct(product);
     }
 } SHORTCUT percentHumidityProduct;
+
+// Влажность компонент
+percentHumidityComponent 'Влажность, %' (component) = IF materialComponent(component) IS Product 
+                                              THEN percentHumidityProduct(materialComponent(component)) 
+                                              ELSE percentHumidityItem(materialComponent(component));
+                                              
+percentDrynessComponent 'Массовая доля сухих веществ, %' (c) = 100 - (OVERRIDE 0 IF c IS Component, percentHumidityComponent(c)) IN itemHumidity;
 
 //------------------------- Подсчет данных --------------------------//
 
@@ -125,18 +118,16 @@ FORM productionRecipe 'Производственная рецептура'
                   materialComponent(c2) IS Product                      
                   
 ;
-NAVIGATOR {
-    manufacturingMasterData {
-        ADD productionRecipe;
-    }
-}
-//printProductionRecipe 'Производственная рецептура' (BOM) = ACTION FORM productionRecipe OBJECTS dt = currentDate(), b = BOM PRINT IMAGE 'print.png' IN print;
 printProductionRecipe 'Производственная рецептура'  = ACTION (BOM) NEWSESSION AUTOAPPLY {
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
             FORM productionRecipe OBJECTS dt = chosenDate('d'), b = BOM PRINT;
         }
 } IMAGE 'print.png' IN print;
+
+
+
+
 
 // Расширяем формы
 EXTEND FORM BOM
