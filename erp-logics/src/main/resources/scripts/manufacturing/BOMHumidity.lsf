@@ -1,0 +1,166 @@
+MODULE BOMHumidity;
+
+REQUIRE BOM, ItemHumidity;
+
+
+// ------------------------------------------------------------------- //
+GROUP humidity 'Влажность' : base;
+
+showHumidityBOM 'Отображать влажность' = DATA BOOLEAN(BOM) IN documentPrm;
+
+// Влажность компонент
+
+percentHumidityComponent 'Влажность, %' = DATA NUMERIC[8,2] (Component) IN itemHumidity;
+percentDrynessComponent 'Массовая доля сухих веществ, %' (c) = 100 - (OVERRIDE 0 IF c IS Component, percentHumidityComponent(c)) IN itemHumidity;
+
+percentHumidityProduct 'Влажность, %' = DATA NUMERIC[8,2] (Product) IN itemHumidity;
+
+percentHumidityComponent(component) <- IF materialComponent(component) IS Product 
+    THEN percentHumidityProduct(materialComponent(component)) 
+    ELSE percentHumidityItem(materialComponent(component))
+        WHEN CHANGED (materialComponent(component));
+
+// Энергетическая ценность изделий
+
+
+
+changeCompositionProduct 'Записать в товар' = ACTION (product) {
+    FOR skuProduct(product) == item DO {
+        ASSIGN percentHumidityItem(item) <- percentHumidityProduct(product);
+    }
+} SHORTCUT percentHumidityProduct;
+
+//------------------------- Подсчет данных --------------------------//
+
+overNetWeightComponent = OVERRIDE netWeightItem(materialComponent(c)), netWeightItem(skuProduct(materialComponent(c))); 
+
+overNettoQuantityComponent 'Кол-во (нетто)' = nettoQuantityComponent(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
+overBruttoQuantityComponentDate 'Выход полуфабрикатов' (c,dt)=bruttoQuantityComponentDate(c,dt)* (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
+overQuantityProduct 'Кол-во' (p) = quantityProduct(p) * (OVERRIDE 1.0 IF p IS Product, netWeightItem(skuProduct(p)));
+overQuantityProductBOM 'Кол-во (всего) (изделие)' (BOM) = GROUP SUM overQuantityProduct(idetail) BY BOMProduct(idetail) IN documentSum PERSISTENT;
+overNettoQuantityComponentBOM 'Кол-во (всего) (нетто компонент)' (BOM) = GROUP SUM overNettoQuantityComponent(idetail) BY BOMComponent(idetail) IN documentSum PERSISTENT;
+
+// -- по всей спецификации
+
+recBruttoDrynessQuantityBOMSkuDate 'В сухих веществах' (BOM, sku, date)= recBruttoQuantityBOMSkuDate (BOM, sku, date) *
+    (OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku)) *
+    percentDrynessItem(sku)/100;
+
+quantityComponentSkuDate 'Кол-во для компонента, если он полуфабрикат' (component, sku, date)= recBruttoQuantityBOMSkuDate (BOMProduct(materialComponent(component)), sku, date) *
+    bruttoQuantityComponentDate(component, date)/
+    (quantityProduct(materialComponent(component)) IF quantityProduct(materialComponent(component))!=0) *
+    (OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku))
+    ;
+quantityBomSkuDate 'Кол-во по спец. для полуфабрикатов' (BOM, sku, date) = GROUP SUM quantityComponentSkuDate(component, sku, date) BY BOMComponent(component), sku, date;
+quantityComponentDate 'Итого сырья на полуфабрикаты' (component, date) = GROUP SUM quantityComponentSkuDate(component, sku, date) BY component, date;
+
+drynessQuantityBomSkuDate 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomSkuDate(BOM, sku, date)*percentDrynessItem(sku)/100;
+
+recBruttoQuantityBOMDate 'Кол-во компонентов в натуре' (BOM, date) = GROUP SUM recBruttoQuantityBOMSkuDate (BOM, sku, date)*(OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku)) BY BOM, date;
+recBruttoDrynessQuantityBOMDate 'В сухих веществах' (BOM, date) = GROUP SUM recBruttoDrynessQuantityBOMSkuDate(BOM, sku, date) BY BOM, date;
+
+drynessQuantityComponentDate 'Кол-во для комонента(товар) в сухих веществах' (cc,dt)=  bruttoQuantityComponentDate(cc,dt) * 
+                                                                                       (OVERRIDE 1.0 IF cc IS Component, overNetWeightComponent(cc)) *
+                                                                                       percentDrynessComponent(cc)/100;
+drynessQuantityComponent 'Кол-во для комонентов сухих веществах' (c) = overNettoQuantityComponent(c) *
+                                                                       (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c)) *
+                                                                       percentDrynessComponent(c)/100;
+drynessQuantityComponentsBOM 'Кол-во по комонентам в сухих веществах' (b) = GROUP SUM drynessQuantityComponent(c) BY BOMComponent(c);
+calcPercentHumidityBOM 'Массовая доля сухих веществ, %' (b)= drynessQuantityComponentsBOM(b)/(overNettoQuantityComponentBOM(b) IF overNettoQuantityComponentBOM(b)!=0)*100; 
+
+//--
+recBruttoQuantityProductDate 'Кол-во компонентов в натуре' (product, date) = recBruttoQuantityBOMDate(BOMProduct(product),date);
+recBruttoDrynessQuantityProductDate 'В сухих веществах' (product, date) = recBruttoDrynessQuantityBOMDate(BOMProduct(product),date);
+drynessQuantityComponentsProduct 'Кол-во по комонентам в сухих веществах' (product) =drynessQuantityComponentsBOM(BOMProduct(product));
+
+calcPercentHumidityProduct 'Массовая доля сухих веществ, %' (product) =calcPercentHumidityBOM(BOMProduct(product));
+
+percentHumidityProductComponent 'Влажность' (c) = percentHumidityProduct(materialComponent(c));
+
+FORM productionRecipe 'Производственная рецептура'
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES (dt) OBJVALUE
+
+    OBJECTS b=BOM FIXED PANEL 
+    PROPERTIES(b)  READONLY productsBOM, nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, componentsBOM, overQuantityProductBOM, overNettoQuantityComponentBOM, pricePercentBOM, noteBOM
+    PROPERTIES     READONLY    recBruttoQuantityBOMDate(b,dt), recBruttoDrynessQuantityBOMDate(b,dt), drynessQuantityComponentsBOM(b)
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct, nameSkuProduct, shortNameUOMProduct, percentHumidityProduct, overQuantityProduct
+    PROPERTIES(p,dt) READONLY recBruttoQuantityProductDate, recBruttoDrynessQuantityProductDate
+    PROPERTIES(p) drynessQuantityComponentsProduct, calcPercentHumidityProduct
+    FILTERS       BOMProduct(p) == b
+
+    OBJECTS c = Component FIXED GRID
+    FILTERS       BOMComponent(c) == b,
+                  materialComponent(c) IS Product                                 
+
+    OBJECTS sk = Sku
+    PROPERTIES(sk) READONLY nameSku, percentDrynessItem 
+    PROPERTIES     quantityComponentSkuDate(c,sk,dt) COLUMNS (c) HEADER nameMaterialComponent(c)
+    PROPERTIES     READONLY quantityBomSkuDate(b,sk,dt), drynessQuantityBomSkuDate(b,sk,dt)
+    FILTERS        quantityBomSkuDate(b,sk,dt)
+    
+    OBJECTS cc = Component
+    PROPERTIES(cc) READONLY indexComponent, idBarcodeSkuComponent, idComponent, nameMaterialComponent, shortNameUOMComponent, overNettoQuantityComponent
+    PROPERTIES    READONLY wastageComponentDate(cc,dt), overBruttoQuantityComponentDate(cc,dt), percentDrynessComponent(cc), drynessQuantityComponentDate(cc,dt)    
+    FILTERS       BOMComponent(cc) == b,
+                  materialComponent(cc) IS Sku     
+                  
+    PROPERTIES READONLY  overNettoQuantityComponent(c)  COLUMNS (c) FOOTER nameMaterialComponent(c)
+    ,quantityComponentDate(c,dt) COLUMNS (c) FOOTER nameMaterialComponent(c), overBruttoQuantityComponentDate(c,dt) COLUMNS (c) FOOTER nameMaterialComponent(c)       
+                  
+                  
+    OBJECTS ccc = Component
+    PROPERTIES(ccc) READONLY idComponent, nameMaterialComponent, overNettoQuantityComponent                                                                                        
+    FILTERS       BOMComponent(ccc) == b    
+                  
+    OBJECTS c1 = Component FIXED GRID
+    PROPERTIES READONLY  overNettoQuantityComponent(c1)  COLUMNS (c1) FOOTER nameMaterialComponent(c1)  
+    FILTERS       BOMComponent(c1) == b,
+                  materialComponent(c1) IS Product                    
+
+    OBJECTS c2 = Component FIXED GRID
+    PROPERTIES READONLY  percentHumidityProductComponent(c2)  COLUMNS (c2) FOOTER nameMaterialComponent(c2)  
+    FILTERS       BOMComponent(c2) == b,
+                  materialComponent(c2) IS Product                      
+                  
+;
+NAVIGATOR {
+    manufacturingMasterData {
+        ADD productionRecipe;
+    }
+}
+//printProductionRecipe 'Производственная рецептура' (BOM) = ACTION FORM productionRecipe OBJECTS dt = currentDate(), b = BOM PRINT IMAGE 'print.png' IN print;
+printProductionRecipe 'Производственная рецептура'  = ACTION (BOM) NEWSESSION AUTOAPPLY {
+    FORM dialogDate MODAL;
+        IF formResult() == FormResult.ok THEN {
+            FORM productionRecipe OBJECTS dt = chosenDate('d'), b = BOM PRINT;
+        }
+} IMAGE 'print.png' IN print;
+
+// Расширяем формы
+EXTEND FORM BOM
+    PROPERTIES(b) showHumidityBOM
+    PROPERTIES(p) SHOWIF showHumidityBOM(b) BEFORE deletep percentHumidityProduct
+    PROPERTIES(c) BACKGROUND  backgroundComponent(c) SHOWIF showHumidityBOM(b) BEFORE deletec percentHumidityComponent
+;
+
+EXTEND DESIGN BOM {
+    kitchen {
+        ADD PROPERTY(showHumidityBOM(b));        
+    }
+}
+EXTEND FORM BOMs
+    PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) showHumidityBOM
+    PROPERTIES(p) SHOWIF showHumidityBOM(b) READONLY percentHumidityProduct
+    PROPERTIES(c) BACKGROUND  backgroundComponent(c) SHOWIF showHumidityBOM(b) READONLY percentHumidityComponent
+    PROPERTIES(b) FORCE  PANEL printProductionRecipe
+    
+;
+EXTEND FORM BOMsDialog
+    PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) showHumidityBOM
+    PROPERTIES(p) SHOWIF showHumidityBOM(b) READONLY percentHumidityProduct
+    PROPERTIES(c) BACKGROUND  backgroundComponent(c) SHOWIF showHumidityBOM(b) READONLY percentHumidityComponent
+    
+;
+

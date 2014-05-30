@@ -1,0 +1,39 @@
+MODULE ItemHumidity;
+
+REQUIRE System, Item;
+
+NAMESPACE Item;
+
+GROUP itemHumidity 'Влажность' : public;
+
+percentHumidityItem 'Влажность, %' = DATA NUMERIC[8,2] (Item) IN itemHumidity;
+percentDrynessItem 'Массовая доля сухих веществ, %' (item) = 100 - (OVERRIDE 0 IF item IS Item, percentHumidityItem(item)) IN itemHumidity; 
+
+@defineItemAttribute(humidity, 'Влажность', itemHumidity);
+
+EXTEND FORM itemGroup PROPERTIES(g) userShowHumidityItemGroup;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showHumidityItemGroup BACKGROUND backgroundShowHumidityItemGroup(g) BEFORE deleteg;
+EXTEND DESIGN itemGroup {
+    itemGroupDetail {
+        ADD g.itemHumidity {
+        }
+    }
+}
+
+overCopyItem(s, d) += ACTION (s, d) {
+    ASSIGN percentHumidityItem(d) <- percentHumidityItem(s);
+}
+
+EXTEND FORM item 
+    PROPERTIES(i) SHOWIF showHumidityItem(i) percentHumidityItem
+;
+EXTEND DESIGN item {
+    itemPrimaryColumn1 {
+        ADD i.itemNutrition {
+//            columns = 2;
+        }
+    }
+}
+EXTEND FORM items 
+    PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showHumidityItemGroup(g) percentHumidityItem
+;

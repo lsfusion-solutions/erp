@@ -409,6 +409,8 @@ inTechnologyMaterial 'Связь' (technology, material) = GROUP SUM 1 IF dataWa
 
 CONSTRAINT inTechnologyComponent(technology, component) AND NOT inTechnologyMaterial(technology, materialComponent(component))
     MESSAGE 'Для компонента выбрана технология, у которой нет значения % потерь для SKU';
+
+wastageTechnologyComponent '% потерь' (t,c) = wastageTechnologyMaterial(t,materialComponent(c));     
                                          
 FORM componentTechnologies 'Технологии'
 
@@ -419,12 +421,12 @@ FORM componentTechnologies 'Технологии'
     PROPERTIES(t)  READONLY nameTechnology
     PROPERTIES(t,c) inTechnologyComponent
 
-    OBJECTS m=Material
-    PROPERTIES     READONLY nameMaterial(m), shortNameUOMMaterial(m), wastageTechnologyMaterial(t,m)
-    ORDER BY nameMaterial(m)
+//    OBJECTS m=Material
+//    PROPERTIES     READONLY nameMaterial(m), shortNameUOMMaterial(m), wastageTechnologyMaterial(t,m)
+//    ORDER BY nameMaterial(m)
 
-    FILTERS        inTechnologyMaterial(t, materialComponent(c)),
-                   materialComponent(c) == m    
+    FILTERS        inTechnologyMaterial(t, materialComponent(c))
+                   //,materialComponent(c) == m    
 ;  
 DESIGN componentTechnologies FROM DEFAULT {
     main {
@@ -517,6 +519,8 @@ CONSTRAINT skuProduct(p) AND NOT isProductGroupSku(skuProduct(p)) CHECKED  BY sk
     MESSAGE 'В качестве изделия выбран товар, который не входит в группу: Готовые изделия';      
         
 //------------------------------- Формы -------------------------------------//
+backgroundComponent 'Цвет' (component) = RGB(255,255,229) IF materialComponent(component) IS Product;
+
 FORM BOM 'Спецификация'
 
     OBJECTS b=BOM FIXED PANEL
@@ -534,7 +538,7 @@ FORM BOM 'Спецификация'
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, 
+    PROPERTIES(c) BACKGROUND  backgroundComponent(c) indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, 
                   shortNameUOMComponent, technologiesInvoice ON CHANGE selectTechnologiesComponent(c), nettoQuantityComponent ON CHANGE  changeNettoQuantityComponent(c),
                   overCurWastageComponent ON CHANGE changeWastageComponent(c) BACKGROUND backgroundWastageComponent(c) READONLYIF countTechnologiesComponent(c),
                   overCurBruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c) BACKGROUND backgroundBruttoQuantityComponent(c) READONLYIF countTechnologiesComponent(c)
@@ -654,7 +658,7 @@ FORM BOMs 'Спецификации'
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
+    PROPERTIES(c) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
                   overCurWastageComponent, overCurBruttoQuantityComponent
     FILTERS       BOMComponent(c) == b
     
@@ -671,7 +675,7 @@ FORM BOMs 'Спецификации'
     FILTERS        relationProductsSkuBOM(p1,b1)
           
     OBJECTS c1 = Component
-    PROPERTIES(c1) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
+    PROPERTIES(c1) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
                   overCurWastageComponent, overCurBruttoQuantityComponent
     FILTERS       BOMComponent(c1) == b1   
     
@@ -797,7 +801,7 @@ FORM BOMsDialog 'Спецификации'
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
+    PROPERTIES(c) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
                   overCurWastageComponent, overCurBruttoQuantityComponent
     FILTERS       BOMComponent(c) == b
       
