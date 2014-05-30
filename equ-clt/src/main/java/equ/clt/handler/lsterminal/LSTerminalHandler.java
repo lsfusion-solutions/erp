@@ -32,10 +32,10 @@ public class LSTerminalHandler extends TerminalHandler {
             Integer nppGroupTerminal = ((TransactionTerminalInfo) transactionInfo).nppGroupTerminal;
             String directory = ((TransactionTerminalInfo) transactionInfo).directoryGroupTerminal;
             if (directory != null) {
-                String exchangeDirectory = directory + "\\import";
+                String exchangeDirectory = directory + "\\exchange";
                 if ((new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdir())) {
                     //copy base to exchange directory
-                    FileCopyUtils.copy(new File(makeDBPath(directory + dbPath, nppGroupTerminal)), new File(makeDBPath(exchangeDirectory, nppGroupTerminal)));
+                    FileCopyUtils.copy(new File(makeDBPath(directory + dbPath, nppGroupTerminal)), new File(makeDBPath(exchangeDirectory, null)));
                 }
             }
         } catch (Exception e) {
@@ -58,7 +58,7 @@ public class LSTerminalHandler extends TerminalHandler {
         if (directory.exists() || directory.mkdir()) {
             try {
                 Class.forName("org.sqlite.JDBC");
-                Connection connection = DriverManager.getConnection("jdbc:sqlite:" + 
+                Connection connection = DriverManager.getConnection("jdbc:sqlite:" +
                         makeDBPath(transactionInfo.directoryGroupTerminal + dbPath, nppGroupTerminal));
 
                 createGoodsTableIfNotExists(connection);
@@ -122,7 +122,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
             for (String directory : directorySet) {
 
-                String exchangeDirectory = directory + "\\export";
+                String exchangeDirectory = directory + "\\exchange";
 
                 File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                     @Override
@@ -162,8 +162,9 @@ public class LSTerminalHandler extends TerminalHandler {
                                     String idTerminalDocumentDetail = numberTerminalDocument + "_" + barcode + (count == null ? "" : ("_" + count));
                                     barcodeCountMap.put(barcode, count == null ? 1 : (count + 1));
 
-                                    terminalDocumentDetailList.add(new TerminalDocumentDetail(numberTerminalDocument, idTerminalHandbookType1,
-                                            idTerminalHandbookType2, idTerminalDocumentType, idTerminalDocumentDetail, barcode, price, quantity, sum));
+                                    if (quantity != null && !quantity.equals(BigDecimal.ZERO))
+                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(numberTerminalDocument, idTerminalHandbookType1,
+                                                idTerminalHandbookType2, idTerminalDocumentType, idTerminalDocumentDetail, barcode, price, quantity, sum));
                                 }
 
                                 connection.close();
@@ -390,7 +391,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 if (order.number != null) {
                     String supplier = order.supplier == null ? "" : ("ПС" + formatValue(order.supplier));
                     sql += String.format("INSERT OR REPLACE INTO zayavki VALUES('%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(order.date), formatValue(order.number), supplier, formatValue(order.barcode), 
+                            formatValue(order.date), formatValue(order.number), supplier, formatValue(order.barcode),
                             formatValue(order.quantity), formatValue(order.price));
                 }
             }
@@ -405,7 +406,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private String makeDBPath(String directory, Integer nppGroupTerminal) {
-        return directory + "\\" + nppGroupTerminal + ".db";
+        return directory + "\\" + (nppGroupTerminal == null ? "tsd" : nppGroupTerminal) + ".db";
     }
 
     public static boolean isFileLocked(File file) {
