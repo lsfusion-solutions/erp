@@ -145,7 +145,7 @@ META defineScheduleOrder(sign, stockProp)
     shipmentDOWScheduleOrderTime 'День недели поставки' = DATA DOW (ScheduleOrderTime) NOT NULL;
     shipmentNameDOWScheduleOrderTime 'День недели поставки' (d) = staticCaption(shipmentDOWScheduleOrderTime(d));
 
-    shipmentTimeScheduleOrderTime 'Кол-во дней до поставки' (d) = distanceDOWDOW(orderDOWScheduleOrderTime(d), shipmentDOWScheduleOrderTime(d));
+    shipmentTimeScheduleOrderTime 'Кол-во дней до поставки' (d) = OVERRIDE 0, distanceDOWDOW(orderDOWScheduleOrderTime(d), shipmentDOWScheduleOrderTime(d));
 
     shipmentScheduleOrderTimeScheduleOrderDOW = GROUP AGGR d BY scheduleOrderScheduleOrderTime(d), shipmentDOWScheduleOrderTime(d); 
 
@@ -458,6 +458,12 @@ META defineScheduleOrder(sign, stockProp)
             startDateScheduleOrder(o) <- startDateScheduleOrder(scheduleOrder);
             endDateScheduleOrder(o) <- endDateScheduleOrder(scheduleOrder);
             
+            FOR scheduleOrderScheduleOrderTime(scheduleOrderTime) == scheduleOrder ADDOBJ sot=ScheduleOrderTime DO {
+                scheduleOrderScheduleOrderTime(sot) <- o;
+                orderDOWScheduleOrderTime(sot) <- orderDOWScheduleOrderTime(scheduleOrderTime);
+                shipmentDOWScheduleOrderTime(sot) <- shipmentDOWScheduleOrderTime(scheduleOrderTime); 
+            }          
+                   
             EXEC overCopyScheduleOrder(scheduleOrder, o);
 
             FORM scheduleOrder OBJECTS s = o MANAGESESSION DOCKEDMODAL;
