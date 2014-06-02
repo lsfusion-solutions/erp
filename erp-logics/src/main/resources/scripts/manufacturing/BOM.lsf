@@ -415,7 +415,7 @@ wastageTechnologyComponent '% потерь' (t,c) = wastageTechnologyMaterial(t,
 FORM componentTechnologies 'Технологии'
 
     OBJECTS c=Component FIXED  PANEL 
-    PROPERTIES(c)  READONLY nameComponent
+//    PROPERTIES(c)  READONLY nameComponent
 
     OBJECTS t=Technology
     PROPERTIES(t)  READONLY nameTechnology
@@ -520,6 +520,7 @@ CONSTRAINT skuProduct(p) AND NOT isProductGroupSku(skuProduct(p)) CHECKED  BY sk
 //------------------------------- Формы -------------------------------------//
 backgroundComponent 'Цвет' (component) = RGB(255,255,229) IF materialComponent(component) IS Product;
 
+editMaterialComponent 'Редактировать компонент' (d) = editMaterial(materialComponent(d));
 FORM BOM 'Спецификация'
 
     OBJECTS b=BOM FIXED PANEL
@@ -537,10 +538,11 @@ FORM BOM 'Спецификация'
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) BACKGROUND  backgroundComponent(c) indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, 
-                  shortNameUOMComponent, technologiesInvoice ON CHANGE selectTechnologiesComponent(c), nettoQuantityComponent ON CHANGE  changeNettoQuantityComponent(c),
-                  overCurWastageComponent ON CHANGE changeWastageComponent(c) BACKGROUND backgroundWastageComponent(c) READONLYIF countTechnologiesComponent(c),
-                  overCurBruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c) BACKGROUND backgroundBruttoQuantityComponent(c) READONLYIF countTechnologiesComponent(c)
+    PROPERTIES(c) BACKGROUND backgroundComponent(c) indexComponent 
+    PROPERTIES(c) BACKGROUND backgroundComponent(c) ON EDIT editMaterialComponent(c) idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent 
+    PROPERTIES(c) BACKGROUND backgroundComponent(c) technologiesInvoice ON CHANGE selectTechnologiesComponent(c), nettoQuantityComponent ON CHANGE changeNettoQuantityComponent(c),
+                                                    overCurWastageComponent ON CHANGE changeWastageComponent(c) BACKGROUND backgroundWastageComponent(c) READONLYIF countTechnologiesComponent(c),
+                                                    overCurBruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c) BACKGROUND backgroundBruttoQuantityComponent(c) READONLYIF countTechnologiesComponent(c)
 
     PROPERTIES(c) ADDOBJ, deletec=DELETESESSION
     PROPERTIES(b) TODRAW c deleteComponentBOM

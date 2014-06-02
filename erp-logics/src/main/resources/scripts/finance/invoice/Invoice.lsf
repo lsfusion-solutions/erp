@@ -107,8 +107,12 @@ EXTEND FORM options
 ;
 
 EXTEND DESIGN options {
-    commons {
-        ADD PROPERTY(negativeValueInvoices());
+    pane {
+        NEW invoices  {
+            type = CONTAINERV;
+            caption = 'Накладная';
+            ADD PROPERTY(negativeValueInvoices());
+        }
     }
 }
 //----------------------------------------------- Накладная ---------------------------------------------------//
@@ -213,6 +217,21 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter)
     overVATUserInvoiceDetail = ABSTRACT Range (UserInvoiceDetail); 
     // запись задана после объявления формы
     @deriveDocumentDetailValueVAT(userInvoice); // записываем значение ставки
+
+    equalSkuVATInvoices 'Запрет на различный НДС в накладных '##sign##' и SKU' = DATA BOOLEAN ();
+    
+    EXTEND FORM options
+        PROPERTIES() equalSkuVATInvoices
+    ;
+    
+    EXTEND DESIGN options {
+        invoices {
+            ADD PROPERTY(equalSkuVATInvoices());
+        }
+    }
+
+    CONSTRAINT equalSkuVATInvoices() AND VATUserInvoiceDetail(d) AND isPostedUserInvoiceDetail(d) AND NOT VATSkuCountry(skuUserInvoiceDetail(d), countryStock(customerStockUserInvoiceDetail(d))) == VATUserInvoiceDetail(d)
+        MESSAGE 'НДС в строке накладной '##sign##' не соответствует НДС для SKU';
 
     Invoice.VATInvoiceDetail(detail) += VATInvoiceDetail(detail);
     Invoice.valueVATInvoiceDetail(detail) += valueVATInvoiceDetail(detail);
