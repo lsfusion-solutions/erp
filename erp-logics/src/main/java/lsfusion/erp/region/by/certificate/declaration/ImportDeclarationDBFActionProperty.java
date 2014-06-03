@@ -140,35 +140,46 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
     private List<List<Object>> readDeclarationFromDBF(DataSession session, DataObject declarationObject, DBF importFile) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
 
         int recordCount = importFile.getRecordCount();
-
+        
+        BigDecimal homeSum = null, dutySum = null, VATSum = null;
         List<List<Object>> data = new ArrayList<List<Object>>();
-
-        BigDecimal dutySum = null;
-        boolean second = true;
+        
+        Integer curNumber = null;
+        
         for (int i = 0; i < recordCount; i++) {
 
             importFile.read();
 
+            Integer numberDeclarationDetail = getIntegerFieldValue(importFile, "G32", "cp866", false, null);
+
+            if (curNumber != null && !curNumber.equals(numberDeclarationDetail)) {
+                data.add(Arrays.asList((Object) curNumber, dutySum, VATSum, homeSum));
+                dutySum = null;
+                VATSum = null;
+                homeSum = null;
+            }
+            curNumber = numberDeclarationDetail;
+
             String g471 = trim(getFieldValue(importFile, "G471", "cp866", false, null));
-
+                    
             if (g471 != null) {
-                if ((g471.equals("2010") || g471.equals("5010"))) {
-                    second = !second;
-
-                    Integer numberDeclarationDetail = getIntegerFieldValue(importFile, "G32", "cp866", false, null);
-                    BigDecimal homeSum = getBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
-                    BigDecimal g474 = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);  //dutySum - VATSum
-                    if (second) {
-                        data.add(Arrays.asList((Object) numberDeclarationDetail, dutySum, g474, homeSum));
-                    } else {
-                        dutySum = g474;
-                    }
-                }  else if(g471.equals("1010")) {
+                if (g471.equals("2010")) {
+                    homeSum = getBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
+                    dutySum = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);
+                } else if (g471.equals("5010")) {
+                    if (homeSum == null) homeSum = getBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
+                    VATSum = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);
+                } else if(g471.equals("1010")) {
                     BigDecimal g474 = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);  //dutySum - VATSum
                     getLCP("registrationSumDeclaration").change(g474, session, declarationObject);
                 }
             }
         }
+
+        if (curNumber != null) {
+            data.add(Arrays.asList((Object) curNumber, dutySum, VATSum, homeSum));
+        }
+
         importFile.close();
         return data;
     }
