@@ -71,12 +71,13 @@ FORM dialogItemGroups 'Товарные группы'
 
 DESIGN dialogItemGroups FROM DEFAULT {
     main{
-        preferredSize = (1024, 768);
+        preferredSize = (1280, 1024);
         NEW rootContainer BEFORE functions.box {
             fill = 1;
             type = SPLITH;
             ADD treeGroups.tree.box;
             ADD g.box {
+                fill = 2;
                 g.grid { defaultComponent = TRUE; }
             }
         }
@@ -131,7 +132,10 @@ CONSTRAINT customGroupTypeCustomGroup(customGroupCustomGroupTypeItem(type, item)
 dataImageItem 'Изображение' = DATA IMAGEFILE (Item);
 loadImageItem 'Загрузить изображение' (item) = ACTION LOADFILE dataImageItem(item);
 overImageItem '' = ABSTRACT IMAGEFILE (Item);
+
 imageItem (item) = OVERRIDE dataImageItem (item), overImageItem (item);
+hasImageItem (item) = TRUE IF imageItem(item) PERSISTENT;
+
 imageBatch 'Изображение' (batch) = imageItem(skuBatch(batch)); 
 
 // -------------------------------- Надбавки для расчетных видов цен --------------------------------//
@@ -265,7 +269,7 @@ FORM items 'Товары'
     FILTERGROUP inactive1 FILTER 'Активные' 'F5' activeGroup(g) DEFAULT
     
     OBJECTS i=Item  
-    PROPERTIES(i) READONLY idBarcodeSku, imageItem FORCE PANEL, idItem SHOWIF showIDs()
+    PROPERTIES(i) READONLY idBarcodeSku, imageItem FORCE PANEL SHOWIF hasImageItem(i), idItem SHOWIF showIDs()
     PROPERTIES(i) ADDFORM, EDITFORM, deletei=DELETE FORCE PANEL TOOLBAR
     PROPERTIES seekBarcode()
     ON CHANGE seekSkuBarcode() 
