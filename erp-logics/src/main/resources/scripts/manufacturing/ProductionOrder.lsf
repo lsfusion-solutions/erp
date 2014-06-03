@@ -661,17 +661,47 @@ maxSubstitutePriceSkuOrder = GROUP MAX multiplierSubstituteFromToSku(sku, skuSub
     BY sku, order; 
 minSubstitutePriceSkuOrder = GROUP MIN multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
     currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
-    BY sku, order; 
+    BY sku, order;         
 fillSubstitutePriceMaxOrderSkuFrom 'Исп. max цену' = ACTION (order, sku) {
     IF maxSubstitutePriceSkuOrder(sku, order) THEN {
         dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](maxSubstitutePriceSkuOrder(sku, order));     
     }        
-} TOOLBAR;  
+};  
 fillSubstitutePriceMinOrderSkuFrom 'Исп. min цену' = ACTION (order, sku) {
     IF minSubstitutePriceSkuOrder(sku, order) THEN {
         dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](minSubstitutePriceSkuOrder(sku, order));     
     }        
+};   
+
+fillSubstitutePriceMaxOrder 'Исп. max цену' = ACTION (order) {
+    FOR quantityComponentDetailSkuOrder(sku,order) DO {
+        fillSubstitutePriceMaxOrderSkuFrom(order,sku);
+    }   
+        
+} TOOLBAR;  
+fillSubstitutePriceMinOrder 'Исп. min цену' = ACTION (order) {
+    FOR quantityComponentDetailSkuOrder(sku,order) DO {
+        fillSubstitutePriceMinOrderSkuFrom(order,sku);
+    }       
 } TOOLBAR;   
+//--
+maxSkuBalanceSubstituteSkuOrder (sku, order) =
+    GROUP LAST skuSubstitute
+          BY   sku, order
+          ORDER (currentBalanceSkuPriceStockOrder(skuSubstitute,order) /(multiplierSubstituteFromToSku(sku, skuSubstitute) IF multiplierSubstituteFromToSku(sku, skuSubstitute)!=0))
+          WHERE priceStockSkuOrder(skuSubstitute,order) AND (currentBalanceSkuPriceStockOrder(skuSubstitute,order) /(multiplierSubstituteFromToSku(sku, skuSubstitute) IF multiplierSubstituteFromToSku(sku, skuSubstitute)!=0));
+
+fillSubstitutePriceMaxBalanceOrderSkuFrom 'Исп. цену большего остатка' = ACTION (order, sku) {
+    IF maxSkuBalanceSubstituteSkuOrder(sku, order) THEN {
+        dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](priceStockSkuOrder(maxSkuBalanceSubstituteSkuOrder(sku, order),order)*multiplierSubstituteFromToSku(sku, maxSkuBalanceSubstituteSkuOrder(sku, order)));     
+    }        
+}; 
+fillSubstitutePriceMaxBalanceOrder 'Исп. цену большего остатка' = ACTION (order) {
+    FOR quantityComponentDetailSkuOrder(sku,order) DO {
+        fillSubstitutePriceMaxBalanceOrderSkuFrom(order,sku);
+    }        
+} TOOLBAR; 
+    
     
 FORM order 'Производственный заказ'
 
@@ -736,7 +766,8 @@ FORM order 'Производственный заказ'
     PROPERTIES(sku,o) READONLY currentBalanceSkuPriceStockOrder, priceStockSkuOrder
     PROPERTIES(sk,sku) READONLY multiplierSubstituteFromToSku FORCE GRID  
     
-    PROPERTIES fillSubstitutePriceOrderSkuFromTo(o,sk,sku), fillSubstitutePriceMaxOrderSkuFrom(o,sk), fillSubstitutePriceMinOrderSkuFrom(o,sk)
+    PROPERTIES fillSubstitutePriceOrderSkuFromTo(o,sk,sku), fillSubstitutePriceMaxOrder(o) FORCE PANEL TODRAW sk, fillSubstitutePriceMinOrder(o) FORCE PANEL TODRAW sk,
+               fillSubstitutePriceMaxBalanceOrder(o) FORCE PANEL TODRAW sk
         
     FILTERGROUP filter1
         FILTER 'Доступные замены' 'F9' uniqueSubstituteFromToSku(sk,sku)     

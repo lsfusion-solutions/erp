@@ -9,6 +9,15 @@ GROUP itemHumidity 'Влажность' : public;
 percentHumidityItem 'Влажность, %' = DATA NUMERIC[8,2] (Item) IN itemHumidity;
 percentDrynessItem 'Массовая доля сухих веществ, %' (item) = 100 - (OVERRIDE 0 IF item IS Item, percentHumidityItem(item)) IN itemHumidity; 
 
+changePercentDrynessItem  = ACTION (item) {
+    REQUEST  NUMERIC[8,2] INPUT ;
+    IF requestedNumeric() THEN {
+        percentHumidityItem(item) <- (100-requestedNumeric());
+    } ELSE {
+        percentHumidityItem(item) <- NULL;
+    }    
+};
+
 @defineItemAttribute(humidity, 'Влажность', itemHumidity);
 
 EXTEND FORM itemGroup PROPERTIES(g) userShowHumidityItemGroup;
@@ -25,7 +34,7 @@ overCopyItem(s, d) += ACTION (s, d) {
 }
 
 EXTEND FORM item 
-    PROPERTIES(i) SHOWIF showHumidityItem(i) percentHumidityItem
+    PROPERTIES(i) SHOWIF showHumidityItem(i) percentHumidityItem, percentDrynessItem ON CHANGE  changePercentDrynessItem(i)
 ;
 EXTEND DESIGN item {
     itemPrimaryColumn1 {
