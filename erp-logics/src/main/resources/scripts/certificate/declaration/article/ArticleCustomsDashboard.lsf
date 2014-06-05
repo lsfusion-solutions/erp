@@ -83,6 +83,8 @@ FORM articleCustomsDashboard 'Заполнение ТНВЭД'
         FILTER 'Не обработан' 'F9' notCompletedCustomsArticle(a) DEFAULT
         FILTER 'Обработан' 'F8' completedCustomsArticle(a)
 
+    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))        
+
     OBJECTS i=Item
     PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoiceSku, idBarcodeSku, idArticleItem, idItem, 
                            originalCaptionItem, originalCompositionItem, originalCustomsGroupItem, 
@@ -101,9 +103,8 @@ FORM articleCustomsDashboard 'Заполнение ТНВЭД'
         FILTER 'По артикулам' 'F4' articleItem(i) == a DEFAULT
         FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND completedTranslateItem(i) AND NOT completedCustomsItem(i)
         FILTER 'По группам' 'ctrl F4' isParentItemGroupItem(g,i)
+        FILTER 'По артикулам/инвойсам' 'shift F5' articleItem(i) == a AND (quantityInvoiceDetailSkuUser(i, currentUser()) OR (i IS Item AND NOT countInvoicesUser(currentUser())))
 
-    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))        
-        
     EVENTS 
         ON INIT setDateArticleCustomsDashboard()                
 ;

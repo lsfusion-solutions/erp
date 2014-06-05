@@ -104,6 +104,9 @@ selectPurchaseInvoicesUser 'Выбрать накладные' = ACTION (user) {
 } TOOLBAR;
 selectPurchaseInvoicesCurrentUser 'Выбрать накладные' = selectPurchaseInvoicesUser(currentUser());
 
+quantityInvoiceDetailSkuUser 'Кол-во товара в документе' (sku, user) = 
+    GROUP SUM Purchase.quantityInvoiceDetailSkuInvoice(sku, invoice) IF inPurchaseInvoiceUser(invoice, user)
+        BY sku, user;
 
 quantityInvoiceDetailArticleInvoice 'Кол-во товара в документе' (article, invoice) = 
     GROUP SUM Purchase.quantityInvoiceDetail(idetail)
@@ -154,6 +157,8 @@ FORM articleTranslateDashboard 'Перевод'
         FILTER 'Не обработан' 'F9' notCompletedTranslateArticle(a) DEFAULT
         FILTER 'Обработан' 'F8' completedTranslateArticle(a)
 
+    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))
+
     OBJECTS i=Item
     PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoiceSku, idBarcodeSku, idItem, originalCaptionGrid = originalCaptionItem, originalCustomsGroupItem
     PROPERTIES(i) BACKGROUND hintEditableBackground() nameUOMItem, captionItem, canonicalNameItemGroupItem, 
@@ -171,9 +176,7 @@ FORM articleTranslateDashboard 'Перевод'
         FILTER 'По артикулам' 'F4' articleItem(i) == a DEFAULT
         FILTER 'По группам (не обработан)' 'shift F4' isParentItemGroupItem(g,i) AND NOT completedTranslateItem(i)
         FILTER 'По группам' 'ctrl F4' isParentItemGroupItem(g,i)
-        
-    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))
-        
+        FILTER 'По артикулам/инвойсам' 'shift F5' articleItem(i) == a AND (quantityInvoiceDetailSkuUser(i, currentUser()) OR (i IS Item AND NOT countInvoicesUser(currentUser())))
 ;
                                                                                                          
 DESIGN articleTranslateDashboard FROM DEFAULT {
