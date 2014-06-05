@@ -60,7 +60,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                 query.addProperty("priceSkuStock", getLCP("priceSkuStock").getExpr(itemExpr, departmentStoreExpr));
                 query.and(getLCP("currentBalanceSkuStock").getExpr(itemExpr, departmentStoreExpr).getWhere());
                 query.and(getLCP("priceSkuStock").getExpr(itemExpr, departmentStoreExpr).getWhere());
-                
+                query.and(getLCP("idBarcodeSku").getExpr(itemExpr, departmentStoreExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
 
                 List<ItemZReportInfo> itemZReportInfoList = new ArrayList<ItemZReportInfo>();
@@ -144,7 +144,10 @@ public class GenerateZReport extends ScriptingActionProperty {
 
                             Time time = new Time(r.nextLong() % date.getTime());
                             Integer currentReceiptDetailCount = addDeviation(receiptDetailCount, 0.25, r);
-                            for (ItemZReportInfo itemZReportInfo : itemZReportInfoList) {
+                            Set<Integer> usedItems = new HashSet<Integer>();
+                            while(currentReceiptDetailCount >= numberReceiptDetail && usedItems.size() < itemZReportInfoList.size()) {
+                                int currentItemIndex = r.nextInt(itemZReportInfoList.size());
+                                ItemZReportInfo itemZReportInfo = itemZReportInfoList.get(currentItemIndex);
                                 BigDecimal currentBalanceSkuStock = itemZReportInfo.count;
                                 if ((currentBalanceSkuStock.doubleValue() > 0) && (departmentStoreObject.equals(itemZReportInfo.departmentStore))) {
                                     BigDecimal quantityReceiptDetail;
@@ -166,6 +169,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                                         itemZReportInfo.count = safeSubtract(itemZReportInfo.count, quantityReceiptDetail);
                                     }
                                 }
+                                usedItems.add(currentItemIndex);
                             }
                             for (SalesInfo s : receiptSalesInfoList) {
                                 s.sumCash = sumCash;
