@@ -793,6 +793,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     @Override
     public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
+        return sendSalesInfoNonRemote(salesInfoList, sidEquipmentServer, numberAtATime);
+    }
+
+
+    public String sendSalesInfoNonRemote(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
         try {
 
             if (zReportLM != null && salesInfoList != null && !salesInfoList.isEmpty()) {
