@@ -272,6 +272,9 @@ DESIGN technologies FROM DEFAULT{
 CLASS BOM 'Спецификация';
 TABLE BOM (BOM);
 
+@defineDocumentHeaderTimePrefix(BOM, , ' документа');
+@deriveDocumentHeaderTimePrefix(BOM, );
+
 nameBOM 'Наименование' = DATA VARISTRING[100](BOM);
 
 @defineDocumentHeaderCreated(BOM);
@@ -320,6 +323,7 @@ UOMProduct(product) <- UOMSku(skuProduct(product)) WHEN CHANGED (skuProduct(prod
 
 
 @defineDocumentRelation (BOM, Product, ' (изделие)');
+@defineDocumentDetailTimePrefix(BOM, Product, , ' документа');
 
 descriptionProduct 'Название документа' (product) = descriptionBOM(BOMProduct(product));
 
@@ -368,6 +372,8 @@ TABLE component (Component);
 //nameComponent 'Наименование' = DATA VARISTRING[100](Component);
 
 @defineDocumentRelation (BOM, Component, ' (компонент)');
+@defineDocumentDetailTimePrefix(BOM, Component, , ' документа');
+
 descriptionComponent 'Название документа' (component)= descriptionBOM(BOMComponent(component));
 
 @defineDocumentDetailIndex (BOM, Component);
@@ -471,14 +477,13 @@ overCurWastageComponent '% потерь' (component) = wastageComponentDate(comp
             
 selectTechnologiesComponent = ACTION (component) {
     FORM componentTechnologies OBJECTS c = component MODAL;
-    bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (overCurWastageComponent(component)/100))); 
 }  
        
 changeNettoQuantityComponent = ACTION (component) {
     REQUEST NUMERIC[14,3] INPUT;
     IF requestedNumeric() THEN {
         nettoQuantityComponent(component) <- requestedNumeric();
-        bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (overCurWastageComponent(component)/100))); 
+        bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (OVERRIDE 0 IF component IS Component,wastageComponent(component)/100))); 
     } ELSE {
         nettoQuantityComponent(component) <- NULL;
     }                
@@ -488,10 +493,10 @@ changeWastageComponent = ACTION (component) {
     REQUEST NUMERIC[8,3] INPUT;
     IF requestedNumeric() THEN {
         wastageComponent(component) <- requestedNumeric();   
-        bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (overCurWastageComponent(component)/100))); 
+        bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (OVERRIDE 0 IF component IS Component,wastageComponent(component)/100))); 
     } ELSE {
         wastageComponent(component) <- NULL;
-        bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (overCurWastageComponent(component)/100))); 
+        bruttoQuantityComponent(component) <- NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (OVERRIDE 0 IF component IS Component,wastageComponent(component)/100))); 
     }
 }                                                                                                                                                                                                                                                                                                                                                      
     
@@ -502,29 +507,26 @@ changeWastageComponent = ACTION (component) {
 calcWastageComponentDate (component, date) = NUMERIC[9,3]([= 100-(X/Y/(100-Z))*10000](
     nettoQuantityComponent(component),
     (bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0),
-    wastageTechnologiesComponentDate(component, date)));                                                                                                                                                                                                                                                                                                                                                           
+    wastageTechnologiesComponentDate(component, date)));                                                                                                                                                                                                                                                                                                                                                          
                                                                                                                                                                                                                                                                                                                                                       
                                                                                                                                                                                                                                                                                                                                                          
 changeBruttoQuantityComponent = ACTION (component) {
     REQUEST NUMERIC[14,3] INPUT;
     IF requestedNumeric() THEN {    
         bruttoQuantityComponent(component) <- requestedNumeric();
-//        wastageComponent(component) <- NUMERIC[8,3](((1-(nettoQuantityComponent(component)/(bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0)))*100) (-) wastageTechnologiesComponentDate(component, currentDate())); 
-        wastageComponent(component) <- calcWastageComponentDate(component,currentDate()); 
+        wastageComponent(component) <- NUMERIC[8,3]((1-(nettoQuantityComponent(component)/(bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0)))*100); 
                
     } ELSE {
         bruttoQuantityComponent(component) <- NULL;
-//        wastageComponent(component) <- NUMERIC[8,3](((1-(nettoQuantityComponent(component)/(bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0)))*100) (-) wastageTechnologiesComponentDate(component, currentDate())); 
-        wastageComponent(component) <- calcWastageComponentDate(component,currentDate());         
+        wastageComponent(component) <- NUMERIC[8,3]((1-(nettoQuantityComponent(component)/(bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0)))*100);          
     }                
 }
 backgroundBruttoQuantityComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
+backgroundBruttoQuantityBOM 'Цвет' (b) = RGB(229,229,229) IF b IS BOM;
 
-//bruttoQuantityComponentDate(component, date) = IF countTechnologiesComponent(component) THEN NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (overWastageComponentDate(component, date)/100)))
-//                                                                                 ELSE bruttoQuantityComponent(component) IF date IS DATE;
-bruttoQuantityComponentDate(component, date) = NUMERIC[14,3](nettoQuantityComponent(component)/(1 - (wastageComponentDate(component, date)/100)));
+bruttoQuantityComponentDate 'Кол-во (брутто) с учетом технологий' (component, date) = NUMERIC[14,3](bruttoQuantityComponent(component)/(1 - (wastageTechnologiesComponentDate(component, date)/100)));
                                                                                 
-overCurBruttoQuantityComponent 'Кол-во (брутто)' (component) = bruttoQuantityComponentDate(component, currentDate());
+overCurBruttoQuantityComponent 'Кол-во (брутто) с уч. тех-ий' (component) = bruttoQuantityComponentDate(component, currentDate());
 
 FORM components 'Компоненты'
     OBJECTS c=Component
@@ -542,16 +544,22 @@ CONSTRAINT skuProduct(p) AND NOT isProductGroupSku(skuProduct(p)) CHECKED  BY sk
 overSkuComponent (c) = IF materialComponent(c) IS Product THEN skuProduct(materialComponent(c)) ELSE materialComponent(c);
     
 overNetWeightComponent = OVERRIDE netWeightSku(overSkuComponent(c)); 
-overNettoQuantityComponent 'Вес (нетто)' = nettoQuantityComponent(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
-overNettoQuantityProduct 'Вес (нетто)' (p) = quantityProduct(p) * (OVERRIDE 1.0 IF p IS Product, netWeightSku(skuProduct(p)));
-overNettoQuantityProductBOM 'Вес нетто изделие (всего)' (BOM) = GROUP SUM overNettoQuantityProduct(idetail) BY BOMProduct(idetail) IN documentSum PERSISTENT;
-overNettoQuantityComponentBOM 'Вес нетто компонент (всего)' (BOM) = GROUP SUM overNettoQuantityComponent(idetail) BY BOMComponent(idetail) IN documentSum PERSISTENT;            
-overBruttoQuantityComponent 'Вес брутто компонент (всего)' (c)= GROUP SUM (overCurBruttoQuantityComponent(c)* (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c))) BY BOMComponent(c) IN documentSum PERSISTENT;
+overNettoNetWeightComponent 'Вес (нетто)' (c) = nettoQuantityComponent(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
+overBruttoNetWeightComponent 'Вес (брутто)' (c) = bruttoQuantityComponent(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
+
+overNettoNetWeightProduct 'Вес (нетто)' (p) = quantityProduct(p) * (OVERRIDE 1.0 IF p IS Product, netWeightSku(skuProduct(p)));
+
+overNettoNetWeightProductBOM 'Вес нетто изд. (всего)' (BOM) = GROUP SUM overNettoNetWeightProduct(idetail) BY BOMProduct(idetail) IN documentSum PERSISTENT;
+overNettoNetWeightComponentBOM 'Вес нетто ком. (всего)' (BOM) = GROUP SUM overNettoNetWeightComponent(idetail) BY BOMComponent(idetail) IN documentSum PERSISTENT;            
+overBruttoNetWeightyComponentBOM 'Вес брутто ком. (всего)' (c)= GROUP SUM overBruttoNetWeightComponent(c) BY BOMComponent(c) IN documentSum PERSISTENT;
+
+
+overCurBruttoNetWeightComponent 'Вес (брутто) с уч. тех-ий' (c) = overCurBruttoQuantityComponent(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
+overCurBruttoNetWeightyComponentBOM 'Вес брутто комп. (всего) с уч. тех-ий' (BOM)= GROUP SUM overCurBruttoNetWeightComponent(c) BY BOMComponent(c) IN documentSum PERSISTENT;      
         
-        
-CONSTRAINT overNettoQuantityProductBOM(b) AND overNettoQuantityComponentBOM(b) AND NOT (overNettoQuantityProductBOM(b) == overNettoQuantityComponentBOM(b))
-    MESSAGE 'Вес нетто изделия не равен весу нетто компонентов в спецификации';          
-        
+CONSTRAINT overNettoNetWeightProductBOM(b) AND overNettoNetWeightComponentBOM(b) AND NOT (overNettoNetWeightProductBOM(b) == overNettoNetWeightComponentBOM(b))
+    MESSAGE 'Вес нетто изделия не равен весу нетто компонентов в спецификации';   
+                           
 //------------------------------- Формы -------------------------------------//
 backgroundComponent 'Цвет' (component) = RGB(255,255,229) IF materialComponent(component) IS Product;
 
@@ -560,25 +568,30 @@ FORM BOM 'Спецификация'
 
     OBJECTS b=BOM FIXED PANEL
 
-    PROPERTIES(b) nameBOM, nameNumeratorBOM, numberBOM, seriesBOM, noteBOM, fromDateBOM, toDateBOM
-    PROPERTIES(b) READONLY overNettoQuantityProductBOM, overNettoQuantityComponentBOM, overBruttoQuantityComponent, pricePercentBOM
+    PROPERTIES(b) nameBOM, nameNumeratorBOM, numberBOM, seriesBOM, dateBOM, timeBOM, noteBOM, fromDateBOM, toDateBOM 
+    PROPERTIES(b) READONLY overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, 
+                  overCurBruttoNetWeightyComponentBOM BACKGROUND backgroundBruttoQuantityBOM(b), pricePercentBOM
     OBJECTS p = Product
     PROPERTIES(p) indexProduct 
     PROPERTIES(p) ON EDIT editSkuProduct(p) idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct     
     
-    PROPERTIES(p) quantityProduct, pricePercentProduct
+    PROPERTIES(p) quantityProduct, overNettoNetWeightProduct READONLY,pricePercentProduct
 
     PROPERTIES(p) ADDOBJ, deletep=DELETESESSION
     PROPERTIES(b) TODRAW p deleteProductBOM
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) BACKGROUND backgroundComponent(c) indexComponent //BACKGROUND backgroundWastageComponent(c) READONLYIF countTechnologiesComponent(c)
+    PROPERTIES(c) BACKGROUND backgroundComponent(c) indexComponent 
     PROPERTIES(c) BACKGROUND backgroundComponent(c) ON EDIT editMaterialComponent(c) idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent 
-    PROPERTIES(c) BACKGROUND backgroundComponent(c) technologiesInvoice ON CHANGE selectTechnologiesComponent(c) BACKGROUND backgroundBruttoQuantityComponent(c), 
-                  wastageTechnologiesComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c), 
-                  nettoQuantityComponent ON CHANGE changeNettoQuantityComponent(c), wastageComponent ON CHANGE changeWastageComponent(c),
-                  overCurBruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c)  
+    PROPERTIES(c) BACKGROUND backgroundComponent(c) 
+                  nettoQuantityComponent ON CHANGE changeNettoQuantityComponent(c), overNettoNetWeightComponent READONLY,
+                  wastageComponent ON CHANGE changeWastageComponent(c),
+                  bruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c), overBruttoNetWeightComponent READONLY,
+                  technologiesInvoice ON CHANGE selectTechnologiesComponent(c)   BACKGROUND backgroundBruttoQuantityComponent(c),
+                  wastageTechnologiesComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c),                   
+                  overCurBruttoQuantityComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c),
+                  overCurBruttoNetWeightComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c)
 
     PROPERTIES(c) ADDOBJ, deletec=DELETESESSION
     PROPERTIES(b) TODRAW c deleteComponentBOM
@@ -613,6 +626,9 @@ DESIGN BOM FROM DEFAULT{
                     ADD PROPERTY(nameNumeratorBOM(b));
                     ADD PROPERTY(numberBOM(b));
                     ADD PROPERTY(seriesBOM(b));
+                    ADD PROPERTY(dateBOM(b));
+                    ADD PROPERTY(timeBOM(b));                    
+                    
                 }
                 ADD b.documentPrm {
                     type = CONTAINERH;
@@ -683,8 +699,8 @@ FORM BOMs 'Спецификации'
 
     OBJECTS b=BOM
 
-    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) productsBOM, nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, componentsBOM,  
-                   overNettoQuantityProductBOM, overNettoQuantityComponentBOM, overBruttoQuantityComponent, pricePercentBOM, noteBOM
+    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) productsBOM, nameBOM, numberBOM, seriesBOM,  dateBOM, timeBOM, fromDateBOM, toDateBOM, componentsBOM,  
+                   overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM
     PROPERTIES (b) ADDFORM, EDITFORM, copyBOM, deleteb=DELETE FORCE PANEL TOOLBAR
     PROPERTIES (b) READONLY FORCE PANEL createdNameUserBOM, createdTimeBOM, createdHostnameComputerBOM
     FILTERGROUP inactiveBOM
@@ -692,13 +708,15 @@ FORM BOMs 'Спецификации'
         FILTER 'Активные' 'F10' isActiveBOM(b) OR (fromDateBOM(b) > currentDate()) DEFAULT
         
     OBJECTS p = Product
-    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
+    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct,
+                  quantityProduct, overNettoNetWeightProduct, pricePercentProduct
     FILTERS       BOMProduct(p) == b
 
     OBJECTS c = Component
     PROPERTIES(c) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, 
-                  shortNameUOMComponent, technologiesInvoice, wastageTechnologiesComponent, nettoQuantityComponent, wastageComponent,
-                  overCurBruttoQuantityComponent                                                                    
+                  shortNameUOMComponent, nettoQuantityComponent, overNettoNetWeightComponent, wastageComponent, bruttoQuantityComponent, overBruttoNetWeightComponent,
+                  technologiesInvoice, wastageTechnologiesComponent, overCurBruttoQuantityComponent, overCurBruttoNetWeightComponent                                                                                                                                                                    
+                                                                                   
     FILTERS       BOMComponent(c) == b
     
     OBJECTS p1 = Sku
@@ -707,17 +725,17 @@ FORM BOMs 'Спецификации'
     FILTERS        isProductGroupSku(p1)
     
     OBJECTS b1=BOM    
-    PROPERTIES(b1) READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overNettoQuantityProductBOM, overNettoQuantityComponentBOM, 
-                   overBruttoQuantityComponent, pricePercentBOM, noteBOM
+    PROPERTIES(b1) READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, 
+                   overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM
     PROPERTIES(b1) EDITFORM
     PROPERTIES     addBOMSku(p1) TODRAW b1
     FILTERS        relationProductsSkuBOM(p1,b1)
           
     OBJECTS c1 = Component
     PROPERTIES(c1) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), 
-                   nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, wastageTechnologiesComponent, nettoQuantityComponent,
-                  wastageComponent, overCurBruttoQuantityComponent
-    FILTERS       BOMComponent(c1) == b1   
+                   nameMaterialComponent, shortNameUOMComponent, nettoQuantityComponent, overNettoNetWeightComponent, wastageComponent, bruttoQuantityComponent, overBruttoNetWeightComponent,
+                   technologiesInvoice, wastageTechnologiesComponent, overCurBruttoQuantityComponent, overCurBruttoNetWeightComponent 
+    FILTERS        BOMComponent(c1) == b1   
     
 
     OBJECTS c2 = Sku
@@ -725,13 +743,14 @@ FORM BOMs 'Спецификации'
     PROPERTIES     TODRAW c2 addSku(), editSku(c2), DELETE(c2) FORCE PANEL TOOLBAR  
     FILTERS        isComponentGroupSku(c2)                   
     OBJECTS b2=BOM    
-    PROPERTIES(b2) READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overNettoQuantityProductBOM, overNettoQuantityComponentBOM, 
-                   overBruttoQuantityComponent, pricePercentBOM, noteBOM
+    PROPERTIES(b2) READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, 
+                   overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM
     PROPERTIES(b2) EDITFORM                
     FILTERS        relationComponentsSkuBOM(c2,b2)           
     
     OBJECTS p2 = Product
-    PROPERTIES(p2) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
+    PROPERTIES(p2) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, 
+                   quantityProduct, overNettoNetWeightProduct, pricePercentProduct
     FILTERS        BOMProduct(p2) == b2    
     
 ;
@@ -828,22 +847,23 @@ EXTEND FORM BOMs PROPERTIES(c2) copyBOMComponentSku;
 FORM BOMsDialog 'Спецификации'
 
     OBJECTS b=BOM
-
-    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) productsBOM, nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, componentsBOM, 
-                   overNettoQuantityProductBOM, overNettoQuantityComponentBOM, overBruttoQuantityComponent, pricePercentBOM, noteBOM
-//    PROPERTIES (b) ADDFORM, EDITFORM, copyBOM, deleteb=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) productsBOM, nameBOM, numberBOM, seriesBOM, dateBOM, timeBOM, fromDateBOM, toDateBOM, componentsBOM, 
+                   overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM
     PROPERTIES (b) READONLY FORCE PANEL createdNameUserBOM, createdTimeBOM, createdHostnameComputerBOM
     FILTERGROUP inactiveBOM
         FILTER 'Текущие' 'F11' isActiveBOM(b)            
         FILTER 'Активные' 'F10' isActiveBOM(b) OR (fromDateBOM(b) > currentDate()) DEFAULT
         
     OBJECTS p = Product
-    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct
+    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, 
+                  quantityProduct, overNettoNetWeightProduct, pricePercentProduct
     FILTERS       BOMProduct(p) == b
 
-    OBJECTS c = Component
-    PROPERTIES(c) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent,
-                  overCurWastageComponent, overCurBruttoQuantityComponent
+    OBJECTS c = Component                 
+    PROPERTIES(c) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), 
+                   nameMaterialComponent, shortNameUOMComponent, nettoQuantityComponent, overNettoNetWeightComponent, wastageComponent, bruttoQuantityComponent, overBruttoNetWeightComponent,
+                   technologiesInvoice, wastageTechnologiesComponent, overCurBruttoQuantityComponent, overCurBruttoNetWeightComponent                                                      
+                  
     FILTERS       BOMComponent(c) == b
       
     DIALOG BOM OBJECT b
@@ -879,15 +899,15 @@ DESIGN BOMsDialog FROM DEFAULT {
 }
 
 //-------------------------------- Комиссия для акта контрольной проработки ----------------------------------//
-CLASS ActStudyOfCulinaryCommittee 'Комиссия для акта контрольной проработки продукции' : Committee;
+CLASS ManufacturingCommittee 'Комиссия производство' : Committee;
 
-nameActStudyOfCulinaryCommittee 'Наименование' = DATA VARISTRING[150](ActStudyOfCulinaryCommittee);
+nameManufacturingCommittee 'Наименование' = DATA VARISTRING[150](ManufacturingCommittee);
 
-nameCommittee(committee) += nameActStudyOfCulinaryCommittee(committee) IF committee IS ActStudyOfCulinaryCommittee;
+nameCommittee(committee) += nameManufacturingCommittee(committee) IF committee IS ManufacturingCommittee;
 
-FORM actStudyOfCulinaryCommittee 'Комиссия для акта контрольной проработки продукции'
-    OBJECTS c=ActStudyOfCulinaryCommittee FIXED PANEL
-    PROPERTIES(c)      nameActStudyOfCulinaryCommittee
+FORM manufacturingCommittee 'Комиссия производство'
+    OBJECTS c=ManufacturingCommittee FIXED PANEL
+    PROPERTIES(c)      nameManufacturingCommittee
 
     TREE stockTree sg = StockGroup PARENT parentStockGroup
     PROPERTIES READONLY sgTreeName = nameStockGroup(sg)
@@ -911,10 +931,10 @@ FORM actStudyOfCulinaryCommittee 'Комиссия для акта контро�
     FILTERGROUP filters5
         FILTER 'Показывать отделы только для данной комиссии' 'F9' inCommitteeStock(c, ts)
 
-    EDIT ActStudyOfCulinaryCommittee OBJECT c
+    EDIT ManufacturingCommittee OBJECT c
 ;
 
-DESIGN actStudyOfCulinaryCommittee FROM DEFAULT {
+DESIGN manufacturingCommittee FROM DEFAULT {
     main {
         preferredSize = (1024, 768);
 
@@ -933,25 +953,25 @@ DESIGN actStudyOfCulinaryCommittee FROM DEFAULT {
     }
 }
 
-FORM actStudyOfCulinaryCommittees 'Комиссии для акта контрольной проработки продукции'
-    OBJECTS a=ActStudyOfCulinaryCommittee
-    PROPERTIES(a)      READONLY nameActStudyOfCulinaryCommittee, nameEmployeeCommittee
+FORM manufacturingCommitteeDialog 'Комиссии производство'
+    OBJECTS a=ManufacturingCommittee
+    PROPERTIES(a)      READONLY nameManufacturingCommittee, nameEmployeeCommittee
     PROPERTIES(a)      ADDFORM, EDITFORM
 
-    DIALOG ActStudyOfCulinaryCommittee OBJECT a
+    DIALOG ManufacturingCommittee OBJECT a
 ;
 
 // ----------------- Акт контрольной проработки-------------------- //
 
-actStudyOfCulinaryCommitteeBOM (BOM) = DATA ActStudyOfCulinaryCommittee(BOM);
-nameActStudyOfCulinaryCommitteeBOM 'Комиссия для акта контрольной проработки продукции' (BOM) = nameActStudyOfCulinaryCommittee(actStudyOfCulinaryCommitteeBOM (BOM)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+actStudyOfCulinaryCommitteeBOM (BOM) = DATA ManufacturingCommittee(BOM);
+nameActStudyOfCulinaryCommitteeBOM 'Комиссия для акта контрольной проработки продукции' (BOM) = nameManufacturingCommittee(actStudyOfCulinaryCommitteeBOM (BOM)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 nameEmployeeCommitteeBOM 'Члены комиссии' (BOM)= nameEmployeeCommittee(actStudyOfCulinaryCommitteeBOM(BOM));
 
 inCommitteeBOMEmployee (BOM, employee) = inCommitteeEmployee(actStudyOfCulinaryCommitteeBOM (BOM), employee);
 commonNameEmployeeCommitteeBOM 'Члены комиссии' (BOM) = namePositionEmployeeCommittee(actStudyOfCulinaryCommitteeBOM (BOM));
 
 companyBOM (BOM) = DATA LegalEntity(BOM);
-nameCompanyBOM 'Компания' (BOM) = nameLegalEntity(companyBOM(BOM));
+nameCompanyBOM 'Компания' (BOM) = nameLegalEntity(companyBOM(BOM)) IN documentPrm;
 
 CONSTRAINT  companyBOM(BOM) AND NOT isCompanyLegalEntity(companyBOM (BOM)) CHECKED BY companyBOM
     MESSAGE 'Для спецификации выбрано организация, которая не является компанией';
@@ -972,7 +992,6 @@ EXTEND DESIGN BOM {
             NEW row1{
                 caption = 'Акт';
                 type = CONTAINERH;
-                ADD PROPERTY(nameCompanyBOM(b));
                 ADD PROPERTY(nameActStudyOfCulinaryCommitteeBOM(b));
             }
             ADD e.box {caption = 'Сотрудники комиссии';}
@@ -1027,6 +1046,6 @@ NAVIGATOR {
     manufacturingMasterData {
         ADD BOMs;
         ADD technologies;
-        ADD actStudyOfCulinaryCommittees;
+        ADD manufacturingCommitteeDialog;
     }
 }

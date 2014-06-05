@@ -1,0 +1,213 @@
+MODULE  BOMBy;
+
+REQUIRE BOMHumidity;
+
+NAMESPACE BOM;
+
+//-------------------- Технологическая инструкция ------------------//    
+       
+
+introductionInstructionBOM 'Вводная часть' = DATA RICHTEXT (BOM);   
+characteristicsInstructionBOM 'Характеристики' = DATA RICHTEXT (BOM);  
+preparationMaterialInstructionBOM 'Подготовка сырья' = DATA RICHTEXT (BOM);  
+cookingSemisInstructionBOM 'Приготовление полуфабрикатов' = DATA RICHTEXT (BOM);  
+preparationProductInstructionBOM 'Приготовление готовой продукции' = DATA RICHTEXT (BOM);     
+controlProductInstructionBOM 'Приемочный контроль готовой продукции' = DATA RICHTEXT (BOM);     
+safetyRequirementsInstructionBOM 'Требования безопасности' = DATA RICHTEXT (BOM);         
+sanitaryRequirementsInstructionBOM 'Санитарные требования' = DATA RICHTEXT (BOM);  
+responsiblePersonBOM = DATA Employee (BOM); 
+nameResponsiblePersonBOM 'Ответсвенное лицо' (b) = nameContact(responsiblePersonBOM(b));
+firstShortNameResponsiblePersonBOM 'И.О. Фамилия'  (b) = firstShortNameContact(responsiblePersonBOM(b));
+namePositionResponsiblePersonBOM 'Должность'  (b) = namePositionEmployee(responsiblePersonBOM(b));
+
+
+EXTEND FORM BOM
+    PROPERTIES(b) introductionInstructionBOM, characteristicsInstructionBOM, preparationMaterialInstructionBOM,
+                  cookingSemisInstructionBOM, preparationProductInstructionBOM, 
+                  controlProductInstructionBOM, safetyRequirementsInstructionBOM, sanitaryRequirementsInstructionBOM,
+                  nameResponsiblePersonBOM 
+;
+
+EXTEND DESIGN BOM {
+    specification.box {
+        NEW instruction {
+            fill = 1;
+            type = TABBED;
+            caption = 'Технологическая инструкция';
+
+            ADD PROPERTY(introductionInstructionBOM(b)) {
+                fill = 1;
+                panelLabelAbove = TRUE;                        
+            } 
+            ADD PROPERTY(characteristicsInstructionBOM(b)) {
+                fill = 1;    
+                panelLabelAbove = TRUE;                    
+            } 
+            ADD PROPERTY(preparationMaterialInstructionBOM(b)) {
+                fill = 1;
+                panelLabelAbove = TRUE;                        
+            }                                                   
+            ADD PROPERTY(cookingSemisInstructionBOM(b)) {
+                fill = 1;  
+                panelLabelAbove = TRUE;                      
+            } 
+            ADD PROPERTY(preparationProductInstructionBOM(b)) {
+                fill = 1; 
+                panelLabelAbove = TRUE;                       
+            } 
+            ADD PROPERTY(controlProductInstructionBOM(b)) {
+                fill = 1;
+                panelLabelAbove = TRUE;                        
+            } 
+            ADD PROPERTY(safetyRequirementsInstructionBOM(b)) {
+                fill = 1; 
+                panelLabelAbove = TRUE;                       
+            }   
+            ADD PROPERTY(sanitaryRequirementsInstructionBOM(b)) {
+                fill = 1;
+                panelLabelAbove = TRUE;                        
+            } 
+            NEW instructionPrm {
+                caption = 'Доп. параметры';
+                type = CONTAINERV;
+                ADD PROPERTY(nameResponsiblePersonBOM(b));
+            }                                                    
+        }
+    }
+}
+
+nameOwnershipCompanyBOM 'Форма собственности' (BOM) = nameOwnershipLegalEntity(companyBOM(BOM));
+shortNameOwnershipCompanyBOM 'Форма собственности (сокр.)' (BOM)  = shortNameOwnershipLegalEntity(companyBOM(BOM));
+firstShortNameChiefBOMDate 'И.О. Фамилия'  (BOM, date) = firstShortNameContact(chiefLegalEntityDate(companyBOM(BOM),date));
+namePositionChiefBOMDate 'Должность'  (BOM, date) = namePositionEmployee(chiefLegalEntityDate(companyBOM(BOM),date));
+
+firstShortNameChiefBOM 'И.О. Фамилия'  (BOM) = firstShortNameContact(chiefLegalEntityDate(companyBOM(BOM),dateBOM(BOM)));
+namePositionChiefBOM 'Должность'  (BOM) = namePositionEmployee(chiefLegalEntityDate(companyBOM(BOM),dateBOM(BOM)));
+
+extractYearBOMsDate 'Год' (date) = extractYear(date);
+extractYearFromDateBOM 'Год' (BOM) = extractYear(fromDateBOM(BOM));
+
+FORM instructionBOM 'Технологическая инструкция'
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES (dt) OBJVALUE , extractYearBOMsDate 
+
+    OBJECTS b=BOM FIXED PANEL 
+    PROPERTIES(b)  READONLY productsBOM, productsUOMBOM, nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, pricePercentBOM, noteBOM
+    PROPERTIES     READONLY    recBruttoQuantityBOMDate(b,dt), recBruttoDrynessQuantityBOMDate(b,dt), drynessQuantityComponentsBOM(b)
+    PROPERTIES(b) nameOwnershipCompanyBOM, nameCompanyBOM, shortNameOwnershipCompanyBOM, recipesBOM, extractYearFromDateBOM
+    
+    PROPERTIES(b) introductionInstructionBOM, characteristicsInstructionBOM, preparationMaterialInstructionBOM,
+                  cookingSemisInstructionBOM, preparationProductInstructionBOM, 
+                  controlProductInstructionBOM, safetyRequirementsInstructionBOM, sanitaryRequirementsInstructionBOM,
+                  firstShortNameResponsiblePersonBOM, namePositionResponsiblePersonBOM
+   
+    PROPERTIES(b,dt) firstShortNameChiefBOMDate, namePositionChiefBOMDate
+
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct, nameSkuProduct, shortNameUOMProduct, percentHumidityProduct, overNettoNetWeightProduct
+    PROPERTIES(p,dt) READONLY recBruttoQuantityProductDate, recBruttoDrynessQuantityProductDate
+    PROPERTIES(p) drynessQuantityComponentsProduct, calcPercentHumidityProduct
+    FILTERS       BOMProduct(p) == b
+
+    OBJECTS c = Component FIXED GRID
+    FILTERS       BOMComponent(c) == b,
+                  materialComponent(c) IS Product                                 
+
+    OBJECTS sk = Sku
+    PROPERTIES(sk) READONLY nameSku, percentDrynessItem 
+    PROPERTIES     quantityComponentSkuDate(c,sk,dt) COLUMNS (c) HEADER nameMaterialComponent(c)
+    PROPERTIES     READONLY quantityBomSkuDate(b,sk,dt), drynessQuantityBomSkuDate(b,sk,dt)
+    FILTERS        quantityBomSkuDate(b,sk,dt)
+    
+    OBJECTS cc = Component
+    PROPERTIES(cc) READONLY indexComponent, idBarcodeSkuComponent, idComponent, nameMaterialComponent, shortNameUOMComponent, overNettoNetWeightComponent
+    PROPERTIES    READONLY wastageComponentDate(cc,dt), overBruttoQuantityComponentDate(cc,dt), percentDrynessComponent(cc), drynessQuantityComponentDate(cc,dt)    
+    FILTERS       BOMComponent(cc) == b,
+                  materialComponent(cc) IS Sku     
+                  
+    PROPERTIES READONLY  overNettoNetWeightComponent(c)  COLUMNS (c) FOOTER nameMaterialComponent(c)
+    ,quantityComponentDate(c,dt) COLUMNS (c) FOOTER nameMaterialComponent(c), overBruttoQuantityComponentDate(c,dt) COLUMNS (c) FOOTER nameMaterialComponent(c)       
+                  
+                  
+    OBJECTS ccc = Component
+    PROPERTIES(ccc) READONLY idComponent, nameMaterialComponent, overNettoNetWeightComponent                                                                                        
+    FILTERS       BOMComponent(ccc) == b    
+                  
+    OBJECTS c1 = Component FIXED GRID
+    PROPERTIES READONLY  overNettoNetWeightComponent(c1)  COLUMNS (c1) FOOTER nameMaterialComponent(c1)  
+    FILTERS       BOMComponent(c1) == b,
+                  materialComponent(c1) IS Product                    
+
+    OBJECTS c2 = Component FIXED GRID
+    PROPERTIES READONLY  percentHumidityProductComponent(c2)  COLUMNS (c2) FOOTER nameMaterialComponent(c2)  
+    FILTERS       BOMComponent(c2) == b,
+                  materialComponent(c2) IS Product                      
+                  
+;
+printInstructionBOM 'Технологическая инструкция'  = ACTION (BOM) NEWSESSION AUTOAPPLY {
+    FORM dialogDate MODAL;
+        IF formResult() == FormResult.ok THEN {
+            FORM instructionBOM OBJECTS dt = chosenDate('d'), b = BOM PRINT;
+        }
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM BOMs
+    PROPERTIES(b) FORCE  PANEL printInstructionBOM    
+;
+// ----------------- Протокол дегустационной комиссии-------------------- //
+
+testingCommitteeBOM (BOM) = DATA ManufacturingCommittee(BOM);
+nameTestingCommitteeBOM 'Дегустационная комиссия' (BOM) = nameManufacturingCommittee(testingCommitteeBOM (BOM)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameEmployeeTestingCommitteeBOM 'Члены комиссии' (BOM)= nameEmployeeCommittee(testingCommitteeBOM(BOM));
+
+inTestingCommitteeBOMEmployee (BOM, employee) = inCommitteeEmployee(testingCommitteeBOM (BOM), employee);
+commonNameEmployeeTestingCommitteeBOM 'Члены комиссии' (BOM) = namePositionEmployeeCommittee(testingCommitteeBOM (BOM));
+
+numberTestingProtocolBOM 'Номер протокола' = DATA STRING[50] (BOM);
+
+EXTEND FORM BOM
+    PROPERTIES(b) nameTestingCommitteeBOM, numberTestingProtocolBOM
+
+    OBJECTS e1=Employee
+    PROPERTIES(e1) READONLY nameContact, namePositionEmployee
+    FILTERS       inTestingCommitteeBOMEmployee(b,e1)
+;
+EXTEND DESIGN BOM {
+
+    specification.box {
+        NEW testing {
+            type = CONTAINERV;
+            caption = 'Протокол';
+            NEW testing1{
+                type = CONTAINERH;
+                ADD PROPERTY(nameTestingCommitteeBOM(b));
+                ADD PROPERTY(numberTestingProtocolBOM(b));
+            }
+            ADD e1.box {caption = 'Члены комиссии';}
+        }
+    }
+}
+
+
+FORM testingBOM 'Протокол дегустационной комиссии'
+
+    OBJECTS b=BOM FIXED PANEL 
+    PROPERTIES(b) READONLY productsBOM, productsUOMBOM, nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, dateBOM,
+                  componentsBOM, testingCommitteeBOM
+    PROPERTIES(b) nameOwnershipCompanyBOM, nameCompanyBOM, shortNameOwnershipCompanyBOM, recipesBOM, extractYearFromDateBOM, 
+                  firstShortNameChiefBOM, namePositionChiefBOM, numberStateStandartBOM
+   
+                         
+    PROPERTIES(b) nameTestingCommitteeBOM, numberTestingProtocolBOM
+
+    OBJECTS e1=Employee
+    PROPERTIES(e1) READONLY nameContact, namePositionEmployee
+    FILTERS       inTestingCommitteeBOMEmployee(b,e1)
+                 
+                  
+;
+printTestingBOM 'Протокол дегустационной комиссии' (BOM) = ACTION FORM testingBOM OBJECTS b = BOM PRINT  IMAGE 'print.png' IN print;    
+
+EXTEND FORM BOMs
+    PROPERTIES(b) FORCE  PANEL printTestingBOM    
+;

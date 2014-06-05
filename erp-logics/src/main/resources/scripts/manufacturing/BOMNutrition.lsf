@@ -34,21 +34,6 @@ energyComponent 'Энерг.ценность на 100г, ккал' = energyItem(
 @changeNutrition(component, overSku, proteins);
 @changeNutrition(component, overSku, energy);
 
-
-
-//fatsComponent(component) <- fatsItem(materialComponent(component))*10*netWeightItem(materialComponent(component))*nettoQuantityComponent(component)
-//        WHEN CHANGED (materialComponent(component)) OR
-//             CHANGED (nettoQuantityComponent(component));
-//carbohydratesComponent(component) <- carbohydratesItem(materialComponent(component))*10*netWeightItem(materialComponent(component))*nettoQuantityComponent(component)
-//        WHEN CHANGED (materialComponent(component)) OR
-//             CHANGED (nettoQuantityComponent(component));
-//proteinsComponent(component) <- proteinsItem(materialComponent(component))*10*netWeightItem(materialComponent(component))*nettoQuantityComponent(component)
-//        WHEN CHANGED (materialComponent(component)) OR
-//             CHANGED (nettoQuantityComponent(component));
-//energyComponent(component) <- energyItem(materialComponent(component))*10*netWeightItem(materialComponent(component))*nettoQuantityComponent(component)
-//        WHEN CHANGED (materialComponent(component)) OR
-//             CHANGED (nettoQuantityComponent(component));
-
 // Энергетическая ценность спецификации
 
 fatsBOM 'Жиры'(BOM) = GROUP SUM fatsComponent(component) BY BOMComponent(component) IN nutrition;
@@ -69,23 +54,6 @@ productYieldProduct 'Выход' = DATA VARSTRING[100] (Product) MINCHARWIDTH 20
 @changeNutrition(product, sku, proteins);
 @changeNutrition(product, sku, energy);
 
-//fastProduct(product) <- fatsBOM(BOMProduct(product)) / (quantityProduct(product)*10*netWeightItem(skuProduct(product)))
-//        WHEN CHANGED (fatsBOM(BOMProduct(product))) OR
-//             CHANGED (quantityProduct(product)) OR
-//             CHANGED (skuProduct(product));
-//carbohydratesProduct(product) <- carbohydratesBOM(BOMProduct(product)) / (quantityProduct(product)*10*netWeightItem(skuProduct(product)))
-//        WHEN CHANGED (carbohydratesBOM(BOMProduct(product))) OR
-//             CHANGED (quantityProduct(product)) OR
-//             CHANGED (skuProduct(product));
-//proteinsProduct(product) <- proteinsBOM(BOMProduct(product)) / (quantityProduct(product)*10*netWeightItem(skuProduct(product)))
-//        WHEN CHANGED (proteinsBOM(BOMProduct(product))) OR
-//             CHANGED (quantityProduct(product)) OR
-//             CHANGED (skuProduct(product));
-//energyProduct(product) <- energyBOM(BOMProduct(product)) / (quantityProduct(product)*10*netWeightItem(skuProduct(product)))
-//        WHEN CHANGED (energyBOM(BOMProduct(product))) OR
-//             CHANGED (quantityProduct(product)) OR
-//             CHANGED (skuProduct(product));
-
 compositionProduct 'Состав' = DATA VARSTRING[255] (Product) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 componentsProduct 'Компоненты' (product)= componentsBOM(BOMProduct(product));
 compositionProduct(product) <- componentsProduct(product) WHEN CHANGED(componentsProduct(product));
@@ -96,12 +64,46 @@ changeCompositionProduct 'Записать в товар' = ACTION (product) {
     }
 } SHORTCUT compositionProduct;
 
+//------------------------------- СТБ -------------------------------------//
+CLASS StateStandart 'СТБ';
+TABLE stateStandart (StateStandart);
+  
+nameStateStandart 'Наименование' = DATA VARISTRING[100](StateStandart);
+numberStateStandart 'Номер' = DATA STRING[50](StateStandart);   
+noteStateStandart 'Примечание' = DATA STRING[250](StateStandart);  
+@defineExternalizable(stateStandart, VARSTRING[100]); 
+ 
+FORM stateStandart 'СТБ'
+    OBJECTS s=StateStandart FIXED PANEL
+    PROPERTIES(s) idStateStandart SHOWIF  showIDs(), nameStateStandart, numberStateStandart, noteStateStandart 
+    EDIT StateStandart OBJECT s
+;
+
+DESIGN stateStandart FROM DEFAULT {
+    main{
+        PROPERTY(nameStateStandart(s)){
+            preferredCharWidth = 50;    
+        }
+    }       
+}
+
+FORM stateStandarts 'СТБ'
+    OBJECTS s=StateStandart
+    PROPERTIES(s) idStateStandart READONLY SHOWIF showIDs(), nameStateStandart READONLY, numberStateStandart READONLY , noteStateStandart, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(s) ADDFORM, EDITFORM
+    ORDER BY numberStateStandart(s)
+    DIALOG StateStandart OBJECT s
+;
+DESIGN stateStandarts FROM DEFAULT { main{ preferredSize = (600, 400); } } 
+
+stateStandartBOM= DATA StateStandart (BOM);
+numberStateStandartBOM 'СТБ' (BOM) = numberStateStandart(stateStandartBOM(BOM));
+numberStateStandartProduct 'СТБ' (p) = numberStateStandartBOM(BOMProduct(p));
 
 // Расширяем формы
 EXTEND FORM BOM
     PROPERTIES(b) showNutritionBOM
-//    PROPERTIES(b) SHOWIF showNutritionBOM(b) READONLY fatsBOM, carbohydratesBOM, proteinsBOM, energyBOM
-    PROPERTIES(b) SHOWIF showNutritionBOM(b) recipesBOM
+    PROPERTIES(b) SHOWIF showNutritionBOM(b) recipesBOM, numberStateStandartBOM
     PROPERTIES(p) SHOWIF showNutritionBOM(b) BEFORE deletep fatsProduct ON CHANGE changeFatsProduct(p), carbohydratesProduct ON CHANGE changeCarbohydratesProduct(p), 
                   proteinsProduct ON CHANGE changeProteinsProduct(p), energyProduct ON CHANGE changeEnergyProduct(p), compositionProduct, productYieldProduct
     PROPERTIES(c) BACKGROUND backgroundComponent(c)SHOWIF showNutritionBOM(b) BEFORE deletec fatsComponent ON CHANGE changeFatsComponent(c), carbohydratesComponent ON CHANGE changeCarbohydratesComponent(c), 
@@ -115,11 +117,11 @@ EXTEND DESIGN BOM {
     kitchen {
         ADD PROPERTY(showNutritionBOM(b));
         ADD PROPERTY(recipesBOM(b));
+        ADD PROPERTY(numberStateStandartBOM(b)); 
     }
 }
 EXTEND FORM BOMs
     PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) showNutritionBOM
-//    PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) fatsBOM, carbohydratesBOM, proteinsBOM, energyBOM, recipesBOM
     PROPERTIES(p) SHOWIF showNutritionBOM(b) READONLY fatsProduct, carbohydratesProduct, proteinsProduct, energyProduct, compositionProduct, productYieldProduct
     PROPERTIES(c) SHOWIF showNutritionBOM(b) BACKGROUND backgroundComponent(c) READONLY fatsComponent, carbohydratesComponent, proteinsComponent, energyComponent
     
@@ -128,7 +130,6 @@ EXTEND FORM BOMs
 ;
 EXTEND FORM BOMsDialog
     PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) showNutritionBOM
-//    PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) fatsBOM, carbohydratesBOM, proteinsBOM, energyBOM, recipesBOM
     PROPERTIES(p) SHOWIF showNutritionBOM(b) READONLY fatsProduct, carbohydratesProduct, proteinsProduct, energyProduct, compositionProduct, productYieldProduct
     PROPERTIES(c) SHOWIF showNutritionBOM(b) BACKGROUND backgroundComponent(c) READONLY fatsComponent, carbohydratesComponent, proteinsComponent, energyComponent
     
