@@ -126,6 +126,7 @@ EXTEND DESIGN employee {
 META defineCommitteeEmployee (committee, prefix, caption)
     prefix##Committee = DATA Employee (###committee);
     name###prefix##Committee caption (committee) = nameContact(prefix##Committee(committee)) IN recognize;
+    shortName###prefix##Committee caption (committee) = shortNameContact(prefix##Committee(committee)) IN recognize;
     namePosition###prefix##Committee caption (committee) = namePositionEmployee(prefix##Committee(committee));
     CONSTRAINT prefix##Committee(committee) AND NOT countStockEmployeeCommittee(prefix##Committee(committee), committee)
         CHECKED BY prefix##Committee MESSAGE '\''##caption##'\' не входит в выбранные подразделения';
@@ -134,6 +135,7 @@ END
 META defineCommitteeEmployeePrefix (committee, prefix, caption)
     prefix###committee = DATA Employee (###committee);
     name###prefix###committee caption (committee) = nameContact(prefix###committee(committee)) IN recognize;
+    shortName###prefix###committee caption (committee) = shortNameContact(prefix###committee(committee)) IN recognize;
     namePosition###prefix###committee caption (committee) = namePositionEmployee(prefix###committee(committee));
     CONSTRAINT prefix###committee(committee) AND NOT countStockEmployeeCommittee(prefix###committee(committee), committee)
         CHECKED BY prefix###committee MESSAGE '\''##caption##'\' не входит в выбранные подразделения';
@@ -166,11 +168,23 @@ namePositionEmployeeCommittee 'Члены комиссии' (committee) =
      ORDER employee
      MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
+ shortNamePositionEmployeeCommittee 'Члены комиссии' (committee) =
+     GROUP CONCAT positionShortNameEmployee(employee) IF inCommitteeEmployee(committee, employee), ', '
+     BY committee
+     ORDER employee
+     MINCHARWIDTH 50 PREFCHARWIDTH 50;
+
 nameEmployeeCommittee 'Члены комиссии' (committee) =
      GROUP CONCAT nameContact(employee) IF inCommitteeEmployee(committee, employee), ', '
      BY committee
      ORDER employee
      MINCHARWIDTH 50 PREFCHARWIDTH 50;
+     
+shortNameEmployeeCommittee 'Члены комиссии' (committee) =
+     GROUP CONCAT shortNameContact(employee) IF inCommitteeEmployee(committee, employee), ', '
+     BY committee
+     ORDER employee
+     MINCHARWIDTH 50 PREFCHARWIDTH 50;     
 
 nameStocksCommittee 'Подразделения' (committee) =
      GROUP CONCAT nameStock(stock) IF inCommitteeStock(committee, stock), ', '
