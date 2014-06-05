@@ -75,7 +75,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                         if ((departmentStore != null) && (!departmentStoreList.contains(departmentStore)))
                             departmentStoreList.add(departmentStore);
                         BigDecimal priceSkuStock = (BigDecimal) resultValues.get("priceSkuStock").getValue();
-                        String barcodeItem = (String) getLCP("idBarcodeSku").read(session, itemObject);
+                        String barcodeItem = trim((String) getLCP("idBarcodeSku").read(session, itemObject));
                         Boolean isWeightItem = (Boolean) getLCP("isWeightItem").read(session, itemObject);
                         itemZReportInfoList.add(new ItemZReportInfo(barcodeItem, currentBalanceSkuStock, priceSkuStock, isWeightItem != null, departmentStore));
                     }
@@ -129,13 +129,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                         Map.Entry<DataObject, DataObject> cashRegisterDepartmentStore = (Map.Entry<DataObject, DataObject>) (cashRegisterDepartmentStoreMap.entrySet().toArray()[r.nextInt(cashRegisterDepartmentStoreMap.size())/*1*/]);
                         DataObject cashRegisterObject = cashRegisterDepartmentStore.getKey();
                         DataObject departmentStoreObject = cashRegisterDepartmentStore.getValue();
-                        Integer maxNumberZReport;
-                        try {
-                            String maxNumber = (String) getLCP("maxNumberZReport").read(session, cashRegisterObject);
-                            maxNumberZReport = maxNumber == null ? null : Integer.parseInt(maxNumber.trim());
-                        } catch (NumberFormatException e) {
-                            maxNumberZReport = Math.abs(r.nextInt());
-                        }
+                        Integer maxNumberZReport = (Integer) getLCP("maxNumberZReport").read(session, cashRegisterObject);                        
                         String numberZReport = null;
                         while (numberZReport == null || (numberZReportCashRegisterMap.containsKey(numberZReport) && numberZReportCashRegisterMap.containsValue(cashRegisterObject)))
                             numberZReport = String.valueOf((maxNumberZReport == null ? 0 : maxNumberZReport) + (zReportCount < 1 ? 0 : r.nextInt(zReportCount)) + 1);
@@ -164,9 +158,10 @@ public class GenerateZReport extends ScriptingActionProperty {
                                         sumCash = safeAdd(sumCash, sumReceiptDetail);
                                         BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(r.nextDouble() > 0.8 ? (sumReceiptDetail.doubleValue() * r.nextInt(10) / 100) : 0);
                                         Integer numberCashRegister = (Integer) getLCP("nppMachinery").read(context, cashRegisterObject);
-                                        SalesInfo salesInfo = new SalesInfo(numberCashRegister, numberCashRegister, numberZReport,
-                                                receiptNumber, date, time, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode == null ? null : itemZReportInfo.barcode.trim(),
-                                                quantityReceiptDetail, itemZReportInfo.price, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, null);
+                                        Integer numberGroupCashRegister = (Integer) getLCP("nppGroupMachineryMachinery").read(context, cashRegisterObject);
+                                        SalesInfo salesInfo = new SalesInfo(numberGroupCashRegister, numberCashRegister, numberZReport, receiptNumber, 
+                                                date, time, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode, quantityReceiptDetail, 
+                                                itemZReportInfo.price, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, null);
                                         receiptSalesInfoList.add(salesInfo);
                                         itemZReportInfo.count = safeSubtract(itemZReportInfo.count, quantityReceiptDetail);
                                     }
@@ -209,6 +204,10 @@ public class GenerateZReport extends ScriptingActionProperty {
             return null;
         else
             return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
+    }
+
+    protected String trim(String input) {
+        return input == null ? null : input.trim();
     }
     
     private class ItemZReportInfo {
