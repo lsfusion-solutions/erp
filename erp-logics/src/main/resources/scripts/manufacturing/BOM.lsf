@@ -137,7 +137,6 @@ CLASS Technology 'Технология';
 TABLE technology (Technology);
 
 nameTechnology 'Наименование' = DATA VARISTRING[50](Technology);
-heatTechnology 'Тепловая обработка' = DATA BOOLEAN (Technology);
 
 TABLE technologyMaterialDate (Technology, Material, DATE);
 @defineHistorizable(wastage, '% потерь', NUMERIC[8,3], technology, nameTechnology, material, nameMaterial, base);
@@ -148,7 +147,7 @@ FORM technology 'Технология'
     PROPERTIES valDt = OBJVALUE(dt) BACKGROUND dateDiffersCurrent(dt)
 
     OBJECTS t=Technology FIXED PANEL
-    PROPERTIES(t) nameTechnology, heatTechnology
+    PROPERTIES(t) nameTechnology
 
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuGroupName = nameSkuGroup(sg)
@@ -242,7 +241,7 @@ fillWastageTechnology 'Заполнить технологии на другой
 FORM technologies 'Технологии'
 
     OBJECTS t=Technology
-    PROPERTIES(t)  READONLY nameTechnology, heatTechnology
+    PROPERTIES(t)  READONLY nameTechnology
 
     PROPERTIES (t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     PROPERTIES (t) fillWastageTechnology
@@ -450,8 +449,8 @@ maxTechnologyComponent (c) = GROUP MAX t IF inTechnologyComponent(t,c) BY c;
 equalsMaxMinTechnologyComponent (c) = minTechnologyComponent (c) == maxTechnologyComponent (c);
 
 calcMinMaxWastageTechnologyMaterialDate (c,date)= [= (1-((100-X)*(100-Y)/10000))*100](
-    wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date),
-    wastageTechnologyMaterialDate(maxTechnologyComponent(c),materialComponent(c), date));
+    (OVERRIDE 0 IF c IS Component, wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date)),
+     (OVERRIDE 0 IF c IS Component, wastageTechnologyMaterialDate(maxTechnologyComponent(c),materialComponent(c), date)));
     
 minMaxWastageTechnologyMaterialDate (c, date)= IF equalsMaxMinTechnologyComponent (c) THEN wastageTechnologyMaterialDate(minTechnologyComponent(c),materialComponent(c), date)
     ELSE calcMinMaxWastageTechnologyMaterialDate(c,date);
@@ -964,7 +963,7 @@ FORM manufacturingCommitteeDialog 'Комиссии производство'
 // ----------------- Акт контрольной проработки-------------------- //
 
 actStudyOfCulinaryCommitteeBOM (BOM) = DATA ManufacturingCommittee(BOM);
-nameActStudyOfCulinaryCommitteeBOM 'Комиссия для акта контрольной проработки продукции' (BOM) = nameManufacturingCommittee(actStudyOfCulinaryCommitteeBOM (BOM)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameActStudyOfCulinaryCommitteeBOM 'Комиссия для акта' (BOM) = nameManufacturingCommittee(actStudyOfCulinaryCommitteeBOM (BOM)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 nameEmployeeCommitteeBOM 'Члены комиссии' (BOM)= nameEmployeeCommittee(actStudyOfCulinaryCommitteeBOM(BOM));
 
 inCommitteeBOMEmployee (BOM, employee) = inCommitteeEmployee(actStudyOfCulinaryCommitteeBOM (BOM), employee);
@@ -973,11 +972,19 @@ commonNameEmployeeCommitteeBOM 'Члены комиссии' (BOM) = namePositio
 companyBOM (BOM) = DATA LegalEntity(BOM);
 nameCompanyBOM 'Компания' (BOM) = nameLegalEntity(companyBOM(BOM)) IN documentPrm;
 
-CONSTRAINT  companyBOM(BOM) AND NOT isCompanyLegalEntity(companyBOM (BOM)) CHECKED BY companyBOM
-    MESSAGE 'Для спецификации выбрано организация, которая не является компанией';
+actQuantityBOM 'Кол-во для акта' = DATA NUMERIC[14,3] (BOM);
+actStockBOM  = DATA Stock (BOM);
+nameActStockBOM 'Склад для акта' (b) = nameStock(actStockBOM(b));
+
+
+CONSTRAINT  companyBOM(BOM) AND NOT isCompanyLegalEntity(companyBOM(BOM)) CHECKED BY companyBOM
+    MESSAGE 'Для спецификации выбрана организация, которая не является компанией';
+CONSTRAINT  actStockBOM(BOM) AND NOT isCompanyStock(actStockBOM(BOM)) CHECKED BY actStockBOM
+    MESSAGE 'Для спецификации выбран склад, который не является складом компании';        
+     
 
 EXTEND FORM BOM
-    PROPERTIES(b) nameActStudyOfCulinaryCommitteeBOM, nameCompanyBOM
+    PROPERTIES(b) actQuantityBOM, nameActStockBOM, nameActStudyOfCulinaryCommitteeBOM, nameCompanyBOM
 
     OBJECTS e=Employee
     PROPERTIES(e) READONLY nameContact, namePositionEmployee
@@ -992,6 +999,8 @@ EXTEND DESIGN BOM {
             NEW row1{
                 caption = 'Акт';
                 type = CONTAINERH;
+                ADD PROPERTY(actQuantityBOM(b));
+                ADD PROPERTY(nameActStockBOM(b));
                 ADD PROPERTY(nameActStudyOfCulinaryCommitteeBOM(b));
             }
             ADD e.box {caption = 'Сотрудники комиссии';}
