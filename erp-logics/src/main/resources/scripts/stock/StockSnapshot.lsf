@@ -306,33 +306,47 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
     startTimeSnapshot(snapshot) <- currentDateTime();   
     IF countIncludeSkuSnapshot(snapshot) AND countIncludeStockSnapshot(snapshot) THEN {      
         IF isQuantitySnapshot(snapshot) THEN {         
-        
-            balanceBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateFrom)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceBSnapshot(snapshot);
             
-            inQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isInSnapshot(snapshot);
-    
-            outQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isOutSnapshot(snapshot);     
+            IF isBalanceASnapshot(snapshot) THEN
+                balanceASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceASkuStockDate(sku, stock, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+                    
+            IF isInSnapshot(snapshot) THEN            
+                inQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+
+            IF isOutSnapshot(snapshot) THEN 
+                outQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantitySumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);     
             
-            balanceASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceASkuStockDate(sku, stock, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceASnapshot(snapshot);
- 
+            IF isBalanceBSnapshot(snapshot) THEN {
+                IF isBalanceASnapshot(snapshot) AND isInSnapshot(snapshot) AND isOutSnapshot(snapshot) THEN
+                    balanceBSkuStockSnapshot(sku, stock, snapshot) <- balanceASkuStockSnapshot(sku, stock, snapshot) (-) inQuantitySkuStockSnapshot(sku, stock, snapshot) (+) outQuantitySkuStockSnapshot(sku, stock, snapshot)
+                ELSE 
+                    balanceBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](balanceBSkuStockDate(sku, stock, dateFrom)) 
+                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+            }
         }
         IF isSumSnapshot(snapshot) THEN {         
 
-            sumBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumBSkuStockDate(sku, stock, dateFrom)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceBSnapshot(snapshot);
+            IF isBalanceASnapshot(snapshot) THEN
+                sumASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumASkuStockDate(sku, stock, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);   
 
-            inSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isInSnapshot(snapshot);         
+            IF isInSnapshot(snapshot) THEN 
+                inSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumInSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);         
 
-            outSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isOutSnapshot(snapshot);        
+            IF isOutSnapshot(snapshot) THEN
+                outSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumOutSkuStockDateDate(sku, stock, dateFrom, dateTo)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);        
             
-            sumASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumASkuStockDate(sku, stock, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceASnapshot(snapshot);   
+            IF isBalanceBSnapshot(snapshot) THEN
+                IF isBalanceASnapshot(snapshot) AND isInSnapshot(snapshot) AND isOutSnapshot(snapshot) THEN
+                    sumBSkuStockSnapshot(sku, stock, snapshot) <- sumASkuStockSnapshot(sku, stock, snapshot) (-) inSumSkuStockSnapshot(sku, stock, snapshot) (+) outSumSkuStockSnapshot(sku, stock, snapshot)
+                ELSE
+                    sumBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumBSkuStockDate(sku, stock, dateFrom)) 
+                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
         }        
         IF isDateSnapshot(snapshot) THEN {  
             IF isQuantitySnapshot(snapshot) THEN { 
@@ -381,38 +395,52 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
                      
         IF isBatchSnapshot(snapshot) THEN {   
             IF isQuantitySnapshot(snapshot) THEN {
-                balanceBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceBBatchStockDate(batch, stock, dateFrom)) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceBSnapshot(snapshot);
+                IF isBalanceASnapshot(snapshot) THEN
+                    balanceABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceABatchStockDate(batch, stock, dateTo)) 
+                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
                 
-                inQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isInSnapshot(snapshot);
+                IF isInSnapshot(snapshot) THEN
+                    inQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
         
-                outQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isOutSnapshot(snapshot);
-                
-                balanceABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceABatchStockDate(batch, stock, dateTo)) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceASnapshot(snapshot);
+                IF isOutSnapshot(snapshot) THEN
+                    outQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+
+                IF isBalanceBSnapshot(snapshot) THEN
+                    IF isBalanceASnapshot(snapshot) AND isInSnapshot(snapshot) AND isOutSnapshot(snapshot) THEN
+                        balanceBBatchStockSnapshot(batch, stock, snapshot) <- balanceABatchStockSnapshot(batch, stock, snapshot) (-) inQuantityBatchStockSnapshot(batch, stock, snapshot) (+) outQuantityBatchStockSnapshot(batch, stock, snapshot)
+                    ELSE
+                        balanceBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceBBatchStockDate(batch, stock, dateFrom)) 
+                            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
             }
             IF isSumSnapshot(snapshot) THEN { 
-                sumBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceBBatchStockDate(batch, stock, dateFrom)*costBatch(batch)) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceBSnapshot(snapshot);
+                IF isBalanceASnapshot(snapshot) THEN
+                    sumABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)) 
+                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));               
                 
-                inSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isInSnapshot(snapshot);
+                IF isInSnapshot(snapshot) THEN
+                    inSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
         
-                outSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isOutSnapshot(snapshot);           
-                
-                sumABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceASnapshot(snapshot);               
+                IF isOutSnapshot(snapshot) THEN
+                    outSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                        WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));           
+
+                IF isBalanceBSnapshot(snapshot) THEN
+                    IF isBalanceASnapshot(snapshot) AND isInSnapshot(snapshot) AND isOutSnapshot(snapshot) THEN
+                        sumBBatchStockSnapshot(batch, stock, snapshot) <- sumABatchStockSnapshot(batch, stock, snapshot) (-) inSumBatchStockSnapshot(batch, stock, snapshot) (+) outSumBatchStockSnapshot(batch, stock, snapshot)
+                    ELSE
+                        sumBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceBBatchStockDate(batch, stock, dateFrom)*costBatch(batch)) 
+                            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
             }    
                                
             overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo);     
         }         
         overTakeSnapshotDateFromTo(snapshot, dateFrom, dateTo);
         
-        apply(); 
         finishTimeSnapshot(snapshot) <- currentDateTime();      
+        apply(); 
     } ELSE {
         MESSAGE 'Не выбраны группы товаров или склады для отчета';
     }           
@@ -442,36 +470,36 @@ filterMoveBatchStockSnapshot (bt,ss,r)= balanceBBatchStockSnapshot(bt,ss,r) OR b
                                         inQuantityBatchStockSnapshot(bt,ss,r) OR outQuantityBatchStockSnapshot(bt,ss,r) PERSISTENT;
 
 //-- SHOWIF
-isQuantityBalanceBSnapshot= isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
-isQuantityInSnapshot= isQuantitySnapshot(snapshot) AND isInSnapshot(snapshot);
-isQuantityOutSnapshot= isQuantitySnapshot(snapshot) AND isOutSnapshot(snapshot);
-isQuantityBalanceASnapshot= isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot);
+isQuantityBalanceBSnapshot = isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
+isQuantityInSnapshot = isQuantitySnapshot(snapshot) AND isInSnapshot(snapshot);
+isQuantityOutSnapshot = isQuantitySnapshot(snapshot) AND isOutSnapshot(snapshot);
+isQuantityBalanceASnapshot = isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot);
 
-isSumBalanceBSnapshot= isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
-isSumInSnapshot= isSumSnapshot(snapshot) AND isInSnapshot(snapshot);
-isSumOutSnapshot= isSumSnapshot(snapshot) AND isOutSnapshot(snapshot);
-isSumBalanceASnapshot= isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot);
+isSumBalanceBSnapshot = isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
+isSumInSnapshot = isSumSnapshot(snapshot) AND isInSnapshot(snapshot);
+isSumOutSnapshot = isSumSnapshot(snapshot) AND isOutSnapshot(snapshot);
+isSumBalanceASnapshot = isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot);
 //--
-isQuantityBalanceBBatchSnapshot= isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
-isQuantityInBatchSnapshot= isQuantitySnapshot(snapshot) AND isInSnapshot(snapshot) AND isBatchSnapshot(snapshot);
-isQuantityOutBatchSnapshot= isQuantitySnapshot(snapshot) AND isOutSnapshot(snapshot) AND isBatchSnapshot(snapshot);
-isQuantityBalanceABatchSnapshot= isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isQuantityBalanceBBatchSnapshot = isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isQuantityInBatchSnapshot = isQuantitySnapshot(snapshot) AND isInSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isQuantityOutBatchSnapshot = isQuantitySnapshot(snapshot) AND isOutSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isQuantityBalanceABatchSnapshot = isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
 
-isSumBalanceBBatchSnapshot= isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
-isSumInBatchSnapshot= isSumSnapshot(snapshot) AND isInSnapshot(snapshot) AND isBatchSnapshot(snapshot);
-isSumOutBatchSnapshot= isSumSnapshot(snapshot) AND isOutSnapshot(snapshot) AND isBatchSnapshot(snapshot);
-isSumBalanceABatchSnapshot= isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isSumBalanceBBatchSnapshot = isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isSumInBatchSnapshot = isSumSnapshot(snapshot) AND isInSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isSumOutBatchSnapshot = isSumSnapshot(snapshot) AND isOutSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isSumBalanceABatchSnapshot = isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
 
 //--
-isQuantityBalanceBDateSnapshot= isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot);
-isQuantityInDateSnapshot= isQuantitySnapshot(snapshot) AND isInSnapshot(snapshot) AND isDateSnapshot(snapshot);
-isQuantityOutDateSnapshot= isQuantitySnapshot(snapshot) AND isOutSnapshot(snapshot) AND isDateSnapshot(snapshot);
-isQuantityBalanceADateSnapshot= isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
+isQuantityBalanceBDateSnapshot = isQuantitySnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isQuantityInDateSnapshot = isQuantitySnapshot(snapshot) AND isInSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isQuantityOutDateSnapshot = isQuantitySnapshot(snapshot) AND isOutSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isQuantityBalanceADateSnapshot = isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
 
-isSumBalanceBDateSnapshot= isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot);
-isSumInDateSnapshot= isSumSnapshot(snapshot) AND isInSnapshot(snapshot) AND isDateSnapshot(snapshot);
-isSumOutDateSnapshot= isSumSnapshot(snapshot) AND isOutSnapshot(snapshot) AND isDateSnapshot(snapshot);
-isSumBalanceADateSnapshot= isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumBalanceBDateSnapshot = isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumInDateSnapshot = isSumSnapshot(snapshot) AND isInSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumOutDateSnapshot = isSumSnapshot(snapshot) AND isOutSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumBalanceADateSnapshot = isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
 
 FORM snapshot 'Отчет по товарообороту'                                   
     OBJECTS r = Snapshot FIXED PANEL
