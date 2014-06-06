@@ -49,3 +49,23 @@ EXTEND DESIGN disparity{
 EXTEND FORM disparities
     PROPERTIES(dis) READONLY nameOperationDisparity AFTER nameStockDisparity(dis)
 ;
+
+useDisparityItemDisparityOperation 'Частичная уценка' = DATA BOOLEAN (Operation);
+
+CONSTRAINT useDisparityItemDisparityOperation(operationDisparityDetail(detail)) 
+    AND NOT disparityItemItem(inputSkuDisparityDetail(detail))
+    CHECKED BY inputSkuDisparityDetail MESSAGE 'Выбран не уцененный товар';   
+
+CONSTRAINT detail IS DisparityDetail 
+    AND NOT disparityItemItem(inputSkuDisparityDetail(detail))==skuDisparityDetail(detail)
+    CHECKED BY inputSkuDisparityDetail MESSAGE 'Выбран не уцененный товар';   
+    
+EXTEND FORM operation
+    PROPERTIES (o) useDisparityItemDisparityOperation 
+;
+
+EXTEND DESIGN operation {
+    propertyContainer {
+        ADD PROPERTY(useDisparityItemDisparityOperation(o));
+    }
+}

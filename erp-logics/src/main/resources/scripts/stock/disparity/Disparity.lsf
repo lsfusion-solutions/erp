@@ -10,6 +10,7 @@ REQUIRE System,
         Employee,
         StockDocumentSkuLedger,
         Utils,
+        Item,
         PriceListLedger;
 
 NAMESPACE Disparity;
@@ -307,3 +308,71 @@ NAVIGATOR {
         }
     }
 }
+
+//Родительский товар
+
+disparityItemItem 'Уцененный товар' = DATA Item (Item);
+nameSkudisparityItemItem 'Уцененный товар' = nameSku(disparityItemItem(item));
+
+copyDisparityDataItem = ACTION (item, i) {
+    disparityItemItem(i) <- item; 
+    itemGroupItem(i) <- itemGroupItem(item);
+    captionItem(i) <- captionItem(item) + ' (УЦЕН.)';
+    originalCaptionItem(i) <- originalCaptionItem(item);
+    UOMItem(i) <- UOMItem(item);
+    brandItem(i) <- brandItem(item);
+    manufacturerItem(i) <- manufacturerItem(item);
+    compositionItem(i) <- compositionItem(item);
+    originalCompositionItem(i) <- originalCompositionItem(item);
+    netWeightItem(i) <- netWeightItem(item);
+    grossWeightItem(i) <- grossWeightItem(item);
+    countryItem(i) <- countryItem(item);
+    dataImageItem(i) <- dataImageItem(item);
+    skuTypeItem(i) <- skuTypeItem(item);
+    isWeightItem(i) <- isWeightItem(item);
+    inactiveItem(i) <- inactiveItem(item);
+    
+    generateBarcodeSku(i);       
+    
+    customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeItem(type, item);
+    
+    EXEC overCopyItem(item, i);    
+}
+
+copyDisparityItem 'Создать уцененный товар' = ACTION (item) {
+    IF (item IS Item) THEN {
+        NEWSESSION (addedSku) {
+            FOR ADDOBJ i = Item DO {
+                copyDisparityDataItem(item, i);
+                FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
+                IF formResult() == FormResult.ok THEN {
+                    addedSku() <- i;
+                }
+            }
+        }
+    }
+} EDITKEY 'F6' TOOLBAR;
+
+EXTEND FORM item
+    PROPERTIES(i) nameSkudisparityItemItem
+    OBJECTS di = Item
+    PROPERTIES(di) READONLY nameSku
+    FILTERS disparityItemItem(di)==i 
+;
+
+EXTEND DESIGN item {
+    itemHeader {
+        ADD PROPERTY(nameSkudisparityItemItem(i));    
+    }
+    itemDetail {
+        NEW disparityItem AFTER calcPriceListTypePrm {
+            type = CONTAINERV;
+            caption = 'Уценки';
+            ADD di.box;
+        }
+    }    
+}
+
+EXTEND FORM items
+    PROPERTIES (i) copyDisparityItem
+;
