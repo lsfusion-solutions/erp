@@ -1,0 +1,126 @@
+MODULE DisparityDashboard;
+
+REQUIRE DisparityOperation, Dashboard, TaxItem;
+
+NAMESPACE Disparity;
+
+//АРМ уценки
+disparityQuantityItemStock 'Кол-во' = DATA SESSION NUMERIC[14,3] (Item, Stock);
+disparityPriceItemStock 'Цена' = DATA SESSION NUMERIC[16,2] (Item, Stock);
+
+backgroundDisparityQuantityItemStock (item, stock) = RGB(212,255,212) IF item IS Item AND stock IS Stock;
+
+disparityQuantityStock = GROUP SUM disparityQuantityItemStock(item, stock) BY stock;
+
+overCreateDisparityItemStock = ABSTRACT ACTION LIST (Item, Stock, DisparityDetail);
+
+createDisparityStock 'Создать уценку' = ACTION (stock, operation) {
+    NEWSESSION (disparityQuantityItemStock, disparityPriceItemStock) {
+        FOR ADDOBJ d = Disparity DO {
+            operationDisparity(d) <- operation;
+            stockDisparity(d) <- stock;
+            dateDisparity(d) <- currentDate();
+            timeDisparity(d) <- currentTime();
+            
+            FOR disparityQuantityItemStock(item, stock) ADDOBJ dd = DisparityDetail DO {
+                disparityDisparityDetail(dd) <- d;
+                skuDisparityDetail(dd) <- item;
+                batchDisparityDetail(dd) <- defaultBatchSkuStock(item, stock);
+                quantityDisparityDetail(dd) <- disparityQuantityItemStock(item, stock); 
+                FOR ADDOBJ i = Item DO {
+                    copyDisparityDataItem(item, i);
+                    inputSkuDisparityDetail(dd) <- i;
+                }  
+                priceDisparityDetail(dd) <- disparityPriceItemStock(item, stock);
+                overCreateDisparityItemStock (item, stock, dd);
+            }
+            
+            FORM disparity OBJECTS dis=d MANAGESESSION DOCKEDMODAL;
+        }     
+    }
+} TOOLBAR CONFIRM;
+
+FORM disparityItemItemDashboard 'Уценки'
+    OBJECTS dt = DATE FIXED PANEL
+    PROPERTIES (dt) OBJVALUE 
+    
+    OBJECTS s = Stock FIXED PANEL
+    PROPERTIES(s) nameStock SELECTOR
+    FILTERS isCompanyStock(s)
+    
+    OBJECTS o = Operation FIXED PANEL
+    PROPERTIES (o) nameOperation SELECTOR
+   
+    OBJECTS i=Item
+    PROPERTIES (i) READONLY idBarcodeSku, nameSku
+    PROPERTIES(i, s) READONLY currentBalanceSkuStock, averagePriceSkuStock, currentSumSkuStock, 
+                     averageCostPriceBatchSkuStock
+    PROPERTIES (i) valueVATItem                
+    PROPERTIES(i, s) disparityQuantityItemStock BACKGROUND backgroundDisparityQuantityItemStock(i, s),
+                     disparityPriceItemStock BACKGROUND backgroundDisparityQuantityItemStock(i, s)
+    ORDER BY nameSku(i)
+    FILTERS currentBalanceSkuStock(i, s) AND NOT disparityItemItem(i)
+    FILTERGROUP baseFilter
+        FILTER 'Позиции с уценкой''F9' countItemDisparityItem(i) 
+    
+    PROPERTIES (s, o) createDisparityStock TODRAW i SHOWIF disparityQuantityStock(s)
+        
+    OBJECTS di=Item
+    PROPERTIES (di) READONLY idBarcodeSku, nameSku
+    PROPERTIES (di, s) READONLY currentBalanceSkuStock, averageCostPriceBatchSkuStock, averagePriceSkuStock, currentSumSkuStock  
+    FILTERS disparityItemItem(di)==i, currentBalanceSkuStock(di, s)  
+       
+    OBJECTS dis = Disparity
+    PROPERTIES (dis) READONLY isClosedDisparity, isPostedDisparity, numberDisparity, seriesDisparity, dateDisparity, timeDisparity, nameStockDisparity
+    PROPERTIES(dis)  READONLY countDisparityDetailDisparity, quantityDisparityDetailDisparity, sumDisparityDetailDisparity,
+                              inputQuantityDisparityDetailDisparity, inputSumDisparityDetailDisparity, noteDisparity
+
+    PROPERTIES (dis) ADDFORM, EDITFORM SHOWIF isOpenedDisparity(dis)
+    PROPERTIES(dis)  closeDisparity SHOWIF isOpenedDisparity(dis), openDisparity SHOWIF isClosedDisparity(dis)     
+    
+    PROPERTIES (dis) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedDisparity(dis)
+    FILTERGROUP bdisparityFilter
+        FILTER 'Накладные на дату' 'F8' dateDisparity(dis)==dt DEFAULT
+;
+
+DESIGN disparityItemItemDashboard FROM DEFAULT {
+    main{
+        NEW top {
+            type = CONTAINERH;
+            ADD dt.box;
+            ADD s.box;
+            ADD o.box;
+        }    
+        NEW balanceContainer {
+            type = CONTAINERV;
+            fill = 1;
+            caption = 'Товары';
+            ADD i.box;
+        }
+        NEW disparityContainer {
+            fill = 1;
+            type = TABBED;
+            NEW disparityItemContainer {
+                type = CONTAINERV;
+                fill = 1;
+                caption = 'Уцененные товары';
+                ADD di.box;
+             }
+             NEW disparityDocContainer {
+                 type = CONTAINERV;
+                 fill = 1;
+                 caption = 'Документы уценки';
+                 ADD dis.box;      
+             }
+        }
+        ADD functions.box;
+    }
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        NEW disparityDashboard 'Уценка' {
+            ADD disparityItemItemDashboard;
+        }    
+    }
+}

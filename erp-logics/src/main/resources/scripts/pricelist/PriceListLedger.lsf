@@ -381,13 +381,18 @@ currentAccountPriceBatchStock 'Цена учетная' (batch, stock) =
     prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, currentDateTime());
 currentAccountSumBatchStock 'Сумма учетная' (batch, stock) =
     currentBalanceBatchStock(batch, stock) * currentAccountPriceBatchStock(batch, stock);
+currentCostSumBatchStock 'Сумма себестоимости' (batch, stock) =
+    currentBalanceBatchStock(batch, stock) * costBatch(batch);    
 
 accountPriceBatchStockDateTime 'Цена учетная' (batch, stock, dateTime) =
     prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);
 
 currentAccountSumBatchSkuStock 'Сумма учетная по партиям' (sku, stock) =
     GROUP SUM currentAccountSumBatchStock(batch, stock) BY skuBatch(batch), stock; 
-
+currentCostSumBatchSkuStock 'Сумма себестоимости по партиям' (sku, stock) =
+    GROUP SUM currentCostSumBatchStock(batch, stock) BY skuBatch(batch), stock; 
+averageCostPriceBatchSkuStock 'Себестоимость (средневзв.)' = 
+    currentCostSumBatchSkuStock(sku, stock)/currentBalanceSkuStock(sku, stock);   
     
 //--Дата/время    
 accountPriceBBatchStockDateTime 'Учетная цена товара в партии' (batch, stock, dateTime) =
