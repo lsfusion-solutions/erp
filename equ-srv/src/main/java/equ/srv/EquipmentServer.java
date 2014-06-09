@@ -802,6 +802,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             if (zReportLM != null && salesInfoList != null && !salesInfoList.isEmpty()) {
 
+                Collections.sort(salesInfoList, COMPARATOR);
+
                 if (numberAtATime == null)
                     numberAtATime = salesInfoList.size();
 
@@ -1349,6 +1351,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
         return data;
     }
+
+    private static Comparator<SalesInfo> COMPARATOR = new Comparator<SalesInfo>() {
+        public int compare(SalesInfo o1, SalesInfo o2) {
+            return o1.numberCashRegister == null ? (o2.numberCashRegister == null ? 0 : -1) :
+                    (o2.numberCashRegister == null ? 1 : o1.numberCashRegister.compareTo(o2.numberCashRegister));
+        }
+    };
 
     @Aspect
     private static class RemoteLogicsContextHoldingAspect {
