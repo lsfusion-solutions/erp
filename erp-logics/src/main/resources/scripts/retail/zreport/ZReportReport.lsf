@@ -46,12 +46,26 @@ nameNegativeCashStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' 
 nameNegativeCardStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(сумма возврата (карточка))\''](nameStock(stock));    
 nameVATSumReturnStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(сумма НДС по возвратам)\''](nameStock(stock));                                     
                                   
+countReceiptDepartmentStoreDate 'Кол-во чеков в магазине за день' (departmentStore, date) = 
+    GROUP SUM countReceiptZReport(zReport) IF isPostedZReport(zReport) BY departmentStoreZReport(zReport), dateZReport(zReport);
+averageSumReceiptDepartmentStoreDate 'Средняя сумма чека в магазине за день' (departmentStore, date) = 
+    sumReceiptDetailZReportStockDate(departmentStore, date) / countReceiptDepartmentStoreDate(departmentStore, date);
+
+countReceiptDetailZReport (zReport) = GROUP SUM countReceiptDetailReceipt(receipt) BY zReportReceipt(receipt);
+countReceiptDetailDepartmentStoreDate 'Кол-во позиций чеков в магазине за период' (departmentStore, date) =
+    GROUP SUM countReceiptDetailZReport(zReport) IF isPostedZReport(zReport) BY departmentStoreZReport(zReport), dateZReport(zReport);
+averageCountReceiptDetailDepartmentStoreDate 'Среднее кол-во позиций в чеке в магазине за париод' (departmentStore, date) = 
+    NUMERIC[14,2](countReceiptDetailDepartmentStoreDate(departmentStore, date)) / NUMERIC[14,2](countReceiptDepartmentStoreDate(departmentStore, date));
+    
+countReceiptStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(кол-во чеков)\''](nameStock(stock));        
+averageSumReceiptStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(cредняя сумма чека)\''](nameStock(stock));        
+countReceiptDetailStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(кол-во позиций чеков)\''](nameStock(stock));        
+averageCountReceiptDetailStock (stock)= [= FORMULA VARSTRING[50] 'CAST($1 AS TEXT) || \' \' || \'(среднее кол-во позиций в чеке)\''](nameStock(stock));        
         
 FORM saleZreportStock 'Отчет по магазинам'
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)        
- 
      
     OBJECTS ts = DepartmentStore FIXED GRID
     PROPERTIES nameStock(ts) READONLY, nameLegalEntityStock(ts) READONLY, inReportStock(ts)
@@ -80,6 +94,11 @@ FORM saleZreportStock 'Отчет по магазинам'
     PROPERTIES READONLY sumNegativeCashPaymentZReportStockDate(st,dt)  COLUMNS (st) HEADER nameNegativeCashStock(st)                                 
     PROPERTIES READONLY sumNegativeCardPaymentZReportStockDate(st,dt)  COLUMNS (st) HEADER nameNegativeCardStock(st)
     PROPERTIES READONLY VATSumReturnZReportStockDate(st,dt)  COLUMNS (st) HEADER nameVATSumReturnStock(st)                                 
+    
+    PROPERTIES READONLY countReceiptDepartmentStoreDate(st,dt) COLUMNS (st) HEADER countReceiptStock(st)                                 
+    PROPERTIES READONLY averageSumReceiptDepartmentStoreDate(st,dt) COLUMNS (st) HEADER averageSumReceiptStock(st)                                 
+    PROPERTIES READONLY countReceiptDetailDepartmentStoreDate(st,dt) COLUMNS (st) HEADER countReceiptDetailStock(st)                                 
+    PROPERTIES READONLY averageCountReceiptDetailDepartmentStoreDate(st,dt) COLUMNS (st) HEADER averageCountReceiptDetailStock(st)                                 
 ;
 
 
