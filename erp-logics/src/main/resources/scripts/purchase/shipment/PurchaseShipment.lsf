@@ -193,6 +193,18 @@ legalEntityStockStockDocumentLedger(ledger) += supplierStockShipment(ledger);
 
 operationStockDocumentLedger(ledger) += operationShipment(ledger);
 
+// -------------------------------- Наименования для документов --------------------------- //
+documentNameSkuShipmentDetail 'Наименование (для документов)' = ABSTRACT VARISTRING[255] (ShipmentDetail) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+documentNameSkuUserShipmentDetail 'Наименование (для документов)' = DATA VARISTRING[255] (UserShipmentDetail) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+documentNameSkuShipmentDetail(detail) += documentNameSkuUserShipmentDetail(detail);
+
+EXTEND FORM userShipment
+    PROPERTIES(d) documentNameSkuUserShipmentDetail AFTER nameSkuUserShipmentDetail(d)
+;
+EXTEND FORM shipments
+    PROPERTIES(d) documentNameSkuShipmentDetail AFTER nameSkuShipmentDetail(d)
+;
+
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 
 overCreateBatchShipmentDetail = ABSTRACT BOOLEAN (ShipmentDetail);
@@ -218,6 +230,8 @@ seriesBatch (ledger) += seriesShipment(shipmentShipmentDetail(shipmentDetailShip
 numberBatch (ledger) += numberShipment(shipmentShipmentDetail(shipmentDetailShipmentBatch(ledger)));
 supplierBatch (ledger) += supplierShipmentDetail(shipmentDetailShipmentBatch(ledger));
 supplierStockBatch (ledger) += supplierStockShipmentDetail(shipmentDetailShipmentBatch(ledger));
+
+overDocumentNameSkuBatch (ledger) += documentNameSkuShipmentDetail(shipmentDetailShipmentBatch(ledger)); 
 
 batchSkuLedger(ledger) += ledger AS Batch;
 
@@ -297,7 +311,6 @@ mergeBatchUserShipment 'Соединить партии' = ACTION (shipment) {
 } TOOLBAR;
 
 EXTEND FORM userShipment
-
     PROPERTIES(s) TODRAW d mergeBatchUserShipment
 ;
 //

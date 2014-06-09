@@ -168,7 +168,6 @@ departmentStoreReceiptDetail (d) += departmentStoreReceiptReturnDetail(d);
 @defineDocumentDetailSku(receiptSale, sku);
 @defineDocumentDetailSku(receiptReturn, sku);
 skuReceiptDetail (receiptDetail) = OVERRIDE skuReceiptReturnDetail(receiptDetail), skuReceiptSaleDetail(receiptDetail);
-nameSkuReceiptDetail 'Товар' (receiptDetail) = nameSkuStock(skuReceiptDetail(receiptDetail), departmentStoreReceiptDetail(receiptDetail)) IN recognize;
 shortNameUOMSkuReceiptDetail 'Ед. изм.' (receiptDetail) = shortNameUOMSku(skuReceiptDetail(receiptDetail));
 
 changeDialogSkuReceiptDetail  = ACTION (detail) {
@@ -197,6 +196,8 @@ changeBatchReceiptDetail = ACTION (detail) {
         batchReceiptDetail(detail) <- NULL;
     }
 }
+
+nameSkuReceiptDetail 'Товар' (d) = IF batchReceiptDetail(d) THEN documentNameSkuBatch(batchReceiptDetail(d)) ELSE nameSku(skuReceiptDetail(d)) IN recognize;
 
 explicitBatchLedgerReceipt(receipt) = explicitBatchLedgerDepartmentStore(departmentStoreZReport(zReportReceipt(receipt)));
 notExplicitBatchLedgerReceipt(receipt) = departmentStoreZReport(zReportReceipt(receipt)) AND NOT explicitBatchLedgerReceipt(receipt);

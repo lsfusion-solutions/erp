@@ -288,11 +288,12 @@ calcSaleSkuParamsInterval 'Рассчитать продажи в день и т
         daysOnStock(sku, stock) <- NULL;
         
         WHILE dateCur() <= dateTo DO {
-            daysOnStock(sku, stock) <- daysOnStock(sku, stock) (+)
-                       (1 IF ((balance(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0))) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
-            cumBalance(sku, stock) <- cumBalance(sku, stock) (+) balance(sku, stock);  
-            balance(sku, stock) <- balance(sku, stock) (+)
-                       signedSumSkuStockDate(sku, stock, dateCur()) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+            daysOnStock(sku, stock) <- daysOnStock(sku, stock) (+) (1 IF ((balance(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0))) 
+                       WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+            cumBalance(sku, stock) <- cumBalance(sku, stock) (+) balance(sku, stock)
+                       WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+            balance(sku, stock) <- balance(sku, stock) (+) signedSumSkuStockDate(sku, stock, dateCur()) 
+                       WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
     
             dateCur() <- sumDate(dateCur(), 1);
         }
@@ -335,11 +336,12 @@ overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo) +=  ACTION (snapshot
         daysOnStock(batch, stock) <- NULL;
         
         WHILE dateCur() <= dateTo DO {
-            daysOnStock(batch, stock) <- daysOnStock(batch, stock) (+)
-                       (1 IF ((balance(batch, stock) > 0) OR (quantityBatchStockDate(batch, stock, dateCur()) > 0))) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
-            cumBalance(batch, stock) <- cumBalance(batch, stock) (+) balance(batch, stock);  
-            balance(batch, stock) <- balance(batch, stock) (+)
-                       signedQuantityBatchStockDate(batch, stock, dateCur())*costBatch(batch) WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, batch);
+            daysOnStock(batch, stock) <- daysOnStock(batch, stock) (+) (1 IF ((balance(batch, stock) > 0) OR (quantityBatchStockDate(batch, stock, dateCur()) > 0))) 
+                                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+            cumBalance(batch, stock) <- cumBalance(batch, stock) (+) balance(batch, stock)
+                                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+            balance(batch, stock) <- balance(batch, stock) (+) signedQuantityBatchStockDate(batch, stock, dateCur()) * costBatch(batch) 
+                                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
     
             dateCur() <- sumDate(dateCur(), 1);
         }
