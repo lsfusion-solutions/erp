@@ -13,9 +13,15 @@ public class ImportColumns {
     private DataObject companyObject;
     private DataObject stockObject;
     private DataObject defaultItemGroupObject;
+    private String fileExtension;
+    private String itemKeyType;
+    private String csvSeparator;
+    private Integer startRow;
+    private Boolean isPosted;
 
     public ImportColumns(Map<String, ImportColumnDetail> columns, Map<DataObject, String[]> priceColumns, String quantityAdjustmentColumn,
-                         DataObject operationObject, DataObject companyObject, DataObject stockObject, DataObject defaultItemGroupObject) {
+                         DataObject operationObject, DataObject companyObject, DataObject stockObject, DataObject defaultItemGroupObject,
+                         String fileExtension, String itemKeyType, String csvSeparator, Integer startRow, Boolean isPosted) {
         this.columns = columns;
         this.priceColumns = priceColumns;
         this.quantityAdjustmentColumn = quantityAdjustmentColumn;
@@ -23,6 +29,11 @@ public class ImportColumns {
         this.companyObject = companyObject;
         this.stockObject = stockObject;
         this.defaultItemGroupObject = defaultItemGroupObject;
+        this.fileExtension = fileExtension;
+        this.itemKeyType = itemKeyType;
+        this.csvSeparator = csvSeparator;
+        this.startRow = startRow;
+        this.isPosted = isPosted;
     }
 
     public Map<String, ImportColumnDetail> getColumns() {
@@ -51,5 +62,25 @@ public class ImportColumns {
 
     public DataObject getDefaultItemGroupObject() {
         return defaultItemGroupObject;
+    }
+    
+    public String getFileExtension() {
+        return fileExtension;
+    }
+    
+    public String getItemKeyType() {
+        return itemKeyType;
+    }
+    
+    public String getCsvSeparator() {
+        return csvSeparator;
+    }
+
+    public Integer getStartRow() {
+        return startRow;
+    }
+    
+    public Boolean getIsPosted() {
+        return isPosted;
     }
 }

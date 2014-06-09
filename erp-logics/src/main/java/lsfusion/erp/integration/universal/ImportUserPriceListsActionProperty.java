@@ -42,12 +42,7 @@ public class ImportUserPriceListsActionProperty extends DefaultIntegrationAction
             KeyExpr importUserPriceListTypeKey = importUserPriceListTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importUserPriceListTypeQuery = new QueryBuilder<PropertyInterface, Object>(importUserPriceListTypeKeys);
             importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", getLCP("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("captionImportUserPriceListTypeFileExtensionImportUserPriceListType", getLCP("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("startRowImportUserPriceListType", getLCP("startRowImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("isPostedImportUserPriceListType", getLCP("isPostedImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("separatorImportUserPriceListType", getLCP("separatorImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-            importUserPriceListTypeQuery.addProperty("nameImportUserPriceListKeyTypeImportUserPriceListType", getLCP("nameImportUserPriceListKeyTypeImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
-           
+            
             importUserPriceListTypeQuery.and(isImportUserPriceListType.getExpr(importUserPriceListTypeKey).getWhere());
             importUserPriceListTypeQuery.and(getLCP("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
             importUserPriceListTypeQuery.and(getLCP("autoImportDirectoryImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
@@ -59,34 +54,26 @@ public class ImportUserPriceListsActionProperty extends DefaultIntegrationAction
                 DataObject importUserPriceListTypeObject = importUserPriceListTypeResult.getKey(i).valueIt().iterator().next();
 
                 String directory = (String) entryValue.get("autoImportDirectoryImportUserPriceListType").getValue();
-                String fileExtension = (String) entryValue.get("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").getValue();
-                Integer startRow = (Integer) entryValue.get("startRowImportUserPriceListType").getValue();
-                startRow = startRow == null ? 1 : startRow;
-                Boolean isPosted = (Boolean) entryValue.get("isPostedImportUserPriceListType").getValue();
-                String csvSeparator = trim((String) entryValue.get("separatorImportUserPriceListType").getValue());
-                String itemKeyType = (String) entryValue.get("nameImportUserPriceListKeyTypeImportUserPriceListType").getValue();
-                String[] parts = itemKeyType == null ? null : itemKeyType.split("\\.");
-                itemKeyType = parts == null ? null : trim(parts[parts.length - 1]);
                 
                 ImportColumns importColumns = ImportUserPriceListActionProperty.readImportColumns(context, LM, importUserPriceListTypeObject);
 
-                if (directory != null && fileExtension != null) {
+                if (directory != null && importColumns.getFileExtension() != null) {
                     File dir = new File(trim(directory));
 
                     if (dir.exists()) {
 
                         for (File f : dir.listFiles()) {
-                            if (f.getName().toLowerCase().endsWith(trim(fileExtension).toLowerCase())) {
+                            if (f.getName().toLowerCase().endsWith(importColumns.getFileExtension().toLowerCase())) {
                                 DataObject userPriceListObject = context.addObject((ConcreteCustomClass) getClass("UserPriceList"));
 
                                 try {
 
                                     boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
-                                            userPriceListObject, importColumns, IOUtils.getFileBytes(f), trim(fileExtension),
-                                            startRow, isPosted, csvSeparator, itemKeyType, true, disableVolatileStats);
+                                            userPriceListObject, importColumns, IOUtils.getFileBytes(f),
+                                            true, disableVolatileStats);
 
                                     if (importResult)
-                                        renameImportedFile(context, f.getAbsolutePath(), "." + trim(fileExtension));
+                                        renameImportedFile(context, f.getAbsolutePath(), "." + importColumns.getFileExtension());
 
                                 } catch (Exception e) {
                                     ServerLoggers.systemLogger.error(e);
