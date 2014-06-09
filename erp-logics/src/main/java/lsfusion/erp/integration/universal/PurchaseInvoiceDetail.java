@@ -3,6 +3,7 @@ package lsfusion.erp.integration.universal;
 
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.Time;
 import java.util.LinkedHashMap;
 
 public class PurchaseInvoiceDetail {
@@ -11,6 +12,7 @@ public class PurchaseInvoiceDetail {
     public String idUserInvoice;
     public String numberUserInvoice;
     public Date dateUserInvoice;
+    public Time timeUserInvoice;
     public String idSupplier;
     public String idSupplierStock;
     public String currencyUserInvoice;
@@ -78,10 +80,11 @@ public class PurchaseInvoiceDetail {
     public String composition;
     public String originalComposition;
 
-    public PurchaseInvoiceDetail(LinkedHashMap<String, String> customValues, Boolean isPosted, String idUserInvoice, String numberUserInvoice, 
-                                 Date dateUserInvoice, String idSupplier, String idSupplierStock, String currencyUserInvoice,
-                                 String idUserInvoiceDetail, String idBarcodeSku, String idBatch, Integer dataIndex, 
-                                 String idItem, String idItemGroup, String originalCustomsGroupItem, String captionItem,
+    public PurchaseInvoiceDetail(LinkedHashMap<String, String> customValues, Boolean isPosted, String idUserInvoice, 
+                                 String numberUserInvoice, Date dateUserInvoice, Time timeUserInvoice, String idSupplier,
+                                 String idSupplierStock, String currencyUserInvoice, String idUserInvoiceDetail, 
+                                 String idBarcodeSku, String idBatch, Integer dataIndex, String idItem, 
+                                 String idItemGroup, String originalCustomsGroupItem, String captionItem, 
                                  String originalCaptionItem, String idUOM, String idManufacturer, String nameManufacturer,
                                  String sidOrigin2Country, String nameCountry, String nameOriginCountry, 
                                  String nameImportCountry, String idCustomer, String idCustomerStock, BigDecimal quantity,
@@ -102,6 +105,7 @@ public class PurchaseInvoiceDetail {
         this.idUserInvoice = idUserInvoice;
         this.numberUserInvoice = numberUserInvoice;
         this.dateUserInvoice = dateUserInvoice;
+        this.timeUserInvoice = timeUserInvoice;
         this.idSupplier = idSupplier;
         this.idSupplierStock = idSupplierStock;
         this.currencyUserInvoice = currencyUserInvoice;
