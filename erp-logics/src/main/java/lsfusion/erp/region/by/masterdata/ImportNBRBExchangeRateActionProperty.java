@@ -90,7 +90,6 @@ public class ImportNBRBExchangeRateActionProperty extends ScriptingActionPropert
                     typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
             service.synchronize(true, false);
             //session.apply(LM.getBL());
-            //session.close();
         }
     }
 

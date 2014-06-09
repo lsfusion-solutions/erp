@@ -339,7 +339,6 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             String result = session.applyMessage(BL);
             if(!disableVolatileStats)
                 session.popVolatileStats();
-            session.close();
 
             return result == null;
         }

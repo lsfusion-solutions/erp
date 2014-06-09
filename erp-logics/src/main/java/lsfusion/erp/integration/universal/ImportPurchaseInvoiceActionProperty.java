@@ -130,7 +130,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                                         customerStockObject, disableVolatileStats);
 
                             session.apply(context);
-                            session.close();
 
                             getLAP("formRefresh").execute(context);
                         }
