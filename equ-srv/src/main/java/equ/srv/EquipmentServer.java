@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.terminal.*;
+import lsfusion.base.BaseUtils;
 import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -1354,8 +1355,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     private static Comparator<SalesInfo> COMPARATOR = new Comparator<SalesInfo>() {
         public int compare(SalesInfo o1, SalesInfo o2) {
-            return o1.numberCashRegister == null ? (o2.numberCashRegister == null ? 0 : -1) :
-                    (o2.numberCashRegister == null ? 1 : o1.numberCashRegister.compareTo(o2.numberCashRegister));
+            int compareCashRegister = BaseUtils.nullCompareTo(o1.numberCashRegister, o2.numberCashRegister); 
+            if (compareCashRegister == 0)
+                return BaseUtils.nullCompareTo(o1.numberZReport, o2.numberZReport);                    
+            else
+                return compareCashRegister;
         }
     };
 
