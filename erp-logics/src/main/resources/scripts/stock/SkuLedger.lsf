@@ -622,6 +622,17 @@ costOutBalanceBatchStockDateFromTo 'Расход' (batch, stock, dateFrom, dateT
 
 costSumOutBalanceBatchStockDateFromTo 'Сумма расхода' (batch, stock, dateFrom, dateTo) =
     costBatch(batch) * costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo);
+    
+//---------------------------------------------- Себестоимость ------------------------------------------//    
+    
+currentCostSumSkuStock 'Текущая себестоимость' (sku, stock) =
+    GROUP SUM signedActiveCostSumSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger);
+    
+// без учета текущей даты/времени
+costSumBSkuStockDate 'Себестоимость на начало дня' (sku, stock, date) = GROUP SUM costBBatchStockDate(batch, stock, date) BY skuBatch(batch), stock, date;
+
+// с учетом текущей даты/времени
+costSumASkuStockDate 'Себестоимость на конец дня' (sku, stock, date) = GROUP SUM costABatchStockDate(batch, stock, date) BY skuBatch(batch), stock, date; 
 
 // ------------------------------------------------ Формы для партий ------------------------------ //
 FORM batches 'Партии'

@@ -7,40 +7,77 @@ NAMESPACE Purchase;
 
 //-- Sku
 purchaseQuantitySkuStockSnapshot 'Кол-во закупка' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
+purchaseNetWeightSkuStockSnapshot 'Вес закупка' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
 purchaseSumSkuStockSnapshot 'Сумма закупка' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
+
+purchaseCostSkuStockSnapshot 'Себестоимость закупка' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
+purchaseVATSupplierSkuStockSnapshot 'НДС поставщика закупка' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 
 //-- группа/склад       
 purchaseQuantitySkuGroupStockSnapshot 'Кол-во закупка' (group, stock, snapshot) =
     GROUP SUM purchaseQuantitySkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;
+purchaseNetWeightSkuGroupStockSnapshot 'Вес закупка' (group, stock, snapshot) =
+    GROUP SUM purchaseNetWeightSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
+        BY group, stock, snapshot PERSISTENT;        
 purchaseSumSkuGroupStockSnapshot 'Сумма закупка' (group, stock, snapshot) =
     GROUP SUM purchaseSumSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT; 
+purchaseCostSkuGroupStockSnapshot 'Себестоимость закупка' (group, stock, snapshot) =
+    GROUP SUM purchaseCostSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
+        BY group, stock, snapshot PERSISTENT;         
+purchaseVATSupplierSkuGroupStockSnapshot 'НДС поставщика закупка' (group, stock, snapshot) =
+    GROUP SUM purchaseVATSupplierSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
+        BY group, stock, snapshot PERSISTENT;         
         
 //-- группа          
 purchaseQuantitySkuGroupSnapshot 'Кол-во закупка' (group, snapshot) =
     GROUP SUM purchaseQuantitySkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
+purchaseNetWeightSkuGroupSnapshot 'Вес закупка' (group, snapshot) =
+    GROUP SUM purchaseNetWeightSkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot;     
 purchaseSumSkuGroupSnapshot 'Сумма закупка' (group, snapshot) =
-    GROUP SUM purchaseSumSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;          
+    GROUP SUM purchaseSumSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;   
+purchaseCostSkuGroupSnapshot 'Себестоимость закупка' (group, snapshot) =
+    GROUP SUM purchaseCostSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;             
+purchaseVATSupplierSkuGroupSnapshot 'НДС поставщика закупка' (group, snapshot) =
+    GROUP SUM purchaseVATSupplierSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;             
 
 //--По складам
 purchaseQuantityStockSnapshot 'Кол-во закупка' (stock, snapshot) =
     GROUP SUM purchaseQuantitySkuGroupStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
+purchaseNetWeightStockSnapshot 'Вес закупка' (stock, snapshot) =
+    GROUP SUM purchaseNetWeightSkuGroupStockSnapshot (sku, stock, snapshot)  BY stock, snapshot;     
 purchaseSumStockSnapshot 'Сумма закупка' (stock, snapshot) =
     GROUP SUM purchaseSumSkuGroupStockSnapshot (sku, stock, snapshot) BY stock, snapshot;  
-     
+purchaseCostStockSnapshot 'Себестоимость закупка' (stock, snapshot) =
+    GROUP SUM purchaseCostSkuGroupStockSnapshot (sku, stock, snapshot) BY stock, snapshot;  
+purchaseVATSupplierStockSnapshot 'НДС поставщика  закупка' (stock, snapshot) =
+    GROUP SUM purchaseVATSupplierSkuGroupStockSnapshot (sku, stock, snapshot) BY stock, snapshot;           
 //-- Sku
 purchaseQuantitySkuStockSnapshotDate 'Кол-во закупка' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
-purchaseSumSkuStockSnapshotDate 'Сумма закупка' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);   
+purchaseNetWeightSkuStockSnapshotDate 'Вес закупка' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
+purchaseSumSkuStockSnapshotDate 'Сумма закупка' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);  
+ 
+purchaseCostSkuStockSnapshotDate 'Себестоимость закупка' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);   
+purchaseVATSupplierSkuStockSnapshotDate 'НДС поставщика закупка' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);  
   
 //--По складам на дату     
 purchaseQuantityStockSnapshotDate 'Кол-во закупка' (stock, snapshot, date) =
     GROUP SUM purchaseQuantitySkuStockSnapshotDate (sku, stock, snapshot, date)  BY stock, snapshot, date; 
+purchaseNetWeightStockSnapshotDate 'Вес закупка' (stock, snapshot, date) =
+    GROUP SUM purchaseNetWeightSkuStockSnapshotDate (sku, stock, snapshot, date)  BY stock, snapshot, date;     
 purchaseSumStockSnapshotDate 'Сумма закупка' (stock, snapshot, date) =
     GROUP SUM purchaseSumSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;   
-    
+purchaseCostStockSnapshotDate 'Себестоимость закупка' (stock, snapshot, date) =
+    GROUP SUM purchaseCostSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;      
+purchaseVATSupplierStockSnapshotDate 'НДС поставщика закупка' (stock, snapshot, date) =
+    GROUP SUM purchaseVATSupplierSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;  
+        
 namePurchaseQuantityStock (st) = CONCAT ' ', nameStock(st), ' (кол-во закупка)';
+namePurchaseNetWeightStock (st) = CONCAT ' ', nameStock(st), ' (вес закупка)';
 namePurchaseSumStock (st) = CONCAT ' ', nameStock(st), ' (сумма закупка)';  
+namePurchaseCostStock (st) = CONCAT ' ', nameStock(st), ' (себестоимость закупка)';  
+namePurchaseVATSupplierStock (st) = CONCAT ' ', nameStock(st), ' (НДС поставщика закупка)';  
   
 isPurchaseSnapshot 'Закупка' = DATA BOOLEAN (Snapshot) IN evidence;
                  
@@ -52,52 +89,97 @@ overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, d
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                     AND date <= (dateTo AS DATE) AND quantityPurchaseSkuStockDate(sku, stock, date) AND isQuantitySnapshot(snapshot);
                     
+            purchaseNetWeightSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](quantityPurchaseSkuStockDate(sku, stock, date)*overNetWeightSku(sku)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                    AND date <= (dateTo AS DATE) AND quantityPurchaseSkuStockDate(sku, stock, date) AND isNetWeightSnapshot(snapshot);
+                                        
             purchaseSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumPurchaseSkuStockDate(sku, stock, date)) 
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
-                    AND date <= (dateTo AS DATE) AND sumPurchaseSkuStockDate(sku, stock, date) AND isSumSnapshot(snapshot);   
+                    AND date <= (dateTo AS DATE) AND sumPurchaseSkuStockDate(sku, stock, date) AND isSumSnapshot(snapshot);  
+                     
+            purchaseCostSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumPurchaseSkuStockDate(sku, stock, date)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                    AND date <= (dateTo AS DATE) AND costSumPurchaseSkuStockDate(sku, stock, date) AND isCostSnapshot(snapshot);                      
+
+            purchaseVATSupplierSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](sumVATPurchaseSkuStockDate(sku, stock, date)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                    AND date <= (dateTo AS DATE) AND sumVATPurchaseSkuStockDate(sku, stock, date) AND isVATSupplierSnapshot(snapshot);                      
+                     
         }
         
         purchaseQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
             WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isQuantitySnapshot(snapshot);
             
+        purchaseNetWeightSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](quantityPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)*overNetWeightSku(sku)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isNetWeightSnapshot(snapshot);
+                        
         purchaseSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isSumSnapshot(snapshot);      
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isSumSnapshot(snapshot);   
+            
+        purchaseCostSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](costSumPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isCostSnapshot(snapshot);  
+                          
+        purchaseVATSupplierSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](sumVATPurchaseSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
+            WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isVATSupplierSnapshot(snapshot);                
     }    
 }; 
 //-- SHOWIF
 isQuantityPurchaseSnapshot= isQuantitySnapshot(snapshot) AND isPurchaseSnapshot(snapshot);
+isNetWeightPurchaseSnapshot= isNetWeightSnapshot(snapshot) AND isPurchaseSnapshot(snapshot);
 isSumPurchaseSnapshot= isSumSnapshot(snapshot) AND isPurchaseSnapshot(snapshot);
+isCostPurchaseSnapshot= isCostSnapshot(snapshot) AND isPurchaseSnapshot(snapshot);
+isVATSupplierPurchaseSnapshot= isVATSupplierSnapshot(snapshot) AND isPurchaseSnapshot(snapshot);
 //--
 isQuantityPurchaseDateSnapshot= isQuantitySnapshot(snapshot) AND isPurchaseSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isNetWeightPurchaseDateSnapshot= isNetWeightSnapshot(snapshot) AND isPurchaseSnapshot(snapshot) AND isDateSnapshot(snapshot);
 isSumPurchaseDateSnapshot= isSumSnapshot(snapshot) AND isPurchaseSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isCostPurchaseDateSnapshot= isCostSnapshot(snapshot) AND isPurchaseSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isVATSupplierPurchaseDateSnapshot= isVATSupplierSnapshot(snapshot) AND isPurchaseSnapshot(snapshot) AND isDateSnapshot(snapshot);
+
 
 EXTEND FORM snapshot
     PROPERTIES(r) BACKGROUND hintPurchaseBackground() isPurchaseSnapshot
 //--sku  
-    PROPERTIES(s,st,r) AFTER sumBSkuStockSnapshot(s, st, r) BACKGROUND hintPurchaseBackground()
+    PROPERTIES(s,st,r) AFTER VATSupplierBSkuStockSnapshot(s, st, r) BACKGROUND hintPurchaseBackground()
                        purchaseQuantitySkuStockSnapshot SHOWIF isQuantityPurchaseSnapshot(r), 
-                       purchaseSumSkuStockSnapshot SHOWIF isSumPurchaseSnapshot(r)
+                       purchaseSumSkuStockSnapshot SHOWIF isSumPurchaseSnapshot(r),
+                       purchaseCostSkuStockSnapshot SHOWIF isCostPurchaseSnapshot(r),
+                       purchaseVATSupplierSkuStockSnapshot SHOWIF isVATSupplierPurchaseSnapshot(r),
+                       purchaseNetWeightSkuStockSnapshot SHOWIF isNetWeightPurchaseSnapshot(r)
+                       
 //--sku на дату 
-    PROPERTIES(s3,st3,r,d3) AFTER sumBSkuStockSnapshotDate(s3,st3,r,d3) BACKGROUND hintPurchaseBackground()
+    PROPERTIES(s3,st3,r,d3) AFTER VATSupplierBSkuStockSnapshotDate(s3,st3,r,d3) BACKGROUND hintPurchaseBackground()
                        purchaseQuantitySkuStockSnapshotDate SHOWIF isQuantityPurchaseDateSnapshot(r), 
-                       purchaseSumSkuStockSnapshotDate SHOWIF isSumPurchaseDateSnapshot(r)  
+                       purchaseSumSkuStockSnapshotDate SHOWIF isSumPurchaseDateSnapshot(r),
+                       purchaseCostSkuStockSnapshotDate SHOWIF isCostPurchaseDateSnapshot(r),
+                       purchaseVATSupplierSkuStockSnapshotDate SHOWIF isVATSupplierPurchaseDateSnapshot(r),
+                       purchaseNetWeightSkuStockSnapshotDate SHOWIF isNetWeightPurchaseDateSnapshot(r)  
                                                                   
 //--По складам на дату 
-    PROPERTIES(st4,r,d4) BACKGROUND hintPurchaseBackground() AFTER sumBStockSnapshotDate(st4,r,d4)
+    PROPERTIES(st4,r,d4) BACKGROUND hintPurchaseBackground() AFTER VATSupplierBStockSnapshotDate(st4,r,d4)
                        purchaseQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseQuantityStock(st4) SHOWIF isQuantityPurchaseDateSnapshot(r), 
-                       purchaseSumStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseSumStock(st4) SHOWIF isSumPurchaseDateSnapshot(r)
+                       purchaseSumStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseSumStock(st4) SHOWIF isSumPurchaseDateSnapshot(r),
+                       purchaseCostStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseCostStock(st4) SHOWIF isCostPurchaseDateSnapshot(r),
+                       purchaseVATSupplierStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseVATSupplierStock(st4) SHOWIF isVATSupplierPurchaseDateSnapshot(r),
+                       purchaseNetWeightStockSnapshotDate COLUMNS 'g' (st4) HEADER namePurchaseNetWeightStock(st4) SHOWIF isNetWeightPurchaseDateSnapshot(r) 
                                                                                          
 //-- По группам                           
-    PROPERTIES(sk1,r)  READONLY AFTER sumBSkuGroupSnapshot(sk1,r) BACKGROUND hintPurchaseBackground() 
+    PROPERTIES(sk1,r)  READONLY AFTER VATSupplierBSkuGroupSnapshot(sk1,r) BACKGROUND hintPurchaseBackground() 
                        purchaseQuantitySkuGroupSnapshot SHOWIF isQuantityPurchaseSnapshot(r), 
-                       purchaseSumSkuGroupSnapshot SHOWIF isSumPurchaseSnapshot(r)
+                       purchaseSumSkuGroupSnapshot SHOWIF isSumPurchaseSnapshot(r),
+                       purchaseCostSkuGroupSnapshot SHOWIF isCostPurchaseSnapshot(r),
+                       purchaseVATSupplierSkuGroupSnapshot SHOWIF isVATSupplierPurchaseSnapshot(r),
+                       purchaseNetWeightSkuGroupSnapshot SHOWIF isNetWeightPurchaseSnapshot(r)
 //-- По складам                           
-    PROPERTIES(ts1,r)  READONLY AFTER sumBStockSnapshot(ts1,r) BACKGROUND hintPurchaseBackground()                         
+    PROPERTIES(ts1,r)  READONLY AFTER VATSupplierBStockSnapshot(ts1,r) BACKGROUND hintPurchaseBackground()                         
                        purchaseQuantityStockSnapshot SHOWIF isQuantityPurchaseSnapshot(r), 
-                       purchaseSumStockSnapshot SHOWIF isSumPurchaseSnapshot(r)
+                       purchaseSumStockSnapshot SHOWIF isSumPurchaseSnapshot(r),
+                       purchaseCostStockSnapshot SHOWIF isCostPurchaseSnapshot(r),
+                       purchaseVATSupplierStockSnapshot SHOWIF isVATSupplierPurchaseSnapshot(r),
+                       purchaseNetWeightStockSnapshot SHOWIF isNetWeightPurchaseSnapshot(r)
 ;
 EXTEND DESIGN snapshot {
-    row5 {
+    row6 {
         ADD PROPERTY(isPurchaseSnapshot(r));                                            
     } 
 }

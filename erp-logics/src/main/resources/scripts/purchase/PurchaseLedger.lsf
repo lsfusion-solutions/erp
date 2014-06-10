@@ -53,6 +53,8 @@ TABLE purchaseLedgerBatch(PurchaseLedger, Batch);
 
 costPurchaseLedgerBatch 'Расписано из партии' = ABSTRACT NUMERIC[14,3] (PurchaseLedger, Batch) PERSISTENT;
 
+costSumPurchaseLedger 'Себестоимость' = GROUP SUM costPurchaseLedgerBatch(ledger, batch) * costBatch(batch) BY ledger;
+
 //CONSTRAINT quantityPurchaseLedger(purchaseLedger) == 0 MESSAGE 'ошибка: Количество покупки не должно быть равно нулю';
 
 averagePricePurchaseLedger 'Цена покупки (средняя)' (purchaseLedger) = sumPurchaseLedger(purchaseLedger)/quantityPurchaseLedger(purchaseLedger) IF quantityPurchaseLedger(purchaseLedger) != 0;
@@ -72,6 +74,9 @@ sumVATPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumVATPurchaseLedger(l
 
 sumPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
     BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT;
+    
+costSumPurchaseSkuStockDate (sku, stock, date) = GROUP SUM costSumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
+    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger);    
 
 //по складу, покупателю и SKU
 quantityPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
@@ -115,7 +120,11 @@ sumVATPurchaseSkuStockDateFromTo 'Сумма НДС закупленного з�
 sumPurchaseSkuStockDateFromTo 'Закуплено за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
         sumPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
         BY sku, stock, dateFrom, dateTo;
-
+        
+costSumPurchaseSkuStockDateFromTo 'Себестоимость закупленного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        costSumPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY sku, stock, dateFrom, dateTo;
+        
 //по складу, покупателю и SKU
 quantityPurchaseSkuStockSupplierDateFromTo 'Закуплено за интервал (кол-во)' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
         quantityPurchaseSkuStockSupplierDate(sku, stock, supplier, date) IF date >= dateFrom AND date <= dateTo
