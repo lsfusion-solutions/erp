@@ -655,6 +655,7 @@ fillSubstitutePriceOrderSkuFromTo 'Использовать цену' = ACTION (
 } TOOLBAR;  
 
 currentBalanceSkuPriceStockOrder 'Текущий остаток' = currentBalanceSkuStock(sku, priceStockOrder(order)); 
+currentBalanceSkuPriceStockOrderSkuFromTo 'Остаток с уч. коэфф.'  (order, fromSku, toSku) = currentBalanceSkuPriceStockOrder(toSku, order)*multiplierSubstituteFromToSku(fromSku ,toSku);
 
 maxSubstitutePriceSkuOrder = GROUP MAX multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
     currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
@@ -764,7 +765,8 @@ FORM order 'Производственный заказ'
     OBJECTS sku = Sku
     PROPERTIES(sku) READONLY nameSku, idBarcodeSku, shortNameUOMSku
     PROPERTIES(sku,o) READONLY currentBalanceSkuPriceStockOrder, priceStockSkuOrder
-    PROPERTIES(sk,sku) READONLY multiplierSubstituteFromToSku FORCE GRID  
+    PROPERTIES(sk,sku) READONLY multiplierSubstituteFromToSku FORCE GRID 
+    PROPERTIES READONLY currentBalanceSkuPriceStockOrderSkuFromTo(o,sk,sku)
     
     PROPERTIES fillSubstitutePriceOrderSkuFromTo(o,sk,sku), fillSubstitutePriceMaxOrder(o) FORCE PANEL TODRAW sk, fillSubstitutePriceMinOrder(o) FORCE PANEL TODRAW sk,
                fillSubstitutePriceMaxBalanceOrder(o) FORCE PANEL TODRAW sk
