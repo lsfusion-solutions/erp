@@ -86,7 +86,8 @@ public class LSTerminalHandler extends TerminalHandler {
                 throw Throwables.propagate(e);
             }
         } else {
-            logger.error("Directory " + directory.getAbsolutePath() + "doesn't exist");
+            logger.error("Directory " + directory.getAbsolutePath() + " doesn't exist");
+            throw Throwables.propagate(new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist"));
         }
     }
 
@@ -233,7 +234,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private void updateANATable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
-        if (transactionInfo.terminalLegalEntityList != null && !transactionInfo.terminalLegalEntityList.isEmpty()) {
+        if (listNotEmpty(transactionInfo.terminalLegalEntityList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
             for (TerminalLegalEntity legalEntity : transactionInfo.terminalLegalEntityList) {
@@ -263,7 +264,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private void updateVOPTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
-        if (transactionInfo.terminalDocumentTypeList != null && !transactionInfo.terminalDocumentTypeList.isEmpty()) {
+        if (listNotEmpty(transactionInfo.terminalDocumentTypeList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
             for (TerminalDocumentType tdt : transactionInfo.terminalDocumentTypeList) {
@@ -289,13 +290,13 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private void updateAssortTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
-        if (transactionInfo.itemsList != null && !transactionInfo.itemsList.isEmpty()) {
+        if (listNotEmpty(transactionInfo.terminalAssortmentList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
-            for (TerminalItemInfo item : transactionInfo.itemsList) {
-                if (/*item.idSupplier != null && */item.idBarcode != null)
-                    sql += String.format("INSERT OR REPLACE INTO assort VALUES(%s, %s);",
-                            "1"/*item.idSupplier*/, item.idBarcode);
+            for (TerminalAssortment assortment : transactionInfo.terminalAssortmentList) {
+                if (assortment.idBarcode != null && assortment.idSupplier != null)
+                    sql += String.format("INSERT OR REPLACE INTO assort VALUES('%s', '%s');", 
+                            ("ПС" + assortment.idSupplier), assortment.idBarcode);
             }
             sql += "COMMIT;";
             statement.executeUpdate(sql);
@@ -321,7 +322,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private void updateGoodsTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
-        if (transactionInfo.itemsList != null && !transactionInfo.itemsList.isEmpty()) {
+        if (listNotEmpty(transactionInfo.itemsList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
             for (TerminalItemInfo item : transactionInfo.itemsList) {
@@ -354,7 +355,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private void updateVANTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
-        if (transactionInfo.terminalHandbookTypeList != null && !transactionInfo.terminalHandbookTypeList.isEmpty()) {
+        if (listNotEmpty(transactionInfo.terminalHandbookTypeList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
             for (TerminalHandbookType terminalHandbookType : transactionInfo.terminalHandbookTypeList) {
@@ -384,7 +385,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     private void updateOrderTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
-        if (transactionInfo.terminalOrderList != null && !transactionInfo.terminalOrderList.isEmpty()) {
+        if (listNotEmpty(transactionInfo.terminalOrderList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
             for (TerminalOrder order : transactionInfo.terminalOrderList) {
@@ -445,5 +446,9 @@ public class LSTerminalHandler extends TerminalHandler {
         if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
             return null;
         else return operand1.multiply(operand2);
+    }
+    
+    protected boolean listNotEmpty(List list) {
+        return list != null && !list.isEmpty();
     }
 }
