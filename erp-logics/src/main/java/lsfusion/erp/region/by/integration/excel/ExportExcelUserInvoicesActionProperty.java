@@ -89,8 +89,8 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                 if ((dateFromObject == null || date.after((Date) dateFromObject.object)) && (dateToObject == null || date.before((Date) dateToObject.object))) {
                     ImMap<Object, Object> userInvoiceValue = userInvoiceResult.getValue(i);
 
-                    String seriesUserInvoice = (String) userInvoiceValue.get("seriesUserInvoice");
-                    String numberUserInvoice = (String) userInvoiceValue.get("numberUserInvoice");
+                    String seriesUserInvoice = trim((String) userInvoiceValue.get("seriesUserInvoice"), "");
+                    String numberUserInvoice = trim((String) userInvoiceValue.get("numberUserInvoice"), "");
                     String dateInvoice = date == null ? null : new SimpleDateFormat("dd.MM.yyyy").format(date);
 
                     Integer supplierID = (Integer) userInvoiceValue.get("supplierUserInvoice");
@@ -127,7 +127,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
                     for (ImMap<Object, Object> userInvoiceDetailValues : userInvoiceDetailResult.valueIt()) {
 
-                        String idBarcodeSkuInvoiceDetail = (String) userInvoiceDetailValues.get("Purchase.idBarcodeSkuInvoiceDetail");
+                        String idBarcodeSkuInvoiceDetail = trim((String) userInvoiceDetailValues.get("Purchase.idBarcodeSkuInvoiceDetail"), "");
                         BigDecimal quantityUserInvoiceDetail = (BigDecimal) userInvoiceDetailValues.get("quantityUserInvoiceDetail");
                         BigDecimal priceUserInvoiceDetail = (BigDecimal) userInvoiceDetailValues.get("priceUserInvoiceDetail");
                         BigDecimal chargePriceUserInvoiceDetail = (BigDecimal) userInvoiceDetailValues.get("Purchase.chargePriceUserInvoiceDetail");
@@ -135,15 +135,14 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                         BigDecimal retailMarkupUserInvoiceDetail = (BigDecimal) userInvoiceDetailValues.get("Purchase.retailMarkupUserInvoiceDetail");
                         BigDecimal wholesalePriceUserInvoiceDetail = (BigDecimal) userInvoiceDetailValues.get("Purchase.wholesalePriceUserInvoiceDetail");
                         BigDecimal wholesaleMarkupUserInvoiceDetail = (BigDecimal) userInvoiceDetailValues.get("Purchase.wholesaleMarkupUserInvoiceDetail");
-                        String certificateTextInvoiceDetail = (String) userInvoiceDetailValues.get("certificateTextInvoiceDetail");
+                        String certificateTextInvoiceDetail = trim((String) userInvoiceDetailValues.get("certificateTextInvoiceDetail"), "");
 
-                        data.add(Arrays.asList(trimNotNull(seriesUserInvoice), trimNotNull(numberUserInvoice),
-                                dateInvoice, trimNotNull(idBarcodeSkuInvoiceDetail), trimNotNull(quantityUserInvoiceDetail),
-                                trimNotNull(supplierID), trimNotNull(customerStockID), trimNotNull(supplierStockID),
-                                trimNotNull(priceUserInvoiceDetail), trimNotNull(chargePriceUserInvoiceDetail),
-                                trimNotNull(retailPriceUserInvoiceDetail), trimNotNull(retailMarkupUserInvoiceDetail),
-                                trimNotNull(wholesalePriceUserInvoiceDetail), trimNotNull(wholesaleMarkupUserInvoiceDetail),
-                                trimNotNull(certificateTextInvoiceDetail)));
+                        data.add(Arrays.asList(seriesUserInvoice, numberUserInvoice, dateInvoice, idBarcodeSkuInvoiceDetail, 
+                                formatValue(quantityUserInvoiceDetail), formatValue(supplierID), formatValue(customerStockID),
+                                formatValue(supplierStockID), formatValue(priceUserInvoiceDetail), formatValue(chargePriceUserInvoiceDetail),
+                                formatValue(retailPriceUserInvoiceDetail), formatValue(retailMarkupUserInvoiceDetail),
+                                formatValue(wholesalePriceUserInvoiceDetail), formatValue(wholesaleMarkupUserInvoiceDetail),
+                                certificateTextInvoiceDetail));
                     }
                 }
             }

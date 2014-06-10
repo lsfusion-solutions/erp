@@ -67,18 +67,18 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
 
                 ImMap<Object, Object> legalEntityValue = legalEntityResult.getValue(i);
 
-                String name = (String) legalEntityValue.get("nameLegalEntity");
-                String fullName = (String) legalEntityValue.get("fullNameLegalEntity");
-                String unp = (String) legalEntityValue.get("UNPLegalEntity");
-                String shortNameOwnership = (String) legalEntityValue.get("shortNameOwnershipLegalEntity");
-                String nameLegalEntityGroup = (String) legalEntityValue.get("nameLegalEntityGroupLegalEntity");
-                String address = (String) legalEntityValue.get("addressLegalEntity");
-                String phone = (String) legalEntityValue.get("phoneLegalEntity");
+                String name = trim((String) legalEntityValue.get("nameLegalEntity"), "");
+                String fullName = trim((String) legalEntityValue.get("fullNameLegalEntity"), "");
+                String unp = trim((String) legalEntityValue.get("UNPLegalEntity"), "");
+                String shortNameOwnership = trim((String) legalEntityValue.get("shortNameOwnershipLegalEntity"), "");
+                String nameLegalEntityGroup = trim((String) legalEntityValue.get("nameLegalEntityGroupLegalEntity"), "");
+                String address = trim((String) legalEntityValue.get("addressLegalEntity"), "");
+                String phone = trim((String) legalEntityValue.get("phoneLegalEntity"), "");
                 Integer legalEntityID = (Integer) legalEntityResult.getKey(i).get("LegalEntity");
 
 
-                data.add(Arrays.asList(trimNotNull(name), trimNotNull(fullName), trimNotNull(unp), trimNotNull(shortNameOwnership),
-                        trimNotNull(nameLegalEntityGroup), trimNotNull(address), trimNotNull(phone), trimNotNull(legalEntityID)));
+                data.add(Arrays.asList(name, fullName, unp, shortNameOwnership, nameLegalEntityGroup, address, 
+                        phone, formatValue(legalEntityID)));
             }
 
         } catch (Exception e) {

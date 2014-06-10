@@ -67,12 +67,8 @@ public abstract class ExportExcelActionProperty extends DefaultIntegrationAction
         }
     }
 
-    protected String trimNotNull(Object value) {
-        if (value == null)
-            return "";
-        if (value instanceof String)
-            return ((String) value).trim();
-        else
-            return String.valueOf(value);
+    protected String formatValue(Object value) {
+        if (value == null) return "";
+        return String.valueOf(value);
     }
 }

@@ -84,68 +84,51 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
             itemQuery.and(getLCP("nameAttributeItem").getExpr(context.getModifier(), itemQuery.getMapExprs().get("Item")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemResult = itemQuery.execute(session);
+            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> itemResult = itemQuery.executeClasses(session);
 
             for (int i = 0, size = itemResult.size(); i < size; i++) {
 
-                ImMap<Object, Object> itemValue = itemResult.getValue(i);
+                ImMap<Object, ObjectValue> itemValue = itemResult.getValue(i);
 
-                Integer itemID = (Integer) itemResult.getKey(i).get("Item");
-                String name = (String) itemValue.get("nameAttributeItem");
-                String idBarcodeSku = (String) itemValue.get("idBarcodeSku");
-                Boolean isWeightItem = itemValue.get("idBarcodeSku") != null;
-                BigDecimal netWeightItem = (BigDecimal) itemValue.get("netWeightItem");
-                BigDecimal grossWeightItem = (BigDecimal) itemValue.get("grossWeightItem");
-                String compositionItem = (String) itemValue.get("compositionItem");
-                BigDecimal purchaseAmount = (BigDecimal) itemValue.get("Purchase.amountPackSku");
-                BigDecimal saleAmount = (BigDecimal) itemValue.get("Sale.amountPackSku");
-                Integer itemGroupID = (Integer) itemValue.get("itemGroupItem");
+                Integer itemID = (Integer) itemResult.getKey(i).get("Item").getValue();
+                String name = trim((String) itemValue.get("nameAttributeItem").getValue(), "");
+                String idBarcodeSku = trim((String) itemValue.get("idBarcodeSku").getValue(), "");
+                String isWeightItem = itemValue.get("idBarcodeSku").getValue() != null ? "True" : "False";
+                BigDecimal netWeightItem = (BigDecimal) itemValue.get("netWeightItem").getValue();
+                BigDecimal grossWeightItem = (BigDecimal) itemValue.get("grossWeightItem").getValue();
+                String compositionItem = trim((String) itemValue.get("compositionItem").getValue(), "");
+                BigDecimal purchaseAmount = (BigDecimal) itemValue.get("Purchase.amountPackSku").getValue();
+                BigDecimal saleAmount = (BigDecimal) itemValue.get("Sale.amountPackSku").getValue();
+                Integer itemGroupID = (Integer) itemValue.get("itemGroupItem").getValue();
 
-                Object uomItem = itemValue.get("UOMItem");
-                String nameUOM = null;
-                String shortNameUOM = null;
-                if (uomItem != null) {
-                    DataObject uomItemObject = new DataObject(uomItem, (ConcreteClass) LM.findClassByCompoundName("UOM"));
-                    nameUOM = (String) LM.findLCPByCompoundOldName("nameUOM").read(session, uomItemObject);
-                    shortNameUOM = (String) LM.findLCPByCompoundOldName("shortNameUOM").read(session, uomItemObject);
-                }
+                ObjectValue uomItemObject = itemValue.get("UOMItem");
+                String nameUOM = trim((String) LM.findLCPByCompoundOldName("nameUOM").read(session, uomItemObject), "");
+                String shortNameUOM = trim((String) LM.findLCPByCompoundOldName("shortNameUOM").read(session, uomItemObject), "");
 
-                Object brandItem = itemValue.get("brandItem");
-                String nameBrand = null;
-                if (brandItem != null) {
-                    DataObject brandObject = new DataObject(brandItem, (ConcreteClass) LM.findClassByCompoundName("Brand"));
-                    nameBrand = (String) LM.findLCPByCompoundOldName("nameBrand").read(session, brandObject);
-                }
+                ObjectValue brandItemObject = itemValue.get("brandItem");
+                String nameBrand = trim((String) LM.findLCPByCompoundOldName("nameBrand").read(session, brandItemObject), "");
 
-                Object wareItem = itemValue.get("wareItem");
-                BigDecimal priceWare = null;
-                BigDecimal vatWare = null;
-                if (wareItem != null) {
-                    DataObject wareObject = new DataObject(wareItem, (ConcreteClass) LM.findClassByCompoundName("Ware"));
-                    priceWare = (BigDecimal) LM.findLCPByCompoundOldName("warePrice").read(session, wareObject);
-                    vatWare = (BigDecimal) LM.findLCPByCompoundOldName("valueCurrentRateRangeWare").read(session, wareObject);
-                }
+                ObjectValue wareItemObject = itemValue.get("wareItem");
+                BigDecimal priceWare = (BigDecimal) LM.findLCPByCompoundOldName("warePrice").read(session, wareItemObject);
+                BigDecimal vatWare = (BigDecimal) LM.findLCPByCompoundOldName("valueCurrentRateRangeWare").read(session, wareItemObject);
 
-
-                DataObject itemObject = new DataObject(itemResult.getKey(i).get("Item"), (ConcreteClass) LM.findClassByCompoundName("Item"));
-                Object countryItem = itemValue.get("countryItem");
-                DataObject countryObject = countryItem == null ? null : new DataObject(countryItem, (ConcreteClass) LM.findClassByCompoundName("Country"));
+                DataObject itemObject = itemResult.getKey(i).get("Item");
+                ObjectValue countryItemObject = itemValue.get("countryItem");
                 DataObject dateObject = new DataObject(new Date(System.currentTimeMillis()), DateClass.instance);
-                BigDecimal vatItem = countryObject == null ? null : (BigDecimal) LM.findLCPByCompoundOldName("valueVATItemCountryDate").read(session, itemObject, countryObject, dateObject);
-                String nameCountry = countryObject == null ? null : (String) LM.findLCPByCompoundOldName("nameCountry").read(session, countryObject);
+                BigDecimal vatItem = (BigDecimal) LM.findLCPByCompoundOldName("valueVATItemCountryDate").read(session, itemObject, countryItemObject, dateObject);
+                String nameCountry = trim((String) LM.findLCPByCompoundOldName("nameCountry").read(session, countryItemObject), "");
 
-                Integer writeOffRateID = (writeOffRateItemLM == null || countryObject == null) ? null : (Integer) LM.findLCPByCompoundOldName("writeOffRateCountryItem").read(session, countryObject, itemObject);
+                Integer writeOffRateID = writeOffRateItemLM == null ? null : (Integer) writeOffRateItemLM.findLCPByCompoundOldName("writeOffRateCountryItem").read(session, countryItemObject, itemObject);
 
-                Double retailMarkup = retailCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundOldName("markupCalcPriceListTypeSku").read(session, retailCPLT, itemObject);
-                Double wholesaleMarkup = wholesaleCPLT instanceof NullValue ? null : (Double) LM.findLCPByCompoundOldName("markupCalcPriceListTypeSku").read(session, wholesaleCPLT, itemObject);
+                BigDecimal retailMarkup = (BigDecimal) LM.findLCPByCompoundOldName("markupCalcPriceListTypeSku").read(session, retailCPLT, itemObject);
+                BigDecimal wholesaleMarkup = (BigDecimal) LM.findLCPByCompoundOldName("markupCalcPriceListTypeSku").read(session, wholesaleCPLT, itemObject);
 
-                data.add(Arrays.asList(trimNotNull(itemID), trimNotNull(itemGroupID), trimNotNull(name), trimNotNull(nameUOM),
-                        trimNotNull(shortNameUOM), trimNotNull(uomItem), trimNotNull(nameBrand), trimNotNull(brandItem),
-                        trimNotNull(nameCountry), trimNotNull(idBarcodeSku), isWeightItem ? "True" : "False",
-                        trimNotNull(netWeightItem), trimNotNull(grossWeightItem), trimNotNull(compositionItem),
-                        trimNotNull(vatItem), trimNotNull(wareItem), trimNotNull(priceWare), trimNotNull(vatWare),
-                        trimNotNull(writeOffRateID), trimNotNull(retailMarkup), trimNotNull(wholesaleMarkup),
-                        trimNotNull(purchaseAmount), trimNotNull(saleAmount)));
+                data.add(Arrays.asList(formatValue(itemID), formatValue(itemGroupID), name, nameUOM, shortNameUOM, 
+                        formatValue(uomItemObject.getValue()), nameBrand, formatValue(brandItemObject.getValue()), 
+                        nameCountry, idBarcodeSku, isWeightItem, formatValue(netWeightItem), formatValue(grossWeightItem),
+                        compositionItem, formatValue(vatItem), formatValue(wareItemObject.getValue()), formatValue(priceWare), 
+                        formatValue(vatWare), formatValue(writeOffRateID), formatValue(retailMarkup), formatValue(wholesaleMarkup),
+                        formatValue(purchaseAmount), formatValue(saleAmount)));
             }
 
         } catch (Exception e) {

@@ -16,6 +16,7 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -85,20 +86,18 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
 
                     String isPostedGeneralLedger = generalLedgerValue.get("isPostedGeneralLedger") == null ? "FALSE" : "TRUE";
                     String dateGeneralLedger = new SimpleDateFormat("dd.MM.yyyy").format(date);
-                    String nameLegalEntity = (String) generalLedgerValue.get("nameLegalEntityGeneralLedger");
-                    String nameGLDocument = (String) generalLedgerValue.get("nameGLDocumentGeneralLedger");
-                    String description = (String) generalLedgerValue.get("descriptionGeneralLedger");
-                    String idDebit = (String) generalLedgerValue.get("idDebitGeneralLedger");
-                    String dimensionsDebit = (String) generalLedgerValue.get("dimensionsDebitGeneralLedger");
-                    String idCredit = (String) generalLedgerValue.get("idCreditGeneralLedger");
-                    String dimensionsCredit = (String) generalLedgerValue.get("dimensionsCreditGeneralLedger");
-                    String sumGeneralLedger = String.valueOf(generalLedgerValue.get("sumGeneralLedger"));
+                    String nameLegalEntity = trim((String) generalLedgerValue.get("nameLegalEntityGeneralLedger"), "");
+                    String nameGLDocument = trim((String) generalLedgerValue.get("nameGLDocumentGeneralLedger"), "");
+                    String description = trim((String) generalLedgerValue.get("descriptionGeneralLedger"), "");
+                    String idDebit = trim((String) generalLedgerValue.get("idDebitGeneralLedger"), "");
+                    String dimensionsDebit = trim((String) generalLedgerValue.get("dimensionsDebitGeneralLedger"), "");
+                    String idCredit = trim((String) generalLedgerValue.get("idCreditGeneralLedger"), "");
+                    String dimensionsCredit = trim((String) generalLedgerValue.get("dimensionsCreditGeneralLedger"), "");
+                    BigDecimal sumGeneralLedger = (BigDecimal) generalLedgerValue.get("sumGeneralLedger");
 
 
-                    data.add(Arrays.asList(isPostedGeneralLedger, dateGeneralLedger, trimNotNull(nameLegalEntity),
-                            trimNotNull(nameGLDocument), trimNotNull(description), trimNotNull(idDebit),
-                            trimNotNull(dimensionsDebit), trimNotNull(idCredit), trimNotNull(dimensionsCredit),
-                            trimNotNull(sumGeneralLedger)));
+                    data.add(Arrays.asList(isPostedGeneralLedger, dateGeneralLedger, nameLegalEntity, nameGLDocument, 
+                            description, idDebit, dimensionsDebit, idCredit, dimensionsCredit, formatValue(sumGeneralLedger)));
                 }
             }
 
