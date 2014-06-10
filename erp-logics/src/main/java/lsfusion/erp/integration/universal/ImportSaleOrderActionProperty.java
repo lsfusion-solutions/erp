@@ -95,6 +95,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                     primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject, supplierStockObject,
                                     customerObject, customerStockObject, disableVolatileStats);
 
+                            session.apply(context);
+                            
+                            getLAP("formRefresh").execute(context);
                         }
                     }
                 }
