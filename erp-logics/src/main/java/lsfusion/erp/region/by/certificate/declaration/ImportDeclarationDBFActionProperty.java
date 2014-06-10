@@ -5,7 +5,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.erp.integration.DefaultImportDBFActionProperty;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.Settings;
@@ -27,7 +27,6 @@ import org.xBaseJ.xBaseJException;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -35,7 +34,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-public class ImportDeclarationDBFActionProperty extends DefaultImportActionProperty {
+public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionProperty {
     private final ClassPropertyInterface declarationInterface;
 
     public ImportDeclarationDBFActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
@@ -150,7 +149,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
 
             importFile.read();
 
-            Integer numberDeclarationDetail = getIntegerFieldValue(importFile, "G32", "cp866", false, null);
+            Integer numberDeclarationDetail = getDBFIntegerFieldValue(importFile, "G32", "cp866", false, null);
 
             if (curNumber != null && !curNumber.equals(numberDeclarationDetail)) {
                 data.add(Arrays.asList((Object) curNumber, dutySum, VATSum, homeSum));
@@ -160,17 +159,17 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
             }
             curNumber = numberDeclarationDetail;
 
-            String g471 = trim(getFieldValue(importFile, "G471", "cp866", false, null));
+            String g471 = trim(getDBFFieldValue(importFile, "G471", "cp866", false, null));
                     
             if (g471 != null) {
                 if (g471.equals("2010")) {
-                    homeSum = getBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
-                    dutySum = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);
+                    homeSum = getDBFBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
+                    dutySum = getDBFBigDecimalFieldValue(importFile, "G474", "cp866", false, null);
                 } else if (g471.equals("5010")) {
-                    if (homeSum == null) homeSum = getBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
-                    VATSum = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);
+                    if (homeSum == null) homeSum = getDBFBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
+                    VATSum = getDBFBigDecimalFieldValue(importFile, "G474", "cp866", false, null);
                 } else if(g471.equals("1010")) {
-                    BigDecimal g474 = getBigDecimalFieldValue(importFile, "G474", "cp866", false, null);  //dutySum - VATSum
+                    BigDecimal g474 = getDBFBigDecimalFieldValue(importFile, "G474", "cp866", false, null);  //dutySum - VATSum
                     getLCP("registrationSumDeclaration").change(g474, session, declarationObject);
                 }
             }
@@ -182,25 +181,5 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportActionPrope
 
         importFile.close();
         return data;
-    }
-
-
-    private String getFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
-        try {
-            String result = trim(new String(importFile.getField(fieldName).getBytes(), charset));
-            return result.isEmpty() || (zeroIsNull && result.equals("0")) ? defaultValue : result;
-        } catch (xBaseJException e) {
-            return defaultValue;
-        }
-    }
-
-    private BigDecimal getBigDecimalFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
-        String result = getFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
-        return (result == null || result.isEmpty() || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new BigDecimal(result.replace(",", "."));
-    }
-
-    private Integer getIntegerFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
-        String result = getFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
-        return (result == null || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new Double(result).intValue();
     }
 }
