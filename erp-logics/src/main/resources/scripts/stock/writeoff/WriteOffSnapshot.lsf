@@ -1,0 +1,170 @@
+MODULE WriteOffSnapshot;
+
+REQUIRE PurchaseSnapshot, WriteOff;
+
+NAMESPACE WriteOff;
+
+
+//-- Sku
+writeOffQuantitySkuStockSnapshot 'Кол-во списание' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
+writeOffSumSkuStockSnapshot 'Сумма списание' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
+
+//-- Batch
+writeOffQuantityBatchStockSnapshot 'Кол-во списание' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
+writeOffSumBatchStockSnapshot 'Сумма списание' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+
+
+//-- группа/склад       
+writeOffQuantitySkuGroupStockSnapshot 'Кол-во списание' (group, stock, snapshot) =
+    GROUP SUM writeOffQuantitySkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
+        BY group, stock, snapshot PERSISTENT;
+writeOffSumSkuGroupStockSnapshot 'Сумма списание' (group, stock, snapshot) =
+    GROUP SUM writeOffSumSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
+        BY group, stock, snapshot PERSISTENT;  
+        
+//-- группа          
+writeOffQuantitySkuGroupSnapshot 'Кол-во списание' (group, snapshot) =
+    GROUP SUM writeOffQuantitySkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot;    
+writeOffSumSkuGroupSnapshot 'Сумма списание' (group, snapshot) =
+    GROUP SUM writeOffSumSkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot;    
+                
+//--По складам
+writeOffQuantityStockSnapshot 'Кол-во списание' (stock, snapshot) =
+    GROUP SUM writeOffQuantitySkuGroupStockSnapshot (sku, stock, snapshot)  BY stock, snapshot;   
+writeOffSumStockSnapshot 'Сумма списание' (stock, snapshot) =
+    GROUP SUM writeOffSumSkuGroupStockSnapshot (sku, stock, snapshot)  BY stock, snapshot;  
+                     
+//-- Sku на дату
+writeOffQuantitySkuStockSnapshotDate 'Кол-во списание' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
+writeOffSumSkuStockSnapshotDate 'Сумма списание' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);        
+             
+//--По складам на дату     
+writeOffQuantityStockSnapshotDate 'Кол-во списание' (stock, snapshot, date) =
+    GROUP SUM writeOffQuantitySkuStockSnapshotDate (sku, stock, snapshot, date)  BY stock, snapshot, date; 
+writeOffSumStockSnapshotDate 'Сумма списание' (stock, snapshot, date) =
+    GROUP SUM writeOffSumSkuStockSnapshotDate (sku, stock, snapshot, date)  BY stock, snapshot, date;    
+           
+nameWriteOffQuantityStock (st) = CONCAT ' ', nameStock(st), ' (кол-во списание)';
+nameWriteOffSumStock (st) = CONCAT ' ', nameStock(st), ' (сумма списание)';    
+       
+isWriteOffSnapshot 'Списание' = DATA BOOLEAN (Snapshot) IN evidence;
+hintWriteOffBackground  = RGB(0, 252, 233) IF TRUE;        
+       
+//-- Расширяем ACTION    
+writeOffSumSkuStockDate 'Списано (сумма)' (sku, stock, date) =  GROUP SUM sumOutActiveSkuLedger(ledger) IF ledger IS WriteOffDetail BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger);
+writeOffQuantitySkuStockDate 'Списано (кол-во)' (sku, stock, date) =  GROUP SUM quantityOutActiveSkuLedger(ledger) IF ledger IS WriteOffDetail BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger);
+  
+writeOffSumSkuStockDateFromTo 'Списано за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        writeOffSumSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY sku, stock, dateFrom, dateTo;  
+writeOffQuantitySkuStockDateFromTo 'списано за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        writeOffQuantitySkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY sku, stock, dateFrom, dateTo;    
+                    
+overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
+    IF isWriteOffSnapshot(snapshot) THEN {
+        IF isDateSnapshot(snapshot) THEN {
+            IF isQuantitySnapshot(snapshot) THEN {
+                writeOffQuantitySkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[14,3](writeOffQuantitySkuStockDate(sku, stock, date)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND writeOffQuantitySkuStockDate(sku, stock, date);
+            }
+            IF isSumSnapshot(snapshot) THEN {
+                writeOffSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](writeOffSumSkuStockDate(sku, stock, date)) 
+                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND writeOffSumSkuStockDate(sku, stock, date);   
+                     
+            }                               
+        }
+        
+        IF isQuantitySnapshot(snapshot) THEN {
+            writeOffQuantitySkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[14,3](writeOffQuantitySkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);
+        }    
+        IF isSumSnapshot(snapshot) THEN {    
+            writeOffSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](writeOffSumSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku);    
+ 
+        }              
+    }            
+};                                                                                                
+               
+//-- Batch      
+writeOffSumBatchStockDate 'Списано (сумма)' (batch, stock, date) =  GROUP SUM sumOutActiveSkuLedger(ledger) IF ledger IS WriteOffDetail BY batchSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger);
+writeOffQuantityBatchStockDate 'Списано (кол-во)' (batch, stock, date) =  GROUP SUM quantityOutActiveSkuLedger(ledger) IF ledger IS WriteOffDetail BY batchSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger);
+  
+writeOffSumBatchStockDateFromTo 'Списано за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        writeOffSumBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY batch, stock, dateFrom, dateTo;  
+writeOffQuantityBatchStockDateFromTo 'списано за интервал (кол-во)' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        writeOffQuantityBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+        BY batch, stock, dateFrom, dateTo;
+
+overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
+    IF isWriteOffSnapshot(snapshot) THEN {
+        IF isQuantitySnapshot(snapshot) THEN {
+            writeOffQuantityBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](writeOffQuantityBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
+        }
+        IF isSumSnapshot(snapshot) THEN { 
+            writeOffSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](writeOffSumBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
+                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));   
+       
+        }          
+    }      
+};  
+       
+//-- SHOWIF
+isQuantityWriteOffSnapshot= isQuantitySnapshot(snapshot) AND isWriteOffSnapshot(snapshot);
+isSumWriteOffSnapshot= isSumSnapshot(snapshot) AND isWriteOffSnapshot(snapshot);
+//--
+isQuantityWriteOffDateSnapshot= isQuantitySnapshot(snapshot) AND isWriteOffSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumWriteOffDateSnapshot= isSumSnapshot(snapshot) AND isWriteOffSnapshot(snapshot) AND isDateSnapshot(snapshot);
+//--
+isQuantityWriteOffBatchSnapshot= isQuantitySnapshot(snapshot) AND isWriteOffSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isSumWriteOffBatchSnapshot= isSumSnapshot(snapshot) AND isWriteOffSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+                                                    
+                                                         
+EXTEND FORM snapshot
+    PROPERTIES(r)      BACKGROUND hintWriteOffBackground() isWriteOffSnapshot
+//--sku  
+    PROPERTIES(s,st,r) READONLY BACKGROUND hintWriteOffBackground()
+                       writeOffQuantitySkuStockSnapshot SHOWIF isQuantityWriteOffSnapshot(r), 
+                       writeOffSumSkuStockSnapshot SHOWIF isSumWriteOffSnapshot(r)
+
+//--sku на дату  
+    PROPERTIES(s3,st3,r,d3) READONLY BACKGROUND hintWriteOffBackground()
+                       writeOffQuantitySkuStockSnapshotDate SHOWIF isQuantityWriteOffDateSnapshot(r), 
+                       writeOffSumSkuStockSnapshotDate SHOWIF isSumWriteOffDateSnapshot(r)
+
+//--По складам на дату 
+    PROPERTIES(st4,r,d4) READONLY BACKGROUND hintWriteOffBackground() 
+                       writeOffQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER nameWriteOffQuantityStock(st4) SHOWIF isQuantityWriteOffDateSnapshot(r), 
+                       writeOffSumStockSnapshotDate COLUMNS 'g' (st4) HEADER nameWriteOffSumStock(st4) SHOWIF isSumWriteOffDateSnapshot(r)
+                                                                 
+//-- batch
+    PROPERTIES(bt,ss,r) READONLY BACKGROUND hintWriteOffBackground() 
+                       writeOffQuantityBatchStockSnapshot SHOWIF isQuantityWriteOffBatchSnapshot(r), 
+                       writeOffSumBatchStockSnapshot SHOWIF isSumWriteOffBatchSnapshot(r)
+        
+//-- По группам                           
+    PROPERTIES(sk1,r)  READONLY BACKGROUND hintWriteOffBackground()         
+                       writeOffQuantitySkuGroupSnapshot SHOWIF isQuantityWriteOffSnapshot(r), 
+                       writeOffSumSkuGroupSnapshot SHOWIF isSumWriteOffSnapshot(r)
+
+//-- По складам                           
+    PROPERTIES(ts1,r)  READONLY BACKGROUND hintWriteOffBackground()                         
+                       writeOffQuantityStockSnapshot SHOWIF isQuantityWriteOffSnapshot(r), 
+                       writeOffSumStockSnapshot SHOWIF isSumWriteOffSnapshot(r)
+
+;  
+EXTEND DESIGN snapshot {
+    row6 {
+        ADD PROPERTY (isWriteOffSnapshot (r));
+    }
+}
+
+
+EXTEND FORM snapshots
+    PROPERTIES(r)      READONLY  BACKGROUND hintWriteOffBackground() isWriteOffSnapshot     
+;       
