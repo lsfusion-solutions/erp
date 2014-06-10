@@ -204,7 +204,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     String record = String.format("%s|0|1|1|1", trimLeadingZeroes(userInvoice.getKey()));
                     writer.println(record);
                 }
-                writer.println(logRecord);
+                logger.info(logRecord);
                 writer.close();
 
                 logger.info("Kristal: waiting for deletion of WAITSOFT file");
