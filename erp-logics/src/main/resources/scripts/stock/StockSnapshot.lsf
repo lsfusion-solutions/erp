@@ -51,6 +51,7 @@ isBalanceASnapshot 'Остаток конец' = DATA BOOLEAN (Snapshot) IN evid
 
 isCostSnapshot 'Себестоимость' = DATA BOOLEAN (Snapshot) IN evidence;
 isVATSupplierSnapshot 'НДС поставщика' = DATA BOOLEAN (Snapshot) IN evidence;
+isCostVATSupplierSnapshot 'Себестоимость с НДС поставщика' = DATA BOOLEAN (Snapshot) IN evidence;
 isNetWeightSnapshot 'Вес, кг' = DATA BOOLEAN (Snapshot) IN evidence;
 
 //-- Sku на дату
@@ -65,6 +66,8 @@ netWeightBSkuStockSnapshotDate 'Вес начало' = DATA NUMERIC[14,3] (Sku, 
 sumBSkuStockSnapshotDate 'Сумма начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 costBSkuStockSnapshotDate 'Себестоимость начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 VATSupplierBSkuStockSnapshotDate 'НДС поставщика начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
+costVATSupplierBSkuStockSnapshotDate 'С/С с НДС пост. начало' = VATSupplierBSkuStockSnapshotDate(sku, stock, snapshot, date) (+) 
+                                                                costBSkuStockSnapshotDate(sku, stock, snapshot, date);
 
 inQuantitySkuStockSnapshotDate 'Кол-во приход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
 inNetWeightSkuStockSnapshotDate 'Вес приход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
@@ -79,7 +82,8 @@ netWeightASkuStockSnapshotDate 'Вес конец' = DATA NUMERIC[14,3] (Sku, St
 sumASkuStockSnapshotDate 'Сумма конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 costASkuStockSnapshotDate 'Себестоимость конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 VATSupplierASkuStockSnapshotDate 'НДС поставщика конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
-
+costVATSupplierASkuStockSnapshotDate 'С/С с НДС пост. конец' = VATSupplierASkuStockSnapshotDate(sku, stock, snapshot, date) (+) 
+                                                               costASkuStockSnapshotDate(sku, stock, snapshot, date);
 //------------------------------ Sku -------------------------------//
 
 TABLE skuStockSnapshot (Sku, Stock, Snapshot);  
@@ -88,7 +92,8 @@ netWeightBSkuStockSnapshot 'Вес начало' = DATA NUMERIC[14,3] (Sku, Stoc
 sumBSkuStockSnapshot 'Сумма начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 costBSkuStockSnapshot 'Себестоимость начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 VATSupplierBSkuStockSnapshot 'НДС поставщика начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
-
+costVATSupplierBSkuStockSnapshot 'С/С с НДС пост. начало' = VATSupplierBSkuStockSnapshot(sku, stock, snapshot) (+) 
+                                                            costBSkuStockSnapshot(sku, stock, snapshot);
 inQuantitySkuStockSnapshot 'Кол-во приход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
 inNetWeightSkuStockSnapshot 'Вес приход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
 inSumSkuStockSnapshot 'Сумма приход' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
@@ -102,7 +107,8 @@ netWeightASkuStockSnapshot 'Вес конец' = DATA NUMERIC[14,3] (Sku, Stock,
 sumASkuStockSnapshot 'Сумма конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 costASkuStockSnapshot 'Себестоимость конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 VATSupplierASkuStockSnapshot 'НДС поставщика конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
-
+costVATSupplierASkuStockSnapshot 'С/С с НДС пост. конец' = VATSupplierASkuStockSnapshot(sku, stock, snapshot) (+) 
+                                                           costASkuStockSnapshot(sku, stock, snapshot);                                 
 //--По группе рекурсивно
 TABLE skuGroupStockSnapshot (SkuGroup, Stock, Snapshot);   
   
@@ -121,7 +127,9 @@ costBSkuGroupStockSnapshot 'Себестоимость начало' (group, sto
         BY group, stock, snapshot PERSISTENT;   
 VATSupplierBSkuGroupStockSnapshot 'НДС поставщика начало' (group, stock, snapshot) =
     GROUP SUM VATSupplierBSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
-        BY group, stock, snapshot PERSISTENT;                                    
+        BY group, stock, snapshot PERSISTENT;   
+costVATSupplierBSkuGroupStockSnapshot 'С/С с НДС пост. начало' = VATSupplierBSkuGroupStockSnapshot(group, stock, snapshot) (+) 
+                                                                 costBSkuGroupStockSnapshot(group, stock, snapshot);                                           
     
 inQuantitySkuGroupStockSnapshot 'Кол-во приход' (group, stock, snapshot) =
     GROUP SUM inQuantitySkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
@@ -157,7 +165,10 @@ costASkuGroupStockSnapshot 'Себестоимость конец' (group, stock
         BY group, stock, snapshot PERSISTENT;   
 VATSupplierASkuGroupStockSnapshot 'НДС поставщика конец' (group, stock, snapshot) =
     GROUP SUM VATSupplierASkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
-        BY group, stock, snapshot PERSISTENT;               
+        BY group, stock, snapshot PERSISTENT;    
+costVATSupplierASkuGroupStockSnapshot 'С/С с НДС пост. конец' = VATSupplierASkuGroupStockSnapshot(group, stock, snapshot) (+) 
+                                                                costASkuGroupStockSnapshot(group, stock, snapshot);                   
+                   
 //-- группа          
 balanceBSkuGroupSnapshot 'Кол-во начало' (group, snapshot) =
     GROUP SUM balanceBSkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
@@ -169,7 +180,8 @@ costBSkuGroupSnapshot 'Себестоимость начало' (group, snapshot
     GROUP SUM costBSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;            
 VATSupplierBSkuGroupSnapshot 'НДС поставщика начало' (group, snapshot) =
     GROUP SUM VATSupplierBSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;            
-    
+costVATSupplierBSkuGroupSnapshot 'С/С с НДС пост. начало' = VATSupplierBSkuGroupSnapshot(group, snapshot) (+) 
+                                                            costBSkuGroupSnapshot(group, snapshot);     
 inQuantitySkuGroupSnapshot 'Кол-во приход' (group, snapshot) =
     GROUP SUM inQuantitySkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
 inNetWeightSkuGroupSnapshot 'Вес приход' (group, snapshot) =
@@ -194,7 +206,8 @@ costASkuGroupSnapshot 'Себестоимость конец' (group, snapshot) 
     GROUP SUM costASkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;                                   
 VATSupplierASkuGroupSnapshot 'НДС поставщика конец' (group, snapshot) =
     GROUP SUM VATSupplierASkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;                                    
-
+costVATSupplierASkuGroupSnapshot 'С/С с НДС пост. конец' = VATSupplierASkuGroupSnapshot(group, snapshot) (+) 
+                                                           costASkuGroupSnapshot(group, snapshot); 
 //--По складам
 balanceBStockSnapshot 'Кол-во начало' (stock, snapshot) =
     GROUP SUM balanceBSkuStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
@@ -206,6 +219,8 @@ costBStockSnapshot 'Себестоимость начало' (stock, snapshot) =
     GROUP SUM costBSkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot; 
 VATSupplierBStockSnapshot 'НДС поставщика начало' (stock, snapshot) =
     GROUP SUM VATSupplierBSkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot; 
+costVATSupplierBStockSnapshot 'С/С с НДС пост. начало' = VATSupplierBStockSnapshot(stock, snapshot) (+) 
+                                                         costBStockSnapshot(stock, snapshot);         
             
 inQuantityStockSnapshot 'Кол-во приход' (stock, snapshot) =
     GROUP SUM inQuantitySkuStockSnapshot (sku, stock, snapshot)  BY stock, snapshot; 
@@ -231,7 +246,8 @@ costAStockSnapshot 'Себестоимость конец' (stock, snapshot) =
     GROUP SUM costASkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;    
 VATSupplierAStockSnapshot 'НДС поставщика конец' (stock, snapshot) =
     GROUP SUM VATSupplierASkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;    
-        
+costVATSupplierAStockSnapshot 'С/С с НДС пост. конец' = VATSupplierAStockSnapshot(stock, snapshot) (+) 
+                                                        costAStockSnapshot(stock, snapshot);         
 //--По складам на дату        
 balanceBStockSnapshotDate 'Кол-во начало' (stock, snapshot, date) =
     GROUP SUM balanceBSkuStockSnapshotDate (sku, stock, snapshot, date)  BY stock, snapshot, date; 
@@ -242,7 +258,9 @@ sumBStockSnapshotDate 'Сумма начало' (stock, snapshot, date) =
 costBStockSnapshotDate 'Себестоимость начало' (stock, snapshot, date) =
     GROUP SUM costBSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;    
 VATSupplierBStockSnapshotDate 'НДС поставщика начало' (stock, snapshot, date) =
-    GROUP SUM VATSupplierBSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;         
+    GROUP SUM VATSupplierBSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;     
+costVATSupplierBStockSnapshotDate 'С/С с НДС пост. начало' = VATSupplierBStockSnapshotDate(stock, snapshot, date) (+) 
+                                                             costBStockSnapshotDate(stock, snapshot, date);         
     
 inQuantityStockSnapshotDate 'Кол-во приход' (stock, snapshot, date) =
     GROUP SUM inQuantitySkuStockSnapshotDate (sku, stock, snapshot, date)  BY stock, snapshot, date; 
@@ -268,11 +286,14 @@ costAStockSnapshotDate 'Себестоимость конец' (stock, snapshot,
     GROUP SUM costASkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;    
 VATSupplierAStockSnapshotDate 'НДС поставщика конец' (stock, snapshot, date) =
     GROUP SUM VATSupplierASkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;     
-      
+costVATSupplierAStockSnapshotDate 'С/С с НДС пост. конец' = VATSupplierAStockSnapshotDate(stock, snapshot, date) (+) 
+                                                             costAStockSnapshotDate(stock, snapshot, date);   
+                                                                   
 nameBalanceBStock (st) = CONCAT ' ', nameStock(st), ' (кол-во начало)';
 nameNetWeightBStock (st) = CONCAT ' ', nameStock(st), ' (вес начало)';
 nameSumBStock (st) = CONCAT ' ', nameStock(st), ' (сумма начало)';
 nameCostBStock (st) = CONCAT ' ', nameStock(st), ' (себестоимость начало)';
+nameCostVATSupplierBStock (st) = CONCAT ' ', nameStock(st), ' (с/с с НДС пост. начало)';
 nameVATSupplierBStock (st) = CONCAT ' ', nameStock(st), ' (НДС поставщика начало)';
 nameInQuantityStock (st) = CONCAT ' ', nameStock(st), ' (кол-во приход)';
 nameInNetWeightStock (st) = CONCAT ' ', nameStock(st), ' (вес приход)';
@@ -283,7 +304,8 @@ nameOutSumStock (st) = CONCAT ' ', nameStock(st), ' (сумма расход)';
 nameBalanceAStock (st) = CONCAT ' ', nameStock(st), ' (кол-во конец)';
 nameNetWeightAStock (st) = CONCAT ' ', nameStock(st), ' (вес конец)';
 nameSumAStock (st) = CONCAT ' ', nameStock(st), ' (сумма конец)';
-nameCostAStock (st) = CONCAT ' ', nameStock(st), ' (себестоимость конец)';    
+nameCostAStock (st) = CONCAT ' ', nameStock(st), ' (себестоимость конец)';   
+nameCostVATSupplierAStock (st) = CONCAT ' ', nameStock(st), ' (с/с с НДС пост. конец)'; 
 nameVATSupplierAStock (st) = CONCAT ' ', nameStock(st), ' (НДС поставщика конец)';
     
 //------------------------------ Batch -------------------------------//
@@ -293,6 +315,8 @@ balanceBBatchStockSnapshot 'Кол-во начало' = DATA NUMERIC[14,3] (Batc
 netWeightBBatchStockSnapshot 'Вес начало' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
 sumBBatchStockSnapshot 'Себестоимость начало' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 VATSupplierBBatchStockSnapshot 'НДС поставщика начало' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+sumVATSupplierBBatchStockSnapshot 'С/С с НДС пост. начало' = VATSupplierBBatchStockSnapshot(batch, stock, snapshot) (+)
+                                                             sumBBatchStockSnapshot(batch, stock, snapshot);
 
 inQuantityBatchStockSnapshot 'Кол-во приход' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
 inNetWeightBatchStockSnapshot 'Вес приход' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
@@ -306,6 +330,8 @@ balanceABatchStockSnapshot 'Кол-во конец' = DATA NUMERIC[14,3] (Batch,
 netWeightABatchStockSnapshot 'Вес конец' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
 sumABatchStockSnapshot 'Себестоимость конец' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 VATSupplierABatchStockSnapshot 'НДС поставщика конец' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+sumVATSupplierABatchStockSnapshot 'С/С с НДС пост. конец' = VATSupplierABatchStockSnapshot(batch, stock, snapshot) (+)
+                                                             sumABatchStockSnapshot(batch, stock, snapshot);
 
 //-- По поставщикам
 balanceBBatchSupplierSnapshot 'Кол-во начало' (supplier, snapshot) =
@@ -316,7 +342,9 @@ sumBBatchSupplierSnapshot 'Себестоимость начало' (supplier, s
     GROUP SUM sumBBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot; 
 VATSupplierBBatchSupplierSnapshot 'НДС поставщика начало' (supplier, snapshot) =
     GROUP SUM VATSupplierBBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
-    
+sumVATSupplierBBatchSupplierSnapshot 'С/С с НДС пост. начало' = VATSupplierBBatchSupplierSnapshot(supplier, snapshot) (+)
+                                                                sumBBatchSupplierSnapshot(supplier, snapshot);   
+                                                                 
 inQuantityBatchSupplierSnapshot 'Кол-во приход' (supplier, snapshot) =
     GROUP SUM inQuantityBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
 inNetWeightBatchSupplierSnapshot 'Вес приход' (supplier, snapshot) =
@@ -338,7 +366,9 @@ netWeightABatchSupplierSnapshot 'Вес конец' (supplier, snapshot) =
 sumABatchSupplierSnapshot 'Себестоимость конец' (supplier, snapshot) =
     GROUP SUM sumABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;   
 VATSupplierABatchSupplierSnapshot 'НДС поставщика конец' (supplier, snapshot) =
-    GROUP SUM VATSupplierABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;       
+    GROUP SUM VATSupplierABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
+sumVATSupplierABatchSupplierSnapshot 'С/С с НДС пост. конец' = VATSupplierABatchSupplierSnapshot(supplier, snapshot) (+)
+                                                               sumABatchSupplierSnapshot(supplier, snapshot);           
     
 //-- Выбор складов
 TABLE snapshotStockGroup (Snapshot, StockGroup); 
@@ -476,9 +506,9 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceBSnapshot(snapshot);        
         }      
         IF isVATSupplierSnapshot(snapshot) THEN {
-            VATSupplierASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](costSumASkuStockDate(sku, stock, dateTo)*valueVATSkuCountryDate(sku,defaultCountry(),dateTo)/100) 
+            VATSupplierASkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](costSumASkuStockDate(sku, stock, dateTo)*valueVATSkuCountryDate(sku,countryStock(stock),dateTo)/100) 
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND  isBalanceASnapshot(snapshot);               
-            VATSupplierBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](costSumBSkuStockDate(sku, stock, dateFrom)*valueVATSkuCountryDate(sku,defaultCountry(),dateTo)/100) 
+            VATSupplierBSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](costSumBSkuStockDate(sku, stock, dateFrom)*valueVATSkuCountryDate(sku,countryStock(stock),dateTo)/100) 
                 WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND isBalanceBSnapshot(snapshot);        
         } 
         IF isNetWeightSnapshot(snapshot) THEN {         
@@ -566,10 +596,10 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
                 
                 } 
                 IF isVATSupplierSnapshot(snapshot) THEN {
-                    VATSupplierBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumBSkuStockDate(sku, stock, dateCur())*valueVATSkuCountryDate(sku,defaultCountry(),dateCur())/100) 
+                    VATSupplierBSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumBSkuStockDate(sku, stock, dateCur())*valueVATSkuCountryDate(sku,countryStock(stock),dateCur())/100) 
                         WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND costSumBSkuStockDate(sku, stock, date)
                             AND isBalanceBSnapshot(snapshot);   
-                    VATSupplierASkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumASkuStockDate(sku, stock, dateCur())*valueVATSkuCountryDate(sku,defaultCountry(),dateCur())/100) 
+                    VATSupplierASkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](costSumASkuStockDate(sku, stock, dateCur())*valueVATSkuCountryDate(sku,countryStock(stock),dateCur())/100) 
                         WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date == dateCur() AND costSumASkuStockDate(sku, stock, date)
                             AND isBalanceASnapshot(snapshot);                                             
                 
@@ -603,7 +633,7 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
                         balanceBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[14,3](balanceBBatchStockDate(batch, stock, dateFrom)) 
                             WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
             }
-            IF isCostSnapshot(snapshot) THEN {  
+            IF isSumSnapshot(snapshot) THEN {  
                 IF isInSnapshot(snapshot) THEN
                     inSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](costSumInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
                         WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));
@@ -624,9 +654,9 @@ takeSnapshotDateFromTo  = ACTION (snapshot, dateFrom, dateTo) {
                             WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch));             
             }  
             IF isVATSupplierSnapshot(snapshot) THEN {
-                VATSupplierABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)*valueVATSkuCountryDate(skuBatch(batch),defaultCountry(),dateTo)/100) 
+                VATSupplierABatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceABatchStockDate(batch, stock, dateTo)*costBatch(batch)*valueVATSkuCountryDate(skuBatch(batch),countryStock(stock),dateTo)/100) 
                     WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceASnapshot(snapshot); 
-                VATSupplierBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceBBatchStockDate(batch, stock, dateFrom)*costBatch(batch)*valueVATSkuCountryDate(skuBatch(batch),defaultCountry(),dateTo)/100) 
+                VATSupplierBBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](balanceBBatchStockDate(batch, stock, dateFrom)*costBatch(batch)*valueVATSkuCountryDate(skuBatch(batch),countryStock(stock),dateTo)/100) 
                     WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND isBalanceBSnapshot(snapshot);                                   
             }
             //-- todo: может надо брать вес от инвойса для партии 
@@ -698,7 +728,9 @@ isSumBalanceASnapshot = isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot)
 isNetWeightBalanceASnapshot = isNetWeightSnapshot(snapshot) AND isBalanceASnapshot(snapshot);
 
 isCostBalanceBSnapshot =  isCostSnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
+isCostVATSupplierBalanceBSnapshot =  isCostVATSupplierSnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
 isCostBalanceASnapshot = isCostSnapshot(snapshot) AND isBalanceASnapshot(snapshot);
+isCostVATSupplierBalanceASnapshot = isCostVATSupplierSnapshot(snapshot) AND isBalanceASnapshot(snapshot);
 
 isVATSupplierBalanceBSnapshot = isVATSupplierSnapshot(snapshot) AND isBalanceBSnapshot(snapshot);
 isVATSupplierBalanceASnapshot = isVATSupplierSnapshot(snapshot) AND isBalanceASnapshot(snapshot);
@@ -710,6 +742,8 @@ isQuantityOutBatchSnapshot = isQuantitySnapshot(snapshot) AND isOutSnapshot(snap
 isQuantityBalanceABatchSnapshot = isQuantitySnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
 
 isSumBalanceBBatchSnapshot = isSumSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isCostVATSupplierBalanceBBatchSnapshot = isCostVATSupplierSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+
 isCostBalanceBBatchSnapshot = isCostSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
 isNetWeightBalanceBBatchSnapshot = isNetWeightSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isBatchSnapshot(snapshot);
 isSumInBatchSnapshot = isSumSnapshot(snapshot) AND isInSnapshot(snapshot) AND isBatchSnapshot(snapshot);
@@ -719,6 +753,8 @@ isSumOutBatchSnapshot = isSumSnapshot(snapshot) AND isOutSnapshot(snapshot) AND 
 isCostOutBatchSnapshot = isCostSnapshot(snapshot) AND isOutSnapshot(snapshot) AND isBatchSnapshot(snapshot);
 isNetWeightOutBatchSnapshot = isNetWeightSnapshot(snapshot) AND isOutSnapshot(snapshot) AND isBatchSnapshot(snapshot);
 isSumBalanceABatchSnapshot = isSumSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isCostVATSupplierBalanceABatchSnapshot = isCostVATSupplierSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
+
 isCostBalanceABatchSnapshot = isCostSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
 isNetWeightBalanceABatchSnapshot = isNetWeightSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isBatchSnapshot(snapshot);
 
@@ -742,6 +778,9 @@ isNetWeightBalanceADateSnapshot= isNetWeightSnapshot(snapshot) AND isBalanceASna
 isCostBalanceBDateSnapshot = isCostSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot) ;
 isCostBalanceADateSnapshot = isCostSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
 
+isCostVATSupplierBalanceBDateSnapshot = isCostVATSupplierSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot) ;
+isCostVATSupplierBalanceADateSnapshot = isCostVATSupplierSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
+
 isVATSupplierBalanceBDateSnapshot = isVATSupplierSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot);
 isVATSupplierBalanceADateSnapshot = isVATSupplierSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
 
@@ -753,7 +792,8 @@ FORM snapshot 'Отчет по товарообороту'
                    isQuantitySnapshot, isSumSnapshot, isBalanceBSnapshot BACKGROUND hintBalanceBBackground(), 
                    isInSnapshot BACKGROUND hintInBackground(), isOutSnapshot BACKGROUND hintOutBackground(), 
                    isBalanceASnapshot BACKGROUND hintBalanceABackground(),
-                   isBatchSnapshot, isDateSnapshot, isCostSnapshot, isVATSupplierSnapshot, isNetWeightSnapshot 
+                   isBatchSnapshot, isDateSnapshot, isCostSnapshot, isVATSupplierSnapshot, isCostVATSupplierSnapshot,
+                   isNetWeightSnapshot 
 //-- выбор складов                  
     TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parentStockGroup, ts2 = Stock
     PROPERTIES OBJVALUE(a2) READONLY, allStockIncludeSnapshot(r) TODRAW a2, 
@@ -799,6 +839,7 @@ FORM snapshot 'Отчет по товарообороту'
                          sumBSkuStockSnapshot SHOWIF isSumBalanceBSnapshot(r),                         
                          costBSkuStockSnapshot SHOWIF isCostBalanceBSnapshot(r),                         
                          VATSupplierBSkuStockSnapshot SHOWIF isVATSupplierBalanceBSnapshot(r), 
+                         costVATSupplierBSkuStockSnapshot SHOWIF isCostVATSupplierBalanceBSnapshot(r),
                          netWeightBSkuStockSnapshot SHOWIF isNetWeightBalanceBSnapshot(r)
     PROPERTIES(s, st, r) BACKGROUND hintInBackground() inQuantitySkuStockSnapshot SHOWIF isQuantityInSnapshot(r), 
                          inSumSkuStockSnapshot SHOWIF isSumInSnapshot(r),
@@ -810,6 +851,7 @@ FORM snapshot 'Отчет по товарообороту'
                          sumASkuStockSnapshot SHOWIF isSumBalanceASnapshot(r),                         
                          costASkuStockSnapshot SHOWIF isCostBalanceASnapshot(r),
                          VATSupplierASkuStockSnapshot SHOWIF isVATSupplierBalanceASnapshot(r),
+                         costVATSupplierASkuStockSnapshot SHOWIF isCostVATSupplierBalanceASnapshot(r),                                                                         
                          netWeightASkuStockSnapshot SHOWIF isNetWeightBalanceASnapshot(r)                                                                                                               
     PROPERTIES        READONLY nameSkuGroup1Sku(s), nameSkuGroup2Sku(s),nameSkuGroup3Sku(s), nameSkuGroup4Sku(s), nameSkuGroup5Sku(s)   
                                                                                 
@@ -829,18 +871,20 @@ FORM snapshot 'Отчет по товарообороту'
     FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(ss) DEFAULT
 
     PROPERTIES(bt, ss, r) BACKGROUND hintBalanceBBackground() balanceBBatchStockSnapshot SHOWIF isQuantityBalanceBBatchSnapshot(r), 
-                          sumBBatchStockSnapshot SHOWIF isCostBalanceBBatchSnapshot(r),                          
+                          sumBBatchStockSnapshot SHOWIF isSumBalanceBBatchSnapshot(r),                          
                           VATSupplierBBatchStockSnapshot SHOWIF isBalanceBBatchVATSupplierSnapshot(r),
+                          sumVATSupplierBBatchStockSnapshot SHOWIF isCostVATSupplierBalanceBBatchSnapshot(r),                                                    
                           netWeightBBatchStockSnapshot SHOWIF isNetWeightBalanceBBatchSnapshot(r) 
     PROPERTIES(bt, ss, r) BACKGROUND hintInBackground() inQuantityBatchStockSnapshot SHOWIF isQuantityInBatchSnapshot(r), 
-                          inSumBatchStockSnapshot SHOWIF isCostInBatchSnapshot(r),
+                          inSumBatchStockSnapshot SHOWIF isSumInBatchSnapshot(r),
                           inNetWeightBatchStockSnapshot SHOWIF isNetWeightInBatchSnapshot(r)
     PROPERTIES(bt, ss, r) BACKGROUND hintOutBackground() outQuantityBatchStockSnapshot SHOWIF isQuantityOutBatchSnapshot(r), 
-                          outSumBatchStockSnapshot SHOWIF isCostOutBatchSnapshot(r),
+                          outSumBatchStockSnapshot SHOWIF isSumOutBatchSnapshot(r),
                           outNetWeightBatchStockSnapshot SHOWIF isNetWeightOutBatchSnapshot(r)                             
     PROPERTIES(bt, ss, r) BACKGROUND hintBalanceABackground() balanceABatchStockSnapshot SHOWIF isQuantityBalanceABatchSnapshot(r), 
-                          sumABatchStockSnapshot SHOWIF isCostBalanceABatchSnapshot(r),
+                          sumABatchStockSnapshot SHOWIF isSumBalanceABatchSnapshot(r),
                           VATSupplierABatchStockSnapshot SHOWIF isBalanceABatchVATSupplierSnapshot(r),
+                          sumVATSupplierABatchStockSnapshot SHOWIF isCostVATSupplierBalanceABatchSnapshot(r),   
                           netWeightABatchStockSnapshot SHOWIF isNetWeightBalanceABatchSnapshot(r) 
     PROPERTIES        READONLY SHOWIF isBatchSnapshot(r) dateBatch(bt), nameSkuGroup1Batch(bt), nameSkuGroup2Batch(bt), 
                       nameSkuGroup3Batch(bt), nameSkuGroup4Batch(bt), nameSkuGroup5Batch(bt)
@@ -862,11 +906,13 @@ FORM snapshot 'Отчет по товарообороту'
                       sumBSkuGroupSnapshot SHOWIF isSumBalanceBSnapshot(r),                      
                       costBSkuGroupSnapshot SHOWIF isCostBalanceBSnapshot(r),
                       VATSupplierBSkuGroupSnapshot SHOWIF isVATSupplierBalanceBSnapshot(r),
+                      costVATSupplierBSkuGroupSnapshot SHOWIF isCostVATSupplierBalanceBSnapshot(r),
                       netWeightBSkuGroupSnapshot SHOWIF isNetWeightBalanceBSnapshot(r)
     PROPERTIES(sk1,r) READONLY BACKGROUND hintBalanceABackground() balanceASkuGroupSnapshot SHOWIF isQuantityBalanceASnapshot(r), 
                       sumASkuGroupSnapshot SHOWIF isSumBalanceASnapshot(r),
                       costASkuGroupSnapshot SHOWIF isCostBalanceASnapshot(r),
                       VATSupplierASkuGroupSnapshot SHOWIF isVATSupplierBalanceASnapshot(r),
+                      costVATSupplierASkuGroupSnapshot SHOWIF isCostVATSupplierBalanceASnapshot(r),
                       netWeightASkuGroupSnapshot SHOWIF isNetWeightBalanceASnapshot(r)               
        
 //-- По складам           
@@ -888,6 +934,7 @@ FORM snapshot 'Отчет по товарообороту'
                       sumBStockSnapshot SHOWIF isSumBalanceBSnapshot(r),
                       costBStockSnapshot SHOWIF isCostBalanceBSnapshot(r),
                       VATSupplierBStockSnapshot SHOWIF isVATSupplierBalanceBSnapshot(r),
+                      costVATSupplierBStockSnapshot SHOWIF isCostVATSupplierBalanceBSnapshot(r),                      
                       netWeightBStockSnapshot SHOWIF isNetWeightBalanceBSnapshot(r)   
     PROPERTIES(ts1,r) READONLY BACKGROUND hintInBackground() inQuantityStockSnapshot SHOWIF isQuantityInSnapshot(r), 
                       inSumStockSnapshot SHOWIF isSumInSnapshot(r),
@@ -899,6 +946,7 @@ FORM snapshot 'Отчет по товарообороту'
                       sumAStockSnapshot SHOWIF isSumBalanceASnapshot(r),
                       costAStockSnapshot SHOWIF isCostBalanceASnapshot(r),
                       VATSupplierAStockSnapshot SHOWIF isVATSupplierBalanceASnapshot(r),
+                      costVATSupplierAStockSnapshot SHOWIF isCostVATSupplierBalanceASnapshot(r),
                       netWeightAStockSnapshot SHOWIF isNetWeightBalanceASnapshot(r)    
                                   
     FILTERGROUP filtersSoldStock
@@ -917,18 +965,20 @@ FORM snapshot 'Отчет по товарообороту'
     FILTERS isSupplierLegalEntity(l)                                              
                                               
     PROPERTIES(l,r) READONLY BACKGROUND hintBalanceBBackground() balanceBBatchSupplierSnapshot SHOWIF isQuantityBalanceBBatchSnapshot(r), 
-                    sumBBatchSupplierSnapshot  SHOWIF isCostBalanceBBatchSnapshot(r),
+                    sumBBatchSupplierSnapshot  SHOWIF isSumBalanceBBatchSnapshot(r),
                     VATSupplierBBatchSupplierSnapshot SHOWIF isBalanceBBatchVATSupplierSnapshot(r),
+                    sumVATSupplierBBatchSupplierSnapshot SHOWIF isCostVATSupplierBalanceBBatchSnapshot(r),
                     netWeightBBatchSupplierSnapshot  SHOWIF isNetWeightBalanceBBatchSnapshot(r)
     PROPERTIES(l,r) READONLY BACKGROUND hintInBackground() inQuantityBatchSupplierSnapshot SHOWIF isQuantityInBatchSnapshot(r), 
-                    inSumBatchSupplierSnapshot  SHOWIF isCostInBatchSnapshot(r),
+                    inSumBatchSupplierSnapshot  SHOWIF isSumInBatchSnapshot(r),
                     inNetWeightBatchSupplierSnapshot  SHOWIF isNetWeightInBatchSnapshot(r)
     PROPERTIES(l,r) READONLY BACKGROUND hintOutBackground() outQuantityBatchSupplierSnapshot SHOWIF isQuantityOutBatchSnapshot(r), 
-                    outSumBatchSupplierSnapshot  SHOWIF isCostOutBatchSnapshot(r),
+                    outSumBatchSupplierSnapshot  SHOWIF isSumOutBatchSnapshot(r),
                     outNetWeightBatchSupplierSnapshot  SHOWIF isNetWeightOutBatchSnapshot(r)
     PROPERTIES(l,r) READONLY BACKGROUND hintBalanceABackground() balanceABatchSupplierSnapshot SHOWIF isQuantityBalanceABatchSnapshot(r), 
-                    sumABatchSupplierSnapshot  SHOWIF isCostBalanceABatchSnapshot(r), 
+                    sumABatchSupplierSnapshot  SHOWIF isSumBalanceABatchSnapshot(r), 
                     VATSupplierABatchSupplierSnapshot SHOWIF isBalanceABatchVATSupplierSnapshot(r),
+                    sumVATSupplierABatchSupplierSnapshot SHOWIF isCostVATSupplierBalanceABatchSnapshot(r),
                     netWeightABatchSupplierSnapshot  SHOWIF isNetWeightBalanceABatchSnapshot(r)                                                                                                                                                          
  
     FILTERGROUP filtersSoldSupplier
@@ -957,6 +1007,7 @@ FORM snapshot 'Отчет по товарообороту'
                             sumBSkuStockSnapshotDate SHOWIF isSumBalanceBDateSnapshot(r),
                             costBSkuStockSnapshotDate SHOWIF isCostBalanceBDateSnapshot(r),
                             VATSupplierBSkuStockSnapshotDate SHOWIF isVATSupplierBalanceBDateSnapshot(r),
+                            costVATSupplierBSkuStockSnapshotDate SHOWIF isCostVATSupplierBalanceBDateSnapshot(r),
                             netWeightBSkuStockSnapshotDate SHOWIF isNetWeightBalanceBDateSnapshot(r)                             
     PROPERTIES(s3,st3,r,d3) BACKGROUND hintInBackground() inQuantitySkuStockSnapshotDate SHOWIF isQuantityInDateSnapshot(r), 
                             inSumSkuStockSnapshotDate SHOWIF isSumInDateSnapshot(r),
@@ -968,6 +1019,7 @@ FORM snapshot 'Отчет по товарообороту'
                             sumASkuStockSnapshotDate SHOWIF isSumBalanceADateSnapshot(r),
                             costASkuStockSnapshotDate SHOWIF isCostBalanceADateSnapshot(r),
                             VATSupplierASkuStockSnapshotDate SHOWIF isVATSupplierBalanceBDateSnapshot(r),
+                            costVATSupplierASkuStockSnapshotDate SHOWIF isCostVATSupplierBalanceBDateSnapshot(r),
                             netWeightASkuStockSnapshotDate SHOWIF isNetWeightBalanceADateSnapshot(r)
                                                                                                                                                                              
     PROPERTIES        READONLY SHOWIF isDateSnapshot(r) nameSkuGroup1Sku(s3), nameSkuGroup2Sku(s3), nameSkuGroup3Sku(s3), 
@@ -992,6 +1044,7 @@ FORM snapshot 'Отчет по товарообороту'
                          sumBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameSumBStock(st4) SHOWIF isSumBalanceBDateSnapshot(r),
                          costBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameCostBStock(st4) SHOWIF isCostBalanceBDateSnapshot(r),
                          VATSupplierBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameCostBStock(st4) SHOWIF isVATSupplierBalanceBDateSnapshot(r),
+                         costVATSupplierBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameCostVATSupplierBStock(st4) SHOWIF isCostVATSupplierBalanceBDateSnapshot(r),  
                          netWeightBStockSnapshotDate COLUMNS 'g' (st4) HEADER nameNetWeightBStock(st4) SHOWIF isNetWeightBalanceBDateSnapshot(r)
     PROPERTIES(st4,r,d4) BACKGROUND hintInBackground() inQuantityStockSnapshotDate COLUMNS 'g' (st4) HEADER nameInQuantityStock(st4) SHOWIF isQuantityInDateSnapshot(r), 
                          inSumStockSnapshotDate COLUMNS 'g' (st4) HEADER nameInSumStock(st4) SHOWIF isSumInDateSnapshot(r),
@@ -1003,6 +1056,7 @@ FORM snapshot 'Отчет по товарообороту'
                          sumAStockSnapshotDate COLUMNS 'g' (st4) HEADER nameSumAStock(st4) SHOWIF isSumBalanceADateSnapshot(r),
                          costAStockSnapshotDate COLUMNS 'g' (st4) HEADER nameCostAStock(st4) SHOWIF isCostBalanceADateSnapshot(r),
                          VATSupplierAStockSnapshotDate COLUMNS 'g' (st4) HEADER nameCostAStock(st4) SHOWIF isVATSupplierBalanceADateSnapshot(r),
+                         costVATSupplierAStockSnapshotDate COLUMNS 'g' (st4) HEADER nameCostVATSupplierAStock(st4) SHOWIF isCostVATSupplierBalanceADateSnapshot(r),
                          netWeightAStockSnapshotDate COLUMNS 'g' (st4) HEADER nameNetWeightAStock(st4) SHOWIF isNetWeightBalanceADateSnapshot(r)                                      
    
     EDIT Snapshot OBJECT r
@@ -1050,7 +1104,8 @@ DESIGN snapshot FROM DEFAULT {
                     NEW row4 {
                         caption = 'Суммы'; 
                         ADD PROPERTY(isCostSnapshot(r));   
-                        ADD PROPERTY(isVATSupplierSnapshot(r));                                                                                               
+                        ADD PROPERTY(isVATSupplierSnapshot(r));  
+                        ADD PROPERTY(isCostVATSupplierSnapshot(r));                                                                                             
                     }                      
                     NEW row5 {
                         type = CONTAINERV;
@@ -1144,7 +1199,7 @@ FORM snapshots 'Отчеты по товарообороту'
                    fromDateSnapshot, toDateSnapshot, statusSnapshot BACKGROUND backgroundStatusSnapshot(r), 
                    startTimeSnapshot, finishTimeSnapshot, noteSnapshot, nameIncludeStockGroupsStockSnapshot, nameIncludeSkuGroupsSnapshot,
                    isBatchSnapshot, isDateSnapshot, isQuantitySnapshot, isNetWeightSnapshot, isSumSnapshot, isCostSnapshot, isVATSupplierSnapshot, 
-                   isBalanceBSnapshot BACKGROUND hintBalanceBBackground(), 
+                   isCostVATSupplierSnapshot, isBalanceBSnapshot BACKGROUND hintBalanceBBackground(), 
                    isInSnapshot BACKGROUND hintInBackground(),
                    isOutSnapshot BACKGROUND hintOutBackground(), isBalanceASnapshot BACKGROUND hintBalanceABackground()                  
                    
