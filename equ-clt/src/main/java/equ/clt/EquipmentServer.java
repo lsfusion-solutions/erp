@@ -20,6 +20,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.*;
 
 public class EquipmentServer {
@@ -127,7 +128,7 @@ public class EquipmentServer {
                     }
                 }
             }
-            remote.succeedTransaction(transactionInfo.id);
+            remote.succeedTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
             logger.info("Sending transactions finished");
         }
     }

@@ -149,7 +149,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public void finishSoftCheckInfo(Map<String, String> invoiceMap) throws RemoteException, SQLException {
+    public void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceMap) throws RemoteException, SQLException {
         if(softCheck != null)
             softCheck.finishSoftCheckInfo(invoiceMap);
     }
@@ -1259,10 +1259,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public void succeedTransaction(Integer transactionID) throws RemoteException, SQLException {
+    public void succeedTransaction(Integer transactionID, Timestamp dateTime) throws RemoteException, SQLException {
         try {
             DataSession session = getDbManager().createSession();
             equLM.findLCPByCompoundOldName("succeededMachineryPriceTransaction").change(true, session,
+                    session.getDataObject(equLM.findClassByCompoundName("MachineryPriceTransaction"), transactionID));
+            equLM.findLCPByCompoundOldName("dateTimeSucceededMachineryPriceTransaction").change(dateTime, session,
                     session.getDataObject(equLM.findClassByCompoundName("MachineryPriceTransaction"), transactionID));
             session.apply(getBusinessLogics());
         } catch (Exception e) {

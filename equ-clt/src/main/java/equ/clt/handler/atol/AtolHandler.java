@@ -114,12 +114,12 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
             goodsWriter.println("##@@&&");
             goodsWriter.println("#");
 
-            for (Map.Entry<String, String> invoiceEntry : softCheckInfo.invoiceMap.entrySet()) {
+            for (Map.Entry<String, SoftCheckInvoice> invoiceEntry : softCheckInfo.invoiceMap.entrySet()) {
 
                 String record = format("99999", ";") + format(invoiceEntry.getKey(), ";") + format("ПРИХОД", ";") + //3
                         ";;" + ";" + ";" + formatFlags("0", ";") + //8
                         ";;;;;;;;" + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
-                        (invoiceEntry.getValue() == null ? "1" : invoiceEntry.getValue()) + ";";
+                        (invoiceEntry.getValue().idCustomerStock == null ? "1" : invoiceEntry.getValue().idCustomerStock) + ";";
                 goodsWriter.println(record);
 
             }

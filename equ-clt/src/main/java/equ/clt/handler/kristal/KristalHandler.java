@@ -44,6 +44,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
             String exchangeDirectory = directory.trim() + "\\ImpExp\\Import\\";
 
+            if(!new File(exchangeDirectory).exists())
+                new File(exchangeDirectory).mkdirs();
+            
             //plu.txt
             logger.info("Kristal: creating PLU file");
             File flagPluFile = new File(exchangeDirectory + "WAITPLU");
@@ -199,7 +202,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                 new FileOutputStream(softFile), "windows-1251"));
                 
                 String logRecord = "softcheque data: ";
-                for (Map.Entry<String, String> userInvoice : softCheckInfo.invoiceMap.entrySet()) {
+                for (Map.Entry<String, SoftCheckInvoice> userInvoice : softCheckInfo.invoiceMap.entrySet()) {
                     logRecord += userInvoice.getKey() + ";";
                     String record = String.format("%s|0|1|1|1", trimLeadingZeroes(userInvoice.getKey()));
                     writer.println(record);

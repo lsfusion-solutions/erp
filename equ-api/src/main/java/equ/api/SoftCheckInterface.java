@@ -11,7 +11,7 @@ public interface SoftCheckInterface extends Remote {
 
     List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException;
 
-    void finishSoftCheckInfo(Map<String, String> invoiceSet) throws RemoteException, SQLException;
+    void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceSet) throws RemoteException, SQLException;
     
     String sendSucceededSoftCheckInfo(Set invoiceSet) throws RemoteException, SQLException;
 }

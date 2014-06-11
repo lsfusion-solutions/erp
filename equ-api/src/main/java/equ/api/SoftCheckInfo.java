@@ -9,9 +9,9 @@ public class SoftCheckInfo implements Serializable {
 
     public String handler;
     public Set<String> directorySet;
-    public Map<String, String> invoiceMap;
+    public Map<String, SoftCheckInvoice> invoiceMap;
 
-    public SoftCheckInfo(String handler, Set<String> directorySet, Map<String, String> invoiceMap) {
+    public SoftCheckInfo(String handler, Set<String> directorySet, Map<String, SoftCheckInvoice> invoiceMap) {
         this.handler = handler;
         this.directorySet = directorySet;
         this.invoiceMap = invoiceMap;
