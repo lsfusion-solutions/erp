@@ -7,7 +7,8 @@ REQUIRE System,
         Employee,
         Utils,
         Transport,
-        Numerator; // вот эту зависимость нужно будет убрать
+        Numerator,
+        SkuLedger; // вот эту зависимость нужно будет убрать
 
 NAMESPACE Consignment;
 
@@ -228,8 +229,13 @@ namePayerConsignment 'Заказчик перевозки ' (consignment) =
     [= FORMULA VARSTRING[100] 'CAST($1 AS TEXT) ||  \' , \' || CAST($2 AS TEXT)']
     (nameLegalEntity(payerConsignment(consignment)), UNPLegalEntity(payerConsignment(consignment))) IN carConsignment;
 
+batchConsignmentDetail = ABSTRACT Batch (ConsignmentDetail) PERSISTENT;
+descriptionBatchConsignmentDetail 'Партия' (consignmentDetail) = descriptionBatch(batchConsignmentDetail(consignmentDetail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameBatchConsignmentDetail 'Партия' (consignmentDetail) = nameBatch(batchConsignmentDetail(consignmentDetail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
 skuConsignmentDetail (consignmentDetail) = ABSTRACT Sku (ConsignmentDetail);
-nameSkuConsignmentDetail 'Наименование товара' (consignmentDetail) = nameSku(skuConsignmentDetail(consignmentDetail));
+nameSkuConsignmentDetail 'Наименование товара' (consignmentDetail) = IF batchConsignmentDetail(consignmentDetail) THEN documentNameSkuBatch(batchConsignmentDetail(consignmentDetail)) ELSE nameSku(skuConsignmentDetail(consignmentDetail));
+//nameSkuConsignmentDetail 'Наименование товара' (consignmentDetail) = nameSku(skuConsignmentDetail(consignmentDetail));
 
 shortNameUOMConsignmentDetail 'Единица измерения' (consignmentDetail) = shortNameUOMSku(skuConsignmentDetail(consignmentDetail));
 //shortNameUOMConsignmentDetail 'Единица измерения' (consignmentDetail) = ABSTRACT STRING[15] (ConsignmentDetail);
@@ -1017,29 +1023,30 @@ END
 
 // -------------------------- Implement строк накладной -------------------- //
 
-META implementConsignmentDetail (concrete, skuProp)
-    @implementConsignmentDetailInner (concrete, ###concrete, skuProp);
+META implementConsignmentDetail (concrete, skuProp, batchProp)
+    @implementConsignmentDetailInner (concrete, ###concrete, skuProp, batchProp);
 END
 
-META implementConsignmentDetailInner (concrete, concreteClass, skuProp)
+META implementConsignmentDetailInner (concrete, concreteClass, skuProp, batchProp)
     EXTEND CLASS concreteClass##Detail : ConsignmentDetail;
 
     consignmentConsignmentDetail (consignmentDetail) += concrete###concrete##Detail (consignmentDetail);
     skuConsignmentDetail (consignmentDetail) += skuProp###concrete##Detail (consignmentDetail);
+    batchConsignmentDetail (consignmentDetail) += batchProp###concrete##Detail (consignmentDetail);    
     quantityConsignmentDetail (consignmentDetail) += quantity###concrete##Detail (consignmentDetail);
 
     dataPackQuantityConsignmentDetail (consignmentDetail) += packQuantity###concrete##Detail (consignmentDetail);
     dataGrossWeightConsignmentDetail (consignmentDetail) += sumGrossWeight###concrete##Detail (consignmentDetail);
 END
 META implementConsignmentDetail (concrete)
-    @implementConsignmentDetail (concrete, sku);
+    @implementConsignmentDetail (concrete, sku, batch);
 END
 
 // -------------------------- Implement всей накладной -------------------- //
 
 META implementConsignment(concrete, skuProp)
     @implementConsignmentHeader(concrete);
-    @implementConsignmentDetail(concrete, skuProp);
+    @implementConsignmentDetail(concrete, skuProp, batchProp);
 END
 
 // ------------------------------------- Отпуск товара --------------------------------- //
