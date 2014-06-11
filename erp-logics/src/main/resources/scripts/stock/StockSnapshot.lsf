@@ -51,7 +51,7 @@ isBalanceASnapshot 'Остаток конец' = DATA BOOLEAN (Snapshot) IN evid
 
 isCostSnapshot 'Себестоимость' = DATA BOOLEAN (Snapshot) IN evidence;
 isVATSupplierSnapshot 'НДС поставщика' = DATA BOOLEAN (Snapshot) IN evidence;
-isCostVATSupplierSnapshot 'Себестоимость с НДС поставщика' = DATA BOOLEAN (Snapshot) IN evidence;
+isCostVATSupplierSnapshot 'Себестоимость с НДС' = DATA BOOLEAN (Snapshot) IN evidence;
 isNetWeightSnapshot 'Вес, кг' = DATA BOOLEAN (Snapshot) IN evidence;
 
 //-- Sku на дату
@@ -59,14 +59,13 @@ isNetWeightSnapshot 'Вес, кг' = DATA BOOLEAN (Snapshot) IN evidence;
 TABLE skuStockSnapshotDate (Sku, Stock, Snapshot, DATE);  
 
 isDateSnapshot 'На дату' = DATA BOOLEAN (Snapshot) IN evidence;
-isNotDateSnapshot 'Без дат' (s) = s IS Snapshot AND NOT isDateSnapshot(s);
 
 balanceBSkuStockSnapshotDate 'Кол-во начало' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
 netWeightBSkuStockSnapshotDate 'Вес начало' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
 sumBSkuStockSnapshotDate 'Сумма начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 costBSkuStockSnapshotDate 'Себестоимость начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 VATSupplierBSkuStockSnapshotDate 'НДС поставщика начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
-costVATSupplierBSkuStockSnapshotDate 'С/С с НДС пост. начало' = VATSupplierBSkuStockSnapshotDate(sku, stock, snapshot, date) (+) 
+costVATSupplierBSkuStockSnapshotDate 'С/С с НДС начало' = VATSupplierBSkuStockSnapshotDate(sku, stock, snapshot, date) (+) 
                                                                 costBSkuStockSnapshotDate(sku, stock, snapshot, date);
 
 inQuantitySkuStockSnapshotDate 'Кол-во приход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
@@ -82,7 +81,7 @@ netWeightASkuStockSnapshotDate 'Вес конец' = DATA NUMERIC[14,3] (Sku, St
 sumASkuStockSnapshotDate 'Сумма конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 costASkuStockSnapshotDate 'Себестоимость конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
 VATSupplierASkuStockSnapshotDate 'НДС поставщика конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);
-costVATSupplierASkuStockSnapshotDate 'С/С с НДС пост. конец' = VATSupplierASkuStockSnapshotDate(sku, stock, snapshot, date) (+) 
+costVATSupplierASkuStockSnapshotDate 'С/С с НДС конец' = VATSupplierASkuStockSnapshotDate(sku, stock, snapshot, date) (+) 
                                                                costASkuStockSnapshotDate(sku, stock, snapshot, date);
 //------------------------------ Sku -------------------------------//
 
@@ -92,7 +91,7 @@ netWeightBSkuStockSnapshot 'Вес начало' = DATA NUMERIC[14,3] (Sku, Stoc
 sumBSkuStockSnapshot 'Сумма начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 costBSkuStockSnapshot 'Себестоимость начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 VATSupplierBSkuStockSnapshot 'НДС поставщика начало' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
-costVATSupplierBSkuStockSnapshot 'С/С с НДС пост. начало' = VATSupplierBSkuStockSnapshot(sku, stock, snapshot) (+) 
+costVATSupplierBSkuStockSnapshot 'С/С с НДС начало' = VATSupplierBSkuStockSnapshot(sku, stock, snapshot) (+) 
                                                             costBSkuStockSnapshot(sku, stock, snapshot);
 inQuantitySkuStockSnapshot 'Кол-во приход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
 inNetWeightSkuStockSnapshot 'Вес приход' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot);
@@ -107,7 +106,7 @@ netWeightASkuStockSnapshot 'Вес конец' = DATA NUMERIC[14,3] (Sku, Stock,
 sumASkuStockSnapshot 'Сумма конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 costASkuStockSnapshot 'Себестоимость конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 VATSupplierASkuStockSnapshot 'НДС поставщика конец' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
-costVATSupplierASkuStockSnapshot 'С/С с НДС пост. конец' = VATSupplierASkuStockSnapshot(sku, stock, snapshot) (+) 
+costVATSupplierASkuStockSnapshot 'С/С с НДС конец' = VATSupplierASkuStockSnapshot(sku, stock, snapshot) (+) 
                                                            costASkuStockSnapshot(sku, stock, snapshot);                                 
 //--По группе рекурсивно
 TABLE skuGroupStockSnapshot (SkuGroup, Stock, Snapshot);   
@@ -128,7 +127,7 @@ costBSkuGroupStockSnapshot 'Себестоимость начало' (group, sto
 VATSupplierBSkuGroupStockSnapshot 'НДС поставщика начало' (group, stock, snapshot) =
     GROUP SUM VATSupplierBSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;   
-costVATSupplierBSkuGroupStockSnapshot 'С/С с НДС пост. начало' = VATSupplierBSkuGroupStockSnapshot(group, stock, snapshot) (+) 
+costVATSupplierBSkuGroupStockSnapshot 'С/С с НДС начало' = VATSupplierBSkuGroupStockSnapshot(group, stock, snapshot) (+) 
                                                                  costBSkuGroupStockSnapshot(group, stock, snapshot);                                           
     
 inQuantitySkuGroupStockSnapshot 'Кол-во приход' (group, stock, snapshot) =
@@ -166,7 +165,7 @@ costASkuGroupStockSnapshot 'Себестоимость конец' (group, stock
 VATSupplierASkuGroupStockSnapshot 'НДС поставщика конец' (group, stock, snapshot) =
     GROUP SUM VATSupplierASkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
         BY group, stock, snapshot PERSISTENT;    
-costVATSupplierASkuGroupStockSnapshot 'С/С с НДС пост. конец' = VATSupplierASkuGroupStockSnapshot(group, stock, snapshot) (+) 
+costVATSupplierASkuGroupStockSnapshot 'С/С с НДС конец' = VATSupplierASkuGroupStockSnapshot(group, stock, snapshot) (+) 
                                                                 costASkuGroupStockSnapshot(group, stock, snapshot);                   
                    
 //-- группа          
@@ -180,7 +179,7 @@ costBSkuGroupSnapshot 'Себестоимость начало' (group, snapshot
     GROUP SUM costBSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;            
 VATSupplierBSkuGroupSnapshot 'НДС поставщика начало' (group, snapshot) =
     GROUP SUM VATSupplierBSkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;            
-costVATSupplierBSkuGroupSnapshot 'С/С с НДС пост. начало' = VATSupplierBSkuGroupSnapshot(group, snapshot) (+) 
+costVATSupplierBSkuGroupSnapshot 'С/С с НДС начало' = VATSupplierBSkuGroupSnapshot(group, snapshot) (+) 
                                                             costBSkuGroupSnapshot(group, snapshot);     
 inQuantitySkuGroupSnapshot 'Кол-во приход' (group, snapshot) =
     GROUP SUM inQuantitySkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot; 
@@ -206,7 +205,7 @@ costASkuGroupSnapshot 'Себестоимость конец' (group, snapshot) 
     GROUP SUM costASkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;                                   
 VATSupplierASkuGroupSnapshot 'НДС поставщика конец' (group, snapshot) =
     GROUP SUM VATSupplierASkuGroupStockSnapshot (group, stock, snapshot) BY group, snapshot;                                    
-costVATSupplierASkuGroupSnapshot 'С/С с НДС пост. конец' = VATSupplierASkuGroupSnapshot(group, snapshot) (+) 
+costVATSupplierASkuGroupSnapshot 'С/С с НДС конец' = VATSupplierASkuGroupSnapshot(group, snapshot) (+) 
                                                            costASkuGroupSnapshot(group, snapshot); 
 //--По складам
 balanceBStockSnapshot 'Кол-во начало' (stock, snapshot) =
@@ -219,7 +218,7 @@ costBStockSnapshot 'Себестоимость начало' (stock, snapshot) =
     GROUP SUM costBSkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot; 
 VATSupplierBStockSnapshot 'НДС поставщика начало' (stock, snapshot) =
     GROUP SUM VATSupplierBSkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot; 
-costVATSupplierBStockSnapshot 'С/С с НДС пост. начало' = VATSupplierBStockSnapshot(stock, snapshot) (+) 
+costVATSupplierBStockSnapshot 'С/С с НДС начало' = VATSupplierBStockSnapshot(stock, snapshot) (+) 
                                                          costBStockSnapshot(stock, snapshot);         
             
 inQuantityStockSnapshot 'Кол-во приход' (stock, snapshot) =
@@ -246,7 +245,7 @@ costAStockSnapshot 'Себестоимость конец' (stock, snapshot) =
     GROUP SUM costASkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;    
 VATSupplierAStockSnapshot 'НДС поставщика конец' (stock, snapshot) =
     GROUP SUM VATSupplierASkuStockSnapshot (sku, stock, snapshot) BY stock, snapshot;    
-costVATSupplierAStockSnapshot 'С/С с НДС пост. конец' = VATSupplierAStockSnapshot(stock, snapshot) (+) 
+costVATSupplierAStockSnapshot 'С/С с НДС конец' = VATSupplierAStockSnapshot(stock, snapshot) (+) 
                                                         costAStockSnapshot(stock, snapshot);         
 //--По складам на дату        
 balanceBStockSnapshotDate 'Кол-во начало' (stock, snapshot, date) =
@@ -259,7 +258,7 @@ costBStockSnapshotDate 'Себестоимость начало' (stock, snapsho
     GROUP SUM costBSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;    
 VATSupplierBStockSnapshotDate 'НДС поставщика начало' (stock, snapshot, date) =
     GROUP SUM VATSupplierBSkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;     
-costVATSupplierBStockSnapshotDate 'С/С с НДС пост. начало' = VATSupplierBStockSnapshotDate(stock, snapshot, date) (+) 
+costVATSupplierBStockSnapshotDate 'С/С с НДС начало' = VATSupplierBStockSnapshotDate(stock, snapshot, date) (+) 
                                                              costBStockSnapshotDate(stock, snapshot, date);         
     
 inQuantityStockSnapshotDate 'Кол-во приход' (stock, snapshot, date) =
@@ -286,14 +285,14 @@ costAStockSnapshotDate 'Себестоимость конец' (stock, snapshot,
     GROUP SUM costASkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;    
 VATSupplierAStockSnapshotDate 'НДС поставщика конец' (stock, snapshot, date) =
     GROUP SUM VATSupplierASkuStockSnapshotDate (sku, stock, snapshot, date) BY stock, snapshot, date;     
-costVATSupplierAStockSnapshotDate 'С/С с НДС пост. конец' = VATSupplierAStockSnapshotDate(stock, snapshot, date) (+) 
+costVATSupplierAStockSnapshotDate 'С/С с НДС конец' = VATSupplierAStockSnapshotDate(stock, snapshot, date) (+) 
                                                              costAStockSnapshotDate(stock, snapshot, date);   
                                                                    
 nameBalanceBStock (st) = CONCAT ' ', nameStock(st), ' (кол-во начало)';
 nameNetWeightBStock (st) = CONCAT ' ', nameStock(st), ' (вес начало)';
 nameSumBStock (st) = CONCAT ' ', nameStock(st), ' (сумма начало)';
 nameCostBStock (st) = CONCAT ' ', nameStock(st), ' (себестоимость начало)';
-nameCostVATSupplierBStock (st) = CONCAT ' ', nameStock(st), ' (с/с с НДС пост. начало)';
+nameCostVATSupplierBStock (st) = CONCAT ' ', nameStock(st), ' (с/с с НДС начало)';
 nameVATSupplierBStock (st) = CONCAT ' ', nameStock(st), ' (НДС поставщика начало)';
 nameInQuantityStock (st) = CONCAT ' ', nameStock(st), ' (кол-во приход)';
 nameInNetWeightStock (st) = CONCAT ' ', nameStock(st), ' (вес приход)';
@@ -305,7 +304,7 @@ nameBalanceAStock (st) = CONCAT ' ', nameStock(st), ' (кол-во конец)';
 nameNetWeightAStock (st) = CONCAT ' ', nameStock(st), ' (вес конец)';
 nameSumAStock (st) = CONCAT ' ', nameStock(st), ' (сумма конец)';
 nameCostAStock (st) = CONCAT ' ', nameStock(st), ' (себестоимость конец)';   
-nameCostVATSupplierAStock (st) = CONCAT ' ', nameStock(st), ' (с/с с НДС пост. конец)'; 
+nameCostVATSupplierAStock (st) = CONCAT ' ', nameStock(st), ' (с/с с НДС конец)'; 
 nameVATSupplierAStock (st) = CONCAT ' ', nameStock(st), ' (НДС поставщика конец)';
     
 //------------------------------ Batch -------------------------------//
@@ -315,7 +314,7 @@ balanceBBatchStockSnapshot 'Кол-во начало' = DATA NUMERIC[14,3] (Batc
 netWeightBBatchStockSnapshot 'Вес начало' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
 sumBBatchStockSnapshot 'Себестоимость начало' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 VATSupplierBBatchStockSnapshot 'НДС поставщика начало' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
-sumVATSupplierBBatchStockSnapshot 'С/С с НДС пост. начало' = VATSupplierBBatchStockSnapshot(batch, stock, snapshot) (+)
+sumVATSupplierBBatchStockSnapshot 'С/С с НДС начало' = VATSupplierBBatchStockSnapshot(batch, stock, snapshot) (+)
                                                              sumBBatchStockSnapshot(batch, stock, snapshot);
 
 inQuantityBatchStockSnapshot 'Кол-во приход' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
@@ -330,7 +329,7 @@ balanceABatchStockSnapshot 'Кол-во конец' = DATA NUMERIC[14,3] (Batch,
 netWeightABatchStockSnapshot 'Вес конец' = DATA NUMERIC[14,3] (Batch, Stock, Snapshot);
 sumABatchStockSnapshot 'Себестоимость конец' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 VATSupplierABatchStockSnapshot 'НДС поставщика конец' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
-sumVATSupplierABatchStockSnapshot 'С/С с НДС пост. конец' = VATSupplierABatchStockSnapshot(batch, stock, snapshot) (+)
+sumVATSupplierABatchStockSnapshot 'С/С с НДС конец' = VATSupplierABatchStockSnapshot(batch, stock, snapshot) (+)
                                                              sumABatchStockSnapshot(batch, stock, snapshot);
 
 //-- По поставщикам
@@ -342,7 +341,7 @@ sumBBatchSupplierSnapshot 'Себестоимость начало' (supplier, s
     GROUP SUM sumBBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot; 
 VATSupplierBBatchSupplierSnapshot 'НДС поставщика начало' (supplier, snapshot) =
     GROUP SUM VATSupplierBBatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;     
-sumVATSupplierBBatchSupplierSnapshot 'С/С с НДС пост. начало' = VATSupplierBBatchSupplierSnapshot(supplier, snapshot) (+)
+sumVATSupplierBBatchSupplierSnapshot 'С/С с НДС начало' = VATSupplierBBatchSupplierSnapshot(supplier, snapshot) (+)
                                                                 sumBBatchSupplierSnapshot(supplier, snapshot);   
                                                                  
 inQuantityBatchSupplierSnapshot 'Кол-во приход' (supplier, snapshot) =
@@ -367,7 +366,7 @@ sumABatchSupplierSnapshot 'Себестоимость конец' (supplier, sna
     GROUP SUM sumABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;   
 VATSupplierABatchSupplierSnapshot 'НДС поставщика конец' (supplier, snapshot) =
     GROUP SUM VATSupplierABatchStockSnapshot (batch, stock, snapshot) BY supplierBatch(batch), snapshot;
-sumVATSupplierABatchSupplierSnapshot 'С/С с НДС пост. конец' = VATSupplierABatchSupplierSnapshot(supplier, snapshot) (+)
+sumVATSupplierABatchSupplierSnapshot 'С/С с НДС конец' = VATSupplierABatchSupplierSnapshot(supplier, snapshot) (+)
                                                                sumABatchSupplierSnapshot(supplier, snapshot);           
     
 //-- Выбор складов
@@ -1090,22 +1089,22 @@ DESIGN snapshot FROM DEFAULT {
                         ADD PROPERTY(isDateSnapshot(r));
                     }
                     NEW row2 {
-                        type = CONTAINERV;
-                        caption = 'Количественые';
-                        ADD PROPERTY(isQuantitySnapshot(r));
-                        ADD PROPERTY(isSumSnapshot(r));                        
-                    }
-                    NEW row3 {
                         caption = 'Остатки';                 
                         ADD PROPERTY(isBalanceBSnapshot(r));
                         ADD PROPERTY(isBalanceASnapshot(r));   
                                                                                              
-                    } 
-                    NEW row4 {
-                        caption = 'Суммы'; 
-                        ADD PROPERTY(isCostSnapshot(r));   
-                        ADD PROPERTY(isVATSupplierSnapshot(r));  
-                        ADD PROPERTY(isCostVATSupplierSnapshot(r));                                                                                             
+                    }                    
+                    NEW row3 {
+                        type = CONTAINERV;
+                        caption = 'Колонки';
+                        type = COLUMNS;
+                        columns = 4;
+                        ADD PROPERTY(isQuantitySnapshot(r));
+                        ADD PROPERTY(isSumSnapshot(r)); 
+                        ADD PROPERTY(isCostSnapshot(r)); 
+                        ADD PROPERTY(isVATSupplierSnapshot(r));   
+                        ADD PROPERTY(isCostVATSupplierSnapshot(r));     
+                        ADD PROPERTY(isNetWeightSnapshot(r));                   
                     }                      
                     NEW row5 {
                         type = CONTAINERV;
@@ -1118,7 +1117,7 @@ DESIGN snapshot FROM DEFAULT {
                         caption = 'Оборот';  
                         type = COLUMNS;
                         columns = 2;   
-                        ADD PROPERTY(isNetWeightSnapshot(r));                        
+                                               
                     }                                                         
                 }                                   
                 ADD r.documentPrm;
