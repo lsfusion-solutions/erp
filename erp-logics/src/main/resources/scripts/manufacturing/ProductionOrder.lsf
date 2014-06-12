@@ -937,7 +937,27 @@ WHEN SESSION FORMS order CHANGED(substituteSkuOrder(bruttoSkuComponentDetail(det
 WHEN SESSION FORMS order CHANGED(substituteQuantitySkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) OR 
     CHANGED(multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO 
         substituteQuantityComponentDetail (detail) <- NUMERIC[14,3](multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))* bruttoQuantityComponentDetail(detail));
-                                                                         
+              
+countProductsSku (sku) = GROUP SUM 1 BY skuProduct(p);
+defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);
+
+WHEN SESSION FORMS order CHANGED(skuProductDetail(d)) NOINLINE DO {
+    productProductDetail(d) <- defaultProductSku(skuProductDetail(d))
+        WHERE countProductsSku(skuProductDetail(d)) == 1;
+}     
+                                                                     
+countComponentsSku (material) = GROUP SUM 1 IF materialComponent(c) IS Sku BY materialComponent(c);
+defaultComponentsSku (material)= GROUP MIN component IF materialComponent(component) IS Sku BY materialComponent(component);                                                                     
+                                                                     
+WHEN SESSION FORMS order CHANGED(bruttoSkuComponentDetail(d)) NOINLINE DO {
+    componentComponentDetail(d) <- defaultComponentsSku(bruttoSkuComponentDetail(d))
+        WHERE countComponentsSku(bruttoSkuComponentDetail(d)) == 1;
+} 
+WHEN SESSION FORMS order CHANGED(componentComponentDetail(d)) NOINLINE DO {
+    BOMComponentDetail(d) <- BOMComponent(componentComponentDetail(d));    
+    bruttoSkuComponentDetail(d) <- skuMaterial(materialComponent(componentComponentDetail(d)));       
+} 
+                                                                                                                                                 
 FORM orders 'Производственные заказы'
 
     OBJECTS o = Order
