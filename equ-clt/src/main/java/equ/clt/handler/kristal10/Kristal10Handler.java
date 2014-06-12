@@ -49,7 +49,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         for (String directory : directoriesList) {
 
             String exchangeDirectory = directory.trim() + "\\products\\source\\";
-
+            
+            if(!new File(exchangeDirectory).exists())
+                new File(exchangeDirectory).mkdirs();
+            
             //catalog-goods.xml
             logger.info("Kristal: creating catalog-goods file");
 
