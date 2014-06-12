@@ -37,8 +37,23 @@ isPostedBatch 'Проведен' (batch) = ABSTRACT BOOLEAN (Batch) PERSISTENT;
 skuBatch (batch) = ABSTRACT Sku (Batch) PERSISTENT INDEXED;
 nameSkuBatch 'Наименование' (batch) = nameSku(skuBatch(batch)) IN recognize;
 
+// Наименование для документов
 overDocumentNameSkuBatch = ABSTRACT VARISTRING[255] (Batch) PERSISTENT;
 documentNameSkuBatch 'Наименование (для документов)' (batch) = OVERRIDE nameSkuBatch(batch), overDocumentNameSkuBatch(batch);
+
+useDocumentNameSku 'Использовать наименование для документов' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() useDocumentNameSku
+;
+
+EXTEND DESIGN options {
+    pane {
+        stock {
+            ADD PROPERTY(useDocumentNameSku());
+        }
+    }
+}
 
 lastBatchSku (sku) = GROUP LAST batch 
     BY skuBatch(batch)
@@ -537,7 +552,7 @@ EXTEND FORM options
 ;
 
 EXTEND DESIGN options {
-    commons {
+    stock {
         ADD PROPERTY(banNegativeSku());
     }
 }

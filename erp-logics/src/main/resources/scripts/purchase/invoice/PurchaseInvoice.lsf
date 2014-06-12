@@ -219,6 +219,19 @@ EXTEND FORM invoices
                   idBatchInvoiceDetail AFTER nameBatchInvoiceDetail(d)
 ;
 
+// -------------------------------- Наименования для документов --------------------------- //
+
+documentNameSkuInvoiceDetail 'Наименование для документов' = ABSTRACT VARISTRING[255] (InvoiceDetail) MINCHARWIDTH 30 PREFCHARWIDTH 60;
+documentNameSkuUserInvoiceDetail 'Код партии' = DATA VARISTRING[255] (UserInvoiceDetail) MINCHARWIDTH 30 PREFCHARWIDTH 60;
+documentNameSkuInvoiceDetail(detail) += documentNameSkuUserInvoiceDetail(detail);
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) documentNameSkuUserInvoiceDetail AFTER nameSkuUserInvoiceDetail(d) SHOWIF useDocumentNameSku()
+;
+EXTEND FORM invoices
+    PROPERTIES(d) documentNameSkuInvoiceDetail AFTER nameSkuInvoiceDetail(d) SHOWIF useDocumentNameSku()
+;
+
 // --------------- Проведение по регистру закупок ------------- //
 
 @implementPurchaseLedger(Invoice, sku, customerStock);
