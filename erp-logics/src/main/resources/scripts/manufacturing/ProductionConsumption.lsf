@@ -508,52 +508,57 @@ NAVIGATOR {
 
 requiredQuantitySubstituteOrderSku 'Кол-во (всего) (компонент)' (order, sku) = GROUP SUM quantityComponentDetail(idetail) BY orderComponentDetail(idetail), skuComponentDetail(idetail);
 
-balanceSessionSku= DATA SESSION NUMERIC[16,3] (Sku);
-requiredSessionSku= DATA SESSION NUMERIC[16,3] (Sku);
+balance = DATA SESSION NUMERIC[16,3] (Sku);
+left = DATA SESSION NUMERIC[16,3] (Sku);
 
-addUserConsumptionProductionOrder 'Списание сырья' =  ACTION (order) NEWSESSION{
-    balanceSessionSku(sku) <-  NULL;
-    requiredSessionSku(sku) <-  NULL;
-    
+addUserConsumptionProductionOrder 'Списание сырья' =  ACTION (order) NEWSESSION {
+    balance(sku) <-  NUMERIC[16,3](balanceBSkuStockDateTime(sku, componentsStockOrder(order), dateTimeOrder(order)));
+    left(sku) <-  NUMERIC[16,3](requiredQuantitySubstituteOrderSku(order, sku));
+
     FOR ADDOBJ o = UserConsumption DO {
-        priceListTypeUserConsumption(o) <- priceListTypeOrder(order);
         stockUserConsumption(o) <- componentsStockOrder(order);
         priceListTypeUserConsumption(o) <- priceListTypeOrder(order);
         noteUserConsumption(o) <- noteOrder(order);
         
-        balanceSessionSku(sku) <-  NUMERIC[16,3](balanceBSkuStockDateTime(sku, componentsStockOrder(order), dateTimeOrder(order))) WHERE balanceBSkuStockDateTime(sku, componentsStockOrder(order), dateTimeOrder(order));
-        requiredSessionSku(sku) <-  NUMERIC[16,3](requiredQuantitySubstituteOrderSku(order, sku)) WHERE requiredQuantitySubstituteOrderSku(order, sku);
-
-
-        FOR requiredSessionSku(sku) > 0 DO {
+        FOR left(sku) > 0 DO {
                 
-            FOR balanceSessionSku(sku) AND requiredSessionSku(sku) >0  ADDOBJ d = UserConsumptionDetail DO {
-                             
+            FOR balance(sku) > 0 ADDOBJ d = UserConsumptionDetail DO {
+                userConsumptionUserConsumptionDetail(d) <- o;
+                skuUserConsumptionDetail(d) <- sku;
+                quantityUserConsumptionDetail(d) <- IF balance(sku) >= left(sku) THEN left(sku) ELSE balance(sku);
+                left(sku) <- left(sku) (-) quantityUserConsumptionDetail(d);
+                balance(sku) <- balance(sku) (-) quantityUserConsumptionDetail(d);  
+            }
+             
+            IF left(sku) > 0 THEN {
+                FOR fromSkuSubstitute(substitute) == sku AND toSkuSubstitute(substitute) == s AND balance(s) > 0 ORDER balance(toSkuSubstitute(substitute)) 
+                    ADDOBJ d = UserConsumptionDetail DO {
                     userConsumptionUserConsumptionDetail(d) <- o;
-                    skuUserConsumptionDetail(d) <- sku;
-                    quantityUserConsumptionDetail(d) <- IF balanceSessionSku(sku) >= requiredSessionSku(sku) THEN requiredSessionSku(sku) ELSE balanceSessionSku(sku);
-                    requiredSessionSku(sku) <- requiredSessionSku(sku) (-) quantityUserConsumptionDetail(d);
-                    balanceSessionSku(sku) <- balanceSessionSku(sku) (-) quantityUserConsumptionDetail(d);  
-               
-                                  
-            } 
-            FOR fromSkuSubstitute(substitute) == sku AND balanceSessionSku(toSkuSubstitute(substitute)) > 0  ORDER balanceSessionSku(toSkuSubstitute(substitute)) DO {
-                IF requiredSessionSku(sku) >0 THEN {
-                    FOR ADDOBJ d = UserConsumptionDetail DO {                    
-                        userConsumptionUserConsumptionDetail(d) <- o;
-                        skuUserConsumptionDetail(d) <- toSkuSubstitute(substitute);
-                                                   
-                        quantityUserConsumptionDetail(d) <- IF (balanceSessionSku(toSkuSubstitute(substitute))) >= (requiredSessionSku(sku)* multiplierSubstitute(substitute)) 
-                                                            THEN (requiredSessionSku(sku)* multiplierSubstitute(substitute)) ELSE balanceSessionSku(toSkuSubstitute(substitute)) ;                        
-                        
-                        requiredSessionSku(sku) <- requiredSessionSku(sku) (-) (quantityUserConsumptionDetail(d) / multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0);                            
-                        
-                        balanceSessionSku(s) <- (balanceSessionSku(s) (-) quantityUserConsumptionDetail(d)) WHERE  s == toSkuSubstitute(substitute);   
-                    }    
+                    skuUserConsumptionDetail(d) <- s;
+                                               
+                    quantityUserConsumptionDetail(d) <- IF (balance(s)) >= (left(sku) * multiplierSubstitute(substitute)) 
+                                                            THEN (left(sku) * multiplierSubstitute(substitute)) ELSE balance(s);                        
+                    
+                    left(sku) <- left(sku) (-) (quantityUserConsumptionDetail(d) / multiplierSubstitute(substitute) IF multiplierSubstitute(substitute) != 0);                            
+                    
+                    balance(s) <- balance(s) (-) quantityUserConsumptionDetail(d);
+                    
+                    IF NOT (left(sku) > 0) THEN
+                        BREAK;
                 }                                              
             }                                    
         }
-        // todo: добавить сообщение, все ли подобраны компоненты
+
+        IF [= GROUP SUM 1 IF left(sku) > 0]() THEN {
+            MESSAGE 'Внимание !!! Не хватает остатка для компонент : \n' + [= GROUP CONCAT nameSku(sku) IF left(sku) > 0, '\n' ORDER nameSku(sku)]();
+        }
+        
+        FOR left(sku) ADDOBJ d = UserConsumptionDetail DO {
+            userConsumptionUserConsumptionDetail(d) <- o;
+            skuUserConsumptionDetail(d) <- sku;
+            quantityUserConsumptionDetail(d) <- left(sku);
+        }
+        
 
         FORM userConsumption OBJECTS o = o MANAGESESSION DOCKEDMODAL;
     }
