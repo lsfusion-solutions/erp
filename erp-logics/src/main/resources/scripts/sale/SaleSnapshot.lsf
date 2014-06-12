@@ -373,9 +373,27 @@ EXTEND FORM snapshot
 ;
 //------------------------  Товароооборачиваемость ----------------------//
 
+isSaleSnapshotType 'Продажа' = DATA BOOLEAN (SnapshotType);
+turnoverSkuSnapshotType 'Рассчитывать товароооборачиваемость' = DATA BOOLEAN (SnapshotType); 
+
+EXTEND FORM snapshotType
+    PROPERTIES (t) isSaleSnapshotType, turnoverSkuSnapshotType
+;
+EXTEND DESIGN snapshotType {
+    row6 {
+        ADD PROPERTY(isSaleSnapshotType(t));
+        ADD PROPERTY(turnoverSkuSnapshotType(t));                                             
+    } 
+} 
+EXTEND FORM snapshotTypes
+    PROPERTIES (t) READONLY  isSaleSnapshotType, turnoverSkuSnapshotType
+;
 daysOnStockSkuStockSnapshot 'Дней на складе' = DATA INTEGER (Sku, Stock, Snapshot);
 cumBalanceSkuStockSnapshot 'Накопленный остаток' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 turnoverSkuSnapshot 'Рассчитывать товароооборачиваемость' = DATA BOOLEAN (Snapshot) IN evidence; 
+
+@deriveDocumentSnapshotProperty(isSale);
+@deriveDocumentSnapshotProperty(turnoverSku);
 
 averageSoldSkuStockSnapshot 'Продаж в день' (sku, stock, snapshot) =  
     saleQuantitySkuStockSnapshot(sku, stock, snapshot) /

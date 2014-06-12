@@ -37,7 +37,22 @@ discountSumStockSnapshotDate 'Сумма скидки' (stock, snapshot, date) =
 nameDiscountSumStock (st) = CONCAT ' ', nameStock(st), ' (сумма скидки)';    
        
 isDiscountSnapshot 'Скидка' = DATA BOOLEAN (Snapshot) IN evidence;
-hintDiscountBackground  = RGB(0, 214, 161) IF TRUE;        
+hintDiscountBackground  = RGB(0, 214, 161) IF TRUE;  
+      
+isDiscountSnapshotType 'Скидка' = DATA BOOLEAN (SnapshotType);
+
+EXTEND FORM snapshotType
+    PROPERTIES (t) isDiscountSnapshotType
+;
+EXTEND DESIGN snapshotType {
+    row3 {
+        ADD PROPERTY (isDiscountSnapshotType(t));
+    }
+}
+EXTEND FORM snapshotTypes
+    PROPERTIES (t) READONLY  isDiscountSnapshotType
+;
+@deriveDocumentSnapshotProperty(isDiscount);      
        
 //-- Расширяем ACTION    
 discountSumSkuStockDate 'Скидка (сумма)' (sku, stock, date) =  GROUP SUM discountSumSaleLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger);

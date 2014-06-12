@@ -4,6 +4,191 @@ REQUIRE SkuLedger, Document, PriceListLedger, StockTax;
 
 NAMESPACE Stock;
 
+////////////////////// Тип отчета ////////////////////////////
+CLASS SnapshotType 'Тип отчета по товарообороту';
+TABLE snapshotType (SnapshotType);
+
+nameSnapshotType 'Наименование' = DATA STRING[100] (SnapshotType) IN documentHeader;
+@defineExternalizable(snapshotType, VARSTRING[100]);
+isBatchSnapshotType 'По партиям' = DATA BOOLEAN (SnapshotType);
+
+isQuantitySnapshotType 'Количество' = DATA BOOLEAN (SnapshotType);
+isSumSnapshotType 'Сумма ' = DATA BOOLEAN (SnapshotType);
+
+isBalanceBSnapshotType 'Остаток начало' = DATA BOOLEAN (SnapshotType);
+isInSnapshotType 'Приход' = DATA BOOLEAN (SnapshotType);
+isOutSnapshotType 'Расход' = DATA BOOLEAN (SnapshotType);
+isBalanceASnapshotType 'Остаток конец' = DATA BOOLEAN (SnapshotType);
+
+isCostSnapshotType 'Себестоимость' = DATA BOOLEAN (SnapshotType);
+isVATSupplierSnapshotType 'НДС поставщика' = DATA BOOLEAN (SnapshotType);
+isCostVATSupplierSnapshotType 'Себестоимость с НДС' = DATA BOOLEAN (SnapshotType);
+isNetWeightSnapshotType 'Вес, кг' = DATA BOOLEAN (SnapshotType);
+isDateSnapshotType 'На дату' = DATA BOOLEAN (SnapshotType);
+
+
+//-- Выбор складов
+TABLE snapshotTypeStockGroup (SnapshotType, StockGroup); 
+TABLE snapshotTypeStock (SnapshotType, Stock);
+
+allStockIncludeSnapshotType 'Вкл' = DATA BOOLEAN (SnapshotType);
+dataIncludeSnapshotTypeStockGroup 'Вкл' = DATA BOOLEAN (SnapshotType, StockGroup);
+dataIncludeSnapshotTypeStock 'Вкл' = DATA BOOLEAN (SnapshotType, Stock);
+
+levelParentIncludeSnapshotTypeStockGroup (snapshotType, stockGroup) = GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataIncludeSnapshotTypeStockGroup(snapshotType, parent)
+                                                              BY snapshotType, stockGroup PERSISTENT;    
+nearestParentIncludeSnapshotTypeStockGroup (snapshotType, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentIncludeSnapshotTypeStockGroup(snapshotType, stockGroup));
+nearestIncludeSnapshotTypeStockGroup (snapshotType, stockGroup) = dataIncludeSnapshotTypeStockGroup(snapshotType, nearestParentIncludeSnapshotTypeStockGroup (snapshotType, stockGroup));
+
+includeSnapshotTypeStockGroup 'Вкл' (snapshotType, stockGroup) =
+    OVERRIDE allStockIncludeSnapshotType(snapshotType) IF stockGroup IS StockGroup,
+             nearestIncludeSnapshotTypeStockGroup (snapshotType, stockGroup), 
+             dataIncludeSnapshotTypeStockGroup(snapshotType, stockGroup) PERSISTENT;
+
+includeSnapshotTypeStock 'Вкл' (snapshotType, stock) =
+    (OVERRIDE includeSnapshotTypeStockGroup(snapshotType, stockGroupStock(stock)),
+             dataIncludeSnapshotTypeStock(snapshotType, stock)) IF isCompanyStock(stock) PERSISTENT;
+             
+countIncludeStockSnapshotType  (snapshotType) = GROUP SUM 1 IF includeSnapshotTypeStock(snapshotType, stock) BY snapshotType;      
+
+
+nameIncludeStockGroupsSnapshotType 'Группы складов (все)' (document)= 
+    GROUP CONCAT nameStockGroup(stockGroup) IF dataIncludeSnapshotTypeStockGroup(document, stockGroup), ', ' 
+    BY document 
+    ORDER stockGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+nameIncludeStocksSnapshotType 'Склады (все)' (document)= 
+    GROUP CONCAT nameStock(stock) IF dataIncludeSnapshotTypeStock(document, stock), ', ' 
+    BY document 
+    ORDER stock
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    
+nameIncludeStockGroupsStockSnapshotType 'Группы складов, склады (все)' (document) = CONCAT '; ', nameIncludeStockGroupsSnapshotType(document), 
+                                                                                             nameIncludeStocksSnapshotType(document) MINCHARWIDTH 20 PREFCHARWIDTH 40;   
+        
+//-- Выбор групп товара  
+TABLE snapshotTypeSkuGroup (SnapshotType, SkuGroup);  
+     
+dataIncludeSnapshotTypeSkuGroup 'Вкл' = DATA BOOLEAN (SnapshotType, SkuGroup);
+
+levelParentIncludeSnapshotTypeSkuGroup (snapshotType, skuGroup) = GROUP MIN levelSkuGroupSkuGroup(skuGroup, parent) IF dataIncludeSnapshotTypeSkuGroup(snapshotType, parent)
+                                                              BY snapshotType, skuGroup PERSISTENT;    
+nearestParentIncludeSnapshotTypeSkuGroup (snapshotType, skuGroup) = skuGroupSkuGroupLevel(skuGroup, levelParentIncludeSnapshotTypeSkuGroup(snapshotType, skuGroup));
+nearestIncludeSnapshotTypeSkuGroup (snapshotType, skuGroup) = dataIncludeSnapshotTypeSkuGroup(snapshotType, nearestParentIncludeSnapshotTypeSkuGroup (snapshotType, skuGroup));
+
+includeSnapshotTypeSkuGroup 'Вкл' (snapshotType, skuGroup) =
+    OVERRIDE nearestIncludeSnapshotTypeSkuGroup (snapshotType, skuGroup), 
+             dataIncludeSnapshotTypeSkuGroup(snapshotType, skuGroup) PERSISTENT;    
+                      
+includeSnapshotTypeSku 'Вкл' (snapshotType, sku) = includeSnapshotTypeSkuGroup(snapshotType, skuGroupSku(sku));  
+                    
+countIncludeSkuSnapshotType 'Вкл' (snapshotType) = GROUP SUM 1 IF includeSnapshotTypeSku(snapshotType, sku) BY snapshotType;                    
+
+nameIncludeSkuGroupsSnapshotType 'Группы товаров (все)' (document)= 
+    GROUP CONCAT nameSkuGroup(skuGroup) IF dataIncludeSnapshotTypeSkuGroup(document, skuGroup), ', ' 
+    BY document 
+    ORDER skuGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+FORM snapshotType 'Тип отчета по товарообороту'
+    OBJECTS t = SnapshotType FIXED PANEL
+    PROPERTIES(t) idSnapshotType SHOWIF showIDs(), nameSnapshotType, isBatchSnapshotType, isQuantitySnapshotType, isSumSnapshotType, isBalanceBSnapshotType,
+                  isInSnapshotType, isOutSnapshotType, isBalanceASnapshotType, isCostSnapshotType, isVATSupplierSnapshotType,
+                  isCostVATSupplierSnapshotType, isNetWeightSnapshotType, isDateSnapshotType  
+                     
+//-- выбор складов                  
+    TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parentStockGroup, ts2 = Stock
+    PROPERTIES OBJVALUE(a2) READONLY, allStockIncludeSnapshotType(t) TODRAW a2, 
+               nameStockGroup(sg2) READONLY, includeSnapshotTypeStockGroup(t,sg2),
+               nameStock(ts2) READONLY, includeSnapshotTypeStock(t,ts2)
+    ORDER BY nameStockGroup(sg2)
+    FILTERS stringEqualsAll(a2),
+            stockGroupStock(ts2) == sg2,
+            isCompanyStock(ts2)
+    FILTERGROUP inactiveStock2 FILTER 'Активный' 'ctrl F10' activeStock(ts2) DEFAULT                                                                                  
+          
+//-- выбор групп товара     
+    TREE skuTree2 sk2 = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY nameSkuGroup(sk2)
+    PROPERTIES includeSnapshotTypeSkuGroup(t,sk2)
+    ORDER BY nameSkuGroup(sk2)
+    FILTERGROUP inactive2 FILTER 'Активные' 'F5' activeSkuGroup(sk2) DEFAULT                                                                  
+                     
+    EDIT SnapshotType OBJECT t
+;
+DESIGN snapshotType FROM DEFAULT {
+    main{
+        preferredSize = (1024, 768);
+        NEW topContainer {
+            caption = 'Шапка документа';
+            type = CONTAINERH;
+            ADD PROPERTY(idSnapshotType(t));
+            ADD PROPERTY(nameSnapshotType(t));
+        }
+        NEW paramContainer {
+            caption = 'Параметры';
+            type = CONTAINERH;                      
+            NEW row1 {
+                type = CONTAINERV; 
+                caption = 'Основные';    
+                ADD PROPERTY(isBatchSnapshotType(t));
+                ADD PROPERTY(isDateSnapshotType(t));
+            }
+            NEW row2 {
+                caption = 'Остатки';                 
+                ADD PROPERTY(isBalanceBSnapshotType(t));
+                ADD PROPERTY(isBalanceASnapshotType(t));   
+                                                                                     
+            }                    
+            NEW row3 {
+                type = CONTAINERV;
+                caption = 'Колонки';
+                type = COLUMNS;
+                columns = 4;
+                ADD PROPERTY(isQuantitySnapshotType(t));
+                ADD PROPERTY(isSumSnapshotType(t)); 
+                ADD PROPERTY(isCostSnapshotType(t)); 
+                ADD PROPERTY(isVATSupplierSnapshotType(t));   
+                ADD PROPERTY(isCostVATSupplierSnapshotType(t));     
+                ADD PROPERTY(isNetWeightSnapshotType(t));                   
+            }                      
+            NEW row5 {
+                type = CONTAINERV;
+                caption = 'Движение';
+                ADD PROPERTY(isInSnapshotType(t));  
+                ADD PROPERTY(isOutSnapshotType(t));                     
+            }                                                                          
+            NEW row6 {
+                type = CONTAINERV;
+                caption = 'Оборот';  
+                type = COLUMNS;
+                columns = 2;   
+                                       
+            }                                                         
+        }
+        NEW select{
+            fill = 1;
+            type = SPLITH;
+            ADD stockTree2.tree.box { fill = 1; caption = 'Выбор складов'; }   
+            ADD skuTree2.tree.box { fill = 1; caption = 'Выбор групп'; }   
+        }
+        ADD functions.box;
+    }            
+}
+FORM snapshotTypes 'Типы отчета по товарообороту'
+    OBJECTS t = SnapshotType
+    PROPERTIES(t) READONLY idSnapshotType SHOWIF showIDs(), nameSnapshotType, isBatchSnapshotType, isQuantitySnapshotType, isSumSnapshotType, isBalanceBSnapshotType,
+                  isInSnapshotType, isOutSnapshotType, isBalanceASnapshotType, isCostSnapshotType, isVATSupplierSnapshotType,
+                  isCostVATSupplierSnapshotType, isNetWeightSnapshotType   
+    PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    DIALOG SnapshotType OBJECT t
+;
+META deriveDocumentSnapshotProperty(property)
+    property##Snapshot (o) <- property##SnapshotType(snapshotTypeSnapshot(o))
+        WHEN CHANGED(snapshotTypeSnapshot(o));
+END
+
 //////////////////////Отчет ////////////////////////////
 
 CLASS Snapshot 'Отчет по товарообороту';
@@ -16,6 +201,8 @@ hintBalanceABackground 'Небесный'  = RGB(127,199,255) IF TRUE;
 hintInBackground 'Лимонный' = RGB(255, 250, 205) IF TRUE;                                                                                   
 hintOutBackground 'Бороды Абдель-Керима' = RGB(213, 213, 213) IF TRUE;     // серый
 
+snapshotTypeSnapshot= DATA SnapshotType (Snapshot);
+nameSnapshotTypeSnapshot 'Тип отчета' = nameSnapshotType(snapshotTypeSnapshot(s)) IN documentHeader MINCHARWIDTH 15  PREFCHARWIDTH 20;
 
 @defineDocumentHeaderTime(Snapshot);
 @defineDocumentHeaderNote(Snapshot);
@@ -54,11 +241,22 @@ isVATSupplierSnapshot 'НДС поставщика' = DATA BOOLEAN (Snapshot) IN
 isCostVATSupplierSnapshot 'Себестоимость с НДС' = DATA BOOLEAN (Snapshot) IN evidence;
 isNetWeightSnapshot 'Вес, кг' = DATA BOOLEAN (Snapshot) IN evidence;
 
+@deriveDocumentSnapshotProperty(isBatch);
+@deriveDocumentSnapshotProperty(isQuantity);
+@deriveDocumentSnapshotProperty(isBalanceB);
+@deriveDocumentSnapshotProperty(isIn);
+@deriveDocumentSnapshotProperty(isOut);
+@deriveDocumentSnapshotProperty(isBalanceA);
+@deriveDocumentSnapshotProperty(isCost);
+@deriveDocumentSnapshotProperty(isVATSupplier);
+@deriveDocumentSnapshotProperty(isCostVATSupplier);
+@deriveDocumentSnapshotProperty(isNetWeight);
 //-- Sku на дату
 
 TABLE skuStockSnapshotDate (Sku, Stock, Snapshot, DATE);  
 
 isDateSnapshot 'На дату' = DATA BOOLEAN (Snapshot) IN evidence;
+@deriveDocumentSnapshotProperty(isDate);
 
 balanceBSkuStockSnapshotDate 'Кол-во начало' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
 netWeightBSkuStockSnapshotDate 'Вес начало' = DATA NUMERIC[14,3] (Sku, Stock, Snapshot, DATE);
@@ -408,7 +606,14 @@ nameIncludeStocksSnapshot 'Склады (все)' (document)=
     
 nameIncludeStockGroupsStockSnapshot 'Группы складов, склады (все)' (document) = CONCAT '; ', nameIncludeStockGroupsSnapshot(document), 
                                                                                              nameIncludeStocksSnapshot(document) MINCHARWIDTH 20 PREFCHARWIDTH 40;   
-        
+    
+allStockIncludeSnapshot (o) <- allStockIncludeSnapshotType(snapshotTypeSnapshot(o))
+    WHEN CHANGED(snapshotTypeSnapshot(o));  
+dataIncludeSnapshotStockGroup (o,g) <- dataIncludeSnapshotTypeStockGroup(snapshotTypeSnapshot(o),g) IF g IS StockGroup
+    WHEN CHANGED(snapshotTypeSnapshot(o));           
+dataIncludeSnapshotStock (o,g) <- dataIncludeSnapshotTypeStock(snapshotTypeSnapshot(o),g) IF g IS Stock
+    WHEN CHANGED(snapshotTypeSnapshot(o));    
+            
 //-- Выбор групп товара  
 TABLE snapshotSkuGroup (Snapshot, SkuGroup);  
      
@@ -432,7 +637,10 @@ nameIncludeSkuGroupsSnapshot 'Группы товаров (все)' (document)=
     BY document 
     ORDER skuGroup
     MINCHARWIDTH 20 PREFCHARWIDTH 40;
-
+    
+dataIncludeSnapshotSkuGroup (o,g) <- dataIncludeSnapshotTypeSkuGroup(snapshotTypeSnapshot(o),g) IF g IS SkuGroup
+    WHEN CHANGED(snapshotTypeSnapshot(o));  
+    
 //------------------------------- ACTION -------------------------------//   
 overTakeSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE); 
 overTakeSkuSnapshotDateFromTo= ABSTRACT ACTION LIST (Snapshot, DATE, DATE);
@@ -786,8 +994,8 @@ isVATSupplierBalanceADateSnapshot = isVATSupplierSnapshot(snapshot) AND isBalanc
 FORM snapshot 'Отчет по товарообороту'                                   
     OBJECTS r = Snapshot FIXED PANEL
     PROPERTIES (r) nameNumeratorSnapshot, 
-                   numberSnapshot, seriesSnapshot, dateSnapshot, timeSnapshot,
-                   noteSnapshot, fromDateSnapshot, toDateSnapshot, 
+                   numberSnapshot, seriesSnapshot, nameSnapshotTypeSnapshot, dateSnapshot, timeSnapshot,
+                   noteSnapshot, fromDateSnapshot, toDateSnapshot,  
                    isQuantitySnapshot, isSumSnapshot, isBalanceBSnapshot BACKGROUND hintBalanceBBackground(), 
                    isInSnapshot BACKGROUND hintInBackground(), isOutSnapshot BACKGROUND hintOutBackground(), 
                    isBalanceASnapshot BACKGROUND hintBalanceABackground(),
@@ -1065,14 +1273,14 @@ DESIGN snapshot FROM DEFAULT {
         preferredSize = (1024, 768);
         ADD r.box {
             type = CONTAINERH;
+            ADD r.documentHeader;
             ADD r.numbered; 
             NEW date {
                 caption = 'Период';
                 type = CONTAINERH;
                 ADD PROPERTY (fromDateSnapshot(r));
                 ADD PROPERTY (toDateSnapshot(r));
-            }
-            ADD r.documentHeader;           
+            }                                  
         };
         NEW top {                     
             fill = 1;
@@ -1195,7 +1403,7 @@ FORM snapshots 'Отчеты по товарообороту'
 
     OBJECTS r = Snapshot
     PROPERTIES (r) READONLY numberSnapshot, seriesSnapshot, dateSnapshot, timeSnapshot,
-                   fromDateSnapshot, toDateSnapshot, statusSnapshot BACKGROUND backgroundStatusSnapshot(r), 
+                   fromDateSnapshot, toDateSnapshot, nameSnapshotTypeSnapshot, statusSnapshot BACKGROUND backgroundStatusSnapshot(r), 
                    startTimeSnapshot, finishTimeSnapshot, noteSnapshot, nameIncludeStockGroupsStockSnapshot, nameIncludeSkuGroupsSnapshot,
                    isBatchSnapshot, isDateSnapshot, isQuantitySnapshot, isNetWeightSnapshot, isSumSnapshot, isCostSnapshot, isVATSupplierSnapshot, 
                    isCostVATSupplierSnapshot, isBalanceBSnapshot BACKGROUND hintBalanceBBackground(), 
@@ -1218,6 +1426,7 @@ DESIGN snapshots FROM DEFAULT {
 
 NAVIGATOR {
     stockReports {
+        ADD snapshotTypes;
         ADD snapshots;
     }
 }

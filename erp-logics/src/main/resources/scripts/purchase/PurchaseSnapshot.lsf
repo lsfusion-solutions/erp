@@ -91,6 +91,21 @@ namePurchaseCostStock (st) = CONCAT ' ', nameStock(st), ' (себестоимо�
 namePurchaseVATSupplierStock (st) = CONCAT ' ', nameStock(st), ' (НДС поставщика закупка)';  
 namePurchaseCostVATSupplierStock (st) = CONCAT ' ', nameStock(st), ' (c/c c НДС закупка)';    
 isPurchaseSnapshot 'Закупка' = DATA BOOLEAN (Snapshot) IN evidence;
+
+isPurchaseSnapshotType 'Скидка' = DATA BOOLEAN (SnapshotType);
+
+EXTEND FORM snapshotType
+    PROPERTIES (t) isPurchaseSnapshotType
+;
+EXTEND DESIGN snapshotType {
+    row6 {
+        ADD PROPERTY(isPurchaseSnapshotType(t));                                            
+    } 
+}
+EXTEND FORM snapshotTypes
+    PROPERTIES (t) READONLY  isPurchaseSnapshotType
+;
+@deriveDocumentSnapshotProperty(isPurchase);      
                  
 //-- Расширяем ACTION  
 overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {

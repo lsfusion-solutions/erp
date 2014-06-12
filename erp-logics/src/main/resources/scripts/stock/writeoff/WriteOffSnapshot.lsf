@@ -48,7 +48,23 @@ nameWriteOffQuantityStock (st) = CONCAT ' ', nameStock(st), ' (кол-во сп�
 nameWriteOffSumStock (st) = CONCAT ' ', nameStock(st), ' (сумма списание)';    
        
 isWriteOffSnapshot 'Списание' = DATA BOOLEAN (Snapshot) IN evidence;
-hintWriteOffBackground  = RGB(0, 252, 233) IF TRUE;        
+hintWriteOffBackground  = RGB(0, 252, 233) IF TRUE;      
+  
+isWriteOffSnapshotType 'Списание' = DATA BOOLEAN (SnapshotType);
+
+EXTEND FORM snapshotType
+    PROPERTIES (t) isWriteOffSnapshotType
+;
+EXTEND DESIGN snapshotType {
+    row3 {
+        ADD PROPERTY (isWriteOffSnapshotType (t));
+    }
+}
+EXTEND FORM snapshotTypes
+    PROPERTIES (t) READONLY  isWriteOffSnapshotType
+;
+@deriveDocumentSnapshotProperty(isWriteOff);
+
        
 //-- Расширяем ACTION    
 writeOffSumSkuStockDate 'Списано (сумма)' (sku, stock, date) =  GROUP SUM sumOutActiveSkuLedger(ledger) IF ledger IS WriteOffDetail BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger);
