@@ -1,0 +1,68 @@
+MODULE ItemMaterial;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+//GROUP itemFashion 'Одежда' : public;
+
+// Материал
+CLASS Material 'Материал';
+TABLE material(Material);
+
+nameMaterial 'Наименование' = DATA VARISTRING[100](Material);
+shortNameMaterial 'Наименование (сокр.)' = DATA VARISTRING[50](Material);
+
+@defineExternalizable(material, VARSTRING[100]);
+
+FORM material 'Материал'
+    OBJECTS t=Material FIXED PANEL
+    PROPERTIES(t) nameMaterial, shortNameMaterial, idMaterial SHOWIF showIDs()
+    EDIT Material OBJECT t
+;
+
+FORM materials 'Материалы'
+    OBJECTS t=Material
+    PROPERTIES(t) nameMaterial READONLY, shortNameMaterial READONLY , idMaterial SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameMaterial(t)
+    DIALOG Material OBJECT t
+;
+DESIGN materials FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+NAVIGATOR {
+    itemAttributeNavigator {
+        ADD materials;
+    }
+}
+
+percentMaterialItem 'Процент' = DATA INTEGER (Material, Item);
+
+percentMaterialsItem 'Процент' (i) = GROUP SUM percentMaterialItem(m,i) BY i;
+
+calcCompositionItem 'Состав' (i) = VARSTRING[255](
+                       [= GROUP CONCAT (percentMaterialItem(m,i)+'% '+nameMaterial(m)) IF percentMaterialItem(m,i), ', ' BY i ORDER DESC percentMaterialItem(m,i)](i))
+                       MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
+
+WHEN SESSION FORMS item CHANGED(calcCompositionItem(i)) DO {
+    compositionItem(i) <- calcCompositionItem(i);            
+} 
+backgroundMaterialsItem (i) = RGB(255,0,0) IF i IS Item AND (percentMaterialsItem(i) != 100.0);
+
+FORM itemMaterial 'Материалы'
+    OBJECTS i=Item FIXED PANEL 
+    PROPERTIES(i) READONLY percentMaterialsItem BACKGROUND  backgroundMaterialsItem(i)
+    
+    OBJECTS t=Material
+    PROPERTIES(t) nameMaterial READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t,i) percentMaterialItem
+    
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameMaterial(t)
+;
+DESIGN itemMaterial FROM DEFAULT { main { preferredSize = (600, 400); } }     
+
+createCompositionItem 'Выбрать состав' = ACTION (item) {          
+    FORM itemMaterial OBJECTS i = item MODAL; 
+} SHORTCUT compositionItem;  
+
