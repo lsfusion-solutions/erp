@@ -991,18 +991,56 @@ createItemBarcodeDate = ACTION (barcode, date) NEWSESSION {
 createSkuBarcodeDate(barcode, date) += createItemBarcodeDate(barcode, date);
 
 inItem 'Отм.' = DATA SESSION BOOLEAN (Item);
+allowReplaceItem = DATA SESSION BOOLEAN ();
+
+checkReplaceItem = ABSTRACT ACTION (Item);
+
+FORM confirmReplaceItem 'Объединяемые товары'
+    OBJECTS item = Item FIXED PANEL 
+
+    OBJECTS i = Item  
+    PROPERTIES(i) READONLY nameAttributeItem
+    FILTERS i==item
+
+    OBJECTS i2 = Item
+    PROPERTIES(i2) inItem
+    PROPERTIES(i2) READONLY nameAttributeItem
+    FILTERS inItem(i2)
+;
+
+DESIGN confirmReplaceItem FROM DEFAULT {
+    REMOVE item.box;
+    NEW splitContainer{
+        type = SPLITV;
+        fill = 1;
+        ADD i.box{
+            caption = 'Основной товар';
+        }
+        ADD i2.box{
+            caption = 'Удаляемый товар';
+        }           
+    }
+    ADD functions.box;
+}
 
 replaceItem 'Объединить' = ACTION (item) {
-    FOR inItem(i) DO{
-        IF i != item THEN {
-            replaceSkuSku(i, item);
-            inItem(i) <- NULL;
-            DELETE i;
-        } ELSE {
-            MESSAGE 'Выделенный товар не может совпадать с объединяемым';
+    FORM confirmReplaceItem OBJECTS i=item MODAL;
+    IF formResult() == FormResult.ok THEN {
+        allowReplaceItem() <- TRUE;
+        checkReplaceItem(item);
+        FOR inItem(i) AND allowReplaceItem() DO{
+            IF i != item THEN {
+                replaceSkuSku(i, item);
+                inItem(i) <- NULL;
+                DELETE i;            
+            } ELSE {
+                MESSAGE 'Выделенный товар не может совпадать с объединяемым';
+            }
         }
-    }
-    apply();
+        apply();
+    } ELSE {
+        inItem(i) <- NULL WHERE inItem(i);           
+    }   
 } CONFIRM;
 
 changeGroupItem 'Изменить группу' = ACTION (){
