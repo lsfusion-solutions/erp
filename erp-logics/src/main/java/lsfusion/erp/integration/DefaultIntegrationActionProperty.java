@@ -149,4 +149,8 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
     protected boolean notNullNorEmpty(String value) {
         return value != null && !value.isEmpty();
     }
+
+    protected String upper(String value) {
+        return value == null ? null : value.toUpperCase();
+    }
 }

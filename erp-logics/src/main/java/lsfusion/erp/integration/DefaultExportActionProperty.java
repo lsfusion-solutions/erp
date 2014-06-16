@@ -26,8 +26,4 @@ public class DefaultExportActionProperty extends DefaultIntegrationActionPropert
     protected String formatString(Object value, int length) {
         return value == null ? "" : ((String) value).trim().substring(0, Math.min(((String) value).trim().length(), length));
     }
-    
-    protected String upper(String value) {
-        return value == null ? null : value.toUpperCase(); 
-    }
 }
