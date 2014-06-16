@@ -126,7 +126,7 @@ TABLE componentDetail (ComponentDetail);
 
 currencyComponentDetail (componentDetail) = currencyOrder(orderComponentDetail(componentDetail));
 
-@defineDocumentDetailStock (order, componentDetail, stock, componentsStock, 'Склад компонент');
+@defineDocumentDetailStock (order, componentDetail, stock, componentsStock, 'Склад компонент') ;
 @defineDocumentDetailStock (order, componentDetail, stock, productsStock, 'Склад изделий');
 
 // Sku
@@ -311,6 +311,17 @@ TABLE skuOrder(Sku, Order);
 bruttoQuantitySkuOrder 'Количество брутто' (sku, order) = GROUP SUM bruttoQuantityComponentDetail(componentDetail)
                                                                 BY bruttoSkuComponentDetail(componentDetail),
                                                                    orderComponentDetail(componentDetail) PERSISTENT;
+             
+bruttoNotSubstituteQuantitySkuOrder 'Количество без замены' (sku, order) = GROUP SUM bruttoQuantityComponentDetail(componentDetail) 
+    IF NOT substituteQuantityComponentDetail(componentDetail)
+    BY bruttoSkuComponentDetail(componentDetail),
+       orderComponentDetail(componentDetail) PERSISTENT;                                                                     
+                                                                   
+bruttoSubstituteQuantitySkuOrder (sku, order) = GROUP SUM bruttoQuantityComponentDetail(componentDetail) 
+    IF substituteQuantityComponentDetail(componentDetail)
+    BY bruttoSkuComponentDetail(componentDetail),
+       orderComponentDetail(componentDetail) PERSISTENT;                                                                                                                                   
+                                                                                                                                 
 
 dataBruttoPriceSkuOrder 'Цена' = DATA NUMERIC[14,2] (Sku, Order);
 
@@ -332,6 +343,9 @@ multiplierSkuOrder 'Коэффициент замены' = DATA NUMERIC[8,3] (Sk
 //--
 stockSubstitutesSku = DATA SESSION Stock ();
 nameStockSubstitutesSku 'Склад' = nameStock(stockSubstitutesSku());
+
+BOMSubstitutesSku = DATA SESSION BOM ();
+productsBOMSubstitutesSku 'Спецификация' = productsBOM(BOMSubstitutesSku());
 
 multiplierSubstitutesSku 'Коэффициент' = DATA SESSION NUMERIC[8,3] (Sku);
 
@@ -361,8 +375,13 @@ changeMultiplierSubstituteSkuFromTo = ACTION (fromSku, toSku) {
 }
 backgroundSubstitutesOrder 'Цвет' (order) = RGB(255,224,255) IF order IS Order;
 
+filterubstituteFromToSku (s,sk) =  IF BOMSubstitutesSku() 
+    THEN useSubstituteBOM(uniqueSubstituteFromToSku(s,sk),BOMSubstitutesSku())
+    ELSE TRUE IF uniqueSubstituteFromToSku(s,sk);
+
+
 FORM substitutesSku 'Замены'
-    PROPERTIES() nameStockSubstitutesSku
+    PROPERTIES() nameStockSubstitutesSku, productsBOMSubstitutesSku
     OBJECTS o = Order FIXED PANEL
     OBJECTS s = Sku FIXED PANEL
     PROPERTIES(s) nameSku
@@ -385,7 +404,7 @@ FORM substitutesSku 'Замены'
     FILTERGROUP filter1
         FILTER 'Товары с остатком' 'F10' currentBalanceSkuSubstitutesSku(sk) AND stockSubstitutesSku()
     FILTERGROUP filter2
-        FILTER 'Доступные замены' 'F9' uniqueSubstituteFromToSku(s,sk)    
+        FILTER 'Доступные замены' 'F9' filterubstituteFromToSku (s,sk)   
     FILTERGROUP filter3
         FILTER 'Сырье' 'F8' isComponentGroupSku(sk) DEFAULT                         
 ;
@@ -416,6 +435,10 @@ DESIGN substitutesSku FROM DEFAULT {
                 caption = 'Заменяемый товар';
                 ADD PROPERTY (nameSku(s));                
             };
+            NEW BOMContainer {
+                caption = 'Спецификация';
+                ADD PROPERTY (productsBOMSubstitutesSku());
+            }            
         }
         REMOVE o.box;        
         ADD functions.box;
@@ -424,6 +447,7 @@ DESIGN substitutesSku FROM DEFAULT {
 
 chooseSubstituteSkuOrder 'Выбрать замену' =  ACTION (fromSku, order) {
     stockSubstitutesSku() <- NULL;
+    BOMSubstitutesSku() <- NULL;
     stockSubstitutesSku() <- componentsStockOrder(order) WHERE componentsStockOrder(order);
 
     FORM substitutesSku OBJECTS o= order, s=fromSku MODAL SHOWDROP;
@@ -587,7 +611,10 @@ fillPriceProductsOrder 'Заполнить цены для изделий' = ACT
 
 chooseSubstituteComponentDetail 'Выбрать замену' =  ACTION (detail){
     stockSubstitutesSku() <- NULL;
+    BOMSubstitutesSku()<- NULL;
+    
     stockSubstitutesSku() <- componentsStockComponentDetail(detail) WHERE componentsStockComponentDetail(detail);
+    BOMSubstitutesSku() <- BOMComponentDetail(detail) WHERE BOMComponentDetail(detail);
 
     FORM substitutesSku OBJECTS o= orderComponentDetail(detail), s = bruttoSkuComponentDetail(detail) MODAL SHOWDROP;
     IF formResult() == FormResult.ok THEN {
@@ -741,7 +768,9 @@ FORM order 'Производственный заказ'
     PROPERTIES(s) READONLY nameSku, idBarcodeSku, shortNameUOMSku
     PROPERTIES(s,o) READONLY bruttoQuantitySkuOrder
 
-    PROPERTIES(s,o) BACKGROUND backgroundSubstitutesOrder(o) nameSubstituteSkuOrder ON CHANGE chooseSubstituteSkuOrder(s,o), multiplierSkuOrder, substituteQuantitySkuOrder 
+    PROPERTIES(s,o) BACKGROUND backgroundSubstitutesOrder(o) nameSubstituteSkuOrder ON CHANGE chooseSubstituteSkuOrder(s,o), 
+                    multiplierSkuOrder, substituteQuantitySkuOrder 
+    PROPERTIES(s,o) READONLY bruttoNotSubstituteQuantitySkuOrder
     FILTERS bruttoQuantitySkuOrder(s,o)
 
     PROPERTIES(o) FORCE PANEL namePriceListTypeOrder, includeVATOrder  BACKGROUND backgroundVATOrder(o)//, nameComponentsCalcPriceListTypeOrder
@@ -923,21 +952,50 @@ copyOrder 'Копировать' = ACTION (order) NEWSESSION {
 } TOOLBAR;
 
 
-WHEN SESSION FORMS order CHANGED(bruttoQuantitySkuOrder(sku,order)) OR CHANGED(multiplierSkuOrder(sku, order)) DO                                              
-    substituteQuantitySkuOrder(sku, order) <- bruttoQuantitySkuOrder(sku,order) * multiplierSkuOrder(sku, order);
-                                
-WHEN SESSION FORMS order CHANGED(productProductDetail(detail)) DO
-    skuProductDetail(detail) <-  skuProduct(productProductDetail(detail));   
+//WHEN SESSION FORMS order CHANGED(bruttoQuantitySkuOrder(sku,order)) OR CHANGED(multiplierSkuOrder(sku, order)) DO                                              
+//    substituteQuantitySkuOrder(sku, order) <- bruttoQuantitySkuOrder(sku,order) * multiplierSkuOrder(sku, order);                              
+//                   
+//WHEN SESSION FORMS order CHANGED(substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO
+//    substituteSkuComponentDetail (detail) <- substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail));                    
+//                    
+//WHEN SESSION FORMS order CHANGED(substituteQuantitySkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) OR 
+//    CHANGED(multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO 
+//        substituteQuantityComponentDetail (detail) <- NUMERIC[14,3](multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))* bruttoQuantityComponentDetail(detail));
 
-WHEN SESSION FORMS order CHANGED(dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) DO
-    priceComponentDetail (detail) <- dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail));
+useSubstituteComponentDetail 'Можно использовать замену' (detail) = useSubstituteBOM(
+    uniqueSubstituteFromToSku(bruttoSkuComponentDetail(detail), substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))), 
+    BOMComponentDetail(detail));    
+                
+usePrevSubstituteComponentDetail 'Можно использовать замену' (detail) = useSubstituteBOM(
+    uniqueSubstituteFromToSku(bruttoSkuComponentDetail(detail), PREV(substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail)))), 
+    BOMComponentDetail(detail));                  
+
+WHEN SESSION FORMS order CHANGED(bruttoSubstituteQuantitySkuOrder(sku,order)) 
+    OR CHANGED(multiplierSkuOrder(sku, order)) DO {                                              
+        substituteQuantitySkuOrder(sku, order) <- bruttoSubstituteQuantitySkuOrder(sku,order) * multiplierSkuOrder(sku, order);                              
+    }      
+                   
+WHEN SESSION FORMS order 
+    CHANGED(substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) AND useSubstituteComponentDetail(detail) DO {
+        substituteSkuComponentDetail (detail) <- substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail)); 
+    }                       
                     
-WHEN SESSION FORMS order CHANGED(substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO
-    substituteSkuComponentDetail (detail) <- substituteSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail));                    
-                    
-WHEN SESSION FORMS order CHANGED(substituteQuantitySkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) OR 
-    CHANGED(multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO 
+WHEN SESSION FORMS order 
+    (CHANGED(substituteQuantitySkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) OR 
+     CHANGED(multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail)))) AND useSubstituteComponentDetail(detail) DO { 
         substituteQuantityComponentDetail (detail) <- NUMERIC[14,3](multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))* bruttoQuantityComponentDetail(detail));
+    } 
+WHEN SESSION FORMS order DROPPED (multiplierSkuOrder(bruttoSkuComponentDetail(detail), orderComponentDetail(detail))) DO {
+        substituteSkuComponentDetail (detail) <- NULL WHERE usePrevSubstituteComponentDetail(detail); 
+        substituteQuantityComponentDetail (detail) <- NULL WHERE usePrevSubstituteComponentDetail(detail);    
+    }  
+ 
+ 
+WHEN SESSION FORMS order CHANGED(dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) DO
+    priceComponentDetail (detail) <- dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail));       
+       
+WHEN SESSION FORMS order CHANGED(productProductDetail(detail)) DO
+    skuProductDetail(detail) <-  skuProduct(productProductDetail(detail));                 
               
 countProductsSku (sku) = GROUP SUM 1 BY skuProduct(p);
 defaultProductSku (sku)= GROUP MIN product BY skuProduct(product);

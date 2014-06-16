@@ -1,0 +1,37 @@
+MODULE ItemArticleMaterial;
+
+REQUIRE ItemMaterial, ItemArticle;
+
+NAMESPACE Item;
+
+//-- Article
+
+percentMaterialArticle 'Процент' = DATA INTEGER (Material, Article);
+
+percentMaterialsArticle 'Процент' (i) = GROUP SUM percentMaterialArticle(m,i) BY i;
+
+calcCompositionArticle 'Состав' (i) = VARSTRING[255](
+                       [= GROUP CONCAT (percentMaterialArticle(m,i)+'% '+nameMaterial(m)) IF percentMaterialArticle(m,i), ', ' BY i ORDER DESC percentMaterialArticle(m,i)](i))
+                       MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
+
+WHEN SESSION FORMS article CHANGED(calcCompositionArticle(i)) DO {
+    compositionArticle(i) <- calcCompositionArticle(i);            
+} 
+backgroundMaterialsArticle (i) = RGB(255,0,0) IF i IS Article AND (percentMaterialsArticle(i) != 100.0);
+
+FORM articleMaterial 'Материалы'
+    OBJECTS i=Article FIXED PANEL 
+    PROPERTIES(i) READONLY percentMaterialsArticle BACKGROUND  backgroundMaterialsArticle(i)
+    
+    OBJECTS t=Material
+    PROPERTIES(t) nameMaterial READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t,i) percentMaterialArticle
+    
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameMaterial(t)
+;
+DESIGN articleMaterial FROM DEFAULT { main { preferredSize = (600, 400); } }     
+
+createCompositionArticle 'Выбрать состав' = ACTION (article) {          
+    FORM articleMaterial OBJECTS i = article MODAL; 
+} SHORTCUT compositionArticle;  
