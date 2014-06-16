@@ -225,11 +225,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(Map<java.util.Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
 
-        for (Map.Entry<java.util.Date, Set<String>> entry : requestSalesInfo.entrySet()) {
+        for (Map.Entry<Date, Set<String>> entry : requestSalesInfo.entrySet()) {
 
-            java.util.Date dateRequestSalesInfo = entry.getKey();
+            Date dateRequestSalesInfo = entry.getKey();
             Set<String> directoriesList = entry.getValue();
             logger.info("Kristal: creating request files");
             for (String directory : directoriesList) {
@@ -267,11 +267,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
+    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
 
         logger.info("Kristal: requesting succeeded SoftCheckInfo");
 
-        Set<String> result = new HashSet<String>();
+        Map<String, Date> result = new HashMap<String, Date>();
 
         Connection conn = null;
         try {
@@ -282,10 +282,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
             conn = DriverManager.getConnection(url);
             Statement statement = conn.createStatement();
-            String queryString = "SELECT DocNumber FROM DocHead WHERE ShipmentState='1' AND PayState='0'";
+            String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE ShipmentState='1' AND PayState='0'";
             ResultSet rs = statement.executeQuery(queryString);
             while (rs.next()) {
-                result.add(fillLeadingZeroes(rs.getString(1)));
+                result.put(fillLeadingZeroes(rs.getString(1)), rs.getDate(2));
             }
         } catch (SQLException e) {
             e.printStackTrace();

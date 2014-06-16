@@ -157,10 +157,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(Map<java.util.Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
-        for (Map.Entry<java.util.Date, Set<String>> entry : requestSalesInfo.entrySet()) {
+    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+        for (Map.Entry<Date, Set<String>> entry : requestSalesInfo.entrySet()) {
 
-            java.util.Date dateRequestSalesInfo = entry.getKey();
+            Date dateRequestSalesInfo = entry.getKey();
             Set<String> directoriesList = entry.getValue();
             logger.info("Kristal: creating request files");
             for (String directory : directoriesList) {
@@ -195,7 +195,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
+    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
         return null;
     }
 

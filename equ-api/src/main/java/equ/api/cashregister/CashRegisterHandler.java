@@ -4,9 +4,9 @@ import equ.api.MachineryHandler;
 import equ.api.SalesBatch;
 
 import java.io.IOException;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +23,6 @@ public abstract class  CashRegisterHandler<S extends SalesBatch> extends Machine
 
     public abstract void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch);
    
-    public abstract Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException;
+    public abstract Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException;
 
 }

@@ -21,6 +21,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Date;
 import java.util.*;
 
 public class EquipmentServer {
@@ -158,7 +159,7 @@ public class EquipmentServer {
                         directorySet.add(cashRegisterInfo.directory);   
                     }
                     
-                    Set succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo(directorySet, dbSettings);
+                    Map succeededSoftCheckInfo = clsHandler.requestSucceededSoftCheckInfo(directorySet, dbSettings);
                     if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
                         logger.info("Sending succeeded SoftCheckInfo");
                         String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);

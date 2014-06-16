@@ -14,6 +14,7 @@ import org.xBaseJ.xBaseJException;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -312,7 +313,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) {
+    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) {
         return null;
     }
 

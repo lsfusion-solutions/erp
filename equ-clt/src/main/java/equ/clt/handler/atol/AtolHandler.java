@@ -151,9 +151,9 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(Map<java.util.Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
 
-        for (Map.Entry<java.util.Date, Set<String>> entry : requestSalesInfo.entrySet()) {
+        for (Map.Entry<Date, Set<String>> entry : requestSalesInfo.entrySet()) {
             String dateRequestSalesInfo = new SimpleDateFormat("dd.MM.yyyy").format(entry.getKey());
 
             Set<String> directoriesList = entry.getValue();
@@ -213,11 +213,11 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
+    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
 
         logger.info("Atol: requesting succeeded SoftCheckInfo");
 
-        Set<String> result = new HashSet<String>();
+        Map<String, Date> result = new HashMap<String, Date>();
         for (String directory : directorySet) {
 
             try {
@@ -247,12 +247,15 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                             }
                             while (scanner.hasNextLine()) {
                                 String[] entry = scanner.nextLine().split(";");
+                                String date = getStringValue(entry, 1);
+                                String time = getStringValue(entry, 2);
+                                Date dateTime = new Date(DateUtils.parseDate((date + " " + time), new String[] {"dd.MM.yyyy HH:mm:ss"}).getTime());
                                 String entryType = getStringValue(entry, 3);
                                 boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
                                 String documentType = getStringValue(entry, 22);
                                 String numberSoftCheck = getStringValue(entry, 18);
                                 if (isSale && documentType.equals("2000001"))
-                                    result.add(numberSoftCheck);
+                                    result.put(numberSoftCheck, dateTime);
                             }
                             scanner.close();
 
@@ -265,6 +268,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                         logger.info(String.format("Atol: found %s soft check(s)", result.size()));
                 }
             } catch (FileNotFoundException e) {
+                throw Throwables.propagate(e);
+            } catch (ParseException e) {
                 throw Throwables.propagate(e);
             }
         }

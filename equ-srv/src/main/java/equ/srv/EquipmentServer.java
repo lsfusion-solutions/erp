@@ -38,6 +38,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
@@ -155,7 +156,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public String sendSucceededSoftCheckInfo(Set invoiceSet) throws RemoteException, SQLException {
+    public String sendSucceededSoftCheckInfo(Map<String, Date> invoiceSet) throws RemoteException, SQLException {
         return softCheck == null ? null : softCheck.sendSucceededSoftCheckInfo(invoiceSet);
     }
 

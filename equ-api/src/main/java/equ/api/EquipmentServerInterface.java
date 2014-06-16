@@ -10,7 +10,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.Date;
+import java.sql.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,7 +21,7 @@ public interface EquipmentServerInterface extends Remote {
 
     void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceMap) throws RemoteException, SQLException;
     
-    String sendSucceededSoftCheckInfo(Set invoiceSet) throws RemoteException, SQLException;
+    String sendSucceededSoftCheckInfo(Map<String, Date> invoiceSet) throws RemoteException, SQLException;
     
     List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 

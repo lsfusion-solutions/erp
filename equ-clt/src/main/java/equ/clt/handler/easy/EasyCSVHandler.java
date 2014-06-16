@@ -10,8 +10,12 @@ import equ.api.ScalesInfo;
 import equ.api.TransactionScalesInfo;
 
 import java.io.*;
+import java.sql.Date;
 import java.text.ParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class EasyCSVHandler {
 
@@ -79,7 +83,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public Set<String> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) {
+        public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) {
             return null;
         }
     }
