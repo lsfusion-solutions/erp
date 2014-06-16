@@ -1215,3 +1215,54 @@ EXTEND DESIGN operation {
         ADD PROPERTY(namePriceListTypeOperation(o));
     }
 }
+//-------------------- Подбор изделий -----------------//
+productDetailOrderProduct (order,product) =  GROUP MAX productDetail
+    BY orderProductDetail(productDetail), productProductDetail(productDetail);
+
+quantityOrderProduct 'Кол-во изделий в документе' (order,product) =  GROUP SUM quantityProductDetail(productDetail)
+    BY orderProductDetail(productDetail), productProductDetail(productDetail);    
+    
+changeQuantityProductOrder = ACTION (product, order) {
+    REQUEST NUMERIC[14,3] INPUT;
+    IF productDetailOrderProduct(order,product) THEN {
+        IF requestedNumeric() THEN {
+            quantityProductDetail(detail) <- requestedNumeric() WHERE detail == productDetailOrderProduct(order,product);
+        } ELSE {
+            DELETE detail WHERE detail == productDetailOrderProduct(order,product);
+        }
+    } ELSE {
+        IF requestedNumeric() THEN {
+            FOR ADDOBJ d = ProductDetail DO {
+                orderProductDetail(d) <- order;
+                productProductDetail(d) <- product;
+                quantityProductDetail (d) <- requestedNumeric();
+            }
+        }
+    }
+}
+EXTEND FORM order
+
+    OBJECTS p=Product
+    PROPERTIES(p) idProduct SHOWIF showIDs()
+    PROPERTIES(p) READONLY descriptionProduct, nameSkuProduct, shortNameUOMProduct
+    PROPERTIES(o,p) quantityOrderProduct ON CHANGE changeQuantityProductOrder(p,o)
+
+    ORDER BY nameSkuProduct(p)
+;
+
+EXTEND DESIGN order{
+    row1 {
+        NEW tabContainer AFTER row111 {
+            fill = 1;
+            type = TABBED;
+            ADD pd.box;
+            NEW selectPane {
+                caption = 'Подбор';
+                fill = 1;
+                ADD p.box;
+            }
+        
+        }
+    }
+}
+
