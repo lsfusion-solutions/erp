@@ -59,8 +59,6 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             ObjectValue importTypeObject = getLCP("importTypeOrder").readClasses(session, orderObject);
 
-            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
-
             if (!(importTypeObject instanceof NullValue)) {
 
                 String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(session, importTypeObject));
@@ -93,7 +91,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                             makeImport(context.getBL(), session, orderObject, importColumns, file, fileExtension, startRow, isPosted, csvSeparator,
                                     primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject, supplierStockObject,
-                                    customerObject, customerStockObject, disableVolatileStats);
+                                    customerObject, customerStockObject);
 
                             session.apply(context);
                             
@@ -121,7 +119,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     public boolean makeImport(BusinessLogics BL, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String primaryKeyType,
                               boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, ObjectValue operationObject, ObjectValue supplierObject,
-                              ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject, boolean disableVolatileStats)
+                              ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         this.saleManufacturingPriceLM = (ScriptingLogicsModule) BL.getModule("SaleManufacturingPrice");
@@ -131,21 +129,21 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
         boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0),
                 BL, session, orderObject, importColumns, primaryKeyType, operationObject, supplierObject, supplierStockObject,
-                customerObject, customerStockObject, disableVolatileStats);
+                customerObject, customerStockObject);
 
         boolean importResult2 = (orderDetailsList != null && orderDetailsList.size() >= 2) && importOrders(orderDetailsList.get(1),
                 BL, session, orderObject, importColumns, secondaryKeyType, operationObject, supplierObject, supplierStockObject,
-                customerObject, customerStockObject, disableVolatileStats);
+                customerObject, customerStockObject);
 
         getLAP("formRefresh").execute(session);
 
         return importResult1 && importResult2;
     }
 
-    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, BusinessLogics BL, DataSession session, 
-                                DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType, 
+    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, BusinessLogics BL, DataSession session,
+                                DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType,
                                 ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
-                                ObjectValue customerObject, ObjectValue customerStockObject, boolean disableVolatileStats)
+                                ObjectValue customerObject, ObjectValue customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
         if (orderDetailsList != null) {
@@ -335,13 +333,11 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             ImportTable table = new ImportTable(fields, data);
 
-            if(!disableVolatileStats)
-                session.pushVolatileStats();
+            session.pushVolatileStats("SOA_OR");
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             String result = session.applyMessage(BL);
-            if(!disableVolatileStats)
-                session.popVolatileStats();
+            session.popVolatileStats();
 
             return result == null;
         }

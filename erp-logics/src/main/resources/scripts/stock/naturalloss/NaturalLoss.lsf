@@ -44,13 +44,11 @@ inIntervalNaturalLoss (date, subNaturalLossGroupDetail) =
             dayToNaturalLossGroupDetail(subNaturalLossGroupDetail),
             numberMonth(monthToNaturalLossGroupDetail(subNaturalLossGroupDetail))) AND date IS DATE;
 
-castInterval =
- FORMULA VARSTRING[100] ' CAST($1 AS TEXT) || \' \' || CAST($2 AS TEXT) || \' - \' || CAST($3 AS TEXT) || \' \' || CAST($4 AS TEXT)';
 castIntervalNaturalLoss (subNaturalLossGroupDetail) =
- castInterval(dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail),
-              nameMonthFromNaturalLossGroupDetail(subNaturalLossGroupDetail),
-              dayToNaturalLossGroupDetail(subNaturalLossGroupDetail),
-              nameMonthToNaturalLossGroupDetail(subNaturalLossGroupDetail));
+ dayFromNaturalLossGroupDetail(subNaturalLossGroupDetail) + ' ' +
+              nameMonthFromNaturalLossGroupDetail(subNaturalLossGroupDetail) + ' - ' +
+              dayToNaturalLossGroupDetail(subNaturalLossGroupDetail) + ' ' +
+              nameMonthToNaturalLossGroupDetail(subNaturalLossGroupDetail);
 
 concatSubNaturalLossGroupDetail (subNaturalLossGroup) =
  GROUP CONCAT STRING[15](percentNaturalLossGroupDetail(subNaturalLossGroupDetail)), ','
@@ -242,10 +240,8 @@ percentNaturalLossDetail 'Норма естественной убыли, %' = D
 percentNaturalLossDetail(naturalLossDetail) <- percentNaturalLossGroupDetail(subNaturalDetailNaturalLossDetail(naturalLossDetail))
     WHEN CHANGED(subNaturalDetailNaturalLossDetail(naturalLossDetail));
 
-castTwoObjectsToString150 = FORMULA VARSTRING[150] 'CAST($1 AS TEXT) || \'  \' || CAST($2 AS TEXT)';
 castNameSubNaturalLossGroup 'Группа естественной убыли' (naturalLossDetail) =
-    castTwoObjectsToString150(nameSubNaturalLossGroupNaturalLossDetail(naturalLossDetail),
-                              nameSubNaturalDetailNaturalLossDetail(naturalLossDetail));
+    nameSubNaturalLossGroupNaturalLossDetail(naturalLossDetail) + ' ' + nameSubNaturalDetailNaturalLossDetail(naturalLossDetail);
 
 CONSTRAINT subNaturalLossGroupNaturalLossDetail(naturalLossDetail) != subNaturalLossGroupSubNaturalLossGroupDetail(subNaturalDetailNaturalLossDetail(naturalLossDetail))
     CHECKED BY subNaturalDetailNaturalLossDetail MESSAGE 'Группа естественной убыли товара должна соответствовать группе периода';

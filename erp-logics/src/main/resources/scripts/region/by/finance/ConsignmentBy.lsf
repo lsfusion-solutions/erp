@@ -213,9 +213,7 @@ downtimeConsignment 'Время простоя' (consignment) = OVERRIDE dataDow
                                                              dataDowntime() IF consignment IS Consignment AND NOT notArrivalTimeConsignment(), 
                                                              dataDowntimeConsignment(consignment) IN carConsignment;
 
-sumTimeMinutes(time, minutes) = [= FORMULA DATETIME '(($1)+($2)*CAST(\'1 minutes\' AS INTERVAL))'](time AS DATETIME, minutes AS LONG);
-
-departureTimeConsignment 'Время убытия' (consignment) = sumTimeMinutes(arrivalTimeConsignment(consignment), LONG(downtimeConsignment(consignment))) IN carConsignment;                                                                
+departureTimeConsignment 'Время убытия' (consignment) = sumDateTimeMinutes(arrivalTimeConsignment(consignment), LONG(downtimeConsignment(consignment))) IN carConsignment;                                                                
 
 raceQuantityConsignment 'Количество ездок' (consignment) = ABSTRACT INTEGER (Consignment) IN carConsignment;
 
@@ -226,8 +224,7 @@ overNoteConsignment 'Примечание' (consignment) = DATA VARSTRING[500] (
 noteConsignment 'Примечание' (consignment) = OVERRIDE dataNoteConsignment(consignment), overNoteConsignment(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 80;
 
 namePayerConsignment 'Заказчик перевозки ' (consignment) =
-    [= FORMULA VARSTRING[100] 'CAST($1 AS TEXT) ||  \' , \' || CAST($2 AS TEXT)']
-    (nameLegalEntity(payerConsignment(consignment)), UNPLegalEntity(payerConsignment(consignment))) IN carConsignment;
+    nameLegalEntity(payerConsignment(consignment)) + ' , ' + UNPLegalEntity(payerConsignment(consignment)) IN carConsignment;
 
 batchConsignmentDetail = ABSTRACT Batch (ConsignmentDetail) PERSISTENT;
 descriptionBatchConsignmentDetail 'Партия' (consignmentDetail) = descriptionBatch(batchConsignmentDetail(consignmentDetail)) MINCHARWIDTH 20 PREFCHARWIDTH 40;

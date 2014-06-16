@@ -35,8 +35,6 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
 
         try {
 
-            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
-            
             LCP<PropertyInterface> isImportUserPriceListType = (LCP<PropertyInterface>) LM.is(getClass("ImportUserPriceListType"));
             ImRevMap<PropertyInterface, KeyExpr> importUserPriceListTypeKeys = isImportUserPriceListType.getMapKeys();
             KeyExpr importUserPriceListTypeKey = importUserPriceListTypeKeys.singleValue();
@@ -70,7 +68,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
 
                                     boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
                                             userPriceListObject, importColumns, IOUtils.getFileBytes(f),
-                                            true, disableVolatileStats);
+                                            true);
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + importColumns.getFileExtension());

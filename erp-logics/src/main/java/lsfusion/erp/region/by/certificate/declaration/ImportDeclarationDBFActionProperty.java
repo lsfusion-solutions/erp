@@ -8,7 +8,6 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportDBFActionProperty;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
@@ -56,7 +55,6 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
             if (objectValue != null) {
 
                 List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
-                boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
                 
                 for (byte[] entry : fileList) {
 
@@ -65,7 +63,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
                     DBF dbfFile = new DBF(tempFile.getPath());
 
-                    importDeclaration(context, declarationObject, dbfFile, disableVolatileStats);
+                    importDeclaration(context, declarationObject, dbfFile);
                     
                     tempFile.delete();
 
@@ -82,7 +80,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
         }
     }
 
-    private void importDeclaration(ExecutionContext context, DataObject declarationObject, DBF dbfFile, boolean disableVolatileStats) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
+    private void importDeclaration(ExecutionContext context, DataObject declarationObject, DBF dbfFile) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
         DataSession session = context.createSession();
         
@@ -125,13 +123,11 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
             ImportTable table = new ImportTable(fields, data);
 
-            if (!disableVolatileStats)
-                session.pushVolatileStats();
+            session.pushVolatileStats("DBF_DN");
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             session.apply(context);
-            if (!disableVolatileStats)
-                session.popVolatileStats();
+            session.popVolatileStats();
             session.close();
         }
     }

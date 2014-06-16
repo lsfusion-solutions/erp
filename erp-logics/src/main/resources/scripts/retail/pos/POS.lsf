@@ -88,7 +88,7 @@ isAppliedPromotionReceiptSaleDetailPromotionCondition 'Акция применя
       ELSE receiptSaleDetail IS ReceiptSaleDetail AND promotionCondition IS PromotionCondition;
 
 // оптимизация
-possibleReceiptPromotion = GROUP SUM inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail)) IF quantityReceiptSaleDetail(detail) BY receiptReceiptSaleDetail(detail), promotionPromotionCondition(promotionCondition);
+possibleReceiptPromotion = GROUP SUM 1 IF inPromotionConditionSku(promotionCondition, skuReceiptSaleDetail(detail)) IF quantityReceiptSaleDetail(detail) BY receiptReceiptSaleDetail(detail), promotionPromotionCondition(promotionCondition);
 
 calculatePromotionsReceipt 'Рассчитать акции' = ACTION (receipt) {
 
@@ -716,6 +716,17 @@ clearDiscountCardReceipt 'Сбросить' = ACTION (receipt) {
 
 // Операции с Z-отчетами
 
+openZReport 'Открыть Z-отчет' (cashRegister) = ACTION {
+    FOR ADDOBJ z = ZReport DO {
+        isPostedZReport(z) <- TRUE;
+        numberZReport(z) <- STRING[255](z);
+        cashRegisterZReport(z) <- cashRegister;
+        departmentStoreZReport(z) <- departmentStoreCashRegister(cashRegister); // todo : приходится ставить из-за того, что на ADDOBJ срабатывает resolveAdd
+        zReportCashRegister(cashRegister) <- z;
+        apply();
+    }
+} IN receiptZReport;
+
 openCurrentZReport 'Открыть Z-отчет' = ACTION () {
     FOR ADDOBJ z = ZReport DO {
         isPostedZReport(z) <- TRUE;
@@ -728,6 +739,18 @@ openCurrentZReport 'Открыть Z-отчет' = ACTION () {
 } CONFIRM IN receiptZReport;
 
 overCloseZReport = ABSTRACT ACTION LIST (ZReport);
+
+closeZReport 'Закрыть Z-отчет' (cashRegister) = ACTION {
+    cancel();
+    FOR z == zReportCashRegister(cashRegister) DO {
+        timeZReport(z) <- currentTime();
+        dateZReport(z) <- currentDate();
+        overCloseZReport(z);
+    }
+    zReportCashRegister(cashRegister) <- NULL;
+    apply();
+} CONFIRM IN receiptZReport;
+
 closeCurrentZReport 'Закрыть Z-отчет' = ACTION () {
     cancel();
     timeZReport(z) <- currentTime() WHERE z == currentZReport();
@@ -1068,3 +1091,7 @@ EXTEND DESIGN operationCashRegister{
         ADD PROPERTY(fiscalUpdateData()) BEFORE PROPERTY(fiscalXReport()) { font = '24'; }
     }
 }
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (c) zReportCashRegister, openZReport, closeZReport
+;

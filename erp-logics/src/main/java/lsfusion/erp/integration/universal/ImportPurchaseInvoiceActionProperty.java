@@ -10,7 +10,6 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.stock.BarcodeUtils;
-import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
@@ -81,8 +80,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             DataObject userInvoiceObject = context.getDataKeyValue(userInvoiceInterface);
 
-            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
-
             ObjectValue importTypeObject = getLCP("importTypeUserInvoice").readClasses(session, userInvoiceObject);
 
             if (!(importTypeObject instanceof NullValue)) {
@@ -121,13 +118,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                                 importUserInvoices(userInvoiceDetailData.get(0), context, session, importColumns.get(0), 
                                         importColumns.get(1), userInvoiceObject, importSettings.getPrimaryKeyType(),
                                         operationObject, supplierObject, supplierStockObject, customerObject,
-                                        customerStockObject, disableVolatileStats);
-
+                                        customerStockObject);
+                            
                             if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 2)
                                 importUserInvoices(userInvoiceDetailData.get(1), context, session, importColumns.get(0),
                                         importColumns.get(1), userInvoiceObject, importSettings.getSecondaryKeyType(),
                                         operationObject, supplierObject, supplierStockObject, customerObject,
-                                        customerStockObject, disableVolatileStats);
+                                        customerStockObject);
 
                             session.apply(context);
 
@@ -160,8 +157,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         initModules(context);
         
-        boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
-
         List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, LM, importTypeObject);
         Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, LM, checkInvoiceExistence);
 
@@ -178,12 +173,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         int result1 = (userInvoiceDetailData == null || userInvoiceDetailData.size() < 1) ? IMPORT_RESULT_EMPTY :
             importUserInvoices(userInvoiceDetailData.get(0), context, session, importColumns.get(0), importColumns.get(1),
                     userInvoiceObject, importSettings.getPrimaryKeyType(), operationObject, supplierObject,
-                    supplierStockObject, customerObject, customerStockObject, disableVolatileStats);
+                    supplierStockObject, customerObject, customerStockObject);
 
         int result2 = (userInvoiceDetailData == null || userInvoiceDetailData.size() < 2) ? IMPORT_RESULT_EMPTY :
             importUserInvoices(userInvoiceDetailData.get(1), context, session, importColumns.get(0), importColumns.get(1),
                     userInvoiceObject, importSettings.getSecondaryKeyType(), operationObject, supplierObject,
-                    supplierStockObject, customerObject, customerStockObject, disableVolatileStats);
+                    supplierStockObject, customerObject, customerStockObject);
         
         return (result1==IMPORT_RESULT_ERROR || result2==IMPORT_RESULT_ERROR) ? IMPORT_RESULT_ERROR : (result1 + result2);
     }
@@ -204,10 +199,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     public int importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, ExecutionContext context, DataSession session,
-                                      LinkedHashMap<String, ImportColumnDetail> defaultColumns, LinkedHashMap<String, ImportColumnDetail> customColumns,
-                                      DataObject userInvoiceObject, String keyType, ObjectValue operationObject,
-                                      ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject,
-                                      ObjectValue customerStockObject, boolean disableVolatileStats)
+                                  LinkedHashMap<String, ImportColumnDetail> defaultColumns, LinkedHashMap<String, ImportColumnDetail> customColumns,
+                                  DataObject userInvoiceObject, String keyType, ObjectValue operationObject,
+                                  ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject,
+                                  ObjectValue customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
 
@@ -962,11 +957,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             ImportTable table = new ImportTable(fields, data);
 
-            if (!disableVolatileStats)
-                session.pushVolatileStats();
+            session.pushVolatileStats("PIA_UI");
             IntegrationService service = new IntegrationService(session, table, keys, props);
-            if (!disableVolatileStats)
-                service.synchronize(true, false);
+            service.synchronize(true, false);
             session.popVolatileStats();
             return IMPORT_RESULT_OK;
         }   else return IMPORT_RESULT_EMPTY;

@@ -126,10 +126,8 @@ isIncomeCashOperation (cashOperation) = cashOperation IS IncomeCashOperation;
 cashRegisterIncomeCashOperation (incomeCashOperation) = DATA CashRegister (IncomeCashOperation);
 numberCashRegisterIncomeCashOperation 'Касса внесения денег' (incomeCashOperation) = nppMachinery(cashRegisterIncomeCashOperation(incomeCashOperation)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 sumCashIncomeCashOperation 'Сумма внесения' = DATA NUMERIC[16,2] (IncomeCashOperation) IN documentSum;
-castBasisIncomeCashOperation =
-    FORMULA VARSTRING[100] '\'Внесение денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
 basisIncomeCashOperation 'Основание' (incomeCashOperation) =
-    castBasisIncomeCashOperation(seriesNumberIncomeCashOperation(incomeCashOperation), numberCashRegisterIncomeCashOperation(incomeCashOperation), dateIncomeCashOperation(incomeCashOperation)) IN documentPrm;
+    'Внесение денег №' + seriesNumberIncomeCashOperation(incomeCashOperation) + ' с кассы ' + numberCashRegisterIncomeCashOperation(incomeCashOperation) + ' от ' + dateIncomeCashOperation(incomeCashOperation) IN documentPrm;
 
 curSumIncomeCashOperation 'Текущая сумма внесенных денег' (cashRegister) =
     GROUP SUM sumCashIncomeCashOperation(incomeCashOperation)
@@ -193,10 +191,8 @@ addressStockOutcomeCashOperation 'Адрес (Отдел магазина)' (out
 countryOutcomeCashOperation (outcomeCashOperation) = countryStock(departmentStoreOutcomeCashOperation(outcomeCashOperation));
                 
 sumCashOutcomeCashOperation 'Сумма изъятия' = DATA NUMERIC[16,2] (OutcomeCashOperation) IN documentSum;
-castBasisOutcomeCashOperation =
-    FORMULA VARSTRING[100] '\'Изъятие денег №\' || CAST($1 AS TEXT) || \' с кассы \' || CAST($2 AS TEXT) || \' от \' || CAST($3 AS TEXT)';
 basisOutcomeCashOperation 'Основание' (outcomeCashOperation) =
-    castBasisOutcomeCashOperation(seriesNumberOutcomeCashOperation(outcomeCashOperation), numberCashRegisterOutcomeCashOperation(outcomeCashOperation), dateOutcomeCashOperation(outcomeCashOperation)) IN documentPrm;
+    'Изъятие денег №' + seriesNumberOutcomeCashOperation(outcomeCashOperation) + ' с кассы ' + numberCashRegisterOutcomeCashOperation(outcomeCashOperation) + ' от ' + dateOutcomeCashOperation(outcomeCashOperation) IN documentPrm;
 
 curSumOutcomeCashOperation 'Текущая сумма изъятых денег' (cashRegister) =
     GROUP SUM sumCashOutcomeCashOperation(outcomeCashOperation)

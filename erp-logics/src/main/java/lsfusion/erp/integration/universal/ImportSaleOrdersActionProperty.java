@@ -36,8 +36,6 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
 
         try {
 
-            boolean disableVolatileStats = Settings.get().isDisableExplicitVolatileStats();
-            
             DataSession session = context.getSession();
             
             LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) LM.is(getClass("ImportType"));
@@ -102,7 +100,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                                     boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(), currentSession, orderObject,
                                             importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, 
                                             csvSeparator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject,
-                                            supplierStockObject, customerObject, customerStockObject, disableVolatileStats);                                                                                                        
+                                            supplierStockObject, customerObject, customerStockObject);                                                                                                        
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);

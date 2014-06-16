@@ -816,7 +816,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImportTable table = new ImportTable(fields, data);
 
             DataSession session = getDbManager().createSession();
-            session.pushVolatileStats();
+            session.pushVolatileStats("ES_TI");
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
             String result = session.applyMessage(getBusinessLogics());
@@ -1042,7 +1042,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     if (discountCardLM != null)
                         saleKeys.add(discountCardKey);
 
-                    session.pushVolatileStats();
+                    session.pushVolatileStats("ES_SI");
                     new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
 
                     List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey);
@@ -1233,7 +1233,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 
                 ImportTable table = new ImportTable(fieldsIncome, dataIncome);
                 DataSession session = getDbManager().createSession();
-                session.pushVolatileStats();
+                session.pushVolatileStats("ES_CDI");
                 IntegrationService service = new IntegrationService(session, table, keysIncome, propsIncome);
                 service.synchronize(true, false);
                 String resultIncome = session.applyMessage(getBusinessLogics());
@@ -1245,7 +1245,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 
                 table = new ImportTable(fieldsOutcome, dataOutcome);
                 session = getDbManager().createSession();
-                session.pushVolatileStats();
+                session.pushVolatileStats("ES_CDI");
                 service = new IntegrationService(session, table, keysOutcome, propsOutcome);
                 service.synchronize(true, false);
                 String resultOutcome = session.applyMessage(getBusinessLogics());
