@@ -6,16 +6,14 @@ import equ.api.TransactionInfo;
 import equ.api.terminal.*;
 import equ.clt.EquipmentServer;
 import org.apache.log4j.Logger;
-import org.springframework.util.FileCopyUtils;
-import java.io.File;
-import java.io.FileFilter;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.math.BigDecimal;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.sql.*;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class LSTerminalHandler extends TerminalHandler {
 
@@ -34,10 +32,20 @@ public class LSTerminalHandler extends TerminalHandler {
             if (directory != null) {
                 String exchangeDirectory = directory + "\\exchange";
                 if ((new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdir())) {
-                    //copy base to exchange directory
-                    FileCopyUtils.copy(new File(makeDBPath(directory + dbPath, nppGroupTerminal)), new File(makeDBPath(exchangeDirectory, null)));
+                    //copy base to exchange directory                   
+                    FileInputStream fis = new FileInputStream(new File(makeDBPath(directory + dbPath, nppGroupTerminal)));
+                    FileOutputStream fos = new FileOutputStream(new File(exchangeDirectory + "\\base.zip"));
+                    ZipOutputStream zos = new ZipOutputStream(fos);
+                    zos.putNextEntry(new ZipEntry("tsd.db"));
+                    byte[] buf = new byte[1024];
+                    int len;
+                    while ((len = fis.read(buf)) > 0) {
+                        zos.write(buf, 0, len);
+                    }
+                    fis.close();
+                    zos.close();
                 }
-            }
+            }          
         } catch (Exception e) {
             logger.error(e);
             throw Throwables.propagate(e);
@@ -109,7 +117,7 @@ public class LSTerminalHandler extends TerminalHandler {
         try {
 
             Class.forName("org.sqlite.JDBC");
-            
+
             Set<String> directorySet = new HashSet<String>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
@@ -150,7 +158,7 @@ public class LSTerminalHandler extends TerminalHandler {
                                 List<List<Object>> dokData = readDokFile(connection);
 
                                 for (List<Object> entry : dokData) {
-                                
+
                                     String idTerminalDocumentType = (String) entry.get(0); //VOP
                                     String numberTerminalDocument = (String) entry.get(1); //NUM
                                     String idTerminalHandbookType1 = (String) entry.get(2); //ANA1
@@ -160,12 +168,12 @@ public class LSTerminalHandler extends TerminalHandler {
                                     BigDecimal price = (BigDecimal) entry.get(6); //PRICE
                                     BigDecimal sum = safeMultiply(quantity, price);
                                     Integer count = barcodeCountMap.get(barcode);
-                                    String idTerminalDocumentDetail = numberTerminalDocument + "_" + barcode + (count == null ? "" : ("_" + count));
+                                    String numberTerminalDocumentDetail = barcode + (count == null ? "" : ("_" + count));
                                     barcodeCountMap.put(barcode, count == null ? 1 : (count + 1));
 
                                     if (quantity != null && !quantity.equals(BigDecimal.ZERO))
                                         terminalDocumentDetailList.add(new TerminalDocumentDetail(numberTerminalDocument, idTerminalHandbookType1,
-                                                idTerminalHandbookType2, idTerminalDocumentType, idTerminalDocumentDetail, barcode, price, quantity, sum));
+                                                idTerminalHandbookType2, idTerminalDocumentType, numberTerminalDocumentDetail, barcode, price, quantity, sum));
                                 }
 
                                 connection.close();
@@ -193,7 +201,7 @@ public class LSTerminalHandler extends TerminalHandler {
         String num = null;
         String ana1 = null;
         String ana2 = null;
-        
+
         Statement statement = connection.createStatement();
         String sql = "SELECT vop, num, ana1, ana2 FROM dok LIMIT 1;";
         ResultSet resultSet = statement.executeQuery(sql);
@@ -217,7 +225,7 @@ public class LSTerminalHandler extends TerminalHandler {
         }
         resultSet.close();
         statement.close();
-              
+
         return itemsList;
     }
 
@@ -295,7 +303,7 @@ public class LSTerminalHandler extends TerminalHandler {
             String sql = "BEGIN TRANSACTION;";
             for (TerminalAssortment assortment : transactionInfo.terminalAssortmentList) {
                 if (assortment.idBarcode != null && assortment.idSupplier != null)
-                    sql += String.format("INSERT OR REPLACE INTO assort VALUES('%s', '%s');", 
+                    sql += String.format("INSERT OR REPLACE INTO assort VALUES('%s', '%s');",
                             ("ПС" + assortment.idSupplier), assortment.idBarcode);
             }
             sql += "COMMIT;";
@@ -447,7 +455,7 @@ public class LSTerminalHandler extends TerminalHandler {
             return null;
         else return operand1.multiply(operand2);
     }
-    
+
     protected boolean listNotEmpty(List list) {
         return list != null && !list.isEmpty();
     }
