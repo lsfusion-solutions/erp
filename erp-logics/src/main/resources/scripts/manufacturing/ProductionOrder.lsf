@@ -1240,7 +1240,13 @@ changeQuantityProductOrder = ACTION (product, order) {
         }
     }
 }
+
 EXTEND FORM order
+
+    TREE skuTree g = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY nameSkuGroup(g)
+    ORDER BY nameSkuGroup(g)
+    FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(g) DEFAULT
 
     OBJECTS p=Product
     PROPERTIES(p) idProduct SHOWIF showIDs()
@@ -1248,6 +1254,9 @@ EXTEND FORM order
     PROPERTIES(o,p) quantityOrderProduct ON CHANGE changeQuantityProductOrder(p,o)
 
     ORDER BY nameSkuProduct(p)
+    
+    FILTERS                isParentSkuGroupSku(g, skuProduct(p)),
+                           activeSku(skuProduct(p))    
 ;
 
 EXTEND DESIGN order{
@@ -1259,6 +1268,8 @@ EXTEND DESIGN order{
             NEW selectPane {
                 caption = 'Подбор';
                 fill = 1;
+                type = SPLITH;
+                ADD skuTree.tree.box { caption = 'Группы'; }                
                 ADD p.box;
             }
         
