@@ -67,11 +67,11 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
                 new OverJDBField("D_VV", 'D', 8, 0), new OverJDBField("DOK", 'C', 8, 0),
                 new OverJDBField("VNDOK", 'C', 8, 0), new OverJDBField("TEXTPR", 'C', 50, 0),
                 new OverJDBField("K_OP", 'C', 3, 0), new OverJDBField("K_SCHD", 'C', 5, 0),
-                new OverJDBField("K_SCHK", 'C', 5, 0), new OverJDBField("K_ANAD1", 'C', 20, 0),
-                new OverJDBField("K_ANAD2", 'C', 20, 0), new OverJDBField("K_ANAD3", 'C', 20, 0),
+                new OverJDBField("K_SCHK", 'C', 5, 0), new OverJDBField("K_ANAD1", 'C', 100, 0),
+                new OverJDBField("K_ANAD2", 'C', 100, 0), new OverJDBField("K_ANAD3", 'C', 100, 0),
 
-                new OverJDBField("K_ANAK1", 'C', 20, 0), new OverJDBField("K_ANAK2", 'C', 20, 0),
-                new OverJDBField("K_ANAK3", 'C', 20, 0), new OverJDBField("N_SUM", 'F', 17, 2),
+                new OverJDBField("K_ANAK1", 'C', 100, 0), new OverJDBField("K_ANAK2", 'C', 100, 0),
+                new OverJDBField("K_ANAK3", 'C', 100, 0), new OverJDBField("N_SUM", 'F', 17, 2),
                 new OverJDBField("K_MAT", 'C', 12, 0), new OverJDBField("N_MAT", 'F', 17, 3),
                 new OverJDBField("N_DSUM", 'F', 15, 2), new OverJDBField("KOD_ISP", 'C', 2, 0),
                 new OverJDBField("P_AVT", 'C', 3, 0)

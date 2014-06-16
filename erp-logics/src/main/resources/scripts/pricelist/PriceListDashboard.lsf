@@ -53,9 +53,6 @@ NAVIGATOR {
 
 inSku 'Отм.' = DATA SESSION BOOLEAN (Sku);
 
-TABLE skuCustomUser(Sku, CustomUser);
-inSkuCustomUser = DATA BOOLEAN (Sku, CustomUser);
-
 // ---------------------------- По организациям ----------------------- //
 // c
 activeLedgerALedgerPriceListTypeSkuCompanyDateTime (type, sku, company, dateTime) =
@@ -157,64 +154,55 @@ fillCompanyPriceList = ACTION (userPriceList, dateTime, dataPriceListType, compa
     currencyUserPriceList(userPriceList) <- currencyDataPriceListType(dataPriceListType);
     inUserPriceListDataPriceListType(userPriceList, dataPriceListType) <- TRUE;
     showUserPriceListPriceListType(userPriceList, dataPriceListType) <- TRUE;
-    FOR inSkuCustomUser(sku, currentUser()) ADDOBJ d = UserPriceListDetail DO {
+    FOR inSku(sku) ADDOBJ d = UserPriceListDetail DO {
         skuUserPriceListDetail(d) <- sku;
         userPriceListUserPriceListDetail(d) <- userPriceList;
     }
 }
 
 // Добавление в ассортимент
-includeSessionDateTimeDataPriceListTypeCompany 'Включить' = ACTION (dateTime, dataPriceListType, company) NEWSESSION {
-    FOR ADDOBJ u = UserPriceList DO {
-        fillCompanyPriceList(u, dateTime, dataPriceListType, company);
-        priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
-            activePriceALedgerPriceListTypeSkuCompanyDateTime(dataPriceListType, skuUserPriceListDetail(d), company, dateTime)
-            WHERE userPriceListUserPriceListDetail(d) == u;
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-    }
-}
-
 includeDateTimeDataPriceListTypeCompany 'Включить' = ACTION (dateTime, dataPriceListType, company) {
-    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
-    apply();
-    includeSessionDateTimeDataPriceListTypeCompany(dateTime, dataPriceListType, company);
+    NEWSESSION (inSku) {
+        FOR ADDOBJ u = UserPriceList DO {
+            fillCompanyPriceList(u, dateTime, dataPriceListType, company);
+            priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
+                activePriceALedgerPriceListTypeSkuCompanyDateTime(dataPriceListType, skuUserPriceListDetail(d), company, dateTime)
+                WHERE userPriceListUserPriceListDetail(d) == u;
+            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+            inSku(s) <- NULL;
+        }
+    }
 }
 
 // Изменение цен
-modifySessionDateTimeDataPriceListTypeCompany 'Изменить' = ACTION (dateTime, dataPriceListType, company) NEWSESSION {
-    FOR ADDOBJ u = UserPriceList DO {
-        fillCompanyPriceList(u, dateTime, dataPriceListType, company);
-        priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
-            activePriceALedgerPriceListTypeSkuCompanyDateTime(dataPriceListType, skuUserPriceListDetail(d), company, dateTime)
-            WHERE userPriceListUserPriceListDetail(d) == u;
-        FOR [= GROUP SUM 1 IF inSkuCustomUser(sku, currentUser()) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
-            dataInUserPriceListStock(u, stock) <- TRUE;
-        }
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-    }
-}
-
 modifyDateTimeDataPriceListTypeCompany 'Изменить' = ACTION (dateTime, dataPriceListType, company) {
-    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
-    apply();
-    modifySessionDateTimeDataPriceListTypeCompany(dateTime, dataPriceListType, company);
+    NEWSESSION (inSku) {
+        FOR ADDOBJ u = UserPriceList DO {
+            fillCompanyPriceList(u, dateTime, dataPriceListType, company);
+            priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
+                activePriceALedgerPriceListTypeSkuCompanyDateTime(dataPriceListType, skuUserPriceListDetail(d), company, dateTime)
+                WHERE userPriceListUserPriceListDetail(d) == u;
+            FOR [= GROUP SUM 1 IF inSku(sku) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
+                dataInUserPriceListStock(u, stock) <- TRUE;
+            }
+            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+            inSku(s) <- NULL;
+        }
+    }
 }
 
 // Исключение из ассортимента
-excludeSessionDateTimeDataPriceListTypeCompany 'Исключить' = ACTION (dateTime, dataPriceListType, company) NEWSESSION {
-    FOR ADDOBJ u = UserPriceList DO {
-        fillCompanyPriceList(u, dateTime, dataPriceListType, company);
-        FOR [= GROUP SUM 1 IF inSkuCustomUser(sku, currentUser()) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
-            dataInUserPriceListStock(u, stock) <- TRUE;
-        }
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-    }
-}
-
 excludeDateTimeDataPriceListTypeCompany 'Исключить' = ACTION (dateTime, dataPriceListType, company) {
-    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
-    apply();
-    excludeSessionDateTimeDataPriceListTypeCompany(dateTime, dataPriceListType, company);
+    NEWSESSION (inSku) {
+        FOR ADDOBJ u = UserPriceList DO {
+            fillCompanyPriceList(u, dateTime, dataPriceListType, company);
+            FOR [= GROUP SUM 1 IF inSku(sku) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
+                dataInUserPriceListStock(u, stock) <- TRUE;
+            }
+            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+            inSku(s) <- NULL;
+        }
+    }
 }
 
 EXTEND FORM priceListDashboard
@@ -342,54 +330,48 @@ fillCompanyStockPriceList = ACTION (u, company, dateTime, dataPriceListType, sto
     inUserPriceListDataPriceListType(u, dataPriceListType) <- TRUE;
     showUserPriceListPriceListType(u, dataPriceListType) <- TRUE;
     dataInUserPriceListStock(u, stock) <- TRUE;
-    FOR inSkuCustomUser(sku, currentUser()) AND companyALedgerPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, dateTime) == company
+    FOR inSku(sku) AND companyALedgerPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, dateTime) == company
         ADDOBJ d = UserPriceListDetail DO {
         skuUserPriceListDetail(d) <- sku;
         userPriceListUserPriceListDetail(d) <- u;
     }
 }
 
-createCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, stock) NEWSESSION {
-    FOR ADDOBJ u = UserPriceList DO {
-        fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+createCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, stock) {
+    NEWSESSION (inSku) {
+        FOR ADDOBJ u = UserPriceList DO {
+            fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
+            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+            inSku(s) <- NULL;
+        }
     }
 }
 
-createPriceCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, stock) NEWSESSION {
-    FOR ADDOBJ u = UserPriceList DO {
-        fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
-        priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
-            priceALedgerPriceListTypeSkuStockDateTime(dataPriceListType, skuUserPriceListDetail(d), stock, dateTime)
-            WHERE userPriceListUserPriceListDetail(d) == u;
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+createPriceCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, stock) {
+    NEWSESSION (inSku) {
+        FOR ADDOBJ u = UserPriceList DO {
+            fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
+            priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
+                priceALedgerPriceListTypeSkuStockDateTime(dataPriceListType, skuUserPriceListDetail(d), stock, dateTime)
+                WHERE userPriceListUserPriceListDetail(d) == u;
+            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+            inSku(s) <- NULL;
+        }
     }
 }
 
 // Изменение цен
-modifySessionDateTimeDataPriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, stock) {
-    FOR [= GROUP SUM 1 IF inSkuCustomUser(s, currentUser()) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
+modifyDateTimeDataPriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, stock) {
+    FOR [= GROUP SUM 1 IF inSku(s) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
         createPriceCompanyStockPriceList(company, dateTime, dataPriceListType, stock);
     }
 }
 
-modifyDateTimeDataPriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, stock) {
-    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
-    apply();
-    modifySessionDateTimeDataPriceListTypeStock(dateTime, dataPriceListType, stock);
-}
-
 // Исключение из ассортимента
-excludeSessionDateTimeDataPriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, stock) {
-    FOR [= GROUP SUM 1 IF inSkuCustomUser(s, currentUser()) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
+excludeDateTimeDataPriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, stock) {
+    FOR [= GROUP SUM 1 IF inSku(s) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
         createCompanyStockPriceList(company, dateTime, dataPriceListType, stock);
     }
-}
-
-excludeDateTimeDataPriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, stock) {
-    inSkuCustomUser(s, u) <- inSku(s) WHERE u == currentUser();
-    apply();
-    excludeSessionDateTimeDataPriceListTypeStock(dateTime, dataPriceListType, stock);
 }
 
 EXTEND FORM priceListDashboard
