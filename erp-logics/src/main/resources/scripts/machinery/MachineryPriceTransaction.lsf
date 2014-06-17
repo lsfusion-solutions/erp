@@ -246,23 +246,23 @@ snapshotGroupMachineryDepartmentStore 'Перезагрузить прайс' = 
     FORM groupMachineryInput OBJECTS s = stock MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL groupMachinery = GroupMachinery ();
-        ASSIGN groupMachinery() <- chosenObject('g');
-        EXEC createMachineryPriceTransactionGroupMachinery(groupMachinery());
+        groupMachinery() <- chosenObject('g');
+        createMachineryPriceTransactionGroupMachinery(groupMachinery());
         FOR t == addedObject() DO {
-            ASSIGN groupMachineryMachineryPriceTransaction(t) <- groupMachinery();
-            ASSIGN commentMachineryPriceTransaction(t) <- 'Перезагрузка прайса целиком';
-            ASSIGN snapshotMachineryPriceTransaction(t) <- TRUE;
-            ASSIGN inMachineryPriceTransactionMachinery(t, machinery) <- selectedMachinery(machinery);
-            ASSIGN inMachineryPriceTransactionBarcode(t, barcode) <- activeBarcode(barcode) AND
+            groupMachineryMachineryPriceTransaction(t) <- groupMachinery();
+            commentMachineryPriceTransaction(t) <- 'Перезагрузка прайса целиком';
+            snapshotMachineryPriceTransaction(t) <- TRUE;
+            inMachineryPriceTransactionMachinery(t, machinery) <- selectedMachinery(machinery);
+            inMachineryPriceTransactionBarcode(t, barcode) <- activeBarcode(barcode) AND
                                                                   prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery()) AND
                                                                   inGroupMachinerySku(groupMachinery(), skuBarcode(barcode)); // важно, что товар должен быть активным на текущий момент
-            ASSIGN nameMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery());
-            EXEC snapshotAttributeMachineryPriceTransactionGroupMachinery(t, groupMachinery());
-            ASSIGN priceMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionPriceBarcodeGroupMachinery(barcode, groupMachinery());
+            nameMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery());
+            snapshotAttributeMachineryPriceTransactionGroupMachinery(t, groupMachinery());
+            priceMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionPriceBarcodeGroupMachinery(barcode, groupMachinery());
         }
-        EXEC apply();
+        apply();
     }
-} CONFIRM IN snapshotMachineryPrice;
+} IN snapshotMachineryPrice;
 
 // Инкрементная загрузка
 GROUP incrementMachineryPrice 'Инкрементная загрузка' : public;
