@@ -9,6 +9,7 @@ import org.apache.log4j.Logger;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.input.SAXBuilder;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -24,7 +25,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
 
-    public KristalHandler() {
+    private FileSystemXmlApplicationContext springContext;
+    
+    public KristalHandler(FileSystemXmlApplicationContext springContext) {
+        this.springContext = springContext;
     }
 
     @Override
@@ -267,9 +271,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
-
+    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
+       
         logger.info("Kristal: requesting succeeded SoftCheckInfo");
+
+        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
 
         Map<String, Date> result = new HashMap<String, Date>();
 
@@ -277,7 +283,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         try {
 
             String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                    dbSettings.sqlIp, dbSettings.sqlPort, dbSettings.sqlDBName, dbSettings.sqlUsername, dbSettings.sqlPassword);
+                    kristalSettings.sqlIp, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
 
             Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
             conn = DriverManager.getConnection(url);
@@ -297,15 +303,17 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
+        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
+        
         List<CashDocument> result = new ArrayList<CashDocument>();
 
         Connection conn = null;
         try {
 
             String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                    dbSettings.sqlIp, dbSettings.sqlPort, dbSettings.sqlDBName, dbSettings.sqlUsername, dbSettings.sqlPassword);
+                    kristalSettings.sqlIp, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
 
             Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
             conn = DriverManager.getConnection(url);
@@ -346,7 +354,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList, DBSettings dbSettings) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
         Set<String> directorySet = new HashSet<String>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();

@@ -213,7 +213,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
+    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
 
         logger.info("Atol: requesting succeeded SoftCheckInfo");
 
@@ -277,7 +277,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
         try {
 
@@ -366,7 +366,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList, DBSettings dbSettings) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
         List<String> unusedEntryTypes = Arrays.asList("4", "14", "21", "23", "42", "43", "45", "49", "50", "51", "55", "60", "61", "63");
 

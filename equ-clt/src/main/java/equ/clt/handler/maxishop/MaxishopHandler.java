@@ -110,7 +110,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList, DBSettings dbSettings) throws IOException, ParseException {
+    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<Integer, String> cashRegisterDirectories = new HashMap<Integer, String>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if ((cashRegister.directory != null) && (!cashRegisterDirectories.containsValue(cashRegister.directory)))
@@ -177,7 +177,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
         return null;
     }
 
@@ -198,7 +198,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) {
+    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) {
         return null;
     }
 

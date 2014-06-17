@@ -59,8 +59,8 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList, DBSettings dbSettings) {
-            return null;  //To change body of implemented methods use File | Settings | File Templates.
+        public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) {
+            return null;
         }
 
         @Override
@@ -69,7 +69,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
+        public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
             return null;
         }
 
@@ -83,7 +83,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) {
+        public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) {
             return null;
         }
     }

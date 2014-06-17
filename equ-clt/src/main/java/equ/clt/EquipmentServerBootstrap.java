@@ -39,6 +39,10 @@ public class EquipmentServerBootstrap {
         springContext = new FileSystemXmlApplicationContext("conf/settings.xml");
         serverHost = (String) springContext.getBean("serverHost");
     }
+    
+    public static FileSystemXmlApplicationContext getSpringContext() {
+        return springContext;
+    }
 
     public static void stop() {
 

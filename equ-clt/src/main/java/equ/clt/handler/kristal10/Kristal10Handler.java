@@ -195,12 +195,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet, DBSettings dbSettings) throws ClassNotFoundException, SQLException {
+    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
         return null;
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet, DBSettings dbSettings) throws ClassNotFoundException {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
         Set<String> directorySet = new HashSet<String>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler"))
@@ -281,7 +281,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList, DBSettings dbSettings) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
         Set<String> directorySet = new HashSet<String>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
