@@ -1,0 +1,240 @@
+MODULE StopList;
+
+REQUIRE System,
+        Stock,
+        Machinery,
+        Numerator,        
+        Utils      
+        ;
+
+NAMESPACE StopList;
+
+//----------------------------------- Запрет продаж по кассе -------------------------------------------------------
+
+CLASS StopList 'Запрет продаж по кассе';
+CLASS StopListDetail 'Строка запрета продаж по кассе';
+
+@defineDocument(stopList);
+@deriveDocumentHeaderTimePrefix(StopList, );
+@defineDocumentTimePrefix (stopList, from, ' с');
+@defineDocumentTimePrefix (stopList, to, ' по');
+@defineDocumentHeaderNumber(StopList);
+@defineNumeratedDefault(StopList, 'Запрет продаж по кассе', 'ЗП');
+
+@defineDocumentHeaderLegalEntity(stopList, company, 'Компания');
+TABLE stockStopList (Stock ,StopList);
+inStockStopList 'Вкл.' = DATA BOOLEAN (Stock ,StopList);
+stocksStopList 'Склады' (stopList) = GROUP CONCAT nameStock(stock) IF inStockStopList(stock, stopList) , ', '
+                                         BY stopList
+                                         ORDER stock
+                                         MINCHARWIDTH 30 PREFCHARWIDTH 50;
+CONSTRAINT  inStockStopList(stock, stopList) AND NOT isCompanyStock(stock)
+    MESSAGE 'Для Запрета продаж по кассе выбран склад, который не принадлежит компании';                                       
+                                         
+
+@defineDocumentPosted(stopList);
+@defineDocumentClosed(stopList);
+@defineDocumentDescription (stopList, 'Запрет продаж по кассе');
+
+@defineDocumentDetailSkuPrefix (stopList, sku, , '');
+
+//-- SKU
+stopListDetailSkuStopList (sku, stopList) =  GROUP MAX stopListDetail
+    BY skuStopListDetail(stopListDetail), stopListStopListDetail(stopListDetail);
+
+countSkuStopList 'Вкл.' (sku, stopList) =  TRUE IF [ = GROUP SUM 1 
+    BY skuStopListDetail(stopListDetail), stopListStopListDetail(stopListDetail)](sku, stopList);    
+    
+    
+changeValueSkuStopList = ACTION (sku, stopList) {
+    REQUEST BOOLEAN INPUT;
+    IF stopListDetailSkuStopList(sku, stopList) THEN {
+        IF NOT requestedLogical() THEN {
+            DELETE d WHERE d == stopListDetailSkuStopList(sku, stopList);
+        } 
+    } ELSE {
+        IF requestedLogical() THEN {
+            FOR ADDOBJ d = StopListDetail DO {
+               stopListStopListDetail(d) <- stopList;
+               skuStopListDetail(d) <- sku;
+            }
+        }
+    }
+}
+
+FORM stopList 'Запрет продаж по кассе'
+
+    OBJECTS sl=StopList FIXED PANEL
+
+    PROPERTIES(sl) isPostedStopList, nameNumeratorStopList, numberStopList, seriesStopList, dateStopList, timeStopList,
+                   countStopListDetailStopList, noteStopList,
+                   fromDateStopList, fromTimeStopList, toDateStopList, toTimeStopList
+                   
+    TREE stockTree sg = StockGroup PARENT parentStockGroup
+    PROPERTIES READONLY nameStockGroup(sg)
+
+    OBJECTS ts=Stock
+    PROPERTIES    READONLY tsTreeName = nameStock(ts)
+    PROPERTIES(ts, sl) inStockStopList FORCE GRID
+
+    FILTERS isParentStockGroupStock(sg, ts)
+    ORDER BY nameStockGroup(sg)                                        
+
+    OBJECTS d = StopListDetail
+    PROPERTIES(d)   indexStopListDetail,
+                    idBarcodeSkuStopListDetail, nameSkuStopListDetail, shortNameUOMSkuStopListDetail
+
+    PROPERTIES(d)   ADDOBJ, deletedd=DELETESESSION
+
+    PROPERTIES(sl) TODRAW d deleteStopListDetailStopList
+
+    FILTERS         stopListStopListDetail(d) == sl
+    
+    
+    TREE skuTree sk = SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY nameSkuGroup(sk)
+    ORDER BY nameSkuGroup(sk)
+
+    OBJECTS           ks=Sku 
+    PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks)
+    PROPERTIES        addSku() TODRAW ks, editSku(ks), copySku(ks), countSkuStopList(ks,sl) ON CHANGE changeValueSkuStopList(ks,sl)
+    ORDER BY          nameSku(ks) 
+    FILTERS           isParentSkuGroupSku(sk, ks),
+                      nameSku(ks)
+      
+    FILTERGROUP inDocument FILTER 'В док-те' 'F10' countSkuStopList(ks,sl)      
+
+    EVENTS
+        ON OK prePostStopList(sl)
+
+    EDIT StopList OBJECT sl
+;
+
+DESIGN stopList FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+        NEW header.box {
+            type = CONTAINERH;
+
+            NEW headerRow1 {
+                fill = 1;
+                type = CONTAINERV;
+                ADD sl.documentHeader {
+                    type = CONTAINERH;
+                    ADD PROPERTY(isPostedStopList(sl)) { preferredCharWidth = 10; }
+                    ADD PROPERTY(nameNumeratorStopList(sl));
+                    ADD PROPERTY(numberStopList(sl));
+                    ADD PROPERTY(seriesStopList(sl));
+                    ADD PROPERTY(dateStopList(sl));
+                    ADD PROPERTY(timeStopList(sl));
+                }
+                NEW timeContainer {
+                    caption = 'Период действия';
+                    type = CONTAINERH;
+                    ADD PROPERTY (fromDateStopList(sl));
+                    ADD PROPERTY (fromTimeStopList(sl));
+                    ADD PROPERTY (toDateStopList(sl));
+                    ADD PROPERTY (toTimeStopList(sl));   
+                }
+                ADD sl.documentPrm;
+            }
+
+            ADD sl.documentSum {
+                columns = 1;
+            }
+        }
+        NEW row {
+            fill = 1;
+            type = TABBED;
+            NEW selectStock {
+                caption = 'Выбор складов';
+                type = SPLITH;
+                fill = 1;
+                ADD stockTree.tree.box {caption = 'Группы складов';}            
+                ADD ts.box { fill = 2;}
+            }
+            NEW specification.box {
+                caption = 'Спецификация';
+                fill = 1;
+                type = TABBED;
+                ADD d.box;
+                NEW itemBox {
+                    caption = 'Подбор';
+                    type = SPLITH;
+                    ADD skuTree.tree.box { caption = 'Группы SKU'; }
+                    ADD ks.box { fill = 2;}
+                }
+            }
+        }    
+        ADD functions.box;
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+    }
+}
+
+FORM stopLists 'Запреты продаж по кассе'
+
+    OBJECTS sl=StopList
+    PROPERTIES (sl) READONLYIF isReadonly() isClosedStopList, isPostedStopList, numberStopList, seriesStopList, dateStopList, timeStopList
+    PROPERTIES(sl)  READONLY fromDateStopList, fromTimeStopList, toDateStopList, toTimeStopList, countStopListDetailStopList
+    PROPERTIES (sl) READONLYIF isReadonly() noteStopList
+
+    PROPERTIES(sl)  READONLY FORCE PANEL createdNameUserStopList, createdTimeStopList, createdHostnameComputerStopList, 
+                                          postedNameUserStopList, postedTimeStopList, postedHostnameComputerStopList
+
+    PROPERTIES (sl) ADDFORM, EDITFORM SHOWIF isOpenedStopList(sl)
+    PROPERTIES(sl)  closeStopList SHOWIF isOpenedStopList(sl), openStopList SHOWIF isClosedStopList(sl)     
+    
+    PROPERTIES (sl) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedStopList(sl)
+
+    OBJECTS d=StopListDetail
+    PROPERTIES(d)   READONLY indexStopListDetail,
+                    idBarcodeSkuStopListDetail, nameSkuStopListDetail, shortNameUOMSkuStopListDetail
+    FILTERS         stopListStopListDetail(d) == sl
+;
+
+DESIGN stopLists FROM DEFAULT {
+    main {
+        preferredSize = (1024, 768);
+        NEW documentContainer  {
+            fill = 1;
+            type = SPLITV;
+
+            ADD sl.box {
+                fill = 2;
+            }
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                ADD d.box {
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    ADD sl.created;
+                    ADD sl.posted;
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+            }
+        }
+        ADD functions.box;
+    }
+}
+@extendFormEditable(stopLists);
+@defineFilterIsOpened (stopList, stopLists, sl);
+NAVIGATOR {
+    machineryExport {
+        ADD stopLists;
+    }
+}
+
+
+
