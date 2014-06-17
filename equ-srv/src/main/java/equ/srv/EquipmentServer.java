@@ -466,7 +466,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        String[] properties = new String[]{"idTerminalHandbookType", "staticCaption"};
+        String[] properties = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
         for (String property : properties) {
             query.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalHandbookTypeExpr));
         }
@@ -474,7 +474,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
         for(ImMap<Object, Object> entry : result.values()) {
             String id = trim((String) entry.get("idTerminalHandbookType"));
-            String name = trim((String) entry.get("staticCaption"));
+            String name = trim((String) entry.get("nameTerminalHandbookType"));
             terminalHandbookTypeList.add(new TerminalHandbookType(id, name));
         }
         return terminalHandbookTypeList;

@@ -51,41 +51,42 @@ FORM terminal 'ТСД'
     EDIT Terminal OBJECT t
 ;
 
+// ------------------------------------- Виды справочников ТСД --------------------------------- //
+
+CLASS TerminalHandbookType 'Вид справочника ТСД';
+TABLE terminalHandbookType(TerminalHandbookType);
+
+@defineExternalizable(terminalHandbookType, VARSTRING[100]);
+
+nameTerminalHandbookType 'Наименование' = DATA VARSTRING[100] (TerminalHandbookType);
+
+FORM terminalHandbookType
+    OBJECTS t = TerminalHandbookType FIXED PANEL
+    PROPERTIES(t) nameTerminalHandbookType, idTerminalHandbookType
+    EDIT TerminalHandbookType OBJECT t
+;
+
+FORM terminalHandbookTypes 'Виды справочников ТСД'
+    OBJECTS t=TerminalHandbookType FIXED GRID
+    PROPERTIES(t) READONLY nameTerminalHandbookType, idTerminalHandbookType
+    PROPERTIES(t)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    DIALOG TerminalHandbookType OBJECT t
+;
+
 // ------------------------ Группы типов документов ------------------------- //
 CLASS GroupTerminalDocumentType 'Группа типов документов';
 TABLE groupTerminalDocumentType (GroupTerminalDocumentType);
 
 nameGroupTerminalDocumentType 'Наименование группы' = DATA VARSTRING[200] (GroupTerminalDocumentType) IN base MINCHARWIDTH 10 PREFCHARWIDTH 20;
-groupTerminalDocumentTypeGroupTerminal 'Группа типов документов (ИД)' = DATA GroupTerminalDocumentType (GroupTerminal);
+groupTerminalDocumentTypeGroupTerminal 'Группа типов документов' = DATA GroupTerminalDocumentType (GroupTerminal);
 nameGroupTerminalDocumentTypeGroupTerminal 'Группа типов документов' (groupTerminal) = nameGroupTerminalDocumentType(groupTerminalDocumentTypeGroupTerminal(groupTerminal));
-
-// ------------------------------------- Виды справочников ТСД --------------------------------- //
-
-CLASS TerminalHandbookType 'Вид справочника ТСД' {
-    terminalHandbookTypeLegalEntity 'Организация'
-}
-FORM terminalHandbookTypes
-    OBJECTS t = TerminalHandbookType
-    PROPERTIES(t) staticCaption
-    DIALOG TerminalHandbookType OBJECT t
-;
-
-TABLE terminalHandbookType(TerminalHandbookType);
-
-@defineExternalizable(terminalHandbookType, VARSTRING[100]);  
-
-FORM handbooksTerminalDocumentType 'Виды справочников ТСД'
-    OBJECTS h=TerminalHandbookType
-    PROPERTIES(h)  staticCaption, idTerminalHandbookType
-    PROPERTIES(h)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-;
 
 //---------------------------- типы документов ----------------------------------------//
 
 CLASS TerminalDocumentType 'Тип документов';
 TABLE terminalDocumentType (TerminalDocumentType);
 
-groupTerminalDocumentTypeTerminalDocumentType = DATA GroupTerminalDocumentType (TerminalDocumentType);
+groupTerminalDocumentTypeTerminalDocumentType 'Группа типов документов' = DATA GroupTerminalDocumentType (TerminalDocumentType) NOT NULL DELETE;
 nameGroupTerminalDocumentTypeTerminalDocumentType 'Группа типов документов' (terminalDocumentType) = nameGroupTerminalDocumentType(groupTerminalDocumentTypeTerminalDocumentType(terminalDocumentType));
 
 nameTerminalDocumentType 'Название' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
@@ -93,48 +94,56 @@ nameTerminalDocumentType 'Название' = DATA VARSTRING[200] (TerminalDocum
 @defineExternalizable(terminalDocumentType, VARSTRING[100]);
 
 terminalHandbookType1TerminalDocumentType = DATA TerminalHandbookType (TerminalDocumentType);
-idTerminalHandbookType1TerminalDocumentType 'Код' (terminalDocumentType)  = idTerminalHandbookType (terminalHandbookType1TerminalDocumentType(terminalDocumentType));
-nameTerminalHandbookType1TerminalDocumentType 'Имя' (terminalDocumentType)  = staticCaption(terminalHandbookType1TerminalDocumentType(terminalDocumentType));
+idTerminalHandbookType1TerminalDocumentType 'Код' (terminalDocumentType) = 
+    idTerminalHandbookType (terminalHandbookType1TerminalDocumentType(terminalDocumentType));
+nameTerminalHandbookType1TerminalDocumentType 'Имя' (terminalDocumentType) = 
+    nameTerminalHandbookType(terminalHandbookType1TerminalDocumentType(terminalDocumentType));
 
 nameInHandbook1TerminalDocumentType 'Наименование в справочнике 1' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
-nameInHandbook1TerminalDocumentType(terminalDocumentType) <- nameTerminalHandbookType1TerminalDocumentType(terminalDocumentType) WHEN CHANGED(terminalHandbookType1TerminalDocumentType(terminalDocumentType));
+nameInHandbook1TerminalDocumentType(terminalDocumentType) <- nameTerminalHandbookType1TerminalDocumentType(terminalDocumentType) 
+    WHEN CHANGED(terminalHandbookType1TerminalDocumentType(terminalDocumentType));
 
 terminalHandbookType2TerminalDocumentType = DATA TerminalHandbookType (TerminalDocumentType);
-idTerminalHandbookType2TerminalDocumentType 'Код' (terminalDocumentType)  = idTerminalHandbookType (terminalHandbookType2TerminalDocumentType(terminalDocumentType));
-nameTerminalHandbookType2TerminalDocumentType 'Имя' (terminalDocumentType)  = staticCaption(terminalHandbookType2TerminalDocumentType(terminalDocumentType));
+idTerminalHandbookType2TerminalDocumentType 'Код' (terminalDocumentType) = 
+    idTerminalHandbookType (terminalHandbookType2TerminalDocumentType(terminalDocumentType));
+nameTerminalHandbookType2TerminalDocumentType 'Имя' (terminalDocumentType) = 
+    nameTerminalHandbookType(terminalHandbookType2TerminalDocumentType(terminalDocumentType));
 
 nameInHandbook2TerminalDocumentType 'Наименование в справочнике 2' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
-nameInHandbook2TerminalDocumentType(terminalDocumentType) <- nameTerminalHandbookType2TerminalDocumentType(terminalDocumentType) WHEN CHANGED(terminalHandbookType2TerminalDocumentType(terminalDocumentType));
+nameInHandbook2TerminalDocumentType(terminalDocumentType) <- nameTerminalHandbookType2TerminalDocumentType(terminalDocumentType) 
+    WHEN CHANGED(terminalHandbookType2TerminalDocumentType(terminalDocumentType));
 
 FORM groupTerminalDocumentType 'Группа типов документов'
     OBJECTS gtdt=GroupTerminalDocumentType FIXED PANEL
     PROPERTIES(gtdt) nameGroupTerminalDocumentType
 
     OBJECTS tdt=TerminalDocumentType
-    PROPERTIES(tdt)   idTerminalDocumentType, nameTerminalDocumentType, nameGroupTerminalDocumentTypeTerminalDocumentType,
-                      nameInHandbook1TerminalDocumentType, idTerminalHandbookType1TerminalDocumentType,
-                      nameInHandbook2TerminalDocumentType, idTerminalHandbookType2TerminalDocumentType,
+    PROPERTIES(tdt)   idTerminalDocumentType, nameTerminalDocumentType,
+                      idTerminalHandbookType1TerminalDocumentType, nameInHandbook1TerminalDocumentType,
+                      idTerminalHandbookType2TerminalDocumentType, nameInHandbook2TerminalDocumentType,
                       ADDOBJ, DELETESESSION
 
-    FILTERGROUP filters3
-        FILTER 'Показывать только для данной группы' 'F10' groupTerminalDocumentTypeTerminalDocumentType(tdt) == gtdt DEFAULT
+    FILTERS groupTerminalDocumentTypeTerminalDocumentType(tdt) == gtdt
 
     EDIT GroupTerminalDocumentType OBJECT gtdt
 ;
 
-FORM groupsTerminalDocumentType 'Группы типов документов'
-    OBJECTS gtdt=GroupTerminalDocumentType, tdt=TerminalDocumentType
+FORM groupTerminalDocumentTypes 'Группы типов документов'
+    OBJECTS gtdt=GroupTerminalDocumentType
     PROPERTIES(gtdt) READONLY nameGroupTerminalDocumentType
     PROPERTIES(gtdt) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
+    OBJECTS tdt=TerminalDocumentType
     PROPERTIES(tdt) READONLY idTerminalDocumentType, nameTerminalDocumentType,
-                             nameInHandbook1TerminalDocumentType, idTerminalHandbookType1TerminalDocumentType,
-                             nameInHandbook2TerminalDocumentType, idTerminalHandbookType2TerminalDocumentType
+                             idTerminalHandbookType1TerminalDocumentType, nameInHandbook1TerminalDocumentType,
+                             idTerminalHandbookType2TerminalDocumentType, nameInHandbook2TerminalDocumentType
 
     FILTERS groupTerminalDocumentTypeTerminalDocumentType (tdt) == gtdt
+    
+    DIALOG GroupTerminalDocumentType OBJECT gtdt
 ;
 
-DESIGN groupsTerminalDocumentType FROM DEFAULT {
+DESIGN groupTerminalDocumentTypes FROM DEFAULT {
     NEW topContainer{
         type = SPLITV;
         fill = 1;
@@ -334,12 +343,15 @@ loadDefaultTerminalModels 'Загрузить стандартные модел�
 @implementLoadDefaultData(loadDefaultTerminalModels);
 
 // Виды справочников терминалов сбора данных
-loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД' = ACTION (handbookTypeName, idString) {
-    ASSIGN idTerminalHandbookType(x) <- idString WHERE x==handbookTypeName;
+loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД' = ACTION (n, s) {
+    FOR ADDOBJ t = TerminalHandbookType DO {
+        nameTerminalHandbookType(t) <- n;
+        idTerminalHandbookType(t) <- s;
+    }
 }
 
 loadDefaultTerminalHandbookTypes 'Загрузить стандартные виды справочников ТСД' = ACTION () {
-    EXEC loadDefaultTerminalHandbookType(TerminalHandbookType.terminalHandbookTypeLegalEntity, 'ПС');
+    loadDefaultTerminalHandbookType('Организация', 'ПС');
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultTerminalHandbookTypes);
@@ -425,8 +437,8 @@ NAVIGATOR {
             ADD terminalDocuments;
             ADD groupsTerminal;
             ADD terminalModels;
-            ADD groupsTerminalDocumentType;
-            ADD handbooksTerminalDocumentType;
+            ADD groupTerminalDocumentTypes;
+            ADD terminalHandbookTypes;
         }
     }
 }
