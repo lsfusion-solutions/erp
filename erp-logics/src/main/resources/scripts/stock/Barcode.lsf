@@ -61,8 +61,15 @@ idUOMBarcode 'Код единицы измерения' (barcode) = idUOM(UOMBar
 
 changeBarcodeSku = ACTION (sku){
     REQUEST STRING[15] INPUT;
-    IF requestedString() THEN {
-        idBarcode(b) <- requestedString() WHERE barcodeSku(sku) == b;           
+    IF requestedString() THEN { 
+        IF barcodeSku(sku) THEN {
+            idBarcode(b) <- requestedString() WHERE barcodeSku(sku)== b;     
+        } ELSE {
+            FOR ADDOBJ b = Barcode DO {
+                ASSIGN skuBarcode(b) <- sku;
+                ASSIGN idBarcode(b) <- requestedString();                
+            }    
+        }          
     }
 }
 
