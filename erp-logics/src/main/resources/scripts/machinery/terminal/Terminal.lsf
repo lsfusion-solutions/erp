@@ -90,6 +90,7 @@ groupTerminalDocumentTypeTerminalDocumentType 'Группа типов доку�
 nameGroupTerminalDocumentTypeTerminalDocumentType 'Группа типов документов' (terminalDocumentType) = nameGroupTerminalDocumentType(groupTerminalDocumentTypeTerminalDocumentType(terminalDocumentType));
 
 nameTerminalDocumentType 'Название' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
+flagTerminalDocumentType 'Флаг' = DATA INTEGER (TerminalDocumentType) IN base;
 
 @defineExternalizable(terminalDocumentType, VARSTRING[100]);
 
@@ -118,7 +119,7 @@ FORM groupTerminalDocumentType 'Группа типов документов'
     PROPERTIES(gtdt) nameGroupTerminalDocumentType
 
     OBJECTS tdt=TerminalDocumentType
-    PROPERTIES(tdt)   idTerminalDocumentType, nameTerminalDocumentType,
+    PROPERTIES(tdt)   idTerminalDocumentType, nameTerminalDocumentType, flagTerminalDocumentType,
                       idTerminalHandbookType1TerminalDocumentType, nameInHandbook1TerminalDocumentType,
                       idTerminalHandbookType2TerminalDocumentType, nameInHandbook2TerminalDocumentType,
                       ADDOBJ, DELETESESSION
@@ -134,7 +135,7 @@ FORM groupTerminalDocumentTypes 'Группы типов документов'
     PROPERTIES(gtdt) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS tdt=TerminalDocumentType
-    PROPERTIES(tdt) READONLY idTerminalDocumentType, nameTerminalDocumentType,
+    PROPERTIES(tdt) READONLY idTerminalDocumentType, nameTerminalDocumentType, flagTerminalDocumentType,
                              idTerminalHandbookType1TerminalDocumentType, nameInHandbook1TerminalDocumentType,
                              idTerminalHandbookType2TerminalDocumentType, nameInHandbook2TerminalDocumentType
 
@@ -357,22 +358,23 @@ loadDefaultTerminalHandbookTypes 'Загрузить стандартные ви
 @implementLoadDefaultData(loadDefaultTerminalHandbookTypes);
 
 // Типы документов терминалов сбора данных
-loadDefaultTerminalDocumentType 'Добавить тип документа ТСД' = ACTION (nameString, gtdt, idTypeString, handbook1String, handbook2String) {
+loadDefaultTerminalDocumentType 'Добавить тип документа ТСД' = ACTION (nameString, gtdt, idTypeString, flagInteger, handbook1String, handbook2String) {
     FOR ADDOBJ tdt = TerminalDocumentType DO {
         ASSIGN nameTerminalDocumentType(tdt) <- nameString;
         ASSIGN groupTerminalDocumentTypeTerminalDocumentType(tdt) <- gtdt;
         ASSIGN terminalHandbookType1TerminalDocumentType(tdt) <- terminalHandbookTypeId(handbook1String);
         ASSIGN terminalHandbookType2TerminalDocumentType(tdt) <- terminalHandbookTypeId(handbook2String);
         ASSIGN idTerminalDocumentType(tdt) <- idTypeString;
+        ASSIGN flagTerminalDocumentType(tdt) <-flagInteger;
     }
 }
 
 loadDefaultTerminalDocumentTypes 'Загрузить стандартные типы документов ТСД' = ACTION () {
     FOR ADDOBJ gtdt = GroupTerminalDocumentType DO {
         ASSIGN nameGroupTerminalDocumentType(gtdt) <- 'Группа типов документов';
-        EXEC loadDefaultTerminalDocumentType('Инвентаризация', gtdt, '01', ' ', ' ');
-        EXEC loadDefaultTerminalDocumentType('Приход', gtdt, '02', '01', ' ');
-        EXEC loadDefaultTerminalDocumentType('Отгрузка по безналичному расчёту', gtdt, '03', '01', ' ');
+        EXEC loadDefaultTerminalDocumentType('Инвентаризация', gtdt, '01', 31, ' ', ' ');
+        EXEC loadDefaultTerminalDocumentType('Приход', gtdt, '02', 31, '01', ' ');
+        EXEC loadDefaultTerminalDocumentType('Отгрузка по безналичному расчёту', gtdt, '03', 31, '01', ' ');
     }
 } IN loadDefault;
 

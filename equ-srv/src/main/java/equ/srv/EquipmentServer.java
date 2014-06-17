@@ -485,8 +485,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalDocumentType", terminalDocumentTypeExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        String[] properties = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "idTerminalHandbookType1TerminalDocumentType",
-                "idTerminalHandbookType2TerminalDocumentType"};
+        String[] properties = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
+                "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
         for (String property : properties) {
             query.addProperty(property, terminalLM.findLCPByCompoundOldName(property).getExpr(terminalDocumentTypeExpr));
         }
@@ -495,9 +495,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         for(ImMap<Object, Object> entry : result.values()) {
             String id = trim((String) entry.get("idTerminalDocumentType"));
             String name = trim((String) entry.get("nameTerminalDocumentType"));
+            Integer flag = (Integer) entry.get("flagTerminalDocumentType");
             String analytics1 = trim((String) entry.get("idTerminalHandbookType1TerminalDocumentType"));
             String analytics2 = trim((String) entry.get("idTerminalHandbookType2TerminalDocumentType"));
-            terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2));
+            terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, flag));
         }
         return terminalDocumentTypeList;
     }
