@@ -528,9 +528,7 @@ FORM movementPriceSkuStock 'Изменение цены товара по скл
     ORDER BY namePriceListType(t), fromDateTimePriceListLedger(pl)
 
     FILTERS skuPriceListLedger(pl) == s,
-            isPostedPriceListLedger(pl),
-            inPriceListLedgerLedgerPriceListType(pl, t),
-            inPriceListLedgerStock(pl,st),
+            activePriceListLedgerLedgerPriceListTypeStock(pl,t,st),
             pricePriceListLedgerLedgerPriceListType(pl,t),
             isCompanyStock(st),
             (t IS PriceListType AND NOT dialogPriceListTypeSkuStock(s,st)) OR dialogPriceListTypeSkuStock(s,st)== t
@@ -571,3 +569,61 @@ showMovementPriceSkuStockBatch 'Показать изменение цены т�
 //}; //-- показываем по нажатию правой клавиши  изменение цены товара
 
 @extendFormFilterStockAccess(Stock, st, movementPriceSkuStock);
+
+
+filterReportStock  = DATA SESSION Stock ();
+nameFilterReportStock 'Склад' = nameStock(filterReportStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+  
+CONSTRAINT  filterReportStock() AND NOT isCompanyStock(filterReportStock())
+    CHECKED BY filterReportStock MESSAGE 'Выбран склад, который не является складом компании';
+  
+filterReportPriceListType  = DATA SESSION PriceListType ();
+nameFilterReportPriceListType 'Вид цены' = namePriceListType(filterReportPriceListType()) MINCHARWIDTH 15 PREFCHARWIDTH 20; 
+
+filterReportSku = DATA SESSION Sku ();
+nameFilterReportSku 'SKU' = nameSku(filterReportSku()) MINCHARWIDTH 15 PREFCHARWIDTH 20; 
+
+FORM priceTypeLedgerSkuStock 'Регистр цен'
+
+    OBJECTS dates = (dFrom = DATE , dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo), nameFilterReportStock(), nameFilterReportPriceListType(),
+               nameFilterReportSku()       
+
+    OBJECTS pp = (t = PriceListType, pl = PriceListLedger, st = Stock)
+    PROPERTIES READONLY namePriceListType(t),  nameStock(st), nameSkuPriceListLedger(pl), descriptionPriceListLedger(pl), fromDateTimePriceListLedger(pl), toDateTimePriceListLedger(pl),
+                        pricePriceListLedgerLedgerPriceListType(pl,t) FORCE GRID
+    PROPERTIES(pl) editPriceListLedger                     
+    ORDER BY namePriceListType(t), nameStock(st), nameSkuPriceListLedger(pl), fromDateTimePriceListLedger(pl)
+
+    FILTERS activePriceListLedgerLedgerPriceListTypeStock(pl,t,st),
+            pricePriceListLedgerLedgerPriceListType(pl,t),
+            isCompanyStock(st),
+            toDate(fromDateTimePriceListLedger(pl)) >= dFrom,
+            toDate(fromDateTimePriceListLedger(pl)) <= dTo,                       
+            filterReportStock()==st OR (st IS Stock AND NOT filterReportStock()),
+            filterReportPriceListType()==t OR (t IS PriceListType AND NOT filterReportPriceListType()),
+            filterReportSku()==skuPriceListLedger(pl) OR (pl IS PriceListLedger AND NOT filterReportSku())
+;
+DESIGN priceTypeLedgerSkuStock FROM DEFAULT {
+    main {
+        ADD dates.box {        
+            caption = 'Период';
+            type = CONTAINERH;
+        }
+        NEW filter {
+            caption = 'Фильтры';
+            type = CONTAINERH;
+            ADD PROPERTY(nameFilterReportStock());
+            ADD PROPERTY(nameFilterReportPriceListType());
+            ADD PROPERTY(nameFilterReportSku());
+        }
+        ADD pp.box;
+    }
+    ADD functions.box;
+}
+
+NAVIGATOR {
+    priceListReport  {
+        ADD priceTypeLedgerSkuStock;
+    }       
+}
