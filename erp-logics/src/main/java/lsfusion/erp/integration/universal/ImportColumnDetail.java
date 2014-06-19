@@ -33,6 +33,10 @@ public class ImportColumnDetail {
         this.key = key;
     }
     
+    public ImportColumnDetail clone(String fieldAndIndex) {
+        return clone(fieldAndIndex, fieldAndIndex);
+    }
+    
     public ImportColumnDetail clone(String field, String singleIndex) {
         return new ImportColumnDetail(field, singleIndex, replaceOnlyNull);
     }

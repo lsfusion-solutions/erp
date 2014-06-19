@@ -39,7 +39,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     // "=xxx" - constant value  
     // "=CDT" - currentDateTime
     // "xxx^(i,j) - substring(i,j), i & j inclusive 
-    // "xxx^(i,'a') - substring from i to index of first 'a' symbol, i inclusive, symbol 'a' - exclusive
+    // "xxx^(i,'a') - substring from i to index of first 'a' symbol, i inclusive, symbol 'a' - exclusive. 'a' also may be in 'from' index 
     // "xxx+yyy" - concatenate (for strings) or sum (for numbers)
     // "xxx-yyy" - subtract (for numbers)
     // "xxx/yyy" - divide (for numbers)
@@ -62,7 +62,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
 
     String splitPattern = "\\^\\(|\\)|,";
     String substringPattern = ".*\\^\\(\\d+,(?:\\d+)?\\)";
-    String patternedSubstringPattern = ".*\\^\\(\\d+,((\'.*\')|(\\d+))?\\)";
+    String patternedSubstringPattern = ".*\\^\\((('.*')|(\\d+)),((\'.*\')|(\\d+))?\\)";
     String patternedDateTimePattern = "(.*)(~(.*))+";
     String roundedPattern = "(.*)\\[(\\-?)\\d+\\]";
     String columnRowPattern = ":(\\d+)_(\\d+)";
@@ -90,39 +90,36 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(cell);
                 else if(isColumnRowValue(cell)) {
                     String[] splittedCell = cell.replace(":", "").split("_");
-                    value = getCSVFieldValue(valuesList.get(parseIndex(splittedCell[1])), parseIndex(splittedCell[0]), defaultValue);
+                    value = getCSVFieldValue(valuesList.get(parseIndex(splittedCell, 1)), parseIndex(splittedCell, 0), defaultValue);
                 } else if (isRoundedValue(cell)) {
                     String[] splittedCell = cell.split("\\[|\\]");
-                    value = getRoundedValue(getCSVFieldValue(valuesList, importColumnDetail.clone(trim(splittedCell[0]), trim(splittedCell[0])), row), splittedCell[1]);
+                    value = getRoundedValue(getCSVFieldValue(valuesList, importColumnDetail.clone(trim(splittedCell[0])), row), splittedCell[1]);
                 } else if (isDivisionValue(cell)) {
                     String[] splittedField = splitCell(cell, "/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(valuesList, importColumnDetail.clone(arg, arg), row);
-                        dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
+                        dividedValue = checkedDivide(dividedValue, getCSVBigDecimalFieldValue(valuesList, importColumnDetail.clone(arg), row));
                     }
                     value = formatValue(dividedValue);
                 } else if (isMultiplyValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(valuesList, importColumnDetail.clone(arg, arg), row);
-                        multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
+                        multipliedValue = checkedMultiply(multipliedValue, getCSVBigDecimalFieldValue(valuesList, importColumnDetail.clone(arg), row));
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSubtractValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getCSVBigDecimalFieldValue(valuesList, importColumnDetail.clone(arg, arg), row);
-                        subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
+                        subtractedValue = checkedSubtract(subtractedValue, getCSVBigDecimalFieldValue(valuesList, importColumnDetail.clone(arg), row));
                     }
                     value = formatValue(subtractedValue);
                 } else if (isOrValue(cell)) {
                     value = "";
                     String[] splittedField = splitCell(cell, "\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getCSVFieldValue(valuesList, importColumnDetail.clone(splittedField[i], splittedField[i]), row, null, isNumeric, ignoreException);
+                        String orValue = getCSVFieldValue(valuesList, importColumnDetail.clone(splittedField[i]), row, null, isNumeric, ignoreException);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -130,18 +127,16 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (isSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
-                    Integer from = splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null;
-                    Integer to = splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null;
-                    value = getSubstring(getCSVFieldValue(valuesList, importColumnDetail.clone(splittedCell[0], splittedCell[0]), row, null, isNumeric, ignoreException), from, to);
+                    value = getSubstring(getCSVFieldValue(valuesList, importColumnDetail.clone(splittedCell[0]), row, null, isNumeric, ignoreException),
+                            parseIndex(splittedCell, 1), parseIndex(splittedCell, 2));
                 } else if (isPatternedSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
-                    Integer from = splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null;
-                    String toSymbol = splittedCell.length > 2 ? parsePatternedSubstring(splittedCell[2]) : null;
-                    value = getSubstring(getCSVFieldValue(valuesList, importColumnDetail.clone(splittedCell[0], splittedCell[0]), row, null, isNumeric, ignoreException), from, toSymbol);
+                    value = getSubstring(getCSVFieldValue(valuesList, importColumnDetail.clone(splittedCell[0]), row, null, isNumeric, ignoreException), 
+                            parsePatternedSubstring(splittedCell, 1), parsePatternedSubstring(splittedCell, 2));
                 } else if (isPatternedDateTimeValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getCSVFieldValue(valuesList, importColumnDetail.clone(trim(splittedCell[0]), trim(splittedCell[0])), row, null, false, ignoreException));
+                    Date date = parseDate(getCSVFieldValue(valuesList, importColumnDetail.clone(trim(splittedCell[0])), row, null, false, ignoreException));
                     if (date != null)
                         calendar.setTime(date);
                     return parseDateTimePattern(splittedCell, calendar);
@@ -224,39 +219,36 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(cell);
                 else if(isColumnRowValue(cell)) {
                     String[] splittedCell = cell.replace(":", "").split("_");
-                    value = getXLSFieldValue(sheet, importColumnDetail, parseIndex(splittedCell[1]), parseIndex(splittedCell[0]), defaultValue);
+                    value = getXLSFieldValue(sheet, importColumnDetail, parseIndex(splittedCell, 1), parseIndex(splittedCell, 0), defaultValue);
                 } else if (isRoundedValue(cell)) {
                     String[] splittedCell = cell.split("\\[|\\]");
-                    value = getRoundedValue(getXLSFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0]), trim(splittedCell[0])), defaultValue, isNumeric, ignoreException), splittedCell[1]);
+                    value = getRoundedValue(getXLSFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), defaultValue, isNumeric, ignoreException), splittedCell[1]);
                 } else if (isDivisionValue(cell)) {
                     String[] splittedField = splitCell(cell, "/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg, arg));
-                        dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
+                        dividedValue = checkedDivide(dividedValue, getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)));
                     }
                     value = formatValue(dividedValue);
                 } else if (isMultiplyValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg, arg));
-                        multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
+                        multipliedValue = checkedMultiply(multipliedValue, getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)));
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSubtractValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg, arg));
-                        subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
+                        subtractedValue = checkedSubtract(subtractedValue, getXLSBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)));
                     }
                     value = formatValue(subtractedValue);
                 } else if (isOrValue(cell)) {
                     value = "";
                     String[] splittedField = splitCell(cell, "\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedField[i], splittedField[i]), null, isNumeric, ignoreException);
+                        String orValue = getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedField[i]), null, isNumeric, ignoreException);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -264,18 +256,16 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (isSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
-                    Integer from = splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null;
-                    Integer to = splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null;
-                    value = getSubstring(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0], splittedCell[0]), defaultValue, isNumeric, ignoreException), from, to);
+                    value = getSubstring(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]), defaultValue, isNumeric, ignoreException),
+                            parseIndex(splittedCell, 1), parseIndex(splittedCell, 2));
                 } else if (isPatternedSubstringValue(cell)) {
-                    String[] splittedCell = splitCell(cell, splitPattern);
-                    Integer from = splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null;
-                    String toSymbol = splittedCell.length > 2 ? parsePatternedSubstring(splittedCell[2]) : null;
-                    value = getSubstring(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0], splittedCell[0]), defaultValue, isNumeric, ignoreException), from, toSymbol);
+                    String[] splittedCell = splitCell(cell, splitPattern);          
+                    value = getSubstring(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]), defaultValue, isNumeric, ignoreException), 
+                            parsePatternedSubstring(splittedCell, 1), parsePatternedSubstring(splittedCell, 2));
                 } else if (isPatternedDateTimeValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getXLSFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0]), trim(splittedCell[0])), null, false, ignoreException));
+                    Date date = parseDate(getXLSFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), null, false, ignoreException));
                     if (date != null)
                         calendar.setTime(date);
                     return parseDateTimePattern(splittedCell, calendar);
@@ -283,7 +273,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = cell.isEmpty() ? defaultValue : getXLSFieldValue(sheet, importColumnDetail, row, parseIndex(cell), "");
                 }
                 result = trySum(result, value, isNumeric);
-            }
+            } 
             return result.isEmpty() ? defaultValue : result;
         } catch (Exception e) {
             if(ignoreException)
@@ -369,40 +359,37 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(cell);
                 else if(isColumnRowValue(cell)) {
                     String[] splittedCell = cell.replace(":", "").split("_");
-                    value = getXLSXFieldValue(sheet, importColumnDetail, parseIndex(splittedCell[1]), parseIndex(splittedCell[0]), isDate, defaultValue);
+                    value = getXLSXFieldValue(sheet, importColumnDetail, parseIndex(splittedCell, 1), parseIndex(splittedCell, 0), isDate, defaultValue);
                 }
                 else if (isRoundedValue(cell)) {
                     String[] splittedCell = cell.split("\\[|\\]");
-                    value = getRoundedValue(getXLSXFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0]), trim(splittedCell[0])), isDate, defaultValue, isNumeric, ignoreException), splittedCell[1]);
+                    value = getRoundedValue(getXLSXFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), isDate, defaultValue, isNumeric, ignoreException), splittedCell[1]);
                 } else if (isDivisionValue(cell)) {
                     String[] splittedField = splitCell(cell, "/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg, arg));
-                        dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
+                        dividedValue = checkedDivide(dividedValue, getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)));
                     }
                     value = formatValue(dividedValue);
                 } else if (isMultiplyValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg, arg));
-                        multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
+                        multipliedValue = checkedMultiply(multipliedValue, getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)));
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSubtractValue(cell)) {
                     String[] splittedField = splitCell(cell, "\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg, arg));
-                        subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
+                        subtractedValue = checkedSubtract(subtractedValue, getXLSXBigDecimalFieldValue(sheet, row, importColumnDetail.clone(arg)));
                     }
                     value = formatValue(subtractedValue);
                 } else if (isOrValue(cell)) {
                     value = "";
                     String[] splittedField = splitCell(cell, "\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getXLSXFieldValue(sheet, row, importColumnDetail.clone(splittedField[i], splittedField[i]), isDate, null, isNumeric, ignoreException);
+                        String orValue = getXLSXFieldValue(sheet, row, importColumnDetail.clone(splittedField[i]), isDate, null, isNumeric, ignoreException);
                         if (orValue != null) {
                             value = orValue;
                             break;
@@ -410,20 +397,16 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (isSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
-                    Integer from = splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null;
-                    Integer to = splittedCell.length > 2 ? parseIndex(splittedCell[2]) : null;
-                    value = getSubstring(getXLSXFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0], splittedCell[0]), 
-                            isDate, defaultValue, isNumeric, ignoreException), from, to);
+                    value = getSubstring(getXLSXFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]), 
+                            isDate, defaultValue, isNumeric, ignoreException), parseIndex(splittedCell, 1), parseIndex(splittedCell, 2));
                 } else if (isPatternedSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
-                    Integer from = splittedCell.length > 1 ? parseIndex(splittedCell[1]) : null;
-                    String toSymbol = splittedCell.length > 2 ? parsePatternedSubstring(splittedCell[2]) : null;
-                    value = getSubstring(getXLSXFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0], splittedCell[0]),
-                            isDate, defaultValue, isNumeric, ignoreException), from, toSymbol);
+                    value = getSubstring(getXLSXFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]),
+                            isDate, defaultValue, isNumeric, ignoreException), parsePatternedSubstring(splittedCell, 1), parsePatternedSubstring(splittedCell, 2));
                 }  else if (isPatternedDateTimeValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getXLSXFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0]), trim(splittedCell[0])), isDate, null, false, ignoreException));
+                    Date date = parseDate(getXLSXFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), isDate, null, false, ignoreException));
                     if (date != null)
                         calendar.setTime(date);
                     return parseDateTimePattern(splittedCell, calendar);
@@ -525,37 +508,34 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(column);
                 else if (isRoundedValue(column)) {
                     String[] splittedField = column.split("\\[|\\]");
-                    value = getRoundedValue(getDBFFieldValue(importFile, importColumnDetail.clone(trim(splittedField[0]), trim(splittedField[0])), 
+                    value = getRoundedValue(getDBFFieldValue(importFile, importColumnDetail.clone(trim(splittedField[0])), 
                             row, charset, defaultValue, isNumeric, ignoreException), splittedField[1]);
                 } else if (isDivisionValue(column)) {
                     String[] splittedField = splitCell(column, "/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg, arg), row, charset);
-                        dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
+                        dividedValue = checkedDivide(dividedValue, getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg), row, charset));
                     }
                     value = formatValue(dividedValue);
                 } else if (isMultiplyValue(column)) {
                     String[] splittedField = splitCell(column, "\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg, arg), row, charset);
-                        multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
+                        multipliedValue = checkedMultiply(multipliedValue, getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg), row, charset));
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSubtractValue(column)) {
                     String[] splittedField = splitCell(column, "\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg, arg), row, charset);
-                        subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
+                        subtractedValue = checkedSubtract(subtractedValue, getDBFBigDecimalFieldValue(importFile, importColumnDetail.clone(arg), row, charset));
                     }
                     value = formatValue(subtractedValue);
                 } else if (isOrValue(column)) {
                     value = "";
                     String[] splittedField = splitCell(column, "\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getDBFFieldValue(importFile, importColumnDetail.clone(splittedField[i], splittedField[i]), 
+                        String orValue = getDBFFieldValue(importFile, importColumnDetail.clone(splittedField[i]), 
                                 row, charset, null, isNumeric, ignoreException);
                         if (orValue != null) {
                             value = orValue;
@@ -564,20 +544,16 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (isSubstringValue(column)) {
                     String[] splittedField = splitCell(column, splitPattern);
-                    Integer from = splittedField.length > 1 ? parseIndex(splittedField[1]) : null;
-                    Integer to = splittedField.length > 2 ? parseIndex(splittedField[2]) : null;
-                    value = getSubstring(getDBFFieldValue(importFile, importColumnDetail.clone(splittedField[0], splittedField[0]), 
-                            row, charset, null, isNumeric, ignoreException), from, to);
+                    value = getSubstring(getDBFFieldValue(importFile, importColumnDetail.clone(splittedField[0]), 
+                            row, charset, null, isNumeric, ignoreException), parseIndex(splittedField, 1), parseIndex(splittedField, 2));
                 } else if (isPatternedSubstringValue(column)) {
                     String[] splittedField = splitCell(column, splitPattern);
-                    Integer from = splittedField.length > 1 ? parseIndex(splittedField[1]) : null;
-                    String toSymbol = splittedField.length > 2 ? parsePatternedSubstring(splittedField[2]) : null;
-                    value = getSubstring(getDBFFieldValue(importFile, importColumnDetail.clone(splittedField[0], splittedField[0]),
-                            row, charset, null, isNumeric, ignoreException), from, toSymbol);
+                    value = getSubstring(getDBFFieldValue(importFile, importColumnDetail.clone(splittedField[0]),
+                            row, charset, null, isNumeric, ignoreException), parsePatternedSubstring(splittedField, 1), parsePatternedSubstring(splittedField, 2));
                 } else if (isPatternedDateTimeValue(column)) {
                     String[] splittedField = column.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getDBFFieldValue(importFile, importColumnDetail.clone(trim(splittedField[0]), trim(splittedField[0])), 
+                    Date date = parseDate(getDBFFieldValue(importFile, importColumnDetail.clone(trim(splittedField[0])), 
                             row, charset, defaultValue, false, ignoreException));
                     if (date != null)
                         calendar.setTime(date);
@@ -657,37 +633,34 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = parseConstantFieldPattern(column);
                 else if (isRoundedValue(column)) {
                     String[] splittedField = column.split("\\[|\\]");
-                    value = getRoundedValue(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(trim(splittedField[0]), trim(splittedField[0])),
+                    value = getRoundedValue(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(trim(splittedField[0])),
                             row, "", true, zeroIsNull, ignoreException), splittedField[1]);
                 } else if (isDivisionValue(column)) {
                     String[] splittedField = splitCell(column, "/");
                     BigDecimal dividedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg, arg), row, null);
-                        dividedValue = dividedValue == null ? argument : safeDivide(dividedValue, argument);
+                        dividedValue = checkedDivide(dividedValue, getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg), row, null));
                     }
                     value = formatValue(dividedValue);
                 } else if (isMultiplyValue(column)) {
                     String[] splittedField = splitCell(column, "\\*");
                     BigDecimal multipliedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg, arg), row, null);
-                        multipliedValue = multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
+                        multipliedValue = checkedMultiply(multipliedValue, getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg), row, null));
                     }
                     value = formatValue(multipliedValue);
                 } else if (isSubtractValue(column)) {
                     String[] splittedField = splitCell(column, "\\-");
                     BigDecimal subtractedValue = null;
                     for (String arg : splittedField) {
-                        BigDecimal argument = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg, arg), row, null);
-                        subtractedValue = subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
+                        subtractedValue = checkedSubtract(subtractedValue, getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumnDetail.clone(arg), row, null));
                     }
                     value = formatValue(subtractedValue);
                 } else if (isOrValue(column)) {
                     value = "";
                     String[] splittedField = splitCell(column, "\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(splittedField[i], splittedField[i]), 
+                        String orValue = getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(splittedField[i]), 
                                 i, null, isNumeric, zeroIsNull, ignoreException);
                         if (orValue != null) {
                             value = orValue;
@@ -696,20 +669,16 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     }
                 } else if (isSubstringValue(column)) {
                     String[] splittedField = splitCell(column, splitPattern);
-                    Integer from = splittedField.length > 1 ? parseIndex(splittedField[1]) : null;
-                    Integer to = splittedField.length > 2 ? parseIndex(splittedField[2]) : null;
-                    value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(splittedField[0], splittedField[0]), 
-                            row, defaultValue, isNumeric, zeroIsNull, ignoreException), from, to);
+                    value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(splittedField[0]), 
+                            row, defaultValue, isNumeric, zeroIsNull, ignoreException), parseIndex(splittedField, 1), parseIndex(splittedField, 2));
                 } else if (isPatternedSubstringValue(column)) {
                     String[] splittedField = splitCell(column, splitPattern);
-                    Integer from = splittedField.length > 1 ? parseIndex(splittedField[1]) : null;
-                    String toSymbol = splittedField.length > 2 ? parsePatternedSubstring(splittedField[2]) : null;
-                    value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(splittedField[0], splittedField[0]),
-                            row, defaultValue, isNumeric, zeroIsNull, ignoreException), from, toSymbol);
+                    value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(splittedField[0]),
+                            row, defaultValue, isNumeric, zeroIsNull, ignoreException), parsePatternedSubstring(splittedField, 1), parsePatternedSubstring(splittedField, 2));
                 } else if (isPatternedDateTimeValue(column)) {
                     String[] splittedField = column.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(trim(splittedField[0]), trim(splittedField[0])), 
+                    Date date = parseDate(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(trim(splittedField[0])), 
                             row, defaultValue, false, zeroIsNull, ignoreException));
                     if (date != null)
                         calendar.setTime(date);
@@ -778,6 +747,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return charset;
     }
 
+    private Integer parseIndex(String[] splittedValue, int index) {
+        return splittedValue.length <= index ? null : parseIndex(splittedValue[index]);
+    }
+    
     private Integer parseIndex(String index) {
         if(index == null) return null; 
         try {
@@ -796,9 +769,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return result;
     }
 
-    private String getSubstring(String value, Integer from, String toSymbol) {
-        String fromSubstring = (value == null || from == null || from < 0 || from > value.length()) ? value : trim(value.substring(Math.min(value.length(), from)));
-        return (fromSubstring != null && fromSubstring.contains(toSymbol)) ?  fromSubstring.substring(0, fromSubstring.indexOf(toSymbol)) : fromSubstring;
+    private String getSubstring(String value, Object fromSymbol, Object toSymbol) {
+        if(value == null) return null;
+        if(fromSymbol == null || fromSymbol instanceof Integer) {
+            Integer from = (Integer) fromSymbol;
+            String fromSubstring = (from == null || from < 0 || from > value.length()) ? value : trim(value.substring(Math.min(value.length(), from)));
+            return (fromSubstring != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, fromSubstring.indexOf((String) toSymbol)) : fromSubstring;
+        } else {
+            String from = (String) fromSymbol;
+            String fromSubstring = trim(value.substring(Math.min(value.length(), value.indexOf(from) + from.length())));
+            return (fromSubstring != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, fromSubstring.indexOf((String) toSymbol)) : fromSubstring;
+        }
     }
     
     private String getSubstring(String value, Integer from, Integer to) {
@@ -810,10 +791,12 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return value == null ? null : decimalFormat.format(new BigDecimal(value).setScale(Integer.parseInt(scale), RoundingMode.HALF_UP));
     }
 
-    private String parsePatternedSubstring(String value) {
+    private Object parsePatternedSubstring(String[] splittedValue, int index) {
+        if(splittedValue.length <= index) return null;
+        String value = splittedValue[index];
         if(value != null && value.startsWith("'") && value.endsWith("'") && value.length() >= 3) {
             return value.substring(1, value.length() - 1);    
-        } else return null;
+        } else return parseIndex(value);
     }
     
     private String parseDateTimePattern(String[] splittedField, Calendar calendar) {
@@ -943,5 +926,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         if (value instanceof Date || value instanceof java.util.Date) {
             return new SimpleDateFormat("dd.MM.yyyy").format(value);
         } else return String.valueOf(value);
+    }
+    
+    private BigDecimal checkedSubtract(BigDecimal subtractedValue, BigDecimal argument) {
+        return subtractedValue == null ? argument : safeSubtract(subtractedValue, argument);
+    }
+    
+    private BigDecimal checkedMultiply(BigDecimal multipliedValue, BigDecimal argument) {
+        return multipliedValue == null ? argument : safeMultiply(multipliedValue, argument);
+    }
+    
+    private BigDecimal checkedDivide(BigDecimal dividedValue, BigDecimal argument) {
+        return dividedValue == null ? argument : safeDivide(dividedValue, argument);
     }
 }
