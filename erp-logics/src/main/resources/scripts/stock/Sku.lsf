@@ -76,6 +76,7 @@ activeGroup 'Активный' (group) = group IS Group AND NOT inactiveGroup(gr
 CLASS CustomGroup 'Дополнительный классификатор SKU' : Group;
 TABLE customGroup (CustomGroup);
 
+idCustomGroup 'Идентификатор' = DATA VARISTRING[100](CustomGroup);
 nameCustomGroup 'Наименование' = DATA VARISTRING[150](CustomGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
 nameGroup(group) += nameCustomGroup(group) IF group IS CustomGroup;
@@ -88,12 +89,16 @@ parentGroup (group) += parentCustomGroup(group);
 CLASS CustomGroupType 'Тип дополнительного классификатора SKU' : GroupType;
 TABLE customGroupType (CustomGroupType);
 
+@defineExternalizable(customGroupType, VARSTRING[100]);
+
 nameCustomGroupType 'Наименование' = DATA VARISTRING[50](CustomGroupType);
 
 nameGroupType(type) += nameCustomGroupType(type) IF type IS CustomGroupType;
 
 customGroupTypeCustomGroup = DATA CustomGroupType (CustomGroup) AUTOSET;
 nameCustomGroupTypeCustomGroup 'Тип классификатора' (customGroup) = nameCustomGroupType(customGroupTypeCustomGroup(customGroup));
+
+customGroupIdIdCustomGroupType (id, idType) = GROUP AGGR customGroup BY idCustomGroup(customGroup), idCustomGroupType(customGroupTypeCustomGroup(customGroup));
 
 CONSTRAINT customGroupTypeCustomGroup(parentCustomGroup(group)) != customGroupTypeCustomGroup(group)
            CHECKED BY parentCustomGroup MESSAGE 'Родительский объект классификатора SKU имеет неправильный тип';
@@ -109,10 +114,10 @@ inCustomGroup 'Отм.' = DATA SESSION BOOLEAN (CustomGroup);
 
 FORM moveCustomGroup 'Дополнительные группы'
     OBJECTS t = CustomGroupType FIXED PANEL
-    PROPERTIES(t) READONLY nameCustomGroupType
+    PROPERTIES(t) READONLY idCustomGroupType, nameCustomGroupType
 
     TREE treeGroups g=CustomGroup PARENT parentCustomGroup
-    PROPERTIES(g) READONLY nameCustomGroup, canonicalNameCustomGroup
+    PROPERTIES(g) READONLY idCustomGroup, nameCustomGroup, canonicalNameCustomGroup
     FILTERS customGroupTypeCustomGroup(g) == t
     ORDER BY canonicalNameCustomGroup(g)
 ;
@@ -128,25 +133,25 @@ moveCustomGroup 'Перенести отмеченные группы' = ACTION 
 
 FORM customGroupType 'Тип дополнительного классификатора SKU'
     OBJECTS t = CustomGroupType FIXED PANEL
-    PROPERTIES(t) nameCustomGroupType
+    PROPERTIES(t) idCustomGroupType, nameCustomGroupType
     EDIT CustomGroupType OBJECT t
 ;
 
 FORM dialogCustomGroupType 'Тип дополнительной группы'
     OBJECTS t = CustomGroupType
-    PROPERTIES(t) READONLY nameCustomGroupType
+    PROPERTIES(t) READONLY idCustomGroupType, nameCustomGroupType
     DIALOG CustomGroupType OBJECT t
 ;
 
 FORM customGroupTypes 'Типы дополнительных групп'
     OBJECTS t = CustomGroupType
-    PROPERTIES(t) READONLY nameCustomGroupType
+    PROPERTIES(t) READONLY idCustomGroupType, nameCustomGroupType
     PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 ;
 
 FORM customGroup 'Дополнительная группа'
     OBJECTS g=CustomGroup FIXED PANEL
-    PROPERTIES(g) nameCustomGroupTypeCustomGroup, nameCustomGroup, nameParentCustomGroup
+    PROPERTIES(g) nameCustomGroupTypeCustomGroup, idCustomGroup, nameCustomGroup, nameParentCustomGroup
     EDIT CustomGroup OBJECT g
 ;
 
@@ -156,7 +161,7 @@ FORM customGroups 'Дополнительные группы'
 
     TREE treeGroups g=CustomGroup PARENT parentCustomGroup
     PROPERTIES inCustomGroup(g), moveCustomGroup(t) TODRAW g FORCE PANEL TOOLBAR
-    PROPERTIES(g) READONLY nameCustomGroup, canonicalNameCustomGroup
+    PROPERTIES(g) READONLY idCustomGroup, nameCustomGroup, canonicalNameCustomGroup
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     FILTERS customGroupTypeCustomGroup(g) == t
     ORDER BY canonicalNameCustomGroup(g)
