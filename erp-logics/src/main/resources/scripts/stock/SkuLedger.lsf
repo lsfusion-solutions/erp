@@ -21,6 +21,11 @@ CLASS ABSTRACT InLIFOSkuLedger 'Приход по LIFO' : InSkuLedger, DataSkuLe
 CLASS ABSTRACT OutFIFOSkuLedger 'Расход по FIFO' : OutSkuLedger, DataSkuLedger;
 
 editSkuLedger 'Редактировать' = ABSTRACT ACTION LIST (SkuLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+replaceSkuBatch = ABSTRACT ACTION LIST (Sku, Batch);
+
+META setSkuDocumentDetailBatchCustomPrefixInner (document, skuClass, prefix)
+    replaceSkuBatch(s, b) += ACTION (s, b){ prefix###skuClass###document###detail(detail) <- s WHERE batch###prefix###document###detail(detail) == b;} 
+END
 
 // --------------------------------- Партии ------------------------------------------------ //
 
@@ -1003,7 +1008,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
     ORDER BY skuTreeName
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
-
+       
     OBJECTS           stb=(st=Stock, bt=Batch)
     PROPERTIES        READONLY nameSkuBatch(bt), stockName = nameStock(st)
     PROPERTIES        READONLY currentBalanceBatchStock(bt, st)
@@ -1058,7 +1063,7 @@ DESIGN currentBalanceBatchStock FROM DEFAULT {
 //            }
             NEW secondCase {
                 fill = 3;
-                type = SPLITV;
+                type = CONTAINERV;
                 ADD stb.box { fill = 2; caption = 'Партии';}
 
                 NEW ledger.box {
