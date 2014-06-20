@@ -3,12 +3,15 @@ package lsfusion.erp.utils;
 import com.google.common.base.Throwables;
 import jasperapi.ReportGenerator;
 import lsfusion.base.col.MapFact;
+import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
+import lsfusion.server.form.entity.FormEntity;
 import lsfusion.server.form.entity.ObjectEntity;
 import lsfusion.server.form.instance.FormInstance;
 import lsfusion.server.form.instance.FormSessionScope;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.linear.LCP;
+import lsfusion.server.logics.mutables.Version;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -22,46 +25,51 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public abstract class ExportExcelPivotActionProperty extends ScriptingActionProperty {
-    
-    String form;
+    String idForm;
+    String idGroupObject;
     List<String> rows;
     List<String> columns;
     List<String> filters;
     List<String> cells;
 
-    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String form, List<String> rows,
-                                          List<String> columns, List<String> filters, List<String> cells) {
-        super(LM);
-        this.form = form;
+    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                                          List<String> rows, List<String> columns, List<String> filters, List<String> cells,
+                                          ValueClass... classes) {
+        super(LM, classes);
+        this.idForm = idForm;
+        this.idGroupObject = idGroupObject;
         this.rows = rows;
         this.columns = columns;
         this.filters = filters;
         this.cells = cells;
     }
 
-    @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-        
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap) throws SQLException, SQLHandledException {
+
         try {
 
-            if(form != null && rows != null && columns != null && cells != null) {
-                
-                FormInstance formInstance = context.createFormInstance(getForm(form), MapFact.<ObjectEntity, DataObject>EMPTY(),
-                        context.getSession(), true, FormSessionScope.OLDSESSION, false, false, false, null);
-                
-                File file = ReportGenerator.exportToExcel(new FormReportManager(formInstance).getReportData(null, false, formInstance.loadUserPreferences()));
+            if (idForm != null && idGroupObject != null) {
 
-                List<String> rowFields = readFieldCaptions(rows);
-                List<String> columnFields = readFieldCaptions(columns);
-                List<String> filterFields = readFieldCaptions(filters);
-                List<String> cellFields = readFieldCaptions(cells);
-                
-                context.requestUserInteraction(new ExportExcelPivotAction(file, rowFields, columnFields, filterFields, cellFields));
-                
-            } 
-            
+                FormEntity formEntity = getForm(idForm);
+                FormInstance formInstance = context.createFormInstance(formEntity, MapFact.<ObjectEntity, DataObject>EMPTY(),
+                        context.getSession(), true, FormSessionScope.OLDSESSION, false, false, false, null);
+
+                if (valuesMap != null)
+                    for (Map.Entry<String, DataObject> entry : valuesMap.entrySet())
+                        formInstance.forceChangeObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
+
+
+                File file = ReportGenerator.exportToExcel(new FormReportManager(formInstance).getReportData(
+                        formEntity.getNFGroupObject(idGroupObject, Version.CURRENT).getID(), false, formInstance.loadUserPreferences()));
+
+                context.requestUserInteraction(new ExportExcelPivotAction(file,
+                        readFieldCaptions(rows), readFieldCaptions(columns), readFieldCaptions(filters), readFieldCaptions(cells)));
+
+            }
+
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         } catch (ClassNotFoundException e) {
@@ -72,13 +80,15 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
             throw Throwables.propagate(e);
         }
     }
-    
+
     public List<String> readFieldCaptions(List<String> fields) throws ScriptingErrorLog.SemanticErrorException {
         List<String> result = new ArrayList<String>();
-        for(String field : fields) {
-            LCP property = getLCP(field);
-            if(property != null)
-            result.add(property.property.caption);
+        if (fields != null) {
+            for (String field : fields) {
+                LCP property = getLCP(field);
+                if (property != null)
+                    result.add(property.property.caption);
+            }
         }
         return result;
     }
@@ -88,27 +98,47 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
 
 //package lsfusion.erp.utils;
 //
+//import lsfusion.server.classes.DateClass;
+//import lsfusion.server.classes.ValueClass;
 //import lsfusion.server.data.SQLHandledException;
+//import lsfusion.server.logics.DataObject;
 //import lsfusion.server.logics.property.ClassPropertyInterface;
 //import lsfusion.server.logics.property.ExecutionContext;
 //import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 //
 //import java.sql.SQLException;
 //import java.util.Arrays;
+//import java.util.HashMap;
+//import java.util.Iterator;
+//import java.util.Map;
 //
 //public class TestFormExportExcelPivotActionProperty extends ExportExcelPivotActionProperty {
+//    private final ClassPropertyInterface dateFromInterface;
+//    private final ClassPropertyInterface dateToInterface;
 //
 //    public TestFormExportExcelPivotActionProperty(ScriptingLogicsModule LM) {
-//        super(LM, "testForm",
+//        super(LM, "testForm", "i",
 //                Arrays.asList("Purchase.nameCustomerStockInvoice", "Purchase.nameSupplierStockInvoice"),
 //                Arrays.asList("Purchase.dateInvoice"),
 //                Arrays.asList("Purchase.timeInvoice"),
-//                Arrays.asList("Purchase.sumInvoiceDetailInvoice"/*, "Purchase.VATSumInvoiceDetailInvoice"*/));
+//                Arrays.asList("Purchase.sumInvoiceDetailInvoice", "Purchase.VATSumInvoiceDetailInvoice"),
+//                DateClass.instance, DateClass.instance);
+//
+//        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+//        dateFromInterface = i.next();
+//        dateToInterface = i.next();
 //    }
 //
 //
 //    @Override
 //    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-//        super.executeCustom(context);
+//
+//        DataObject dateFromObject = context.getDataKeyValue(dateFromInterface);
+//        DataObject dateToObject = context.getDataKeyValue(dateToInterface);
+//
+//        Map<String, DataObject> valuesMap = new HashMap<String, DataObject>();
+//        valuesMap.put("dFrom", dateFromObject);
+//        valuesMap.put("dTo", dateToObject);
+//        super.executeCustom(context, valuesMap);
 //    }
 //}
