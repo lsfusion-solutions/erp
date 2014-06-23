@@ -1,11 +1,14 @@
 package equ.clt;
 
 import equ.api.*;
-import equ.api.cashregister.*;
+import equ.api.cashregister.CashDocumentBatch;
+import equ.api.cashregister.CashRegisterHandler;
+import equ.api.cashregister.CashRegisterInfo;
 import equ.api.terminal.TerminalDocumentBatch;
 import equ.api.terminal.TerminalHandler;
 import equ.api.terminal.TerminalInfo;
 import equ.api.terminal.TransactionTerminalInfo;
+import lsfusion.interop.DaemonThreadFactory;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -21,10 +24,14 @@ import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.sql.Date;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class EquipmentServer {
 
@@ -46,6 +53,12 @@ public class EquipmentServer {
             public void run() {
 
                 int millis = 10000;
+                ScheduledExecutorService daemonTasksExecutor = Executors.newScheduledThreadPool(4, new DaemonThreadFactory("scheduler-daemon"));
+                final ReentrantLock processTransactionLock = new ReentrantLock();
+                final ReentrantLock sendSalesLock = new ReentrantLock();
+                final ReentrantLock sendSoftCheckLock = new ReentrantLock();
+                final ReentrantLock sendTerminalDocumentLock = new ReentrantLock();
+                
                 while (true) {
 
                     try {
@@ -79,11 +92,69 @@ public class EquipmentServer {
 
                         if (remote != null) {
 
-                            processTransactionInfo(remote, sidEquipmentServer);
-                            sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime);
-                            sendSoftCheckInfo(remote);
-                            sendTerminalDocumentInfo(remote, sidEquipmentServer);
-                            logger.info("Transaction completed");
+                            //processTransaction
+                            if (!processTransactionLock.isLocked()) {
+                                daemonTasksExecutor.schedule(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        processTransactionLock.lock();
+                                        try {
+                                            processTransactionInfo(remote, sidEquipmentServer);
+                                        } catch (Exception e) {
+                                            logger.error("Unhandled exception : ", e);
+                                        }
+                                        processTransactionLock.unlock();
+                                    }
+                                }, 0, TimeUnit.MILLISECONDS);
+                            }
+
+                            //sendSales
+                            if (!sendSalesLock.isLocked()) {
+                                daemonTasksExecutor.schedule(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        sendSalesLock.lock();
+                                        try {
+                                            sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime);
+                                        } catch (Exception e) {
+                                            logger.error("Unhandled exception : ", e);
+                                        }
+                                        sendSalesLock.unlock();
+                                    }
+                                }, 0, TimeUnit.MILLISECONDS);
+                            }
+
+                            //sendSoftCheck
+                            if (!sendSoftCheckLock.isLocked()) {
+                                daemonTasksExecutor.schedule(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        sendSoftCheckLock.lock();
+                                        try {
+                                            sendSoftCheckInfo(remote);
+                                        } catch (Exception e) {
+                                            logger.error("Unhandled exception : ", e);
+                                        }
+                                        sendSoftCheckLock.unlock();
+                                    }
+                                }, 0, TimeUnit.MILLISECONDS);
+                            }
+
+                            //sendTerminalDocument
+                            if (!sendTerminalDocumentLock.isLocked()) {
+                                daemonTasksExecutor.schedule(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        sendTerminalDocumentLock.lock();
+                                        try {
+                                            sendTerminalDocumentInfo(remote, sidEquipmentServer);
+                                        } catch (Exception e) {
+                                            logger.error("Unhandled exception : ", e);
+                                        }
+                                        sendTerminalDocumentLock.unlock();
+                                    }
+                                }, 0, TimeUnit.MILLISECONDS);
+                            }
                         }
 
                     } catch (Exception e) {
