@@ -51,14 +51,17 @@ closedCurrentZReport() = NOT currentZReport();
 
 posSumDiscountCard 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetailReceipt (receipt) BY discountCardReceipt(receipt) PERSISTENT;
 posReturnSumDiscountCard 'Сумма возвратов' (discountCard) = GROUP SUM sumReceiptReturnDetail(d) IF NOT discountCardReceiptDetail(d) BY discountCardReceipt(receiptSaleReceiptReturnDetail(d)) PERSISTENT; 
-cumulativeSumDiscountCard 'Накопленная сумма' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) PERSISTENT;
+cumulativeSumDiscountCard 'Накопленная сумма (основная)' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) PERSISTENT;
 
-prevCumulativeSumReceipt 'Накопленная сумма' (receipt) = OVERRIDE 0 IF receipt IS Receipt, [= PREV(cumulativeSumDiscountCard(discountCard))](discountCardReceipt(receipt));
-cumulativeSumReceiptPromotion (receipt, promotion) = IF useCurrentReceiptPromotion(promotion) THEN cumulativeSumDiscountCard(discountCardReceipt(receipt))
-                                                                                              ELSE prevCumulativeSumReceipt (receipt);
+externalSumDiscountCard 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
+totalSumDiscountCard 'Накопленная сумма' (d) = cumulativeSumDiscountCard(d) (+) externalSumDiscountCard(d); 
+
+prevTotalSumReceipt 'Накопленная сумма' (receipt) = OVERRIDE 0 IF receipt IS Receipt, [= PREV(totalSumDiscountCard(discountCard))](discountCardReceipt(receipt));
+totalSumReceiptPromotion (receipt, promotion) = IF useCurrentReceiptPromotion(promotion) THEN totalSumDiscountCard(discountCardReceipt(receipt))
+                                                                                         ELSE prevTotalSumReceipt (receipt);
 
 EXTEND FORM discountCards
-    PROPERTIES(d) posSumDiscountCard, cumulativeSumDiscountCard
+    PROPERTIES(d) READONLY AFTER initialSumDiscountCard(d) posSumDiscountCard, posReturnSumDiscountCard, cumulativeSumDiscountCard, externalSumDiscountCard, totalSumDiscountCard
 ;
 
 // Расчет сумм скидок
@@ -73,7 +76,7 @@ inReceiptPromotion (receipt, promotion) = inPromotionStore(promotion, storeRecei
                                           NOT timeReceipt(receipt) < timeOfFromPromotion(promotion) AND NOT timeReceipt(receipt) > timeOfToPromotion(promotion) AND
                                           NOT sumReceiptDetailReceipt(receipt) < minSumBillPromotion(promotion) AND NOT sumReceiptDetailReceipt(receipt) > maxSumBillPromotion(promotion)
                                           AND NOT skipPromotionDOW(promotion, extractDOW(dateReceipt(receipt)))
-                                          AND NOT cumulativeSumReceiptPromotion (receipt, promotion) < minCumulativeSumPromotion(promotion) AND NOT cumulativeSumReceiptPromotion (receipt, promotion) > maxCumulativeSumPromotion(promotion)
+                                          AND NOT totalSumReceiptPromotion (receipt, promotion) < minCumulativeSumPromotion(promotion) AND NOT totalSumReceiptPromotion (receipt, promotion) > maxCumulativeSumPromotion(promotion)
                                           AND NOT (hasDiscountCardPromotion(promotion) AND NOT inPromotionDiscountCard(promotion, discountCardReceipt(receipt)))
                                           AND NOT (noDiscountCardPromotion(promotion) AND discountCardReceipt(receipt));
 
@@ -799,7 +802,7 @@ FORM POS
                                           searchSkuReturnReceipt, scanBarcodeReturnReceipt,
                                           postReceipt, postCardReceipt, postCashReceipt, cancelReceipt,
                                           numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt,
-                                          prevCumulativeSumReceipt, clearDiscountCardReceipt, fiscalSkipReceipt
+                                          prevTotalSumReceipt, clearDiscountCardReceipt, fiscalSkipReceipt
 
     OBJECTS d = ReceiptDetail FIXED GRID
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID BACKGROUND backgroundReceiptDetail(r, d)  
@@ -873,7 +876,7 @@ DESIGN POS FROM DEFAULT {
                 fill = 1;
                 type = CONTAINERH;
                 ADD PROPERTY(numberDiscountCardReceipt(r)) { alignment = STRETCH; caption = 'Номер'; focusable = FALSE; font = 'bold 22'; }
-                ADD PROPERTY(prevCumulativeSumReceipt(r)) { alignment = STRETCH; caption = 'Сумма'; focusable = FALSE; font = 'bold 22'; }
+                ADD PROPERTY(prevTotalSumReceipt(r)) { alignment = STRETCH; caption = 'Сумма'; focusable = FALSE; font = 'bold 22'; }
                 NEW receiptDiscountActions {
                     fill = 1;
                     type = CONTAINERH;
