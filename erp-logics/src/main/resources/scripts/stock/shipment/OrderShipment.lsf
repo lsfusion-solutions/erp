@@ -174,3 +174,103 @@ META defineOrderShipmentPack(showPackage)
         ASSIGN packQuantityUserShipmentDetail (s) <- toShipOrderDetail(o)/amountPackOrderDetail(o);
     }
 END
+
+META defineOrderShipmentExecution (dumb)
+
+    shippedShipmentDetailOrder 'Кол-во (поставлено)' (order) = GROUP SUM min(shippedOrderDetail(d), quantityOrderDetail(d)) 
+        IF isPostedOrderDetail(d) AND shippedOrderDetail(d) AND isClosedOrderDetail(d)
+            BY orderOrderDetail(d);
+                                                               
+    percentQuantityExecutionOrder '% исп. заявки (кол-во)' (order)= shippedShipmentDetailOrder(order)*100.00 /
+        (quantityOrderDetailOrder(order) IF quantityOrderDetailOrder(order)!= 0);                                                              
+    
+    countShippedOrderDetailOrder (order) = GROUP SUM 1 IF shippedOrderDetail(d) >= quantityOrderDetail(d) AND isClosedOrderDetail(d) 
+            BY orderOrderDetail(d);   
+    percentCountExecutionOrder '% исп. заявки (позиции)' (order) = countShippedOrderDetailOrder (order)*100.00/
+        (countOrderDetailOrder(order) IF countOrderDetailOrder(order)!=0);
+    
+    sumShippedOrderDetailOrder (order) = GROUP SUM min(shippedOrderDetail(d), quantityOrderDetail(d))*priceOrderDetail(d) 
+        IF shippedOrderDetail(d) AND isClosedOrderDetail(d) 
+            BY orderOrderDetail(d);   
+    percentSumExecutionOrder '% исп. заявки (сумма)' (order) = sumShippedOrderDetailOrder(order)*100.00/(sumOrderDetailOrder(order) IF sumOrderDetailOrder(order)!=0);    
+    
+    EXTEND FORM orders
+        PROPERTIES(o) READONLY percentQuantityExecutionOrder, percentCountExecutionOrder, percentSumExecutionOrder     
+    ;       
+END
+META defineOrderInvoiceSupplierExecution (NS, sign)
+                                                      
+    shippedShipmentDetailSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM shippedShipmentDetailOrder(order) 
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+            BY supplierOrder(order), dateFrom, dateTo;                                                   
+    quantityShipmentDetailSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM quantityOrderDetailOrder(order) 
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+            BY supplierOrder(order), dateFrom, dateTo;                                                                         
+    percentQuantityExecutionSupplierDateFromTo '% исп. заявки (кол-во)' (supplier, dateFrom, dateTo)= shippedShipmentDetailSupplierDateFromTo (supplier, dateFrom, dateTo)*100.00 /
+        (quantityShipmentDetailSupplierDateFromTo(supplier, dateFrom, dateTo) IF quantityShipmentDetailSupplierDateFromTo(supplier, dateFrom, dateTo)!= 0);                                                              
+//--    
+    countShippedSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM countShippedOrderDetailOrder(order) 
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+            BY supplierOrder(order), dateFrom, dateTo;                                                   
+    countSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM countOrderDetailOrder(order) 
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+            BY supplierOrder(order), dateFrom, dateTo;      
+    percentCountExecutionSupplierDateFromTo '% исп. заявки (позиции)' (supplier, dateFrom, dateTo) = countShippedSupplierDateFromTo (supplier, dateFrom, dateTo)*100.00 /
+        (countSupplierDateFromTo(supplier, dateFrom, dateTo) IF countSupplierDateFromTo(supplier, dateFrom, dateTo)!=0);
+//--    
+    sumShippedSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM sumShippedOrderDetailOrder(order) 
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+            BY supplierOrder(order), dateFrom, dateTo;                                                   
+    sumSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM sumOrderDetailOrder(order) 
+        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order) AND isClosedOrder(order)
+            BY supplierOrder(order), dateFrom, dateTo;      
+    percentSumExecutionSupplierDateFromTo '% исп. заявки (сумма)' (supplier, dateFrom, dateTo) = sumShippedSupplierDateFromTo(supplier, dateFrom, dateTo)*100.00 /
+        (sumSupplierDateFromTo(supplier, dateFrom, dateTo) IF sumSupplierDateFromTo(supplier, dateFrom, dateTo)!=0);    
+    
+
+    FORM executionSupplierOrder 'Исполнение заявок' TITLE 'Исполнение заявок'###sign
+    
+        OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+        PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+       
+        OBJECTS s = LegalEntity
+        PROPERTIES READONLY nameLegalEntity(s), percentQuantityExecutionSupplierDateFromTo(s,dFrom,dTo), percentCountExecutionSupplierDateFromTo(s,dFrom,dTo),
+                   percentSumExecutionSupplierDateFromTo(s,dFrom,dTo)       
+        FILTERS    quantityShipmentDetailSupplierDateFromTo(s,dFrom,dTo)  
+        OBJECTS o = Order
+        PROPERTIES (o) READONLY isPostedOrder, isClosedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
+                                nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder, 
+                                countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder, VATSumOrderDetailOrder, invoiceSumOrderDetailOrder,
+                                percentQuantityExecutionOrder, percentCountExecutionOrder, percentSumExecutionOrder 
+        FILTERS isPostedOrder(o),
+                isClosedOrder(o),
+                supplierOrder(o) == s,
+                dateOrder(o) >= dFrom,
+                dateOrder(o) <= dTo
+
+    ; 
+    DESIGN executionSupplierOrder FROM DEFAULT{
+        main{
+
+            NEW dates{
+                type = CONTAINERH;
+                caption = 'Период';
+                ADD PROPERTY(valFrom){
+                    caption = 'Дата с';
+                }
+                ADD PROPERTY(valTo){
+                    caption = 'Дата по';
+                }
+            }
+
+            ADD s.box;
+            ADD o.box;
+            ADD functions.box;
+        }
+    }        
+    NAVIGATOR {
+        NS##sReports {
+            ADD executionSupplierOrder;
+        }
+    }                     
+END
