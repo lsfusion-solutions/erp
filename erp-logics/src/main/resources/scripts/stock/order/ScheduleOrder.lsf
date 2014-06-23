@@ -29,6 +29,9 @@ TABLE scheduleOrderDetail(ScheduleOrderDetail);
 //isClosedScheduleOrderDetail 'Аннулирован' = ABSTRACT BOOLEAN (ScheduleOrderDetail);
 //isOpenedScheduleOrderDetail= d IS ScheduleOrderDetail AND NOT isClosedScheduleOrderDetail(d);
 
+operationScheduleOrder = ABSTRACT Operation.Operation (ScheduleOrder) PERSISTENT;
+nameOperationScheduleOrder 'Операция' (scheduleOrder) = Operation.nameOperation(operationScheduleOrder(scheduleOrder));
+
 startDateScheduleOrder 'Дата начала' = ABSTRACT DATE (ScheduleOrder) IN base;
 endDateScheduleOrder 'Дата окончания' = ABSTRACT DATE (ScheduleOrder) IN base;
 
@@ -232,6 +235,14 @@ META defineScheduleOrder(sign, stockProp)
 //    isClosedScheduleOrderDetail(d) += isClosedScheduleOrderDetail(d);
     
     scheduleOrderScheduleOrderDetail 'График поставок' = DATA ScheduleOrder(ScheduleOrderDetail) NOT NULL DELETE;
+    
+    operationScheduleOrder = DATA Operation (ScheduleOrder);
+    nameOperationScheduleOrder 'Операция' = nameOperation(operationScheduleOrder(scheduleOrder));
+    idOperationScheduleOrder 'ID операции' = idOperation(operationScheduleOrder(scheduleOrder));
+    ScheduleOrder.operationScheduleOrder(scheduleOrder) += operationScheduleOrder(scheduleOrder);
+
+    operationScheduleOrderDetail (scheduleOrderDetail) = operationScheduleOrder(scheduleOrderScheduleOrderDetail(scheduleOrderDetail));    
+    nameOperationScheduleOrderDetail 'Операция' (scheduleOrderDetail) = nameOperation(operationScheduleOrderDetail(scheduleOrderDetail));    
 
     supplierScheduleOrderDetail(scheduleOrderDetail) = supplierScheduleOrder(scheduleOrderScheduleOrderDetail(scheduleOrderDetail));
     nameSupplierScheduleOrderDetail 'Поставщик' (scheduleOrderDetail) = nameLegalEntity(supplierScheduleOrderDetail(scheduleOrderDetail));
@@ -422,7 +433,7 @@ META defineScheduleOrder(sign, stockProp)
        
     FORM scheduleOrder 'График поставок'
         OBJECTS s=ScheduleOrder FIXED PANEL
-        PROPERTIES (s) nameSupplierScheduleOrder, nameSupplierStockScheduleOrder, nameCustomerScheduleOrder, 
+        PROPERTIES (s) nameSupplierScheduleOrder, nameSupplierStockScheduleOrder, nameCustomerScheduleOrder, nameOperationScheduleOrder,
                        startDateScheduleOrder, endDateScheduleOrder, nameTypeScheduleOrder, 
                        overPeriodScheduleOrder SHOWIF toShowGenDayMonth(s), inAllMonthScheduleOrder SHOWIF toShowGenDayMonth(s),
                        beforeDay = dayBeforeScheduleOrder SHOWIF toShowGenDay(s), dayLastOrderScheduleOrder SHOWIF toShowGenDay(s), dayAfterScheduleOrder SHOWIF toShowGenDay(s), 
@@ -457,7 +468,8 @@ META defineScheduleOrder(sign, stockProp)
         PROPERTIES (sd) isClosedScheduleOrderDetail, dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail
         PROPERTIES (sd) READONLY monthInDateScheduleOrderDetail, DOWInDateScheduleOrderDetail,
                         nameSupplierScheduleOrderDetail, nameSupplierStockScheduleOrderDetail,
-                        nameCustomerScheduleOrderDetail, nameCustomerStockScheduleOrderDetail
+                        nameCustomerScheduleOrderDetail, nameCustomerStockScheduleOrderDetail,
+                        nameOperationScheduleOrderDetail
         PROPERTIES (sd) createScheduleUserOrder, DELETESESSION
         ORDER BY dateSupplyScheduleOrderDetail(sd)
         PROPERTIES createScheduleOrder(s) TODRAW sd
@@ -481,12 +493,22 @@ META defineScheduleOrder(sign, stockProp)
                     ADD PROPERTY(nameSupplierScheduleOrder(s));
                     ADD PROPERTY(nameSupplierStockScheduleOrder(s));
                 }
-    
-                NEW custContainer {
-                    caption = 'Покупатель';
-                    type = COLUMNS;
-                    columns = 1;
-                    ADD PROPERTY(nameCustomerScheduleOrder(s));
+                
+                NEW secondContainer{
+                    type = CONTAINERV;
+                    NEW custContainer {
+                        caption = 'Покупатель';
+                        type = COLUMNS;
+                        columns = 1;
+                        ADD PROPERTY(nameCustomerScheduleOrder(s));
+                    }
+                    
+                    NEW operationContainer {
+                        caption = 'Операция';
+                        type = COLUMNS;
+                        columns = 1;
+                        ADD PROPERTY(nameOperationScheduleOrder(s));
+                    }                    
                 }
     
                 NEW dateContainer {
