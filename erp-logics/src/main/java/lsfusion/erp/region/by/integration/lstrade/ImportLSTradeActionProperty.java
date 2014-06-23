@@ -302,7 +302,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
 
             if (!idItemGroup.isEmpty() && (!inactiveItem || importInactive) && !isWare)
                 data.add(new Item(isItem, idItemGroup, captionItem, UOM, brand, brand, nameCountry, barcode, barcode,
-                        date, isWeightItem ? isWeightItem : null, null, null, compositionItem.isEmpty() ? null : compositionItem,
+                        date, isWeightItem ? isWeightItem : null, null, null, nullIfEmpty(compositionItem),
                         VATifAllowed(retailVAT), idWare, priceWare, ndsWare, "RW_".equals(idRateWaste) ? null : idRateWaste,
                         null, null, isItem, quantityPackItem, null, null, null, null, null));
         }

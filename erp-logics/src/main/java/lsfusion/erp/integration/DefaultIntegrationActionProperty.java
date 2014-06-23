@@ -146,6 +146,10 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }
 
+    protected String nullIfEmpty(String value) {
+        return value.isEmpty() ? null : value;
+    }
+    
     protected boolean notNullNorEmpty(String value) {
         return value != null && !value.isEmpty();
     }
