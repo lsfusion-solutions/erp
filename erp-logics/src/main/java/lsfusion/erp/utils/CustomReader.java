@@ -18,7 +18,7 @@ public class CustomReader<T> implements Reader<Integer> {
 
     @Override
     public ExtInt getCharLength() {
-        throw new UnsupportedOperationException();
+       return new ExtInt(30);
     }
 
     @Override
