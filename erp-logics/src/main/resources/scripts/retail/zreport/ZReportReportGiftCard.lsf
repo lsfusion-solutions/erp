@@ -1,0 +1,20 @@
+MODULE ZReportReportGiftCard;
+
+REQUIRE ZReportReport, GiftCard;
+
+NAMESPACE ZReport;
+
+sumGiftCardPaymentZReportStockDate 'Сумма продаж (сертификат)' (stock, date)= GROUP SUM sumGiftCardPaymentZReport(zReport) IF isPostedZReport(zReport)
+        BY departmentStoreZReport(zReport), dateZReport(zReport);
+sumReceiptDetailGiftCardZReportStockDate 'Сумма проданных сертификатов' (stock, date)= GROUP SUM sumReceiptDetailGiftCardZReport(zReport) IF isPostedZReport(zReport)
+        BY departmentStoreZReport(zReport), dateZReport(zReport);                                              
+
+EXTEND FORM saleZreportStock
+    PROPERTIES READONLY sumGiftCardPaymentZReportStockDate(st,dt)  COLUMNS (st) HEADER nameGiftCardStock(st)
+    PROPERTIES READONLY sumReceiptDetailGiftCardZReportStockDate(st,dt)  COLUMNS (st) HEADER nameReceiptDetailGiftCardStock(st)                                 
+;
+
+EXTEND DESIGN saleZreportStock {
+    PROPERTY(sumGiftCardPaymentZReportStockDate(st,dt)) { background =  #FFBBFF; }  
+    PROPERTY(sumReceiptDetailGiftCardZReportStockDate(st,dt)) { background = #EEEEEE; }              
+}
