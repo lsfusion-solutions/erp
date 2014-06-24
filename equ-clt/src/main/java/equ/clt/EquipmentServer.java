@@ -4,6 +4,7 @@ import equ.api.*;
 import equ.api.cashregister.CashDocumentBatch;
 import equ.api.cashregister.CashRegisterHandler;
 import equ.api.cashregister.CashRegisterInfo;
+//import equ.api.cashregister.StopListInfo;
 import equ.api.terminal.TerminalDocumentBatch;
 import equ.api.terminal.TerminalHandler;
 import equ.api.terminal.TerminalInfo;
@@ -55,6 +56,7 @@ public class EquipmentServer {
                 int millis = 10000;
                 ScheduledExecutorService daemonTasksExecutor = Executors.newScheduledThreadPool(4, new DaemonThreadFactory("scheduler-daemon"));
                 final ReentrantLock processTransactionLock = new ReentrantLock();
+//                final ReentrantLock processStopListLock = new ReentrantLock();
                 final ReentrantLock sendSalesLock = new ReentrantLock();
                 final ReentrantLock sendSoftCheckLock = new ReentrantLock();
                 final ReentrantLock sendTerminalDocumentLock = new ReentrantLock();
@@ -94,10 +96,10 @@ public class EquipmentServer {
 
                             //processTransaction
                             if (!processTransactionLock.isLocked()) {
+                                processTransactionLock.lock();
                                 daemonTasksExecutor.schedule(new Runnable() {
                                     @Override
-                                    public void run() {
-                                        processTransactionLock.lock();
+                                    public void run() {                                        
                                         try {
                                             processTransactionInfo(remote, sidEquipmentServer);
                                         } catch (Exception e) {
@@ -108,12 +110,28 @@ public class EquipmentServer {
                                 }, 0, TimeUnit.MILLISECONDS);
                             }
 
+//                            //processStopList
+//                            if (!processStopListLock.isLocked()) {
+//                                processStopListLock.lock();
+//                                daemonTasksExecutor.schedule(new Runnable() {
+//                                    @Override
+//                                    public void run() {
+//                                        try {
+//                                            processStopListInfo(remote, sidEquipmentServer);
+//                                        } catch (Exception e) {
+//                                            logger.error("Unhandled exception : ", e);
+//                                        }
+//                                        processStopListLock.unlock();
+//                                    }
+//                                }, 0, TimeUnit.MILLISECONDS);
+//                            }
+
                             //sendSales
                             if (!sendSalesLock.isLocked()) {
+                                sendSalesLock.lock();
                                 daemonTasksExecutor.schedule(new Runnable() {
                                     @Override
                                     public void run() {
-                                        sendSalesLock.lock();
                                         try {
                                             sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime);
                                         } catch (Exception e) {
@@ -126,10 +144,10 @@ public class EquipmentServer {
 
                             //sendSoftCheck
                             if (!sendSoftCheckLock.isLocked()) {
+                                sendSoftCheckLock.lock();
                                 daemonTasksExecutor.schedule(new Runnable() {
                                     @Override
                                     public void run() {
-                                        sendSoftCheckLock.lock();
                                         try {
                                             sendSoftCheckInfo(remote);
                                         } catch (Exception e) {
@@ -142,10 +160,10 @@ public class EquipmentServer {
 
                             //sendTerminalDocument
                             if (!sendTerminalDocumentLock.isLocked()) {
+                                sendTerminalDocumentLock.lock();
                                 daemonTasksExecutor.schedule(new Runnable() {
                                     @Override
                                     public void run() {
-                                        sendTerminalDocumentLock.lock();
                                         try {
                                             sendTerminalDocumentInfo(remote, sidEquipmentServer);
                                         } catch (Exception e) {
@@ -202,6 +220,26 @@ public class EquipmentServer {
             logger.info("Sending transactions finished");
         }
     }
+
+    /*private void processStopListInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws RemoteException, SQLException {
+        logger.info("Process StopListInfo");
+        List<StopListInfo> stopListInfoList = remote.readStopListInfo(sidEquipmentServer);
+        for (StopListInfo stopListInfo : stopListInfoList) {
+            
+            for(Map.Entry<String, Set<String>> entry : stopListInfo.handlerDirectoryMap.entrySet()) {
+
+                try {
+                    Object clsHandler = getHandler(entry.getKey(), remote);
+                    if (clsHandler instanceof CashRegisterHandler)
+                        ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, entry.getValue());
+                } catch (Exception e) {
+                    return;
+                }
+            }
+
+            logger.info("Process StopListInfo finished");
+        }
+    }*/
 
     private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, Integer numberAtATime) throws SQLException, IOException {
         logger.info("Send SalesInfo");
