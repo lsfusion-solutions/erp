@@ -38,7 +38,7 @@ META defineOrderShipment(sign, stockProp)
     shippedShipmentDetailOrderSku 'Кол-во (поставлено)' (order, sku) = GROUP SUM quantityShipmentDetail(shipmentDetail) IF isPostedShipmentDetail(shipmentDetail)
                                                       BY orderShipmentDetail(shipmentDetail), skuShipmentDetail(shipmentDetail);
     shippedOrderDetail 'Кол-во (поставлено)' (orderDetail) = PARTITION UNGROUP shippedShipmentDetailOrderSku
-                                                              LIMIT STRICT quantityOrderDetail (orderDetail) IF isPostedOrderDetail(orderDetail)
+                                                              LIMIT STRICT quantityOrderDetail (orderDetail)
                                                               BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
                                                               ORDER orderDetail PERSISTENT;
                                                               
@@ -177,21 +177,19 @@ END
 
 META defineOrderShipmentExecution (dumb)
 
-    shippedShipmentDetailOrder 'Кол-во (поставлено)' (order) = GROUP SUM min(shippedOrderDetail(d), quantityOrderDetail(d)) 
-        IF isPostedOrderDetail(d) AND shippedOrderDetail(d) AND isClosedOrderDetail(d)
-            BY orderOrderDetail(d);
+    shippedShipmentDetailOrder 'Кол-во (поставлено)' (order) = GROUP SUM shippedOrderDetail(d)
+        IF isClosedOrderDetail(d) AND isPostedOrderDetail(d) BY orderOrderDetail(d);
                                                                
     percentQuantityExecutionOrder '% исп. заявки (кол-во)' (order)= shippedShipmentDetailOrder(order)*100.00 /
         (quantityOrderDetailOrder(order) IF quantityOrderDetailOrder(order)!= 0);                                                              
     
-    countShippedOrderDetailOrder (order) = GROUP SUM 1 IF shippedOrderDetail(d) >= quantityOrderDetail(d) AND isClosedOrderDetail(d) 
-            BY orderOrderDetail(d);   
+    countShippedOrderDetailOrder (order) = GROUP SUM 1 IF shippedOrderDetail(d) >= quantityOrderDetail(d) 
+        AND isClosedOrderDetail(d) AND isPostedOrderDetail(d) BY orderOrderDetail(d);   
     percentCountExecutionOrder '% исп. заявки (позиции)' (order) = countShippedOrderDetailOrder (order)*100.00/
         (countOrderDetailOrder(order) IF countOrderDetailOrder(order)!=0);
     
-    sumShippedOrderDetailOrder (order) = GROUP SUM min(shippedOrderDetail(d), quantityOrderDetail(d))*priceOrderDetail(d) 
-        IF shippedOrderDetail(d) AND isClosedOrderDetail(d) 
-            BY orderOrderDetail(d);   
+    sumShippedOrderDetailOrder (order) = GROUP SUM shippedOrderDetail(d)*priceOrderDetail(d) 
+        IF isClosedOrderDetail(d) AND isPostedOrderDetail(d) BY orderOrderDetail(d);   
     percentSumExecutionOrder '% исп. заявки (сумма)' (order) = sumShippedOrderDetailOrder(order)*100.00/(sumOrderDetailOrder(order) IF sumOrderDetailOrder(order)!=0);    
     
     EXTEND FORM orders
