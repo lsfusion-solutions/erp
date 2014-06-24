@@ -1,10 +1,10 @@
 MODULE PurchaseShipmentBin;
 
-REQUIRE PurchaseBin, PurchaseShipment;
+REQUIRE PurchaseBin, PurchaseShipment, Item;
 
 NAMESPACE Purchase;
 
-dontSetBinPurchase 'Не заполенять ячейки на приходе' = DATA BOOLEAN ();
+dontSetBinPurchase 'Не заполнять ячейки на приходе' = DATA BOOLEAN ();
 
 EXTEND FORM options
     PROPERTIES dontSetBinPurchase()
@@ -21,9 +21,9 @@ overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {
     binUserShipmentDetail(d) <- binUserShipmentDetail(detail);
 }
 @extendFormInterfaceDetailBin(shipment, s, , quantity);
-binUserShipmentDetail(detail) <- binStockSku(customerStockUserShipmentDetail(detail), skuUserShipmentDetail(detail)) IF NOT dontSetBinPurchase()
-    WHEN CHANGED(customerStockUserShipmentDetail(detail)) OR
-         CHANGED(skuUserShipmentDetail(detail));
+binUserShipmentDetail(detail) <- binStockSku(customerStockUserShipmentDetail(detail), skuUserShipmentDetail(detail)) IF NOT dontSetBinPurchase() 
+    WHEN (CHANGED(customerStockUserShipmentDetail(detail)) OR
+         CHANGED(skuUserShipmentDetail(detail))) AND NOT allowReplaceItem();;
 
 @deriveDocumentOperationProperty(UserShipment, showBin);
 
@@ -31,8 +31,8 @@ binUserShipmentDetail(detail) <- binStockSku(customerStockUserShipmentDetail(det
 @defineInvoiceShipmentBin(customerStock);
 
 binUserInvoiceDetail(detail) <- binStockSku(customerStockUserInvoiceDetail(detail), skuUserInvoiceDetail(detail)) IF NOT dontSetBinPurchase()
-    WHEN CHANGED(customerStockUserInvoiceDetail(detail)) OR
-         CHANGED(skuUserInvoiceDetail(detail));
+    WHEN (CHANGED(customerStockUserInvoiceDetail(detail)) OR
+          CHANGED(skuUserInvoiceDetail(detail))) AND NOT allowReplaceItem();
 
 @deriveDocumentOperationProperty(UserInvoice, showBin);
 
