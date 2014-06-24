@@ -311,7 +311,7 @@ FORM store 'Магазин'
 
     OBJECTS d=DepartmentStore
     PROPERTIES(d) READONLY nameDepartmentStore, idDepartmentStore SHOWIF showIDs(), tradingSquareDepartmentStore
-    PROPERTIES(d)          ADDSESSIONFORM, EDITSESSIONFORM, deleteD=DELETESESSION
+    PROPERTIES(d)          ADDNESTEDFORM, EDITNESTEDFORM, deleteD=DELETESESSION
     FILTERS inStoreDepartment(s, d)
 
     EDIT Store OBJECT s
@@ -419,16 +419,14 @@ META defineDocumentDepartmentStore (object)
     @defineDocumentDetailDepartmentStore(object);
 END
 
-addStoreLegalEntity 'Добавить магазин' = ACTION (legalEntity) {
-
+addStoreLegalEntity 'Добавить магазин' = ACTION (legalEntity) NEWSESSION NESTED{
     FOR ADDOBJ st = Store DO {
         ASSIGN legalEntityStore(st) <- legalEntity;
-        FORM store OBJECTS s = st DOCKEDMODAL;
+        FORM store OBJECTS s = st MANAGESESSION DOCKEDMODAL;
     }
 }
 
 EXTEND FORM legalEntity
-
     PROPERTIES addStoreLegalEntity(l) TODRAW st FORCE PANEL TOOLBAR
 ;
 

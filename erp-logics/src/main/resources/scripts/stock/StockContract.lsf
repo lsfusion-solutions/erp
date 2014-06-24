@@ -104,15 +104,11 @@ DESIGN userContractSku FROM DEFAULT {
 editUserContractSku 'Редактировать' = ACTION EDITFORM UserContractSku;
 editContract(userContractSku) += editUserContractSku(userContractSku);
 
-addUserContractSkuSupplierCustomer 'Добавить' = ACTION (supplier, customer) {
-
+addUserContractSkuSupplierCustomer 'Добавить' = ACTION (supplier, customer) NEWSESSION NESTED{
     FOR ADDOBJ uc = UserContractSku DO {
-        ASSIGN supplierContractSku(uc) <- supplier;
-        ASSIGN customerContractSku(uc) <- customer;
-        FORM userContractSku OBJECTS c = uc DOCKEDMODAL;
-        IF NOT formResult() == FormResult.ok THEN {
-            DELETE uc;
-        }
+        supplierContractSku(uc) <- supplier;
+        customerContractSku(uc) <- customer;
+        FORM userContractSku OBJECTS c = uc MANAGESESSION DOCKEDMODAL;
     }
 } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
@@ -151,7 +147,7 @@ EXTEND FORM legalEntity
     PROPERTIES(css) SHOWIF isCustomerLegalEntity(l) READONLY seriesNumberUserContractSku, nameTypeContractSku, dateFromContract,
                     dateToContract, nameCurrencyContract, noteContract
     PROPERTIES      SHOWIF isCustomerLegalEntity(l) addUserContractSkuSupplierCustomer(s, l) TODRAW css FORCE PANEL TOOLBAR
-    PROPERTIES(css) SHOWIF isCustomerLegalEntity(l) EDITSESSIONFORM
+    PROPERTIES(css) SHOWIF isCustomerLegalEntity(l) EDITNESTEDFORM
     PROPERTIES(css) DELETESESSION SHOWIF isCustomerLegalEntityUserContractSku(l,css)
     
     FILTERS customerContractSku(css) == l,
@@ -164,7 +160,7 @@ EXTEND FORM legalEntity
     PROPERTIES(csc) SHOWIF isSupplierLegalEntity(l) READONLY seriesNumberUserContractSku, nameTypeContractSku, dateFromContract,
                     dateToContract, nameCurrencyContract, noteContract
     PROPERTIES SHOWIF isSupplierLegalEntity(l) addUserContractSkuSupplierCustomer(l, c) TODRAW csc FORCE PANEL TOOLBAR
-    PROPERTIES(csc) SHOWIF isSupplierLegalEntity(l) EDITSESSIONFORM
+    PROPERTIES(csc) SHOWIF isSupplierLegalEntity(l) EDITNESTEDFORM
     PROPERTIES(csc) DELETESESSION SHOWIF isSupplierLegalEntityUserContractSku(l,csc)
     FILTERS customerContractSku(csc) == c,
             supplierContractSku(csc) == l

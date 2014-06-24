@@ -234,66 +234,7 @@ editUserRevaluationDetail(d) = ACTION (d) NEWSESSION {
 editRevaluationDetail(d) += editUserRevaluationDetail(d);    
 editSkuLedger(ledger) += editRevaluationDetail(ledger);
 
-@defineDocumentSkuPriceListTypeSystemLedger(userRevaluation, accountPriceListType, stock, ){
-    @defineDocumentSku(userRevaluation, sku, stock, ){
-        @defineDocumentSku(userRevaluation, userRevaluationDetail, sku, stock, ){
-            userRevaluationDetailSkuUserRevaluationStock (sku, userRevaluation, stock) =  GROUP MAX userRevaluationDetail
-                BY skuUserRevaluationDetail(userRevaluationDetail), userRevaluationUserRevaluationDetail(userRevaluationDetail), stockUserRevaluationDetail(userRevaluationDetail);
-            userRevaluationDetailSkuUserRevaluation (sku, userRevaluation) = userRevaluationDetailSkuUserRevaluationStock(sku, userRevaluation, stockUserRevaluation(userRevaluation));
-        
-            currentBalanceSkuUserRevaluation 'Остаток' (sku, userRevaluation) = currentBalanceSkuStock(sku, stockUserRevaluation(userRevaluation));
-            prevCurrentBalanceSkuUserRevaluation 'Остаток' (sku, userRevaluation) = prevCurrentBalanceSkuStock(sku, stockUserRevaluation(userRevaluation));
-        //    backgroundQuantitySku###object 'Цвет' (sku, object) = RGB(255,128,128) IF quantity###detail###skuProp###object(sku, object) AND NOT
-        //        (quantity###detail###skuProp###object(sku, object) <= currentBalanceSku###object(sku, object));
-            backgroundQuantitySkuUserRevaluation 'Цвет' (sku, userRevaluation) = ABSTRACT CASE COLOR (Sku, UserRevaluation);  
-        
-            overChangeQuantityValueSkuUserRevaluationDetail = ABSTRACT ACTION LIST (UserRevaluationDetail);
-        
-            changeQuantityValueSkuUserRevaluation = ACTION (sku, userRevaluation) {
-                IF userRevaluationDetailSkuUserRevaluation(sku, userRevaluation) THEN {
-                    IF requestedNumeric() THEN {
-                        quantityUserRevaluationDetail(userRevaluationDetail) <- requestedNumeric() WHERE userRevaluationDetail == userRevaluationDetailSkuUserRevaluation(sku, userRevaluation);
-                        overChangeQuantityValueSkuUserRevaluationDetail(userRevaluationDetailSkuUserRevaluation(sku, userRevaluation));
-                    } ELSE {
-                        DELETE d WHERE d == userRevaluationDetailSkuUserRevaluation(sku, userRevaluation);
-                    }
-                } ELSE {
-                    IF requestedNumeric() THEN {
-                        FOR ADDOBJ d = UserRevaluationDetail DO {
-                            userRevaluationUserRevaluationDetail(d) <- userRevaluation;
-                            skuUserRevaluationDetail(d) <- sku;
-                            quantityUserRevaluationDetail (d) <- requestedNumeric();
-                            overChangeQuantityValueSkuUserRevaluationDetail(d);
-                        }
-                    }
-                }
-            }
-        
-            changeQuantitySkuUserRevaluation = ACTION (sku, userRevaluation) {
-                REQUEST NUMERIC[14,3] INPUT;
-                EXEC changeQuantityValueSkuUserRevaluation(sku, userRevaluation);
-            }
-        
-            // Выбор всего остатка
-            allQuantitySkuUserRevaluation 'Весь остаток' = DATA SESSION BOOLEAN (Sku, UserRevaluation);
-            changeAllQuantitySkuUserRevaluation = ACTION (sku, userRevaluation) {
-                REQUEST BOOLEAN INPUT;
-                IF requestedLogical() THEN {
-                    requestedNumeric() <- NULL;
-                    allQuantitySkuUserRevaluation (sku,userRevaluation) <- TRUE;
-                    requestedNumeric() <- prevCurrentBalanceSkuUserRevaluation(sku,userRevaluation);
-                    changeQuantityValueSkuUserRevaluation(sku, userRevaluation);
-                } ELSE {
-                    allQuantitySkuUserRevaluation (sku,userRevaluation) <- NULL;
-                    requestedNumeric() <- NULL;
-                    changeQuantityValueSkuUserRevaluation(sku, userRevaluation);
-                }
-            }
-        
-        };
-    };
-    priceSkuUserRevaluation 'Цена' (sku, userRevaluation) = prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stockUserRevaluation(userRevaluation), dateTimeUserRevaluation(userRevaluation));
-};
+@defineDocumentSkuPriceListTypeSystemLedger(userRevaluation, accountPriceListType, stock, );
 @extendFormDocumentSku(userRevaluation, userRevaluation, p);
 
 @defineDocumentBatchPriceListTypeSystemLedger(userRevaluation, accountPriceListType, stock, );

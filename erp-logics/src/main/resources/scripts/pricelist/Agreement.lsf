@@ -344,15 +344,10 @@ copyAgreement 'Копировать' = ACTION (agreement) NEWSESSION {
     };
 } TOOLBAR;
 
-copySessionAgreement 'Копировать' = ACTION (agreement) {
+copySessionAgreement 'Копировать' = ACTION (agreement) NEWSESSION NESTED{
     FOR ADDOBJ a = Agreement DO {
-        EXEC copyDataAgreement(agreement, a);
-
-        FORM agreement OBJECTS a = a DOCKEDMODAL;
-
-        IF NOT formResult() == FormResult.ok THEN {
-            DELETE a;
-        }
+        copyDataAgreement(agreement, a);
+        FORM agreement OBJECTS a = a MANAGESESSION DOCKEDMODAL;
     };
 } TOOLBAR;
 
@@ -406,22 +401,18 @@ addAgreementsCustomerSupplier 'Присоединить' = ACTION (customer, sup
     FORM agreementsCustomer OBJECTS s=supplier, c=customer MODAL;
     IF formResult() == FormResult.ok THEN {
         FOR inAgreement(agreement) DO {
-            ASSIGN dataInAgreementSupplier(agreement,supplier) <- TRUE;
-            ASSIGN dataInAgreementCustomer(agreement,customer) <- TRUE;
+            dataInAgreementSupplier(agreement,supplier) <- TRUE;
+            dataInAgreementCustomer(agreement,customer) <- TRUE;
         }
     }
 } TOOLBAR;
 
 
-createAgreementSupplierCustomer 'Добавить' = ACTION (supplier, customer) {
-
+createAgreementSupplierCustomer 'Добавить' = ACTION (supplier, customer) NEWSESSION NESTED{
     FOR ADDOBJ ag = Agreement DO {
-        ASSIGN dataInAgreementCustomer(ag, customer) <- TRUE;
-        ASSIGN dataInAgreementSupplier(ag, supplier) <- TRUE;
-        FORM agreement OBJECTS a = ag DOCKEDMODAL;
-        IF NOT formResult() == FormResult.ok THEN {
-            DELETE ag;
-        }
+        dataInAgreementCustomer(ag, customer) <- TRUE;
+        dataInAgreementSupplier(ag, supplier) <- TRUE;
+        FORM agreement OBJECTS a = ag MANAGESESSION DOCKEDMODAL;
     }
 } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
@@ -434,7 +425,7 @@ EXTEND FORM legalEntity
                              fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
                              nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement
 
-    PROPERTIES(ags) SHOWIF isCustomerLegalEntity(l) DELETESESSION, EDITSESSIONFORM, copySessionAgreement
+    PROPERTIES(ags) SHOWIF isCustomerLegalEntity(l) DELETESESSION, EDITNESTEDFORM, copySessionAgreement
     PROPERTIES SHOWIF isCustomerLegalEntity(l) createAgreementSupplierCustomer(s, l) TODRAW ags FORCE PANEL TOOLBAR, addAgreementsSupplierCustomer(s, l) TODRAW ags FORCE PANEL TOOLBAR
     FILTERS inAgreementCustomer(ags, l) AND inAgreementSupplier(ags, s),
             isSellerLegalEntity(s),
@@ -449,7 +440,7 @@ EXTEND FORM legalEntity
     PROPERTIES(agc) SHOWIF isSupplierLegalEntity(l) READONLY nameAgreement, numberAgreement, seriesAgreement, dateAgreement, timeAgreement,
                              fromDateAgreement, fromTimeAgreement, toDateAgreement, toTimeAgreement,
                              nameCurrencyAgreement, namePriceListTypeAgreement, noteAgreement
-    PROPERTIES(agc) SHOWIF isSupplierLegalEntity(l) DELETESESSION, EDITSESSIONFORM, copySessionAgreement
+    PROPERTIES(agc) SHOWIF isSupplierLegalEntity(l) DELETESESSION, EDITNESTEDFORM, copySessionAgreement
 
     PROPERTIES SHOWIF isSupplierLegalEntity(l) createAgreementSupplierCustomer(l, c) TODRAW agc FORCE PANEL TOOLBAR, addAgreementsCustomerSupplier (c,l) TODRAW agc FORCE PANEL TOOLBAR
     FILTERS inAgreementCustomer(agc, c) AND inAgreementSupplier(agc, l),

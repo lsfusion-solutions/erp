@@ -609,16 +609,12 @@ META defineScheduleOrder(sign, stockProp)
 
     editScheduleOrderDetail 'Редактировать' (detail) = editScheduleOrder(scheduleOrderScheduleOrderDetail(detail)) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-    addScheduleOrderSupplierCustomer 'Добавить'##sign = ACTION (supplier, customer) {
+    addScheduleOrderSupplierCustomer 'Добавить'##sign = ACTION (supplier, customer) NEWSESSION NESTED {
         FOR ADDOBJ s = ScheduleOrder DO {
             supplierScheduleOrder(s) <- supplier;
             customerScheduleOrder(s) <- customer;
 
-            FORM scheduleOrder OBJECTS s = s DOCKEDMODAL;
-            IF NOT formResult() == FormResult.ok THEN {
-                DELETE d WHERE scheduleOrderScheduleOrderTime(d) == s;
-                DELETE s;
-            }
+            FORM scheduleOrder OBJECTS s = s MANAGESESSION DOCKEDMODAL;
         }
     } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
