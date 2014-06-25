@@ -456,3 +456,35 @@ NAVIGATOR {
         ADD machineryPriceTransactions;
     }
 }
+
+//--
+
+createPriceTransactionDocument 'Загрузить в оборудование' = ACTION ()  {
+    IF selectSkuStockSession() THEN {
+        FOR selectSkuSessionStock(stock) DO {
+            ASSIGN createMachineryPriceTransactionSnapshot() <- NULL;
+            ASSIGN createMachineryPriceTransactionSku(sku) <- NULL;        
+        
+            ASSIGN createMachineryPriceTransactionSnapshot() <- TRUE;
+            ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF selectSkuStock(sku, stock);
+            EXEC createMachineryPriceTransaction(stock);
+        }
+        apply();
+        IF canceled() THEN {
+            cancel();
+        }
+    }
+} TOOLBAR ;
+
+EXTEND  FORM currentBalanceSkuStock
+    PROPERTIES() createPriceTransactionDocument TODRAW sts
+;
+EXTEND DESIGN currentBalanceSkuStock {
+    actionContainer {
+        NEW machineryContainer {
+            caption = 'Загрузки';
+            type = CONTAINERV;
+            ADD PROPERTY (createPriceTransactionDocument());
+        } 
+    }
+}

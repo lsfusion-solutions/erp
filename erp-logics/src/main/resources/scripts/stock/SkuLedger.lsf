@@ -816,6 +816,10 @@ DESIGN costSkuBatchLedger FROM DEFAULT {
 
 // ------------------------------------------------ Остатки по товарам ---------------------------------------- //
 
+selectSkuStock 'Отм.' = DATA SESSION BOOLEAN (Sku, Stock);
+selectSkuSessionStock (stock) = GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock; 
+selectSkuStockSession () = GROUP SUM 1 IF selectSkuStock(sku, stock) ; 
+
 FORM currentBalanceSkuStock 'Текущие остатки'
 
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
@@ -831,6 +835,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           sts=(st=Stock, s=Sku)
+    PROPERTIES        selectSkuStock(s,st)
     PROPERTIES        READONLY nameSku(s), stockName = nameStock(st)  //  idBarcodeSku
     FILTERS           isParentSkuGroupSku(sk, s),
                       st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
@@ -888,6 +893,10 @@ DESIGN currentBalanceSkuStock FROM DEFAULT {
                     type = TABBED;
                     ADD bil.box;
                     ADD bt.box;
+                    NEW actionContainer {
+                        caption = 'Действия'; 
+                        type = CONTAINERH;
+                    }
                 }
             }
         }
