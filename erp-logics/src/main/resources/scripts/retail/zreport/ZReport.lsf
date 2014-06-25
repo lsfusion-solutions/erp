@@ -511,6 +511,9 @@ sumCashZReportCashRegister 'Сумма наличных по кассе' = GROUP
 
 sumVATSkuReceiptDetailZReport 'Сумма НДС по sku' (zReport) = GROUP SUM signedSumVATReceiptDetail(detail)
     IF skuReceiptDetail(detail) BY zReportReceiptDetail(detail);
+sumVATReceiptDetailReceipt'Сумма НДС' (receipt) = GROUP SUM signedSumVATReceiptDetail(detail)
+    BY receiptReceiptDetail(detail);    
+    
 
 discountSumVATReceiptDetail 'Сумма НДС в скидке' (d) = roundPriceCurrency(discountSumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d));
  
@@ -543,7 +546,7 @@ FORM zReport 'Z-отчет'
     OBJECTS b=Receipt, d=ReceiptDetail
     PROPERTIES(b) numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
                   sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
-                  discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt,
+                  discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt,
                   ADDOBJ, DELETESESSION
     FILTERS zReportReceipt(b)==z
 
@@ -636,7 +639,7 @@ FORM zReports 'Z-отчеты'
     OBJECTS b=Receipt
     PROPERTIES(b) READONLY  numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
                             sumReceiptDetailReceipt, discountSumReceiptDetailReceipt,
-                            discountSumReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt
+                            discountSumReceipt, sumVATReceiptDetailReceipt, countReceiptDetailReceipt, quantityReceiptDetailReceipt
 
     FILTERS zReportReceipt(b)==z
     ORDER BY                numberReceipt(b)
