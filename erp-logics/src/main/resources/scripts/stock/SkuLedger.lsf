@@ -880,7 +880,11 @@ FORM currentBalanceSkuStock 'Текущие остатки'
 DESIGN currentBalanceSkuStock FROM DEFAULT {
     main{
         preferredSize = (1024, 768);
-
+        NEW filter {
+            type = CONTAINERH;
+            ADD PROPERTY (multipleStores());
+            ADD PROPERTY (nameStock(ss));
+        }
         NEW topContainer {
             fill = 1;
             type = SPLITH;
@@ -905,6 +909,10 @@ DESIGN currentBalanceSkuStock FROM DEFAULT {
                     type = TABBED;
                     ADD bil.box;
                     ADD bt.box;
+                    NEW actionContainer {
+                        caption = 'Действия';
+                        type = CONTAINERH;
+                    }
                 }
             }
         }
@@ -920,10 +928,16 @@ DESIGN currentBalanceSkuStock FROM DEFAULT {
 FORM balanceSkuStock 'Остатки на дату'
 
     OBJECTS t=DATETIME FIXED PANEL
-    PROPERTIES(t) OBJVALUE
+    PROPERTIES valT = OBJVALUE(t)
+
+    PROPERTIES() multipleStores
+    
+    OBJECTS ss = Stock FIXED PANEL
+    PROPERTIES(ss) nameStock SELECTOR SHOWIF singleStore()
+    FILTERS isCompanyStock(ss)    
 
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
+    PROPERTIES READONLY SHOWIF multipleStores() OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a),
             stockGroupStock(ts) == sg,
@@ -935,10 +949,13 @@ FORM balanceSkuStock 'Остатки на дату'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           sts=(st=Stock, s=Sku)
-    PROPERTIES        READONLY nameSku(s), stockName = nameStock(st)  //  idBarcodeSku
+    PROPERTIES        READONLY nameSku(s), stockName = nameStock(st) SHOWIF multipleStores()  //  idBarcodeSku
     FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(st) DEFAULT
     FILTERS           isParentSkuGroupSku(sk, s),
-                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
+                      IF multipleStores() THEN 
+                          st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
+                        ELSE 
+                            st == ss,
                       isCompanyStock(st)
 
     PROPERTIES(s, st, t) READONLY balanceASkuStockDateTime, averagePriceASkuStockDateTime, sumASkuStockDateTime
@@ -966,21 +983,21 @@ FORM balanceSkuStock 'Остатки на дату'
 DESIGN balanceSkuStock FROM DEFAULT {
     main{
         preferredSize = (1024, 768);
-
+        NEW filter {
+            type = CONTAINERH;
+            ADD PROPERTY (valT);
+            ADD PROPERTY (multipleStores());
+            ADD PROPERTY (nameStock(ss));
+        }
         NEW topContainer {
             fill = 1;
             type = SPLITH;
-
-            NEW firstCase {
+            
+            NEW firstCaseTwo {
                 fill = 1;
-                type = CONTAINERV;
-                ADD t.box { fill = 0; }
-                NEW firstCaseTwo {
-                    fill = 1;
-                    type = SPLITV;
-                    ADD stockTree.tree.box { caption = 'Склады'; }
-                    ADD skuTree.tree.box { caption = 'Группы'; }
-                }
+                type = SPLITV;
+                ADD stockTree.tree.box { caption = 'Склады'; }
+                ADD skuTree.tree.box { caption = 'Группы'; }
             }
 
             NEW secondCase {
@@ -1009,8 +1026,14 @@ DESIGN balanceSkuStock FROM DEFAULT {
 
 FORM currentBalanceBatchStock 'Текущие остатки по партиям'
 
+    PROPERTIES() multipleStores
+    
+    OBJECTS ss = Stock FIXED PANEL
+    PROPERTIES(ss) nameStock SELECTOR SHOWIF singleStore()
+    FILTERS isCompanyStock(ss)   
+
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
+    PROPERTIES READONLY SHOWIF multipleStores() OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a),
             stockGroupStock(ts) == sg,
@@ -1022,11 +1045,15 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
        
     OBJECTS           stb=(st=Stock, bt=Batch)
-    PROPERTIES        READONLY nameSkuBatch(bt), stockName = nameStock(st)
+    PROPERTIES        READONLY nameSkuBatch(bt), stockName = nameStock(st) SHOWIF multipleStores()
     PROPERTIES        READONLY currentBalanceBatchStock(bt, st)
     PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, idBatch, shippedQuantityBatch, costBatch, expiryDateBatch
     FILTERS           isParentSkuGroupBatch(sk, bt),
-                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
+                      IF multipleStores() THEN 
+                          st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
+                        ELSE 
+                            st == ss,    
+//                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
                       isCompanyStock(st)
     FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(st) DEFAULT
     ORDER BY          dateTimeBatch(bt)
@@ -1053,7 +1080,11 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
 DESIGN currentBalanceBatchStock FROM DEFAULT {
     main{
         preferredSize = (1024, 768);
-
+        NEW filter {
+            type = CONTAINERH;
+            ADD PROPERTY (multipleStores());
+            ADD PROPERTY (nameStock(ss));
+        }
         NEW topContainer {
             fill = 1;
             type = SPLITH;
@@ -1064,15 +1095,6 @@ DESIGN currentBalanceBatchStock FROM DEFAULT {
                 ADD stockTree.tree.box { caption = 'Склады'; }
                 ADD skuTree.tree.box { caption = 'Группы'; }
             }
-
-//            NEW secondCase {
-//                fill = 3;
-//                type = SPLITV;
-//                ADD stb.box { fill = 2; caption = 'Партии'; }
-//                ADD bil.box {
-//                    caption = 'Движение';
-//                }
-//            }
             NEW secondCase {
                 fill = 3;
                 type = CONTAINERV;
@@ -1080,7 +1102,6 @@ DESIGN currentBalanceBatchStock FROM DEFAULT {
 
                 NEW ledger.box {
                     fill = 1;
-//                    caption = 'Изменение цен';
                     type = TABBED;
                     ADD bil.box {caption = 'Движение';}
                 }
@@ -1099,10 +1120,16 @@ DESIGN currentBalanceBatchStock FROM DEFAULT {
 FORM balanceBatchStock 'Остатки по партиям на дату'
 
     OBJECTS t=DATETIME FIXED PANEL
-    PROPERTIES(t) OBJVALUE
-
+    PROPERTIES   valT = OBJVALUE(t)
+    
+    PROPERTIES() multipleStores
+    
+    OBJECTS ss = Stock FIXED PANEL
+    PROPERTIES(ss) nameStock SELECTOR SHOWIF singleStore()
+    FILTERS isCompanyStock(ss)  
+    
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
+    PROPERTIES READONLY SHOWIF multipleStores() OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a),
             stockGroupStock(ts) == sg,
@@ -1114,7 +1141,7 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sk) DEFAULT
 
     OBJECTS           stb=(st=Stock, bt=Batch)
-    PROPERTIES        READONLY stockName = nameStock(st), nameSkuBatch(bt)
+    PROPERTIES        READONLY stockName = nameStock(st) SHOWIF multipleStores(), nameSkuBatch(bt)
     PROPERTIES        balanceBBatchStockDateTime(bt, st, t)
     PROPERTIES(bt)    READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, idBatch, shippedQuantityBatch, costBatch, expiryDateBatch
     FILTERS           isParentSkuGroupBatch(sk, bt),
@@ -1146,31 +1173,22 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
 DESIGN balanceBatchStock FROM DEFAULT {
     main{
         preferredSize = (1024, 768);
-
+        NEW filter {
+            type = CONTAINERH;
+            ADD PROPERTY (valT);
+            ADD PROPERTY (multipleStores());
+            ADD PROPERTY (nameStock(ss));
+        }
         NEW topContainer {
             fill = 1;
             type = SPLITH;
-
-            NEW firstCase {
+            
+            NEW firstCaseTwo {
                 fill = 1;
-                type = CONTAINERV;
-                ADD t.box { fill = 0; }
-                NEW firstCaseTwo {
-                    fill = 1;
-                    type = SPLITV;
-                    ADD stockTree.tree.box { caption = 'Склады'; }
-                    ADD skuTree.tree.box { caption = 'Группы'; }
-                }
+                type = SPLITV;
+                ADD stockTree.tree.box { caption = 'Склады'; }
+                ADD skuTree.tree.box { caption = 'Группы'; }
             }
-
-//            NEW secondCase {
-//                fill = 3;
-//                type = SPLITV;
-//                ADD stb.box { fill = 2; caption = 'Партии'; }
-//                ADD bil.box {
-//                    caption = 'Движение';
-//                }
-//            }
             NEW secondCase {
                 fill = 3;
                 type = CONTAINERV;
@@ -1181,7 +1199,6 @@ DESIGN balanceBatchStock FROM DEFAULT {
 
                 NEW ledger.box {
                     fill = 1;
-//                    caption = 'Регистры';
                     type = TABBED;
                     ADD bil.box {caption = 'Движение';}
 
