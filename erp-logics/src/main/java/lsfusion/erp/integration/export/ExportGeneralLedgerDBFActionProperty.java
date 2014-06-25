@@ -161,7 +161,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         }
 
         File dbfFile = File.createTempFile("export", "dbf");
-        DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), fields, "CP866");
+        DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), fields, "CP1251");
 
         List<GeneralLedger> generalLedgerList = new ArrayList<GeneralLedger>();
         for (Map.Entry<DataObject, List<Object>> entry : generalLedgerMap.entrySet()) {
