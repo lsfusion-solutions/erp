@@ -820,15 +820,24 @@ selectSkuStock 'Отм.' = DATA SESSION BOOLEAN (Sku, Stock);
 selectSkuSessionStock (stock) = GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock; 
 selectSkuStockSession () = GROUP SUM 1 IF selectSkuStock(sku, stock) ; 
 
-FORM currentBalanceSkuStock 'Текущие остатки'
+multipleStores 'Несколько складов' = DATA SESSION BOOLEAN ();
+singleStore = NOT multipleStores();
 
+FORM currentBalanceSkuStock 'Текущие остатки'
+    PROPERTIES() multipleStores
+    
+    OBJECTS ss = Stock FIXED PANEL
+    PROPERTIES(ss) nameStock SELECTOR SHOWIF singleStore()
+    FILTERS isCompanyStock(ss)
+    
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
+    PROPERTIES SHOWIF multipleStores() READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a),
             stockGroupStock(ts) == sg,
             isCompanyStock(ts)
     FILTERGROUP tsinactiveStock FILTER 'Активный' 'ctrl F10' activeStock(ts) DEFAULT
+    
     TREE skuTree sk = SkuGroup PARENT parentSkuGroup
     PROPERTIES READONLY skuTreeName = nameSkuGroup(sk)
     ORDER BY skuTreeName
@@ -836,9 +845,12 @@ FORM currentBalanceSkuStock 'Текущие остатки'
 
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        selectSkuStock(s,st)
-    PROPERTIES        READONLY nameSku(s), stockName = nameStock(st)  //  idBarcodeSku
+    PROPERTIES        READONLY nameSku(s), stockName = nameStock(st) SHOWIF multipleStores()  //  idBarcodeSku
     FILTERS           isParentSkuGroupSku(sk, s),
-                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
+                      IF multipleStores() THEN 
+                        st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
+                      ELSE 
+                        st == ss,
                       isCompanyStock(st)
     ORDER BY          nameSku(s)
     FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(st) DEFAULT
@@ -893,10 +905,6 @@ DESIGN currentBalanceSkuStock FROM DEFAULT {
                     type = TABBED;
                     ADD bil.box;
                     ADD bt.box;
-                    NEW actionContainer {
-                        caption = 'Действия'; 
-                        type = CONTAINERH;
-                    }
                 }
             }
         }
