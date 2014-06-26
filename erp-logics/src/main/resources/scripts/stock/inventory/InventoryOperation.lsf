@@ -1,0 +1,49 @@
+MODULE InventoryOperation;
+
+REQUIRE Operation, SkuLedger;
+
+NAMESPACE Inventory;
+
+@defineOperation('(инвентаризация)');
+
+TABLE stockOperation(Stock, Operation);
+TABLE stockGroupOperation(StockGroup, Operation);
+
+@defineOperationStock(, sts, 'Склады');
+
+
+EXTEND FORM operation
+    FILTERS countSupplierStockStockGroup(stsg),
+            isCompanyStock(sts)
+
+;
+
+@defineOperationRole();
+@extendFormFilterRole(o, dialogOperations);
+
+EXTEND DESIGN operation {
+    tabContainer{
+        NEW createContainer {
+            caption = 'Производные документы';
+            type = CONTAINERV;
+        }
+        NEW showContainer {
+            caption = 'Отображение свойств';
+            type = CONTAINERH;
+            NEW commonContainer{
+                type = CONTAINERV;
+            }
+            NEW priceContainer{
+                type = CONTAINERV;
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    stockNavigator {
+        NEW inventoryNavigator 'Инвентаризация' BEFORE balanceSku {
+            ADD operations;
+        }
+    }
+}

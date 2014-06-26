@@ -3,7 +3,7 @@ MODULE Inventory;
 REQUIRE System,
         Stock,
         Sku,
-//        Store,
+        InventoryOperation,
         PriceList,
         Numerator,
         Barcode,
@@ -742,7 +742,8 @@ FORM dialogStockInventory 'Выбор складов для инвентариз
     OBJECTS ts=Stock
     PROPERTIES (ts) READONLY idStock SHOWIF showIDs(), tsTreeName = nameStock
     PROPERTIES (ts, in)      includeStockInventory, nameUserTypeOfAdditionStockInventory
-    FILTERS isParentStockGroupStock(sg, ts)
+    FILTERS isParentStockGroupStock(sg, ts) OR ts IS Stock AND NOT sg 
+    
     FILTERGROUP filters
         FILTER 'Только склады компании' 'F10' isCompanyStock(ts) DEFAULT
     FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(ts) DEFAULT
@@ -1300,11 +1301,70 @@ DESIGN inventories FROM DEFAULT {
     ADD functions.box;
 }
 
-NAVIGATOR {
-    stockNavigator {
-        NEW inventoryNavigator 'Инвентаризация' BEFORE balanceSku {
-            ADD inventories;
-            ADD inventoryCommittees;
+//------------------- Операция -----------------------//
+
+operationInventory = DATA Operation (Inventory);
+nameOperationInventory 'Операция' = nameOperation(operationInventory(i));
+idOperationInventory 'ID операции' = idOperation(operationInventory(i)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+
+
+EXTEND FORM inventory
+    PROPERTIES(in) nameOperationInventory
+;
+
+EXTEND DESIGN inventory{
+    in.documentHeader {
+        type = CONTAINERV;
+        NEW first {
+            type = CONTAINERH;
+            ADD PROPERTY(nameOperationInventory(in));  
+            ADD PROPERTY(dateInventory(in));
+            ADD PROPERTY(timeInventory(in));                              
         }
+        NEW second {
+            type = CONTAINERH;
+            ADD PROPERTY(nameNumeratorInventory(in));
+            ADD PROPERTY(numberInventory(in));
+            ADD PROPERTY(seriesInventory(in)); 
+            ADD PROPERTY(nameStockInventory(in));               
+        }        
     }
 }
+EXTEND FORM inventories
+    PROPERTIES(in) READONLY nameOperationInventory BEFORE nameInventory(in)
+;
+
+@defineOperationProperty(isBatch, 'По партиям', commonContainer);
+
+@deriveDocumentOperationProperty(inventory, isBatch) ;
+
+typeOfAdditionOperation  = DATA TypeOfAddition (Operation);
+nameTypeOfAdditionOperation 'Тип инвентаризации' (o) = staticCaption(typeOfAdditionOperation(o));
+
+@deriveDocumentOperationProperty(inventory, typeOfAddition) ;
+
+EXTEND FORM operation
+    PROPERTIES(o) nameTypeOfAdditionOperation
+;
+EXTEND DESIGN operation {
+    commonContainer {
+        ADD PROPERTY(nameTypeOfAdditionOperation(o));
+
+    }
+}
+
+EXTEND FORM dialogStockInventory
+    FILTERS inStockOperation(ts,operationInventory(in)) OR  ts IS Stock AND NOT operationInventory(in)
+;
+
+CONSTRAINT includeStockInventory(stock,inventory) AND operationInventory(inventory) AND NOT 
+    inStockOperation(stock,operationInventory(inventory))
+        MESSAGE 'В инвентаризацию включены склады, которые не включены в операцию';
+
+
+NAVIGATOR {
+     inventoryNavigator {
+         ADD inventories;
+         ADD inventoryCommittees;
+     }
+ }
