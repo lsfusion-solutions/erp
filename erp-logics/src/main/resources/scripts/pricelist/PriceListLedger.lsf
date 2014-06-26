@@ -10,7 +10,7 @@ nameLedgerPriceListType 'Наименование' = ABSTRACT VARISTRING[100](Le
 nameBasePriceListType(type) += nameLedgerPriceListType(type) IF type IS LedgerPriceListType;
 
 TABLE ledgerPriceListTypeStock (LedgerPriceListType, Stock);
-batchLedgerPriceListTypeStock 'Использовать для партий свои цены' = ABSTRACT CASE BOOLEAN (LedgerPriceListType, Stock) PERSISTENT;
+batchLedgerPriceListTypeStock 'Использовать для партий свои цены' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType, Stock) PERSISTENT;
 
 CLASS ABSTRACT PriceListLedger 'Изменение цены';
 TABLE priceListLedger(PriceListLedger);
@@ -345,11 +345,11 @@ nameLedgerPriceListType (type) += VARISTRING[100](staticCaption(type)) IF type I
 batchLedgerPriceListTypeStock(type, stock) += WHEN type == SystemLedgerPriceListType.accountPriceListType AND isCompanyStock(stock)
                                               THEN explicitBatchLedgerStock(stock);
 
-includeVATSystemLedgerPriceListType 'Цена с НДС' = ABSTRACT CASE BOOLEAN (SystemLedgerPriceListType);
+includeVATSystemLedgerPriceListType 'Цена с НДС' = ABSTRACT CASE EXCLUSIVE BOOLEAN (SystemLedgerPriceListType);
 includeVATLedgerPriceListType (type) += includeVATSystemLedgerPriceListType(type);
 
-inPriceListLedgerSystemLedgerPriceListType = ABSTRACT CASE BOOLEAN (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
-pricePriceListLedgerSystemLedgerPriceListType = ABSTRACT CASE NUMERIC[14,2] (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
+inPriceListLedgerSystemLedgerPriceListType = ABSTRACT CASE EXCLUSIVE BOOLEAN (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
+pricePriceListLedgerSystemLedgerPriceListType = ABSTRACT CASE EXCLUSIVE NUMERIC[14,2] (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
 inPriceListLedgerLedgerPriceListType(ledger, type) += inPriceListLedgerSystemLedgerPriceListType(ledger, type);
 pricePriceListLedgerLedgerPriceListType(ledger, type) += pricePriceListLedgerSystemLedgerPriceListType(ledger, type);
 
@@ -584,8 +584,8 @@ nameFilterReportStock 'Склад' = nameStock(filterReportStock()) MINCHARWIDTH
 CONSTRAINT  filterReportStock() AND NOT isCompanyStock(filterReportStock())
     CHECKED BY filterReportStock MESSAGE 'Выбран склад, который не является складом компании';
   
-filterReportPriceListType  = DATA SESSION PriceListType ();
-nameFilterReportPriceListType 'Вид цены' = namePriceListType(filterReportPriceListType()) MINCHARWIDTH 15 PREFCHARWIDTH 20; 
+filterReportLedgerPriceListType  = DATA SESSION LedgerPriceListType ();
+nameFilterReportLedgerPriceListType 'Вид цены' = namePriceListType(filterReportLedgerPriceListType()) MINCHARWIDTH 15 PREFCHARWIDTH 20; 
 
 filterReportSku = DATA SESSION Sku ();
 nameFilterReportSku 'SKU' = nameSku(filterReportSku()) MINCHARWIDTH 15 PREFCHARWIDTH 20; 
@@ -593,22 +593,20 @@ nameFilterReportSku 'SKU' = nameSku(filterReportSku()) MINCHARWIDTH 15 PREFCHARW
 FORM priceTypeLedgerSkuStock 'Регистр цен'
 
     OBJECTS dates = (dFrom = DATE , dTo = DATE) FIXED PANEL
-    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo), nameFilterReportStock(), nameFilterReportPriceListType(),
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo), nameFilterReportStock(), nameFilterReportLedgerPriceListType(),
                nameFilterReportSku()       
 
-    OBJECTS pp = (t = PriceListType, pl = PriceListLedger, st = Stock)
+    OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger, st = Stock)
     PROPERTIES READONLY namePriceListType(t),  nameStock(st), nameSkuPriceListLedger(pl), descriptionPriceListLedger(pl), fromDateTimePriceListLedger(pl), toDateTimePriceListLedger(pl),
                         pricePriceListLedgerLedgerPriceListType(pl,t) FORCE GRID
     PROPERTIES(pl) editPriceListLedger                     
-    ORDER BY namePriceListType(t), nameStock(st), nameSkuPriceListLedger(pl), fromDateTimePriceListLedger(pl)
+//    ORDER BY fromDateTimePriceListLedger(pl)
 
     FILTERS activePriceListLedgerLedgerPriceListTypeStock(pl,t,st),
-            pricePriceListLedgerLedgerPriceListType(pl,t),
-            isCompanyStock(st),
             toDate(fromDateTimePriceListLedger(pl)) >= dFrom,
             toDate(fromDateTimePriceListLedger(pl)) <= dTo,                       
             filterReportStock()==st OR (st IS Stock AND NOT filterReportStock()),
-            filterReportPriceListType()==t OR (t IS PriceListType AND NOT filterReportPriceListType()),
+            filterReportLedgerPriceListType()==t OR (t IS PriceListType AND NOT filterReportLedgerPriceListType()),
             filterReportSku()==skuPriceListLedger(pl) OR (pl IS PriceListLedger AND NOT filterReportSku())
 ;
 DESIGN priceTypeLedgerSkuStock FROM DEFAULT {
@@ -621,7 +619,7 @@ DESIGN priceTypeLedgerSkuStock FROM DEFAULT {
             caption = 'Фильтры';
             type = CONTAINERH;
             ADD PROPERTY(nameFilterReportStock());
-            ADD PROPERTY(nameFilterReportPriceListType());
+            ADD PROPERTY(nameFilterReportLedgerPriceListType());
             ADD PROPERTY(nameFilterReportSku());
         }
         ADD pp.box;

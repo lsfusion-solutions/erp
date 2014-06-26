@@ -20,7 +20,7 @@ TABLE dimensionType(DimensionType);
 nameDimensionType 'Наименование' (type) = staticCaption(type) IF type IS DimensionType;
 
 idDimensionType 'Идентификатор' = DATA VARSTRING[20] (DimensionType) MINCHARWIDTH 3 MAXCHARWIDTH 10 PREFCHARWIDTH 7;
-dimensionTypeDimension = ABSTRACT CASE DimensionType (Dimension) PERSISTENT;
+dimensionTypeDimension = ABSTRACT CASE EXCLUSIVE DimensionType (Dimension) PERSISTENT;
 nameDimensionTypeDimension 'Тип субконто' (dimension) = nameDimensionType(dimensionTypeDimension(dimension));
 
 TABLE GLAccountDimensionType(GLAccount, DimensionType);
@@ -38,7 +38,7 @@ prevGLAccountDimensionType (account, type) = PARTITION PREV type IF orderGLAccou
 namePrevGLAccountDimensionType 'Предок' (account, type) = nameDimensionType(prevGLAccountDimensionType(account, type));
 
 TABLE generalLedgerDimensionType(GeneralLedger, DimensionType);
-debitGeneralLedgerDimensionType = ABSTRACT CASE Dimension (GeneralLedger, DimensionType) PERSISTENT;
+debitGeneralLedgerDimensionType = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) PERSISTENT;
 nameDebitGeneralLedgerDimensionType 'Субконто (дебет)' (generalLedger,dimensionType)= nameDimension(debitGeneralLedgerDimensionType(generalLedger,dimensionType));
 debitUserGeneralLedgerDimensionType = DATA Dimension (UserGeneralLedger, DimensionType);
 nameDebitUserGeneralLedgerDimensionType 'Субконто (дебет)' (userGeneralLedger,dimensionType)= nameDimension(debitUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType));
@@ -47,7 +47,7 @@ CONSTRAINT debitUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType) 
     CHECKED BY debitUserGeneralLedgerDimensionType
         MESSAGE 'Субконто (дебет) проводки должен соответствовать субконто';
 
-creditGeneralLedgerDimensionType = ABSTRACT CASE Dimension (GeneralLedger, DimensionType) PERSISTENT;
+creditGeneralLedgerDimensionType = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) PERSISTENT;
 nameCreditGeneralLedgerDimensionType 'Субконто (кредит)' (generalLedger,dimensionType)= nameDimension(creditGeneralLedgerDimensionType(generalLedger,dimensionType));
 creditUserGeneralLedgerDimensionType = DATA Dimension (UserGeneralLedger,DimensionType);
 nameCreditUserGeneralLedgerDimensionType 'Субконто (кредит)' (userGeneralLedger,dimensionType)= nameDimension(creditUserGeneralLedgerDimensionType(userGeneralLedger,dimensionType));
@@ -304,12 +304,12 @@ idDimension = ABSTRACT VARISTRING[100](Dimension) PERSISTENT;
 //idDimension(dimension) += idGLAccount(dimension);
 idDimension(dimension) += VARISTRING[20](staticCaption(dimension)) IF dimension IS UserDimension;
 
-overIdDebitGeneralLedgerDimensionType = ABSTRACT CASE VARISTRING[20](GeneralLedger, DimensionType) PERSISTENT;
+overIdDebitGeneralLedgerDimensionType = ABSTRACT CASE EXCLUSIVE VARISTRING[20](GeneralLedger, DimensionType) PERSISTENT;
 idDebitGeneralLedgerDimensionType 'Субконто (дебет)' (generalLedger, dimensionType) =
     OVERRIDE idDimension(debitGeneralLedgerDimensionType(generalLedger, dimensionType)),
              overIdDebitGeneralLedgerDimensionType(generalLedger, dimensionType);
 
-overIdCreditGeneralLedgerDimensionType = ABSTRACT CASE VARISTRING[20](GeneralLedger, DimensionType) PERSISTENT;
+overIdCreditGeneralLedgerDimensionType = ABSTRACT CASE EXCLUSIVE VARISTRING[20](GeneralLedger, DimensionType) PERSISTENT;
 idCreditGeneralLedgerDimensionType 'Субконто (кредит)' (generalLedger, dimensionType) =
     OVERRIDE idDimension(creditGeneralLedgerDimensionType(generalLedger, dimensionType)),
              overIdCreditGeneralLedgerDimensionType(generalLedger, dimensionType);
