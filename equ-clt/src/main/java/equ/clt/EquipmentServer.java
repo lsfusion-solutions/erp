@@ -157,7 +157,6 @@ public class EquipmentServer {
                 }
             }
         });
-        thread.setDaemon(true);
         thread.start();
     }
 
