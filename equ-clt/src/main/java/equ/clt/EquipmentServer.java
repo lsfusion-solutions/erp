@@ -419,13 +419,6 @@ public class EquipmentServer {
         @Override
         public void run() {
             while (true) {
-                if (Thread.interrupted()) {
-                    
-                }
-                
-                if (Thread.currentThread().isInterrupted()) {
-                    
-                }
                 try {
                     queue.take();
                     runTask();
