@@ -51,15 +51,16 @@ public class EquipmentServer {
 
                 int millis = 10000;
 
-                Consumer processTransactionConsumer = new Consumer(logger) {
+                Consumer processTransactionConsumer = new Consumer() {
                     @Override
                     void runTask() throws Exception{
                         processTransactionInfo(remote, sidEquipmentServer);
                     }
                 };
                 Thread processTransactionThread = new Thread(processTransactionConsumer);
+                processTransactionThread.setDaemon(true);
 
-                Consumer processStopListConsumer = new Consumer(logger) {
+                Consumer processStopListConsumer = new Consumer() {
                     @Override
                     void runTask() throws Exception{
                         processStopListInfo(remote, sidEquipmentServer);
@@ -67,7 +68,7 @@ public class EquipmentServer {
                 };
                 Thread processStopListThread = new Thread(processStopListConsumer);
 
-                Consumer sendSalesConsumer = new Consumer(logger) {
+                Consumer sendSalesConsumer = new Consumer() {
                     @Override
                     void runTask() throws Exception{
                         sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings);
@@ -75,7 +76,7 @@ public class EquipmentServer {
                 };
                 Thread sendSalesThread = new Thread(sendSalesConsumer);
 
-                Consumer sendSoftCheckConsumer = new Consumer(logger) {
+                Consumer sendSoftCheckConsumer = new Consumer() {
                     @Override
                     void runTask() throws Exception{
                         sendSoftCheckInfo(remote);
@@ -83,7 +84,7 @@ public class EquipmentServer {
                 };
                 Thread sendSoftCheckThread = new Thread(sendSoftCheckConsumer);
 
-                Consumer sendTerminalDocumentConsumer = new Consumer(logger) {
+                Consumer sendTerminalDocumentConsumer = new Consumer() {
                     @Override
                     void runTask() throws Exception{
                         sendTerminalDocumentInfo(remote, sidEquipmentServer);
@@ -156,7 +157,7 @@ public class EquipmentServer {
                 }
             }
         });
-
+        thread.setDaemon(true);
         thread.start();
     }
 
@@ -404,37 +405,41 @@ public class EquipmentServer {
     public void stop() {
         thread.interrupt();
     }
-}
 
-abstract class Consumer implements Runnable {
+    abstract class Consumer implements Runnable {
+        private SynchronousQueue<Object> queue;
+        public Consumer() {
+            this.queue = new SynchronousQueue<Object>();
+        }
 
-    private Logger logger;
-    private SynchronousQueue<Object> queue;    
-    public Consumer(Logger logger) {
-        this.logger = logger;
-        this.queue = new SynchronousQueue<Object>();
-    }
-    
-    public void scheduleIfNotScheduledYet() {
-        queue.offer(Consumer.class);
-    }
-    
-    @Override
-    public void run() {
-        while (true) {
-            try {
-                queue.take();
-                runTask();                
-            } catch (InterruptedException e) {
-                return;
-            } catch (Exception e) {
-                logger.error("Unhandled exception : ", e);
+        public void scheduleIfNotScheduledYet() {
+            queue.offer(Consumer.class);
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                if (Thread.interrupted()) {
+                    
+                }
+                
+                if (Thread.currentThread().isInterrupted()) {
+                    
+                }
+                try {
+                    queue.take();
+                    runTask();
+                } catch (InterruptedException e) {
+                    return;
+                } catch (Exception e) {
+                    logger.error("Unhandled exception : ", e);
+                }
             }
         }
+
+
+
+        abstract void runTask() throws Exception;
     }
-    
-    
-
-    abstract void runTask() throws Exception;
-
 }
+
