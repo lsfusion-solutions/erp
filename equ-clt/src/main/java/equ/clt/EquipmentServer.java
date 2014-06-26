@@ -38,6 +38,21 @@ public class EquipmentServer {
     Map<String, Object> handlerMap = new HashMap<String, Object>();
     EquipmentServerSettings equipmentServerSettings;
 
+    Consumer processTransactionConsumer;
+    Thread processTransactionThread;
+
+    Consumer processStopListConsumer;
+    Thread processStopListThread;
+
+    Consumer sendSalesConsumer;
+    Thread sendSalesThread;
+
+    Consumer sendSoftCheckConsumer;
+    Thread sendSoftCheckThread;
+
+    Consumer sendTerminalDocumentConsumer;
+    Thread sendTerminalDocumentThread;
+
     public EquipmentServer(final String sidEquipmentServer, final String serverHost, final int serverPort, final String serverDB) {
         
         final int connectPort = serverPort > 0 ? serverPort : Registry.REGISTRY_PORT;
@@ -49,48 +64,7 @@ public class EquipmentServer {
             @Override
             public void run() {
 
-                int millis = 10000;
-
-                Consumer processTransactionConsumer = new Consumer() {
-                    @Override
-                    void runTask() throws Exception{
-                        processTransactionInfo(remote, sidEquipmentServer);
-                    }
-                };
-                Thread processTransactionThread = new Thread(processTransactionConsumer);
-                processTransactionThread.setDaemon(true);
-
-                Consumer processStopListConsumer = new Consumer() {
-                    @Override
-                    void runTask() throws Exception{
-                        processStopListInfo(remote, sidEquipmentServer);
-                    }
-                };
-                Thread processStopListThread = new Thread(processStopListConsumer);
-
-                Consumer sendSalesConsumer = new Consumer() {
-                    @Override
-                    void runTask() throws Exception{
-                        sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings);
-                    }
-                };
-                Thread sendSalesThread = new Thread(sendSalesConsumer);
-
-                Consumer sendSoftCheckConsumer = new Consumer() {
-                    @Override
-                    void runTask() throws Exception{
-                        sendSoftCheckInfo(remote);
-                    }
-                };
-                Thread sendSoftCheckThread = new Thread(sendSoftCheckConsumer);
-
-                Consumer sendTerminalDocumentConsumer = new Consumer() {
-                    @Override
-                    void runTask() throws Exception{
-                        sendTerminalDocumentInfo(remote, sidEquipmentServer);
-                    }
-                };
-                Thread sendTerminalDocumentThread = new Thread(sendTerminalDocumentConsumer);
+                int millis = 10000;               
                                
                 while (true) {
 
@@ -117,12 +91,8 @@ public class EquipmentServer {
                                         logger.error("Equipment Server " + sidEquipmentServer + " not found");
                                     } else if (equipmentServerSettings.delay != null)
                                         millis = equipmentServerSettings.delay;
-                                    
-                                    processTransactionThread.start();
-                                    processStopListThread.start();
-                                    sendSalesThread.start();
-                                    sendSoftCheckThread.start();
-                                    sendTerminalDocumentThread.start();
+
+                                    initDaemonThreads(remote, sidEquipmentServer);                                   
                                     
                                 } catch (RemoteException e) {
                                     logger.error("Get remote logics error : ", e);
@@ -142,10 +112,15 @@ public class EquipmentServer {
                         logger.error("Unhandled exception : ", e);
                         remote = null;
                         processTransactionThread.interrupt();
+                        processTransactionThread = null;
                         processStopListThread.interrupt();
+                        processStopListThread = null;
                         sendSalesThread.interrupt();
+                        sendSalesThread = null;
                         sendSoftCheckThread.interrupt();
+                        sendSoftCheckThread = null;
                         sendTerminalDocumentThread.interrupt();
+                        sendTerminalDocumentThread = null;
                     }
 
                     try {
@@ -158,6 +133,58 @@ public class EquipmentServer {
             }
         });
         thread.start();
+    }
+
+    private void initDaemonThreads(final EquipmentServerInterface remote, final String sidEquipmentServer) {
+        processTransactionConsumer = new Consumer() {
+            @Override
+            void runTask() throws Exception{
+                processTransactionInfo(remote, sidEquipmentServer);
+            }
+        };
+        processTransactionThread = new Thread(processTransactionConsumer);
+        processTransactionThread.setDaemon(true);
+        processTransactionThread.start();
+
+        processStopListConsumer = new Consumer() {
+            @Override
+            void runTask() throws Exception{
+                processStopListInfo(remote, sidEquipmentServer);
+            }
+        };
+        processStopListThread = new Thread(processStopListConsumer);
+        processStopListThread.setDaemon(true);
+        processStopListThread.start();
+
+        sendSalesConsumer = new Consumer() {
+            @Override
+            void runTask() throws Exception{
+                sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings);
+            }
+        };
+        sendSalesThread = new Thread(sendSalesConsumer);
+        sendSalesThread.setDaemon(true);
+        sendSalesThread.start();
+
+        sendSoftCheckConsumer = new Consumer() {
+            @Override
+            void runTask() throws Exception{
+                sendSoftCheckInfo(remote);
+            }
+        };
+        sendSoftCheckThread = new Thread(sendSoftCheckConsumer);
+        sendSoftCheckThread.setDaemon(true);
+        sendSoftCheckThread.start();
+
+        sendTerminalDocumentConsumer = new Consumer() {
+            @Override
+            void runTask() throws Exception{
+                sendTerminalDocumentInfo(remote, sidEquipmentServer);
+            }
+        };
+        sendTerminalDocumentThread = new Thread(sendTerminalDocumentConsumer);
+        sendTerminalDocumentThread.setDaemon(true);
+        sendTerminalDocumentThread.start();
     }
 
 
@@ -429,9 +456,6 @@ public class EquipmentServer {
             }
         }
 
-
-
         abstract void runTask() throws Exception;
     }
 }
-
