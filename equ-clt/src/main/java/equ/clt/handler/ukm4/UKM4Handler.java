@@ -269,7 +269,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
                             salesInfoList.add(new SalesInfo(0, Integer.parseInt(cashRegisterNumber), zNumber, 
                                     receiptNumber, date, time, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
-                                    operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
+                                    null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
                                     priceReceiptDetail,
                                     operation % 2 == 1 ? sumReceiptDetail : sumReceiptDetail.negate(),
                                     discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null));

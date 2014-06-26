@@ -1138,14 +1138,22 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     List<List<Object>> dataPayment = new ArrayList<List<Object>>();
 
+                    Map<Integer, String> barcodeMap = new HashMap<Integer, String>();
                     for (SalesInfo sale : data) {
+                        
+                        String barcode = (sale.barcodeItem != null && !sale.barcodeItem.isEmpty()) ? barcodeMap.get(sale.itemObject) : null;
+                        if(barcode == null) {
+                            barcode = trim((String) itemLM.findLCPByCompoundOldName("idBarcodeSku").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClassByCompoundName("Item"))));
+                            barcodeMap.put(sale.itemObject, barcode);
+                        }
+                                                
                         String idZReport = sale.numberGroupCashRegister + "_" + sale.numberCashRegister + "_" + sale.numberZReport; 
                         String idReceipt = sale.numberGroupCashRegister + "_" + sale.numberCashRegister + "_" + sale.numberZReport + "_" + sale.numberReceipt;
                         String idReceiptDetail = sale.numberGroupCashRegister + "_" + sale.numberCashRegister + "_"  + sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberReceiptDetail;
                         if (sale.quantityReceiptDetail.doubleValue() < 0) {
                             List<Object> row = Arrays.<Object>asList(sale.numberGroupCashRegister, sale.numberCashRegister, idZReport, sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
-                                    idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail.negate(),
+                                    idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
                                     sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail,
                                     sale.discountSumReceipt);
                             if (discountCardLM != null)
@@ -1154,7 +1162,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         } else {
                             List<Object> row = Arrays.<Object>asList(sale.numberGroupCashRegister, sale.numberCashRegister, idZReport, sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
-                                    idReceiptDetail, sale.numberReceiptDetail, sale.barcodeItem, sale.quantityReceiptDetail,
+                                    idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail,
                                     sale.discountSumReceipt);
                             if (discountCardLM != null)

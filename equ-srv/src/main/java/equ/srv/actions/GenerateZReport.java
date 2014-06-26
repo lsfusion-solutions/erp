@@ -163,7 +163,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                                         Integer numberCashRegister = (Integer) getLCP("nppMachinery").read(context, cashRegisterObject);
                                         Integer numberGroupCashRegister = (Integer) getLCP("nppGroupMachineryMachinery").read(context, cashRegisterObject);
                                         SalesInfo salesInfo = new SalesInfo(numberGroupCashRegister, numberCashRegister, numberZReport, receiptNumber, 
-                                                date, time, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode, quantityReceiptDetail, 
+                                                date, time, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode, null, quantityReceiptDetail, 
                                                 itemZReportInfo.price, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, null);
                                         receiptSalesInfoList.add(salesInfo);
                                         itemZReportInfo.count = safeSubtract(itemZReportInfo.count, quantityReceiptDetail);

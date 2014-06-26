@@ -450,7 +450,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         if (startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                             currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                     numberZReport, numberReceipt, dateReceipt, timeReceipt, sumCard, sumCash, barcode,
-                                                    quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
+                                                    null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
                                                     numberReceiptDetail, fileName));
                                     }
 

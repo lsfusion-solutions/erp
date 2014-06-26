@@ -483,7 +483,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                                         currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                                 numberZReport, numberReceipt, dateReceipt, timeReceipt, sumCard, sumCash, barcode,
-                                                                quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName));
+                                                                null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName));
                                                 }
 
                                                 //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
@@ -546,7 +546,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                         if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                                             currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
                                                                     numberZReport, numberReceipt, dateReceipt, timeReceipt, sumCard, sumCash, barcode,
-                                                                    quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
+                                                                    null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, discountSumReceipt, null,
                                                                     numberReceiptDetail, fileName));
                                                     }
 

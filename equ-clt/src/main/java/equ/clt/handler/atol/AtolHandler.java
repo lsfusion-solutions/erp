@@ -163,7 +163,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                     File salesFlagFile = new File(exchangeDirectory + "/sales-flag.txt");
                     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(salesFlagFile), "utf-8"));
-                    writer.write(String.format("$$$TRANSACTIONSBYOPERDAYRANGE"));
+                    writer.write(String.format("$$$TRANSACTIONSBYDATERANGE"));
                     writer.newLine();
                     writer.write(dateRequestSalesInfo + ";" + dateRequestSalesInfo);
                     writer.close();
@@ -455,19 +455,20 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                 Date dateReceipt = getDateValue(entry, 1);
                                 Time timeReceipt = getTimeValue(entry, 2);
                                 Integer numberCashRegister = getIntValue(entry, 4);
+                                Integer itemObject = getIntValue(entry, 7);
                                 BigDecimal priceReceiptDetail = getBigDecimalValue(entry, 9);
                                 BigDecimal quantityReceiptDetail = getBigDecimalValue(entry, 10);
                                 BigDecimal sumReceiptDetail = getBigDecimalValue(entry, 11);
                                 String numberZReport = getStringValue(entry, 13);
                                 BigDecimal discountedSumReceiptDetail = getBigDecimalValue(entry, 14);
-                                BigDecimal discountSumReceiptDetail = safeSubtract(sumReceiptDetail, isReturn ? safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail);
+                                BigDecimal discountSumReceiptDetail = safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail);
                                 String barcodeItem = getStringValue(entry, 18);
 
                                 Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                 if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
                                     currentSalesInfoList.add(new SalesInfo(directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister),
                                             numberCashRegister, numberZReport, numberReceipt, dateReceipt, timeReceipt, null/*sumCard*/, null/*sumCash*/, barcodeItem,
-                                            quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null/*discountSumReceipt*/,
+                                            itemObject, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null/*discountSumReceipt*/,
                                             null, numberReceiptDetail, file.getName()));
                             } else if (isCancelDocument) {
                                 cancelReceiptSet.add(numberReceipt);
