@@ -309,10 +309,20 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 rootElement.addContent(saleDeniedRestriction);
                 
                 //parent: saleDeniedRestriction
-                addStringElement(saleDeniedRestriction, "since-date", formatDate(stopListInfo.dateFrom, "2001-01-01T00:00:00"));
-                addStringElement(saleDeniedRestriction, "till-date", formatDate(stopListInfo.dateTo, "2029-01-01T00:00:00"));
-                addStringElement(saleDeniedRestriction, "since-time", formatTime(stopListInfo.timeFrom, "00:00:00"));
-                addStringElement(saleDeniedRestriction, "till-time", formatTime(stopListInfo.timeTo, "23:59:59"));
+                if(stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
+                    String error = "Kristal: Error! Start DateTime not specified for stopList " + stopListInfo.number;
+                    logger.error(error);
+                    throw Throwables.propagate(new RuntimeException(error));
+                }
+                if(stopListInfo.dateTo == null || stopListInfo.timeTo == null) {
+                    String error = "Kristal: Error! End DateTime not specified for stopList " + stopListInfo.number;
+                    logger.error(error);
+                    throw Throwables.propagate(new RuntimeException(error));
+                }
+                addStringElement(saleDeniedRestriction, "since-date", formatDate(stopListInfo.dateFrom));
+                addStringElement(saleDeniedRestriction, "till-date", formatDate(stopListInfo.dateTo));
+                addStringElement(saleDeniedRestriction, "since-time", formatTime(stopListInfo.timeFrom));
+                addStringElement(saleDeniedRestriction, "till-time", formatTime(stopListInfo.timeTo));
                 addStringElement(saleDeniedRestriction, "deleted", "false");
 
             }
@@ -331,12 +341,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
     }
     
-    private String formatDate(Date date, String defaultDate) {
-        return date == null ? defaultDate : new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS").format(date);
+    private String formatDate(Date date) {
+        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS").format(date);
     }
 
-    private String formatTime(Time time, String defaultTime) {
-        return time == null ? defaultTime : new SimpleDateFormat("HH:mm:ss").format(time);
+    private String formatTime(Time time) {
+        return new SimpleDateFormat("HH:mm:ss").format(time);
     }
 
     @Override

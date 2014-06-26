@@ -512,11 +512,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                     handlerDirectoryMap.put(entry.getKey(), entry.getValue());
                             }
                     }
-                                       
-                    List<String> stopListItemList = getStopListItemList(session, stopListObject);
-    
-                    stopListInfoMap.put(numberStopList, new StopListInfo(numberStopList, dateFrom, timeFrom, dateTo, timeTo, idStockSet, stopListItemList, handlerDirectoryMap));
-
+                    
+                    if(!handlerDirectoryMap.isEmpty()) {
+                        List<String> stopListItemList = getStopListItemList(session, stopListObject);
+                        stopListInfoMap.put(numberStopList, new StopListInfo(numberStopList, dateFrom, timeFrom, dateTo, timeTo, idStockSet, stopListItemList, handlerDirectoryMap));
+                    }
                     for(StopListInfo stopList : stopListInfoMap.values())
                         stopListInfoList.add(stopList);
                     
