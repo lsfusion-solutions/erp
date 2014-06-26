@@ -11,14 +11,14 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class ParseCompositionItemActionProperty extends ParseCompositionActionProperty {
-    private final ClassPropertyInterface itemInterface;
+public class ParseCompositionArticleActionProperty extends ParseCompositionActionProperty {
+    private final ClassPropertyInterface articleInterface;
 
-    public ParseCompositionItemActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Item"));
+    public ParseCompositionArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, LM.findClassByCompoundName("Article"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
-        itemInterface = i.next();
+        articleInterface = i.next();
     }
 
     @Override
@@ -26,9 +26,9 @@ public class ParseCompositionItemActionProperty extends ParseCompositionActionPr
 
         try {
 
-            DataObject itemObject = context.getDataKeyValue(itemInterface);
-            String compositionItem = trim((String) getLCP("compositionItem").read(context, itemObject));
-            parseComposition(context, true, itemObject, compositionItem);
+            DataObject articleObject = context.getDataKeyValue(articleInterface);
+            String compositionArticle = trim((String) getLCP("compositionArticle").read(context, articleObject));
+            parseComposition(context, false, articleObject, compositionArticle);
             
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
