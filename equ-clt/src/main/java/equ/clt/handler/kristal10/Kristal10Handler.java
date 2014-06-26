@@ -118,20 +118,22 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
             }
 
-            DateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy'T'HH-mm-ss");
-            Calendar cal = Calendar.getInstance();
-            String fileName = "catalog-goods_" + dateFormat.format(cal.getTime());
-
             XMLOutputter xmlOutput = new XMLOutputter();
             xmlOutput.setFormat(Format.getPrettyFormat().setEncoding("windows-1251"));
             PrintWriter fw = new PrintWriter(
                                 new OutputStreamWriter(
-                                    new FileOutputStream(exchangeDirectory + "//" + fileName + ".xml"), "windows-1251"));
+                                    new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), "windows-1251"));
             xmlOutput.output(doc, fw);
             fw.close();
         }
     }
 
+    private String makeGoodsFilePath() {
+        DateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy'T'HH-mm-ss");
+        Calendar cal = Calendar.getInstance();
+        return "catalog-goods_" + dateFormat.format(cal.getTime());
+    }
+    
     private void addStringElement(Element parent, String id, String value) {
         if (value != null)
             parent.addContent(new Element(id).setText(value));
@@ -278,6 +280,63 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
         }
+    }
+
+    @Override
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+        logger.info("Kristal: Send StopList # " + stopListInfo.number);
+
+        for (String directory : directorySet) {
+
+            String exchangeDirectory = directory.trim() + "\\products\\source\\";
+
+            if(!new File(exchangeDirectory).exists())
+                new File(exchangeDirectory).mkdirs();
+
+            Element rootElement = new Element("goods-catalog");
+            Document doc = new Document(rootElement);
+            doc.setRootElement(rootElement);
+
+            for (String idBarcode : stopListInfo.stopListItemList) {
+                
+                //parent: rootElement
+                Element saleDeniedRestriction = new Element("sale-denied-restriction");
+                setAttribute(saleDeniedRestriction, "id", stopListInfo.number + idBarcode);
+                setAttribute(saleDeniedRestriction, "subject-type", "GOOD");
+                setAttribute(saleDeniedRestriction, "subject-code", idBarcode);
+                setAttribute(saleDeniedRestriction, "type", "SALE_DENIED");
+                setAttribute(saleDeniedRestriction, "value", true);
+                rootElement.addContent(saleDeniedRestriction);
+                
+                //parent: saleDeniedRestriction
+                addStringElement(saleDeniedRestriction, "since-date", formatDate(stopListInfo.dateFrom, "2001-01-01T00:00:00"));
+                addStringElement(saleDeniedRestriction, "till-date", formatDate(stopListInfo.dateTo, "2029-01-01T00:00:00"));
+                addStringElement(saleDeniedRestriction, "since-time", formatTime(stopListInfo.timeFrom, "00:00:00"));
+                addStringElement(saleDeniedRestriction, "till-time", formatTime(stopListInfo.timeTo, "23:59:59"));
+                addStringElement(saleDeniedRestriction, "deleted", "false");
+
+            }
+
+            XMLOutputter xmlOutput = new XMLOutputter();
+            xmlOutput.setFormat(Format.getPrettyFormat().setEncoding("windows-1251"));
+            PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), "windows-1251"));
+            xmlOutput.output(doc, fw);
+            fw.close();
+            
+            //чит для избежания ситуации, совпадения имён у двух файлов ограничений продаж (в основе имени - текущее время с точностью до секунд)
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ignored) {
+            }
+        }
+    }
+    
+    private String formatDate(Date date, String defaultDate) {
+        return date == null ? defaultDate : new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS").format(date);
+    }
+
+    private String formatTime(Time time, String defaultTime) {
+        return time == null ? defaultTime : new SimpleDateFormat("HH:mm:ss").format(time);
     }
 
     @Override

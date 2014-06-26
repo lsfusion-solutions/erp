@@ -40,6 +40,7 @@ import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -65,6 +66,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule priceListLedgerLM;
     private ScriptingLogicsModule purchaseOrderLM;
     private ScriptingLogicsModule scalesLM;
+    private ScriptingLogicsModule stopListLM;
     private ScriptingLogicsModule scalesItemLM;
     private ScriptingLogicsModule terminalLM;
     private ScriptingLogicsModule zReportLM;
@@ -117,6 +119,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         purchaseOrderLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseOrder");
         scalesItemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ScalesItem");
         scalesLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentScales");
+        stopListLM = (ScriptingLogicsModule) getBusinessLogics().getModule("StopList");
         terminalLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentTerminal");
         zReportLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ZReport");
     }
@@ -291,8 +294,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             }
                         }
                         
-                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, isWeight, passScales,
-                                idItem, composition, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM));
+                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, isWeight, idItem,
+                                composition, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM, passScales));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
@@ -335,7 +338,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
                         boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
                         BigDecimal daysExpiry = (BigDecimal) row.get("daysExpiryMachineryPriceTransactionBarcode").getValue();
                         Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
                         Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
@@ -357,8 +359,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer cellScalesObject = composition == null ? null : (Integer) equLM.findLCPByCompoundOldName("cellScalesGroupScalesComposition").read(session, groupMachineryObject, new DataObject(composition, StringClass.text));
                         Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) equLM.findLCPByCompoundOldName("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) equLM.findClassByCompoundName("CellScales")));
 
-                        scalesItemInfoList.add(new ScalesItemInfo(barcode, name, price, isWeight, passScales,
-                                daysExpiry, hoursExpiry, expiryDate, labelFormat, composition, compositionNumberCellScales, hierarchyItemGroup));
+                        scalesItemInfoList.add(new ScalesItemInfo(barcode, name, price, isWeight, daysExpiry, 
+                                hoursExpiry, expiryDate, labelFormat, composition, compositionNumberCellScales, hierarchyItemGroup));
                     }
 
                     transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(),
@@ -392,8 +394,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
-                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(barcode, name, price, isWeight, passScales));
+                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(barcode, name, price, isWeight));
                     }
                     
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(),
@@ -436,9 +437,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
 
-                        terminalItemInfoList.add(new TerminalItemInfo(barcode, name, price, isWeight, passScales, null/*quantity*/, null/*image*/));
+                        terminalItemInfoList.add(new TerminalItemInfo(barcode, name, price, isWeight, null/*quantity*/, null/*image*/));
                     }
 
                     List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session);
@@ -460,7 +460,156 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             throw Throwables.propagate(e);
         }
     }
+ 
+    @Override
+    public List<StopListInfo> readStopListInfo(String sidEquipmentServer) throws RemoteException, SQLException {
+
+        List<StopListInfo> stopListInfoList = new ArrayList<StopListInfo>();
+        
+        if(cashRegisterLM != null && stopListLM != null) {
+            try {
+
+                Map<String, StopListInfo> stopListInfoMap = new HashMap<String, StopListInfo>();
+
+                DataSession session = getDbManager().createSession();
+
+                Map<String, Map<String, Set<String>>> stockMap = getStockMap(session);
+                         
+                KeyExpr stopListExpr = new KeyExpr("stopList");
+                ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev((Object) "stopList", stopListExpr);
+                QueryBuilder<Object, Object> slQuery = new QueryBuilder<Object, Object>(slKeys);
+                String[] slProperties = new String[]{"numberStopList", "fromDateStopList", "fromTimeStopList", "toDateStopList", "toTimeStopList"};
+                for (String property : slProperties)
+                    slQuery.addProperty(property, stopListLM.findLCPByCompoundOldName(property).getExpr(stopListExpr));
+                slQuery.and(stopListLM.findLCPByCompoundOldName("numberStopList").getExpr(stopListExpr).getWhere());
+                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session);
+                for (int i = 0, size = slResult.size(); i < size; i++) {
+                    DataObject stopListObject = slResult.getKey(i).get("stopList");
+                    ImMap<Object, ObjectValue> slEntry = slResult.getValue(i);
+                    String numberStopList = trim((String) slEntry.get("numberStopList").getValue());
+                    Date dateFrom = (Date) slEntry.get("fromDateStopList").getValue();
+                    Date dateTo = (Date) slEntry.get("toDateStopList").getValue();
+                    Time timeFrom = (Time) slEntry.get("fromTimeStopList").getValue();
+                    Time timeTo = (Time) slEntry.get("toTimeStopList").getValue();                    
+                                                                              
+                    Set<String> idStockSet = new HashSet<String>();
+                    Map<String, Set<String>> handlerDirectoryMap = new HashMap<String, Set<String>>();                  
+                    KeyExpr stockExpr = new KeyExpr("stock");
+                    ImRevMap<Object, KeyExpr> stockKeys = MapFact.singletonRev((Object) "stock", stockExpr);
+                    QueryBuilder<Object, Object> stockQuery = new QueryBuilder<Object, Object>(stockKeys);
+                    stockQuery.addProperty("idStock", stopListLM.findLCPByCompoundOldName("idStock").getExpr(stockExpr));
+                    stockQuery.and(stopListLM.findLCPByCompoundOldName("inStockStopList").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
+                    stockQuery.and(stopListLM.findLCPByCompoundOldName("notSucceededStockStopList").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
+                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> stockResult = stockQuery.execute(session);
+                    for (ImMap<Object, Object> stockEntry : stockResult.values()) {
+                        String idStock = trim((String) stockEntry.get("idStock"));
+                        idStockSet.add(idStock);                       
+                        if(stockMap.containsKey(idStock))
+                            for (Map.Entry<String, Set<String>> entry : stockMap.get(idStock).entrySet()) {
+                                if (handlerDirectoryMap.containsKey(entry.getKey()))
+                                    handlerDirectoryMap.get(entry.getKey()).addAll(entry.getValue());
+                                else
+                                    handlerDirectoryMap.put(entry.getKey(), entry.getValue());
+                            }
+                    }
+                                       
+                    List<String> stopListItemList = getStopListItemList(session, stopListObject);
     
+                    stopListInfoMap.put(numberStopList, new StopListInfo(numberStopList, dateFrom, timeFrom, dateTo, timeTo, idStockSet, stopListItemList, handlerDirectoryMap));
+
+                    for(StopListInfo stopList : stopListInfoMap.values())
+                        stopListInfoList.add(stopList);
+                    
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException e) {
+                throw Throwables.propagate(e);
+            } catch (SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }            
+        }
+       
+        return stopListInfoList;
+    }
+    
+    private Map<String, Map<String, Set<String>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Map<String, Set<String>>> stockMap = new HashMap<String, Map<String, Set<String>>>();
+
+        KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
+        KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
+        ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.toRevMap((Object) "groupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
+        QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<Object, Object>(cashRegisterKeys);
+        cashRegisterQuery.addProperty("handlerModelMachinery", stopListLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterExpr));
+        cashRegisterQuery.addProperty("idStockGroupMachinery", stopListLM.findLCPByCompoundOldName("idStockGroupMachinery").getExpr(groupCashRegisterExpr));
+        cashRegisterQuery.addProperty("directoryGroupCashRegister", cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupCashRegisterExpr));
+        cashRegisterQuery.and(stopListLM.findLCPByCompoundOldName("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
+        cashRegisterQuery.and(stopListLM.findLCPByCompoundOldName("idStockGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
+        cashRegisterQuery.and(cashRegisterLM.findLCPByCompoundOldName("directoryGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
+        for (ImMap<Object, Object> entry : cashRegisterResult.valueIt()) {
+            String handlerModel = (String) entry.get("handlerModelMachinery");
+            String directory = (String) entry.get("directoryGroupCashRegister");
+            String idStockGroupMachinery = (String) entry.get("idStockGroupMachinery");
+
+            Map<String, Set<String>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, Set<String>>();
+            if(!handlerMap.containsKey(handlerModel))
+                handlerMap.put(handlerModel, new HashSet<String>());
+            handlerMap.get(handlerModel).add(directory);
+            stockMap.put(idStockGroupMachinery, handlerMap);
+        }
+        return stockMap;
+    }
+    
+    private List<String> getStopListItemList(DataSession session, DataObject stopListObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<String> stopListItemList = new ArrayList<String>();
+
+        KeyExpr sldExpr = new KeyExpr("stopListDetail");
+        ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
+        QueryBuilder<Object, Object> sldQuery = new QueryBuilder<Object, Object>(sldKeys);
+        sldQuery.addProperty("idBarcodeSkuStopListDetail", stopListLM.findLCPByCompoundOldName("idBarcodeSkuStopListDetail").getExpr(sldExpr));
+        sldQuery.and(stopListLM.findLCPByCompoundOldName("idBarcodeSkuStopListDetail").getExpr(sldExpr).getWhere());
+        sldQuery.and(stopListLM.findLCPByCompoundOldName("stopListStopListDetail").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> sldResult = sldQuery.execute(session);
+        for (ImMap<Object, Object> sldEntry : sldResult.values()) {
+            stopListItemList.add(trim((String) sldEntry.get("idBarcodeSkuStopListDetail")));
+        }
+        return stopListItemList;
+    }
+
+    @Override
+    public void errorStopListReport(String numberStopList, Exception e) throws RemoteException, SQLException {
+        try {
+            DataSession session = getDbManager().createSession();
+            DataObject errorObject = session.addObject((ConcreteCustomClass) stopListLM.findClassByCompoundName("StopListError"));
+            ObjectValue stopListObject = stopListLM.findLCPByCompoundOldName("stopListNumber").readClasses(session, new DataObject(numberStopList));
+            stopListLM.findLCPByCompoundOldName("stopListStopListError").change(stopListObject.getValue(), session, errorObject);
+            stopListLM.findLCPByCompoundOldName("dataStopListError").change(e.toString(), session, errorObject);
+            stopListLM.findLCPByCompoundOldName("dateStopListError").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, errorObject);
+            OutputStream os = new ByteArrayOutputStream();
+            e.printStackTrace(new PrintStream(os));
+            stopListLM.findLCPByCompoundOldName("errorTraceStopListError").change(os.toString(), session, errorObject);
+
+            session.apply(getBusinessLogics());
+        } catch (Exception e2) {
+            throw Throwables.propagate(e2);
+        }
+    }
+
+    @Override
+    public void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException {
+        try {
+            DataSession session = getDbManager().createSession();
+            DataObject stopListObject = (DataObject) stopListLM.findLCPByCompoundOldName("stopListNumber").readClasses(session, new DataObject(numberStopList));
+            for(String idStock : idStockSet) {
+                DataObject stockObject = (DataObject) stopListLM.findLCPByCompoundOldName("stockId").readClasses(session, new DataObject(idStock));
+                stopListLM.findLCPByCompoundOldName("succeededStockStopList").change(true, session, stockObject, stopListObject);
+            }
+            session.apply(getBusinessLogics());
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+
     private List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalHandbookType> terminalHandbookTypeList = new ArrayList<TerminalHandbookType>();
         KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");

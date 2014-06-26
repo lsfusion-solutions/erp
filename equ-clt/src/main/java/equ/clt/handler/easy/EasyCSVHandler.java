@@ -59,6 +59,10 @@ public class EasyCSVHandler {
         }
 
         @Override
+        public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {          
+        }
+
+        @Override
         public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) {
             return null;
         }

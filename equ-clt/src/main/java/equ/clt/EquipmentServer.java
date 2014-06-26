@@ -4,12 +4,11 @@ import equ.api.*;
 import equ.api.cashregister.CashDocumentBatch;
 import equ.api.cashregister.CashRegisterHandler;
 import equ.api.cashregister.CashRegisterInfo;
-//import equ.api.cashregister.StopListInfo;
+import equ.api.cashregister.StopListInfo;
 import equ.api.terminal.TerminalDocumentBatch;
 import equ.api.terminal.TerminalHandler;
 import equ.api.terminal.TerminalInfo;
 import equ.api.terminal.TransactionTerminalInfo;
-import lsfusion.interop.DaemonThreadFactory;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -29,10 +28,7 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.SynchronousQueue;
 
 public class EquipmentServer {
 
@@ -54,13 +50,47 @@ public class EquipmentServer {
             public void run() {
 
                 int millis = 10000;
-                ScheduledExecutorService daemonTasksExecutor = Executors.newScheduledThreadPool(4, new DaemonThreadFactory("scheduler-daemon"));
-                final ReentrantLock processTransactionLock = new ReentrantLock();
-//                final ReentrantLock processStopListLock = new ReentrantLock();
-                final ReentrantLock sendSalesLock = new ReentrantLock();
-                final ReentrantLock sendSoftCheckLock = new ReentrantLock();
-                final ReentrantLock sendTerminalDocumentLock = new ReentrantLock();
-                
+
+                Consumer processTransactionConsumer = new Consumer(logger) {
+                    @Override
+                    void runTask() throws Exception{
+                        processTransactionInfo(remote, sidEquipmentServer);
+                    }
+                };
+                Thread processTransactionThread = new Thread(processTransactionConsumer);
+
+                Consumer processStopListConsumer = new Consumer(logger) {
+                    @Override
+                    void runTask() throws Exception{
+                        processStopListInfo(remote, sidEquipmentServer);
+                    }
+                };
+                Thread processStopListThread = new Thread(processStopListConsumer);
+
+                Consumer sendSalesConsumer = new Consumer(logger) {
+                    @Override
+                    void runTask() throws Exception{
+                        sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings);
+                    }
+                };
+                Thread sendSalesThread = new Thread(sendSalesConsumer);
+
+                Consumer sendSoftCheckConsumer = new Consumer(logger) {
+                    @Override
+                    void runTask() throws Exception{
+                        sendSoftCheckInfo(remote);
+                    }
+                };
+                Thread sendSoftCheckThread = new Thread(sendSoftCheckConsumer);
+
+                Consumer sendTerminalDocumentConsumer = new Consumer(logger) {
+                    @Override
+                    void runTask() throws Exception{
+                        sendTerminalDocumentInfo(remote, sidEquipmentServer);
+                    }
+                };
+                Thread sendTerminalDocumentThread = new Thread(sendTerminalDocumentConsumer);
+                               
                 while (true) {
 
                     try {
@@ -86,6 +116,13 @@ public class EquipmentServer {
                                         logger.error("Equipment Server " + sidEquipmentServer + " not found");
                                     } else if (equipmentServerSettings.delay != null)
                                         millis = equipmentServerSettings.delay;
+                                    
+                                    processTransactionThread.start();
+                                    processStopListThread.start();
+                                    sendSalesThread.start();
+                                    sendSoftCheckThread.start();
+                                    sendTerminalDocumentThread.start();
+                                    
                                 } catch (RemoteException e) {
                                     logger.error("Get remote logics error : ", e);
                                 }
@@ -93,91 +130,21 @@ public class EquipmentServer {
                         }
 
                         if (remote != null) {
-
-                            //processTransaction
-                            if (!processTransactionLock.isLocked()) {
-                                processTransactionLock.lock();
-                                daemonTasksExecutor.schedule(new Runnable() {
-                                    @Override
-                                    public void run() {                                        
-                                        try {
-                                            processTransactionInfo(remote, sidEquipmentServer);
-                                        } catch (Exception e) {
-                                            logger.error("Unhandled exception : ", e);
-                                        }
-                                        processTransactionLock.unlock();
-                                    }
-                                }, 0, TimeUnit.MILLISECONDS);
-                            }
-
-//                            //processStopList
-//                            if (!processStopListLock.isLocked()) {
-//                                processStopListLock.lock();
-//                                daemonTasksExecutor.schedule(new Runnable() {
-//                                    @Override
-//                                    public void run() {
-//                                        try {
-//                                            processStopListInfo(remote, sidEquipmentServer);
-//                                        } catch (Exception e) {
-//                                            logger.error("Unhandled exception : ", e);
-//                                        }
-//                                        processStopListLock.unlock();
-//                                    }
-//                                }, 0, TimeUnit.MILLISECONDS);
-//                            }
-
-                            //sendSales
-                            if (!sendSalesLock.isLocked()) {
-                                sendSalesLock.lock();
-                                daemonTasksExecutor.schedule(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        try {
-                                            sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime);
-                                        } catch (Exception e) {
-                                            logger.error("Unhandled exception : ", e);
-                                        }
-                                        sendSalesLock.unlock();
-                                    }
-                                }, 0, TimeUnit.MILLISECONDS);
-                            }
-
-                            //sendSoftCheck
-                            if (!sendSoftCheckLock.isLocked()) {
-                                sendSoftCheckLock.lock();
-                                daemonTasksExecutor.schedule(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        try {
-                                            sendSoftCheckInfo(remote);
-                                        } catch (Exception e) {
-                                            logger.error("Unhandled exception : ", e);
-                                        }
-                                        sendSoftCheckLock.unlock();
-                                    }
-                                }, 0, TimeUnit.MILLISECONDS);
-                            }
-
-                            //sendTerminalDocument
-                            if (!sendTerminalDocumentLock.isLocked()) {
-                                sendTerminalDocumentLock.lock();
-                                daemonTasksExecutor.schedule(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        try {
-                                            sendTerminalDocumentInfo(remote, sidEquipmentServer);
-                                        } catch (Exception e) {
-                                            logger.error("Unhandled exception : ", e);
-                                        }
-                                        sendTerminalDocumentLock.unlock();
-                                    }
-                                }, 0, TimeUnit.MILLISECONDS);
-                            }
+                            processTransactionConsumer.scheduleIfNotScheduledYet();                         
+                            processStopListConsumer.scheduleIfNotScheduledYet();
+                            sendSalesConsumer.scheduleIfNotScheduledYet();                                                       
+                            sendSoftCheckConsumer.scheduleIfNotScheduledYet();
+                            sendTerminalDocumentConsumer.scheduleIfNotScheduledYet();
                         }
 
                     } catch (Exception e) {
                         logger.error("Unhandled exception : ", e);
                         remote = null;
+                        processTransactionThread.interrupt();
+                        processStopListThread.interrupt();
+                        sendSalesThread.interrupt();
+                        sendSoftCheckThread.interrupt();
+                        sendTerminalDocumentThread.interrupt();
                     }
 
                     try {
@@ -221,7 +188,7 @@ public class EquipmentServer {
         }
     }
 
-    /*private void processStopListInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws RemoteException, SQLException {
+    private void processStopListInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws RemoteException, SQLException {
         logger.info("Process StopListInfo");
         List<StopListInfo> stopListInfoList = remote.readStopListInfo(sidEquipmentServer);
         for (StopListInfo stopListInfo : stopListInfoList) {
@@ -233,16 +200,18 @@ public class EquipmentServer {
                     if (clsHandler instanceof CashRegisterHandler)
                         ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, entry.getValue());
                 } catch (Exception e) {
+                    remote.errorStopListReport(stopListInfo.number, e);
                     return;
                 }
             }
+            remote.succeedStopList(stopListInfo.number, stopListInfo.idStockSet);
+        }        
+        logger.info("Process StopListInfo finished");
+    }
 
-            logger.info("Process StopListInfo finished");
-        }
-    }*/
-
-    private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, Integer numberAtATime) throws SQLException, IOException {
+    private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, EquipmentServerSettings settings) throws SQLException, IOException {
         logger.info("Send SalesInfo");
+        Integer numberAtATime = equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime;
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
         Map<Date, Set<String>> requestSalesInfo = remote.readRequestSalesInfo(sidEquipmentServer);
 
@@ -349,25 +318,23 @@ public class EquipmentServer {
         }
 
         for (Map.Entry<String, List<TerminalInfo>> entry : handlerModelTerminalMap.entrySet()) {
-            if (entry.getKey() != null) {
+            String handlerModel = entry.getKey();
+            if (handlerModel != null) {
 
                 try {
-                    String handlerModel = entry.getKey();
-                    if (handlerModel != null) {
-                        TerminalHandler clsHandler = (TerminalHandler) getHandler(handlerModel, remote);
+                    TerminalHandler clsHandler = (TerminalHandler) getHandler(handlerModel, remote);
 
-                        TerminalDocumentBatch documentBatch = clsHandler.readTerminalDocumentInfo(terminalInfoList);
-                        if (documentBatch == null || documentBatch.documentDetailList == null || documentBatch.documentDetailList.isEmpty()) {
-                            logger.info("TerminalDocumentInfo is empty");
+                    TerminalDocumentBatch documentBatch = clsHandler.readTerminalDocumentInfo(terminalInfoList);
+                    if (documentBatch == null || documentBatch.documentDetailList == null || documentBatch.documentDetailList.isEmpty()) {
+                        logger.info("TerminalDocumentInfo is empty");
+                    } else {
+                        logger.info("Sending TerminalDocumentInfo");
+                        String result = remote.sendTerminalInfo(documentBatch.documentDetailList, sidEquipmentServer);
+                        if (result != null) {
+                            reportEquipmentServerError(remote, sidEquipmentServer, result);
                         } else {
-                            logger.info("Sending TerminalDocumentInfo");
-                            String result = remote.sendTerminalInfo(documentBatch.documentDetailList, sidEquipmentServer);
-                            if (result != null) {
-                                reportEquipmentServerError(remote, sidEquipmentServer, result);
-                            } else {
-                                logger.info("Finish Reading starts");
-                                clsHandler.finishReadingTerminalDocumentInfo(documentBatch);
-                            }
+                            logger.info("Finish Reading starts");
+                            clsHandler.finishReadingTerminalDocumentInfo(documentBatch);
                         }
                     }
                 } catch (Throwable e) {
@@ -437,4 +404,37 @@ public class EquipmentServer {
     public void stop() {
         thread.interrupt();
     }
+}
+
+abstract class Consumer implements Runnable {
+
+    private Logger logger;
+    private SynchronousQueue<Object> queue;    
+    public Consumer(Logger logger) {
+        this.logger = logger;
+        this.queue = new SynchronousQueue<Object>();
+    }
+    
+    public void scheduleIfNotScheduledYet() {
+        queue.offer(Consumer.class);
+    }
+    
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                queue.take();
+                runTask();                
+            } catch (InterruptedException e) {
+                return;
+            } catch (Exception e) {
+                logger.error("Unhandled exception : ", e);
+            }
+        }
+    }
+    
+    
+
+    abstract void runTask() throws Exception;
+
 }

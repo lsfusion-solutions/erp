@@ -12,16 +12,19 @@ public class CashRegisterItemInfo extends ItemInfo {
     public List<ItemGroup> hierarchyItemGroup;
     public String idUOM;
     public String shortNameUOM;
+    public boolean passScalesItem;
     
     public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean isWeightItem,
-                                boolean passScalesItem, Integer idItem, String composition, String nameItemGroup,
-                                List<ItemGroup> hierarchyItemGroup, String idUOM, String shortNameUOM) {
-        super(idBarcode, name, price, isWeightItem, passScalesItem);
+                                Integer idItem, String composition, String nameItemGroup, 
+                                List<ItemGroup> hierarchyItemGroup, String idUOM, String shortNameUOM, 
+                                boolean passScalesItem) {
+        super(idBarcode, name, price, isWeightItem);
         this.idItem = idItem;
         this.composition = composition;
         this.nameItemGroup = nameItemGroup;
         this.hierarchyItemGroup = hierarchyItemGroup;
         this.idUOM = idUOM;
         this.shortNameUOM = shortNameUOM;
+        this.passScalesItem = passScalesItem;
     }
 }

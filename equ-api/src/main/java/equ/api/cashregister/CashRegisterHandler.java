@@ -2,7 +2,6 @@ package equ.api.cashregister;
 
 import equ.api.MachineryHandler;
 import equ.api.SalesBatch;
-
 import java.io.IOException;
 import java.sql.Date;
 import java.sql.SQLException;
@@ -13,6 +12,8 @@ import java.util.Set;
 
 public abstract class  CashRegisterHandler<S extends SalesBatch> extends MachineryHandler<TransactionCashRegisterInfo, CashRegisterInfo, S> {
 
+    public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException;
+    
     public abstract SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException;
 
     public abstract String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException;

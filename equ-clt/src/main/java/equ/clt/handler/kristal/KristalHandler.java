@@ -354,6 +354,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+        
+    }
+
+    @Override
     public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
         Set<String> directorySet = new HashSet<String>();

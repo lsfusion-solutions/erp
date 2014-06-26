@@ -166,6 +166,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+        
+    }
+
+    @Override
     public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<Integer, String> cashRegisterDirectories = new HashMap<Integer, String>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {

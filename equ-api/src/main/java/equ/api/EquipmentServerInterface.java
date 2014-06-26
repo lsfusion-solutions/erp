@@ -2,6 +2,7 @@ package equ.api;
 
 import equ.api.cashregister.CashDocument;
 import equ.api.cashregister.CashRegisterInfo;
+import equ.api.cashregister.StopListInfo;
 import equ.api.terminal.TerminalDocumentDetail;
 import equ.api.terminal.TerminalInfo;
 
@@ -24,6 +25,12 @@ public interface EquipmentServerInterface extends Remote {
     String sendSucceededSoftCheckInfo(Map<String, Date> invoiceSet) throws RemoteException, SQLException;
     
     List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException;
+
+    List<StopListInfo> readStopListInfo(String sidEquipmentServer) throws RemoteException, SQLException;
+
+    void errorStopListReport(String numberStopList, Exception exception) throws RemoteException, SQLException;
+
+    void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException;
 
     List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
