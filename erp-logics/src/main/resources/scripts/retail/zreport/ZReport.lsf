@@ -337,8 +337,6 @@ CONSTRAINT taxRange(VATReceiptSaleDetail(detail)) != Tax.taxVAT OR
 VATReceiptSaleDetail(d) <- VATSkuStock(skuReceiptSaleDetail(d), departmentStoreReceiptSaleDetail(d))
     WHEN CHANGED(skuReceiptSaleDetail(d)) OR CHANGED(departmentStoreReceiptSaleDetail(d));
 
-VATSumSaleZReport 'Сумма НДС по продажам' (zReport) = DATA NUMERIC[16,2] (ZReport) IN documentSum;
-
 VATReceiptReturnDetail = DATA Range (ReceiptReturnDetail);
 CONSTRAINT taxRange(VATReceiptReturnDetail(detail)) != Tax.taxVAT OR
            countryRange(VATReceiptReturnDetail(detail)) != countryStock(departmentStoreReceiptReturnDetail(detail))
@@ -347,8 +345,6 @@ CONSTRAINT taxRange(VATReceiptReturnDetail(detail)) != Tax.taxVAT OR
 
 VATReceiptReturnDetail(d) <- VATSkuStock(skuReceiptReturnDetail(d), departmentStoreReceiptReturnDetail(d))
     WHEN CHANGED(skuReceiptReturnDetail(d)) OR CHANGED(departmentStoreReceiptReturnDetail(d));
-
-VATSumReturnZReport 'Сумма НДС по возвратам' (zReport) = DATA NUMERIC[16,2] (ZReport) IN documentSum;
 
 VATReceiptDetail 'НДС' = ABSTRACT Range(ReceiptDetail) PERSISTENT;
 numberVATReceiptDetail 'НДС, номер' (receiptDetail) = numberRange(VATReceiptDetail(receiptDetail));
@@ -512,8 +508,9 @@ sumCashZReportCashRegister 'Сумма наличных по кассе' = GROUP
 sumVATSkuReceiptDetailZReport 'Сумма НДС по sku' (zReport) = GROUP SUM signedSumVATReceiptDetail(detail)
     IF skuReceiptDetail(detail) BY zReportReceiptDetail(detail);
 sumVATReceiptDetailReceipt'Сумма НДС' (receipt) = GROUP SUM signedSumVATReceiptDetail(detail)
-    BY receiptReceiptDetail(detail);    
-    
+    BY receiptReceiptDetail(detail); 
+sumVATReceiptDetailZReport 'Сумма НДС' (zReport) = GROUP SUM sumVATReceiptDetailReceipt(receipt)
+    BY zReportReceipt(receipt) IN documentSum;            
 
 discountSumVATReceiptDetail 'Сумма НДС в скидке' (d) = roundPriceCurrency(discountSumReceiptDetail(d) * valueVATReceiptDetail(d) / (100 + valueVATReceiptDetail(d)), currencyReceiptDetail(d));
  
@@ -539,9 +536,9 @@ FORM zReport 'Z-отчет'
     OBJECTS z=ZReport FIXED PANEL
     PROPERTIES (z) numberCashRegisterZReport, nameDepartmentStoreZReport READONLY, dateZReport, timeZReport, numberZReport, //sumCashZReport
                    basisZReport, countReceiptZReport, quantityReceiptDetailZReport, 
-                   sumPositiveCashPaymentZReport, sumPositiveCardPaymentZReport, discountSumReceiptDetailZReport, VATSumSaleZReport,
-                   sumNegativeCashPaymentZReport, sumNegativeCardPaymentZReport, VATSumReturnZReport,
-                   sumReceiptDetailZReport
+                   sumPositiveCashPaymentZReport, sumPositiveCardPaymentZReport, discountSumReceiptDetailZReport,
+                   sumNegativeCashPaymentZReport, sumNegativeCardPaymentZReport, sumReceiptDetailZReport,
+                   sumVATReceiptDetailZReport
 
     OBJECTS b=Receipt, d=ReceiptDetail
     PROPERTIES(b) numberReceipt, dateReceipt, timeReceipt, nameUserReceipt,
@@ -627,7 +624,7 @@ FORM zReports 'Z-отчеты'
     PROPERTIES (z) READONLY isClosedZReport, isPostedZReport, numberZReport, dateZReport, timeZReport, nameDepartmentStoreZReport, 
                             numberCashRegisterZReport, basisZReport, countReceiptZReport, quantityReceiptDetailZReport, 
                             sumReceiptDetailZReport, sumPositiveCashPaymentZReport, sumPositiveCardPaymentZReport,                             
-                            sumNegativeCashPaymentZReport, sumNegativeCardPaymentZReport, VATSumSaleZReport, VATSumReturnZReport,
+                            sumNegativeCashPaymentZReport, sumNegativeCardPaymentZReport, sumVATReceiptDetailZReport,
                             discountSumReceiptDetailZReport                                                                                 
                                                         
     PROPERTIES (z) ADDFORM, EDITFORM SHOWIF isOpenedZReport(z) 
