@@ -119,6 +119,12 @@ curMarkupUserRepricingDetail(userRepricingDetail)  <- [= round2((((X - X*Y/(100+
 // Цена поставщика
 @defineDocumentInterfaceDetailPricePrefix(repricing, , ' поставщика после');
 
+priceUserRepricingDetail(d) <- curPriceUserRepricingDetail(d) WHEN 
+    CHANGED(skuUserRepricingDetail(d)) OR
+    CHANGED(departmentStoreUserRepricingDetail(d)) OR
+    CHANGED(dateTimeUserRepricingDetail(d)) OR
+    CHANGED(batchUserRepricingDetail(d));
+
 // Цена от которой будет считаться надбавка
 overRepricingPriceRepricingDetail = ABSTRACT NUMERIC[14,2] (RepricingDetail) PERSISTENT;
 overRepricingPriceUserRepricingDetail = ABSTRACT NUMERIC[14,2] (UserRepricingDetail) PERSISTENT;
@@ -256,14 +262,17 @@ FORM addPercentUserRepricing 'Изменение цены'
 ;
 
 DESIGN addPercentUserRepricing FROM DEFAULT {
-    main {
+    u.panel.props {
+        fill = 1;
         type = CONTAINERV;
         PROPERTY (nameChangePriceTypeUserRepricing(u)) {
+            alignment = STRETCH;
             caption = 'Выберите тип';
             font = 'bold 28';
             panelLabelAbove = TRUE;
         }
         PROPERTY (percentUserRepricing(u)) {
+            alignment = STRETCH;
             caption = 'Введите процент';
             font = 'bold 64';
             panelLabelAbove = TRUE;
@@ -273,21 +282,22 @@ DESIGN addPercentUserRepricing FROM DEFAULT {
 
 overChangePriceUserRepricing = ABSTRACT ACTION LIST (RepricingDetail);
 
-changePriceUserRepricing 'Изменить цену' (userRepricing) = ACTION (userRepricing) {
-        FORM addPercentUserRepricing OBJECTS u = userRepricing MODAL;
-        IF formResult() == FormResult.ok AND changePriceTypeUserRepricing(userRepricing) AND percentUserRepricing(userRepricing) THEN {
-            FOR userRepricingUserRepricingDetail(userRepricingDetail) == userRepricing DO {
-                ASSIGN priceUserRepricingDetail(userRepricingDetail) <- curPriceUserRepricingDetail(userRepricingDetail);
-                EXEC overChangePriceUserRepricing(userRepricingDetail);
-                ASSIGN VATUserRepricingDetail(userRepricingDetail) <- curVATUserRepricingDetail(userRepricingDetail);
-                ASSIGN valueVATUserRepricingDetail(userRepricingDetail) <- valueCurVATUserRepricingDetail(userRepricingDetail);
-                IF changePriceTypeUserRepricing(userRepricing) == ChangePriceType.markupChange THEN {
-                    ASSIGN retailPriceUserRepricingDetail(userRepricingDetail) <- newMarkupRetailPriceUserRepricingDetail(userRepricingDetail);
+changePriceUserRepricing 'Изменить цену' (repricing) = ACTION (repricing) {
+        FORM addPercentUserRepricing OBJECTS u = repricing MODAL;
+        IF formResult() == FormResult.ok AND changePriceTypeUserRepricing(repricing) AND percentUserRepricing(repricing) THEN {
+            FOR userRepricingUserRepricingDetail(d) == repricing DO {
+                priceUserRepricingDetail(d) <- curPriceUserRepricingDetail(d);
+                overChangePriceUserRepricing(d);
+                VATUserRepricingDetail(d) <- curVATUserRepricingDetail(d);
+                valueVATUserRepricingDetail(d) <- valueCurVATUserRepricingDetail(d);
+                IF changePriceTypeUserRepricing(repricing) == ChangePriceType.markupChange THEN {
+                    retailPriceUserRepricingDetail(d) <- newMarkupRetailPriceUserRepricingDetail(d);
                 } ELSE {
-                    IF changePriceTypeUserRepricing(userRepricing)== ChangePriceType.discountChange THEN {
-                        ASSIGN retailPriceUserRepricingDetail(userRepricingDetail) <- newDiscountRetailPriceUserRepricingDetail(userRepricingDetail);
+                    IF changePriceTypeUserRepricing(repricing)== ChangePriceType.discountChange THEN {
+                        retailPriceUserRepricingDetail(d) <- newDiscountRetailPriceUserRepricingDetail(d);
                     }
                 }
+                markupUserRepricingDetail(d) <- calcMarkupUserRepricingDetail(d) WHERE calcMarkupUserRepricingDetail(d);
             }
         }
 } TOOLBAR;

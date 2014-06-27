@@ -31,18 +31,18 @@ DESIGN extraValuation FROM DEFAULT {
     }
 }     
        
-repricingInvoice= DATA Repricing (Purchase.Invoice);
-repricingInvoiceDetail (d) =  repricingInvoice(Purchase.invoiceInvoiceDetail(d));
+repricingInvoice = DATA Repricing (Purchase.Invoice);
+repricingInvoiceDetail (d) = repricingInvoice(Purchase.invoiceInvoiceDetail(d));
 
 prevBalanceBSkuStockDateTime (sku, stock, dateTime) = PREV(balanceBSkuStockDateTime(sku, stock, dateTime) IF dateTime IS DATETIME);
-calcPrevRetailPriceBInvoiceDetail 'Цена до'  (detail)= prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, Purchase.skuInvoiceDetail(detail), Purchase.customerStockInvoiceDetail(detail), Purchase.dateTimeInvoiceDetail(detail));
+prevRetailPricingPriceBInvoiceDetail 'Цена розничная до'  (detail) = prevRetailPricingPriceBSkuStockDateTime(Purchase.skuInvoiceDetail(detail), Purchase.customerStockInvoiceDetail(detail), Purchase.dateTimeInvoiceDetail(detail));
 
 calcQuantitySoldSkuStockPriceDateTime 'Кол-во продано по старой цене' (sku, stock, price, dateTime) = GROUP SUM 
     signedQuantityReceiptDetail(d) IF dateTimeReceiptDetail(d) >= (dateTime AS DATETIME) AND isPostedReceiptDetail(d)
         BY skuReceiptDetail(d), departmentStoreReceiptDetail(d), priceReceiptDetail(d), dateTime; 
         
-toRepricingQuantitySkuStockPriceDateTime 'Кол-во к дооценке' (sku, stock, price, dateTime)= prevBalanceBSkuStockDateTime (sku, stock, dateTime) (-) calcQuantitySoldSkuStockPriceDateTime(sku, stock, price, dateTime);         
-toRepricingQuantityInvoiceDetail 'Кол-во к дооценке' (detail) = toRepricingQuantitySkuStockPriceDateTime(Purchase.skuInvoiceDetail(detail), Purchase.customerStockInvoiceDetail(detail), calcPrevRetailPriceBInvoiceDetail(detail), Purchase.shipmentDateTimeInvoiceDetail(detail));
+toRepricingQuantitySkuStockPriceDateTime 'Кол-во к дооценке' (sku, stock, price, dateTime) = prevBalanceBSkuStockDateTime (sku, stock, dateTime) (-) calcQuantitySoldSkuStockPriceDateTime(sku, stock, price, dateTime);         
+toRepricingQuantityInvoiceDetail 'Кол-во к дооценке' (detail) = toRepricingQuantitySkuStockPriceDateTime(Purchase.skuInvoiceDetail(detail), Purchase.customerStockInvoiceDetail(detail), prevRetailPricingPriceBInvoiceDetail(detail), Purchase.shipmentDateTimeInvoiceDetail(detail));
                
 filterToRepricingInvoiceStockDateTime 'Фильтр' (invoice, department, timeFrom)= 
     Purchase.customerStockInvoice(invoice) == department AND         
@@ -57,22 +57,22 @@ overExtraValuation = ABSTRACT ACTION LIST (RepricingDetail, Purchase.InvoiceDeta
 createExtraValuationStockTimeOperation 'Создать дооценку' = ACTION (department, timeFrom, operation) {
     
     LOCAL inInvoice =  BOOLEAN(Purchase.Invoice);
-        
-    inInvoice(invoice) <- TRUE WHERE filterToRepricingInvoiceStockDateTime(invoice, department, timeFrom);   
+    inInvoice(invoice) <- filterToRepricingInvoiceStockDateTime(invoice, department, timeFrom);   
 
     FOR ADDOBJ r = UserRepricing DO {
         departmentStoreUserRepricing(r) <-  department;
         operationUserRepricing(r) <- operation;
         skipChangeLedgerUserRepricing(r) <- TRUE;
 
-        FOR retailPriceInvoiceDetail(detail) AND calcPrevRetailPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
+        FOR retailPriceInvoiceDetail(detail) AND prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
             toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(Purchase.invoiceInvoiceDetail(detail))               
             ADDOBJ rd = UserRepricingDetail DO {
                 userRepricingUserRepricingDetail(rd) <- r;
                 skuUserRepricingDetail(rd) <- Purchase.skuInvoiceDetail(detail);
                 quantityUserRepricingDetail(rd) <- toRepricingQuantityInvoiceDetail(detail);
+
                 curPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, Purchase.skuInvoiceDetail(detail), department, Purchase.dateTimeInvoiceDetail(detail));
-                curRetailPriceUserRepricingDetail(rd) <- calcPrevRetailPriceBInvoiceDetail(detail);
+                curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBInvoiceDetail(detail);
 
                 priceUserRepricingDetail(rd) <- Purchase.priceInvoiceDetail(detail);
                 retailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);                          
