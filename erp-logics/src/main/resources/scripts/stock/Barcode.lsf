@@ -35,7 +35,7 @@ nameSkuBarcode 'Наименование' (barcode) = nameSku(skuBarcode(barcode
 skuBarcodeIdDate (id, date) = skuBarcode(barcodeIdDate(id, date));
 
 dataBarcodeSku = DATA Barcode (Sku);
-CONSTRAINT skuBarcode(dataBarcodeSku(item)) != item CHECKED BY dataBarcodeSku MESSAGE 'Выбран неверный sku для штрих-кода';
+CONSTRAINT skuBarcode(dataBarcodeSku(item)) != item CHECKED BY dataBarcodeSku MESSAGE 'Выбран неверный sku для штрихкода';
 
 replaceSkuSku(s, d) += ACTION (s, d){ASSIGN skuBarcode(barcode) <- d WHERE skuBarcode(barcode) == s;}
 
@@ -49,10 +49,10 @@ changePrimaryBarcodeSku = ACTION (barcode, sku) {
     }
 }
 
-idBarcodeSku 'Штрих-код' (sku) = idBarcode(barcodeSku(sku)) IN base AGGPROP PERSISTENT;
+idBarcodeSku 'Штрихкод' (sku) = idBarcode(barcodeSku(sku)) IN base AGGPROP PERSISTENT;
 skuIdBarcode (barcode) = GROUP AGGR sku BY idBarcodeSku(sku);
-idBarcodeSkuBatch 'Штрих-код' (batch) = idBarcodeSku(skuBatch(batch));
-idBarcodeSkuSkuLedger 'Штрих-код' (skuLedger) = idBarcodeSku(skuSkuLedger(skuLedger));
+idBarcodeSkuBatch 'Штрихкод' (batch) = idBarcodeSku(skuBatch(batch));
+idBarcodeSkuSkuLedger 'Штрихкод' (skuLedger) = idBarcodeSku(skuSkuLedger(skuLedger));
 dataDateBarcodeSku 'Дата' (sku) = dataDateBarcode(barcodeSku(sku));
 amountBarcodeSku 'Множитель' (sku) = amountBarcode(barcodeSku(sku));
 amountBarcodeSkuBatch 'Множитель' = amountBarcodeSku(skuBatch(batch));
@@ -88,11 +88,11 @@ nameCountryBarcode 'Страна' (barcode) = nameCountry(countryBarcode(barcode
 
 expiryDateBarcodeStock 'Годен до (max.)' (barcode, stock) = expiryDateSkuStock(skuBarcode(barcode), stock);
 
-// Генерация штрих-кодов
+// Генерация штрихкодов
 
 barcodeNumeratorSku = ABSTRACT Numerator (Sku);
 
-generateBarcodeSku 'Сгенерировать штрих-код' = ACTION (sku) {
+generateBarcodeSku 'Сгенерировать штрихкод' = ACTION (sku) {
     FOR ADDOBJ b = Barcode DO {
         ASSIGN skuBarcode(b) <- sku;
         ASSIGN idBarcode(b) <- completeBarcode(curStringValueNumerator(barcodeNumeratorSku(sku)));
@@ -107,25 +107,25 @@ FORM barcodeDialog 'Штрих код'
     DIALOG Barcode OBJECT b
 ;
 
-// ---------------------------------- Предобработка штрих-кода --------------------------- //
+// ---------------------------------- Предобработка штрихкода --------------------------- //
 overPreprocessedBarcode = ABSTRACT CASE STRING[15] (STRING[15]);
 processedBarcode (b) = OVERRIDE b AS STRING[15], overPreprocessedBarcode(b); 
 
-// ----------------------------------- Форма по вводу штрих-кода ---------------------------- //
+// ----------------------------------- Форма по вводу штрихкода ---------------------------- //
 
-barcodeInput 'Штрих-код' = DATA SESSION STRING[15] () EVENTID 'SCANNER';
+barcodeInput 'Штрихкод' = DATA SESSION STRING[15] () EVENTID 'SCANNER';
 changeBarcodeInput = ACTION () {
     REQUEST STRING[15] INPUT;
     barcodeInput() <- processedBarcode(requestedString());
     formOk();
 }
-FORM barcodeInput 'Ввод штрих-кода'
+FORM barcodeInput 'Ввод штрихкода'
     PROPERTIES() barcodeInput ON CHANGE changeBarcodeInput()
 ;
 
 DESIGN barcodeInput FROM DEFAULT {
     PROPERTY (barcodeInput()) {
-        caption = 'Штрих-код';
+        caption = 'Штрихкод';
         font = 'bold 64';
         panelLabelAbove = TRUE;
         editKey = 'F4';
@@ -197,7 +197,7 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
         }
     }
 
-    addDetailDialogBarcode###idetail###object 'Ввод штрих-кода' = ACTION (object) {
+    addDetailDialogBarcode###idetail###object 'Ввод штрихкода' = ACTION (object) {
         FORM barcodeInput MODAL;
 
         IF formResult() == FormResult.ok THEN
@@ -208,7 +208,7 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
         REQUEST STRING[15] INPUT;
         EXEC addDetailBarcode###idetail###object(object, processedBarcode(requestedString()));
     };
-    addDetailInputBarcode###idetail###object 'Ввод штрих-кода :' (object) = DATA SESSION STRING[15] (###object) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+    addDetailInputBarcode###idetail###object 'Ввод штрихкода :' (object) = DATA SESSION STRING[15] (###object) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE changeAddDetailInputBarcode###idetail###object(object);
 END
 
@@ -218,14 +218,14 @@ END
 
 // ----------------------------------- Расширение подбора товаров ---------------------------- //
 
-seekBarcode 'Штрих-код' = DATA SESSION STRING[15] ();
+seekBarcode 'Штрихкод' = DATA SESSION STRING[15] ();
 seekSkuBarcode = ACTION (){
     REQUEST STRING[15] INPUT;
     ASSIGN seekBarcode() <- NULL;
     ASSIGN seekBarcode() <- requestedString();
     EXEC seek(skuBarcodeIdDate(seekBarcode(), currentDate()));
     IF NOT skuBarcodeIdDate(seekBarcode(), currentDate()) THEN
-        MESSAGE 'Штрих-код не найден';
+        MESSAGE 'Штрихкод не найден';
     ASSIGN seekBarcode() <- NULL;
 }
 
@@ -350,21 +350,21 @@ EXTEND FORM batches
     PROPERTIES(bt) READONLY idBarcodeSkuBatch AFTER nameSkuBatch(bt)
 ;
 
-// ------------------------------------------ Объявление штрих-кода в документе ------------------------------------ //
+// ------------------------------------------ Объявление штрихкода в документе ------------------------------------ //
 
 META defineDocumentDetailBarcodeCustomPrefix (detail, skuProp, prefixB, prefixS)
     prefixB###barcodePack###detail = DATA Barcode (###detail);
-    prefixB###idBarcodePack###detail 'Штрих-код упаковки' (detail) = idBarcode(prefixB###barcodePack###detail(detail));
+    prefixB###idBarcodePack###detail 'Штрихкод упаковки' (detail) = idBarcode(prefixB###barcodePack###detail(detail));
     prefixB###shortNameUOMPack###detail 'Ед. изм. упаковки' = shortNameUOMBarcode(prefixB###barcodePack###detail(detail));
     prefixB###amountPack###detail 'Кол-во в упаковке' = DATA NUMERIC[14,3] (###detail);
 
     CONSTRAINT skuBarcode(prefixB###barcodePack###detail(detail)) != prefixS###skuProp###detail(detail) CHECKED BY prefixB###barcodePack###detail
-        MESSAGE 'Выбран штрих-кода не соответствующий sku';
+        MESSAGE 'Выбран штрихкода не соответствующий sku';
 END
 
 META defineDocumentAbstractDetailBarcodeCustomPrefix (detail, prefixB)
     prefixB###barcodePack###detail = ABSTRACT Barcode (###detail);
-    prefixB###idBarcodePack###detail 'Штрих-код упаковки' (detail) = idBarcode(prefixB###barcodePack###detail(detail));
+    prefixB###idBarcodePack###detail 'Штрихкод упаковки' (detail) = idBarcode(prefixB###barcodePack###detail(detail));
     prefixB###shortNameUOMPack###detail 'Ед. изм. упаковки' = shortNameUOMBarcode(prefixB###barcodePack###detail(detail));
     prefixB###amountPack###detail 'Кол-во в упаковке' = ABSTRACT NUMERIC[14,3] (###detail);
 END
@@ -383,7 +383,7 @@ META defineDocumentInterfaceBarcodePrefix (object, skuProp, prefixB)
     @defineDocumentInterfaceBarcodePrefix(object, skuProp, prefixB, );
 END
 
-// ------------------------------------------ Автоматическое проставление штрих-кода ------------------------------------ //
+// ------------------------------------------ Автоматическое проставление штрихкода ------------------------------------ //
 
 META deriveDocumentDetailBarcodeCustom (detail, skuProp, toShowProp)
     barcodePack###detail(detail) <- packBarcodeSku(skuProp###detail(detail)) IF toShowProp###detail(detail)
