@@ -2,6 +2,8 @@ MODULE RepricingPurchaseInvoice;
 
 REQUIRE PricingPurchase, Repricing, ZReport;
 
+PRIORITY Purchase;
+
 NAMESPACE Repricing;
 
 //------------------- Дооценка с учетом проданного количества между приходом и закачкой прайса в оборудование -----------------------//  
@@ -31,32 +33,32 @@ DESIGN extraValuation FROM DEFAULT {
     }
 }     
        
-repricingInvoice = DATA Repricing (Purchase.Invoice);
-repricingInvoiceDetail (d) = repricingInvoice(Purchase.invoiceInvoiceDetail(d));
+repricingInvoice = DATA Repricing (Invoice);
+repricingInvoiceDetail (d) = repricingInvoice(invoiceInvoiceDetail(d));
 
-prevBalanceBSkuStockDateTime (sku, stock, dateTime) = PREV(balanceBSkuStockDateTime(sku, stock, dateTime) IF dateTime IS DATETIME);
-prevRetailPricingPriceBInvoiceDetail 'Цена розничная до'  (detail) = prevRetailPricingPriceBSkuStockDateTime(Purchase.skuInvoiceDetail(detail), Purchase.customerStockInvoiceDetail(detail), Purchase.dateTimeInvoiceDetail(detail));
+prevRetailPricingPriceBInvoiceDetail 'Цена розничная до' (detail) = prevRetailPricingPriceBSkuStockDateTime(skuInvoiceDetail(detail), customerStockInvoiceDetail(detail), dateTimeInvoiceDetail(detail));
 
 calcQuantitySoldSkuStockPriceDateTime 'Кол-во продано по старой цене' (sku, stock, price, dateTime) = GROUP SUM 
     signedQuantityReceiptDetail(d) IF dateTimeReceiptDetail(d) >= (dateTime AS DATETIME) AND isPostedReceiptDetail(d)
         BY skuReceiptDetail(d), departmentStoreReceiptDetail(d), priceReceiptDetail(d), dateTime; 
         
 toRepricingQuantitySkuStockPriceDateTime 'Кол-во к дооценке' (sku, stock, price, dateTime) = prevBalanceBSkuStockDateTime (sku, stock, dateTime) (-) calcQuantitySoldSkuStockPriceDateTime(sku, stock, price, dateTime);         
-toRepricingQuantityInvoiceDetail 'Кол-во к дооценке' (detail) = toRepricingQuantitySkuStockPriceDateTime(Purchase.skuInvoiceDetail(detail), Purchase.customerStockInvoiceDetail(detail), prevRetailPricingPriceBInvoiceDetail(detail), Purchase.shipmentDateTimeInvoiceDetail(detail));
+toRepricingQuantityInvoiceDetail 'Кол-во к дооценке' (detail) = toRepricingQuantitySkuStockPriceDateTime(skuInvoiceDetail(detail), customerStockInvoiceDetail(detail), prevRetailPricingPriceBInvoiceDetail(detail), shipmentDateTimeInvoiceDetail(detail));
                
 filterToRepricingInvoiceStockDateTime 'Фильтр' (invoice, department, timeFrom)= 
-    Purchase.customerStockInvoice(invoice) == department AND         
-    Purchase.shipmentDateTimeInvoice(invoice) >= timeFrom AND NOT
+    customerStockInvoice(invoice) == department AND         
+    shipmentDateTimeInvoice(invoice) >= timeFrom AND NOT
     costLedgerDepartmentStore(department) AND
-    Purchase.isPostedInvoice(invoice) AND NOT
+    isPostedInvoice(invoice) AND NOT
     repricingInvoice(invoice)
 ;                  
                   
-overExtraValuation = ABSTRACT ACTION LIST (RepricingDetail, Purchase.InvoiceDetail);  
+overExtraValuation = ABSTRACT ACTION LIST (RepricingDetail, InvoiceDetail);  
+overExtraRevertValuation = ABSTRACT ACTION LIST (RepricingDetail, InvoiceDetail);
                   
 createExtraValuationStockTimeOperation 'Создать дооценку' = ACTION (department, timeFrom, operation) {
     
-    LOCAL inInvoice =  BOOLEAN(Purchase.Invoice);
+    LOCAL inInvoice =  BOOLEAN(Invoice);
     inInvoice(invoice) <- filterToRepricingInvoiceStockDateTime(invoice, department, timeFrom);   
 
     FOR ADDOBJ r = UserRepricing DO {
@@ -64,20 +66,38 @@ createExtraValuationStockTimeOperation 'Создать дооценку' = ACTIO
         operationUserRepricing(r) <- operation;
         skipChangeLedgerUserRepricing(r) <- TRUE;
 
-        FOR retailPriceInvoiceDetail(detail) AND prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
-            toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(Purchase.invoiceInvoiceDetail(detail))               
+        // дооценка в прямую сторону
+        FOR prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
+            toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(invoiceInvoiceDetail(detail))               
             ADDOBJ rd = UserRepricingDetail DO {
                 userRepricingUserRepricingDetail(rd) <- r;
-                skuUserRepricingDetail(rd) <- Purchase.skuInvoiceDetail(detail);
+                skuUserRepricingDetail(rd) <- skuInvoiceDetail(detail);
                 quantityUserRepricingDetail(rd) <- toRepricingQuantityInvoiceDetail(detail);
 
-                curPriceUserRepricingDetail(rd) <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, Purchase.skuInvoiceDetail(detail), department, Purchase.dateTimeInvoiceDetail(detail));
+                curPriceUserRepricingDetail(rd) <- prevSupplierPricingPriceBSkuStockDateTime(skuInvoiceDetail(detail), department, dateTimeInvoiceDetail(detail));
                 curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBInvoiceDetail(detail);
 
-                priceUserRepricingDetail(rd) <- Purchase.priceInvoiceDetail(detail);
+                priceUserRepricingDetail(rd) <- priceInvoiceDetail(detail);
                 retailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);                          
 
                 overExtraValuation(rd, detail);
+        }
+
+        // дооценка в обратную сторону
+        FOR prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
+            toRepricingQuantityInvoiceDetail(detail) < 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(invoiceInvoiceDetail(detail))               
+            ADDOBJ rd = UserRepricingDetail DO {
+                userRepricingUserRepricingDetail(rd) <- r;
+                skuUserRepricingDetail(rd) <- skuInvoiceDetail(detail);
+                quantityUserRepricingDetail(rd) <- -toRepricingQuantityInvoiceDetail(detail);
+
+                curPriceUserRepricingDetail(rd) <- priceInvoiceDetail(detail);
+                curRetailPriceUserRepricingDetail(rd) <- retailPriceInvoiceDetail(detail);
+
+                priceUserRepricingDetail(rd) <- priceInvoiceDetail(detail);
+                retailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBInvoiceDetail(detail);                          
+
+                overExtraRevertValuation(rd, detail);
         }
         repricingInvoice(invoice) <- r WHERE inInvoice(invoice);
 

@@ -248,14 +248,14 @@ changedCostDataSkuLedger 'Перерасчитывалась себестоим�
 
 changedSessionLedger = DATA SESSION BOOLEAN (DataSkuLedger);
 updateDataSkuLedgerBatchCost() = ACTION {
-    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedSessionLedger(ledger);
+    costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedSessionLedger(ledger);
 
     LOCAL orderedLedger = INTEGER (DataSkuLedger);
-    ASSIGN orderedLedger(ledger) <- PARTITION SUM 1 IF changedSessionLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
+    orderedLedger(ledger) <- PARTITION SUM 1 IF changedSessionLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
 
     FOR iterate(i, 1, [= GROUP MAX orderedLedger(ledger)]()) DO {
-        ASSIGN changedCostDataSkuLedger(ledger) <- TRUE WHERE orderedLedger(ledger) == i;
-        ASSIGN costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch) WHERE orderedLedger(ledger) == i;
+        changedCostDataSkuLedger(ledger) <- TRUE WHERE orderedLedger(ledger) == i;
+        costDataSkuLedgerBatch(ledger, batch) <- quantityDataSkuLedgerBatch(ledger, batch) WHERE orderedLedger(ledger) == i;
     }
 }
 
@@ -385,11 +385,13 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     balanceB##postfix##SkuStockDateTime 'Остаток (до)'###caption (sku, stock, dateTime) = currentBalance##postfix##SkuStock(sku, stock)
                                                                               (-) [= GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) >= dateTime
                                                                                          BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateTime](sku, stock, dateTime);
+    prevBalanceB##postfix##SkuStockDateTime 'Остаток (до)'###caption (sku, stock, dateTime) = PREV(balanceB##postfix##SkuStockDateTime(sku, stock, dateTime) IF dateTime IS DATETIME);
 
     // с учетом текущей даты/времени
     balanceA##postfix##SkuStockDateTime 'Остаток (после)'###caption (sku, stock, dateTime) = currentBalance##postfix##SkuStock(sku, stock)
                                                                              (-) [= GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) > dateTime
                                                                                         BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateTime](sku, stock, dateTime);
+    prevBalanceA##postfix##SkuStockDateTime 'Остаток (после)'###caption (sku, stock, dateTime) = PREV(balanceA##postfix##SkuStockDateTime(sku, stock, dateTime) IF dateTime IS DATETIME);
 
     balanceA##postfix##GroupStockDateTime 'Остаток (после)'###caption (group,  stock, dateTime) =
         GROUP SUM balanceA##postfix##SkuStockDateTime (sku, stock, dateTime) IF isParentGroupSku(group, sku)
@@ -1484,7 +1486,7 @@ META defineDocumentInterfaceDetailSkuBalance(object)
 END
 
 META deriveDocumentDetailSkuBalanceCustom (detail, skuProp, stockProp)
-    balanceBSku###detail (detail)  <- [= PREV(balanceBSkuStockDateTime(sku, stock, dateTime) IF dateTime IS DATETIME)](skuProp###detail(detail), stockProp###detail(detail), dateTime###detail(detail))
+    balanceBSku###detail (detail)  <- prevBalanceBSkuStockDateTime(skuProp###detail(detail), stockProp###detail(detail), dateTime###detail(detail))
         WHEN CHANGED(skuProp###detail(detail)) OR CHANGED(stockProp###detail(detail)) OR CHANGED(dateTime###detail(detail));
 END
 META deriveDocumentDetailSkuBalance (object, skuProp, stockProp)

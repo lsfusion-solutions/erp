@@ -199,30 +199,34 @@ FORM machineryPriceTransactions 'Загрузки прайса в оборудо
 @extendFormFilterStockAccess(Stock, s, machineryPriceTransactions);
 
 DESIGN machineryPriceTransactions FROM DEFAULT {
-    main {
-        s.panel { type = CONTAINERH; }
-        NEW topContainer{
+    NEW header {
+        type = CONTAINERH;
+        ADD s.box {
+            PROPERTY(nameStock(s)) {
+                alignment = STRETCH;
+            }
+        }
+    }
+    NEW pane {
+        fill = 1;
+        type = SPLITV;
+        ADD t.box;
+        NEW specContainer{
             fill = 1;
-            type = SPLITV;
-
-            ADD t.box;
-            NEW specContainer{
+            type = TABBED;
+            ADD b.box;
+            NEW errorContainer {
                 fill = 1;
-                type = TABBED;
-                ADD b.box;
-                NEW errorContainer {
+                caption = 'Сообщения об ошибках';
+                ADD e.box;
+                PROPERTY(errorTraceMachineryPriceTransactionError(e)) {
                     fill = 1;
-                    caption = 'Сообщения об ошибках';
-                    ADD e.box;
-                    PROPERTY(errorTraceMachineryPriceTransactionError(e)) {
-                        fill = 1;
-                        panelLabelAbove = TRUE;
-                    }
+                    panelLabelAbove = TRUE;
                 }
             }
         }
-        ADD functions.box;
     }
+    ADD functions.box;
 }
 
 // ------------------------------------------------ Действия по загрузке ------------------------------------ //
@@ -349,7 +353,9 @@ EXTEND FORM machineryPriceTransactions
 ;
 
 EXTEND DESIGN machineryPriceTransactions {
-    s.panel {
+    header {
+        ADD s.incrementMachineryPrice;
+        ADD s.snapshotMachineryPrice;
         NEW requestContainer {
             type = CONTAINERH;
             caption = 'Обмен данными за день';
