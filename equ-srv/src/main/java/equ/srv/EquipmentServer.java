@@ -64,7 +64,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule legalEntityLM;
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule priceListLedgerLM;
-    private ScriptingLogicsModule purchaseOrderLM;
+    private ScriptingLogicsModule purchaseInvoiceAgreementLM;
     private ScriptingLogicsModule scalesLM;
     private ScriptingLogicsModule stopListLM;
     private ScriptingLogicsModule scalesItemLM;
@@ -116,7 +116,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         legalEntityLM = (ScriptingLogicsModule) getBusinessLogics().getModule("LegalEntity");
         priceCheckerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentPriceChecker");
         priceListLedgerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PriceListLedger");
-        purchaseOrderLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseOrder");
+        purchaseInvoiceAgreementLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseInvoiceAgreement");
         scalesItemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ScalesItem");
         scalesLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentScales");
         stopListLM = (ScriptingLogicsModule) getBusinessLogics().getModule("StopList");
@@ -654,7 +654,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     private List<TerminalOrder> readTerminalOrderList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        if (purchaseOrderLM != null) {
+        if (purchaseInvoiceAgreementLM != null) {
 
             List<TerminalOrder> terminalOrderList = new ArrayList<TerminalOrder>();
             KeyExpr orderExpr = new KeyExpr("order");
@@ -663,26 +663,33 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             QueryBuilder<Object, Object> orderQuery = new QueryBuilder<Object, Object>(orderKeys);
             String[] orderProperties = new String[]{"dateOrder", "numberOrder", "supplierOrder"};
             for (String property : orderProperties) {
-                orderQuery.addProperty(property, purchaseOrderLM.findLCPByCompoundOldName(property).getExpr(orderExpr));
+                orderQuery.addProperty(property, purchaseInvoiceAgreementLM.findLCPByCompoundOldName(property).getExpr(orderExpr));
             }
-            String[] orderDetailProperties = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail", "quantityOrderDetail"};
+            String[] orderDetailProperties = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
+                    "quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
+                    "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail"};
             for (String property : orderDetailProperties) {
-                orderQuery.addProperty(property, purchaseOrderLM.findLCPByCompoundOldName(property).getExpr(orderDetailExpr));
+                orderQuery.addProperty(property, purchaseInvoiceAgreementLM.findLCPByCompoundOldName(property).getExpr(orderDetailExpr));
             }
-            orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-            orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("numberOrder").getExpr(orderExpr).getWhere());
-            orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("isOpenedOrder").getExpr(orderExpr).getWhere());
-            orderQuery.and(purchaseOrderLM.findLCPByCompoundOldName("idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
+            orderQuery.and(purchaseInvoiceAgreementLM.findLCPByCompoundOldName("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
+            orderQuery.and(purchaseInvoiceAgreementLM.findLCPByCompoundOldName("numberOrder").getExpr(orderExpr).getWhere());
+            orderQuery.and(purchaseInvoiceAgreementLM.findLCPByCompoundOldName("isOpenedOrder").getExpr(orderExpr).getWhere());
+            orderQuery.and(purchaseInvoiceAgreementLM.findLCPByCompoundOldName("idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> orderResult = orderQuery.executeClasses(session);
             for (ImMap<Object, ObjectValue> entry : orderResult.values()) {
                 Date dateOrder = (Date) entry.get("dateOrder").getValue();
                 String numberOrder = trim((String) entry.get("numberOrder").getValue());
-                String idSupplier = trim((String) purchaseOrderLM.findLCPByCompoundOldName("idLegalEntity").read(session, entry.get("supplierOrder")));
+                String idSupplier = trim((String) purchaseInvoiceAgreementLM.findLCPByCompoundOldName("idLegalEntity").read(session, entry.get("supplierOrder")));
                 String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail").getValue());
                 String name = trim((String) entry.get("nameSkuOrderDetail").getValue());
                 BigDecimal price = (BigDecimal) entry.get("priceOrderDetail").getValue();
                 BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail").getValue();
-                terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price, quantity));
+                BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail").getValue();
+                BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail").getValue();
+                BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail").getValue();
+                BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail").getValue();
+                terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price, 
+                        quantity, minQuantity, maxQuantity, minPrice, maxPrice));
             }
             return terminalOrderList;
         } else return null;

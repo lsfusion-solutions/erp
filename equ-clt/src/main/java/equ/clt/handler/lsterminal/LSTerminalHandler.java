@@ -387,6 +387,10 @@ public class LSTerminalHandler extends TerminalHandler {
                 " barcode   TEXT," +
                 " quant   REAL," +
                 " price    REAL," +
+                " minquant    REAL," +
+                " maxquant    REAL," +
+                " minprice    REAL," +
+                " maxprice    REAL," +
                 "PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
         statement.close();
@@ -399,9 +403,10 @@ public class LSTerminalHandler extends TerminalHandler {
             for (TerminalOrder order : transactionInfo.terminalOrderList) {
                 if (order.number != null) {
                     String supplier = order.supplier == null ? "" : ("ПС" + formatValue(order.supplier));
-                    sql += String.format("INSERT OR REPLACE INTO zayavki VALUES('%s', '%s', '%s', '%s', '%s', '%s');",
+                    sql += String.format("INSERT OR REPLACE INTO zayavki VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
                             formatValue(order.date), formatValue(order.number), supplier, formatValue(order.barcode),
-                            formatValue(order.quantity), formatValue(order.price));
+                            formatValue(order.quantity), formatValue(order.price), formatValue(order.minQuantity),
+                            formatValue(order.maxQuantity), formatValue(order.minPrice), formatValue(order.maxPrice));
                 }
             }
             sql += "COMMIT;";

@@ -12,8 +12,14 @@ public class TerminalOrder implements Serializable {
     public String name;
     public BigDecimal price;
     public BigDecimal quantity;
+    public BigDecimal minQuantity;
+    public BigDecimal maxQuantity;
+    public BigDecimal minPrice;
+    public BigDecimal maxPrice;
 
-    public TerminalOrder(Date date, String number, String supplier, String barcode, String name, BigDecimal price, BigDecimal quantity) {
+    public TerminalOrder(Date date, String number, String supplier, String barcode, String name, BigDecimal price, 
+                         BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity, BigDecimal minPrice,
+                         BigDecimal maxPrice) {
         this.date = date;
         this.number = number;
         this.supplier = supplier;
@@ -21,5 +27,9 @@ public class TerminalOrder implements Serializable {
         this.name = name;
         this.price = price;
         this.quantity = quantity;
+        this.minQuantity = minQuantity;
+        this.maxQuantity = maxQuantity;
+        this.minPrice = minPrice;
+        this.maxPrice = maxPrice;
     }
 }
