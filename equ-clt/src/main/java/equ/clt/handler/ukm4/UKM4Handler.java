@@ -13,14 +13,17 @@ import org.xBaseJ.xBaseJException;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.Time;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
+    String defaultCharset = "Cp1251";
+    
     public UKM4Handler() {
     }
 
@@ -87,7 +90,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 fileBar = new DBF(path, DBF.DBASEIV, true, "CP866");
                 fileBar.addField(new Field[]{BARCODE, CARDARTICU, CARDSIZE, QUANTITY});
 
-                for (ItemInfo item : transactionInfo.itemsList) {
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     BARCODE.put(item.idBarcode);
                     CARDARTICU.put(item.idBarcode); //или что туда надо писать?
                     CARDSIZE.put("NOSIZE");
@@ -101,9 +104,14 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 fileClassif = new DBF(path, DBF.DBASEIV, true, "CP866");
                 fileClassif.addField(new Field[]{GROOP1, GROOP2, GROOP3, GROOP4, GROOP5, NAME});
 
-                for (ItemInfo item : transactionInfo.itemsList) {
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     NAME.put(item.name.substring(0, Math.min(item.name.length(), 50)));
-                    //А группы откуда брать?
+                    int size = item.hierarchyItemGroup.size();
+                    GROOP1.put(size >= 1 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 1).idItemGroup : "0");
+                    GROOP2.put(size >= 2 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 2).idItemGroup : "0");
+                    GROOP3.put(size >= 3 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 3).idItemGroup : "0");
+                    GROOP4.put(size >= 4 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 4).idItemGroup : "0");
+                    GROOP5.put(size >= 5 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 5).idItemGroup : "0");
                     fileClassif.write();
                     fileClassif.file.setLength(fileClassif.file.length() - 1);
                 }
@@ -115,17 +123,18 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                         CLIENTINDE, COMMENTARY, DELETED, MODDATE, MODTIME, MODPERSONI
                 });
 
-                for (ItemInfo item : transactionInfo.itemsList) {
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     ARTICUL.put(item.idBarcode);
                     NAME.put(item.name.substring(0, Math.min(item.name.length(), 50)));
                     MESURIMENT.put(item.isWeightItem ? "кг" : "1");
                     MESPRESISI.put(item.isWeightItem ? 0.001 : 1.000);
                     SCALE.put("NOSIZE");
-                    GROOP1.put(0); //классификация
-                    GROOP2.put(0);
-                    GROOP3.put(0);
-                    GROOP4.put(0);
-                    GROOP5.put(1);
+                    int size = item.hierarchyItemGroup.size();
+                    GROOP1.put(size >= 1 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 1).idItemGroup : "0");
+                    GROOP2.put(size >= 2 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 2).idItemGroup : "0");
+                    GROOP3.put(size >= 3 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 3).idItemGroup : "0");
+                    GROOP4.put(size >= 4 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 4).idItemGroup : "0");
+                    GROOP5.put(size >= 5 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 5).idItemGroup : "0");
                     PRICERUB.put(item.price.doubleValue());
                     CLIENTINDE.put(0);
                     DELETED.put(1);
@@ -138,7 +147,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 filePlulim = new DBF(path, DBF.DBASEIV, true, "CP866");
                 filePlulim.addField(new Field[]{CARDARTICU, PERCENT});
 
-                for (ItemInfo item : transactionInfo.itemsList) {
+                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     CARDARTICU.put(item.idBarcode);
                     PERCENT.put(0); //откуда брать макс. процент скидки?
                     filePlulim.write();
@@ -198,12 +207,12 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                         for (int i = 0; i < recordDiscCount; i++) {
                             importDiscFile.read();
 
-                            String cashRegisterNumber = new String(importDiscFile.getField("CASHNUMBER").getBytes(), "Cp1251").trim();
-                            String zNumber = new String(importDiscFile.getField("ZNUMBER").getBytes(), "Cp1251").trim();
-                            Integer receiptNumber = new Integer(new String(importDiscFile.getField("CHECKNUMBE").getBytes(), "Cp1251").trim());
-                            Integer numberReceiptDetail = new Integer(new String(importDiscFile.getField("ID").getBytes(), "Cp1251").trim());
-                            Integer type = new Integer(new String(importDiscFile.getField("DISCOUNTIN").getBytes(), "Cp1251").trim());
-                            BigDecimal discountSum = new BigDecimal(new String(importDiscFile.getField("DISCOUNTRU").getBytes(), "Cp1251").trim());
+                            String cashRegisterNumber = getDBFFieldValue(importDiscFile, "CASHNUMBER", defaultCharset);
+                            String zNumber = getDBFFieldValue(importDiscFile, "ZNUMBER", defaultCharset);
+                            Integer receiptNumber = getDBFIntegerFieldValue(importDiscFile, "CHECKNUMBE", defaultCharset);
+                            Integer numberReceiptDetail = getDBFIntegerFieldValue(importDiscFile, "ID", defaultCharset);
+                            Integer type = getDBFIntegerFieldValue(importDiscFile, "DISCOUNTIN", defaultCharset);
+                            BigDecimal discountSum = getDBFBigDecimalFieldValue(importDiscFile, "DISCOUNTRU", defaultCharset);
 
                             String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail;
                             if (type.equals(4)) {
@@ -222,10 +231,10 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                         for (int i = 0; i < recordCardCount; i++) {
                             importCardFile.read();
 
-                            String cashRegisterNumber = new String(importCardFile.getField("CASHNUMBER").getBytes(), "Cp1251").trim();
-                            String zNumber = new String(importCardFile.getField("ZNUMBER").getBytes(), "Cp1251").trim();
-                            Integer receiptNumber = new Integer(new String(importCardFile.getField("CHECKNUMBE").getBytes(), "Cp1251").trim());
-                            String cardNumber = new String(importCardFile.getField("CARDNUMBER").getBytes(), "Cp1251").trim();
+                            String cashRegisterNumber = getDBFFieldValue(importCardFile, "CASHNUMBER", defaultCharset);
+                            String zNumber = getDBFFieldValue(importCardFile, "ZNUMBER", defaultCharset);
+                            Integer receiptNumber = getDBFIntegerFieldValue(importCardFile, "CHECKNUMBE", "Cp1251");
+                            String cardNumber = getDBFFieldValue(importCardFile, "CARDNUMBER", "Cp1251");
 
                             String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber;
                             discountCardMap.put(sid, cardNumber);
@@ -240,24 +249,24 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                         int recordSailCount = importSailFile.getRecordCount();
                         Map<Integer, BigDecimal[]> receiptNumberSumReceipt = new HashMap<Integer, BigDecimal[]>();
 
-                        for (int i = 0; i < /*recordSailCount*/87; i++) {
+                        for (int i = 0; i < recordSailCount; i++) {
                             importSailFile.read();
 
-                            Integer operation = new Integer(new String(importSailFile.getField("OPERATION").getBytes(), "Cp1251").trim());
+                            Integer operation = getDBFIntegerFieldValue(importSailFile, "OPERATION", defaultCharset);
                             //0 - возврат cash, 1 - продажа cash, 2,4 - возврат card, 3,5 - продажа card
 
-                            String cashRegisterNumber = new String(importSailFile.getField("CASHNUMBER").getBytes(), "Cp1251").trim();
-                            String zNumber = new String(importSailFile.getField("ZNUMBER").getBytes(), "Cp1251").trim();
-                            Integer receiptNumber = new Integer(new String(importSailFile.getField("CHECKNUMBE").getBytes(), "Cp1251").trim());
-                            Integer numberReceiptDetail = new Integer(new String(importSailFile.getField("ID").getBytes(), "Cp1251").trim());
-                            java.sql.Date date = new java.sql.Date(new SimpleDateFormat("yyyymmdd").parse(new String(importSailFile.getField("DATE").getBytes(), "Cp1251").trim()).getTime());
-                            String timeString = new String(importSailFile.getField("TIME").getBytes(), "Cp1251").trim();
+                            String cashRegisterNumber = getDBFFieldValue(importSailFile, "CASHNUMBER", defaultCharset);
+                            String zNumber = getDBFFieldValue(importSailFile, "ZNUMBER", defaultCharset);
+                            Integer receiptNumber = getDBFIntegerFieldValue(importSailFile, "CHECKNUMBE", defaultCharset);
+                            Integer numberReceiptDetail = getDBFIntegerFieldValue(importSailFile, "ID", defaultCharset);
+                            Date date = getDBFDateFieldValue(importSailFile, "DATE", defaultCharset);
+                            String timeString = getDBFFieldValue(importSailFile, "TIME", defaultCharset);
                             timeString = timeString.length() == 3 ? ("0" + timeString) : timeString;
-                            java.sql.Time time = new java.sql.Time(DateUtils.parseDate(timeString, new String[]{"HHmm"}).getTime());
-                            String barcodeReceiptDetail = new String(importSailFile.getField("CARDARTICU").getBytes(), "Cp1251").trim();
-                            BigDecimal quantityReceiptDetail = new BigDecimal(new String(importSailFile.getField("QUANTITY").getBytes(), "Cp1251").trim());
-                            BigDecimal priceReceiptDetail = new BigDecimal(new String(importSailFile.getField("PRICERUB").getBytes(), "Cp1251").trim());
-                            BigDecimal sumReceiptDetail = new BigDecimal(new String(importSailFile.getField("TOTALRUB").getBytes(), "Cp1251").trim());
+                            Time time = new Time(DateUtils.parseDate(timeString, new String[]{"HHmm"}).getTime());
+                            String barcodeReceiptDetail = getDBFFieldValue(importSailFile, "CARDARTICU", defaultCharset);
+                            BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "QUANTITY", defaultCharset);
+                            BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset);
+                            BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "TOTALRUB", defaultCharset);
                             BigDecimal discountSumReceiptDetail = discountMap.get(cashRegisterNumber + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail);
                             String discountCardNumber = discountCardMap.get(cashRegisterNumber + "_" + zNumber + "_" + receiptNumber);
 
@@ -326,5 +335,53 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
         if (operand1 == null && operand2 == null)
             return null;
         else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+    }
+
+    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
+        return getDBFFieldValue(importFile, fieldName, charset, null);
+    }
+    
+    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
+        return getDBFFieldValue(importFile, fieldName, charset, false, defaultValue);
+    }
+
+    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
+        try {
+            String result = new String(importFile.getField(fieldName).getBytes(), charset).trim();
+            return result.isEmpty() || (zeroIsNull && result.equals("0")) ? defaultValue : result;
+        } catch (xBaseJException e) {
+            return defaultValue;
+        }
+    }
+
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
+        return getDBFBigDecimalFieldValue(importFile, fieldName, charset, null);
+    }
+
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
+        return getDBFBigDecimalFieldValue(importFile, fieldName, charset, false, defaultValue);
+    }
+
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
+        String result = getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
+        return (result == null || result.isEmpty() || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new BigDecimal(result.replace(",", "."));
+    }
+
+    protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
+        return getDBFIntegerFieldValue(importFile, fieldName, charset, false, null);
+    }
+    
+    protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
+        String result = getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
+        return (result == null || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new Double(result).intValue();
+    }
+
+    protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException, ParseException {
+        return getDBFDateFieldValue(importFile, fieldName, charset, null);
+    }
+    
+    protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset, Date defaultValue) throws UnsupportedEncodingException, ParseException {
+        String dateString = getDBFFieldValue(importFile, fieldName, charset, false, "");
+        return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd", "dd.MM.yyyy"}).getTime());
     }
 }
