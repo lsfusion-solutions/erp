@@ -450,7 +450,7 @@ EXTEND DESIGN options {
 //-- Для одного объекта
 
 META defineGeneralLedger (object, idGL, companyProp, property, dateProp, timeProp, description, debit, credit, accountType)
-    overCreateUserGeneralLedger###idGL###object = ABSTRACT ACTION LIST (UserGeneralLedger);  
+    overCreate###idGL###object##UserGeneralLedger = ABSTRACT ACTION LIST (UserGeneralLedger);  
 
     createUserGeneralLedgerALL###idGL###object###date 'Создать проводки' = ACTION (date) {     
         FOR property###object(object) AND dateProp###object(object) >= (date AS DATE) ADDOBJ u = UserGeneralLedger DO  {
@@ -464,7 +464,7 @@ META defineGeneralLedger (object, idGL, companyProp, property, dateProp, timePro
             creditUserGeneralLedger(u) <- GLAccountIdTypeIdGLAccount(accountType, credit);
             sumUserGeneralLedger(u) <- NUMERIC[16,2](property###object(object));   
             
-            EXEC overCreateUserGeneralLedger###idGL###object(u); 
+            EXEC overCreate###idGL###object##UserGeneralLedger(u); 
         }    
     }
     createGeneralLedgerDate(date) += createUserGeneralLedgerALL###idGL###object###date(date);
@@ -490,8 +490,8 @@ END
 
 META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, dateProp, timeProp, descriptionProp, debit, credit, accountType)
 
-    overCreateUserGeneralLedger###idGL###object1###object2 = ABSTRACT ACTION LIST (UserGeneralLedger);  
-    overCreateUserGeneralLedgerDimension###idGL###object1###object2 = ABSTRACT ACTION LIST (UserGeneralLedger, Dimension);  
+    overCreate###idGL###object1###object2##UserGeneralLedger = ABSTRACT ACTION LIST (UserGeneralLedger);  
+    overCreate###idGL###object1###object2##UserGeneralLedgerDimension = ABSTRACT ACTION LIST (UserGeneralLedger, Dimension);  
     createUserGeneralLedgerALL###idGL###object1###object2###date 'Создать проводки' = ACTION (date) {     
         FOR property###object1###object2(object1, object2) AND dateProp###object1(object1) >= (date AS DATE) ADDOBJ u = UserGeneralLedger DO  {
             GLDocumentUserGeneralLedger(u) <- object1;
@@ -504,8 +504,8 @@ META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, d
             creditUserGeneralLedger(u) <- GLAccountIdTypeIdGLAccount(accountType, credit);
             sumUserGeneralLedger(u) <- NUMERIC[16,2](property###object1###object2(object1, object2));   
             
-            EXEC overCreateUserGeneralLedgerDimension###idGL###object1###object2(u,object2);
-            EXEC overCreateUserGeneralLedger###idGL###object1###object2(u); 
+            EXEC overCreate###idGL###object1###object2##UserGeneralLedgerDimension(u,object2);
+            EXEC overCreate###idGL###object1###object2##UserGeneralLedger(u); 
         }    
     }
     createGeneralLedgerDate(date) += createUserGeneralLedgerALL###idGL###object1###object2###date(date);

@@ -363,14 +363,14 @@ META defineItemAttribute(attribute, formProperty, caption, group)
 
     EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute##ItemGroup;
     EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() show###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
-    EXTEND FORM item PROPERTIES(i) formProperty###item SHOWIF show###attribute##Item(i);
-    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty###item SHOWIF show###attribute##ItemGroup(g);
+    EXTEND FORM item PROPERTIES(i) formProperty###attribute###item SHOWIF show###attribute##Item(i);
+    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty###attribute###item SHOWIF show###attribute##ItemGroup(g);
 END
 
 // Примитивный тип
 META definePrimitiveItemAttribute(attribute, type, caption, group)
     attribute##Item caption = DATA type (Item) IN group;
-    @defineItemAttribute(attribute, attribute, caption, group);
+    @defineItemAttribute(attribute, , caption, group);
 END
 
 META implementItemAttribute(property, caption, itemType, attributeClass)
@@ -475,7 +475,7 @@ END
 
 META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
     attribute##Item = DATA attributeClass (Item);
-    identity##Item caption (item) = identity(attribute##Item(item)) IN group;
+    identity###attribute##Item caption (item) = identity###attribute(attribute##Item(item)) IN group;
     @defineItemAttribute(attribute, identity, caption, group);
 END
 
@@ -619,7 +619,7 @@ EXTEND FORM UOMs
     PROPERTIES(u) READONLY isWeightUOM, netWeightUOM, grossWeightUOM
 ;
 
-@defineObjectItemAttribute(UOM, UOM, nameUOM, 'Единица измерения', itemBase);
+@defineObjectItemAttribute(UOM, UOM, name, 'Единица измерения', itemBase);
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения', sku);
 
 shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMItem(item)) IN itemBase;
@@ -656,14 +656,14 @@ FORM brands 'Бренды'
 ;
 DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(brand, Brand, nameBrand, 'Бренд', itemBase);
+@defineObjectItemAttribute(brand, Brand, name, 'Бренд', itemBase);
 @defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
 @implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
 
 @defineItemFilterValue(brand, 'Бренд');
 
 // Страна
-@defineObjectItemAttribute(country, Country, nameCountry, 'Страна', itemBase);
+@defineObjectItemAttribute(country, Country, name, 'Страна', itemBase);
 @defineObjectItemAttributeBatch (country, nameCountry, 'Страна', sku);
 @implementItemAttribute(nameCountry, 'Страна', String, itemCountry);
 
@@ -702,7 +702,7 @@ FORM manufacturerDialog 'Производители товара'
 ;
 DESIGN manufacturerDialog FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-@defineObjectItemAttribute(manufacturer, Manufacturer, nameManufacturer, 'Производитель', itemBase);
+@defineObjectItemAttribute(manufacturer, Manufacturer, name, 'Производитель', itemBase);
 @defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
 @implementItemAttribute(nameManufacturer, 'Производитель', String, itemManufacturer);
 

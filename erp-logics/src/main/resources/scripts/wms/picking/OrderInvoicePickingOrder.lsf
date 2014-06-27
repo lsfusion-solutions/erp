@@ -126,11 +126,13 @@ META defineOrderInvoicePickingOrder (sign)
     Invoice.createPickingUserInvoicePostedOrder(o) += createPickingUserInvoicePostedOrder(o); 
 
     addPickingUserInvoiceOrder 'Накладная по комплектации'###sign =  ACTION (order) NEWSESSION{
-        createPickingUserInvoiceOrder(order);
-        IF excessQuantityPickingPickingDetailOrder(order) THEN {
-            MESSAGE 'В накладной присутствуют товары, не указанные в заказе';
+        IF order IS Order THEN {
+            createPickingUserInvoiceOrder(order);
+            IF excessQuantityPickingPickingDetailOrder(order) THEN {
+                MESSAGE 'В накладной присутствуют товары, не указанные в заказе';
+            }
+            FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
         }
-        FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
     } TOOLBAR;
 
     EXTEND FORM orders

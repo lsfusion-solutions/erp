@@ -246,12 +246,12 @@ iterate(i, from, to) = RECURSION i==from AND from IS INTEGER AND to IS INTEGER S
 //WHEN SET(isPostedDataSkuLedger(ledger)) DO EXEC resetCostDataSkuLedger (ledger) ORDER orderDataSkuLedger(ledger);
 changedCostDataSkuLedger 'Перерасчитывалась себестоимость' = DATA SESSION BOOLEAN (DataSkuLedger);
 
-changedLedger = DATA SESSION BOOLEAN (DataSkuLedger);
+changedSessionLedger = DATA SESSION BOOLEAN (DataSkuLedger);
 updateDataSkuLedgerBatchCost() = ACTION {
-    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedLedger(ledger);
+    ASSIGN costDataSkuLedgerBatch(ledger, batch) <- NULL WHERE changedSessionLedger(ledger);
 
     LOCAL orderedLedger = INTEGER (DataSkuLedger);
-    ASSIGN orderedLedger(ledger) <- PARTITION SUM 1 IF changedLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
+    ASSIGN orderedLedger(ledger) <- PARTITION SUM 1 IF changedSessionLedger(ledger) BY skuDataSkuLedger(ledger) ORDER orderDataSkuLedger(ledger);
 
     FOR iterate(i, 1, [= GROUP MAX orderedLedger(ledger)]()) DO {
         ASSIGN changedCostDataSkuLedger(ledger) <- TRUE WHERE orderedLedger(ledger) == i;
@@ -271,14 +271,14 @@ ON { // eventChangeLedger - так как внутрь рекурсивного 
 
     IF [= GROUP MAX eventChangedLedger(ledger)]() THEN
         NEWSESSION(eventChangedLedger) SINGLE {
-            changedLedger(ledger) <- eventChangedLedger(ledger);
+            changedSessionLedger(ledger) <- eventChangedLedger(ledger);
             updateDataSkuLedgerBatchCost();
         }
 }
 
 setDataSkuLedgerBatchCost 'Дорассчитать себестоимость' = ACTION () NEWSESSION {
     APPLY SINGLE { 
-        changedLedger(ledger) <- needToCostDataSkuLedger(ledger);
+        changedSessionLedger(ledger) <- needToCostDataSkuLedger(ledger);
         updateDataSkuLedgerBatchCost();
     }
 } CONFIRM;
@@ -289,7 +289,7 @@ resetDataSkuLedgerBatchCost 'Перерассчитать себестоимос
 
         FOR d == chosenDate('d') DO {
             APPLY SINGLE { 
-                changedLedger(ledger) <- dateSkuLedger(ledger) >= d AND isPostedDataSkuLedger(ledger);
+                changedSessionLedger(ledger) <- dateSkuLedger(ledger) >= d AND isPostedDataSkuLedger(ledger);
                 updateDataSkuLedgerBatchCost();
             }
         }
