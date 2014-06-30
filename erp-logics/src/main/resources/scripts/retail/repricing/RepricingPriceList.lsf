@@ -42,9 +42,29 @@ prevPriceAOperationSkuStockDateTime 'Цена (управленческая)' (o
     time
     ) COMPLEX; 
                  
-filterQuantityOperationSkuStockDateTime(operation,sku,department,time) = currentBalanceSkuStock(sku, department) AND
-            prevPriceAOperationSkuStockDateTime(operation, sku, department, time) != 
-            prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time);
+useAllItemRepricing 'Переоценивать товары без остатка' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() useAllItemRepricing 
+;
+
+EXTEND DESIGN options {
+commons{
+    ADD PROPERTY(useAllItemRepricing());
+}
+}
+                
+filterQuantityOperationSkuStockDateTime(operation,sku,department,time) = IF useAllItemRepricing() 
+            THEN
+               prevPriceAOperationSkuStockDateTime(operation, sku, department, time) AND 
+               NOT prevPriceAOperationSkuStockDateTime(operation, sku, department, time) == prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time)
+            ELSE
+               currentBalanceSkuStock(sku, department) AND
+               prevPriceAOperationSkuStockDateTime(operation, sku, department, time) != 
+               prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time)
+;
+
+skipRepricingSku = ABSTRACT BOOLEAN (Sku, Stock);
 
 overCreateManagementRepricingOperationStockDateTime 'Создать управленческую переоценку' (operation, department, time) = ACTION (operation, department, time) {
     FOR ADDOBJ r = UserRepricing DO {
@@ -53,7 +73,7 @@ overCreateManagementRepricingOperationStockDateTime 'Создать управл
         dateUserRepricing(r) <-  toDate(time);
         timeUserRepricing(r) <- toTime(time);               
 
-        FOR filterQuantityOperationSkuStockDateTime(operation,sku,department,time) ADDOBJ rd = UserRepricingDetail DO {
+        FOR filterQuantityOperationSkuStockDateTime(operation,sku,department,time) AND NOT skipRepricingSku(sku, department) ADDOBJ rd = UserRepricingDetail DO {
             userRepricingUserRepricingDetail(rd) <- r;
             skuUserRepricingDetail(rd) <- sku;
             quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, department);
