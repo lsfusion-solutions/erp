@@ -22,7 +22,7 @@ supplierPriceUserOutputDetail(detail) <- componentsPriceProductDetail(productDet
 @defineDocumentHeaderSumCustomPrefix (output, outputDetail, supplier,' входная');
 
 @defineDocumentInterfaceDetailPricePrefix(output, retail, ' выходная');
-retailPriceUserOutputDetail(detail) <- productsPriceProductDetail(productDetailUserOutputDetail(detail))
+retailPriceUserOutputDetail(detail) <- priceProductDetail(productDetailUserOutputDetail(detail))
                   WHEN CHANGED(productDetailUserOutputDetail(detail));
 @defineDocumentInterfaceDetailVAT(output, countryStock, retail, );
 valueRetailVATUserOutputDetail(detail) <- valueVATProductDetail(productDetailUserOutputDetail(detail))
@@ -85,14 +85,15 @@ VATMarkupSumProductDetail 'НДС и надбавка' (productDetail) =  NUMERI
 retailVATSumProductDetail 'Сумма НДС' (productDetail) = NUMERIC[16,2](roundPriceCurrency([= X*Y/(100+Y)](VATMarkupSumProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
 retailMarkupSumProductDetail 'Сумма надбавки' (productDetail) = NUMERIC[16,2](VATMarkupSumProductDetail(productDetail) (-) retailVATSumProductDetail(productDetail));
 retailMarkupProductDetail 'Надбавка, %'(productDetail) = NUMERIC[8,3]([= round2(X*100/Y)](retailMarkupSumProductDetail(productDetail), componentsSumProductDetail(productDetail)));
+
 //--  если стоит галочка isVATOrder
 retVATSumProductDetail 'Сумма НДС' (productDetail) = NUMERIC[16,2](roundPriceCurrency([= X*Y/(100+Y)](outputProductsSumProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
 retMarkupSumProductDetail 'Сумма надбавки' (productDetail) = NUMERIC[16,2](roundPriceCurrency(outputProductsSumProductDetail(productDetail) (-) retVATSumProductDetail(productDetail) (-) componentsSumProductDetail(productDetail), currencyProductDetail(productDetail)));
 retMarkupProductDetail 'Надбавка, %'(productDetail) = NUMERIC[8,3]([= round2(X*100/Y)](retMarkupSumProductDetail(productDetail), componentsSumProductDetail(productDetail)));
 
-overVATSumProductDetail 'Сумма НДС' (d) = IF isVATProductDetail(d) THEN retVATSumProductDetail(d) ELSE retailVATSumProductDetail(d);
-overMarkupSumProductDetail 'Сумма надбавки' (d) = IF isVATProductDetail(d) THEN retMarkupSumProductDetail(d) ELSE retailMarkupSumProductDetail(d);
-overMarkupProductDetail 'Надбавка, %' (d) = IF isVATProductDetail(d) THEN retMarkupProductDetail(d) ELSE retailMarkupProductDetail(d);
+overVATSumProductDetail 'Сумма НДС' (d) = IF addVATProductDetail(d) THEN retVATSumProductDetail(d) ELSE retailVATSumProductDetail(d);
+overMarkupSumProductDetail 'Сумма надбавки' (d) = IF addVATProductDetail(d) THEN retMarkupSumProductDetail(d) ELSE retailMarkupSumProductDetail(d);
+overMarkupProductDetail 'Надбавка, %' (d) = IF addVATProductDetail(d) THEN retMarkupProductDetail(d) ELSE retailMarkupProductDetail(d);
 
 pricingCommitteeOutput(output) += pricingCommitteeOrder(orderOrderOutput(output));
 createPricingOutput(output) += createPricingOrder(orderOrderOutput(output));
@@ -105,7 +106,7 @@ valueRetailVATOutputDetail(outputDetail) += valueVATProductDetail(productDetailO
 retailMarkupOutputDetail(outputDetail) += overMarkupProductDetail(productDetailOrderOutputDetail(outputDetail));
 retailVATSumOutputDetail(outputDetail)+= overVATSumProductDetail(productDetailOrderOutputDetail(outputDetail));
 retailMarkupSumOutputDetail(outputDetail) += overMarkupSumProductDetail(productDetailOrderOutputDetail(outputDetail));
-retailPriceOutputDetail(outputDetail) += productsPriceProductDetail(productDetailOrderOutputDetail(outputDetail));
+retailPriceOutputDetail(outputDetail) += priceProductDetail(productDetailOrderOutputDetail(outputDetail));
 retailSumOutputDetail(outputDetail) += outputProductsSumProductDetail(productDetailOrderOutputDetail(outputDetail));
 
 EXTEND FORM order

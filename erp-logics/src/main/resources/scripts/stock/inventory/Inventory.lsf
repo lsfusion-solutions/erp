@@ -91,9 +91,9 @@ CLASS TypeOfAddition 'Тип инвентаризации' {
     remains 'Товары по остаткам',
     many    'Множество товаров'
 }
-FORM typeOfAdditions 
+FORM typeOfAdditions 'Типы инвентаризаций'
     OBJECTS t = TypeOfAddition
-    PROPERTIES(t) staticCaption
+    PROPERTIES(t) READONLY staticCaption
     DIALOG TypeOfAddition OBJECT t
 ;
 
@@ -923,15 +923,12 @@ DESIGN listInventory FROM DEFAULT {
     }
 }
 
-addListInventoryStockInventory 'Добавить' = ACTION (stock, inventory) NEWSESSION {
-
+addListInventoryStockInventory 'Добавить' = ACTION (stock, inventory) NEWSESSION NESTED {
     FOR ADDOBJ g = ListInventory DO {
-        ASSIGN stockListInventory(g) <- stock;
-        ASSIGN inventoryListInventory(g) <- inventory;
-        FORM listInventory OBJECTS li = g MODAL;
-        IF formResult() == FormResult.ok THEN
-            EXEC apply();
-    };
+        stockListInventory(g) <- stock;
+        inventoryListInventory(g) <- inventory;
+        FORM listInventory OBJECTS li = g MANAGESESSION DOCKEDMODAL;
+    }
 } TOOLBAR IMAGE 'add.png';
 
 // --------------------------------------------- Формы инвентаризаций ------------------------------------- //
@@ -959,7 +956,7 @@ FORM inventory 'Инвентаризация'
 
     PROPERTIES(li)   READONLY countPageInventoryDetailListInventory, quantityPageInventoryDetailListInventory, sumPageInventoryDetailListInventory, isPostedListInventory
 
-    PROPERTIES(li)   editLI = EDITFORM FORCE PANEL SHOWIF isDraftListInventory(li), deleteli=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftListInventory(li),
+    PROPERTIES(li)   editLI = EDITNESTEDFORM FORCE PANEL SHOWIF isDraftListInventory(li), deleteli=DELETESESSION FORCE PANEL TOOLBAR SHOWIF isDraftListInventory(li),
                      postListInventory FORCE PANEL SHOWIF isDraftListInventory(li), unpostListInventory FORCE PANEL SHOWIF isPostedListInventory(li)
 
     PROPERTIES(pl)   READONLY countPageInventoryDetailPageInventory, quantityPageInventoryDetailPageInventory, sumPageInventoryDetailPageInventory, dumbPageInventory

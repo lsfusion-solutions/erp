@@ -112,7 +112,7 @@ priceUserOutputDetail(detail) <- IF priceListTypeUserOutputDetail(detail) THEN
                                                                             skuUserOutputDetail(detail),
                                                                             stockUserOutputDetail(detail),
                                                                             dateTimeUserOutputDetail(detail))
-                                    ELSE productsPriceProductDetail(productDetailUserOutputDetail(detail))
+                                    ELSE priceProductDetail(productDetailUserOutputDetail(detail))
     WHEN CHANGED(priceListTypeUserOutputDetail(detail)) OR
          CHANGED(skuUserOutputDetail(detail)) OR
          CHANGED(stockUserOutputDetail(detail)) OR
@@ -128,7 +128,7 @@ FORM outputOrders 'Производственные заказы'
     OBJECTS o = Order
     PROPERTIES(o) READONLY isPostedOrder FORCE GRID, numberOrder, seriesOrder, dateOrder, timeOrder,
                   nameComponentsStockOrder, nameProductsStockOrder, fromDateOrder, toDateOrder, quantityProductDetailOrder,
-                  productsSumProductDetailOrder, quantityProductDetailOrder,
+                  sumProductDetailOrder, quantityProductDetailOrder,
                   nameCalcPriceListTypeOrder, namePriceListTypeOrder, noteOrder
     FILTERS isPostedOrder(o),
             componentsStockOrder(o) == s,
@@ -136,7 +136,7 @@ FORM outputOrders 'Производственные заказы'
 
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) READONLY indexProductDetail, nameSkuProductDetail, nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
-                   calcComponentsPriceProductDetail, componentsPriceProductDetail, markupProductDetail, productsPriceProductDetail, productsSumProductDetail
+                   calcComponentsPriceProductDetail, componentsPriceProductDetail, markupProductDetail, priceProductDetail, sumProductDetail
     FILTERS orderProductDetail(pd)==o
 
     OBJECTS cd = ComponentDetail
@@ -224,9 +224,9 @@ outputQuantityProductDetail(detail) <- quantityProductDetail(detail) WHEN CHANGE
 
 outputProductsSumProductDetail 'Сумма произведенного изделия' = DATA NUMERIC[16,2] (ProductDetail);
 outputProductsSumProductDetail(productDetail) <-
-    NUMERIC[16,2](roundPriceCurrency((outputQuantityProductDetail(productDetail) * productsPriceProductDetail(productDetail)), currencyProductDetail(productDetail)))
+    NUMERIC[16,2](roundPriceCurrency((outputQuantityProductDetail(productDetail) * priceProductDetail(productDetail)), currencyProductDetail(productDetail)))
     WHEN CHANGED (outputQuantityProductDetail(productDetail)) OR
-         CHANGED (productsPriceProductDetail(productDetail)) OR
+         CHANGED (priceProductDetail(productDetail)) OR
          CHANGED(currencyProductDetail(productDetail));
          
 fillOutputQuantityProductDetailOrder 'Заполнить кол-во (произведено) из остатков' (order)= ACTION (order) {
@@ -236,14 +236,14 @@ fillOutputQuantityProductDetailOrder 'Заполнить кол-во (произ
         WHERE balanceASkuStockDate(skuProductDetail(d), productsStockProductDetail(d), dateProductDetail(d)) < 0 AND orderProductDetail(d) == order;    
 } TOOLBAR;        
 
-outputProductsSumProductDetailOrder 'Сумма произведенного изделия'(order) = GROUP SUM outputProductsSumProductDetail(detail) BY orderProductDetail(detail) IN documentSum;
+outputProductsSumProductDetailOrder 'Сумма произведенных изделий' (order) = GROUP SUM outputProductsSumProductDetail(detail) BY orderProductDetail(detail) IN documentSum;
 
 backgroundOutputOrder 'Цвет' (order) = RGB(255, 224, 255) IF order IS Order;
 showOutputOrder (order) =  order IS Order AND NOT createOutputOrder(order);
 
 EXTEND FORM order
-    PROPERTIES(o)  BACKGROUND backgroundOutputOrder(o) createOutputOrder
-    PROPERTIES(o)  BACKGROUND backgroundOutputOrder(o) SHOWIF createOutputOrder(o) outputProductsSumProductDetailOrder
+    PROPERTIES(o) BACKGROUND backgroundOutputOrder(o) createOutputOrder
+    PROPERTIES(o) READONLY BACKGROUND backgroundOutputOrder(o) SHOWIF createOutputOrder(o) outputProductsSumProductDetailOrder
     PROPERTIES(o) fillOutputQuantityProductDetailOrder TODRAW pd    
 
     PROPERTIES(pd) BEFORE deletepd SHOWIF createOutputOrder(o) BACKGROUND backgroundOutputOrder(o) outputProductsSumProductDetail
@@ -258,12 +258,14 @@ EXTEND DESIGN order {
             ADD PROPERTY(createOutputOrder(o));
         }
     }
-    PROPERTY(outputProductsSumProductDetailOrder(o)) { preferredCharWidth = 13;}
+    
+    o.documentSum {
+        ADD PROPERTY(outputProductsSumProductDetailOrder(o)) AFTER PROPERTY(sumProductDetailOrder(o)) { preferredCharWidth = 13;}
+    }
 }
 
 EXTEND FORM orders
-
-    PROPERTIES(o)  READONLY BACKGROUND backgroundOutputOrder(o) outputProductsSumProductDetailOrder AFTER productsSumProductDetailOrder(o)
+    PROPERTIES(o)  READONLY BACKGROUND backgroundOutputOrder(o) outputProductsSumProductDetailOrder AFTER sumProductDetailOrder(o)
 
     PROPERTIES(pd) READONLY SHOWIF createOutputOrder(o) BACKGROUND backgroundOutputOrder(o) outputProductsSumProductDetail
     PROPERTIES(pd) READONLY outputProductDetail AFTER quantityProductDetail(pd) SHOWIF showOutputOrder(o) BACKGROUND backgroundOutputOrder(o)
@@ -318,7 +320,7 @@ quantityOutputDetail(outputDetail) += outputQuantityProductDetail(productDetailO
 
 priceListTypeOutputDetail(outputDetail) += calcPriceListTypeProductDetail(productDetailOrderOutputDetail(outputDetail));
 
-priceOutputDetail(outputDetail) += productsPriceProductDetail(productDetailOrderOutputDetail(outputDetail));
+priceOutputDetail(outputDetail) += priceProductDetail(productDetailOrderOutputDetail(outputDetail));
 sumOutputDetail(outputDetail) += outputProductsSumProductDetail(productDetailOrderOutputDetail(outputDetail));
 
 editOutput(output) += ACTION EXEC editOrder(orderOrderOutput(output));

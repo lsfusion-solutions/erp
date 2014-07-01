@@ -91,8 +91,8 @@ toConsumeComponentDetailOrder 'Не списано по заказу' (order) =
     GROUP SUM toConsumeComponentDetail(componentDetail) IF toConsumeComponentDetail(componentDetail) > 0
           BY orderComponentDetail(componentDetail);
 
-@defineDocumentDetailQuantityCustomPrefix (componentDetail, consumed, ' (произведено)');
-@defineDocumentDetailDataSumCustomPrefix (componentDetail, consumed, ' (произведено)');
+@defineDocumentDetailQuantityCustomPrefix (componentDetail, consumed, ' (списано)');
+@defineDocumentDetailDataSumCustomPrefix (componentDetail, consumed, ' (списано)');
 
 consumedQuantityComponentDetail(detail) <- quantityComponentDetail(detail) WHEN CHANGED(quantityComponentDetail(detail));
 
@@ -100,6 +100,8 @@ consumedSumComponentDetail (detail) <- NUMERIC[16,2](roundPriceCurrency((priceCo
         WHEN CHANGED(priceComponentDetail(detail)) OR
              CHANGED(consumedQuantityComponentDetail(detail)) OR
              CHANGED(currencyComponentDetail(detail));
+
+consumedSumComponentDetailOrder 'Сумма списанных компонент' (order) = GROUP SUM consumedSumComponentDetail(detail) BY orderComponentDetail(detail) IN documentSum;
 
 // Расчет количеств компонент для произведенных изделий
 quantityOutputProductOrder 'Кол-во изделий в заказе (произведенных)' (product, order) = GROUP SUM outputQuantityProductDetail(productDetail)
@@ -137,7 +139,7 @@ FORM consumptionOrders 'Производственные заказы'
 
     OBJECTS o = Order
     PROPERTIES(o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder, nameComponentsStockOrder, nameProductsStockOrder,
-                  fromDateOrder, toDateOrder, quantityProductDetailOrder, productsSumProductDetailOrder, quantityComponentDetailOrder,
+                  fromDateOrder, toDateOrder, quantityProductDetailOrder, sumProductDetailOrder, quantityComponentDetailOrder,
                   nameCalcPriceListTypeOrder, namePriceListTypeOrder, noteOrder
     FILTERS isPostedOrder(o),
             componentsStockOrder(o) == s,
@@ -145,7 +147,7 @@ FORM consumptionOrders 'Производственные заказы'
 
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) READONLY indexProductDetail, nameSkuProductDetail, nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
-                   calcComponentsPriceProductDetail, componentsPriceProductDetail, markupProductDetail, productsPriceProductDetail, productsSumProductDetail
+                   calcComponentsPriceProductDetail, componentsPriceProductDetail, markupProductDetail, priceProductDetail, sumProductDetail
     FILTERS orderProductDetail(pd)==o
 
     OBJECTS cd = ComponentDetail
@@ -225,9 +227,10 @@ stockDocumentLedgerSkuLedger(ledger) += consumptionConsumptionDetail(ledger);
 @deriveDocumentOperationProperty(Order, createConsumption);
 
 EXTEND FORM order
-            PROPERTIES(o)  BACKGROUND backgroundConsumptionOrder(o) createConsumptionOrder
-            PROPERTIES(cd) BEFORE deletecd BACKGROUND backgroundConsumptionOrder(o) SHOWIF createConsumptionOrder(o) consumedQuantityComponentDetail, consumedSumComponentDetail
-            PROPERTIES(o)  TODRAW cd createOutputComponentOrder SHOWIF createConsumptionOrder(o)
+    PROPERTIES(o)  BACKGROUND backgroundConsumptionOrder(o) createConsumptionOrder
+    PROPERTIES(o)  READONLY BACKGROUND backgroundConsumptionOrder(o) SHOWIF createConsumptionOrder(o) consumedSumComponentDetailOrder
+    PROPERTIES(cd) BEFORE deletecd BACKGROUND backgroundConsumptionOrder(o) SHOWIF createConsumptionOrder(o) consumedQuantityComponentDetail, consumedSumComponentDetail
+    PROPERTIES(o)  TODRAW cd createOutputComponentOrder SHOWIF createConsumptionOrder(o)
 ;
 EXTEND DESIGN order {
     headerRow112 {
@@ -235,6 +238,10 @@ EXTEND DESIGN order {
             caption = 'Списание';
             ADD PROPERTY(createConsumptionOrder(o));
         }
+    }
+
+    o.documentSum {
+        ADD PROPERTY(consumedSumComponentDetailOrder(o)) AFTER PROPERTY(sumComponentDetailOrder(o)) { preferredCharWidth = 13;}
     }
 }
 
