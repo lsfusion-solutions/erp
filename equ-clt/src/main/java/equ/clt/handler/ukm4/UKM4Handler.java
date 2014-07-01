@@ -16,7 +16,9 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.SQLException;
 import java.sql.Time;
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.*;
 
@@ -304,7 +306,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+    public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
         return null;
     }
 
@@ -327,7 +329,12 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) {
+    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
+        return null;
+    }
+
+    @Override
+    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
         return null;
     }
 

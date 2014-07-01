@@ -1,10 +1,7 @@
 package equ.clt;
 
 import equ.api.*;
-import equ.api.cashregister.CashDocumentBatch;
-import equ.api.cashregister.CashRegisterHandler;
-import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.StopListInfo;
+import equ.api.cashregister.*;
 import equ.api.terminal.TerminalDocumentBatch;
 import equ.api.terminal.TerminalHandler;
 import equ.api.terminal.TerminalInfo;
@@ -18,6 +15,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.rmi.ConnectException;
 import java.rmi.NoSuchObjectException;
@@ -240,8 +238,9 @@ public class EquipmentServer {
         logger.info("Send SalesInfo");
         Integer numberAtATime = equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime;
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
-        Map<Date, Set<String>> requestSalesInfo = remote.readRequestSalesInfo(sidEquipmentServer);
-
+        List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
+        Set<Integer> succeededRequestsSet = new HashSet<Integer>();
+        
         Map<String, List<CashRegisterInfo>> handlerModelCashRegisterMap = new HashMap<String, List<CashRegisterInfo>>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if (!handlerModelCashRegisterMap.containsKey(cashRegister.handlerModel))
@@ -270,10 +269,15 @@ public class EquipmentServer {
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
                     }
 
-                    if (!requestSalesInfo.isEmpty()) {
+                    if (!requestExchangeList.isEmpty()) {
                         logger.info("Requesting SalesInfo");
-                        String result = clsHandler.requestSalesInfo(requestSalesInfo);
-                        if (result != null) {
+                        String result = clsHandler.requestSalesInfo(requestExchangeList);
+                        if (result == null) {
+                            for (RequestExchange request : requestExchangeList) {
+                                if (request.requestSalesInfo)
+                                    succeededRequestsSet.add(request.requestExchange);
+                            }
+                        } else {
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
                         }
                     }
@@ -303,6 +307,25 @@ public class EquipmentServer {
                             clsHandler.finishReadingSalesInfo(salesBatch);
                         }
                     }
+
+                    if(!requestExchangeList.isEmpty()) {
+                        for(RequestExchange request : requestExchangeList) {
+                            if(!request.requestSalesInfo) {
+                                Map<String, BigDecimal> zReportSumMap = remote.readRequestZReportSumMap(request);
+                                String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap);
+                                if (checkSumResult == null) {
+                                    succeededRequestsSet.add(request.requestExchange);
+                                } else {
+                                    reportEquipmentServerError(remote, sidEquipmentServer, checkSumResult);
+                                }
+                            }
+                        }
+                    }
+                    
+                    if(!succeededRequestsSet.isEmpty())
+                        remote.finishRequestExchange(succeededRequestsSet);
+                        
+                    
                 } catch (Throwable e) {
                     logger.error("Equipment server error: ", e);
                     remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());

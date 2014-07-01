@@ -229,29 +229,31 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+    public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
 
-        for (Map.Entry<Date, Set<String>> entry : requestSalesInfo.entrySet()) {
+        for (RequestExchange entry : requestExchangeList) {
+            if(entry.requestSalesInfo) {
+                logger.info("Kristal: creating request files");
+                for (String directory : entry.directorySet) {
 
-            Date dateRequestSalesInfo = entry.getKey();
-            Set<String> directoriesList = entry.getValue();
-            logger.info("Kristal: creating request files");
-            for (String directory : directoriesList) {
+                    String dateFrom = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(entry.dateFrom);
+                    String dateTo = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(entry.dateTo);
 
-                String exchangeDirectory = directory + "\\export\\request\\";
+                    String exchangeDirectory = directory + "\\export\\request\\";
 
-                if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
+                    if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
+                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
 
-                    String data = String.format("<?xml version=\"1.0\" encoding=\"windows-1251\" ?>\n" +
-                            "<REPORLOAD REPORTTYPE=\"2\" >\n" +
-                            "<REPORT OPERDAY=\"%s\"/>\n" +
-                            "</REPORLOAD>", new SimpleDateFormat("yyyyMMdd").format(dateRequestSalesInfo));
+                        String data = String.format("<?xml version=\"1.0\" encoding=\"windows-1251\" ?>\n" +
+                                "<REPORLOAD REPORTTYPE=\"2\" >\n" +
+                                "<REPORT DATEBEGIN=\"%s\" DATEEND=\"%s\"/>\n" +
+                                "</REPORLOAD>", dateFrom, dateTo);
 
-                    writer.write(data);
-                    writer.close();
-                } else
-                    return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                        writer.write(data);
+                        writer.close();
+                    } else
+                        return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                }
             }
         }
         return null;
@@ -271,13 +273,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
+    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
        
         logger.info("Kristal: requesting succeeded SoftCheckInfo");
 
         DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
 
-        Map<String, Date> result = new HashMap<String, Date>();
+        Map<String, Timestamp> result = new HashMap<String, Timestamp>();
 
         Connection conn = null;
         try {
@@ -291,7 +293,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE ShipmentState='1' AND PayState='0'";
             ResultSet rs = statement.executeQuery(queryString);
             while (rs.next()) {
-                result.put(fillLeadingZeroes(rs.getString(1)), rs.getDate(2));
+                result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -300,6 +302,43 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 conn.close();
         }
         return result;
+    }
+
+    @Override
+    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
+        logger.info("Kristal: checking zReports sum");
+
+        String result = "";
+        
+        DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
+
+        Connection conn = null;
+        try {
+
+            String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                    kristalSettings.sqlIp, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+
+            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+            conn = DriverManager.getConnection(url);
+            Statement statement = conn.createStatement();
+            String queryString = "SELECT GangId, OperDaySale, OperDayRet FROM OperGangDetail";
+            ResultSet rs = statement.executeQuery(queryString);
+            while (rs.next()) {
+                String zReportNumber = String.valueOf(rs.getInt(1));
+                if(zReportSumMap.containsKey(zReportNumber)) {
+                    BigDecimal fusionSum = zReportSumMap.get(zReportNumber);
+                    BigDecimal kristalSum = new BigDecimal(rs.getDouble(2) - rs.getDouble(3));
+                    if (fusionSum == null || !fusionSum.equals(kristalSum))
+                        result += String.format("ZReport %s checksum failed: %s(fusion) != %s(kristal);\n", zReportNumber, fusionSum, kristalSum);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            if (conn != null)
+                conn.close();
+        }
+        return result.isEmpty() ? null : result;
     }
 
     @Override

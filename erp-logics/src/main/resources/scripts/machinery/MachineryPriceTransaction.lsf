@@ -231,9 +231,48 @@ DESIGN machineryPriceTransactions FROM DEFAULT {
 
 // ------------------------------------------------ Действия по загрузке ------------------------------------ //
 
-requestSalesInfoStock 'Обмен данными за день' = DATA BOOLEAN (Stock);
-dateRequestSalesInfoStock 'Дата' = DATA DATE (Stock);
-requestSalesInfoStockAction 'Обмен данными за день' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.RequestSalesInfoStockActionProperty';
+CLASS RequestExchangeType 'Тип запроса' {
+    salesInfo 'Перегрузить продажи',
+    checkZReport 'Сверить суммы z-отчётов'
+}
+
+FORM requestExchangeTypes
+    OBJECTS r = RequestExchangeType
+    PROPERTIES(r) READONLY staticCaption
+    DIALOG RequestExchangeType OBJECT r
+;
+
+CLASS RequestExchange 'Запрос обмена данными';
+TABLE requestExchange (RequestExchange);
+
+stockRequestExchange 'Склад' = DATA Stock (RequestExchange) AUTOSET NOT NULL;
+nameStockRequestExchange 'Склад' (requestExchange) = nameStock(stockRequestExchange(requestExchange));
+dateFromRequestExchange 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
+dateToRequestExchange 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
+requestExchangeTypeRequestExchange 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NOT NULL;
+nameRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticName(requestExchangeTypeRequestExchange(requestExchange));
+captionRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticCaption(requestExchangeTypeRequestExchange(requestExchange));
+succeededRequestExchange 'Обработан' = DATA BOOLEAN (RequestExchange);
+notSucceededRequestExchange 'Не обработан' (requestExchange) = requestExchange IS RequestExchange AND NOT succeededRequestExchange(requestExchange);
+
+FORM requestExchange 'Запрос обмена данными'
+    OBJECTS r = RequestExchange FIXED PANEL
+    PROPERTIES(r) nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
+                  captionRequestExchangeTypeRequestExchange, succeededRequestExchange
+    EDIT RequestExchange OBJECT r;
+;
+
+FORM requestExchanges 'Запросы обмена данными'
+    OBJECTS s = Stock FIXED PANEL
+    PROPERTIES nameStock(s) SELECTOR
+    FILTERS isCompanyStock(s)
+    
+    OBJECTS r = RequestExchange
+    PROPERTIES(r) READONLY nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
+                           captionRequestExchangeTypeRequestExchange, succeededRequestExchange
+    PROPERTIES(r)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    FILTERS stockRequestExchange(r) == s
+;
 
 createMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (GroupMachinery);
 
@@ -348,21 +387,13 @@ createPriceMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWS
 } CONFIRM IN incrementMachineryPrice;
 
 EXTEND FORM machineryPriceTransactions
-    PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, snapshotGroupMachineryDepartmentStore, 
-                  dateRequestSalesInfoStock, requestSalesInfoStock, requestSalesInfoStockAction
+    PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, snapshotGroupMachineryDepartmentStore
 ;
 
 EXTEND DESIGN machineryPriceTransactions {
     header {
         ADD s.incrementMachineryPrice;
         ADD s.snapshotMachineryPrice;
-        NEW requestContainer {
-            type = CONTAINERH;
-            caption = 'Обмен данными за день';
-            ADD PROPERTY(dateRequestSalesInfoStock(s));
-            ADD PROPERTY(requestSalesInfoStock(s));
-            ADD PROPERTY(requestSalesInfoStockAction(s));
-        }
     }
 }
 
@@ -460,6 +491,7 @@ END
 NAVIGATOR {
     machineryExport {
         ADD machineryPriceTransactions;
+        ADD requestExchanges;
     }
 }
 

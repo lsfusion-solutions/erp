@@ -2,8 +2,8 @@ package equ.api;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.sql.Date;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 
@@ -13,5 +13,5 @@ public interface SoftCheckInterface extends Remote {
 
     void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceSet) throws RemoteException, SQLException;
     
-    String sendSucceededSoftCheckInfo(Map<String, Date> invoiceMap) throws RemoteException, SQLException;
+    String sendSucceededSoftCheckInfo(Map<String, Timestamp> invoiceMap) throws RemoteException, SQLException;
 }

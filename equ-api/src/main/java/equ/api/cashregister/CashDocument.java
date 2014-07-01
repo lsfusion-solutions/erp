@@ -9,15 +9,15 @@ public class CashDocument implements Serializable {
     public String numberCashDocument;
     public Date dateCashDocument;
     public Time timeCashDocument;
-    public Integer numberCashRegister;
+    public Integer nppMachinery;
     public BigDecimal sumCashDocument;
 
-    public CashDocument(String numberCashDocument, Date dateCashDocument, Time timeCashDocument, Integer numberCashRegister,
+    public CashDocument(String numberCashDocument, Date dateCashDocument, Time timeCashDocument, Integer nppMachinery,
                         BigDecimal sumCashDocument) {
         this.numberCashDocument = numberCashDocument;
         this.dateCashDocument = dateCashDocument;
         this.timeCashDocument = timeCashDocument;
-        this.numberCashRegister = numberCashRegister;
+        this.nppMachinery = nppMachinery;
         this.sumCashDocument = sumCashDocument;
     }
 }

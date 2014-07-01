@@ -1,16 +1,21 @@
 package equ.clt.handler.maxishop;
 
-import equ.api.*;
+import equ.api.ItemInfo;
+import equ.api.SalesBatch;
+import equ.api.SalesInfo;
+import equ.api.SoftCheckInfo;
 import equ.api.cashregister.*;
 import org.xBaseJ.DBF;
 import org.xBaseJ.Util;
 import org.xBaseJ.fields.*;
 import org.xBaseJ.xBaseJException;
-
-import java.io.*;
+import java.io.File;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.sql.Time;
-import java.sql.Date;
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -177,7 +182,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+    public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
         return null;
     }
 
@@ -203,7 +208,12 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) {
+    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
+        return null;
+    }
+
+    @Override
+    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
         return null;
     }
 

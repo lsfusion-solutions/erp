@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -79,7 +80,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     String idItemGroup = item.hierarchyItemGroup == null || item.hierarchyItemGroup.isEmpty() ? "" : item.hierarchyItemGroup.get(0).idItemGroup;
                     String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
-                            format(item.composition, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.isWeightItem ? "1" : "0", ";") + //8
+                            format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.isWeightItem ? "1" : "0", ";") + //8
                             ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
                             (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
                     goodsWriter.println(record);
@@ -151,24 +152,26 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
+    public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
 
-        for (Map.Entry<Date, Set<String>> entry : requestSalesInfo.entrySet()) {
-            String dateRequestSalesInfo = new SimpleDateFormat("dd.MM.yyyy").format(entry.getKey());
+        for (RequestExchange entry : requestExchangeList) {
+            if (entry.requestSalesInfo) {
+                String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+                String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-            Set<String> directoriesList = entry.getValue();
-            logger.info("Atol: creating request files");
-            for (String directory : directoriesList) {
-                String exchangeDirectory = directory + "/IN";
-                if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
-                    File salesFlagFile = new File(exchangeDirectory + "/sales-flag.txt");
-                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(salesFlagFile), "utf-8"));
-                    writer.write(String.format("$$$TRANSACTIONSBYDATERANGE"));
-                    writer.newLine();
-                    writer.write(dateRequestSalesInfo + ";" + dateRequestSalesInfo);
-                    writer.close();
-                } else
-                    return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                logger.info("Atol: creating request files");
+                for (String directory : entry.directorySet) {
+                    String exchangeDirectory = directory + "/IN";
+                    if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
+                        File salesFlagFile = new File(exchangeDirectory + "/sales-flag.txt");
+                        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(salesFlagFile), "utf-8"));
+                        writer.write("$$$TRANSACTIONSBYDATERANGE");
+                        writer.newLine();
+                        writer.write(dateFrom + ";" + dateTo);
+                        writer.close();
+                    } else
+                        return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                }
             }
         }
         return null;
@@ -213,11 +216,11 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
+    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
 
         logger.info("Atol: requesting succeeded SoftCheckInfo");
 
-        Map<String, Date> result = new HashMap<String, Date>();
+        Map<String, Timestamp> result = new HashMap<String, Timestamp>();
         for (String directory : directorySet) {
 
             try {
@@ -249,7 +252,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                 String[] entry = scanner.nextLine().split(";");
                                 String date = getStringValue(entry, 1);
                                 String time = getStringValue(entry, 2);
-                                Date dateTime = new Date(DateUtils.parseDate((date + " " + time), new String[] {"dd.MM.yyyy HH:mm:ss"}).getTime());
+                                Timestamp dateTime = new Timestamp(DateUtils.parseDate((date + " " + time), new String[] {"dd.MM.yyyy HH:mm:ss"}).getTime());
                                 String entryType = getStringValue(entry, 3);
                                 boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
                                 String documentType = getStringValue(entry, 22);
@@ -274,6 +277,11 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
             }
         }
         return result;
+    }
+
+    @Override
+    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
+        return null;
     }
 
     @Override

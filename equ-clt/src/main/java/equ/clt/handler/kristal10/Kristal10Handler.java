@@ -21,6 +21,7 @@ import java.nio.channels.FileLock;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
+import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -159,25 +160,24 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException {
-        for (Map.Entry<Date, Set<String>> entry : requestSalesInfo.entrySet()) {
+    public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException {
+        for (RequestExchange entry : requestExchangeList) {
+            if(entry.requestSalesInfo) {
+                logger.info("Kristal: creating request files");
+                for (String directory : entry.directorySet) {
 
-            Date dateRequestSalesInfo = entry.getKey();
-            Set<String> directoriesList = entry.getValue();
-            logger.info("Kristal: creating request files");
-            for (String directory : directoriesList) {
+                    String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
+                    String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                String exchangeDirectory = directory + "\\reports\\source\\";
+                    String exchangeDirectory = directory + "\\reports\\source\\";
 
-                if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), "windows-1251"));
-
-                    String data = String.format("date: %s\nreport: purchases", new SimpleDateFormat("dd.MM.yyyy").format(dateRequestSalesInfo));
-
-                    writer.write(data);
-                    writer.close();
-                } else
-                    return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                    if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
+                        Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), "windows-1251"));
+                        writer.write(String.format("dateRange: %s-%s\nreport: purchases", dateFrom, dateTo));
+                        writer.close();
+                    } else
+                        return "Error: " + exchangeDirectory + " doesn't exist. Request creation failed.";
+                }
             }
         }
         return null;
@@ -197,7 +197,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
+    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
+        return null;
+    }
+
+    @Override
+    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
         return null;
     }
 

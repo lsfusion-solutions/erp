@@ -2,15 +2,11 @@ package equ.clt.handler.easy;
 
 import equ.api.*;
 import equ.api.cashregister.*;
-import equ.api.PriceCheckerHandler;
-import equ.api.PriceCheckerInfo;
-import equ.api.TransactionPriceCheckerInfo;
-import equ.api.ScalesHandler;
-import equ.api.ScalesInfo;
-import equ.api.TransactionScalesInfo;
 
 import java.io.*;
-import java.sql.Date;
+import java.math.BigDecimal;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +64,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public String requestSalesInfo(Map<Date, Set<String>> requestSalesInfo) throws IOException, ParseException { 
+        public String requestSalesInfo(List<RequestExchange> requestExchangeList) throws IOException, ParseException { 
             return null;
         }
 
@@ -87,7 +83,12 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public Map<String, Date> requestSucceededSoftCheckInfo(Set<String> directorySet) {
+        public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
+            return null;
+        }
+
+        @Override
+        public String checkZReportSum(Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
             return null;
         }
     }
