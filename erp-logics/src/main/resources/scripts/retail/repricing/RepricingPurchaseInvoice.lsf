@@ -55,6 +55,8 @@ filterToRepricingInvoiceStockDateTime 'Фильтр' (invoice, department, timeF
                   
 overExtraValuation = ABSTRACT ACTION LIST (RepricingDetail, InvoiceDetail);  
 overExtraRevertValuation = ABSTRACT ACTION LIST (RepricingDetail, InvoiceDetail);
+
+skipExtraValuationSkuStock = ABSTRACT BOOLEAN (Sku, Stock);                
                   
 createExtraValuationStockTimeOperation 'Создать дооценку' = ACTION (department, timeFrom, operation) {
     
@@ -67,8 +69,9 @@ createExtraValuationStockTimeOperation 'Создать дооценку' = ACTIO
         skipChangeLedgerUserRepricing(r) <- TRUE;
 
         // дооценка в прямую сторону
-        FOR prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
-            toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(invoiceInvoiceDetail(detail))               
+        FOR (prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
+            toRepricingQuantityInvoiceDetail(detail) > 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(invoiceInvoiceDetail(detail))) AND
+            NOT skipExtraValuationSkuStock(skuInvoiceDetail(detail), department)              
             ADDOBJ rd = UserRepricingDetail DO {
                 userRepricingUserRepricingDetail(rd) <- r;
                 skuUserRepricingDetail(rd) <- skuInvoiceDetail(detail);
@@ -84,8 +87,9 @@ createExtraValuationStockTimeOperation 'Создать дооценку' = ACTIO
         }
 
         // дооценка в обратную сторону
-        FOR prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
-            toRepricingQuantityInvoiceDetail(detail) < 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(invoiceInvoiceDetail(detail))               
+        FOR (prevRetailPricingPriceBInvoiceDetail(detail) != retailPriceInvoiceDetail(detail) AND
+            toRepricingQuantityInvoiceDetail(detail) < 0 AND isStockSkuInvoiceDetail(detail) AND inInvoice(invoiceInvoiceDetail(detail))) AND 
+            NOT skipExtraValuationSkuStock(skuInvoiceDetail(detail), department)               
             ADDOBJ rd = UserRepricingDetail DO {
                 userRepricingUserRepricingDetail(rd) <- r;
                 skuUserRepricingDetail(rd) <- skuInvoiceDetail(detail);
