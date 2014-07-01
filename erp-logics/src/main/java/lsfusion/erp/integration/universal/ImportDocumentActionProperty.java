@@ -15,6 +15,7 @@ import lsfusion.server.integration.ImportKey;
 import lsfusion.server.integration.ImportProperty;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -129,19 +130,19 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
     }
     
-    public String getItemKeyGroupAggr(String keyType) {
-        return (keyType == null || keyType.equals("item")) ? "itemId" : keyType.equals("barcode") ? "skuIdBarcode" : "skuBatchId";
+    public LCP getItemKeyGroupAggr(String keyType) throws ScriptingErrorLog.SemanticErrorException {
+        return getLCP((keyType == null || keyType.equals("item")) ? "itemId" : keyType.equals("barcode") ? "skuIdBarcode" : "skuBatchId");
     }
 
-    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, String sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
-        ImportField field = new ImportField(getLCP(sidProperty));
-        props.add(new ImportProperty(field, getLCP(sidProperty).getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
+        ImportField field = new ImportField(sidProperty);
+        props.add(new ImportProperty(field, sidProperty.getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);
     }
 
-    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, String sidProperty, String nameField, DataObject dataObject) throws ScriptingErrorLog.SemanticErrorException {
-        ImportField field = new ImportField(getLCP(sidProperty));
-        props.add(new ImportProperty(field, getLCP(sidProperty).getMapping(dataObject), getReplaceOnlyNull(importColumns, nameField)));
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, DataObject dataObject) throws ScriptingErrorLog.SemanticErrorException {
+        ImportField field = new ImportField(sidProperty);
+        props.add(new ImportProperty(field, sidProperty.getMapping(dataObject), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);
     }
 
@@ -162,7 +163,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         if(keyColumn != null && keyColumn.equals("barcodeItem"))
             keyColumnValue = BarcodeUtils.appendCheckDigitToBarcode(keyColumnValue, 7);
         return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+")) 
-                && (!checkExistence || getLCP(getItemKeyGroupAggr(keyType)).read(session, new DataObject(keyColumnValue)) != null);
+                && (!checkExistence || getItemKeyGroupAggr(keyType).read(session, new DataObject(keyColumnValue)) != null);
     }
     
     protected static String getSplittedPart(String value, String splitPattern, int index) {

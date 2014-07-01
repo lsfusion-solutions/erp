@@ -11,20 +11,16 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class ExportReceiptsZReportCustomActionProperty extends ScriptingActionProperty {
-    private final ClassPropertyInterface zReportInterface;
+public class ExportReceiptsZReportCustomActionProperty extends ExportReceiptsZReportActionProperty {
 
     public ExportReceiptsZReportCustomActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("ZReport"));
-
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
-        zReportInterface = i.next();
+        super(LM);
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         DataObject zReportObject = context.getDataKeyValue(zReportInterface);
-        new ExportReceiptsZReportActionProperty(LM).export(context, zReportObject, null, true);
+        export(context, zReportObject, null, true);
 
     }
 

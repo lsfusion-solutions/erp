@@ -343,11 +343,11 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                     saleKeys.add(discountCardKey);
                     returnKeys.add(discountCardKey);
 
-                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("discountCardReceipt").getMapping(receiptKey),
+                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
+                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
                             LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
-                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, getLCP("discountCardReceipt").getMapping(receiptKey),
+                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
+                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
                             LM.baseLM.object(LM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
                     saleImportFields.add(seriesNumberDiscountCardField);
                     returnImportFields.add(seriesNumberDiscountCardField);
@@ -364,7 +364,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
 
                     ImportField idPromotionConditionField = new ImportField(zReportRetailCRMLM.findLCPByCompoundOldName("idPromotionCondition"));
                     ImportKey<?> promotionConditionKey = new ImportKey((ConcreteCustomClass) zReportRetailCRMLM.findClassByCompoundName("PromotionCondition"),
-                            getLCP("promotionConditionId").getMapping(idPromotionConditionField));
+                            zReportRetailCRMLM.findLCPByCompoundOldName("promotionConditionId").getMapping(idPromotionConditionField));
                     saleKeys.add(promotionConditionKey);
                     saleImportFields.add(idPromotionConditionField);
 

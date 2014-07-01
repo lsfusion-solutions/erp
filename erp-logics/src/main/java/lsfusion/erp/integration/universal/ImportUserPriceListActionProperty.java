@@ -209,10 +209,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             }
 
             ImportField idItemField = new ImportField(getLCP("idItem"));
-            String iGroupAggr = (importColumnProperties.getItemKeyType() == null || importColumnProperties.getItemKeyType().equals("item")) ? "itemId" : "skuIdBarcode";
+            LCP iGroupAggr = getLCP((importColumnProperties.getItemKeyType() == null || importColumnProperties.getItemKeyType().equals("item")) ? "itemId" : "skuIdBarcode");
             ImportField iField = (importColumnProperties.getItemKeyType() == null || importColumnProperties.getItemKeyType().equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
-                    getLCP(iGroupAggr).getMapping(iField));
+                    iGroupAggr.getMapping(iField));
             keys.add(itemKey);
             props.add(new ImportProperty(idItemField, getLCP("idItem").getMapping(itemKey)));
             if (purchasePackLM != null)
@@ -437,10 +437,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).barcodeItem);
 
-            String iGroupAggr = (itemKeyType == null || itemKeyType.equals("item")) ? "itemId" : "skuIdBarcode";
+            LCP<?> iGroupAggr = getLCP((itemKeyType == null || itemKeyType.equals("item")) ? "itemId" : "skuIdBarcode");
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
-                    getLCP(iGroupAggr).getMapping(iField));
+                    iGroupAggr.getMapping(iField));
             keys.add(itemKey);
 
             ImportField idUserAdjustmentDetailField = new ImportField(stockAdjustmentLM.findLCPByCompoundOldName("idUserAdjustmentDetail"));

@@ -10,6 +10,7 @@ import lsfusion.server.classes.DateClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
@@ -65,13 +66,17 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
             KeyExpr generalLedgerExpr = new KeyExpr("GeneralLedger");
             ImRevMap<Object, KeyExpr> generalLedgerKeys = MapFact.singletonRev((Object) "GeneralLedger", generalLedgerExpr);
 
-            String[] generalLedgerProperties = new String[]{"isPostedGeneralLedger", "dateGeneralLedger",
+            String[] generalLedgerNames = new String[]{"isPostedGeneralLedger", "dateGeneralLedger",
                     "nameLegalEntityGeneralLedger", "nameGLDocumentGeneralLedger", "descriptionGeneralLedger",
                     "idDebitGeneralLedger", "dimensionsDebitGeneralLedger", "idCreditGeneralLedger",
                     "dimensionsCreditGeneralLedger", "sumGeneralLedger"};
+            LCP[] generalLedgerProperties = getLCPs("isPostedGeneralLedger", "dateGeneralLedger",
+                    "nameLegalEntityGeneralLedger", "nameGLDocumentGeneralLedger", "descriptionGeneralLedger",
+                    "idDebitGeneralLedger", "dimensionsDebitGeneralLedger", "idCreditGeneralLedger",
+                    "dimensionsCreditGeneralLedger", "sumGeneralLedger");
             QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<Object, Object>(generalLedgerKeys);
-            for (String uiProperty : generalLedgerProperties) {
-                generalLedgerQuery.addProperty(uiProperty, getLCP(uiProperty).getExpr(context.getModifier(), generalLedgerExpr));
+            for (int i = 0; i < generalLedgerProperties.length; i++) {
+                generalLedgerQuery.addProperty(generalLedgerNames[i], generalLedgerProperties[i].getExpr(context.getModifier(), generalLedgerExpr));
             }
 
             generalLedgerQuery.and(getLCP("sumGeneralLedger").getExpr(context.getModifier(), generalLedgerQuery.getMapExprs().get("GeneralLedger")).getWhere());

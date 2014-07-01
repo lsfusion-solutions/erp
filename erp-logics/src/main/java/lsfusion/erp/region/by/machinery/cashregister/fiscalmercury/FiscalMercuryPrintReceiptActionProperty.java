@@ -11,6 +11,7 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -89,11 +90,15 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                 ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
 
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
-                String[] rdProperties = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
+                String[] rdNames = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
                         "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail"};
-                for (String rdProperty : rdProperties)
-                    receiptDetailQuery.addProperty(rdProperty, getLCP(rdProperty).getExpr(context.getModifier(), receiptDetailExpr));
+                LCP[] rdProperties = getLCPs("nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
+                        "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
+                        "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail");
+                for (int i = 0; i < rdProperties.length; i++) {
+                    receiptDetailQuery.addProperty(rdNames[i], rdProperties[i].getExpr(context.getModifier(), receiptDetailExpr));
+                }
                 receiptDetailQuery.and(getLCP("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);

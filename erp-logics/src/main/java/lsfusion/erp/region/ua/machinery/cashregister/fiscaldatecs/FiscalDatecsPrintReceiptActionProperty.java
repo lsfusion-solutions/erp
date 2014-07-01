@@ -65,8 +65,8 @@ public class FiscalDatecsPrintReceiptActionProperty extends ScriptingActionPrope
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
-                    DataObject paymentMeansCashObject = ((ConcreteCustomClass) LM.findClassByCompoundName("paymentMeans")).getDataObject("paymentMeansCash");
-                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) LM.findClassByCompoundName("paymentMeans")).getDataObject("paymentMeansCard");
+                    DataObject paymentMeansCashObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCash");
+                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCard");
                     if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                         sumCash = (Double) paymentValues.get("sumPayment");
                     } else if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {

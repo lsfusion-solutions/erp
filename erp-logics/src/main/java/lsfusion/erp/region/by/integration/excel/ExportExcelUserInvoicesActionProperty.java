@@ -12,6 +12,7 @@ import lsfusion.server.classes.DateClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
@@ -70,11 +71,13 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
             KeyExpr userInvoiceExpr = new KeyExpr("UserInvoice");
             ImRevMap<Object, KeyExpr> userInvoiceKeys = MapFact.singletonRev((Object) "UserInvoice", userInvoiceExpr);
 
-            String[] userInvoiceProperties = new String[]{"seriesUserInvoice", "numberUserInvoice",
+            String[] userInvoiceNames = new String[]{"seriesUserInvoice", "numberUserInvoice",
                     "Purchase.dateUserInvoice", "supplierUserInvoice", "Purchase.customerStockInvoice", "Purchase.supplierStockInvoice"};
+            LCP[] userInvoiceProperties = getLCPs("seriesUserInvoice", "numberUserInvoice",
+                    "Purchase.dateUserInvoice", "supplierUserInvoice", "Purchase.customerStockInvoice", "Purchase.supplierStockInvoice");
             QueryBuilder<Object, Object> userInvoiceQuery = new QueryBuilder<Object, Object>(userInvoiceKeys);
-            for (String uiProperty : userInvoiceProperties) {
-                userInvoiceQuery.addProperty(uiProperty, getLCP(uiProperty).getExpr(context.getModifier(), userInvoiceExpr));
+            for (int j = 0; j < userInvoiceProperties.length; j++) {
+                userInvoiceQuery.addProperty(userInvoiceNames[j], userInvoiceProperties[j].getExpr(context.getModifier(), userInvoiceExpr));
             }
             userInvoiceQuery.and(getLCP("numberUserInvoice").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
             userInvoiceQuery.and(getLCP("Purchase.dateUserInvoice").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
@@ -101,10 +104,12 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     ImRevMap<Object, KeyExpr> userInvoiceDetailKeys = MapFact.singletonRev((Object) "UserInvoiceDetail", userInvoiceDetailExpr);
 
                     QueryBuilder<Object, Object> userInvoiceDetailQuery = new QueryBuilder<Object, Object>(userInvoiceDetailKeys);
-                    String[] userInvoiceDetailProperties = new String[]{"Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
+                    String[] userInvoiceDetailNames = new String[]{"Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
                             "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "certificateTextInvoiceDetail"};
-                    for (String uidProperty : userInvoiceDetailProperties) {
-                        userInvoiceDetailQuery.addProperty(uidProperty, getLCP(uidProperty).getExpr(context.getModifier(), userInvoiceDetailExpr));
+                    LCP<?>[] userInvoiceDetailProperties = getLCPs("Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
+                            "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "certificateTextInvoiceDetail");
+                    for (int j = 0; j < userInvoiceDetailProperties.length; j++) {
+                        userInvoiceDetailQuery.addProperty(userInvoiceDetailNames[j], userInvoiceDetailProperties[j].getExpr(context.getModifier(), userInvoiceDetailExpr));
                     }
 
                     if (purchaseInvoiceWholesaleLM != null) {

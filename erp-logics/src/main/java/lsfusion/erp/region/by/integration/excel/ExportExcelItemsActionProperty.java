@@ -14,6 +14,7 @@ import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
@@ -65,20 +66,24 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
             ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "Item", itemExpr);
 
             QueryBuilder<Object, Object> itemQuery = new QueryBuilder<Object, Object>(itemKeys);
-            String[] itemProperties = new String[]{"itemGroupItem", "nameAttributeItem", "UOMItem",
+            String[] itemNames = new String[]{"itemGroupItem", "nameAttributeItem", "UOMItem",
                     "brandItem", "countryItem", "idBarcodeSku", "isWeightItem", "netWeightItem", "grossWeightItem",
                     "compositionItem", "Purchase.amountPackSku"};
-            for (String iProperty : itemProperties) {
-                itemQuery.addProperty(iProperty, getLCP(iProperty).getExpr(context.getModifier(), itemExpr));
+            LCP[] itemProperties = getLCPs("itemGroupItem", "nameAttributeItem", "UOMItem",
+                    "brandItem", "countryItem", "idBarcodeSku", "isWeightItem", "netWeightItem", "grossWeightItem",
+                    "compositionItem", "Purchase.amountPackSku");
+            for (int i = 0; i < itemProperties.length; i++) {
+                itemQuery.addProperty(itemNames[i], itemProperties[i].getExpr(context.getModifier(), itemExpr));
             }
             if(salePackLM != null) {
                 itemQuery.addProperty("Sale.amountPackSku", salePackLM.findLCPByCompoundOldName("Sale.amountPackSku").getExpr(context.getModifier(), itemExpr)); 
             }
 
             if (wareItemLM != null) {
-                String[] wareItemProperties = new String[]{"wareItem"};
-                for (String iProperty : wareItemProperties) {
-                    itemQuery.addProperty(iProperty, getLCP(iProperty).getExpr(context.getModifier(), itemExpr));
+                String[] wareItemNames = new String[]{"wareItem"};
+                LCP[] wareItemProperties = getLCPs("wareItem");
+                for (int i = 0; i < wareItemProperties.length; i++) {
+                    itemQuery.addProperty(wareItemNames[i], wareItemProperties[i].getExpr(context.getModifier(), itemExpr));
                 }
             }
 

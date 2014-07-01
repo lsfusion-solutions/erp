@@ -30,11 +30,11 @@ public class FiscalDatecsZReportActionProperty extends ScriptingActionProperty {
             if (context.checkApply()) {
                 Object VATSumReceipt = context.requestUserInteraction(new FiscalDatecsCustomOperationClientAction(2, baudRate, comPort));
                 if (VATSumReceipt instanceof Double[]) {
-                    ObjectValue zReportObject = getLCP("currentZReport").readClasses(session);
-                    if (!zReportObject.isNull()) {
-                        getLCP("VATSumSaleZReport").change(((Object[]) VATSumReceipt)[0], session, (DataObject) zReportObject);
-                        getLCP("VATSumReturnZReport").change(((Object[]) VATSumReceipt)[1], session, (DataObject) zReportObject);
-                    }
+//                    ObjectValue zReportObject = getLCP("currentZReport").readClasses(session);
+//                    if (!zReportObject.isNull()) {
+//                        getLCP("VATSumSaleZReport").change(((Object[]) VATSumReceipt)[0], session, (DataObject) zReportObject);
+//                        getLCP("VATSumReturnZReport").change(((Object[]) VATSumReceipt)[1], session, (DataObject) zReportObject);
+//                    }
                     context.apply();
                     getLAP("closeCurrentZReport").execute(session);
                 } else if (VATSumReceipt != null)

@@ -60,16 +60,16 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
         ImportField itemGroupName = new ImportField(getLCP("nameItemGroup"));
         ImportField idParentGroup = new ImportField(getLCP("idItemGroup"));
 
-        ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) getClass("itemGroup"),
+        ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) getClass("ItemGroup"),
                 getLCP("itemGroupId").getMapping(idItemGroup));
         ImportProperty<?> itemGroupIDProperty = new ImportProperty(idItemGroup, getLCP("idItemGroup").getMapping(itemGroupKey));
         ImportProperty<?> itemGroupNameProperty = new ImportProperty(itemGroupName, getLCP("nameItemGroup").getMapping(itemGroupKey));
 
-        ImportKey<?> parentGroupKey = new ImportKey((ConcreteCustomClass) getClass("itemGroup"),
+        ImportKey<?> parentGroupKey = new ImportKey((ConcreteCustomClass) getClass("ItemGroup"),
                 getLCP("itemGroupId").getMapping(idParentGroup));
 
         ImportProperty<?> parentGroupProperty = new ImportProperty(idParentGroup, getLCP("parentItemGroup").getMapping(itemGroupKey),
-                LM.object(getClass("itemGroup")).getMapping(parentGroupKey));
+                LM.object(getClass("ItemGroup")).getMapping(parentGroupKey));
 
         Collection<? extends ImportKey<?>> keys = Arrays.asList(itemGroupKey, parentGroupKey);
         Collection<ImportProperty<?>> properties = Arrays.asList(itemGroupIDProperty, itemGroupNameProperty, parentGroupProperty);

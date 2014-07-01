@@ -8,6 +8,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
@@ -49,12 +50,15 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
             KeyExpr legalEntityExpr = new KeyExpr("LegalEntity");
             ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
 
-            String[] legalEntityProperties = new String[]{"nameLegalEntity", "fullNameLegalEntity",
+            String[] legalEntityNames = new String[]{"nameLegalEntity", "fullNameLegalEntity",
                     "shortNameOwnershipLegalEntity", "nameLegalEntityGroupLegalEntity", "addressLegalEntity",
                     "phoneLegalEntity"};
+            LCP[] legalEntityProperties = getLCPs("nameLegalEntity", "fullNameLegalEntity",
+                    "shortNameOwnershipLegalEntity", "nameLegalEntityGroupLegalEntity", "addressLegalEntity",
+                    "phoneLegalEntity");
             QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<Object, Object>(legalEntityKeys);
-            for (String uiProperty : legalEntityProperties) {
-                legalEntityQuery.addProperty(uiProperty, getLCP(uiProperty).getExpr(context.getModifier(), legalEntityExpr));
+            for (int i = 0; i < legalEntityProperties.length; i++) {
+                legalEntityQuery.addProperty(legalEntityNames[i], legalEntityProperties[i].getExpr(context.getModifier(), legalEntityExpr));
             }
             if(legalEntityByLM != null)
                 legalEntityQuery.addProperty("UNPLegalEntity", legalEntityByLM.findLCPByCompoundOldName("UNPLegalEntity").getExpr(context.getModifier(), legalEntityExpr));

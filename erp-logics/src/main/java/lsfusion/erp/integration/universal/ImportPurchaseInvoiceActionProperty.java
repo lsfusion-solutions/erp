@@ -23,6 +23,7 @@ import lsfusion.server.integration.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -223,19 +224,19 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
 
             if (showField(userInvoiceDetailsList, "numberUserInvoice")) {
-                    addDataField(props, fields, defaultColumns, "numberUserInvoice", "numberUserInvoice", userInvoiceObject);
+                    addDataField(props, fields, defaultColumns, getLCP("numberUserInvoice"), "numberUserInvoice", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).numberUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "dateUserInvoice")) {
-                addDataField(props, fields, defaultColumns, "dateUserInvoice", "dateUserInvoice", userInvoiceObject);
+                addDataField(props, fields, defaultColumns, getLCP("dateUserInvoice"), "dateUserInvoice", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).dateUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "timeUserInvoice")) {
-                addDataField(props, fields, defaultColumns, "timeUserInvoice", "timeUserInvoice", userInvoiceObject);
+                addDataField(props, fields, defaultColumns, getLCP("timeUserInvoice"), "timeUserInvoice", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).timeUserInvoice);
             }
@@ -368,10 +369,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 data.get(i).add(userInvoiceDetailsList.get(i).idItem);
 
             String replaceField = (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
-            String iGroupAggr = getItemKeyGroupAggr(keyType);
+            LCP iGroupAggr = getItemKeyGroupAggr(keyType);
             ImportField iField = (keyType == null || keyType.equals("item")) ? idItemField : keyType.equals("barcode") ? idBarcodeSkuField : idBatchField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
-                    getLCP(iGroupAggr).getMapping(iField));
+                    iGroupAggr.getMapping(iField));
             keys.add(itemKey);
             props.add(new ImportProperty(idItemField, getLCP("idItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "idItem")));
             props.add(new ImportProperty(iField, getLCP("Purchase.skuInvoiceDetail").getMapping(userInvoiceDetailKey),
@@ -380,13 +381,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     LM.object(getClass("Item")).getMapping(itemKey), getReplaceOnlyNull(defaultColumns, replaceField)));
 
             if (showField(userInvoiceDetailsList, "captionItem")) {
-                addDataField(props, fields, defaultColumns, "captionItem", "captionItem", itemKey);
+                addDataField(props, fields, defaultColumns, getLCP("captionItem"), "captionItem", itemKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).captionItem);
             }
 
             if (showField(userInvoiceDetailsList, "originalCaptionItem")) {
-                addDataField(props, fields, defaultColumns, "originalCaptionItem", "originalCaptionItem", itemKey);
+                addDataField(props, fields, defaultColumns, getLCP("originalCaptionItem"), "originalCaptionItem", itemKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).originalCaptionItem);
             }
@@ -419,7 +420,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     data.get(i).add(userInvoiceDetailsList.get(i).idManufacturer);
 
                 if (showField(userInvoiceDetailsList, "nameManufacturer")) {
-                    addDataField(props, fields, defaultColumns, "nameManufacturer", "nameManufacturer", manufacturerKey);
+                    addDataField(props, fields, defaultColumns, getLCP("nameManufacturer"), "nameManufacturer", manufacturerKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).nameManufacturer);
                 }
@@ -435,12 +436,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                     (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
-            String countryAggr = showSidOrigin2Country ? "countrySIDOrigin2" :
-                    (showNameCountry ? "countryName" : (showNameOriginCountry ? "countryNameOrigin" : null));
+            LCP<?> countryAggr = getLCP(showSidOrigin2Country ? "countrySIDOrigin2" :
+                    (showNameCountry ? "countryName" : (showNameOriginCountry ? "countryNameOrigin" : null)));
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
             ImportKey<?> countryKey = countryField == null ? null : 
-                    new ImportKey((ConcreteCustomClass) getClass("Country"), getLCP(countryAggr).getMapping(countryField));
+                    new ImportKey((ConcreteCustomClass) getClass("Country"), countryAggr.getMapping(countryField));
 
             if (countryKey != null) {
                 keys.add(countryKey);
@@ -493,19 +494,19 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
 
             if (showField(userInvoiceDetailsList, "quantity")) {
-                addDataField(props, fields, defaultColumns, "Purchase.quantityUserInvoiceDetail", "quantity", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, getLCP("Purchase.quantityUserInvoiceDetail"), "quantity", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).quantity);
             }
 
             if (showField(userInvoiceDetailsList, "price")) {
-                addDataField(props, fields, defaultColumns, "Purchase.priceUserInvoiceDetail", "price", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, getLCP("Purchase.priceUserInvoiceDetail"), "price", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).price);
             }
 
             if (showField(userInvoiceDetailsList, "sum")) {
-                addDataField(props, fields, defaultColumns, "Purchase.sumUserInvoiceDetail", "sum", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, getLCP("Purchase.sumUserInvoiceDetail"), "sum", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).sum);
             }
@@ -541,13 +542,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
 
             if (showField(userInvoiceDetailsList, "sumVAT")) {
-                addDataField(props, fields, defaultColumns, "Purchase.VATSumUserInvoiceDetail", "sumVAT", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, getLCP("Purchase.VATSumUserInvoiceDetail"), "sumVAT", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).sumVAT);
             }
 
             if (showField(userInvoiceDetailsList, "invoiceSum")) {
-                addDataField(props, fields, defaultColumns, "Purchase.invoiceSumUserInvoiceDetail", "invoiceSum", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, getLCP("Purchase.invoiceSumUserInvoiceDetail"), "invoiceSum", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).invoiceSum);
             }
@@ -647,7 +648,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
             
             if (showField(userInvoiceDetailsList, "rateExchange")) {
-                addDataField(props, fields, defaultColumns, "rateExchangeUserInvoiceDetail", "rateExchange", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, getLCP("rateExchangeUserInvoiceDetail"), "rateExchange", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).rateExchange);
             }
@@ -668,7 +669,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
             
             if (showField(userInvoiceDetailsList, "isPosted")) {
-                    addDataField(props, fields, defaultColumns, "isPostedUserInvoice", "isPosted", userInvoiceObject);
+                    addDataField(props, fields, defaultColumns, getLCP("isPostedUserInvoice"), "isPosted", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).isPosted);
             }

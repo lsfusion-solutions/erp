@@ -12,14 +12,10 @@ import java.io.File;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class ExportReceiptsZReportFolderActionProperty extends ScriptingActionProperty {
-    private final ClassPropertyInterface zReportInterface;
+public class ExportReceiptsZReportFolderActionProperty extends ExportReceiptsZReportActionProperty {
 
     public ExportReceiptsZReportFolderActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("ZReport"));
-
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
-        zReportInterface = i.next();
+        super(LM);
     }
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
@@ -31,7 +27,7 @@ public class ExportReceiptsZReportFolderActionProperty extends ScriptingActionPr
                 if (!new File(pathExportReceipts).exists() && !new File(pathExportReceipts).mkdir())
                     return;
                 DataObject zReportObject = context.getDataKeyValue(zReportInterface);
-                new ExportReceiptsZReportActionProperty(LM).export(context, zReportObject, pathExportReceipts, false);
+                export(context, zReportObject, pathExportReceipts, false);
             }
 
         } catch (SQLException e) {

@@ -130,7 +130,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         String addressLegalEntityDeclaration = (String) getLCP("addressLegalEntityDeclaration").read(context, declarationObject); //G143  
         Date dateDeclaration = (Date) getLCP("dateDeclaration").read(context, declarationObject);          //G542
 
-        String[] exportProperties = new String[]{"extraNameDeclarationDetail", "markinDeclarationDetail",
+        String[] exportNames = new String[]{"extraNameDeclarationDetail", "markinDeclarationDetail",
                 "numberDeclarationDetail", "codeCustomsGroupDeclarationDetail", "sidOrigin2CountryDeclarationDetail",
                 "sumGrossWeightDeclarationDetail", "extraComponentsQuantityDeclarationDetail", "sumDeclarationDetail",
                 "nameCustomsDeclarationDetail", "quantityDeclarationDetail", "sumNetWeightDeclarationDetail",
@@ -139,12 +139,22 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 "percentDutyDeclarationDetail", "percentVATDeclarationDetail", "dutySumDeclarationDetail",
                 "VATSumDeclarationDetail", "nameSupplierDeclarationDetail", "nameBrandDeclarationDetail", "nameManufacturerDeclarationDetail"};
 
+        LCP[] exportProperties = getLCPs("extraNameDeclarationDetail", "markinDeclarationDetail",
+                "numberDeclarationDetail", "codeCustomsGroupDeclarationDetail", "sidOrigin2CountryDeclarationDetail",
+                "sumGrossWeightDeclarationDetail", "extraComponentsQuantityDeclarationDetail", "sumDeclarationDetail",
+                "nameCustomsDeclarationDetail", "quantityDeclarationDetail", "sumNetWeightDeclarationDetail",
+                "shortNameUOMDeclarationDetail", "customsCodeUOMDeclarationDetail", "isVATCustomsExceptionDeclarationDetail", "VATCustomsExceptionDeclarationDetail", "homeSumDeclarationDetail",
+                "baseVATSumDeclarationDetail", "isWeightDutyDeclarationDetail", "weightDutyDeclarationDetail",
+                "percentDutyDeclarationDetail", "percentVATDeclarationDetail", "dutySumDeclarationDetail",
+                "VATSumDeclarationDetail", "nameSupplierDeclarationDetail", "nameBrandDeclarationDetail", "nameManufacturerDeclarationDetail");
+
         LCP<?> isDeclarationDetail = LM.is(getClass("DeclarationDetail"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDeclarationDetail.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        for (String propertySID : exportProperties)
-            query.addProperty(propertySID, getLCP(propertySID).getExpr(context.getModifier(), key));
+        for (int j = 0; j < exportProperties.length; j++) {
+            query.addProperty(exportNames[j], exportProperties[j].getExpr(context.getModifier(), key));
+        }
         query.and(isDeclarationDetail.getExpr(key).getWhere());
         query.and(getLCP("declarationDeclarationDetail").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
@@ -201,7 +211,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         String numberDeclaration = (String) getLCP("numberDeclaration").read(context, declarationObject);
 
-        String[] customsDocumentProperties = new String[]{"orderCustomsDocument", "idCustomsDocument", "nameCustomsDocument", "dateCustomsDocument", "isVATCustomsExceptionCustomsDocument", "typePaymentCustomsDocument", "refDocCustomsDocument", "descriptionCustomsDocument"};
+        String[] customsDocumentNames = new String[]{"orderCustomsDocument", "idCustomsDocument", "nameCustomsDocument", "dateCustomsDocument", "isVATCustomsExceptionCustomsDocument", "typePaymentCustomsDocument", "refDocCustomsDocument", "descriptionCustomsDocument"};
+        LCP[] customsDocumentProperties = new LCP[]{getLCP("orderCustomsDocument"), getLCP("idCustomsDocument"), getLCP("nameCustomsDocument"), getLCP("dateCustomsDocument"), getLCP("isVATCustomsExceptionCustomsDocument"), getLCP("typePaymentCustomsDocument"), getLCP("refDocCustomsDocument"), getLCP("descriptionCustomsDocument")};
 
         KeyExpr declarationDetailExpr = new KeyExpr("declarationDetail");
         KeyExpr customsDocumentExpr = new KeyExpr("customsDocument");
@@ -211,8 +222,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         customsDocumentQuery.addProperty("numberDeclarationDetail", getLCP("numberDeclarationDetail").getExpr(declarationDetailExpr));
         customsDocumentQuery.addProperty("isVATCustomsExceptionDeclarationDetail", getLCP("isVATCustomsExceptionDeclarationDetail").getExpr(declarationDetailExpr));
-        for (String property : customsDocumentProperties) {
-            customsDocumentQuery.addProperty(property, getLCP(property).getExpr(customsDocumentExpr));
+        for (int j = 0; j < customsDocumentProperties.length; j++) {
+            customsDocumentQuery.addProperty(customsDocumentNames[j], customsDocumentProperties[j].getExpr(customsDocumentExpr));
         }
         customsDocumentQuery.and(getLCP("inDeclarationDetailCustomsDocument").getExpr(declarationDetailExpr, customsDocumentExpr).getWhere());
         customsDocumentQuery.and(getLCP("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
@@ -238,8 +249,10 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         }
 
 
-        String[] complianceProperties = new String[]{"seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
+        String[] complianceNames = new String[]{"seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
                 "toDateCompliance"};
+        LCP[] complianceProperties = getLCPs("seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
+                "toDateCompliance");
 
         KeyExpr declarationDetail2Expr = new KeyExpr("declarationDetail");
         KeyExpr complianceExpr = new KeyExpr("compliance");
@@ -248,8 +261,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         QueryBuilder<Object, Object> complianceQuery = new QueryBuilder<Object, Object>(complianceKeys);
 
         complianceQuery.addProperty("numberDeclarationDetail", getLCP("numberDeclarationDetail").getExpr(declarationDetail2Expr));
-        for (String property : complianceProperties) {
-            complianceQuery.addProperty(property, getLCP(property).getExpr(complianceExpr));
+        for (int j = 0; j < complianceProperties.length; j++) {
+            complianceQuery.addProperty(complianceNames[j], complianceProperties[j].getExpr(complianceExpr));
         }
         complianceQuery.and(getLCP("inDeclarationDetailCompliance").getExpr(declarationDetail2Expr, complianceExpr).getWhere());
         complianceQuery.and(getLCP("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetail2Expr).compare(declarationObject.getExpr(), Compare.EQUALS));

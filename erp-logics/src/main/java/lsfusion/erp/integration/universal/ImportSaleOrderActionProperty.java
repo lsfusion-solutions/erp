@@ -17,6 +17,7 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -155,14 +156,14 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             List<List<Object>> data = initData(orderDetailsList.size());
 
             if (showField(orderDetailsList, "numberOrder")) {
-                addDataField(props, fields, importColumns, "Sale.numberUserOrder", "numberOrder", orderObject);
-                addDataField(props, fields, importColumns, "Sale.numberUserOrder", "numberOrder", orderObject);
+                addDataField(props, fields, importColumns, getLCP("Sale.numberUserOrder"), "numberOrder", orderObject);
+                addDataField(props, fields, importColumns, getLCP("Sale.numberUserOrder"), "numberOrder", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).numberOrder);
             }
 
             if (showField(orderDetailsList, "dateOrder")) {
-                addDataField(props, fields, importColumns, "Sale.dateUserOrder", "dateOrder", orderObject);
+                addDataField(props, fields, importColumns, getLCP("Sale.dateUserOrder"), "dateOrder", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).dateOrder);
             }
@@ -229,10 +230,10 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             for (int i = 0; i < orderDetailsList.size(); i++)
                 data.get(i).add(orderDetailsList.get(i).idItem);
 
-            String iGroupAggr = getItemKeyGroupAggr(keyType);
+            LCP iGroupAggr = getItemKeyGroupAggr(keyType);
             ImportField iField = (keyType == null || keyType.equals("item")) ? idItemField : keyType.equals("barcode") ? idBarcodeSkuField : idBatchField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
-                    getLCP(iGroupAggr).getMapping(iField));
+                    iGroupAggr.getMapping(iField));
             keys.add(itemKey);
             itemKey.skipKey = true;
             props.add(new ImportProperty(iField, getLCP("Sale.skuUserOrderDetail").getMapping(orderDetailKey),
@@ -278,19 +279,19 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             }
 
             if (showField(orderDetailsList, "quantity")) {
-                addDataField(props, fields, importColumns, "Sale.quantityUserOrderDetail", "quantity", orderDetailKey);
+                addDataField(props, fields, importColumns, getLCP("Sale.quantityUserOrderDetail"), "quantity", orderDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).quantity);
             }
 
             if (showField(orderDetailsList, "price")) {
-                addDataField(props, fields, importColumns, "Sale.priceUserOrderDetail", "price", orderDetailKey);
+                addDataField(props, fields, importColumns, getLCP("Sale.priceUserOrderDetail"), "price", orderDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).price);
             }
 
             if (showField(orderDetailsList, "sum")) {
-                addDataField(props, fields, importColumns, "Sale.sumUserOrderDetail", "sum", orderDetailKey);
+                addDataField(props, fields, importColumns, getLCP("Sale.sumUserOrderDetail"), "sum", orderDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).sum);
             }
@@ -308,13 +309,13 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             }
 
             if (showField(orderDetailsList, "sumVAT")) {
-                addDataField(props, fields, importColumns, "Sale.VATSumUserOrderDetail", "sumVAT", orderDetailKey);
+                addDataField(props, fields, importColumns, getLCP("Sale.VATSumUserOrderDetail"), "sumVAT", orderDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).sumVAT);
             }
 
             if (showField(orderDetailsList, "invoiceSum")) {
-                addDataField(props, fields, importColumns, "Sale.invoiceSumUserOrderDetail", "invoiceSum", orderDetailKey);
+                addDataField(props, fields, importColumns, getLCP("Sale.invoiceSumUserOrderDetail"), "invoiceSum", orderDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).invoiceSum);
             }
@@ -326,7 +327,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             }
 
             if (showField(orderDetailsList, "isPosted")) {
-                addDataField(props, fields, importColumns, "Sale.isPostedUserOrder", "isPosted", orderObject);
+                addDataField(props, fields, importColumns, getLCP("Sale.isPostedUserOrder"), "isPosted", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).isPosted);
             }

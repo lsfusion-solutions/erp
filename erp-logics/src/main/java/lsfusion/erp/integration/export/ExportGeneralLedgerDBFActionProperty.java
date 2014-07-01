@@ -18,6 +18,7 @@ import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -84,17 +85,25 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
         QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<Object, Object>(generalLedgerKeys);
 
-        String[] generalLedgerProperties = new String[]{"dateGeneralLedger", "numberGLDocumentGeneralLedger",
-                "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger", 
+
+        String[] generalLedgerNames = new String[]{"dateGeneralLedger", "numberGLDocumentGeneralLedger",
+                "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
                 "idOperationGeneralLedger"};
-        for (String property : generalLedgerProperties) {
-            generalLedgerQuery.addProperty(property, getLCP(property).getExpr(generalLedgerExpr));
+        LCP[] generalLedgerProperties = getLCPs("dateGeneralLedger", "numberGLDocumentGeneralLedger",
+                "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
+                "idOperationGeneralLedger");
+        for (int j = 0; j < generalLedgerProperties.length; j++) {
+            generalLedgerQuery.addProperty(generalLedgerNames[j], generalLedgerProperties[j].getExpr(generalLedgerExpr));
         }
 
-        String[] dimensionTypeProperties = new String[]{"idDebitGeneralLedgerDimensionType", "orderDebitGeneralLedgerDimensionType",
+
+        String[] dimensionTypeNames = new String[]{"idDebitGeneralLedgerDimensionType", "orderDebitGeneralLedgerDimensionType",
                 "idCreditGeneralLedgerDimensionType", "orderCreditGeneralLedgerDimensionType"};
-        for (String property : dimensionTypeProperties) {
-            generalLedgerQuery.addProperty(property, getLCP(property).getExpr(generalLedgerExpr, dimensionTypeExpr));
+        LCP[] dimensionTypeProperties = getLCPs("dateGeneralLedger", "numberGLDocumentGeneralLedger",
+                "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
+                "idOperationGeneralLedger");
+        for (int j = 0; j < dimensionTypeProperties.length; j++) {
+            generalLedgerQuery.addProperty(dimensionTypeNames[j], dimensionTypeProperties[j].getExpr(generalLedgerExpr, dimensionTypeExpr));
         }
 
         generalLedgerQuery.and(getLCP("sumGeneralLedger").getExpr(generalLedgerExpr).getWhere());

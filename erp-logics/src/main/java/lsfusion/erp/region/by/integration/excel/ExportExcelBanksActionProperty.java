@@ -10,6 +10,7 @@ import lsfusion.server.classes.DateClass;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
@@ -45,10 +46,11 @@ public class ExportExcelBanksActionProperty extends ExportExcelActionProperty {
             KeyExpr bankExpr = new KeyExpr("Bank");
             ImRevMap<Object, KeyExpr> bankKeys = MapFact.singletonRev((Object) "Bank", bankExpr);
 
-            String[] bankProperties = new String[]{"idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank"};
+            String[] bankNames = new String[]{"idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank"};
+            LCP[] bankProperties = getLCPs("idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank");
             QueryBuilder<Object, Object> bankQuery = new QueryBuilder<Object, Object>(bankKeys);
-            for (String property : bankProperties) {
-                bankQuery.addProperty(property, getLCP(property).getExpr(context.getModifier(), bankExpr));
+            for (int i = 0; i < bankProperties.length; i++) {
+                bankQuery.addProperty(bankNames[i], bankProperties[i].getExpr(context.getModifier(), bankExpr));
             }
             java.sql.Date date = new java.sql.Date(Calendar.getInstance().getTime().getTime());
             bankQuery.addProperty("dataAddressBankDate", getLCP("dataAddressBankDate").getExpr(context.getModifier(), bankExpr, new DataObject(date, DateClass.instance).getExpr()));

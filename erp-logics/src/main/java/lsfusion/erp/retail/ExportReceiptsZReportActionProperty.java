@@ -16,9 +16,11 @@ import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.w3c.dom.Document;
@@ -38,21 +40,24 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Iterator;
 import java.util.List;
 
-public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty {
+public abstract class ExportReceiptsZReportActionProperty extends ScriptingActionProperty {
 
     // Опциональные модули
     ScriptingLogicsModule POSVostrovLM;
     ScriptingLogicsModule itemArticleLM;
     ScriptingLogicsModule zReportDiscountCardLM;
     ScriptingLogicsModule zReportRetailCRMLM;
-    
-    public ExportReceiptsZReportActionProperty(ScriptingLogicsModule LM) {
-        super(LM, new ValueClass[]{});
-    }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    protected final ClassPropertyInterface zReportInterface;
+
+    public ExportReceiptsZReportActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+        super(LM, LM.findClassByCompoundName("ZReport"));
+
+        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        zReportInterface = i.next();
     }
 
     public void export(ExecutionContext<ClassPropertyInterface> context, DataObject zReportObject, String filePath, boolean customPath) {
@@ -77,10 +82,11 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
             KeyExpr receiptExpr = new KeyExpr("receipt");
             ImRevMap<Object, KeyExpr> receiptKeys = MapFact.singletonRev((Object) "receipt", receiptExpr);
 
-            String[] receiptProperties = new String[]{"numberReceipt", "dateTimeReceipt", "discountSumReceipt", "noteReceipt"};
+            String[] receiptNames = new String[]{"numberReceipt", "dateTimeReceipt", "discountSumReceipt", "noteReceipt"};
+            LCP<?>[] receiptProperties = getLCPs("numberReceipt", "dateTimeReceipt", "discountSumReceipt", "noteReceipt");
             QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<Object, Object>(receiptKeys);
-            for (String rProperty : receiptProperties) {
-                receiptQuery.addProperty(rProperty, getLCP(rProperty).getExpr(session.getModifier(), receiptExpr));
+            for (int j = 0; j < receiptProperties.length; j++) {
+                receiptQuery.addProperty(receiptNames[j], receiptProperties[j].getExpr(session.getModifier(), receiptExpr));
             }
             if (zReportDiscountCardLM != null)
                 receiptQuery.addProperty("numberDiscountCardReceipt", zReportDiscountCardLM.findLCPByCompoundOldName("numberDiscountCardReceipt").getExpr(session.getModifier(), receiptExpr));
@@ -113,12 +119,15 @@ public class ExportReceiptsZReportActionProperty extends ScriptingActionProperty
                 KeyExpr receiptDetailExpr = new KeyExpr("receiptDetail");
                 ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
 
-                String[] receiptDetailProperties = new String[]{"typeReceiptDetail", "quantityReceiptSaleDetail",
+                String[] receiptDetailNames = new String[]{"typeReceiptDetail", "quantityReceiptSaleDetail",
                         "quantityReceiptReturnDetail", "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
                         "discountSumReceiptDetail", "discountPercentReceiptSaleDetail", "skuReceiptDetail"};
+                LCP[] receiptDetailProperties = getLCPs("typeReceiptDetail", "quantityReceiptSaleDetail",
+                        "quantityReceiptReturnDetail", "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
+                        "discountSumReceiptDetail", "discountPercentReceiptSaleDetail", "skuReceiptDetail");
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
-                for (String rdProperty : receiptDetailProperties) {
-                    receiptDetailQuery.addProperty(rdProperty, getLCP(rdProperty).getExpr(session.getModifier(), receiptDetailExpr));
+                for (int j = 0; j < receiptDetailProperties.length; j++) {
+                    receiptDetailQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(session.getModifier(), receiptDetailExpr));
                 }
                 receiptDetailQuery.and(getLCP("receiptReceiptDetail").getExpr(session.getModifier(), receiptDetailExpr).compare(receiptObject.getExpr(), Compare.EQUALS));
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> receiptDetailResult = receiptDetailQuery.executeClasses(session.getSession());
