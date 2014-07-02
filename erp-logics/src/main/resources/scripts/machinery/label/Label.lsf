@@ -814,23 +814,25 @@ EXTEND  FORM currentBalanceSkuStock
     PROPERTIES() TODRAW sts createLabelTransaction, createSessionSnapshotPricingLabel 
 ;
 
+// Инкрементная загрузка
+GROUP incrementMachineryLabel 'Инкрементная печать ценников' : public;
+
 priceALabelTransactionDetailPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTimeIn) =
     GROUP LAST priceLabelTransactionDetail(ledger)
           BY priceListTypeLabelType(labelTypeLabelTransactionDetail(ledger)), skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger), dateTimeIn
           ORDER dateTimeLabelTransactionDetail(ledger), ledger
           WHERE priceLabelTransactionDetail(ledger) AND dateTimeLabelTransactionDetail(ledger) <= dateTimeIn COMPLEX;
 
-needLabelTransactionPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) = (priceALabelTransactionDetailPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) != 
-    prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, dateTime)) OR 
-    (prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, dateTime) AND NOT priceALabelTransactionDetailPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
+needLabelTransactionPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) = 
+    prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, dateTime) AND NOT prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, dateTime) == priceALabelTransactionDetailPriceListTypeSkuStockDateTime(type, sku, stock, dateTime); 
 
 needLabelTransactionStockDateTime (stock, dateTime) = GROUP SUM 1 IF needLabelTransactionPriceListTypeSkuStockDateTime (priceListTypeLabelType(labelType), sku, stock, dateTime) 
-    AND inLabelTypeSkuDepartmentStore(labelType, sku, stock)
-    BY stock, dateTime;
+                                                                  AND inLabelTypeSkuDepartmentStore(labelType, sku, stock)
+                                                            BY stock, dateTime;
 
-createNeedLabelTransaction 'Напечатать изменившиеся ценники' = ACTION (stock) {
+createAllLabelTransactionDepartmentStore 'Все товары' = ACTION (stock) {
     IF needLabelTransactionStockDateTime(stock, currentDateTime()) THEN {
-        selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- TRUE WHERE needLabelTransactionPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, stock, currentDateTime()) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
+        selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, stock, currentDateTime()) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
         createLabelTransactionDepartmentStore(stock);
 
         apply();
@@ -838,12 +840,34 @@ createNeedLabelTransaction 'Напечатать изменившиеся цен
             cancel();
         }        
     }
-} TOOLBAR;
+} IN incrementMachineryLabel;
+
+createBalanceLabelTransactionDepartmentStore 'Остатки' = ACTION (stock) {
+    IF needLabelTransactionStockDateTime(stock, currentDateTime()) THEN {
+        selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, stock, currentDateTime()) 
+                    AND inLabelTypeSkuDepartmentStore(labelType, sku, stock) AND balanceASkuStockDateTime(sku, stock, currentDateTime());   
+                    
+        createLabelTransactionDepartmentStore(stock);
+
+        apply();
+        IF canceled() THEN {
+            cancel();
+        }        
+    }
+} IN incrementMachineryLabel;
 
 
 EXTEND FORM labelTransactions 
-    PROPERTIES(d) createNeedLabelTransaction TODRAW l 
+    PROPERTIES(d) createBalanceLabelTransactionDepartmentStore, createAllLabelTransactionDepartmentStore
 ;
+EXTEND DESIGN labelTransactions {
+    NEW header BEFORE topContainer{
+        type = CONTAINERH;
+        ADD d.box;
+        ADD d.incrementMachineryLabel;
+    }
+} 
+
 
 EXTEND DESIGN currentBalanceSkuStock {
     actionContainer {
