@@ -38,7 +38,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
 
             DataSession session = context.getSession();
             
-            LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) LM.is(getClass("ImportType"));
+            LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(getClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);

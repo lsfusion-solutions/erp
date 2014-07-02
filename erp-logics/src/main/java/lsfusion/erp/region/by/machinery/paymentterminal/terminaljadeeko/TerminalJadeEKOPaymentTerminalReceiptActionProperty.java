@@ -51,7 +51,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
-                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCard");
+                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) getClass("PaymentMeans")).getDataObject("paymentMeansCard");
                     if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                         sumCard = (BigDecimal) paymentValues.get("sumPayment");
                     }

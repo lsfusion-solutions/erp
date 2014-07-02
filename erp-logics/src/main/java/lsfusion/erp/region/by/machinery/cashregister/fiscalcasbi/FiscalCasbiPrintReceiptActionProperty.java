@@ -66,7 +66,7 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
             for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
-                DataObject paymentMeansCashObject = ((ConcreteCustomClass) LM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansCash");
+                DataObject paymentMeansCashObject = ((ConcreteCustomClass) getClass("PaymentMeans")).getDataObject("paymentMeansCash");
                 if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                     sumCash = (BigDecimal) paymentValues.get("sumPayment");
                 } else  {

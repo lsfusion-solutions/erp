@@ -75,51 +75,51 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         List<ImportField> fields = new ArrayList<ImportField>();
         List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-        ImportField codeCustomsGroupField = new ImportField(LM.findLCPByCompoundOldName("codeCustomsGroup"));
-        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) LM.findClassByCompoundName("CustomsGroup"),
-                LM.findLCPByCompoundOldName("customsGroupCode").getMapping(codeCustomsGroupField));
+        ImportField codeCustomsGroupField = new ImportField(getLCP("codeCustomsGroup"));
+        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) getClass("CustomsGroup"),
+                getLCP("customsGroupCode").getMapping(codeCustomsGroupField));
         keys.add(customsGroupKey);
         fields.add(codeCustomsGroupField);
 
-        ImportField idCustomsRateField = new ImportField(LM.findLCPByCompoundOldName("idRegistrationCustomsRate"));
+        ImportField idCustomsRateField = new ImportField(getLCP("idRegistrationCustomsRate"));
         fields.add(idCustomsRateField);
 
-        ImportKey<?> registrationCustomsRateKey = new ImportKey((CustomClass) LM.findClassByCompoundName("RegistrationCustomsRate"),
-                LM.findLCPByCompoundOldName("registrationCustomsRateId").getMapping(idCustomsRateField));
+        ImportKey<?> registrationCustomsRateKey = new ImportKey((CustomClass) getClass("RegistrationCustomsRate"),
+                getLCP("registrationCustomsRateId").getMapping(idCustomsRateField));
         keys.add(registrationCustomsRateKey);
-        props.add(new ImportProperty(idCustomsRateField, LM.findLCPByCompoundOldName("idRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(idCustomsRateField, getLCP("idRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
 
-        ImportKey<?> dutyCustomsRateKey = new ImportKey((CustomClass) LM.findClassByCompoundName("DutyCustomsRate"),
-                LM.findLCPByCompoundOldName("dutyCustomsRateId").getMapping(idCustomsRateField));
+        ImportKey<?> dutyCustomsRateKey = new ImportKey((CustomClass) getClass("DutyCustomsRate"),
+                getLCP("dutyCustomsRateId").getMapping(idCustomsRateField));
         keys.add(dutyCustomsRateKey);
-        props.add(new ImportProperty(idCustomsRateField, LM.findLCPByCompoundOldName("idDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        props.add(new ImportProperty(idCustomsRateField, getLCP("idDutyCustomsRate").getMapping(dutyCustomsRateKey)));
 
-        ImportField sumRegistrationCustomsRateField = new ImportField(LM.findLCPByCompoundOldName("sumRegistrationCustomsRate"));
-        props.add(new ImportProperty(sumRegistrationCustomsRateField, LM.findLCPByCompoundOldName("sumRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
-        props.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundOldName("customsGroupRegistrationCustomsRate").getMapping(registrationCustomsRateKey),
-                LM.object(LM.findClassByCompoundName("CustomsGroup")).getMapping(customsGroupKey)));
+        ImportField sumRegistrationCustomsRateField = new ImportField(getLCP("sumRegistrationCustomsRate"));
+        props.add(new ImportProperty(sumRegistrationCustomsRateField, getLCP("sumRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(codeCustomsGroupField, getLCP("customsGroupRegistrationCustomsRate").getMapping(registrationCustomsRateKey),
+                object(getClass("CustomsGroup")).getMapping(customsGroupKey)));
         fields.add(sumRegistrationCustomsRateField);
 
-        ImportField percentDutyDutyCustomsRateField = new ImportField(LM.findLCPByCompoundOldName("percentDutyDutyCustomsRate"));
-        props.add(new ImportProperty(percentDutyDutyCustomsRateField, LM.findLCPByCompoundOldName("percentDutyDutyCustomsRate").getMapping(dutyCustomsRateKey)));
-        props.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundOldName("customsGroupDutyCustomsRate").getMapping(dutyCustomsRateKey),
-                LM.object(LM.findClassByCompoundName("CustomsGroup")).getMapping(customsGroupKey)));
+        ImportField percentDutyDutyCustomsRateField = new ImportField(getLCP("percentDutyDutyCustomsRate"));
+        props.add(new ImportProperty(percentDutyDutyCustomsRateField, getLCP("percentDutyDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        props.add(new ImportProperty(codeCustomsGroupField, getLCP("customsGroupDutyCustomsRate").getMapping(dutyCustomsRateKey),
+                object(getClass("CustomsGroup")).getMapping(customsGroupKey)));
         fields.add(percentDutyDutyCustomsRateField);
 
-        ImportField weightDutyDutyCustomsRateField = new ImportField(LM.findLCPByCompoundOldName("weightDutyDutyCustomsRate"));
-        props.add(new ImportProperty(weightDutyDutyCustomsRateField, LM.findLCPByCompoundOldName("weightDutyDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        ImportField weightDutyDutyCustomsRateField = new ImportField(getLCP("weightDutyDutyCustomsRate"));
+        props.add(new ImportProperty(weightDutyDutyCustomsRateField, getLCP("weightDutyDutyCustomsRate").getMapping(dutyCustomsRateKey)));
         fields.add(weightDutyDutyCustomsRateField);
 
         ImportField dateFromCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundOldName("dateFromCustomsGroup").getMapping(customsGroupKey)));
-        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundOldName("dateFromRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
-        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundOldName("dateFromDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, getLCP("dateFromCustomsGroup").getMapping(customsGroupKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, getLCP("dateFromRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, getLCP("dateFromDutyCustomsRate").getMapping(dutyCustomsRateKey)));
         fields.add(dateFromCustomsGroupField);
 
         ImportField dateToCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundOldName("dateToCustomsGroup").getMapping(customsGroupKey)));
-        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundOldName("dateToRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
-        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundOldName("dateToDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, getLCP("dateToCustomsGroup").getMapping(customsGroupKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, getLCP("dateToRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, getLCP("dateToDutyCustomsRate").getMapping(dutyCustomsRateKey)));
         fields.add(dateToCustomsGroupField);
 
         ImportTable table = new ImportTable(fields, data);
@@ -137,35 +137,35 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         List<ImportField> fields = new ArrayList<ImportField>();
         List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-        ImportField codeCustomsGroupField = new ImportField(LM.findLCPByCompoundOldName("codeCustomsGroup"));
-        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) LM.findClassByCompoundName("CustomsGroup"),
-                LM.findLCPByCompoundOldName("customsGroupCode").getMapping(codeCustomsGroupField));
+        ImportField codeCustomsGroupField = new ImportField(getLCP("codeCustomsGroup"));
+        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) getClass("CustomsGroup"),
+                getLCP("customsGroupCode").getMapping(codeCustomsGroupField));
         keys.add(customsGroupKey);
         fields.add(codeCustomsGroupField);
 
-        ImportField idCustomsRateField = new ImportField(LM.findLCPByCompoundOldName("idRegistrationCustomsRate"));
+        ImportField idCustomsRateField = new ImportField(getLCP("idRegistrationCustomsRate"));
         fields.add(idCustomsRateField);
        
-        ImportKey<?> VATCustomsRateKey = new ImportKey((CustomClass) LM.findClassByCompoundName("VATCustomsRate"),
-                LM.findLCPByCompoundOldName("VATCustomsRateId").getMapping(idCustomsRateField));
+        ImportKey<?> VATCustomsRateKey = new ImportKey((CustomClass) getClass("VATCustomsRate"),
+                getLCP("VATCustomsRateId").getMapping(idCustomsRateField));
         keys.add(VATCustomsRateKey);
-        props.add(new ImportProperty(idCustomsRateField, LM.findLCPByCompoundOldName("idVATCustomsRate").getMapping(VATCustomsRateKey)));
+        props.add(new ImportProperty(idCustomsRateField, getLCP("idVATCustomsRate").getMapping(VATCustomsRateKey)));
        
-        ImportField rangeField = new ImportField(LM.findLCPByCompoundOldName("dataValueSupplierVATCustomsGroupDate"));
-        ImportKey<?> rangeKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Range"),
-                LM.findLCPByCompoundOldName("valueCurrentVATDefaultValue").getMapping(rangeField));
-        props.add(new ImportProperty(rangeField, LM.findLCPByCompoundOldName("rangeVATCustomsRate").getMapping(VATCustomsRateKey),
-                LM.object(LM.findClassByCompoundName("Range")).getMapping(rangeKey)));
-        props.add(new ImportProperty(codeCustomsGroupField, LM.findLCPByCompoundOldName("customsGroupVATCustomsRate").getMapping(VATCustomsRateKey),
-                LM.object(LM.findClassByCompoundName("CustomsGroup")).getMapping(customsGroupKey)));
+        ImportField rangeField = new ImportField(getLCP("dataValueSupplierVATCustomsGroupDate"));
+        ImportKey<?> rangeKey = new ImportKey((ConcreteCustomClass) getClass("Range"),
+                getLCP("valueCurrentVATDefaultValue").getMapping(rangeField));
+        props.add(new ImportProperty(rangeField, getLCP("rangeVATCustomsRate").getMapping(VATCustomsRateKey),
+                object(getClass("Range")).getMapping(rangeKey)));
+        props.add(new ImportProperty(codeCustomsGroupField, getLCP("customsGroupVATCustomsRate").getMapping(VATCustomsRateKey),
+                object(getClass("CustomsGroup")).getMapping(customsGroupKey)));
         fields.add(rangeField);
 
         ImportField dateFromCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateFromCustomsGroupField, LM.findLCPByCompoundOldName("dateFromVATCustomsRate").getMapping(VATCustomsRateKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, getLCP("dateFromVATCustomsRate").getMapping(VATCustomsRateKey)));
         fields.add(dateFromCustomsGroupField);
 
         ImportField dateToCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateToCustomsGroupField, LM.findLCPByCompoundOldName("dateToVATCustomsRate").getMapping(VATCustomsRateKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, getLCP("dateToVATCustomsRate").getMapping(VATCustomsRateKey)));
         fields.add(dateToCustomsGroupField);
 
         ImportTable table = new ImportTable(fields, data);
@@ -234,11 +234,11 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
 
         Set<String> tnvedSet = new HashSet<String>();
 
-        LCP<?> isCustomsGroup = LM.is(getClass("CustomsGroup"));
+        LCP<?> isCustomsGroup = is(getClass("CustomsGroup"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isCustomsGroup.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        query.addProperty("codeCustomsGroup", LM.findLCPByCompoundOldName("codeCustomsGroup").getExpr(context.getModifier(), key));
+        query.addProperty("codeCustomsGroup", getLCP("codeCustomsGroup").getExpr(context.getModifier(), key));
         query.and(isCustomsGroup.getExpr(key).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 

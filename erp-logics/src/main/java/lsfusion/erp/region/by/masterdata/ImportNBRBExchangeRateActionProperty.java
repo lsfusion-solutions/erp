@@ -54,28 +54,28 @@ public class ImportNBRBExchangeRateActionProperty extends ScriptingActionPropert
             ImportField foreignRateField = new ImportField(getLCP("rateExchange"));
             ImportField dateField = new ImportField(DateClass.instance);
 
-            ImportKey<?> typeExchangeBYRKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("TypeExchange"),
+            ImportKey<?> typeExchangeBYRKey = new ImportKey((ConcreteCustomClass) getClass("TypeExchange"),
                     getLCP("typeExchangeName").getMapping(typeExchangeBYRField));
 
-            ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("TypeExchange"),
+            ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) getClass("TypeExchange"),
                     getLCP("typeExchangeName").getMapping(typeExchangeForeignField));
 
-            ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Currency"),
+            ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) getClass("Currency"),
                     getLCP("currencyShortName").getMapping(currencyField));
 
-            ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("Currency"),
+            ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) getClass("Currency"),
                     getLCP("currencyShortName").getMapping(homeCurrencyField));
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
 
             props.add(new ImportProperty(typeExchangeBYRField, getLCP("nameTypeExchange").getMapping(typeExchangeBYRKey)));
             props.add(new ImportProperty(homeCurrencyField, getLCP("currencyTypeExchange").getMapping(typeExchangeBYRKey),
-                    LM.object(LM.findClassByCompoundName("Currency")).getMapping(homeCurrencyKey)));
+                    object(getClass("Currency")).getMapping(homeCurrencyKey)));
             props.add(new ImportProperty(rateField, getLCP("rateExchange").getMapping(typeExchangeBYRKey, currencyKey, dateField)));
 
             props.add(new ImportProperty(typeExchangeForeignField, getLCP("nameTypeExchange").getMapping(typeExchangeForeignKey)));
             props.add(new ImportProperty(currencyField, getLCP("currencyTypeExchange").getMapping(typeExchangeForeignKey),
-                    LM.object(LM.findClassByCompoundName("Currency")).getMapping(currencyKey)));
+                    object(getClass("Currency")).getMapping(currencyKey)));
             props.add(new ImportProperty(foreignRateField, getLCP("rateExchange").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
 
             List<List<Object>> data = new ArrayList<List<Object>>();

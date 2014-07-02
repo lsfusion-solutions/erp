@@ -38,7 +38,11 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            List<String> exportProperties = BaseUtils.toList("numberDeclarationDetail", "nameCustomsDeclarationDetail",
+            List<String> exportNames = BaseUtils.toList("numberDeclarationDetail", "nameCustomsDeclarationDetail",
+                    "codeCustomsGroupDeclarationDetail", "sidCountryDeclarationDetail", "idUOMDeclarationDetail",
+                    "shortNameUOMDeclarationDetail", "sidOrigin2CountryDeclarationDetail", "quantityDeclarationDetail",
+                    "sumDeclarationDetail", "sumNetWeightDeclarationDetail", "sumGrossWeightDeclarationDetail");
+            LCP[] exportProperties = getLCPs("numberDeclarationDetail", "nameCustomsDeclarationDetail",
                     "codeCustomsGroupDeclarationDetail", "sidCountryDeclarationDetail", "idUOMDeclarationDetail",
                     "shortNameUOMDeclarationDetail", "sidOrigin2CountryDeclarationDetail", "quantityDeclarationDetail",
                     "sumDeclarationDetail", "sumNetWeightDeclarationDetail", "sumGrossWeightDeclarationDetail");
@@ -113,14 +117,15 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
                 addStringCellToRow(title, ";");
             writerTSDocs44.println(row);
 
-            LCP<?> isDeclarationDetail = LM.is(LM.findClassByCompoundName("DeclarationDetail"));
+            LCP<?> isDeclarationDetail = is(getClass("DeclarationDetail"));
             ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDeclarationDetail.getMapKeys();
             KeyExpr key = keys.singleValue();
             QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-            for (String propertySID : exportProperties)
-                query.addProperty(propertySID, LM.findLCPByCompoundOldName(propertySID).getExpr(context.getModifier(), key));
+            for (int j = 0; j < exportProperties.length; j++) {
+                query.addProperty(exportNames.get(j), exportProperties[j].getExpr(context.getModifier(), key));
+            }
             query.and(isDeclarationDetail.getExpr(key).getWhere());
-            query.and(LM.findLCPByCompoundOldName("declarationDeclarationDetail").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
+            query.and(getLCP("declarationDeclarationDetail").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
             TreeMap<Integer, Map<String, Object>> sortedRows = new TreeMap<Integer, Map<String, Object>>();
@@ -128,7 +133,7 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
             for (int i=0,size=result.size();i<size;i++) {
                 ImMap<Object, Object> values = result.getValue(i);
                 Map<String, Object> valuesRow = new HashMap<String, Object>();
-                for (String propertySID : exportProperties)
+                for (String propertySID : exportNames)
                     valuesRow.put(propertySID, values.get(propertySID));
                 valuesRow.put("declarationDetailID", result.getKey(i).getValue(0));
                 sortedRows.put((Integer)values.get("numberDeclarationDetail"), valuesRow);
@@ -150,10 +155,10 @@ public class ExportDeclarationActionProperty extends ScriptingActionProperty {
                 ImRevMap<Object, KeyExpr> invoiceKeys = MapFact.singletonRev((Object)"invoice", invoiceExpr);
 
                 QueryBuilder<Object, Object> invoiceQuery = new QueryBuilder<Object, Object>(invoiceKeys);
-                invoiceQuery.addProperty("seriesNumberInvoice", LM.findLCPByCompoundOldName("Purchase.seriesNumberInvoice").getExpr(invoiceExpr));
-                invoiceQuery.addProperty("dateInvoice", LM.findLCPByCompoundOldName("Purchase.dateInvoice").getExpr(invoiceExpr));
+                invoiceQuery.addProperty("seriesNumberInvoice", getLCP("Purchase.seriesNumberInvoice").getExpr(invoiceExpr));
+                invoiceQuery.addProperty("dateInvoice", getLCP("Purchase.dateInvoice").getExpr(invoiceExpr));
 
-                invoiceQuery.and(LM.findLCPByCompoundOldName("inDeclarationDetailUserInvoice").getExpr(new DataObject(entry.getValue().get("declarationDetailID"), (ConcreteClass) LM.findClassByCompoundName("DeclarationDetail")).getExpr(), invoiceExpr).getWhere());
+                invoiceQuery.and(getLCP("inDeclarationDetailUserInvoice").getExpr(new DataObject(entry.getValue().get("declarationDetailID"), (ConcreteClass) getClass("DeclarationDetail")).getExpr(), invoiceExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> invoiceResult = invoiceQuery.execute(context);
 

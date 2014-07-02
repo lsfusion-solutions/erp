@@ -84,7 +84,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                 Map<DataObject, DataObject> groupCashRegisterDepartmentStoreMap = new HashMap<DataObject, DataObject>();
                 for (DataObject departmentStore : departmentStoreList) {
 
-                    LCP<PropertyInterface> isGroupCashRegister = (LCP<PropertyInterface>) LM.is(getClass("GroupCashRegister"));
+                    LCP<PropertyInterface> isGroupCashRegister = (LCP<PropertyInterface>) is(getClass("GroupCashRegister"));
 
                     ImRevMap<PropertyInterface, KeyExpr> groupCashRegisterKeys = isGroupCashRegister.getMapKeys();
                     KeyExpr groupCashRegisterKey = groupCashRegisterKeys.singleValue();
@@ -104,7 +104,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                 Map<DataObject, DataObject> cashRegisterDepartmentStoreMap = new HashMap<DataObject, DataObject>();
                 for (Map.Entry<DataObject, DataObject> groupCashRegisterDepartmentStore : groupCashRegisterDepartmentStoreMap.entrySet()) {
 
-                    LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) LM.is(getClass("CashRegister"));
+                    LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) is(getClass("CashRegister"));
 
                     ImRevMap<PropertyInterface, KeyExpr> cashRegisterKeys = isCashRegister.getMapKeys();
                     KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();

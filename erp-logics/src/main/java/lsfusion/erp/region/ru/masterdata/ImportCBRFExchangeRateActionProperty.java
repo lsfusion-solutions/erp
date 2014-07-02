@@ -97,12 +97,12 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
 
             props.add(new ImportProperty(typeExchangeRUField, getLCP("nameTypeExchange").getMapping(typeExchangeRUKey)));
             props.add(new ImportProperty(homeCurrencyField, getLCP("currencyTypeExchange").getMapping(typeExchangeRUKey),
-                    LM.object(getClass("Currency")).getMapping(homeCurrencyKey)));
+                    object(getClass("Currency")).getMapping(homeCurrencyKey)));
             props.add(new ImportProperty(rateField, getLCP("rateExchange").getMapping(typeExchangeRUKey, currencyKey, dateField)));
 
             props.add(new ImportProperty(typeExchangeForeignField, getLCP("nameTypeExchange").getMapping(typeExchangeForeignKey)));
             props.add(new ImportProperty(currencyField, getLCP("currencyTypeExchange").getMapping(typeExchangeForeignKey),
-                    LM.object(getClass("Currency")).getMapping(currencyKey)));
+                    object(getClass("Currency")).getMapping(currencyKey)));
             props.add(new ImportProperty(foreignRateField, getLCP("rateExchange").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
 
             List<List<Object>> data = new ArrayList<List<Object>>();

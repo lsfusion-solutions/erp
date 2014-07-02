@@ -103,7 +103,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
             ImportField numberDeclarationDetailField = new ImportField(getLCP("numberDeclarationDetail"));
-            ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) LM.findClassByCompoundName("DeclarationDetail"),
+            ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) getClass("DeclarationDetail"),
                     getLCP("declarationDetailDeclarationNumber").getMapping(declarationObject, numberDeclarationDetailField));
             keys.add(declarationDetailKey);
             props.add(new ImportProperty(declarationObject, getLCP("declarationDeclarationDetail").getMapping(declarationDetailKey)));

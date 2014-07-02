@@ -148,7 +148,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 "percentDutyDeclarationDetail", "percentVATDeclarationDetail", "dutySumDeclarationDetail",
                 "VATSumDeclarationDetail", "nameSupplierDeclarationDetail", "nameBrandDeclarationDetail", "nameManufacturerDeclarationDetail");
 
-        LCP<?> isDeclarationDetail = LM.is(getClass("DeclarationDetail"));
+        LCP<?> isDeclarationDetail = is(getClass("DeclarationDetail"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDeclarationDetail.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);

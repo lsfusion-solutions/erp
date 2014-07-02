@@ -110,7 +110,7 @@ public abstract class ExportReceiptsZReportActionProperty extends ScriptingActio
             doc.appendChild(rootElement);
 
             for (int i = 0, size = receiptResult.size(); i < size; i++) {
-                DataObject receiptObject = new DataObject(receiptResult.getKey(i).get("receipt"), (ConcreteClass) LM.findClassByCompoundName("Receipt"));
+                DataObject receiptObject = new DataObject(receiptResult.getKey(i).get("receipt"), (ConcreteClass) getClass("Receipt"));
                 getLCP("exportReceipt").change((Object) null, session.getSession(), receiptObject);
 
                 Element receipt = doc.createElement("receipt");

@@ -59,8 +59,8 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
         DataSession session = context.getSession();
 
         try {
-            ObjectValue retailCPLT = LM.findLCPByCompoundOldName("idCalcPriceListType").readClasses(session, new DataObject("retail", StringClass.get(100)));
-            ObjectValue wholesaleCPLT = LM.findLCPByCompoundOldName("idCalcPriceListType").readClasses(session, new DataObject("wholesale", StringClass.get(100)));
+            ObjectValue retailCPLT = getLCP("idCalcPriceListType").readClasses(session, new DataObject("retail", StringClass.get(100)));
+            ObjectValue wholesaleCPLT = getLCP("idCalcPriceListType").readClasses(session, new DataObject("wholesale", StringClass.get(100)));
 
             KeyExpr itemExpr = new KeyExpr("Item");
             ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "Item", itemExpr);
@@ -107,26 +107,26 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 Integer itemGroupID = (Integer) itemValue.get("itemGroupItem").getValue();
 
                 ObjectValue uomItemObject = itemValue.get("UOMItem");
-                String nameUOM = trim((String) LM.findLCPByCompoundOldName("nameUOM").read(session, uomItemObject), "");
-                String shortNameUOM = trim((String) LM.findLCPByCompoundOldName("shortNameUOM").read(session, uomItemObject), "");
+                String nameUOM = trim((String) getLCP("nameUOM").read(session, uomItemObject), "");
+                String shortNameUOM = trim((String) getLCP("shortNameUOM").read(session, uomItemObject), "");
 
                 ObjectValue brandItemObject = itemValue.get("brandItem");
-                String nameBrand = trim((String) LM.findLCPByCompoundOldName("nameBrand").read(session, brandItemObject), "");
+                String nameBrand = trim((String) getLCP("nameBrand").read(session, brandItemObject), "");
 
                 ObjectValue wareItemObject = itemValue.get("wareItem");
-                BigDecimal priceWare = (BigDecimal) LM.findLCPByCompoundOldName("warePrice").read(session, wareItemObject);
-                BigDecimal vatWare = (BigDecimal) LM.findLCPByCompoundOldName("valueCurrentRateRangeWare").read(session, wareItemObject);
+                BigDecimal priceWare = (BigDecimal) getLCP("warePrice").read(session, wareItemObject);
+                BigDecimal vatWare = (BigDecimal) getLCP("valueCurrentRateRangeWare").read(session, wareItemObject);
 
                 DataObject itemObject = itemResult.getKey(i).get("Item");
                 ObjectValue countryItemObject = itemValue.get("countryItem");
                 DataObject dateObject = new DataObject(new Date(System.currentTimeMillis()), DateClass.instance);
-                BigDecimal vatItem = (BigDecimal) LM.findLCPByCompoundOldName("valueVATItemCountryDate").read(session, itemObject, countryItemObject, dateObject);
-                String nameCountry = trim((String) LM.findLCPByCompoundOldName("nameCountry").read(session, countryItemObject), "");
+                BigDecimal vatItem = (BigDecimal) getLCP("valueVATItemCountryDate").read(session, itemObject, countryItemObject, dateObject);
+                String nameCountry = trim((String) getLCP("nameCountry").read(session, countryItemObject), "");
 
                 Integer writeOffRateID = writeOffRateItemLM == null ? null : (Integer) writeOffRateItemLM.findLCPByCompoundOldName("writeOffRateCountryItem").read(session, countryItemObject, itemObject);
 
-                BigDecimal retailMarkup = (BigDecimal) LM.findLCPByCompoundOldName("markupCalcPriceListTypeSku").read(session, retailCPLT, itemObject);
-                BigDecimal wholesaleMarkup = (BigDecimal) LM.findLCPByCompoundOldName("markupCalcPriceListTypeSku").read(session, wholesaleCPLT, itemObject);
+                BigDecimal retailMarkup = (BigDecimal) getLCP("markupCalcPriceListTypeSku").read(session, retailCPLT, itemObject);
+                BigDecimal wholesaleMarkup = (BigDecimal) getLCP("markupCalcPriceListTypeSku").read(session, wholesaleCPLT, itemObject);
 
                 data.add(Arrays.asList(formatValue(itemID), formatValue(itemGroupID), name, nameUOM, shortNameUOM, 
                         formatValue(uomItemObject.getValue()), nameBrand, formatValue(brandItemObject.getValue()), 

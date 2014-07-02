@@ -85,7 +85,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceResult = userInvoiceQuery.execute(session);
 
             for (int i = 0, size = userInvoiceResult.size(); i < size; i++) {
-                DataObject userInvoiceObject = new DataObject(userInvoiceResult.getKey(i).get("UserInvoice"), (ConcreteClass) LM.findClassByCompoundName("UserInvoice"));
+                DataObject userInvoiceObject = new DataObject(userInvoiceResult.getKey(i).get("UserInvoice"), (ConcreteClass) getClass("UserInvoice"));
 
                 Date date = (Date) userInvoiceResult.getValue(i).get("Purchase.dateUserInvoice");
 

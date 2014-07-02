@@ -26,7 +26,7 @@ public class GenerateDBFStructureActionProperty extends ScriptingActionProperty 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            String path = (String) LM.findLCPByCompoundOldName("generateDBFStructurePath").read(context);
+            String path = (String) getLCP("generateDBFStructurePath").read(context);
 
             File dir = new File(path);
             if (dir.isDirectory()) {

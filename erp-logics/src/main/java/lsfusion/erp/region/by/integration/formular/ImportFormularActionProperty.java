@@ -69,7 +69,7 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
                 getLCP("itemGroupId").getMapping(idParentGroup));
 
         ImportProperty<?> parentGroupProperty = new ImportProperty(idParentGroup, getLCP("parentItemGroup").getMapping(itemGroupKey),
-                LM.object(getClass("ItemGroup")).getMapping(parentGroupKey));
+                object(getClass("ItemGroup")).getMapping(parentGroupKey));
 
         Collection<? extends ImportKey<?>> keys = Arrays.asList(itemGroupKey, parentGroupKey);
         Collection<ImportProperty<?>> properties = Arrays.asList(itemGroupIDProperty, itemGroupNameProperty, parentGroupProperty);

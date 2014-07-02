@@ -35,7 +35,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
 
         try {
 
-            LCP<PropertyInterface> isImportUserPriceListType = (LCP<PropertyInterface>) LM.is(getClass("ImportUserPriceListType"));
+            LCP<PropertyInterface> isImportUserPriceListType = (LCP<PropertyInterface>) is(getClass("ImportUserPriceListType"));
             ImRevMap<PropertyInterface, KeyExpr> importUserPriceListTypeKeys = isImportUserPriceListType.getMapKeys();
             KeyExpr importUserPriceListTypeKey = importUserPriceListTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importUserPriceListTypeQuery = new QueryBuilder<PropertyInterface, Object>(importUserPriceListTypeKeys);
