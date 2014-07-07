@@ -1,0 +1,28 @@
+MODULE LabelPriceList;
+
+REQUIRE PriceList, Label;
+
+//--------------- Акционные ценники -------------//
+
+labelTypePriceList = ABSTRACT LabelType (PriceList);
+nameLabelTypePriceList 'Тип ценника' = nameLabelType(labelTypePriceList(p));
+labelTypePriceListDetail (d) = labelTypePriceList(priceListPriceListDetail(d));
+
+labelTypeUserPriceList = DATA LabelType (UserPriceList);
+nameLabelTypeUserPriceList 'Тип ценника' = nameLabelType(labelTypeUserPriceList(p)) IN documentPrm;
+labelTypeUserPriceListDetail (d) = labelTypeUserPriceList(userPriceListUserPriceListDetail(d));
+
+labelTypePriceList(p) += labelTypeUserPriceList(p);
+
+EXTEND FORM  userPriceList  
+    PROPERTIES (p) nameLabelTypeUserPriceList 
+
+;
+
+EXTEND FORM  priceLists  
+    PROPERTIES (p) READONLY nameLabelTypeUserPriceList 
+
+;
+
+inOverPriceListTypeSkuStock (type, sku, stock)= priceListTypeLabelType(labelTypePriceListDetail(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime())))==type;
+overLabelTypeSkuDepartmentStore(labelType, sku, departmentStore) += inOverPriceListTypeSkuStock(priceListTypeLabelType(labelType), sku, departmentStore) IF departmentStore IS DepartmentStore;

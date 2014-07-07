@@ -67,7 +67,9 @@ inLabelTypeGroup 'Вкл.' (labelType, group) =
 inLabelTypeSku 'Вкл.' (labelType, sku) =
     OVERRIDE inLabelTypeGroup(labelType, groupGroupTypeSku(groupTypeLabelType(labelType), sku)), dataInLabelTypeSku(labelType, sku);
 
-inLabelTypeSkuDepartmentStore (labelType, sku, departmentStore) = inLabelTypeSku(labelType, sku) AND inLabelTypeDepartmentStore(labelType, departmentStore);
+overLabelTypeSkuDepartmentStore= ABSTRACT BOOLEAN (LabelType, Sku, DepartmentStore);
+inLabelTypeSkuDepartmentStore (labelType, sku, departmentStore) = (inLabelTypeSku(labelType, sku) 
+    AND inLabelTypeDepartmentStore(labelType, departmentStore)) OR overLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);
 
 //-- Множитель
 dataCountLabelTypeGroup 'Множитель' = DATA INTEGER (LabelType, Group);
@@ -832,7 +834,9 @@ needLabelTransactionStockDateTime (stock, dateTime) = GROUP SUM 1 IF needLabelTr
 
 createAllLabelTransactionDepartmentStore 'Все товары' = ACTION (stock) {
     IF needLabelTransactionStockDateTime(stock, currentDateTime()) THEN {
-        selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, stock, currentDateTime()) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
+        selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelType), sku, stock, currentDateTime()) 
+                    AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
+        
         createLabelTransactionDepartmentStore(stock);
 
         apply();
