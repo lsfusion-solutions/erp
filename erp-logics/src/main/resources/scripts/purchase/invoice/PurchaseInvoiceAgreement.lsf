@@ -162,15 +162,36 @@ deviationNotOrderInvoiceAgreement 'Запретить оприходование
 EXTEND FORM agreement 
     PROPERTIES(a) deviationNotOrderInvoiceAgreement 
 ;
-EXTEND DESIGN agreement {
-    deviation{
-        ADD PROPERTY (deviationNotOrderInvoiceAgreement(a));
-    }
-}
+//EXTEND DESIGN agreement {
+//    deviation{
+//        ADD PROPERTY (deviationNotOrderInvoiceAgreement(a));
+//    }
+//}
 maxOrderDetailInvoiceDetail (d) = maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)) IF isPostedOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)));
 
 CONSTRAINT isPostedInvoiceDetail(d) AND deviationNotOrderInvoiceAgreement(agreementInvoice(invoiceInvoiceDetail(d))) AND NOT maxOrderDetailInvoiceDetail(d)    
     MESSAGE 'Накладную запрещено оприходовать без заказа';   
 
 
+//--------------------------- Минимальная сумма заказа для поставщика --------------------------------------//
 
+minSupplierSumOrderAgreement 'Минимальная сумма заказа' = DATA NUMERIC[16,2] (Agreement) MINCHARWIDTH 13 PREFCHARWIDTH 13;
+EXTEND FORM agreement 
+    PROPERTIES(a) minSupplierSumOrderAgreement 
+;
+EXTEND DESIGN agreement {
+    deviation{
+        NEW deviation2 AFTER deviation1 {
+            type = CONTAINERH;
+            ADD PROPERTY (deviationNotOrderInvoiceAgreement(a));
+            ADD PROPERTY (minSupplierSumOrderAgreement(a));
+        }
+    }
+}
+
+minSumSupplierOrder 'Минимальная сумма заказа' (o) = minSupplierSumOrderAgreement(agreementUserOrder(o)) IN documentSum MINCHARWIDTH 13 PREFCHARWIDTH 13;
+backgroundMinSumSupplierOrder (o) = RGB (255,100,100) IF minSumSupplierOrder(o) > sumUserOrderDetailUserOrder(o);
+
+EXTEND FORM userOrder 
+    PROPERTIES(o) READONLY minSumSupplierOrder BACKGROUND backgroundMinSumSupplierOrder(o) 
+;
