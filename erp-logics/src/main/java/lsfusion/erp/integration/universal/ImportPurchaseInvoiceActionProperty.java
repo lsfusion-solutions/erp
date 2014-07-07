@@ -436,8 +436,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                     (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
-            LCP<?> countryAggr = getLCP(showSidOrigin2Country ? "countrySIDOrigin2" :
-                    (showNameCountry ? "countryName" : (showNameOriginCountry ? "countryNameOrigin" : null)));
+            LCP<?> countryAggr = showSidOrigin2Country ? getLCP("countrySIDOrigin2") :
+                    (showNameCountry ? getLCP("countryName") : (showNameOriginCountry ? getLCP("countryNameOrigin") : null));
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
             ImportKey<?> countryKey = countryField == null ? null : 

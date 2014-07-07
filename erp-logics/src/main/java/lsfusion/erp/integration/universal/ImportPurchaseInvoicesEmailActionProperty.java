@@ -110,7 +110,11 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                 }
 
                             } catch (Exception e) {
+                                DataSession postImportSession = context.createSession();
+                                getLCP("lastErrorAttachmentEmail").change(e.toString(), postImportSession, (DataObject) attachmentEmailObject);
+                                postImportSession.apply(context);
                                 ServerLoggers.systemLogger.error(e);
+                                
                             }
                         }
                     }
