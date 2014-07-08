@@ -50,9 +50,9 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
 
-        ScriptingLogicsModule wareItemLM = (ScriptingLogicsModule) context.getBL().getModule("WareItemLM");
-        ScriptingLogicsModule writeOffRateItemLM = (ScriptingLogicsModule) context.getBL().getModule("WriteOffRateItem");
-        ScriptingLogicsModule salePackLM = (ScriptingLogicsModule) context.getBL().getModule("SalePack");
+        ScriptingLogicsModule wareItemLM = context.getBL().getModule("WareItemLM");
+        ScriptingLogicsModule writeOffRateItemLM = context.getBL().getModule("WriteOffPurchaseItem");
+        ScriptingLogicsModule salePackLM = context.getBL().getModule("SalePack");
         
         List<List<String>> data = new ArrayList<List<String>>();
 

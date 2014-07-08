@@ -72,7 +72,7 @@ public class ImportExcelAllActionProperty extends ScriptingActionProperty {
                         importData.setUserInvoicesList(ImportExcelUserInvoicesActionProperty.importUserInvoices(file.getValue()));
                     }
 
-                    new ImportActionProperty(LM, importData, context).makeImport();
+                    new ImportActionProperty(LM).makeImport(importData, context);
                 }
             }
         } catch (BiffException e) {

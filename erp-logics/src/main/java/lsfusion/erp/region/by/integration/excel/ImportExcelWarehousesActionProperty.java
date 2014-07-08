@@ -43,7 +43,7 @@ public class ImportExcelWarehousesActionProperty extends ImportExcelActionProper
                     importData.setWarehouseGroupsList(importWarehouseGroups(file));
                     importData.setWarehousesList(importWarehouses(file));
 
-                    new ImportActionProperty(LM, importData, context).makeImport();
+                    new ImportActionProperty(LM).makeImport(importData, context);
 
                 }
             }

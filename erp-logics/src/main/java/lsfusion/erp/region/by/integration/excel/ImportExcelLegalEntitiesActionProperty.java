@@ -41,7 +41,7 @@ public class ImportExcelLegalEntitiesActionProperty extends ImportExcelActionPro
 
                     importData.setLegalEntitiesList(importLegalEntities(file));
 
-                    new ImportActionProperty(LM, importData, context).makeImport();
+                    new ImportActionProperty(LM).makeImport(importData, context);
 
                 }
             }

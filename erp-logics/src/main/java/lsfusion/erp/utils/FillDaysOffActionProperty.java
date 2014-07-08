@@ -1,6 +1,7 @@
 package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.ExceptionUtils;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -36,11 +37,11 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
 
             session.close();
         } catch (Exception e) {
-            throw Throwables.propagate(e);
+            throw ExceptionUtils.propagate(e, SQLException.class, SQLHandledException.class);
         }
     }
 
-    private void generateDates(ExecutionContext<ClassPropertyInterface> context, DataObject countryObject) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException {
+    private void generateDates(ExecutionContext<ClassPropertyInterface> context, DataObject countryObject) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
         DataSession session = context.createSession();
         Calendar current = Calendar.getInstance();
         int currentYear = current.get(Calendar.YEAR);
@@ -72,7 +73,7 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
         session.close();
     }
 
-    private void addDayOff(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject countryObject, long timeInMillis) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException {
-        context.getBL().getModule("Country").getLCPByOldName("isDayOffCountryDate").change(true, session, countryObject, new DataObject(new java.sql.Date(timeInMillis), DateClass.instance));
+    private void addDayOff(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject countryObject, long timeInMillis) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+        context.getBL().getModule("Country").findLCPByCompoundOldName("isDayOffCountryDate").change(true, session, countryObject, new DataObject(new java.sql.Date(timeInMillis), DateClass.instance));
     }
 }

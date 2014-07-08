@@ -109,23 +109,23 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     @Override
     protected void onInit(LifecycleEvent event) {
-        equLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Equipment");
+        equLM = getBusinessLogics().getModule("Equipment");
         Assert.notNull(equLM, "can't find Equipment module");
-        cashRegisterLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentCashRegister");
-        collectionLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Collection");
-        discountCardLM = (ScriptingLogicsModule) getBusinessLogics().getModule("DiscountCard");
-        equipmentCashRegisterLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentCashRegister");
-        itemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("Item");
-        legalEntityLM = (ScriptingLogicsModule) getBusinessLogics().getModule("LegalEntity");
-        machineryPriceTransactionLM = (ScriptingLogicsModule) getBusinessLogics().getModule("MachineryPriceTransaction");
-        priceCheckerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentPriceChecker");
-        priceListLedgerLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PriceListLedger");
-        purchaseInvoiceAgreementLM = (ScriptingLogicsModule) getBusinessLogics().getModule("PurchaseInvoiceAgreement");
-        scalesItemLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ScalesItem");
-        scalesLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentScales");
-        stopListLM = (ScriptingLogicsModule) getBusinessLogics().getModule("StopList");
-        terminalLM = (ScriptingLogicsModule) getBusinessLogics().getModule("EquipmentTerminal");
-        zReportLM = (ScriptingLogicsModule) getBusinessLogics().getModule("ZReport");
+        cashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
+        collectionLM = getBusinessLogics().getModule("Collection");
+        discountCardLM = getBusinessLogics().getModule("DiscountCard");
+        equipmentCashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
+        itemLM = getBusinessLogics().getModule("Item");
+        legalEntityLM = getBusinessLogics().getModule("LegalEntity");
+        machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
+        priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
+        priceListLedgerLM = getBusinessLogics().getModule("PriceListLedger");
+        purchaseInvoiceAgreementLM = getBusinessLogics().getModule("PurchaseInvoiceAgreement");
+        scalesItemLM = getBusinessLogics().getModule("ScalesItem");
+        scalesLM = getBusinessLogics().getModule("EquipmentScales");
+        stopListLM = getBusinessLogics().getModule("StopList");
+        terminalLM = getBusinessLogics().getModule("EquipmentTerminal");
+        zReportLM = getBusinessLogics().getModule("ZReport");
     }
 
     @Override

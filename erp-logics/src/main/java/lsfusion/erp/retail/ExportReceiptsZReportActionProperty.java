@@ -62,10 +62,10 @@ public abstract class ExportReceiptsZReportActionProperty extends ScriptingActio
 
     public void export(ExecutionContext<ClassPropertyInterface> context, DataObject zReportObject, String filePath, boolean customPath) {
 
-        this.POSVostrovLM = (ScriptingLogicsModule) context.getBL().getModule("POSVostrov");
-        this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
-        this.zReportDiscountCardLM = (ScriptingLogicsModule) context.getBL().getModule("ZReportDiscountCard");
-        this.zReportRetailCRMLM = (ScriptingLogicsModule) context.getBL().getModule("ZReportRetailCRM");
+        this.POSVostrovLM = context.getBL().getModule("POSVostrov");
+        this.itemArticleLM = context.getBL().getModule("ItemArticle");
+        this.zReportDiscountCardLM = context.getBL().getModule("ZReportDiscountCard");
+        this.zReportRetailCRMLM = context.getBL().getModule("ZReportRetailCRM");
         
         if (filePath == null && !customPath)
             return;
@@ -171,10 +171,12 @@ public abstract class ExportReceiptsZReportActionProperty extends ScriptingActio
                         KeyExpr promotionConditionExpr = new KeyExpr("promotionCondition");
                         ImRevMap<Object, KeyExpr> promotionConditionKeys = MapFact.singletonRev((Object) "promotionCondition", promotionConditionExpr);
                         QueryBuilder<Object, Object> promotionConditionQuery = new QueryBuilder<Object, Object>(promotionConditionKeys);
-                        String[] receiptDetailPromotionConditionProperties = new String[]{"quantityReceiptSaleDetailPromotionCondition",
+                        String[] receiptDetailPromotionConditionNames = new String[]{"quantityReceiptSaleDetailPromotionCondition",
                                 "promotionSumReceiptSaleDetailPromotionCondition", "setUserPromotionReceiptSaleDetailPromotionCondition"};
-                        for (String pcProperty : receiptDetailPromotionConditionProperties) {
-                            promotionConditionQuery.addProperty(pcProperty, zReportRetailCRMLM.findLCPByCompoundOldName(pcProperty).getExpr(session.getModifier(), receiptDetailObject.getExpr(), promotionConditionExpr));
+                        LCP[] receiptDetailPromotionConditionProperties = new LCP[]{zReportRetailCRMLM.findLCPByCompoundOldName("quantityReceiptSaleDetailPromotionCondition"),
+                                zReportRetailCRMLM.findLCPByCompoundOldName("promotionSumReceiptSaleDetailPromotionCondition"), zReportRetailCRMLM.findLCPByCompoundOldName("setUserPromotionReceiptSaleDetailPromotionCondition")};
+                        for (int k = 0; k < receiptDetailPromotionConditionProperties.length; k++) {
+                            promotionConditionQuery.addProperty(receiptDetailPromotionConditionNames[k], receiptDetailPromotionConditionProperties[k].getExpr(session.getModifier(), receiptDetailObject.getExpr(), promotionConditionExpr));
                         }
                         promotionConditionQuery.addProperty("idPromotionCondition", zReportRetailCRMLM.findLCPByCompoundOldName("idPromotionCondition").getExpr(session.getModifier(), promotionConditionExpr));
                         promotionConditionQuery.addProperty("namePromotionPromotionCondition", zReportRetailCRMLM.findLCPByCompoundOldName("namePromotionPromotionCondition").getExpr(session.getModifier(), promotionConditionExpr));

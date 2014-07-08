@@ -43,7 +43,7 @@ public class ImportExcelUserInvoicesActionProperty extends ImportExcelActionProp
 
                     importData.setUserInvoicesList(importUserInvoices(file));
 
-                    new ImportActionProperty(LM, importData, context).makeImport();
+                    new ImportActionProperty(LM).makeImport(importData, context);
 
                 }
             }

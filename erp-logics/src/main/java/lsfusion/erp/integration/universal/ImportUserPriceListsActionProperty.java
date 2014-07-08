@@ -53,7 +53,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
 
                 String directory = (String) entryValue.get("autoImportDirectoryImportUserPriceListType").getValue();
                 
-                ImportColumns importColumns = ImportUserPriceListActionProperty.readImportColumns(context, LM, importUserPriceListTypeObject);
+                ImportColumns importColumns = new ImportUserPriceListActionProperty(LM).readImportColumns(context, importUserPriceListTypeObject);
 
                 if (directory != null && importColumns.getFileExtension() != null) {
                     File dir = new File(trim(directory));

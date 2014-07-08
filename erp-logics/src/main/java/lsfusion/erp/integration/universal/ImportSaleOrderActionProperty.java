@@ -7,7 +7,6 @@ import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
@@ -79,7 +78,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
 
-                Map<String, ImportColumnDetail> importColumns = readImportColumns(session, LM, importTypeObject).get(0);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(session, importTypeObject).get(0);
 
                 if (importColumns != null && fileExtension != null) {
 
@@ -123,7 +122,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
-        this.saleManufacturingPriceLM = (ScriptingLogicsModule) BL.getModule("SaleManufacturingPrice");
+        this.saleManufacturingPriceLM = BL.getModule("SaleManufacturingPrice");
 
         List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(session, (Integer) orderObject.object,
                 importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit);
@@ -321,7 +320,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             }
 
             if ((saleManufacturingPriceLM != null) && showField(orderDetailsList, "manufacturingPrice")) {
-                addDataField(saleManufacturingPriceLM, props, fields, importColumns, "Sale.manufacturingPriceUserOrderDetail", "manufacturingPrice", orderDetailKey);
+                addDataField(props, fields, importColumns, saleManufacturingPriceLM.findLCPByCompoundOldName("Sale.manufacturingPriceUserOrderDetail"), "manufacturingPrice", orderDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).manufacturingPrice);
             }

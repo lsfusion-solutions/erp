@@ -73,7 +73,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             if (!(importUserPriceListTypeObject instanceof NullValue)) {
 
-                ImportColumns importColumns = readImportColumns(context, LM, importUserPriceListTypeObject);
+                ImportColumns importColumns = readImportColumns(context, importUserPriceListTypeObject);
 
                 if (importColumns != null && importColumns.getFileExtension() != null) {
 
@@ -112,10 +112,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                               byte[] file, boolean apply)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, UniversalImportException, SQLHandledException, JDBFException {
 
-        this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
-        this.purchasePackLM = (ScriptingLogicsModule) context.getBL().getModule("PurchasePack");
-        this.salePackLM = (ScriptingLogicsModule) context.getBL().getModule("SalePack");
-        this.stockAdjustmentLM = (ScriptingLogicsModule) context.getBL().getModule("ImportUserPriceListStockAdjustment");
+        this.itemArticleLM = context.getBL().getModule("ItemArticle");
+        this.purchasePackLM = context.getBL().getModule("PurchasePack");
+        this.salePackLM = context.getBL().getModule("SalePack");
+        this.stockAdjustmentLM = context.getBL().getModule("ImportUserPriceListStockAdjustment");
         
         List<UserPriceListDetail> userPriceListDetailList;
         
@@ -706,54 +706,54 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    protected static ImportColumns readImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, ImportColumnDetail> columns = readColumns(context, LM, importTypeObject);
-        Map<DataObject, String[]> priceColumns = readPriceImportColumns(context, LM, importTypeObject);
-        String quantityAdjustmentColumn = (String) LM.findLCPByCompoundOldName("quantityAdjustmentImportUserPriceListType").read(context, importTypeObject);
+    public ImportColumns readImportColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, ImportColumnDetail> columns = readColumns(context, importTypeObject);
+        Map<DataObject, String[]> priceColumns = readPriceImportColumns(context, importTypeObject);
+        String quantityAdjustmentColumn = (String) getLCP("quantityAdjustmentImportUserPriceListType").read(context, importTypeObject);
 
-        ObjectValue operation = LM.findLCPByCompoundOldName("operationImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue operation = getLCP("operationImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
 
-        ObjectValue company = LM.findLCPByCompoundOldName("companyImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue company = getLCP("companyImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject companyObject = company instanceof NullValue ? null : (DataObject) company;
 
-        ObjectValue stock = LM.findLCPByCompoundOldName("stockImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue stock = getLCP("stockImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject stockObject = stock instanceof NullValue ? null : (DataObject) stock;
 
-        ObjectValue defaultItemGroup = LM.findLCPByCompoundOldName("defaultItemGroupImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue defaultItemGroup = getLCP("defaultItemGroupImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
         DataObject defaultItemGroupObject = defaultItemGroup instanceof NullValue ? null : (DataObject) defaultItemGroup;
 
-        String fileExtension = (String) LM.findLCPByCompoundOldName("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").read(context, importTypeObject);
+        String fileExtension = (String) getLCP("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").read(context, importTypeObject);
         fileExtension = fileExtension == null ? null : fileExtension.trim();
         
-        String itemKeyType = (String) LM.findLCPByCompoundOldName("nameImportUserPriceListKeyTypeImportUserPriceListType").read(context, importTypeObject);
+        String itemKeyType = (String) getLCP("nameImportUserPriceListKeyTypeImportUserPriceListType").read(context, importTypeObject);
         String[] parts = itemKeyType == null ? null : itemKeyType.split("\\.");
         itemKeyType = parts == null ? null : parts[parts.length - 1].trim();
         
-        String csvSeparator = (String) LM.findLCPByCompoundOldName("separatorImportUserPriceListType").read(context, importTypeObject);
+        String csvSeparator = (String) getLCP("separatorImportUserPriceListType").read(context, importTypeObject);
         csvSeparator = csvSeparator == null ? ";" : csvSeparator;
         
-        Integer startRow = (Integer) LM.findLCPByCompoundOldName("startRowImportUserPriceListType").read(context, importTypeObject);
+        Integer startRow = (Integer) getLCP("startRowImportUserPriceListType").read(context, importTypeObject);
         startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
         
-        Boolean isPosted = (Boolean) LM.findLCPByCompoundOldName("isPostedImportUserPriceListType").read(context, importTypeObject);
+        Boolean isPosted = (Boolean) getLCP("isPostedImportUserPriceListType").read(context, importTypeObject);
 
         return new ImportColumns(columns, priceColumns, quantityAdjustmentColumn, operationObject, companyObject, stockObject, defaultItemGroupObject, 
                 fileExtension, itemKeyType, csvSeparator, startRow, isPosted);
     }
 
-    private static Map<String, ImportColumnDetail> readColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Map<String, ImportColumnDetail> readColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Map<String, ImportColumnDetail> importColumns = new HashMap<String, ImportColumnDetail>();
 
-        LCP<PropertyInterface> isImportTypeDetail = (LCP<PropertyInterface>) LM.is(LM.findClassByCompoundName("ImportUserPriceListTypeDetail"));
+        LCP<PropertyInterface> isImportTypeDetail = (LCP<PropertyInterface>) is(getClass("ImportUserPriceListTypeDetail"));
         ImRevMap<PropertyInterface, KeyExpr> keys = isImportTypeDetail.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<PropertyInterface, Object>(keys);
-        query.addProperty("staticName", LM.findLCPByCompoundOldName("staticName").getExpr(context.getModifier(), key));
-        query.addProperty("staticCaption", LM.findLCPByCompoundOldName("staticCaption").getExpr(context.getModifier(), key));
-        query.addProperty("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail", LM.findLCPByCompoundOldName("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
-        query.addProperty("indexImportUserPriceListTypeImportUserPriceListTypeDetail", LM.findLCPByCompoundOldName("indexImportUserPriceListTypeImportUserPriceListTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
+        query.addProperty("staticName", getLCP("staticName").getExpr(context.getModifier(), key));
+        query.addProperty("staticCaption", getLCP("staticCaption").getExpr(context.getModifier(), key));
+        query.addProperty("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail", getLCP("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
+        query.addProperty("indexImportUserPriceListTypeImportUserPriceListTypeDetail", getLCP("indexImportUserPriceListTypeImportUserPriceListTypeDetail").getExpr(context.getModifier(), importTypeObject.getExpr(), key));
         query.and(isImportTypeDetail.getExpr(key).getWhere());
         ImOrderMap<ImMap<PropertyInterface, Object>, ImMap<Object, Object>> result = query.execute(context);
 
@@ -774,15 +774,15 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return importColumns;
     }
 
-    private static Map<DataObject, String[]> readPriceImportColumns(ExecutionContext context, ScriptingLogicsModule LM, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Map<DataObject, String[]> readPriceImportColumns(ExecutionContext context, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Map<DataObject, String[]> importColumns = new HashMap<DataObject, String[]>();
 
-        LCP<PropertyInterface> isDataPriceListType = (LCP<PropertyInterface>) LM.is(LM.findClassByCompoundName("DataPriceListType"));
+        LCP<PropertyInterface> isDataPriceListType = (LCP<PropertyInterface>) is(getClass("DataPriceListType"));
         ImRevMap<PropertyInterface, KeyExpr> keys = isDataPriceListType.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<PropertyInterface, Object>(keys);
-        query.addProperty("indexImportUserPriceListTypeDataPriceListType", LM.findLCPByCompoundOldName("indexImportUserPriceListTypeDataPriceListType").getExpr(context.getModifier(), importUserPriceListTypeObject.getExpr(), key));
+        query.addProperty("indexImportUserPriceListTypeDataPriceListType", getLCP("indexImportUserPriceListTypeDataPriceListType").getExpr(context.getModifier(), importUserPriceListTypeObject.getExpr(), key));
         query.and(isDataPriceListType.getExpr(key).getWhere());
         ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context.getSession());
 

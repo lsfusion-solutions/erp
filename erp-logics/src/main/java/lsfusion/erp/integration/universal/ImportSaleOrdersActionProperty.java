@@ -6,7 +6,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
-import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -83,7 +82,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                 ObjectValue customerObject = entryValue.get("autoImportCustomerImportType");
                 ObjectValue customerStockObject = entryValue.get("autoImportCustomerStockImportType");
 
-                Map<String, ImportColumnDetail> importColumns = ImportSaleOrderActionProperty.readImportColumns(session, LM, importTypeObject).get(0);
+                Map<String, ImportColumnDetail> importColumns = readImportColumns(session, importTypeObject).get(0);
 
                 if (directory != null && fileExtension != null) {
                     File dir = new File(directory);

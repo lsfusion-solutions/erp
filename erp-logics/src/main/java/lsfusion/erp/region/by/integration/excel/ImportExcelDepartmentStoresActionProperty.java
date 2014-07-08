@@ -39,7 +39,7 @@ public class ImportExcelDepartmentStoresActionProperty extends ImportExcelAction
 
                     importData.setDepartmentStoresList(importDepartmentStores(file));
 
-                    new ImportActionProperty(LM, importData, context).makeImport();
+                    new ImportActionProperty(LM).makeImport(importData, context);
 
                 }
             }

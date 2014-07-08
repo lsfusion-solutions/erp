@@ -96,7 +96,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
                 importData.setUserInvoicesList((getLCP("importUserInvoices").read(context) != null) ?
                         importUserInvoicesFromDBF(path + "//_sprcont.dbf", path + "//_ostn.dbf") : null);
 
-                new ImportActionProperty(LM, importData, context).makeImport();
+                new ImportActionProperty(LM).makeImport(importData, context);
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);

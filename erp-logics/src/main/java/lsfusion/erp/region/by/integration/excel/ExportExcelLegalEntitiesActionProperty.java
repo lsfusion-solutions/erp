@@ -39,7 +39,7 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
 
-        ScriptingLogicsModule legalEntityByLM = (ScriptingLogicsModule) context.getBL().getModule("LegalEntityBy");
+        ScriptingLogicsModule legalEntityByLM = context.getBL().getModule("LegalEntityBy");
         
         List<List<String>> data = new ArrayList<List<String>>();
 

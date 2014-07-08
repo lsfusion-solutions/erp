@@ -43,7 +43,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected static List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(DataSession session, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<String, ImportColumnDetail>();
         LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<String, ImportColumnDetail>();
@@ -51,13 +51,14 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         KeyExpr importTypeDetailExpr = new KeyExpr("importTypeDetail");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importTypeDetail", importTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        String[] properties = new String[] {"staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail"};
-        for(String property : properties) {
-            query.addProperty(property, LM.findLCPByCompoundOldName(property).getExpr(importTypeDetailExpr));
+        String[] names = new String[] {"staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail"};
+        LCP[] properties = getLCPs("staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail");
+        for (int j = 0; j < properties.length; j++) {
+            query.addProperty(names[j], properties[j].getExpr(importTypeDetailExpr));
         }
-        query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("replaceOnlyNullImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
-        query.addProperty("indexImportTypeImportTypeDetail", LM.findLCPByCompoundOldName("indexImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
-        query.and(LM.findLCPByCompoundOldName("staticName").getExpr(importTypeDetailExpr).getWhere());
+        query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", getLCP("replaceOnlyNullImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
+        query.addProperty("indexImportTypeImportTypeDetail", getLCP("indexImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
+        query.and(getLCP("staticName").getExpr(importTypeDetailExpr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
@@ -84,7 +85,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return Arrays.asList(defaultColumns, customColumns);
     }
 
-    protected static Map<String, String> readStockMapping(DataSession session, ScriptingLogicsModule LM, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected Map<String, String> readStockMapping(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Map<String, String> stockMapping = new HashMap<String, String>();
 
@@ -92,10 +93,10 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "StockMappingEntry", key);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
         
-        query.addProperty("idStockMappingEntry", LM.findLCPByCompoundOldName("idStockMappingEntry").getExpr(session.getModifier(), key));
-        query.addProperty("idStockStockMappingEntry", LM.findLCPByCompoundOldName("idStockStockMappingEntry").getExpr(session.getModifier(), key));
-        query.and(LM.findLCPByCompoundOldName("idStockMappingEntry").getExpr(key).getWhere());
-        query.and(LM.findLCPByCompoundOldName("importTypeStockMappingEntry").getExpr(key).compare(importTypeObject.getExpr(), Compare.EQUALS));
+        query.addProperty("idStockMappingEntry", getLCP("idStockMappingEntry").getExpr(session.getModifier(), key));
+        query.addProperty("idStockStockMappingEntry", getLCP("idStockStockMappingEntry").getExpr(session.getModifier(), key));
+        query.and(getLCP("idStockMappingEntry").getExpr(key).getWhere());
+        query.and(getLCP("importTypeStockMappingEntry").getExpr(key).compare(importTypeObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
@@ -108,7 +109,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     }
 
     public ImportDocumentSettings readImportDocumentSettings(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, String> stockMapping = readStockMapping(session, LM, importTypeObject);
+        Map<String, String> stockMapping = readStockMapping(session, importTypeObject);
         String primaryKeyType = parseKeyType((String) getLCP("namePrimaryKeyTypeImportType").read(session, importTypeObject));
         boolean checkExistence = getLCP("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
         String secondaryKeyType = parseKeyType((String) getLCP("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
@@ -143,12 +144,6 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, DataObject dataObject) throws ScriptingErrorLog.SemanticErrorException {
         ImportField field = new ImportField(sidProperty);
         props.add(new ImportProperty(field, sidProperty.getMapping(dataObject), getReplaceOnlyNull(importColumns, nameField)));
-        fields.add(field);
-    }
-
-    protected void addDataField(ScriptingLogicsModule LM, List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, String sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
-        ImportField field = new ImportField(LM.findLCPByCompoundOldName(sidProperty));
-        props.add(new ImportProperty(field, LM.findLCPByCompoundOldName(sidProperty).getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);
     }
 

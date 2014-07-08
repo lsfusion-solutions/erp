@@ -41,7 +41,7 @@ public class ImportExcelUOMsActionProperty extends ImportExcelActionProperty {
 
                     importData.setUOMsList(importUOMs(file));
 
-                    new ImportActionProperty(LM, importData, context).makeImport();
+                    new ImportActionProperty(LM).makeImport(importData, context);
 
                 }
             }

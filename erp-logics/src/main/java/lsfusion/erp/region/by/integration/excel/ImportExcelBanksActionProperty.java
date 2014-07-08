@@ -41,7 +41,7 @@ public class ImportExcelBanksActionProperty extends ImportExcelActionProperty {
 
                     importData.setBanksList(importBanks(file));
 
-                    new ImportActionProperty(LM, importData, context).makeImport();
+                    new ImportActionProperty(LM).makeImport(importData, context);
 
                 }
             }

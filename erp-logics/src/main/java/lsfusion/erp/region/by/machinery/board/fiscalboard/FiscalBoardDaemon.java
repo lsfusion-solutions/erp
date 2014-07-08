@@ -159,27 +159,27 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
             return null;
         }
 
-        private byte[] readMessage(BusinessLogics BL, DataSession session, String idBarcode) throws SQLException, UnsupportedEncodingException, SQLHandledException {
+        private byte[] readMessage(BusinessLogics BL, DataSession session, String idBarcode) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
             int textLength = 44;
             int gapLength = 8; //передаётся 2 строки по 30 символов, но показывается только по 22
             Date date = new Date(Calendar.getInstance().getTime().getTime());
-            ObjectValue skuObject = BL.getModule("Barcode").getLCPByOldName("skuBarcodeIdDate").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
+            ObjectValue skuObject = BL.getModule("Barcode").findLCPByCompoundOldName("skuBarcodeIdDate").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
             if (skuObject instanceof NullValue) {
                 String notFound = "Штрихкод не найден";
                 while (notFound.length() < textLength)
                     notFound += " ";
                 return notFound.getBytes("cp1251");
             } else {
-                ObjectValue priceListTypeObject = BL.getModule("PriceListType").getLCPByOldName("priceListTypeId").readClasses(session, new DataObject(idPriceListType));
-                ObjectValue stockObject = BL.getModule("Stock").getLCPByOldName("stockId").readClasses(session, new DataObject(idStock));
-                String captionItem = (String) BL.getModule("Item").getLCPByOldName("captionItem").read(session, skuObject);
+                ObjectValue priceListTypeObject = BL.getModule("PriceListType").findLCPByCompoundOldName("priceListTypeId").readClasses(session, new DataObject(idPriceListType));
+                ObjectValue stockObject = BL.getModule("Stock").findLCPByCompoundOldName("stockId").readClasses(session, new DataObject(idStock));
+                String captionItem = (String) BL.getModule("Item").findLCPByCompoundOldName("captionItem").read(session, skuObject);
                 if (priceListTypeObject instanceof NullValue || stockObject instanceof NullValue) {
                     String notFound = "Неверные параметры сервера";
                     while (notFound.length() < textLength)
                         notFound += " ";
                     return notFound.getBytes("cp1251");
                 } else {
-                    BigDecimal price = (BigDecimal) BL.getModule("PriceListType").getLCPByOldName("priceAPriceListTypeSkuStockDateTime").read(session,
+                    BigDecimal price = (BigDecimal) BL.getModule("PriceListType").findLCPByCompoundOldName("priceAPriceListTypeSkuStockDateTime").read(session,
                             priceListTypeObject, skuObject, stockObject, new DataObject(new Timestamp(date.getTime()), DateTimeClass.instance));
                     String priceMessage = new DecimalFormat("###,###.#").format(price.doubleValue());
                     while (captionItem.length() + priceMessage.length() < (textLength - 1)) {

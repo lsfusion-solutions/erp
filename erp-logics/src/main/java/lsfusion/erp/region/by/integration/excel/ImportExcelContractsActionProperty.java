@@ -42,7 +42,7 @@ public class ImportExcelContractsActionProperty extends ImportExcelActionPropert
 
                     importData.setContractsList(importContracts(file));
 
-                    new ImportActionProperty(LM, importData, context).makeImport();
+                    new ImportActionProperty(LM).makeImport(importData, context);
 
                 }
             }

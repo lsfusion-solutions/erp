@@ -38,7 +38,7 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
 
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-        ScriptingLogicsModule giftCardLM = (ScriptingLogicsModule) context.getBL().getModule("GiftCard");
+        ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
         try {
             boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;

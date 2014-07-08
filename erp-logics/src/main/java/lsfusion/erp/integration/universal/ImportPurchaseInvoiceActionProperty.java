@@ -94,8 +94,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String[] splittedFieldImportType = nameFieldImportType == null ? null : nameFieldImportType.split("\\.");
                 String fieldImportType = splittedFieldImportType == null ? null : splittedFieldImportType[splittedFieldImportType.length - 1];
                 
-                List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, LM, importTypeObject);
-                Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, LM, false);
+                List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, importTypeObject);
+                Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, false);
 
                 ImportDocumentSettings importSettings = readImportDocumentSettings(session, importTypeObject);
 
@@ -157,8 +157,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         initModules(context);
         
-        List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, LM, importTypeObject);
-        Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, LM, checkInvoiceExistence);
+        List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, importTypeObject);
+        Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, checkInvoiceExistence);
 
         ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
         ObjectValue supplierObject = getLCP("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
@@ -184,18 +184,18 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     }
 
     public void initModules(ExecutionContext context) {
-        this.purchaseManufacturingPriceLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseManufacturingPrice");
-        this.itemPharmacyByLM = (ScriptingLogicsModule) context.getBL().getModule("ItemPharmacyBy");
-        this.purchaseInvoicePharmacyLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseInvoicePharmacy");
-        this.itemArticleLM = (ScriptingLogicsModule) context.getBL().getModule("ItemArticle");
-        this.itemFashionLM = (ScriptingLogicsModule) context.getBL().getModule("ItemFashion");
-        this.taxItemLM = (ScriptingLogicsModule) context.getBL().getModule("TaxItem");
-        this.customsGroupArticleLM = (ScriptingLogicsModule) context.getBL().getModule("CustomsGroupArticle");
-        this.purchaseShipmentBoxLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseShipmentBox");
-        this.purchaseComplianceLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseCompliance");
-        this.purchaseDeclarationLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseDeclaration");
-        this.purchaseDeclarationDetailLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseDeclarationDetail");
-        this.purchaseShipmentLM = (ScriptingLogicsModule) context.getBL().getModule("PurchaseShipment");
+        this.purchaseManufacturingPriceLM = context.getBL().getModule("PurchaseManufacturingPrice");
+        this.itemPharmacyByLM = context.getBL().getModule("ItemPharmacyBy");
+        this.purchaseInvoicePharmacyLM = context.getBL().getModule("PurchaseInvoicePharmacy");
+        this.itemArticleLM = context.getBL().getModule("ItemArticle");
+        this.itemFashionLM = context.getBL().getModule("ItemFashion");
+        this.taxItemLM = context.getBL().getModule("TaxItem");
+        this.customsGroupArticleLM = context.getBL().getModule("CustomsGroupArticle");
+        this.purchaseShipmentBoxLM = context.getBL().getModule("PurchaseShipmentBox");
+        this.purchaseComplianceLM = context.getBL().getModule("PurchaseCompliance");
+        this.purchaseDeclarationLM = context.getBL().getModule("PurchaseDeclaration");
+        this.purchaseDeclarationDetailLM = context.getBL().getModule("PurchaseDeclarationDetail");
+        this.purchaseShipmentLM = context.getBL().getModule("PurchaseShipment");
     }
 
     public int importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, ExecutionContext context, DataSession session,
@@ -350,7 +350,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     data.get(i).add(userInvoiceDetailsList.get(i).idBox);
 
                 if (showField(userInvoiceDetailsList, "nameBox")) {
-                    addDataField(purchaseShipmentBoxLM, props, fields, defaultColumns, "nameBox", "nameBox", boxKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentBoxLM.findLCPByCompoundOldName("nameBox"), "nameBox", boxKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).nameBox);
                 }
@@ -573,25 +573,25 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if (purchaseShipmentLM != null) {
 
                 if (showField(userInvoiceDetailsList, "expiryDate")) {
-                    addDataField(purchaseShipmentLM, props, fields, defaultColumns, "Purchase.expiryDateUserInvoiceDetail", "expiryDate", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findLCPByCompoundOldName("Purchase.expiryDateUserInvoiceDetail"), "expiryDate", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).expiryDate);
                 }
 
                 if (showField(userInvoiceDetailsList, "manufactureDate")) {
-                    addDataField(purchaseShipmentLM, props, fields, defaultColumns, "Purchase.manufactureDateUserInvoiceDetail", "manufactureDate", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findLCPByCompoundOldName("Purchase.manufactureDateUserInvoiceDetail"), "manufactureDate", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).manufactureDate);
                 }
 
                 if (showField(userInvoiceDetailsList, "shipmentPrice")) {
-                    addDataField(purchaseShipmentLM, props, fields, defaultColumns, "shipmentPriceUserInvoiceDetail", "shipmentPrice", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findLCPByCompoundOldName("shipmentPriceUserInvoiceDetail"), "shipmentPrice", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).shipmentPrice);
                 }
 
                 if (showField(userInvoiceDetailsList, "shipmentSum")) {
-                    addDataField(purchaseShipmentLM, props, fields, defaultColumns, "shipmentSumUserInvoiceDetail", "shipmentSum", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findLCPByCompoundOldName("shipmentSumUserInvoiceDetail"), "shipmentSum", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).shipmentSum);
                 }
@@ -599,7 +599,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
                 
             if ((purchaseManufacturingPriceLM != null) && showField(userInvoiceDetailsList, "manufacturingPrice")) {
-                addDataField(purchaseManufacturingPriceLM, props, fields, defaultColumns, "Purchase.manufacturingPriceUserInvoiceDetail", "manufacturingPrice", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, purchaseManufacturingPriceLM.findLCPByCompoundOldName("Purchase.manufacturingPriceUserInvoiceDetail"), "manufacturingPrice", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).manufacturingPrice);
             }
@@ -634,13 +634,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 }
 
                 if (showField(userInvoiceDetailsList, "seriesPharmacy")) {
-                    addDataField(purchaseInvoicePharmacyLM, props, fields, defaultColumns, "Purchase.seriesPharmacyUserInvoiceDetail", "seriesPharmacy", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseInvoicePharmacyLM.findLCPByCompoundOldName("Purchase.seriesPharmacyUserInvoiceDetail"), "seriesPharmacy", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).seriesPharmacy);
                 }
 
                 if (showField(userInvoiceDetailsList, "contractPrice")) {
-                    addDataField(purchaseInvoicePharmacyLM, props, fields, defaultColumns, "contractPriceUserInvoiceDetail", "contractPrice", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseInvoicePharmacyLM.findLCPByCompoundOldName("contractPriceUserInvoiceDetail"), "contractPrice", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).contractPrice);
                 }
@@ -655,13 +655,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if (purchaseDeclarationDetailLM != null) {
 
                 if (showField(userInvoiceDetailsList, "sumNetWeight")) {
-                    addDataField(purchaseDeclarationDetailLM, props, fields, defaultColumns, "sumNetWeightUserInvoiceDetail", "sumNetWeight", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseDeclarationDetailLM.findLCPByCompoundOldName("sumNetWeightUserInvoiceDetail"), "sumNetWeight", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).sumNetWeight);
                 }
 
                 if (showField(userInvoiceDetailsList, "sumGrossWeight")) {
-                    addDataField(purchaseDeclarationDetailLM, props, fields, defaultColumns, "sumGrossWeightUserInvoiceDetail", "sumGrossWeight", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseDeclarationDetailLM.findLCPByCompoundOldName("sumGrossWeightUserInvoiceDetail"), "sumGrossWeight", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).sumGrossWeight);
                 }
@@ -715,13 +715,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 }
 
                 if (showField(userInvoiceDetailsList, "captionArticle")) {
-                    addDataField(itemArticleLM, props, fields, defaultColumns, "captionArticle", "captionArticle", articleKey);
+                    addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("captionArticle"), "captionArticle", articleKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).captionArticle);
                 }
 
                 if (showField(userInvoiceDetailsList, "originalCaptionArticle")) {
-                    addDataField(itemArticleLM, props, fields, defaultColumns, "originalCaptionArticle", "originalCaptionArticle", articleKey);
+                    addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("originalCaptionArticle"), "originalCaptionArticle", articleKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).originalCaptionArticle);
                 }
@@ -786,7 +786,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         data.get(i).add(userInvoiceDetailsList.get(i).idColor);
 
                     if (showField(userInvoiceDetailsList, "nameColor")) {
-                        addDataField(itemArticleLM, props, fields, defaultColumns, "nameColor", "nameColor", colorKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("nameColor"), "nameColor", colorKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameColor);
                     }
@@ -805,17 +805,17 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         data.get(i).add(userInvoiceDetailsList.get(i).idSize);
 
                     if (showField(userInvoiceDetailsList, "nameSize")) {
-                        addDataField(itemArticleLM, props, fields, defaultColumns, "nameSize", "nameSize", sizeKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("nameSize"), "nameSize", sizeKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
 
-                        addDataField(itemArticleLM, props, fields, defaultColumns, "shortNameSize", "nameSize", sizeKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("shortNameSize"), "nameSize", sizeKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
                     }
 
                     if (showField(userInvoiceDetailsList, "nameOriginalSize")) {
-                        addDataField(itemArticleLM, props, fields, defaultColumns, "nameOriginalSize", "nameOriginalSize", sizeKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("nameOriginalSize"), "nameOriginalSize", sizeKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameOriginalSize);
                     }
@@ -852,7 +852,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                         data.get(i).add(userInvoiceDetailsList.get(i).idBrand);
 
                     if (showField(userInvoiceDetailsList, "nameBrand")) {
-                        addDataField(itemArticleLM, props, fields, defaultColumns, "nameBrand", "nameBrand", brandKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("nameBrand"), "nameBrand", brandKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameBrand);
                     }
@@ -874,7 +874,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                             data.get(i).add(userInvoiceDetailsList.get(i).idSeason);
 
                         if (showField(userInvoiceDetailsList, "nameSeason")) {
-                            addDataField(itemFashionLM, props, fields, defaultColumns, "nameSeason", "nameSeason", seasonKey);
+                            addDataField(props, fields, defaultColumns, itemFashionLM.findLCPByCompoundOldName("nameSeason"), "nameSeason", seasonKey);
                             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                                 data.get(i).add(userInvoiceDetailsList.get(i).nameSeason);
                         }
@@ -893,7 +893,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                             data.get(i).add(userInvoiceDetailsList.get(i).idCollection);
 
                         if (showField(userInvoiceDetailsList, "nameCollection")) {
-                            addDataField(itemFashionLM, props, fields, defaultColumns, "nameCollection", "nameCollection", collectionKey);
+                            addDataField(props, fields, defaultColumns, itemFashionLM.findLCPByCompoundOldName("nameCollection"), "nameCollection", collectionKey);
                             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                                 data.get(i).add(userInvoiceDetailsList.get(i).nameCollection);
                         }
@@ -917,11 +917,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
 
                     if (showField(userInvoiceDetailsList, "dateCompliance")) {
-                        addDataField(purchaseComplianceLM, props, fields, defaultColumns, "dateCompliance", "dateCompliance", complianceKey);
+                        addDataField(props, fields, defaultColumns, purchaseComplianceLM.findLCPByCompoundOldName("dateCompliance"), "dateCompliance", complianceKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
 
-                        addDataField(purchaseComplianceLM, props, fields, defaultColumns, "fromDateCompliance", "dateCompliance", complianceKey);
+                        addDataField(props, fields, defaultColumns, purchaseComplianceLM.findLCPByCompoundOldName("fromDateCompliance"), "dateCompliance", complianceKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
                     }
@@ -931,7 +931,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                 ImportColumnDetail customColumn = entry.getValue();
-                ScriptingLogicsModule customModuleLM = (ScriptingLogicsModule) context.getBL().getModule(customColumn.moduleName);
+                ScriptingLogicsModule customModuleLM = context.getBL().getModule(customColumn.moduleName);
                 if (customModuleLM != null) {
                     ImportField customField = new ImportField(customModuleLM.findLCPByCompoundOldName(customColumn.property));
                     ImportKey<?> customKey = null;
@@ -1559,7 +1559,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (propertyImportType != null && propertyImportType.contains(".")) {
             String sidProperty = getSplittedPart(propertyImportType, "\\.", 1);
-            ScriptingLogicsModule moduleLM = (ScriptingLogicsModule) context.getBL().getModule(getSplittedPart(propertyImportType, "\\.", 0));
+            ScriptingLogicsModule moduleLM = context.getBL().getModule(getSplittedPart(propertyImportType, "\\.", 0));
 
             if (moduleLM != null) {
                 List<Object> articles = getArticlesMap(session, moduleLM, sidProperty);
@@ -1620,7 +1620,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         return Arrays.asList(articleSet, articlePropertyMap);
     }
 
-    protected static Set<String> getPurchaseInvoiceSet(DataSession session, ScriptingLogicsModule LM, boolean checkInvoiceExistence) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected Set<String> getPurchaseInvoiceSet(DataSession session, boolean checkInvoiceExistence) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         if(!checkInvoiceExistence)
             return null;
@@ -1631,8 +1631,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "Purchase.Invoice", key);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-        query.addProperty("Purchase.idUserInvoice", LM.findLCPByCompoundOldName("Purchase.idUserInvoice").getExpr(session.getModifier(), key));
-        query.and(LM.findLCPByCompoundOldName("Purchase.idUserInvoice").getExpr(key).getWhere());
+        query.addProperty("Purchase.idUserInvoice", getLCP("Purchase.idUserInvoice").getExpr(session.getModifier(), key));
+        query.and(getLCP("Purchase.idUserInvoice").getExpr(key).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {

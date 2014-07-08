@@ -40,7 +40,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
             DataObject zReportObject = (DataObject) getLCP("zReportReceipt").readClasses(context, receiptObject);
 
-            ScriptingLogicsModule giftCardLM = (ScriptingLogicsModule) context.getBL().getModule("GiftCard");
+            ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
             boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (skipReceipt) {
@@ -54,7 +54,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 Object operatorNumber = userObject.isNull() ? 0 : getLCP("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
                 BigDecimal sumTotal = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) getLCP("maxSumCurrentCashRegister").read(context);
-                ScriptingLogicsModule posGiftCardLM = (ScriptingLogicsModule) context.getBL().getModule("POSGiftCard");
+                ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
                 boolean giftCardAsDiscount = posGiftCardLM != null && (posGiftCardLM.findLCPByCompoundOldName("giftCardAsDiscountCurrentCashRegister").read(context) != null);
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));

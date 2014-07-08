@@ -42,7 +42,7 @@ public class ImportExcelGroupItemsActionProperty extends ImportExcelActionProper
                     importData.setParentGroupsList(importGroupItems(file, true));
                     importData.setItemGroupsList(importGroupItems(file, false));
 
-                    new ImportActionProperty(LM, importData, context).makeImport();
+                    new ImportActionProperty(LM).makeImport(importData, context);
 
                 }
             }

@@ -58,9 +58,9 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         DataSession session = context.getSession();
 
-        this.POSVostrovLM = (ScriptingLogicsModule) context.getBL().getModule("POSVostrov");
-        this.zReportRetailCRMLM = (ScriptingLogicsModule) context.getBL().getModule("zReportRetailCRM");
-        this.zReportDiscountCardLM = (ScriptingLogicsModule) context.getBL().getModule("zReportDiscountCard");
+        this.POSVostrovLM = context.getBL().getModule("POSVostrov");
+        this.zReportRetailCRMLM = context.getBL().getModule("ZReportRetailCRM");
+        this.zReportDiscountCardLM = context.getBL().getModule("ZReportDiscountCard");
         
         try {
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы XML", "xml");
@@ -339,16 +339,16 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 if (zReportDiscountCardLM != null) {
 
                     ImportField seriesNumberDiscountCardField = new ImportField(zReportDiscountCardLM.findLCPByCompoundOldName("seriesNumberDiscountCard"));
-                    ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) getClass("DiscountCard"), zReportDiscountCardLM.findLCPByCompoundOldName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
+                    ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) zReportDiscountCardLM.findClassByCompoundName("DiscountCard"), zReportDiscountCardLM.findLCPByCompoundOldName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
                     saleKeys.add(discountCardKey);
                     returnKeys.add(discountCardKey);
-
+                    
                     saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
                     saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
-                            object(getClass("DiscountCard")).getMapping(discountCardKey)));
+                            object(zReportDiscountCardLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
                     returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
                     returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
-                            object(getClass("DiscountCard")).getMapping(discountCardKey)));
+                            object(zReportDiscountCardLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
                     saleImportFields.add(seriesNumberDiscountCardField);
                     returnImportFields.add(seriesNumberDiscountCardField);
 
@@ -408,7 +408,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 paymentProperties.add(new ImportProperty(sumPaymentField, getLCP("sumPayment").getMapping(paymentKey)));
                 paymentImportFields.add(sumPaymentField);
                 
-                ImportField paymentMeansPaymentField = new ImportField(LM.baseLM.staticCaption);
+                ImportField paymentMeansPaymentField = new ImportField(getLCP("staticCaption"));
                 paymentProperties.add(new ImportProperty(paymentMeansPaymentField, getLCP("paymentMeansPayment").getMapping(paymentKey)));
                 paymentImportFields.add(paymentMeansPaymentField);
 
