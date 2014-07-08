@@ -14,8 +14,9 @@ FORM orderInvoiceDashboard 'Приемка по заказам' AUTOREFRESH 60
     PROPERTIES (o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, nameFromOrder, nameFromStockOrder, nameToOrder, nameToStockOrder, 
                    nameOperationOrder, quantityOrderDetailOrder, sumOrderDetailOrder, VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, noteOrder,
                    shipmentDateOrder, shipmentTimeOrder, objectClassName    
-    FILTERS toInvoiceOrder(o),
-            inOrder(o)
+    FILTERS inOrder(o)
+    FILTERGROUP filters FILTER 'На дату' 'F5' shipmentDateOrder(o) <= d DEFAULT
+    FILTERGROUP filterInvoiced FILTER 'Не оприходованы' 'F5' toInvoiceOrder(o) DEFAULT
     
     OBJECTS od=OrderDetail FIXED GRID
     PROPERTIES (od) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
@@ -33,9 +34,8 @@ FORM orderInvoiceDashboard 'Приемка по заказам' AUTOREFRESH 60
     PROPERTIES (i) editInvoice
     PROPERTIES     deletei=DELETE(i) FORCE PANEL TOOLBAR  
     FILTERS inInvoice(i)
+    FILTERGROUP filters1 FILTER 'На дату' 'F5' dateInvoice(i) == d DEFAULT
     
-    FILTERGROUP filters FILTER 'Заказы на дату' 'F5' shipmentDateOrder(o)<=d DEFAULT
-    FILTERGROUP filters1 FILTER 'Накладные на дату' 'F5' dateInvoice(i)==d DEFAULT
     PROPERTIES(o) createMultiUserInvoice FORCE PANEL TOOLBAR 
 ;
 
