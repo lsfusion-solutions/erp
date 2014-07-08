@@ -312,15 +312,13 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp)
         FORM terminalDocuments MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL document = TerminalDocument ();
-            ASSIGN document() <- chosenObject('td');
-            ASSIGN usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document()  ;
+            document() <- chosenObject('td');
+            usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document()  ;
 
-            FOR terminalDocumentTerminalDocumentDetail(tdd) == document()  DO {
-                FOR ADDOBJ o = class##Detail DO {
-                    ASSIGN object###object##Detail(o) <- object;
-                    ASSIGN skuProp###object##Detail(o) <- skuBarcode(barcodeIdDate(barcodeTerminalDocumentDetail(tdd), date###object(object)));
-                    ASSIGN quantity###object##Detail(o) <- quantityTerminalDocumentDetail(tdd);
-                }
+            FOR terminalDocumentTerminalDocumentDetail(tdd) == document() ORDER numberTerminalDocumentDetail(tdd) ADDOBJ o = class##Detail DO {
+                object###object##Detail(o) <- object;
+                skuProp###object##Detail(o) <- skuBarcode(barcodeIdDate(barcodeTerminalDocumentDetail(tdd), date###object(object)));
+                quantity###object##Detail(o) <- quantityTerminalDocumentDetail(tdd);
             }
         }
     } TOOLBAR;
