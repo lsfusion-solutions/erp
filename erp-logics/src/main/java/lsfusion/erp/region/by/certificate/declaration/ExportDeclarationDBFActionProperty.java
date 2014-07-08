@@ -314,7 +314,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         String name = dd.nameCustoms == null ? "" : (dd.nameCustoms + " ") + (dd.nameBrand == null ? "" : dd.nameBrand);
         nameValueFieldMap.put("G312", trim(name, 248));
-        nameValueFieldMap.put("G315B", dd.sumNetWeight);
+        nameValueFieldMap.put("G315B", roundWeight(dd.sumNetWeight, true));
         nameValueFieldMap.put("G317BCODE", "166");
         nameValueFieldMap.put("G315A", dd.quantity);
 
@@ -322,9 +322,9 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         nameValueFieldMap.put("G317ACODE", dd.codeUOM == null ? "796" : trim(dd.codeUOM, 3));
         nameValueFieldMap.put("G364", G364);
         nameValueFieldMap.put("G35", dd.sumGrossWeight);
-        nameValueFieldMap.put("G38", dd.sumNetWeight);
+        nameValueFieldMap.put("G38", roundWeight(dd.sumNetWeight, false));
 
-        nameValueFieldMap.put("G38A", dd.sumNetWeight);
+        nameValueFieldMap.put("G38A", roundWeight(dd.sumNetWeight, false));
         nameValueFieldMap.put("G41", dd.componentsQuantity == null ? null : dd.componentsQuantity.intValue());
         nameValueFieldMap.put("G42", dd.sum);
 
@@ -374,7 +374,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
             String name = dd.nameCustoms == null ? "" : (dd.nameCustoms + " ") + (dd.nameBrand == null ? "" : dd.nameBrand);
             nameValueFieldMap.put("G312", trim(name, 248));
-            nameValueFieldMap.put("G315B", dd.sumNetWeight);
+            nameValueFieldMap.put("G315B", roundWeight(dd.sumNetWeight, true));
             nameValueFieldMap.put("G317BCODE", "166");
             nameValueFieldMap.put("G315A", dd.quantity);
 
@@ -382,9 +382,9 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             nameValueFieldMap.put("G317ACODE", dd.codeUOM == null ? "796" : trim(dd.codeUOM, 3));
             nameValueFieldMap.put("G364", G364);
             nameValueFieldMap.put("G35", dd.sumGrossWeight);
-            nameValueFieldMap.put("G38", dd.sumNetWeight);
+            nameValueFieldMap.put("G38", roundWeight(dd.sumNetWeight, false));
 
-            nameValueFieldMap.put("G38A", dd.sumNetWeight);
+            nameValueFieldMap.put("G38A", roundWeight(dd.sumNetWeight, false));
             nameValueFieldMap.put("G41", dd.componentsQuantity == null ? null : dd.componentsQuantity.intValue());
             nameValueFieldMap.put("G42", dd.sum);
 
@@ -667,5 +667,12 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 charset = "cp866";
         }
         return charset;
+    }
+
+    private BigDecimal roundWeight(BigDecimal weight, boolean g315) {
+        if(g315)
+            return weight.setScale(weight.compareTo(new BigDecimal(0.1)) > 0 ? 2 : 4, BigDecimal.ROUND_HALF_UP);
+        else
+            return weight.setScale(3, BigDecimal.ROUND_HALF_UP);
     }
 }
