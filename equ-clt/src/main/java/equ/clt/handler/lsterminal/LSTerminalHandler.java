@@ -166,14 +166,16 @@ public class LSTerminalHandler extends TerminalHandler {
                                     String barcode = (String) entry.get(4); //BARCODE
                                     BigDecimal quantity = (BigDecimal) entry.get(5); //QUANT
                                     BigDecimal price = (BigDecimal) entry.get(6); //PRICE
+                                    String numberTerminalDocumentDetail = (String) entry.get(7); //npp
                                     BigDecimal sum = safeMultiply(quantity, price);
                                     Integer count = barcodeCountMap.get(barcode);
-                                    String numberTerminalDocumentDetail = barcode + (count == null ? "" : ("_" + count));
+                                    String idTerminalDocumentDetail = barcode + (count == null ? "" : ("_" + count));
                                     barcodeCountMap.put(barcode, count == null ? 1 : (count + 1));
 
                                     if (quantity != null && !quantity.equals(BigDecimal.ZERO))
                                         terminalDocumentDetailList.add(new TerminalDocumentDetail(numberTerminalDocument, idTerminalHandbookType1,
-                                                idTerminalHandbookType2, idTerminalDocumentType, numberTerminalDocumentDetail, barcode, price, quantity, sum));
+                                                idTerminalHandbookType2, idTerminalDocumentType, idTerminalDocumentDetail, numberTerminalDocumentDetail,
+                                                barcode, price, quantity, sum));
                                 }
 
                                 connection.close();
@@ -215,13 +217,17 @@ public class LSTerminalHandler extends TerminalHandler {
         statement.close();
 
         statement = connection.createStatement();
-        sql = "SELECT barcode, quant, price FROM pos;";
+        sql = "SELECT barcode, quant, price, npp FROM pos;";
         resultSet = statement.executeQuery(sql);
+        int count = 1;
         while (resultSet.next()) {
             String barcode = resultSet.getString("barcode");
             BigDecimal quantity = new BigDecimal(resultSet.getDouble("quant"));
             BigDecimal price = new BigDecimal(resultSet.getDouble("price"));
-            itemsList.add(Arrays.asList((Object) vop, num, ana1, ana2, barcode, quantity, price));
+            Integer npp = resultSet.getInt("npp");
+            npp = npp == 0 ? count : npp;
+            count++;
+            itemsList.add(Arrays.asList((Object) vop, num, ana1, ana2, barcode, quantity, price, String.valueOf(npp)));
         }
         resultSet.close();
         statement.close();

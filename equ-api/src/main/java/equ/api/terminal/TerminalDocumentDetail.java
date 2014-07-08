@@ -8,6 +8,7 @@ public class TerminalDocumentDetail implements Serializable {
     public String idTerminalHandbookType1;
     public String idTerminalHandbookType2;
     public String idTerminalDocumentType;
+    public String idTerminalDocumentDetail;
     public String numberTerminalDocumentDetail;
     public String barcodeTerminalDocumentDetail;
     public BigDecimal priceTerminalDocumentDetail;
@@ -15,13 +16,14 @@ public class TerminalDocumentDetail implements Serializable {
     public BigDecimal sumTerminalDocumentDetail;
     
     public TerminalDocumentDetail(String numberTerminalDocument, String idTerminalHandbookType1, String idTerminalHandbookType2, 
-                                  String idTerminalDocumentType, String numberTerminalDocumentDetail, String barcodeTerminalDocumentDetail, 
-                                  BigDecimal priceTerminalDocumentDetail, BigDecimal quantityTerminalDocumentDetail,
-                                  BigDecimal sumTerminalDocumentDetail) {
+                                  String idTerminalDocumentType, String idTerminalDocumentDetail, String numberTerminalDocumentDetail,
+                                  String barcodeTerminalDocumentDetail, BigDecimal priceTerminalDocumentDetail, 
+                                  BigDecimal quantityTerminalDocumentDetail, BigDecimal sumTerminalDocumentDetail) {
         this.numberTerminalDocument = numberTerminalDocument;
         this.idTerminalHandbookType1 = idTerminalHandbookType1;
         this.idTerminalHandbookType2 = idTerminalHandbookType2;
         this.idTerminalDocumentType = idTerminalDocumentType;
+        this.idTerminalDocumentDetail = idTerminalDocumentDetail;
         this.numberTerminalDocumentDetail = numberTerminalDocumentDetail;
         this.barcodeTerminalDocumentDetail = barcodeTerminalDocumentDetail;
         this.priceTerminalDocumentDetail = priceTerminalDocumentDetail;

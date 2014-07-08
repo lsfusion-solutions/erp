@@ -962,13 +962,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                 data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocumentType);
             
-            ImportField numberTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("numberTerminalDocumentDetail"));
+            ImportField idTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("idTerminalDocumentDetail"));
             ImportKey<?> terminalDocumentDetailKey = new ImportKey((ConcreteCustomClass) terminalLM.findClassByCompoundName("TerminalDocumentDetail"),
-                    terminalLM.findLCPByCompoundOldName("terminalDocumentDetailIdTerminalDocumentNumber").getMapping(idTerminalDocumentField, numberTerminalDocumentDetailField));
+                    terminalLM.findLCPByCompoundOldName("terminalDocumentDetailIdTerminalDocumentId").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
             keys.add(terminalDocumentDetailKey);
-            props.add(new ImportProperty(numberTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("numberTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+            props.add(new ImportProperty(idTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("idTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
             props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findLCPByCompoundOldName("terminalDocumentTerminalDocumentDetail").getMapping(terminalDocumentDetailKey),
                     terminalLM.object(terminalLM.findClassByCompoundName("TerminalDocument")).getMapping(terminalDocumentKey)));
+            fields.add(idTerminalDocumentDetailField);
+            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocumentDetail);
+
+            ImportField numberTerminalDocumentDetailField = new ImportField(terminalLM.findLCPByCompoundOldName("numberTerminalDocumentDetail"));
+            props.add(new ImportProperty(numberTerminalDocumentDetailField, terminalLM.findLCPByCompoundOldName("numberTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
             fields.add(numberTerminalDocumentDetailField);
             for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                 data.get(i).add(terminalDocumentDetailList.get(i).numberTerminalDocumentDetail);
