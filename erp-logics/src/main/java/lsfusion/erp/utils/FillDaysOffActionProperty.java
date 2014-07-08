@@ -1,6 +1,5 @@
 package lsfusion.erp.utils;
 
-import com.google.common.base.Throwables;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.data.SQLHandledException;
@@ -22,7 +21,7 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface countryInterface;
 
     public FillDaysOffActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.getClassByName("Country"));
+        super(LM, LM.getClass("Country"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         countryInterface = i.next();
@@ -46,7 +45,7 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
         Calendar current = Calendar.getInstance();
         int currentYear = current.get(Calendar.YEAR);
         //если проставлен выходной 1 января через 2 года, пропускаем генерацию
-        //DataObject countryObject = new DataObject(countryId, (ConcreteClass) BL.getModule("Country").getClassByName("country"));
+        //DataObject countryObject = new DataObject(countryId, (ConcreteClass) BL.getModule("Country").getClass("country"));
         //if (BL.getModule("Country").getLCPByOldName("isDayOffCountryDate").read(session, countryObject, new DataObject(new java.sql.Date(new GregorianCalendar(currentYear + 2, 0, 1).getTimeInMillis()), DateClass.instance)) != null) {
         //    return;
         //}
