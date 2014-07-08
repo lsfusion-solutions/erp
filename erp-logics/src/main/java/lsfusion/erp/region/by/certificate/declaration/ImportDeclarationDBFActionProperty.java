@@ -34,6 +34,7 @@ import java.util.Iterator;
 import java.util.List;
 
 public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionProperty {
+    String charset = "cp866";
     private final ClassPropertyInterface declarationInterface;
 
     public ImportDeclarationDBFActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
@@ -145,7 +146,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
             importFile.read();
 
-            Integer numberDeclarationDetail = getDBFIntegerFieldValue(importFile, "G32", "cp866", false, null);
+            Integer numberDeclarationDetail = getDBFIntegerFieldValue(importFile, "G32", charset);
 
             if (curNumber != null && !curNumber.equals(numberDeclarationDetail)) {
                 data.add(Arrays.asList((Object) curNumber, dutySum, VATSum, homeSum));
@@ -155,17 +156,17 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
             }
             curNumber = numberDeclarationDetail;
 
-            String g471 = trim(getDBFFieldValue(importFile, "G471", "cp866", false, null));
+            String g471 = trim(getDBFFieldValue(importFile, "G471", charset));
                     
             if (g471 != null) {
                 if (g471.equals("2010")) {
-                    homeSum = getDBFBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
-                    dutySum = getDBFBigDecimalFieldValue(importFile, "G474", "cp866", false, null);
+                    homeSum = getDBFBigDecimalFieldValue(importFile, "G472", charset);
+                    dutySum = getDBFBigDecimalFieldValue(importFile, "G474", charset);
                 } else if (g471.equals("5010")) {
-                    if (homeSum == null) homeSum = getDBFBigDecimalFieldValue(importFile, "G472", "cp866", false, null);
-                    VATSum = getDBFBigDecimalFieldValue(importFile, "G474", "cp866", false, null);
+                    if (homeSum == null) homeSum = getDBFBigDecimalFieldValue(importFile, "G472", charset);
+                    VATSum = getDBFBigDecimalFieldValue(importFile, "G474", charset);
                 } else if(g471.equals("1010")) {
-                    BigDecimal g474 = getDBFBigDecimalFieldValue(importFile, "G474", "cp866", false, null);  //dutySum - VATSum
+                    BigDecimal g474 = getDBFBigDecimalFieldValue(importFile, "G474", charset);  //dutySum - VATSum
                     getLCP("registrationSumDeclaration").change(g474, session, declarationObject);
                 }
             }

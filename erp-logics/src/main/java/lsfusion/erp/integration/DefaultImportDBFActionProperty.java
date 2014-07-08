@@ -33,6 +33,10 @@ public class DefaultImportDBFActionProperty extends DefaultImportActionProperty 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
+    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
+        return getDBFFieldValue(importFile, fieldName, charset, null);
+    }
+    
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
         return getDBFFieldValue(importFile, fieldName, charset, false, defaultValue);
     }
@@ -46,6 +50,10 @@ public class DefaultImportDBFActionProperty extends DefaultImportActionProperty 
         }
     }
 
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
+        return getDBFBigDecimalFieldValue(importFile, fieldName, charset, null);
+    }
+    
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
         return getDBFBigDecimalFieldValue(importFile, fieldName, charset, false, defaultValue);
     }
@@ -55,11 +63,19 @@ public class DefaultImportDBFActionProperty extends DefaultImportActionProperty 
         return (result == null || result.isEmpty() || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new BigDecimal(result.replace(",", "."));
     }
 
+    protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
+        return getDBFIntegerFieldValue(importFile, fieldName, charset, false, null);
+    }
+    
     protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
         String result = getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
         return (result == null || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new Double(result).intValue();
     }
 
+    protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException, ParseException {
+        return getDBFDateFieldValue(importFile, fieldName, charset, null);
+    }
+    
     protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset, java.sql.Date defaultValue) throws UnsupportedEncodingException, ParseException {
         String dateString = getDBFFieldValue(importFile, fieldName, charset, false, "");
         return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd", "dd.MM.yyyy"}).getTime());
