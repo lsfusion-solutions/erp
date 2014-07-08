@@ -658,3 +658,42 @@ EXTEND DESIGN orders {
 
     }
 }
+
+//------------- Ограничение на равенство суммы компонентов по изделию ------------------//
+equalRestrictionOperation 'Ограничение на равенство суммы компонентов по изделию' = DATA BOOLEAN (Operation);
+
+showEqualRestrictionOperation (o) = createConsumptionOperation(o) AND createOutputOperation(o);
+EXTEND FORM operation
+    PROPERTIES(o) equalRestrictionOperation SHOWIF showEqualRestrictionOperation(o)
+;
+
+EXTEND DESIGN operation {
+    showContainer {
+        ADD PROPERTY(equalRestrictionOperation(o));
+    }
+}
+
+equalRestrictionOrder 'Ограничение на равенство суммы компонентов по изделию' = DATA BOOLEAN (Order);
+
+@deriveDocumentOperationProperty(Order, equalRestriction);
+
+showEqualRestrictionOrder (order) = createConsumptionOrder(order) AND createOutputOrder(order);
+
+EXTEND FORM order
+    PROPERTIES(o) equalRestrictionOrder SHOWIF showEqualRestrictionOrder(o)
+;   
+EXTEND DESIGN order {
+    headerRow12 {
+        NEW constraintContainer AFTER timeRow {
+            caption = 'Ограничения';
+            ADD PROPERTY(equalRestrictionOrder(o));
+        }
+    }
+}
+
+outputProductsSumProductDetailBOMOrder 'Сумма изделий' (BOM, order) = GROUP SUM outputProductsSumProductDetail(d) BY BOMProduct(productProductDetail(d)), orderProductDetail(d);
+consumedSumComponentDetailBOMOrder 'Сумма компонентов' (BOM, order) = GROUP SUM consumedSumComponentDetail(d) BY BOMComponentDetail(d), orderComponentDetail(d);
+
+CONSTRAINT  createConsumptionOrder(order) AND createOutputOrder(order) AND equalRestrictionOrder(order) 
+    AND (outputProductsSumProductDetailBOMOrder(BOM, order) != consumedSumComponentDetailBOMOrder(BOM, order))
+    MESSAGE 'Сумма списания компонентов для изделия должна быть равной сумме произведенного изделия в производственном заказе'; 
