@@ -317,6 +317,9 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     Order.editOrder (order) += editOrder(order);
 
     editSkuUserOrderDetail 'Редактировать SKU' (d) = editSku(skuUserOrderDetail(d));
+    
+    backgroundParamOrderDetail = RGB(212,255,212) IF orderDetail IS OrderDetail; 
+    backgroundQuantityParamOrderDetail = OVERRIDE backgroundParamOrderDetail(d), backgroundQuantityUserOrderDetail(d);
     FORM userOrder 'Заказ'###sign
         OBJECTS o = UserOrder FIXED PANEL
         PROPERTIES (o) isPostedUserOrder, nameSupplierUserOrder ON CHANGE changeSupplier###supplierFilter###userOrder(o),
@@ -334,8 +337,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         OBJECTS d = UserOrderDetail
         PROPERTIES (d) indexUserOrderDetail
         PROPERTIES (d) ON EDIT editSkuUserOrderDetail(d) idBarcodeSkuUserOrderDetail, nameSkuUserOrderDetail BACKGROUND backgroundNameUserOrderDetail(d), shortNameUOMSkuUserOrderDetail
-        PROPERTIES (d) quantityUserOrderDetail BACKGROUND backgroundQuantityUserOrderDetail(d), namePriceListTypeUserOrderDetail,
-                       priceUserOrderDetail ON CHANGE changePriceUserOrderDetail(d), sumUserOrderDetail,
+        PROPERTIES (d) quantityUserOrderDetail BACKGROUND backgroundQuantityParamOrderDetail(d), namePriceListTypeUserOrderDetail,
+                       priceUserOrderDetail ON CHANGE changePriceUserOrderDetail(d) BACKGROUND backgroundParamOrderDetail(d), sumUserOrderDetail,
                        numberVATUserOrderDetail ON CHANGE changeNumberVATUserOrderDetail(d),
                        valueVATUserOrderDetail ON CHANGE changeValueVATUserOrderDetail(d),
                        invoicePriceUserOrderDetail ON CHANGE changeInvoicePriceUserOrderDetail(d),
@@ -472,6 +475,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
             PROPERTY(VATSumUserOrderDetailUserOrder(o)) { preferredCharWidth = 13;}
             PROPERTY(invoiceSumUserOrderDetailUserOrder(o)) { preferredCharWidth = 13;}
             
+            
         }
     }
 
@@ -563,7 +567,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     filterOrderSupplierStock  = DATA SESSION Stock ();
     nameFilterOrderSupplierStock 'Склад поставщика' = nameStock(filterOrderSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
     filterSupplierStockOrder (o) = supplierStockOrder(o) == filterOrderSupplierStock() OR (o IS Order AND NOT filterOrderSupplierStock());        
-    
+
          
     FORM orders 'Заказы' TITLE 'Заказы'###sign
     
@@ -588,7 +592,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
         OBJECTS d=OrderDetail
         PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
-        PROPERTIES (d) READONLY quantityOrderDetail, namePriceListTypeOrderDetail, priceOrderDetail, sumOrderDetail,
+        PROPERTIES (d) READONLY quantityOrderDetail BACKGROUND backgroundParamOrderDetail(d), namePriceListTypeOrderDetail, 
+                       priceOrderDetail BACKGROUND backgroundParamOrderDetail(d), sumOrderDetail,
                        numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
                        name###stockProp###stock###orderDetail, shipmentDateOrderDetail, shipmentTimeOrderDetail
         ORDER BY indexOrderDetail(d)
