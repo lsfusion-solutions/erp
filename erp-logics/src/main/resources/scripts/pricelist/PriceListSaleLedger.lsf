@@ -20,3 +20,60 @@ EXTEND DESIGN userPriceList{
         }
     }
 }
+
+intervalPriceListDetail 'Интервал' (d)= subtractInteger(toDatePriceListDetail(d), fromDatePriceListDetail(d));
+
+//-- Перед акцией
+quantitySoldBeforePromotionPriceListDetailStock 'Продано перед акцией (кол-во)' (d, stock) = quantitySoldSkuStockDateFromTo(skuPriceListDetail(d), stock, (subtractDate(fromDatePriceListDetail(d),intervalPriceListDetail(d)+1)), subtractDate(fromDatePriceListDetail(d),1));
+sumSoldBeforePromotionPriceListDetailStock 'Продано перед акцией (сумма)' (d, stock) = sumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, (subtractDate(fromDatePriceListDetail(d),intervalPriceListDetail(d)+1)), subtractDate(fromDatePriceListDetail(d),1));
+markupSumSoldBeforePromotionPriceListDetailStock 'Надбавка перед акцией (сумма)' (d, stock) = markupSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, (subtractDate(fromDatePriceListDetail(d),intervalPriceListDetail(d)+1)), subtractDate(fromDatePriceListDetail(d),1));
+costSumSoldBeforePromotionPriceListDetailStock 'Себестоимость перед акцией (сумма)' (d, stock) = costSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, (subtractDate(fromDatePriceListDetail(d),intervalPriceListDetail(d)+1)), subtractDate(fromDatePriceListDetail(d),1));
+markupPercSoldBeforePromotionPriceListDetailStock 'Надбавка, %' (d, stock) = markupSumSoldBeforePromotionPriceListDetailStock(d, stock) * 100.00 / costSumSoldBeforePromotionPriceListDetailStock(d, stock);
+//-- За время акции
+quantitySoldPromotionPriceListDetailStock 'Продано акция (кол-во)' (d, stock) = quantitySoldSkuStockDateFromTo(skuPriceListDetail(d), stock, fromDatePriceListDetail(d), toDatePriceListDetail(d));
+sumSoldPromotionPriceListDetailStock 'Продано акция (сумма)' (d, stock) = sumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, fromDatePriceListDetail(d), toDatePriceListDetail(d));
+markupSumSoldPromotionPriceListDetailStock 'Надбавка акция (сумма)' (d, stock) = markupSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, fromDatePriceListDetail(d), toDatePriceListDetail(d));
+costSumSoldPromotionPriceListDetailStock 'Себестоимость акция (сумма)' (d, stock) = costSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, fromDatePriceListDetail(d), toDatePriceListDetail(d));
+markupPercSoldPromotionPriceListDetailStock 'Надбавка, %' (d, stock) = markupSumSoldPromotionPriceListDetailStock(d, stock) * 100.00 / costSumSoldPromotionPriceListDetailStock(d, stock);
+
+//-- После акции
+quantitySoldAfterPromotionPriceListDetailStock 'Продано после акции (кол-во)' (d, stock) = quantitySoldSkuStockDateFromTo(skuPriceListDetail(d), stock, sumDate(toDatePriceListDetail(d),1), (sumDate(toDatePriceListDetail(d),intervalPriceListDetail(d)+1)));
+sumSoldAfterPromotionPriceListDetailStock 'Продано после акции (сумма)' (d, stock) = sumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, sumDate(toDatePriceListDetail(d),1), (sumDate(toDatePriceListDetail(d),intervalPriceListDetail(d)+1)));
+markupSumSoldAfterPromotionPriceListDetailStock 'Надбавка после акции (сумма)' (d, stock) = markupSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, sumDate(toDatePriceListDetail(d),1), (sumDate(toDatePriceListDetail(d),intervalPriceListDetail(d)+1)));
+costSumSoldAfterPromotionPriceListDetailStock 'Себестоимость после акции (сумма)' (d, stock) = costSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, sumDate(toDatePriceListDetail(d),1), (sumDate(toDatePriceListDetail(d),intervalPriceListDetail(d)+1)));
+markupPercSoldAfterPromotionPriceListDetailStock 'Надбавка, %' (d, stock) = markupSumSoldAfterPromotionPriceListDetailStock(d, stock) * 100.00 / costSumSoldAfterPromotionPriceListDetailStock(d, stock);
+
+
+hintBeforePromotionBackground 'Зеленого чая'  = RGB(204,255,204) IF TRUE;  
+hintPromotionBackground 'Небесный'  = RGB(127,199,255) IF TRUE;                                                                                     
+hintAfterPromotionBackground 'Лимонный' = RGB(255, 250, 205) IF TRUE;                                                                                   
+
+EXTEND FORM priceLists
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES SELECTOR nameStock(st)
+    FILTERS inPriceListStock(p,st)
+
+    OBJECTS dd = PriceListDetail
+    PROPERTIES(dd) READONLY indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail, shortNameUOMSkuPriceListDetail
+    PROPERTIES(dd,st) BACKGROUND hintBeforePromotionBackground() quantitySoldBeforePromotionPriceListDetailStock, 
+                      costSumSoldBeforePromotionPriceListDetailStock, markupSumSoldBeforePromotionPriceListDetailStock,
+                      markupPercSoldBeforePromotionPriceListDetailStock, sumSoldBeforePromotionPriceListDetailStock 
+    PROPERTIES(dd,st) BACKGROUND hintPromotionBackground() quantitySoldPromotionPriceListDetailStock, 
+                      costSumSoldPromotionPriceListDetailStock, markupSumSoldPromotionPriceListDetailStock,
+                      markupPercSoldPromotionPriceListDetailStock, sumSoldPromotionPriceListDetailStock 
+    PROPERTIES(dd,st) BACKGROUND hintAfterPromotionBackground() quantitySoldAfterPromotionPriceListDetailStock, 
+                      costSumSoldAfterPromotionPriceListDetailStock, markupSumSoldAfterPromotionPriceListDetailStock,
+                      markupPercSoldAfterPromotionPriceListDetailStock, sumSoldAfterPromotionPriceListDetailStock           
+    FILTERS priceListPriceListDetail(dd) == p                  
+;
+EXTEND DESIGN priceLists{
+    detailContainer{
+        NEW promotion{
+            caption = 'Акция';
+
+            ADD st.box;
+            ADD dd.box;
+        }
+    }
+}

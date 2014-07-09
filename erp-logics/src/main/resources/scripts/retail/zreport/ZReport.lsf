@@ -763,3 +763,22 @@ loadDefaultPaymentTypes 'Загрузить стандартные типы оп
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultPaymentTypes);
+
+//--
+isDateZReport 'Одна дата в z-отчете' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() isDateZReport
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(isDateZReport());
+    }
+}
+
+countDateZReport (z) = GROUP SUM 1 IF dateZReport(zReportReceipt(r)) != dateReceipt(r) BY zReportReceipt(r);
+
+CONSTRAINT isDateZReport() AND countDateZReport(z) 
+    MESSAGE 'В z-отчете должны быть чеки с одной датой';
+
