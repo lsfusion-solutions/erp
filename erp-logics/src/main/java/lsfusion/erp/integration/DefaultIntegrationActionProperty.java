@@ -147,7 +147,7 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
     }
 
     protected String nullIfEmpty(String value) {
-        return value.isEmpty() ? null : value;
+        return (value == null || value.isEmpty()) ? null : value;
     }
     
     protected boolean notNullNorEmpty(String value) {
