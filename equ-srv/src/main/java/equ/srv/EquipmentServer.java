@@ -939,6 +939,16 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                 data.get(i).add(terminalDocumentDetailList.get(i).numberTerminalDocument);
 
+            ImportField directoryGroupTerminalField = new ImportField(terminalLM.findLCPByCompoundOldName("directoryGroupTerminal"));
+            ImportKey<?> groupTerminalKey = new ImportKey((ConcreteCustomClass) terminalLM.findClassByCompoundName("GroupTerminal"),
+                    terminalLM.findLCPByCompoundOldName("groupTerminalDirectory").getMapping(directoryGroupTerminalField));
+            keys.add(groupTerminalKey);
+            props.add(new ImportProperty(directoryGroupTerminalField, terminalLM.findLCPByCompoundOldName("groupTerminalTerminalDocument").getMapping(terminalDocumentKey),
+                    terminalLM.object(terminalLM.findClassByCompoundName("GroupTerminal")).getMapping(groupTerminalKey)));
+            fields.add(directoryGroupTerminalField);
+            for (int i = 0; i < terminalDocumentDetailList.size(); i++)
+                data.get(i).add(terminalDocumentDetailList.get(i).directoryGroupTerminal);
+
             ImportField idTerminalHandbookType1TerminalDocumentField = new ImportField(terminalLM.findLCPByCompoundOldName("idTerminalHandbookType1TerminalDocument"));
             props.add(new ImportProperty(idTerminalHandbookType1TerminalDocumentField, terminalLM.findLCPByCompoundOldName("idTerminalHandbookType1TerminalDocument").getMapping(terminalDocumentKey)));
             fields.add(idTerminalHandbookType1TerminalDocumentField);

@@ -39,6 +39,8 @@ groupTerminalTerminal = DATA GroupTerminal (Terminal);
 groupMachineryMachinery(machinery) += groupTerminalTerminal(machinery);
 
 directoryGroupTerminal 'Директория обмена с ТСД' = DATA VARSTRING[100] (GroupTerminal) IN base;
+groupTerminalDirectory (npp) = GROUP MAX groupTerminal BY directoryGroupTerminal(groupTerminal);
+
 priceListTypeGroupTerminal 'Вид цены' = DATA PriceListType (GroupTerminal) IN base;
 namePriceListTypeGroupTerminal 'Вид цены' (groupTerminal) = namePriceListType(priceListTypeGroupTerminal(groupTerminal));
 
@@ -211,6 +213,9 @@ idTerminalHandbookType2TerminalDocument 'Код в справочнике 2' = D
 terminalDocumentTypeTerminalDocument = DATA TerminalDocumentType (TerminalDocument);
 nameTerminalDocumentTypeTerminalDocument 'Тип документа' (terminalDocument) = nameTerminalDocumentType (terminalDocumentTypeTerminalDocument (terminalDocument)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
+groupTerminalTerminalDocument = DATA GroupTerminal (TerminalDocument);
+nameGroupTerminalTerminalDocument 'Группа ТСД' (terminalDocument) = nameGroupMachinery(groupTerminalTerminalDocument(terminalDocument));
+
 idTerminalDocumentTypeTerminalDocument (terminalDocument) = idTerminalDocumentType (terminalDocumentTypeTerminalDocument (terminalDocument));
 
 usedTerminalDocument 'Использован' (terminalDocument) = DATA BOOLEAN (TerminalDocument) IN base;
@@ -238,7 +243,7 @@ terminalDocumentDetailIdTerminalDocumentId (documentDetail, document) = GROUP AG
 
 FORM terminalDocument 'Документ ТСД'
     OBJECTS td=TerminalDocument FIXED PANEL
-    PROPERTIES(td)  idTerminalDocument, nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument,
+    PROPERTIES(td)  idTerminalDocument, nameGroupTerminalTerminalDocument, nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument,
                     idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument, usedTerminalDocument READONLY
 
     OBJECTS tdd=TerminalDocumentDetail
@@ -257,6 +262,7 @@ DESIGN terminalDocument FROM DEFAULT {
         NEW row1 {
             type = CONTAINERH;
             ADD PROPERTY(idTerminalDocument(td));
+            ADD PROPERTY(nameGroupTerminalTerminalDocument(td));
             ADD PROPERTY(nameTerminalDocumentTypeTerminalDocument(td));
             ADD PROPERTY(titleTerminalDocument(td));
         }
@@ -274,8 +280,8 @@ DESIGN terminalDocument FROM DEFAULT {
 
 FORM terminalDocuments 'Документы ТСД'
     OBJECTS td=TerminalDocument
-    PROPERTIES(td)  READONLY idTerminalDocument, nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument,
-                    idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument
+    PROPERTIES(td)  READONLY idTerminalDocument, nameGroupTerminalTerminalDocument, nameTerminalDocumentTypeTerminalDocument, 
+                    idTerminalHandbookType1TerminalDocument, idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument
     PROPERTIES(td)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS tdd=TerminalDocumentDetail

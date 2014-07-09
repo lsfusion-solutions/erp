@@ -171,11 +171,11 @@ public class LSTerminalHandler extends TerminalHandler {
                                     Integer count = barcodeCountMap.get(barcode);
                                     String idTerminalDocumentDetail = barcode + (count == null ? "" : ("_" + count));
                                     barcodeCountMap.put(barcode, count == null ? 1 : (count + 1));
-
+                                    
                                     if (quantity != null && !quantity.equals(BigDecimal.ZERO))
-                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(numberTerminalDocument, idTerminalHandbookType1,
-                                                idTerminalHandbookType2, idTerminalDocumentType, idTerminalDocumentDetail, numberTerminalDocumentDetail,
-                                                barcode, price, quantity, sum));
+                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(numberTerminalDocument, directory, 
+                                                idTerminalHandbookType1, idTerminalHandbookType2, idTerminalDocumentType, idTerminalDocumentDetail,
+                                                numberTerminalDocumentDetail, barcode, price, quantity, sum));
                                 }
 
                                 connection.close();
