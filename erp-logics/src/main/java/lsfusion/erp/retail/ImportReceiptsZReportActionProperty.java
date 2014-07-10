@@ -203,7 +203,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 List<ImportKey<?>> returnKeys = new ArrayList<ImportKey<?>>();
                 List<ImportKey<?>> paymentKeys = new ArrayList<ImportKey<?>>();
                 
-                ImportField numberCashRegisterField = new ImportField(getLCP("numberCashRegister"));
+                ImportField numberCashRegisterField = new ImportField(getLCP("nppMachinery"));
                 ImportField numberZReportField = new ImportField(getLCP("numberZReport"));
                 ImportField numberReceiptField = new ImportField(getLCP("numberReceipt"));
                 ImportField numberReceiptDetailField = new ImportField(getLCP("numberReceiptDetail"));

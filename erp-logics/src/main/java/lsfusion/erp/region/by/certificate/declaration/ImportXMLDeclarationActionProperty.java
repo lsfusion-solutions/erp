@@ -116,7 +116,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                     List<ImportProperty<?>> properties = new ArrayList<ImportProperty<?>>();
 
                     ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) getClass("DeclarationDetail"),
-                            getLCP("declarationDetailUserNumberNameCustoms").getMapping(userNumberField, nameCustomsField));
+                            getLCP("declarationDetailDeclarationNumber").getMapping(userNumberField, nameCustomsField));
 
                     ImportKey<?> customsGroupKey = new ImportKey((ConcreteCustomClass) getClass("CustomsGroup"),
                             getLCP("customsGroupCode").getMapping(codeCustomsGroupField));
@@ -135,7 +135,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                     properties.add(new ImportProperty(declaration, getLCP("declarationDeclarationDetail").getMapping(declarationDetailKey)));
 
                     properties.add(new ImportProperty(nameUOMField, getLCP("nameUOM").getMapping(UOMKey)));
-                    properties.add(new ImportProperty(nameUOMField, getLCP("shortName").getMapping(UOMKey)));
+                    properties.add(new ImportProperty(nameUOMField, getLCP("shortNameUOM").getMapping(UOMKey)));
                     properties.add(new ImportProperty(UOMIDField, getLCP("idUOM").getMapping(UOMKey)));
                     properties.add(new ImportProperty(UOMIDField, getLCP("UOMDeclarationDetail").getMapping(declarationDetailKey),
                             object(getClass("UOM")).getMapping(UOMKey)));

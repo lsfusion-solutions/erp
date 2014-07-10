@@ -148,22 +148,22 @@ createRetailPricesCompanyPriceListStock = ACTION (company, dateTime, dataPriceLi
 }
 
 // Изменение цен
-modifyDateTimeDataPriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, stock) {
+modifyRetailDateTimeDataPriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, stock) {
     FOR [= GROUP SUM 1 IF inSku(s) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
         createRetailPricesCompanyPriceListStock(company, dateTime, dataPriceListType, stock);
     }
 }
 
 // Исключение из ассортимента
-excludeDateTimeDataPriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, stock) {
+excludeRetailDateTimeDataPriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, stock) {
     FOR [= GROUP SUM 1 IF inSku(s) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
         createRetailCompanyPriceListStock(company, dateTime, dataPriceListType, stock);
     }
 }
 
 EXTEND FORM priceListDashboard
-    PROPERTIES TODRAW ssk FORCE PANEL modifyDateTimeDataPriceListTypeStock(dt, pt, s),
-                                      excludeDateTimeDataPriceListTypeStock(dt, pt, s)
+    PROPERTIES TODRAW ssk FORCE PANEL modifyRetailDateTimeDataPriceListTypeStock(dt, pt, s),
+                                      excludeRetailDateTimeDataPriceListTypeStock(dt, pt, s)
 ;
 
 EXTEND DESIGN priceListDashboard {
@@ -171,8 +171,8 @@ EXTEND DESIGN priceListDashboard {
         NEW primaryRetailStockActions {
             type = CONTAINERH;
             caption = 'Согласованные и розничные цены';
-            ADD PROPERTY(modifyDateTimeDataPriceListTypeStock(dt, pt, s));
-            ADD PROPERTY(excludeDateTimeDataPriceListTypeStock(dt, pt, s));
+            ADD PROPERTY(modifyRetailDateTimeDataPriceListTypeStock(dt, pt, s));
+            ADD PROPERTY(excludeRetailDateTimeDataPriceListTypeStock(dt, pt, s));
         }
     }
 }
