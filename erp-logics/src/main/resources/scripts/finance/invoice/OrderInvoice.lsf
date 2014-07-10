@@ -664,3 +664,32 @@ META defineOrderInvoicePack (showPackage)
 //    packQuantityInvoiceDetail(invoiceDetail) +=  packQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
 
 END
+
+META defineInvoiceOrder(sign, NS, batchProp, legalProp, stockProp)
+
+    createUserOrderInvoice 'Создать заказ' = ACTION (invoice) NEWSESSION {
+        FOR ADDOBJ o = NS.UserOrder DO {
+            NS.supplierUserOrder(o) <- legalProp###invoice(invoice);
+            NS.supplierStockUserOrder(o) <- stockProp###invoice(invoice);
+            
+            FOR invoiceInvoiceDetail(detail) == invoice ADDOBJ d = NS.UserOrderDetail DO {
+                NS.userOrderUserOrderDetail(d) <- o; 
+                NS.skuUserOrderDetail(d) <- skuInvoiceDetail(detail);   
+                NS.batchUserOrderDetail(d) <- batchProp###invoiceDetail(detail);
+                NS.quantityUserOrderDetail(d) <- quantityInvoiceDetail(detail); 
+            }
+            
+            FORM NS.userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;        
+        }
+    } TOOLBAR; 
+    
+    EXTEND FORM invoices 
+        PROPERTIES(i) createUserOrderInvoice     
+    ;
+    EXTEND DESIGN invoices {
+        createdContainer {
+    
+            ADD PROPERTY(createUserOrderInvoice(i)) { caption = 'Заказ'###sign;}
+        }
+    }
+END 
