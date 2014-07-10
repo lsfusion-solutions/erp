@@ -89,16 +89,18 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
                   noteOrder
     PROPERTIES(o) printConsignmentOrder FORCE PANEL TOOLBAR
     FILTERS isPostedOrder (o) AND pickedOrder(o)
-    FILTERGROUP toInvoice FILTER 'Не выписаны' 'F6' toInvoicePickedOrder(o) DEFAULT
+    FILTERGROUP toInvoice FILTER 'Не выписаны' 'ctrl F6' toInvoicePickedOrder(o) DEFAULT
     FILTERGROUP opened FILTER 'Открыт' 'F4' NOT isClosedOrder(o) DEFAULT    
     FILTERGROUP filters FILTER 'Текущие заказы' 'F5' dateOrder(o)<=dt DEFAULT
                         FILTER 'Будущие заказы' 'F6' dateOrder(o)>dt       
     FILTERS outOrder (o)
     
     OBJECTS d = OrderDetail FIXED GRID
-    PROPERTIES(d) READONLY nameSkuOrderDetail 
+    PROPERTIES(d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, nameBatchOrderDetail, quantityOrderDetail,
+                  pickingQuantityOrderDetail, invoicedOrderDetail, toInvoicePickedOrderDetail    
     FILTERS orderOrderDetail(d) == o
-
+    FILTERGROUP toInvoiceDetail FILTER 'Не выписаны' 'ctrl F6' toInvoicePickedOrderDetail(d) DEFAULT 
+    
     OBJECTS i = Invoice FIXED GRID
     PROPERTIES (i) FORCE PANEL numInv=numberInvoice ON CHANGE changeNumberInvoice(i), serInv=seriesInvoice ON CHANGE changeSeriesInvoice(i)
     PROPERTIES (i) READONLY isPostedInvoice 
@@ -154,7 +156,7 @@ DESIGN consignmentDashboard FROM DEFAULT {
                             PROPERTY(seriesNumberOrderInvoice(i)) { minimumCharWidth = 8; preferredCharWidth = 15;}
                         }
                         ADD d.box{
-                            caption = 'Сертификаты'; 
+                            caption = 'Детализация'; 
                         }
                     }
                     NEW secondContainer BEFORE tabContainer {
