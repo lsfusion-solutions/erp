@@ -153,29 +153,28 @@ public class LSTerminalHandler extends TerminalHandler {
                                 logger.info("LSTerminal: " + fileName + " is locked");
                             } else {
 
-                                Map<String, Integer> barcodeCountMap = new HashMap<String, Integer>();
                                 Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
                                 List<List<Object>> dokData = readDokFile(connection);
 
                                 for (List<Object> entry : dokData) {
 
-                                    String idTerminalDocumentType = (String) entry.get(0); //VOP
+                                    String dateTime = (String) entry.get(0); //DV
                                     String numberTerminalDocument = (String) entry.get(1); //NUM
-                                    String idTerminalHandbookType1 = (String) entry.get(2); //ANA1
-                                    String idTerminalHandbookType2 = (String) entry.get(3); //ANA2
-                                    String barcode = (String) entry.get(4); //BARCODE
-                                    BigDecimal quantity = (BigDecimal) entry.get(5); //QUANT
-                                    BigDecimal price = (BigDecimal) entry.get(6); //PRICE
-                                    String numberTerminalDocumentDetail = (String) entry.get(7); //npp
+                                    String idTerminalDocument = dateTime + "/" + numberTerminalDocument;
+                                    String idTerminalDocumentType = (String) entry.get(2); //VOP
+                                    String idTerminalHandbookType1 = (String) entry.get(3); //ANA1
+                                    String idTerminalHandbookType2 = (String) entry.get(4); //ANA2
+                                    String barcode = (String) entry.get(5); //BARCODE
+                                    BigDecimal quantity = (BigDecimal) entry.get(6); //QUANT
+                                    BigDecimal price = (BigDecimal) entry.get(7); //PRICE
+                                    String numberTerminalDocumentDetail = (String) entry.get(8); //npp
                                     BigDecimal sum = safeMultiply(quantity, price);
-                                    Integer count = barcodeCountMap.get(barcode);
-                                    String idTerminalDocumentDetail = barcode + (count == null ? "" : ("_" + count));
-                                    barcodeCountMap.put(barcode, count == null ? 1 : (count + 1));
+                                    String idTerminalDocumentDetail = idTerminalDocument + numberTerminalDocumentDetail;
                                     
                                     if (quantity != null && !quantity.equals(BigDecimal.ZERO))
-                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(numberTerminalDocument, directory, 
-                                                idTerminalHandbookType1, idTerminalHandbookType2, idTerminalDocumentType, idTerminalDocumentDetail,
-                                                numberTerminalDocumentDetail, barcode, price, quantity, sum));
+                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(idTerminalDocument, numberTerminalDocument, 
+                                                directory, idTerminalHandbookType1, idTerminalHandbookType2, idTerminalDocumentType, 
+                                                idTerminalDocumentDetail, numberTerminalDocumentDetail, barcode, price, quantity, sum));
                                 }
 
                                 connection.close();
@@ -199,17 +198,19 @@ public class LSTerminalHandler extends TerminalHandler {
 
         List<List<Object>> itemsList = new ArrayList<List<Object>>();
 
-        String vop = null;
+        String dv = null;
         String num = null;
+        String vop = null;
         String ana1 = null;
         String ana2 = null;
 
         Statement statement = connection.createStatement();
-        String sql = "SELECT vop, num, ana1, ana2 FROM dok LIMIT 1;";
+        String sql = "SELECT dv, num, vop, ana1, ana2 FROM dok LIMIT 1;";
         ResultSet resultSet = statement.executeQuery(sql);
         if (resultSet.next()) {
-            vop = resultSet.getString("vop");
+            dv = resultSet.getString("dv");
             num = resultSet.getString("num");
+            vop = resultSet.getString("vop");
             ana1 = resultSet.getString("ana1");
             ana2 = resultSet.getString("ana2");
         }
@@ -227,7 +228,7 @@ public class LSTerminalHandler extends TerminalHandler {
             Integer npp = resultSet.getInt("npp");
             npp = npp == 0 ? count : npp;
             count++;
-            itemsList.add(Arrays.asList((Object) vop, num, ana1, ana2, barcode, quantity, price, String.valueOf(npp)));
+            itemsList.add(Arrays.asList((Object) dv, num, vop, ana1, ana2, barcode, quantity, price, String.valueOf(npp)));
         }
         resultSet.close();
         statement.close();

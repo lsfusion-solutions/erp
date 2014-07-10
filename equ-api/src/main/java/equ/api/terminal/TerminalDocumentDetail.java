@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 
 public class TerminalDocumentDetail implements Serializable {
+    public String idTerminalDocument;
     public String numberTerminalDocument;
     public String directoryGroupTerminal;
     public String idTerminalHandbookType1;
@@ -16,11 +17,12 @@ public class TerminalDocumentDetail implements Serializable {
     public BigDecimal quantityTerminalDocumentDetail;
     public BigDecimal sumTerminalDocumentDetail;
     
-    public TerminalDocumentDetail(String numberTerminalDocument, String directoryGroupTerminal, String idTerminalHandbookType1,
-                                  String idTerminalHandbookType2, String idTerminalDocumentType, String idTerminalDocumentDetail,
-                                  String numberTerminalDocumentDetail, String barcodeTerminalDocumentDetail, 
+    public TerminalDocumentDetail(String idTerminalDocument, String numberTerminalDocument, String directoryGroupTerminal,
+                                  String idTerminalHandbookType1, String idTerminalHandbookType2, String idTerminalDocumentType,
+                                  String idTerminalDocumentDetail, String numberTerminalDocumentDetail, String barcodeTerminalDocumentDetail, 
                                   BigDecimal priceTerminalDocumentDetail, BigDecimal quantityTerminalDocumentDetail, 
                                   BigDecimal sumTerminalDocumentDetail) {
+        this.idTerminalDocument = idTerminalDocument;
         this.numberTerminalDocument = numberTerminalDocument;
         this.directoryGroupTerminal = directoryGroupTerminal;
         this.idTerminalHandbookType1 = idTerminalHandbookType1;
