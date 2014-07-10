@@ -4,13 +4,11 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.File;
 import java.sql.SQLException;
-import java.util.Iterator;
 
 public class ExportReceiptsZReportFolderActionProperty extends ExportReceiptsZReportActionProperty {
 
@@ -21,7 +19,7 @@ public class ExportReceiptsZReportFolderActionProperty extends ExportReceiptsZRe
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            String pathExportReceipts = (String) getLCP("pathExportReceipts").read(context);
+            String pathExportReceipts = (String) findProperty("pathExportReceipts").read(context);
 
             if (pathExportReceipts != null) {
                 if (!new File(pathExportReceipts).exists() && !new File(pathExportReceipts).mkdir())

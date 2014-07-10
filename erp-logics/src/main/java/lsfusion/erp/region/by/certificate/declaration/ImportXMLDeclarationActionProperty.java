@@ -34,7 +34,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
     List<Object> row;
 
     public ImportXMLDeclarationActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Declaration"));
+        super(LM, LM.findClass("Declaration"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         declarationInterface = i.next();
@@ -50,7 +50,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                 List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
 
                 DataObject declaration = context.getDataKeyValue(declarationInterface);
-                //ObjectValue customsZone = LM.findLCPByCompoundOldName("customsZoneDeclaration").readClasses(context.getSession(), declaration);
+                //ObjectValue customsZone = LM.findProperty("customsZoneDeclaration").readClasses(context.getSession(), declaration);
                 for (byte[] file : fileList) {
 
                     List<List<Object>> data = new ArrayList<List<Object>>();
@@ -102,50 +102,50 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                         data.add(row);
                     }
 
-                    ImportField userNumberField = new ImportField(getLCP("userNumberDeclarationDetail"));
-                    ImportField nameCustomsField = new ImportField(getLCP("nameCustomsDeclarationDetail"));
-                    ImportField sumDataField = new ImportField(getLCP("homeSumDeclarationDetail"));
-                    ImportField sumDutyDataField = new ImportField(getLCP("dutySumDeclarationDetail"));
-                    ImportField sumVATDataField = new ImportField(getLCP("VATSumDeclarationDetail"));
+                    ImportField userNumberField = new ImportField(findProperty("userNumberDeclarationDetail"));
+                    ImportField nameCustomsField = new ImportField(findProperty("nameCustomsDeclarationDetail"));
+                    ImportField sumDataField = new ImportField(findProperty("homeSumDeclarationDetail"));
+                    ImportField sumDutyDataField = new ImportField(findProperty("dutySumDeclarationDetail"));
+                    ImportField sumVATDataField = new ImportField(findProperty("VATSumDeclarationDetail"));
                     ImportField dateField = new ImportField(DateClass.instance);
-                    ImportField codeCustomsGroupField = new ImportField(getLCP("codeCustomsGroupDeclarationDetail"));
-                    ImportField sidOrigin2CountryField = new ImportField(getLCP("sidOrigin2CountryDeclarationDetail"));
-                    ImportField nameUOMField = new ImportField(getLCP("nameUOM"));
-                    ImportField UOMIDField = new ImportField(getLCP("idUOM"));
+                    ImportField codeCustomsGroupField = new ImportField(findProperty("codeCustomsGroupDeclarationDetail"));
+                    ImportField sidOrigin2CountryField = new ImportField(findProperty("sidOrigin2CountryDeclarationDetail"));
+                    ImportField nameUOMField = new ImportField(findProperty("nameUOM"));
+                    ImportField UOMIDField = new ImportField(findProperty("idUOM"));
 
                     List<ImportProperty<?>> properties = new ArrayList<ImportProperty<?>>();
 
-                    ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) getClass("DeclarationDetail"),
-                            getLCP("declarationDetailDeclarationNumber").getMapping(userNumberField, nameCustomsField));
+                    ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) findClass("DeclarationDetail"),
+                            findProperty("declarationDetailDeclarationNumber").getMapping(userNumberField, nameCustomsField));
 
-                    ImportKey<?> customsGroupKey = new ImportKey((ConcreteCustomClass) getClass("CustomsGroup"),
-                            getLCP("customsGroupCode").getMapping(codeCustomsGroupField));
+                    ImportKey<?> customsGroupKey = new ImportKey((ConcreteCustomClass) findClass("CustomsGroup"),
+                            findProperty("customsGroupCode").getMapping(codeCustomsGroupField));
 
-                    ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) getClass("Country"),
-                            getLCP("countrySIDOrigin2").getMapping(sidOrigin2CountryField));
+                    ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) findClass("Country"),
+                            findProperty("countrySIDOrigin2").getMapping(sidOrigin2CountryField));
 
-                    ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) getClass("UOM"),
-                            getLCP("UOMId").getMapping(UOMIDField));
+                    ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
+                            findProperty("UOMId").getMapping(UOMIDField));
 
-                    properties.add(new ImportProperty(userNumberField, getLCP("userNumberDeclarationDetail").getMapping(declarationDetailKey)));
-                    properties.add(new ImportProperty(nameCustomsField, getLCP("nameCustomsDeclarationDetail").getMapping(declarationDetailKey)));
-                    properties.add(new ImportProperty(sumDataField, getLCP("homeSumDeclarationDetail").getMapping(declarationDetailKey)));
-                    properties.add(new ImportProperty(sumDutyDataField, getLCP("dutySumDeclarationDetail").getMapping(declarationDetailKey)));
-                    properties.add(new ImportProperty(sumVATDataField, getLCP("VATSumDeclarationDetail").getMapping(declarationDetailKey)));
-                    properties.add(new ImportProperty(declaration, getLCP("declarationDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(userNumberField, findProperty("userNumberDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(nameCustomsField, findProperty("nameCustomsDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(sumDataField, findProperty("homeSumDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(sumDutyDataField, findProperty("dutySumDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(sumVATDataField, findProperty("VATSumDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(declaration, findProperty("declarationDeclarationDetail").getMapping(declarationDetailKey)));
 
-                    properties.add(new ImportProperty(nameUOMField, getLCP("nameUOM").getMapping(UOMKey)));
-                    properties.add(new ImportProperty(nameUOMField, getLCP("shortNameUOM").getMapping(UOMKey)));
-                    properties.add(new ImportProperty(UOMIDField, getLCP("idUOM").getMapping(UOMKey)));
-                    properties.add(new ImportProperty(UOMIDField, getLCP("UOMDeclarationDetail").getMapping(declarationDetailKey),
-                            object(getClass("UOM")).getMapping(UOMKey)));
+                    properties.add(new ImportProperty(nameUOMField, findProperty("nameUOM").getMapping(UOMKey)));
+                    properties.add(new ImportProperty(nameUOMField, findProperty("shortNameUOM").getMapping(UOMKey)));
+                    properties.add(new ImportProperty(UOMIDField, findProperty("idUOM").getMapping(UOMKey)));
+                    properties.add(new ImportProperty(UOMIDField, findProperty("UOMDeclarationDetail").getMapping(declarationDetailKey),
+                            object(findClass("UOM")).getMapping(UOMKey)));
 
-                    properties.add(new ImportProperty(codeCustomsGroupField, getLCP("codeCustomsGroup").getMapping(customsGroupKey)));
-                    properties.add(new ImportProperty(codeCustomsGroupField, getLCP("customsGroupDeclarationDetail").getMapping(declarationDetailKey),
-                            object(getClass("CustomsGroup")).getMapping(customsGroupKey)));
-                    properties.add(new ImportProperty(sidOrigin2CountryField, getLCP("sidOrigin2CountryDeclarationDetail").getMapping(declarationDetailKey)));
-                    properties.add(new ImportProperty(sidOrigin2CountryField, getLCP("countryDeclarationDetail").getMapping(declarationDetailKey),
-                            object(getClass("Country")).getMapping(countryKey)));
+                    properties.add(new ImportProperty(codeCustomsGroupField, findProperty("codeCustomsGroup").getMapping(customsGroupKey)));
+                    properties.add(new ImportProperty(codeCustomsGroupField, findProperty("customsGroupDeclarationDetail").getMapping(declarationDetailKey),
+                            object(findClass("CustomsGroup")).getMapping(customsGroupKey)));
+                    properties.add(new ImportProperty(sidOrigin2CountryField, findProperty("sidOrigin2CountryDeclarationDetail").getMapping(declarationDetailKey)));
+                    properties.add(new ImportProperty(sidOrigin2CountryField, findProperty("countryDeclarationDetail").getMapping(declarationDetailKey),
+                            object(findClass("Country")).getMapping(countryKey)));
 
                     List<ImportField> fields = BaseUtils.toList(userNumberField, nameCustomsField, sumDataField,
                             sumDutyDataField, sumVATDataField, dateField, codeCustomsGroupField, sidOrigin2CountryField,

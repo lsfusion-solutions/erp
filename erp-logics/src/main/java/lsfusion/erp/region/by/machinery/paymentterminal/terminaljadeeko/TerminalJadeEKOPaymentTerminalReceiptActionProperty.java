@@ -24,7 +24,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
     private final ClassPropertyInterface receiptInterface;
 
     public TerminalJadeEKOPaymentTerminalReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Receipt"));
+        super(LM, LM.findClass("Receipt"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptInterface = i.next();
@@ -35,23 +35,23 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
         try {
-            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPort = (Integer) getLCP("comPortCurrentPaymentTerminalModelCashRegister").read(context);
+                Integer comPort = (Integer) findProperty("comPortCurrentPaymentTerminalModelCashRegister").read(context);
                 BigDecimal sumCard = null;
 
                 KeyExpr paymentExpr = new KeyExpr("payment");
                 ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
                 QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
-                paymentQuery.addProperty("sumPayment", getLCP("sumPayment").getExpr(context.getModifier(), paymentExpr));
-                paymentQuery.addProperty("paymentMeansPayment", getLCP("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("sumPayment", findProperty("sumPayment").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
 
-                paymentQuery.and(getLCP("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                paymentQuery.and(findProperty("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
-                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) getClass("PaymentMeans")).getDataObject("paymentMeansCard");
+                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
                     if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                         sumCard = (BigDecimal) paymentValues.get("sumPayment");
                     }
@@ -61,8 +61,8 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
                 ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
 
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
-                receiptDetailQuery.addProperty("quantityReceiptSaleDetail", getLCP("quantityReceiptSaleDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.and(getLCP("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                receiptDetailQuery.addProperty("quantityReceiptSaleDetail", findProperty("quantityReceiptSaleDetail").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.and(findProperty("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 boolean isSale = true;
 
@@ -75,7 +75,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends Scripti
 
                 String result = sumCard == null || sumCard.abs().equals(BigDecimal.ZERO) ? null : (String) context.requestUserInteraction(new TerminalJadeEKOPaymentTerminalReceiptClientAction(comPort, sumCard.abs(), isSale, null));
 
-                getLCP("postPaymentTerminalReceiptResult").change(result, context.getSession());
+                findProperty("postPaymentTerminalReceiptResult").change(result, context.getSession());
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);

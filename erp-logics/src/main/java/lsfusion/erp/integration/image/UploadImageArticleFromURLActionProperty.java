@@ -24,7 +24,7 @@ public class UploadImageArticleFromURLActionProperty extends DefaultImageArticle
     private final ClassPropertyInterface articleInterface;
 
     public UploadImageArticleFromURLActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Article"));
+        super(LM, LM.findClass("Article"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         articleInterface = i.next();
@@ -37,12 +37,12 @@ public class UploadImageArticleFromURLActionProperty extends DefaultImageArticle
 
             DataObject articleObject = context.getDataKeyValue(articleInterface);
 
-            String urlImageArticle = (String) getLCP("urlImageArticle").read(context, articleObject);
+            String urlImageArticle = (String) findProperty("urlImageArticle").read(context, articleObject);
             File imageFile = readImage(urlImageArticle);
             if (imageFile != null) {
                 Timestamp timeChangedImageArticle = new Timestamp(Calendar.getInstance().getTime().getTime());
-                getLCP("imageArticle").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
-                getLCP("timeChangedImageArticle").change(new DataObject(timeChangedImageArticle, DateTimeClass.instance), context, articleObject);
+                findProperty("imageArticle").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
+                findProperty("timeChangedImageArticle").change(new DataObject(timeChangedImageArticle, DateTimeClass.instance), context, articleObject);
                 imageFile.delete();
 
             }

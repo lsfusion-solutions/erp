@@ -42,9 +42,9 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
 
         try {
 
-            String idArticle = trim((String) getLCP("idArticle").read(context, articleObject), "");
-            String idBrandArticle = trim((String) getLCP("idBrandArticle").read(context, articleObject), "");
-            String siteBrandArticle = trim((String) getLCP("siteBrandArticle").read(context, articleObject));
+            String idArticle = trim((String) findProperty("idArticle").read(context, articleObject), "");
+            String idBrandArticle = trim((String) findProperty("idBrandArticle").read(context, articleObject), "");
+            String siteBrandArticle = trim((String) findProperty("siteBrandArticle").read(context, articleObject));
             String url = "https://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + 
                     idBrandArticle + "%20" + idArticle + "&rsz=" + pageSize + "&start=" + start * pageSize + 
                     (siteBrandArticle==null ? "" : "&as_sitesearch=" + siteBrandArticle);
@@ -64,17 +64,17 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
                     File file = readImage(thumbnailUrl);
                     if (file != null && imageUrl != null) {
                         DataObject currentObject = new DataObject(start * pageSize + i);
-                        getLCP("thumbnailImage").change(IOUtils.getFileBytes(file), context, currentObject);
-                        getLCP("urlImage").change(imageUrl, context, currentObject);
-                        getLCP("sizeImage").change(width + "x" + height, context, currentObject);
+                        findProperty("thumbnailImage").change(IOUtils.getFileBytes(file), context, currentObject);
+                        findProperty("urlImage").change(imageUrl, context, currentObject);
+                        findProperty("sizeImage").change(width + "x" + height, context, currentObject);
                         file.delete();
                     }
                 }
-                getLCP("startImage").change(start + 1, context);
-                getLCP("articleImage").change(articleObject, context);
+                findProperty("startImage").change(start + 1, context);
+                findProperty("articleImage").change(articleObject, context);
 
                 if (start == 0)
-                    getLAP("chooseImageAction").execute(context, articleObject);
+                    findAction("chooseImageAction").execute(context, articleObject);
             }
         } catch (Exception e) {
             throw Throwables.propagate(e);

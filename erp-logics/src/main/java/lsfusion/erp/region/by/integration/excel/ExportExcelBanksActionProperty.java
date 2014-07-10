@@ -47,15 +47,15 @@ public class ExportExcelBanksActionProperty extends ExportExcelActionProperty {
             ImRevMap<Object, KeyExpr> bankKeys = MapFact.singletonRev((Object) "Bank", bankExpr);
 
             String[] bankNames = new String[]{"idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank"};
-            LCP[] bankProperties = getLCPs("idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank");
+            LCP[] bankProperties = findProperties("idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank");
             QueryBuilder<Object, Object> bankQuery = new QueryBuilder<Object, Object>(bankKeys);
             for (int i = 0; i < bankProperties.length; i++) {
                 bankQuery.addProperty(bankNames[i], bankProperties[i].getExpr(context.getModifier(), bankExpr));
             }
             java.sql.Date date = new java.sql.Date(Calendar.getInstance().getTime().getTime());
-            bankQuery.addProperty("dataAddressBankDate", getLCP("dataAddressBankDate").getExpr(context.getModifier(), bankExpr, new DataObject(date, DateClass.instance).getExpr()));
+            bankQuery.addProperty("dataAddressBankDate", findProperty("dataAddressBankDate").getExpr(context.getModifier(), bankExpr, new DataObject(date, DateClass.instance).getExpr()));
 
-            bankQuery.and(getLCP("nameBank").getExpr(context.getModifier(), bankExpr).getWhere());
+            bankQuery.and(findProperty("nameBank").getExpr(context.getModifier(), bankExpr).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> bankResult = bankQuery.execute(session);
 

@@ -71,38 +71,38 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         List<ImportField> fields = new ArrayList<ImportField>();
         List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-        ImportField codeCustomsGroupField = new ImportField(getLCP("codeCustomsGroup"));
-        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) getClass("CustomsGroup"),
-                getLCP("customsGroupCode").getMapping(codeCustomsGroupField));
+        ImportField codeCustomsGroupField = new ImportField(findProperty("codeCustomsGroup"));
+        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"),
+                findProperty("customsGroupCode").getMapping(codeCustomsGroupField));
         keys.add(customsGroupKey);
         fields.add(codeCustomsGroupField);
 
-        ImportField idVATCustomsExceptionField = new ImportField(getLCP("idVATCustomsException"));
-        ImportKey<?> VATCustomsExceptionKey = new ImportKey((CustomClass) getClass("VATCustomsException"),
-                getLCP("VATCustomsExceptionId").getMapping(idVATCustomsExceptionField));
+        ImportField idVATCustomsExceptionField = new ImportField(findProperty("idVATCustomsException"));
+        ImportKey<?> VATCustomsExceptionKey = new ImportKey((CustomClass) findClass("VATCustomsException"),
+                findProperty("VATCustomsExceptionId").getMapping(idVATCustomsExceptionField));
         keys.add(VATCustomsExceptionKey);
-        props.add(new ImportProperty(idVATCustomsExceptionField, getLCP("idVATCustomsException").getMapping(VATCustomsExceptionKey)));
+        props.add(new ImportProperty(idVATCustomsExceptionField, findProperty("idVATCustomsException").getMapping(VATCustomsExceptionKey)));
         fields.add(idVATCustomsExceptionField);
 
-        ImportField nameVATCustomsExceptionField = new ImportField(getLCP("nameVATCustomsException"));
-        props.add(new ImportProperty(nameVATCustomsExceptionField, getLCP("nameVATCustomsException").getMapping(VATCustomsExceptionKey)));
+        ImportField nameVATCustomsExceptionField = new ImportField(findProperty("nameVATCustomsException"));
+        props.add(new ImportProperty(nameVATCustomsExceptionField, findProperty("nameVATCustomsException").getMapping(VATCustomsExceptionKey)));
         fields.add(nameVATCustomsExceptionField);
 
-        ImportField rangeField = new ImportField(getLCP("dataValueSupplierVATCustomsGroupDate"));
-        ImportKey<?> rangeKey = new ImportKey((ConcreteCustomClass) getClass("Range"),
-                getLCP("valueCurrentVATDefaultValue").getMapping(rangeField));
-        props.add(new ImportProperty(rangeField, getLCP("rangeVATCustomsException").getMapping(VATCustomsExceptionKey),
-                object(getClass("Range")).getMapping(rangeKey)));
-        props.add(new ImportProperty(codeCustomsGroupField, getLCP("customsGroupVATCustomsException").getMapping(VATCustomsExceptionKey),
-                object(getClass("CustomsGroup")).getMapping(customsGroupKey)));
+        ImportField rangeField = new ImportField(findProperty("dataValueSupplierVATCustomsGroupDate"));
+        ImportKey<?> rangeKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
+                findProperty("valueCurrentVATDefaultValue").getMapping(rangeField));
+        props.add(new ImportProperty(rangeField, findProperty("rangeVATCustomsException").getMapping(VATCustomsExceptionKey),
+                object(findClass("Range")).getMapping(rangeKey)));
+        props.add(new ImportProperty(codeCustomsGroupField, findProperty("customsGroupVATCustomsException").getMapping(VATCustomsExceptionKey),
+                object(findClass("CustomsGroup")).getMapping(customsGroupKey)));
         fields.add(rangeField);
 
         ImportField dateFromCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateFromCustomsGroupField, getLCP("dateFromVATCustomsException").getMapping(VATCustomsExceptionKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, findProperty("dateFromVATCustomsException").getMapping(VATCustomsExceptionKey)));
         fields.add(dateFromCustomsGroupField);
 
         ImportField dateToCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateToCustomsGroupField, getLCP("dateToVATCustomsException").getMapping(VATCustomsExceptionKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateToVATCustomsException").getMapping(VATCustomsExceptionKey)));
         fields.add(dateToCustomsGroupField);
 
         ImportTable table = new ImportTable(fields, data);
@@ -163,11 +163,11 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
 
         Set<String> tnvedSet = new HashSet<String>();
 
-        LCP<?> isCustomsGroup = is(getClass("CustomsGroup"));
+        LCP<?> isCustomsGroup = is(findClass("CustomsGroup"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isCustomsGroup.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        query.addProperty("codeCustomsGroup", getLCP("codeCustomsGroup").getExpr(context.getModifier(), key));
+        query.addProperty("codeCustomsGroup", findProperty("codeCustomsGroup").getExpr(context.getModifier(), key));
         query.and(isCustomsGroup.getExpr(key).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 

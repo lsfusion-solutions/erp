@@ -61,7 +61,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     ScriptingLogicsModule purchaseShipmentLM;
 
     public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Purchase.UserInvoice"));
+        super(LM, LM.findClass("Purchase.UserInvoice"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         userInvoiceInterface = i.next();
@@ -78,19 +78,19 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             DataObject userInvoiceObject = context.getDataKeyValue(userInvoiceInterface);
 
-            ObjectValue importTypeObject = getLCP("importTypeUserInvoice").readClasses(session, userInvoiceObject);
+            ObjectValue importTypeObject = findProperty("importTypeUserInvoice").readClasses(session, userInvoiceObject);
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                String fileExtension = trim((String) getLCP("captionFileExtensionImportType").read(session, importTypeObject));
+                String fileExtension = trim((String) findProperty("captionFileExtensionImportType").read(session, importTypeObject));
 
-                ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierObject = getLCP("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierStockObject = getLCP("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue supplierObject = findProperty("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue supplierStockObject = findProperty("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue customerObject = findProperty("autoImportCustomerImportType").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue customerStockObject = findProperty("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
 
-                String nameFieldImportType = trim((String) getLCP("staticNameImportTypeDetailImportType").read(session, importTypeObject));
+                String nameFieldImportType = trim((String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject));
                 String[] splittedFieldImportType = nameFieldImportType == null ? null : nameFieldImportType.split("\\.");
                 String fieldImportType = splittedFieldImportType == null ? null : splittedFieldImportType[splittedFieldImportType.length - 1];
                 
@@ -124,11 +124,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                                         operationObject, supplierObject, supplierStockObject, customerObject,
                                         customerStockObject);
 
-                            getLCP("originalInvoice").change(new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)), context, userInvoiceObject);
+                            findProperty("originalInvoice").change(new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)), context, userInvoiceObject);
                             
                             session.apply(context);
 
-                            getLAP("formRefresh").execute(context);
+                            findAction("formRefresh").execute(context);
                         }
                     }
                 }
@@ -160,11 +160,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(session, importTypeObject);
         Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, checkInvoiceExistence);
 
-        ObjectValue operationObject = getLCP("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
-        ObjectValue supplierObject = getLCP("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
-        ObjectValue supplierStockObject = getLCP("autoImportSupplierStockImportType").readClasses(context, (DataObject) importTypeObject);
-        ObjectValue customerObject = getLCP("autoImportCustomerImportType").readClasses(context, (DataObject) importTypeObject);
-        ObjectValue customerStockObject = getLCP("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue supplierObject = findProperty("autoImportSupplierImportType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue supplierStockObject = findProperty("autoImportSupplierStockImportType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue customerObject = findProperty("autoImportCustomerImportType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue customerStockObject = findProperty("autoImportCustomerStockImportType").readClasses(context, (DataObject) importTypeObject);
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, session,
                 userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, checkInvoiceExistence, file, fileExtension,
@@ -215,72 +215,72 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             List<List<Object>> data = initData(userInvoiceDetailsList.size());
 
             if (showField(userInvoiceDetailsList, "idUserInvoice")) {
-                ImportField idUserInvoiceField = new ImportField(getLCP("idUserInvoice"));
-                props.add(new ImportProperty(idUserInvoiceField, getLCP("idUserInvoice").getMapping(userInvoiceObject), getReplaceOnlyNull(defaultColumns, "idUserInvoice")));
+                ImportField idUserInvoiceField = new ImportField(findProperty("idUserInvoice"));
+                props.add(new ImportProperty(idUserInvoiceField, findProperty("idUserInvoice").getMapping(userInvoiceObject), getReplaceOnlyNull(defaultColumns, "idUserInvoice")));
                 fields.add(idUserInvoiceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "numberUserInvoice")) {
-                    addDataField(props, fields, defaultColumns, getLCP("numberUserInvoice"), "numberUserInvoice", userInvoiceObject);
+                    addDataField(props, fields, defaultColumns, findProperty("numberUserInvoice"), "numberUserInvoice", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).numberUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "dateUserInvoice")) {
-                addDataField(props, fields, defaultColumns, getLCP("dateUserInvoice"), "dateUserInvoice", userInvoiceObject);
+                addDataField(props, fields, defaultColumns, findProperty("dateUserInvoice"), "dateUserInvoice", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).dateUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "timeUserInvoice")) {
-                addDataField(props, fields, defaultColumns, getLCP("timeUserInvoice"), "timeUserInvoice", userInvoiceObject);
+                addDataField(props, fields, defaultColumns, findProperty("timeUserInvoice"), "timeUserInvoice", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).timeUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "currencyUserInvoice")) {
-                ImportField shortNameCurrencyField = new ImportField(getLCP("shortNameCurrency"));
-                ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) getClass("Currency"),
-                        getLCP("currencyShortName").getMapping(shortNameCurrencyField));
+                ImportField shortNameCurrencyField = new ImportField(findProperty("shortNameCurrency"));
+                ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                        findProperty("currencyShortName").getMapping(shortNameCurrencyField));
                 keys.add(currencyKey);
-                props.add(new ImportProperty(shortNameCurrencyField, getLCP("currencyUserInvoice").getMapping(userInvoiceObject),
-                            object(getClass("Currency")).getMapping(currencyKey), getReplaceOnlyNull(defaultColumns, "currencyUserInvoice")));
+                props.add(new ImportProperty(shortNameCurrencyField, findProperty("currencyUserInvoice").getMapping(userInvoiceObject),
+                            object(findClass("Currency")).getMapping(currencyKey), getReplaceOnlyNull(defaultColumns, "currencyUserInvoice")));
                 fields.add(shortNameCurrencyField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).currencyUserInvoice);
             }
 
-            ImportField idUserInvoiceDetailField = new ImportField(getLCP("idUserInvoiceDetail"));
-            ImportKey<?> userInvoiceDetailKey = new ImportKey((ConcreteCustomClass) getClass("Purchase.UserInvoiceDetail"),
-                    getLCP("userInvoiceDetailId").getMapping(idUserInvoiceDetailField));
+            ImportField idUserInvoiceDetailField = new ImportField(findProperty("idUserInvoiceDetail"));
+            ImportKey<?> userInvoiceDetailKey = new ImportKey((ConcreteCustomClass) findClass("Purchase.UserInvoiceDetail"),
+                    findProperty("userInvoiceDetailId").getMapping(idUserInvoiceDetailField));
             keys.add(userInvoiceDetailKey);
-            props.add(new ImportProperty(idUserInvoiceDetailField, getLCP("idUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idUserInvoiceDetail")));
-            props.add(new ImportProperty(userInvoiceObject, getLCP("Purchase.userInvoiceUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idUserInvoiceDetail")));
+            props.add(new ImportProperty(idUserInvoiceDetailField, findProperty("idUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idUserInvoiceDetail")));
+            props.add(new ImportProperty(userInvoiceObject, findProperty("Purchase.userInvoiceUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idUserInvoiceDetail")));
             fields.add(idUserInvoiceDetailField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idUserInvoiceDetail);
 
             if (operationObject instanceof DataObject) {
-                props.add(new ImportProperty((DataObject) operationObject, getLCP("Purchase.operationUserInvoice").getMapping(userInvoiceObject)));
+                props.add(new ImportProperty((DataObject) operationObject, findProperty("Purchase.operationUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (supplierObject instanceof DataObject) {
-                props.add(new ImportProperty((DataObject) supplierObject, getLCP("Purchase.supplierUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                    props.add(new ImportProperty((DataObject) supplierObject, getLCP("Purchase.supplierUserInvoice").getMapping(userInvoiceObject)));
+                props.add(new ImportProperty((DataObject) supplierObject, findProperty("Purchase.supplierUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    props.add(new ImportProperty((DataObject) supplierObject, findProperty("Purchase.supplierUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (showField(userInvoiceDetailsList, "idSupplier")) {
 
-                ImportField idSupplierField = new ImportField(getLCP("idLegalEntity"));
-                ImportKey<?> supplierKey = new ImportKey((ConcreteCustomClass) getClass("LegalEntity"),
-                        getLCP("legalEntityId").getMapping(idSupplierField));
+                ImportField idSupplierField = new ImportField(findProperty("idLegalEntity"));
+                ImportKey<?> supplierKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntity"),
+                        findProperty("legalEntityId").getMapping(idSupplierField));
                 keys.add(supplierKey);
-                props.add(new ImportProperty(idSupplierField, getLCP("supplierUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                        object(getClass("LegalEntity")).getMapping(supplierKey), getReplaceOnlyNull(defaultColumns, "idSupplier")));
-                    props.add(new ImportProperty(idSupplierField, getLCP("supplierUserInvoice").getMapping(userInvoiceObject),
-                            object(getClass("LegalEntity")).getMapping(supplierKey), getReplaceOnlyNull(defaultColumns, "idSupplier")));
+                props.add(new ImportProperty(idSupplierField, findProperty("supplierUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                        object(findClass("LegalEntity")).getMapping(supplierKey), getReplaceOnlyNull(defaultColumns, "idSupplier")));
+                    props.add(new ImportProperty(idSupplierField, findProperty("supplierUserInvoice").getMapping(userInvoiceObject),
+                            object(findClass("LegalEntity")).getMapping(supplierKey), getReplaceOnlyNull(defaultColumns, "idSupplier")));
                 fields.add(idSupplierField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idSupplier);
@@ -289,14 +289,14 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             if (showField(userInvoiceDetailsList, "idSupplierStock")) {
 
-                ImportField idSupplierStockField = new ImportField(getLCP("idStock"));
-                ImportKey<?> supplierStockKey = new ImportKey((CustomClass) getClass("Stock"),
-                        getLCP("stockId").getMapping(idSupplierStockField));
+                ImportField idSupplierStockField = new ImportField(findProperty("idStock"));
+                ImportKey<?> supplierStockKey = new ImportKey((CustomClass) findClass("Stock"),
+                        findProperty("stockId").getMapping(idSupplierStockField));
                 keys.add(supplierStockKey);
-                props.add(new ImportProperty(idSupplierStockField, getLCP("supplierStockUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                        object(getClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
-                    props.add(new ImportProperty(idSupplierStockField, getLCP("supplierStockUserInvoice").getMapping(userInvoiceObject),
-                            object(getClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
+                props.add(new ImportProperty(idSupplierStockField, findProperty("supplierStockUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                        object(findClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
+                    props.add(new ImportProperty(idSupplierStockField, findProperty("supplierStockUserInvoice").getMapping(userInvoiceObject),
+                            object(findClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
                 fields.add(idSupplierStockField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idSupplierStock);
@@ -304,65 +304,65 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
 
             if (supplierStockObject instanceof DataObject) {
-                props.add(new ImportProperty((DataObject) supplierStockObject, getLCP("Purchase.supplierStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                    props.add(new ImportProperty((DataObject) supplierStockObject, getLCP("Purchase.supplierStockUserInvoice").getMapping(userInvoiceObject)));
+                props.add(new ImportProperty((DataObject) supplierStockObject, findProperty("Purchase.supplierStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    props.add(new ImportProperty((DataObject) supplierStockObject, findProperty("Purchase.supplierStockUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (customerObject instanceof DataObject) {
-                props.add(new ImportProperty((DataObject) customerObject, getLCP("Purchase.customerUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                    props.add(new ImportProperty((DataObject) customerObject, getLCP("Purchase.customerUserInvoice").getMapping(userInvoiceObject)));
+                props.add(new ImportProperty((DataObject) customerObject, findProperty("Purchase.customerUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    props.add(new ImportProperty((DataObject) customerObject, findProperty("Purchase.customerUserInvoice").getMapping(userInvoiceObject)));
             }
 
             if (customerStockObject instanceof DataObject) {
-                props.add(new ImportProperty((DataObject) customerStockObject, getLCP("Purchase.customerStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                    props.add(new ImportProperty((DataObject) customerStockObject, getLCP("Purchase.customerStockUserInvoice").getMapping(userInvoiceObject)));
+                props.add(new ImportProperty((DataObject) customerStockObject, findProperty("Purchase.customerStockUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                    props.add(new ImportProperty((DataObject) customerStockObject, findProperty("Purchase.customerStockUserInvoice").getMapping(userInvoiceObject)));
             }
 
-            ImportField idBarcodeSkuField = new ImportField(getLCP("idBarcodeSku"));
-            ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) getClass("Barcode"),
-                    getLCP("extBarcodeId").getMapping(idBarcodeSkuField));
+            ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
+            ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
+                    findProperty("extBarcodeId").getMapping(idBarcodeSkuField));
             keys.add(barcodeKey);
-            props.add(new ImportProperty(idBarcodeSkuField, getLCP("idBarcode").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
-            props.add(new ImportProperty(idBarcodeSkuField, getLCP("extIdBarcode").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
+            props.add(new ImportProperty(idBarcodeSkuField, findProperty("idBarcode").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
+            props.add(new ImportProperty(idBarcodeSkuField, findProperty("extIdBarcode").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
             fields.add(idBarcodeSkuField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idBarcodeSku);
 
-            ImportField idBatchField = new ImportField(getLCP("idBatch"));
-            ImportKey<?> batchKey = new ImportKey((CustomClass) getClass("Batch"),
-                    getLCP("batchId").getMapping(idBatchField));
-            props.add(new ImportProperty(idBatchField, getLCP("idBatch").getMapping(batchKey), getReplaceOnlyNull(defaultColumns, "idBatch")));
-            props.add(new ImportProperty(idBatchField, getLCP("idBatchUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idBatch")));
+            ImportField idBatchField = new ImportField(findProperty("idBatch"));
+            ImportKey<?> batchKey = new ImportKey((CustomClass) findClass("Batch"),
+                    findProperty("batchId").getMapping(idBatchField));
+            props.add(new ImportProperty(idBatchField, findProperty("idBatch").getMapping(batchKey), getReplaceOnlyNull(defaultColumns, "idBatch")));
+            props.add(new ImportProperty(idBatchField, findProperty("idBatchUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idBatch")));
             fields.add(idBatchField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idBatch);
 
             if (purchaseShipmentBoxLM != null && showField(userInvoiceDetailsList, "idBox")) {
-                ImportField idBoxField = new ImportField(purchaseShipmentBoxLM.findLCPByCompoundOldName("idBox"));
-                ImportKey<?> boxKey = new ImportKey((ConcreteCustomClass) purchaseShipmentBoxLM.findClassByCompoundName("Box"),
-                        purchaseShipmentBoxLM.findLCPByCompoundOldName("boxId").getMapping(idBoxField));
+                ImportField idBoxField = new ImportField(purchaseShipmentBoxLM.findProperty("idBox"));
+                ImportKey<?> boxKey = new ImportKey((ConcreteCustomClass) purchaseShipmentBoxLM.findClass("Box"),
+                        purchaseShipmentBoxLM.findProperty("boxId").getMapping(idBoxField));
                 keys.add(boxKey);
-                props.add(new ImportProperty(idBoxField, purchaseShipmentBoxLM.findLCPByCompoundOldName("idBox").getMapping(boxKey), getReplaceOnlyNull(defaultColumns, "idBox")));
-                props.add(new ImportProperty(idBoxField, purchaseShipmentBoxLM.findLCPByCompoundOldName("boxUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                        purchaseShipmentBoxLM.object(purchaseShipmentBoxLM.findClassByCompoundName("Box")).getMapping(boxKey), getReplaceOnlyNull(defaultColumns, "idBox")));
+                props.add(new ImportProperty(idBoxField, purchaseShipmentBoxLM.findProperty("idBox").getMapping(boxKey), getReplaceOnlyNull(defaultColumns, "idBox")));
+                props.add(new ImportProperty(idBoxField, purchaseShipmentBoxLM.findProperty("boxUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                        purchaseShipmentBoxLM.object(purchaseShipmentBoxLM.findClass("Box")).getMapping(boxKey), getReplaceOnlyNull(defaultColumns, "idBox")));
                 fields.add(idBoxField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idBox);
 
                 if (showField(userInvoiceDetailsList, "nameBox")) {
-                    addDataField(props, fields, defaultColumns, purchaseShipmentBoxLM.findLCPByCompoundOldName("nameBox"), "nameBox", boxKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentBoxLM.findProperty("nameBox"), "nameBox", boxKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).nameBox);
                 }
             }
 
-            ImportField dataIndexUserInvoiceDetailField = new ImportField(getLCP("dataIndexUserInvoiceDetail"));
-            props.add(new ImportProperty(dataIndexUserInvoiceDetailField, getLCP("dataIndexUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+            ImportField dataIndexUserInvoiceDetailField = new ImportField(findProperty("dataIndexUserInvoiceDetail"));
+            props.add(new ImportProperty(dataIndexUserInvoiceDetailField, findProperty("dataIndexUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
             fields.add(dataIndexUserInvoiceDetailField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).dataIndex);
 
-            ImportField idItemField = new ImportField(getLCP("idItem"));
+            ImportField idItemField = new ImportField(findProperty("idItem"));
             fields.add(idItemField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idItem);
@@ -370,64 +370,64 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String replaceField = (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
             LCP iGroupAggr = getItemKeyGroupAggr(keyType);
             ImportField iField = (keyType == null || keyType.equals("item")) ? idItemField : keyType.equals("barcode") ? idBarcodeSkuField : idBatchField;
-            ImportKey<?> itemKey = new ImportKey((CustomClass) getClass("Item"),
+            ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
             keys.add(itemKey);
-            props.add(new ImportProperty(idItemField, getLCP("idItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "idItem")));
-            props.add(new ImportProperty(iField, getLCP("Purchase.skuInvoiceDetail").getMapping(userInvoiceDetailKey),
-                    object(getClass("Sku")).getMapping(itemKey), getReplaceOnlyNull(defaultColumns, replaceField)));
-            props.add(new ImportProperty(iField, getLCP("skuBarcode").getMapping(barcodeKey),
-                    object(getClass("Item")).getMapping(itemKey), getReplaceOnlyNull(defaultColumns, replaceField)));
+            props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "idItem")));
+            props.add(new ImportProperty(iField, findProperty("Purchase.skuInvoiceDetail").getMapping(userInvoiceDetailKey),
+                    object(findClass("Sku")).getMapping(itemKey), getReplaceOnlyNull(defaultColumns, replaceField)));
+            props.add(new ImportProperty(iField, findProperty("skuBarcode").getMapping(barcodeKey),
+                    object(findClass("Item")).getMapping(itemKey), getReplaceOnlyNull(defaultColumns, replaceField)));
 
             if (showField(userInvoiceDetailsList, "captionItem")) {
-                addDataField(props, fields, defaultColumns, getLCP("captionItem"), "captionItem", itemKey);
+                addDataField(props, fields, defaultColumns, findProperty("captionItem"), "captionItem", itemKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).captionItem);
             }
 
             if (showField(userInvoiceDetailsList, "originalCaptionItem")) {
-                addDataField(props, fields, defaultColumns, getLCP("originalCaptionItem"), "originalCaptionItem", itemKey);
+                addDataField(props, fields, defaultColumns, findProperty("originalCaptionItem"), "originalCaptionItem", itemKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).originalCaptionItem);
             }
 
             if (showField(userInvoiceDetailsList, "idUOM")) {
-                ImportField idUOMField = new ImportField(getLCP("idUOM"));
-                ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) getClass("UOM"),
-                        getLCP("UOMId").getMapping(idUOMField));
+                ImportField idUOMField = new ImportField(findProperty("idUOM"));
+                ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
+                        findProperty("UOMId").getMapping(idUOMField));
                 keys.add(UOMKey);
-                props.add(new ImportProperty(idUOMField, getLCP("idUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, getLCP("nameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, getLCP("shortNameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
-                props.add(new ImportProperty(idUOMField, getLCP("UOMItem").getMapping(itemKey),
-                        object(getClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, findProperty("idUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, findProperty("nameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, findProperty("shortNameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
+                props.add(new ImportProperty(idUOMField, findProperty("UOMItem").getMapping(itemKey),
+                        object(findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
                 fields.add(idUOMField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idUOM);
             }
 
             if (showField(userInvoiceDetailsList, "idManufacturer")) {
-                ImportField idManufacturerField = new ImportField(getLCP("idManufacturer"));
-                ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) getClass("Manufacturer"),
-                        getLCP("manufacturerId").getMapping(idManufacturerField));
+                ImportField idManufacturerField = new ImportField(findProperty("idManufacturer"));
+                ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) findClass("Manufacturer"),
+                        findProperty("manufacturerId").getMapping(idManufacturerField));
                 keys.add(manufacturerKey);
-                props.add(new ImportProperty(idManufacturerField, getLCP("idManufacturer").getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
-                props.add(new ImportProperty(idManufacturerField, getLCP("manufacturerItem").getMapping(itemKey),
-                        object(getClass("Manufacturer")).getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
+                props.add(new ImportProperty(idManufacturerField, findProperty("idManufacturer").getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
+                props.add(new ImportProperty(idManufacturerField, findProperty("manufacturerItem").getMapping(itemKey),
+                        object(findClass("Manufacturer")).getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
                 fields.add(idManufacturerField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idManufacturer);
 
                 if (showField(userInvoiceDetailsList, "nameManufacturer")) {
-                    addDataField(props, fields, defaultColumns, getLCP("nameManufacturer"), "nameManufacturer", manufacturerKey);
+                    addDataField(props, fields, defaultColumns, findProperty("nameManufacturer"), "nameManufacturer", manufacturerKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).nameManufacturer);
                 }
             }
 
-            ImportField sidOrigin2CountryField = new ImportField(getLCP("sidOrigin2Country"));
-            ImportField nameCountryField = new ImportField(getLCP("nameCountry"));
-            ImportField nameOriginCountryField = new ImportField(getLCP("nameOriginCountry"));
+            ImportField sidOrigin2CountryField = new ImportField(findProperty("sidOrigin2Country"));
+            ImportField nameCountryField = new ImportField(findProperty("nameCountry"));
+            ImportField nameOriginCountryField = new ImportField(findProperty("nameOriginCountry"));
 
             boolean showSidOrigin2Country = showField(userInvoiceDetailsList, "sidOrigin2Country");
             boolean showNameCountry = showField(userInvoiceDetailsList, "nameCountry");
@@ -435,33 +435,33 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                     (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
-            LCP<?> countryAggr = showSidOrigin2Country ? getLCP("countrySIDOrigin2") :
-                    (showNameCountry ? getLCP("countryName") : (showNameOriginCountry ? getLCP("countryNameOrigin") : null));
+            LCP<?> countryAggr = showSidOrigin2Country ? findProperty("countrySIDOrigin2") :
+                    (showNameCountry ? findProperty("countryName") : (showNameOriginCountry ? findProperty("countryNameOrigin") : null));
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
             ImportKey<?> countryKey = countryField == null ? null : 
-                    new ImportKey((ConcreteCustomClass) getClass("Country"), countryAggr.getMapping(countryField));
+                    new ImportKey((ConcreteCustomClass) findClass("Country"), countryAggr.getMapping(countryField));
 
             if (countryKey != null) {
                 keys.add(countryKey);
 
-                props.add(new ImportProperty(countryField, getLCP("countryItem").getMapping(itemKey),
-                        object(getClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, countryReplaceField)));
+                props.add(new ImportProperty(countryField, findProperty("countryItem").getMapping(itemKey),
+                        object(findClass("Country")).getMapping(countryKey), getReplaceOnlyNull(defaultColumns, countryReplaceField)));
 
                 if (showSidOrigin2Country) {
-                    props.add(new ImportProperty(sidOrigin2CountryField, getLCP("sidOrigin2Country").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "sidOrigin2Country")));
+                    props.add(new ImportProperty(sidOrigin2CountryField, findProperty("sidOrigin2Country").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "sidOrigin2Country")));
                     fields.add(sidOrigin2CountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).sidOrigin2Country);
                 }
                 if (showNameCountry) {
-                    props.add(new ImportProperty(nameCountryField, getLCP("nameCountry").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameCountry")));
+                    props.add(new ImportProperty(nameCountryField, findProperty("nameCountry").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameCountry")));
                     fields.add(nameCountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).nameCountry);
                 }
                 if (showNameOriginCountry) {
-                    props.add(new ImportProperty(nameOriginCountryField, getLCP("nameOriginCountry").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameOriginCountry")));
+                    props.add(new ImportProperty(nameOriginCountryField, findProperty("nameOriginCountry").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameOriginCountry")));
                     fields.add(nameOriginCountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).nameOriginCountry);
@@ -469,71 +469,71 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
 
             if (showField(userInvoiceDetailsList, "idCustomer")) {
-                ImportField idCustomerField = new ImportField(getLCP("idLegalEntity"));
-                ImportKey<?> customerKey = new ImportKey((ConcreteCustomClass) getClass("LegalEntity"),
-                        getLCP("legalEntityId").getMapping(idCustomerField));
+                ImportField idCustomerField = new ImportField(findProperty("idLegalEntity"));
+                ImportKey<?> customerKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntity"),
+                        findProperty("legalEntityId").getMapping(idCustomerField));
                 keys.add(customerKey);
-                    props.add(new ImportProperty(idCustomerField, getLCP("Purchase.customerUserInvoice").getMapping(userInvoiceObject),
-                            object(getClass("LegalEntity")).getMapping(customerKey), getReplaceOnlyNull(defaultColumns, "idBCustomer")));
+                    props.add(new ImportProperty(idCustomerField, findProperty("Purchase.customerUserInvoice").getMapping(userInvoiceObject),
+                            object(findClass("LegalEntity")).getMapping(customerKey), getReplaceOnlyNull(defaultColumns, "idBCustomer")));
                 fields.add(idCustomerField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idCustomer);
             }
 
             if (showField(userInvoiceDetailsList, "idCustomerStock")) {
-                ImportField idCustomerStockField = new ImportField(getLCP("idStock"));
-                ImportKey<?> customerStockKey = new ImportKey((CustomClass) getClass("Stock"),
-                        getLCP("stockId").getMapping(idCustomerStockField));
+                ImportField idCustomerStockField = new ImportField(findProperty("idStock"));
+                ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
+                        findProperty("stockId").getMapping(idCustomerStockField));
                 keys.add(customerStockKey);
-                    props.add(new ImportProperty(idCustomerStockField, getLCP("Purchase.customerStockUserInvoice").getMapping(userInvoiceObject),
-                            object(getClass("Stock")).getMapping(customerStockKey), getReplaceOnlyNull(defaultColumns, "idCustomerStock")));
+                    props.add(new ImportProperty(idCustomerStockField, findProperty("Purchase.customerStockUserInvoice").getMapping(userInvoiceObject),
+                            object(findClass("Stock")).getMapping(customerStockKey), getReplaceOnlyNull(defaultColumns, "idCustomerStock")));
                 fields.add(idCustomerStockField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idCustomerStock);
             }
 
             if (showField(userInvoiceDetailsList, "quantity")) {
-                addDataField(props, fields, defaultColumns, getLCP("Purchase.quantityUserInvoiceDetail"), "quantity", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, findProperty("Purchase.quantityUserInvoiceDetail"), "quantity", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).quantity);
             }
 
             if (showField(userInvoiceDetailsList, "price")) {
-                addDataField(props, fields, defaultColumns, getLCP("Purchase.priceUserInvoiceDetail"), "price", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, findProperty("Purchase.priceUserInvoiceDetail"), "price", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).price);
             }
 
             if (showField(userInvoiceDetailsList, "sum")) {
-                addDataField(props, fields, defaultColumns, getLCP("Purchase.sumUserInvoiceDetail"), "sum", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, findProperty("Purchase.sumUserInvoiceDetail"), "sum", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).sum);
             }
 
             if (showField(userInvoiceDetailsList, "valueVAT")) {
-                ImportField valueVATUserInvoiceDetailField = new ImportField(getLCP("Purchase.valueVATUserInvoiceDetail"));
-                ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) getClass("Range"),
-                        getLCP("valueCurrentVATDefaultValue").getMapping(valueVATUserInvoiceDetailField));
+                ImportField valueVATUserInvoiceDetailField = new ImportField(findProperty("Purchase.valueVATUserInvoiceDetail"));
+                ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
+                        findProperty("valueCurrentVATDefaultValue").getMapping(valueVATUserInvoiceDetailField));
                 keys.add(VATKey);
-                props.add(new ImportProperty(valueVATUserInvoiceDetailField, getLCP("Purchase.VATUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                        object(getClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
+                props.add(new ImportProperty(valueVATUserInvoiceDetailField, findProperty("Purchase.VATUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                        object(findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
                 fields.add(valueVATUserInvoiceDetailField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).valueVAT);
 
                 ImportField dateField = new ImportField(DateClass.instance);
-                props.add(new ImportProperty(dateField, getLCP("dataDateBarcode").getMapping(barcodeKey), true));
+                props.add(new ImportProperty(dateField, findProperty("dataDateBarcode").getMapping(barcodeKey), true));
                 fields.add(dateField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).dateVAT);
 
                 if(taxItemLM != null) {
-                ImportField countryVATField = new ImportField(taxItemLM.findLCPByCompoundOldName("nameCountry"));
-                ImportKey<?> countryVATKey = new ImportKey((ConcreteCustomClass) taxItemLM.findClassByCompoundName("Country"),
-                        taxItemLM.findLCPByCompoundOldName("countryName").getMapping(countryVATField));
+                ImportField countryVATField = new ImportField(taxItemLM.findProperty("nameCountry"));
+                ImportKey<?> countryVATKey = new ImportKey((ConcreteCustomClass) taxItemLM.findClass("Country"),
+                        taxItemLM.findProperty("countryName").getMapping(countryVATField));
                 keys.add(countryVATKey);
-                props.add(new ImportProperty(valueVATUserInvoiceDetailField, taxItemLM.findLCPByCompoundOldName("VATItemCountry").getMapping(itemKey, countryVATKey),
-                        object(taxItemLM.findClassByCompoundName("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
+                props.add(new ImportProperty(valueVATUserInvoiceDetailField, taxItemLM.findProperty("VATItemCountry").getMapping(itemKey, countryVATKey),
+                        object(taxItemLM.findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
                 fields.add(countryVATField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).countryVAT);
@@ -541,13 +541,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
 
             if (showField(userInvoiceDetailsList, "sumVAT")) {
-                addDataField(props, fields, defaultColumns, getLCP("Purchase.VATSumUserInvoiceDetail"), "sumVAT", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, findProperty("Purchase.VATSumUserInvoiceDetail"), "sumVAT", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).sumVAT);
             }
 
             if (showField(userInvoiceDetailsList, "invoiceSum")) {
-                addDataField(props, fields, defaultColumns, getLCP("Purchase.invoiceSumUserInvoiceDetail"), "invoiceSum", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, findProperty("Purchase.invoiceSumUserInvoiceDetail"), "invoiceSum", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).invoiceSum);
             }
@@ -555,14 +555,14 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if (purchaseDeclarationLM != null) {
                 
                 if (showField(userInvoiceDetailsList, "numberDeclaration")) {
-                    ImportField numberDeclarationField = new ImportField(purchaseDeclarationLM.findLCPByCompoundOldName("numberDeclaration"));
-                    ImportKey<?> declarationKey = new ImportKey((ConcreteCustomClass) purchaseDeclarationLM.findClassByCompoundName("Declaration"),
-                            purchaseDeclarationLM.findLCPByCompoundOldName("declarationId").getMapping(numberDeclarationField));
+                    ImportField numberDeclarationField = new ImportField(purchaseDeclarationLM.findProperty("numberDeclaration"));
+                    ImportKey<?> declarationKey = new ImportKey((ConcreteCustomClass) purchaseDeclarationLM.findClass("Declaration"),
+                            purchaseDeclarationLM.findProperty("declarationId").getMapping(numberDeclarationField));
                     keys.add(declarationKey);
-                    props.add(new ImportProperty(numberDeclarationField, purchaseDeclarationLM.findLCPByCompoundOldName("numberDeclaration").getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
-                    props.add(new ImportProperty(numberDeclarationField, purchaseDeclarationLM.findLCPByCompoundOldName("idDeclaration").getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
-                    props.add(new ImportProperty(numberDeclarationField, purchaseDeclarationLM.findLCPByCompoundOldName("declarationUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                            object(purchaseDeclarationLM.findClassByCompoundName("Declaration")).getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
+                    props.add(new ImportProperty(numberDeclarationField, purchaseDeclarationLM.findProperty("numberDeclaration").getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
+                    props.add(new ImportProperty(numberDeclarationField, purchaseDeclarationLM.findProperty("idDeclaration").getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
+                    props.add(new ImportProperty(numberDeclarationField, purchaseDeclarationLM.findProperty("declarationUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                            object(purchaseDeclarationLM.findClass("Declaration")).getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
                     fields.add(numberDeclarationField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).numberDeclaration);
@@ -573,25 +573,25 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if (purchaseShipmentLM != null) {
 
                 if (showField(userInvoiceDetailsList, "expiryDate")) {
-                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findLCPByCompoundOldName("Purchase.expiryDateUserInvoiceDetail"), "expiryDate", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findProperty("Purchase.expiryDateUserInvoiceDetail"), "expiryDate", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).expiryDate);
                 }
 
                 if (showField(userInvoiceDetailsList, "manufactureDate")) {
-                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findLCPByCompoundOldName("Purchase.manufactureDateUserInvoiceDetail"), "manufactureDate", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findProperty("Purchase.manufactureDateUserInvoiceDetail"), "manufactureDate", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).manufactureDate);
                 }
 
                 if (showField(userInvoiceDetailsList, "shipmentPrice")) {
-                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findLCPByCompoundOldName("shipmentPriceUserInvoiceDetail"), "shipmentPrice", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findProperty("shipmentPriceUserInvoiceDetail"), "shipmentPrice", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).shipmentPrice);
                 }
 
                 if (showField(userInvoiceDetailsList, "shipmentSum")) {
-                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findLCPByCompoundOldName("shipmentSumUserInvoiceDetail"), "shipmentSum", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseShipmentLM.findProperty("shipmentSumUserInvoiceDetail"), "shipmentSum", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).shipmentSum);
                 }
@@ -599,20 +599,20 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             }
                 
             if ((purchaseManufacturingPriceLM != null) && showField(userInvoiceDetailsList, "manufacturingPrice")) {
-                addDataField(props, fields, defaultColumns, purchaseManufacturingPriceLM.findLCPByCompoundOldName("Purchase.manufacturingPriceUserInvoiceDetail"), "manufacturingPrice", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, purchaseManufacturingPriceLM.findProperty("Purchase.manufacturingPriceUserInvoiceDetail"), "manufacturingPrice", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).manufacturingPrice);
             }
 
             if (itemPharmacyByLM != null && showField(userInvoiceDetailsList, "idPharmacyPriceGroup")) {
-                ImportField idPharmacyPriceGroupField = new ImportField(itemPharmacyByLM.findLCPByCompoundOldName("idPharmacyPriceGroup"));
-                ImportKey<?> pharmacyPriceGroupKey = new ImportKey((ConcreteCustomClass) itemPharmacyByLM.findClassByCompoundName("PharmacyPriceGroup"),
-                        itemPharmacyByLM.findLCPByCompoundOldName("pharmacyPriceGroupId").getMapping(idPharmacyPriceGroupField));
+                ImportField idPharmacyPriceGroupField = new ImportField(itemPharmacyByLM.findProperty("idPharmacyPriceGroup"));
+                ImportKey<?> pharmacyPriceGroupKey = new ImportKey((ConcreteCustomClass) itemPharmacyByLM.findClass("PharmacyPriceGroup"),
+                        itemPharmacyByLM.findProperty("pharmacyPriceGroupId").getMapping(idPharmacyPriceGroupField));
                 keys.add(pharmacyPriceGroupKey);
-                props.add(new ImportProperty(idPharmacyPriceGroupField, itemPharmacyByLM.findLCPByCompoundOldName("idPharmacyPriceGroup").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
-                props.add(new ImportProperty(idPharmacyPriceGroupField, itemPharmacyByLM.findLCPByCompoundOldName("namePharmacyPriceGroup").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
-                props.add(new ImportProperty(idPharmacyPriceGroupField, itemPharmacyByLM.findLCPByCompoundOldName("pharmacyPriceGroupItem").getMapping(itemKey),
-                        object(itemPharmacyByLM.findClassByCompoundName("PharmacyPriceGroup")).getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
+                props.add(new ImportProperty(idPharmacyPriceGroupField, itemPharmacyByLM.findProperty("idPharmacyPriceGroup").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
+                props.add(new ImportProperty(idPharmacyPriceGroupField, itemPharmacyByLM.findProperty("namePharmacyPriceGroup").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
+                props.add(new ImportProperty(idPharmacyPriceGroupField, itemPharmacyByLM.findProperty("pharmacyPriceGroupItem").getMapping(itemKey),
+                        object(itemPharmacyByLM.findClass("PharmacyPriceGroup")).getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
                 fields.add(idPharmacyPriceGroupField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idPharmacyPriceGroup);
@@ -621,33 +621,33 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if (purchaseInvoicePharmacyLM != null) {
 
                 if (showField(userInvoiceDetailsList, "nameImportCountry")) {
-                    ImportField nameImportCountryField = new ImportField(purchaseInvoicePharmacyLM.findLCPByCompoundOldName("nameCountry"));
-                    ImportKey<?> importCountryKey = new ImportKey((ConcreteCustomClass) purchaseInvoicePharmacyLM.findClassByCompoundName("Country"),
-                            purchaseInvoicePharmacyLM.findLCPByCompoundOldName("countryName").getMapping(nameImportCountryField));
+                    ImportField nameImportCountryField = new ImportField(purchaseInvoicePharmacyLM.findProperty("nameCountry"));
+                    ImportKey<?> importCountryKey = new ImportKey((ConcreteCustomClass) purchaseInvoicePharmacyLM.findClass("Country"),
+                            purchaseInvoicePharmacyLM.findProperty("countryName").getMapping(nameImportCountryField));
                     keys.add(importCountryKey);
-                    props.add(new ImportProperty(nameImportCountryField, purchaseInvoicePharmacyLM.findLCPByCompoundOldName("nameCountry").getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "nameImportCountry")));
-                    props.add(new ImportProperty(nameImportCountryField, purchaseInvoicePharmacyLM.findLCPByCompoundOldName("importCountryUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                            object(purchaseInvoicePharmacyLM.findClassByCompoundName("Country")).getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "nameImportCountry")));
+                    props.add(new ImportProperty(nameImportCountryField, purchaseInvoicePharmacyLM.findProperty("nameCountry").getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "nameImportCountry")));
+                    props.add(new ImportProperty(nameImportCountryField, purchaseInvoicePharmacyLM.findProperty("importCountryUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                            object(purchaseInvoicePharmacyLM.findClass("Country")).getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "nameImportCountry")));
                     fields.add(nameImportCountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).nameImportCountry);
                 }
 
                 if (showField(userInvoiceDetailsList, "seriesPharmacy")) {
-                    addDataField(props, fields, defaultColumns, purchaseInvoicePharmacyLM.findLCPByCompoundOldName("Purchase.seriesPharmacyUserInvoiceDetail"), "seriesPharmacy", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseInvoicePharmacyLM.findProperty("Purchase.seriesPharmacyUserInvoiceDetail"), "seriesPharmacy", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).seriesPharmacy);
                 }
 
                 if (showField(userInvoiceDetailsList, "contractPrice")) {
-                    addDataField(props, fields, defaultColumns, purchaseInvoicePharmacyLM.findLCPByCompoundOldName("contractPriceUserInvoiceDetail"), "contractPrice", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseInvoicePharmacyLM.findProperty("contractPriceUserInvoiceDetail"), "contractPrice", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).contractPrice);
                 }
             }
             
             if (showField(userInvoiceDetailsList, "rateExchange")) {
-                addDataField(props, fields, defaultColumns, getLCP("rateExchangeUserInvoiceDetail"), "rateExchange", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, findProperty("rateExchangeUserInvoiceDetail"), "rateExchange", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).rateExchange);
             }
@@ -655,33 +655,33 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if (purchaseDeclarationDetailLM != null) {
 
                 if (showField(userInvoiceDetailsList, "sumNetWeight")) {
-                    addDataField(props, fields, defaultColumns, purchaseDeclarationDetailLM.findLCPByCompoundOldName("sumNetWeightUserInvoiceDetail"), "sumNetWeight", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseDeclarationDetailLM.findProperty("sumNetWeightUserInvoiceDetail"), "sumNetWeight", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).sumNetWeight);
                 }
 
                 if (showField(userInvoiceDetailsList, "sumGrossWeight")) {
-                    addDataField(props, fields, defaultColumns, purchaseDeclarationDetailLM.findLCPByCompoundOldName("sumGrossWeightUserInvoiceDetail"), "sumGrossWeight", userInvoiceDetailKey);
+                    addDataField(props, fields, defaultColumns, purchaseDeclarationDetailLM.findProperty("sumGrossWeightUserInvoiceDetail"), "sumGrossWeight", userInvoiceDetailKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).sumGrossWeight);
                 }
             }
             
             if (showField(userInvoiceDetailsList, "isPosted")) {
-                    addDataField(props, fields, defaultColumns, getLCP("isPostedUserInvoice"), "isPosted", userInvoiceObject);
+                    addDataField(props, fields, defaultColumns, findProperty("isPostedUserInvoice"), "isPosted", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).isPosted);
             }
 
             if (showField(userInvoiceDetailsList, "idItemGroup")) {
-                ImportField idItemGroupField = new ImportField(getLCP("idItemGroup"));
-                ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) getClass("ItemGroup"),
-                        getLCP("itemGroupId").getMapping(idItemGroupField));
+                ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
+                ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
+                        findProperty("itemGroupId").getMapping(idItemGroupField));
                 keys.add(itemGroupKey);
-                props.add(new ImportProperty(idItemGroupField, getLCP("idItemGroup").getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
-                props.add(new ImportProperty(idItemGroupField, getLCP("nameItemGroup").getMapping(itemGroupKey), true));
-                props.add(new ImportProperty(idItemGroupField, getLCP("itemGroupItem").getMapping(itemKey),
-                        object(getClass("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
+                props.add(new ImportProperty(idItemGroupField, findProperty("idItemGroup").getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
+                props.add(new ImportProperty(idItemGroupField, findProperty("nameItemGroup").getMapping(itemGroupKey), true));
+                props.add(new ImportProperty(idItemGroupField, findProperty("itemGroupItem").getMapping(itemKey),
+                        object(findClass("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
                 fields.add(idItemGroupField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idItemGroup);
@@ -690,169 +690,169 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             ImportKey<?> articleKey = null;
             if ((itemArticleLM != null)) {
 
-                ImportField idArticleField = new ImportField(itemArticleLM.findLCPByCompoundOldName("idArticle"));
-                articleKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Article"),
-                        itemArticleLM.findLCPByCompoundOldName("articleId").getMapping(idArticleField));
+                ImportField idArticleField = new ImportField(itemArticleLM.findProperty("idArticle"));
+                articleKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClass("Article"),
+                        itemArticleLM.findProperty("articleId").getMapping(idArticleField));
                 keys.add(articleKey);
-                props.add(new ImportProperty(idArticleField, itemArticleLM.findLCPByCompoundOldName("idArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "idArticle")));
-                props.add(new ImportProperty(idArticleField, itemArticleLM.findLCPByCompoundOldName("articleItem").getMapping(itemKey),
-                        object(itemArticleLM.findClassByCompoundName("Article")).getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "idArticle")));
+                props.add(new ImportProperty(idArticleField, itemArticleLM.findProperty("idArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "idArticle")));
+                props.add(new ImportProperty(idArticleField, itemArticleLM.findProperty("articleItem").getMapping(itemKey),
+                        object(itemArticleLM.findClass("Article")).getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "idArticle")));
                 fields.add(idArticleField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idArticle);
 
                 if (showField(userInvoiceDetailsList, "idItemGroup")) {
-                    ImportField idItemGroupField = new ImportField(getLCP("idItemGroup"));
-                    ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) getClass("ItemGroup"),
-                            getLCP("itemGroupId").getMapping(idItemGroupField));
+                    ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
+                    ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
+                            findProperty("itemGroupId").getMapping(idItemGroupField));
                     keys.add(itemGroupKey);
                     itemGroupKey.skipKey = true;
-                    props.add(new ImportProperty(idItemGroupField, itemArticleLM.findLCPByCompoundOldName("itemGroupArticle").getMapping(articleKey),
-                            itemArticleLM.object(itemArticleLM.findClassByCompoundName("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
+                    props.add(new ImportProperty(idItemGroupField, itemArticleLM.findProperty("itemGroupArticle").getMapping(articleKey),
+                            itemArticleLM.object(itemArticleLM.findClass("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
                     fields.add(idItemGroupField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).idItemGroup);
                 }
 
                 if (showField(userInvoiceDetailsList, "captionArticle")) {
-                    addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("captionArticle"), "captionArticle", articleKey);
+                    addDataField(props, fields, defaultColumns, itemArticleLM.findProperty("captionArticle"), "captionArticle", articleKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).captionArticle);
                 }
 
                 if (showField(userInvoiceDetailsList, "originalCaptionArticle")) {
-                    addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("originalCaptionArticle"), "originalCaptionArticle", articleKey);
+                    addDataField(props, fields, defaultColumns, itemArticleLM.findProperty("originalCaptionArticle"), "originalCaptionArticle", articleKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).originalCaptionArticle);
                 }
 
                 if (showField(userInvoiceDetailsList, "netWeight")) {
-                    ImportField netWeightField = new ImportField(itemArticleLM.findLCPByCompoundOldName("netWeightItem"));
-                    props.add(new ImportProperty(netWeightField, itemArticleLM.findLCPByCompoundOldName("netWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "netWeight")));
-                    props.add(new ImportProperty(netWeightField, itemArticleLM.findLCPByCompoundOldName("netWeightArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "netWeight")));
+                    ImportField netWeightField = new ImportField(itemArticleLM.findProperty("netWeightItem"));
+                    props.add(new ImportProperty(netWeightField, itemArticleLM.findProperty("netWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "netWeight")));
+                    props.add(new ImportProperty(netWeightField, itemArticleLM.findProperty("netWeightArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "netWeight")));
                     fields.add(netWeightField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).netWeight);
                 }
 
                 if (showField(userInvoiceDetailsList, "grossWeight")) {
-                    ImportField grossWeightField = new ImportField(itemArticleLM.findLCPByCompoundOldName("grossWeightItem"));
-                    props.add(new ImportProperty(grossWeightField, itemArticleLM.findLCPByCompoundOldName("grossWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "grossWeight")));
-                    props.add(new ImportProperty(grossWeightField, itemArticleLM.findLCPByCompoundOldName("grossWeightArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "grossWeight")));
+                    ImportField grossWeightField = new ImportField(itemArticleLM.findProperty("grossWeightItem"));
+                    props.add(new ImportProperty(grossWeightField, itemArticleLM.findProperty("grossWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "grossWeight")));
+                    props.add(new ImportProperty(grossWeightField, itemArticleLM.findProperty("grossWeightArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "grossWeight")));
                     fields.add(grossWeightField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).grossWeight);
                 }
 
                 if (showField(userInvoiceDetailsList, "composition")) {
-                    ImportField compositionField = new ImportField(itemArticleLM.findLCPByCompoundOldName("compositionItem"));
-                    props.add(new ImportProperty(compositionField, itemArticleLM.findLCPByCompoundOldName("compositionItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "composition")));
-                    props.add(new ImportProperty(compositionField, itemArticleLM.findLCPByCompoundOldName("compositionArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "composition")));
+                    ImportField compositionField = new ImportField(itemArticleLM.findProperty("compositionItem"));
+                    props.add(new ImportProperty(compositionField, itemArticleLM.findProperty("compositionItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "composition")));
+                    props.add(new ImportProperty(compositionField, itemArticleLM.findProperty("compositionArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "composition")));
                     fields.add(compositionField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).composition);
                 }
 
                 if (showField(userInvoiceDetailsList, "originalComposition")) {
-                    ImportField originalCompositionField = new ImportField(itemArticleLM.findLCPByCompoundOldName("originalCompositionItem"));
-                    props.add(new ImportProperty(originalCompositionField, itemArticleLM.findLCPByCompoundOldName("originalCompositionItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "originalComposition")));
-                    props.add(new ImportProperty(originalCompositionField, itemArticleLM.findLCPByCompoundOldName("originalCompositionArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "originalComposition")));
+                    ImportField originalCompositionField = new ImportField(itemArticleLM.findProperty("originalCompositionItem"));
+                    props.add(new ImportProperty(originalCompositionField, itemArticleLM.findProperty("originalCompositionItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "originalComposition")));
+                    props.add(new ImportProperty(originalCompositionField, itemArticleLM.findProperty("originalCompositionArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "originalComposition")));
                     fields.add(originalCompositionField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).originalComposition);
                 }
 
                 if (customsGroupArticleLM != null && showField(userInvoiceDetailsList, "originalCustomsGroupItem")) {
-                    ImportField originalCustomsGroupItemField = new ImportField(customsGroupArticleLM.findLCPByCompoundOldName("originalCustomsGroupItem"));
-                    props.add(new ImportProperty(originalCustomsGroupItemField, customsGroupArticleLM.findLCPByCompoundOldName("originalCustomsGroupItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "originalCustomsGroupItem")));
-                    props.add(new ImportProperty(originalCustomsGroupItemField, customsGroupArticleLM.findLCPByCompoundOldName("originalCustomsGroupArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "originalCustomsGroupItem")));
+                    ImportField originalCustomsGroupItemField = new ImportField(customsGroupArticleLM.findProperty("originalCustomsGroupItem"));
+                    props.add(new ImportProperty(originalCustomsGroupItemField, customsGroupArticleLM.findProperty("originalCustomsGroupItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "originalCustomsGroupItem")));
+                    props.add(new ImportProperty(originalCustomsGroupItemField, customsGroupArticleLM.findProperty("originalCustomsGroupArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "originalCustomsGroupItem")));
                     fields.add(originalCustomsGroupItemField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).originalCustomsGroupItem);
                 }
 
                 if (showField(userInvoiceDetailsList, "idColor")) {
-                    ImportField idColorField = new ImportField(itemArticleLM.findLCPByCompoundOldName("idColor"));
-                    ImportKey<?> colorKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Color"),
-                            itemArticleLM.findLCPByCompoundOldName("colorId").getMapping(idColorField));
+                    ImportField idColorField = new ImportField(itemArticleLM.findProperty("idColor"));
+                    ImportKey<?> colorKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClass("Color"),
+                            itemArticleLM.findProperty("colorId").getMapping(idColorField));
                     keys.add(colorKey);
-                    props.add(new ImportProperty(idColorField, itemArticleLM.findLCPByCompoundOldName("idColor").getMapping(colorKey), getReplaceOnlyNull(defaultColumns, "idColor")));
-                    props.add(new ImportProperty(idColorField, itemArticleLM.findLCPByCompoundOldName("colorItem").getMapping(itemKey),
-                            object(itemArticleLM.findClassByCompoundName("Color")).getMapping(colorKey), getReplaceOnlyNull(defaultColumns, "idColor")));
-                    props.add(new ImportProperty(idColorField, itemArticleLM.findLCPByCompoundOldName("colorArticle").getMapping(articleKey),
-                            object(itemArticleLM.findClassByCompoundName("Color")).getMapping(colorKey), getReplaceOnlyNull(defaultColumns, "idColor")));
+                    props.add(new ImportProperty(idColorField, itemArticleLM.findProperty("idColor").getMapping(colorKey), getReplaceOnlyNull(defaultColumns, "idColor")));
+                    props.add(new ImportProperty(idColorField, itemArticleLM.findProperty("colorItem").getMapping(itemKey),
+                            object(itemArticleLM.findClass("Color")).getMapping(colorKey), getReplaceOnlyNull(defaultColumns, "idColor")));
+                    props.add(new ImportProperty(idColorField, itemArticleLM.findProperty("colorArticle").getMapping(articleKey),
+                            object(itemArticleLM.findClass("Color")).getMapping(colorKey), getReplaceOnlyNull(defaultColumns, "idColor")));
                     fields.add(idColorField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).idColor);
 
                     if (showField(userInvoiceDetailsList, "nameColor")) {
-                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("nameColor"), "nameColor", colorKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findProperty("nameColor"), "nameColor", colorKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameColor);
                     }
                 }
 
                 if (showField(userInvoiceDetailsList, "idSize")) {
-                    ImportField idSizeField = new ImportField(itemArticleLM.findLCPByCompoundOldName("idSize"));
-                    ImportKey<?> sizeKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Size"),
-                            itemArticleLM.findLCPByCompoundOldName("sizeId").getMapping(idSizeField));
+                    ImportField idSizeField = new ImportField(itemArticleLM.findProperty("idSize"));
+                    ImportKey<?> sizeKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClass("Size"),
+                            itemArticleLM.findProperty("sizeId").getMapping(idSizeField));
                     keys.add(sizeKey);
-                    props.add(new ImportProperty(idSizeField, itemArticleLM.findLCPByCompoundOldName("idSize").getMapping(sizeKey), getReplaceOnlyNull(defaultColumns, "idSize")));
-                    props.add(new ImportProperty(idSizeField, itemArticleLM.findLCPByCompoundOldName("sizeItem").getMapping(itemKey),
-                            object(itemArticleLM.findClassByCompoundName("Size")).getMapping(sizeKey), getReplaceOnlyNull(defaultColumns, "idSize")));
+                    props.add(new ImportProperty(idSizeField, itemArticleLM.findProperty("idSize").getMapping(sizeKey), getReplaceOnlyNull(defaultColumns, "idSize")));
+                    props.add(new ImportProperty(idSizeField, itemArticleLM.findProperty("sizeItem").getMapping(itemKey),
+                            object(itemArticleLM.findClass("Size")).getMapping(sizeKey), getReplaceOnlyNull(defaultColumns, "idSize")));
                     fields.add(idSizeField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).idSize);
 
                     if (showField(userInvoiceDetailsList, "nameSize")) {
-                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("nameSize"), "nameSize", sizeKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findProperty("nameSize"), "nameSize", sizeKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
 
-                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("shortNameSize"), "nameSize", sizeKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findProperty("shortNameSize"), "nameSize", sizeKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
                     }
 
                     if (showField(userInvoiceDetailsList, "nameOriginalSize")) {
-                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("nameOriginalSize"), "nameOriginalSize", sizeKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findProperty("nameOriginalSize"), "nameOriginalSize", sizeKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameOriginalSize);
                     }
                 }
 
                 if (itemFashionLM != null && showField(userInvoiceDetailsList, "idSeasonYear")) {
-                    ImportField idSeasonYearField = new ImportField(itemFashionLM.findLCPByCompoundOldName("idSeasonYear"));
-                    ImportKey<?> seasonYearKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClassByCompoundName("SeasonYear"),
-                            itemFashionLM.findLCPByCompoundOldName("seasonYearId").getMapping(idSeasonYearField));
+                    ImportField idSeasonYearField = new ImportField(itemFashionLM.findProperty("idSeasonYear"));
+                    ImportKey<?> seasonYearKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClass("SeasonYear"),
+                            itemFashionLM.findProperty("seasonYearId").getMapping(idSeasonYearField));
                     keys.add(seasonYearKey);
-                    props.add(new ImportProperty(idSeasonYearField, itemFashionLM.findLCPByCompoundOldName("idSeasonYear").getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
-                    props.add(new ImportProperty(idSeasonYearField, itemFashionLM.findLCPByCompoundOldName("nameSeasonYear").getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
-                    props.add(new ImportProperty(idSeasonYearField, itemFashionLM.findLCPByCompoundOldName("seasonYearArticle").getMapping(articleKey),
-                            object(itemFashionLM.findClassByCompoundName("SeasonYear")).getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
-                    props.add(new ImportProperty(idSeasonYearField, itemFashionLM.findLCPByCompoundOldName("seasonYearItem").getMapping(itemKey),
-                            object(itemFashionLM.findClassByCompoundName("SeasonYear")).getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
+                    props.add(new ImportProperty(idSeasonYearField, itemFashionLM.findProperty("idSeasonYear").getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
+                    props.add(new ImportProperty(idSeasonYearField, itemFashionLM.findProperty("nameSeasonYear").getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
+                    props.add(new ImportProperty(idSeasonYearField, itemFashionLM.findProperty("seasonYearArticle").getMapping(articleKey),
+                            object(itemFashionLM.findClass("SeasonYear")).getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
+                    props.add(new ImportProperty(idSeasonYearField, itemFashionLM.findProperty("seasonYearItem").getMapping(itemKey),
+                            object(itemFashionLM.findClass("SeasonYear")).getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
                     fields.add(idSeasonYearField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).idSeasonYear);
                 }
 
                 if (showField(userInvoiceDetailsList, "idBrand")) {
-                    ImportField idBrandField = new ImportField(itemArticleLM.findLCPByCompoundOldName("idBrand"));
-                    ImportKey<?> brandKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClassByCompoundName("Brand"),
-                            itemArticleLM.findLCPByCompoundOldName("brandId").getMapping(idBrandField));
+                    ImportField idBrandField = new ImportField(itemArticleLM.findProperty("idBrand"));
+                    ImportKey<?> brandKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClass("Brand"),
+                            itemArticleLM.findProperty("brandId").getMapping(idBrandField));
                     keys.add(brandKey);
-                    props.add(new ImportProperty(idBrandField, itemArticleLM.findLCPByCompoundOldName("idBrand").getMapping(brandKey), getReplaceOnlyNull(defaultColumns, "idBrand")));
-                    props.add(new ImportProperty(idBrandField, itemArticleLM.findLCPByCompoundOldName("brandArticle").getMapping(articleKey),
-                            object(itemArticleLM.findClassByCompoundName("Brand")).getMapping(brandKey), getReplaceOnlyNull(defaultColumns, "idBrand")));
-                    props.add(new ImportProperty(idBrandField, itemArticleLM.findLCPByCompoundOldName("brandItem").getMapping(itemKey),
-                            object(itemArticleLM.findClassByCompoundName("Brand")).getMapping(brandKey), getReplaceOnlyNull(defaultColumns, "idBrand")));
+                    props.add(new ImportProperty(idBrandField, itemArticleLM.findProperty("idBrand").getMapping(brandKey), getReplaceOnlyNull(defaultColumns, "idBrand")));
+                    props.add(new ImportProperty(idBrandField, itemArticleLM.findProperty("brandArticle").getMapping(articleKey),
+                            object(itemArticleLM.findClass("Brand")).getMapping(brandKey), getReplaceOnlyNull(defaultColumns, "idBrand")));
+                    props.add(new ImportProperty(idBrandField, itemArticleLM.findProperty("brandItem").getMapping(itemKey),
+                            object(itemArticleLM.findClass("Brand")).getMapping(brandKey), getReplaceOnlyNull(defaultColumns, "idBrand")));
                     fields.add(idBrandField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).idBrand);
 
                     if (showField(userInvoiceDetailsList, "nameBrand")) {
-                        addDataField(props, fields, defaultColumns, itemArticleLM.findLCPByCompoundOldName("nameBrand"), "nameBrand", brandKey);
+                        addDataField(props, fields, defaultColumns, itemArticleLM.findProperty("nameBrand"), "nameBrand", brandKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).nameBrand);
                     }
@@ -860,40 +860,40 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 if (itemFashionLM != null) {
                     if (showField(userInvoiceDetailsList, "idSeason")) {
-                        ImportField idSeasonField = new ImportField(itemFashionLM.findLCPByCompoundOldName("idSeason"));
-                        ImportKey<?> seasonKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClassByCompoundName("Season"),
-                                itemFashionLM.findLCPByCompoundOldName("seasonId").getMapping(idSeasonField));
+                        ImportField idSeasonField = new ImportField(itemFashionLM.findProperty("idSeason"));
+                        ImportKey<?> seasonKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClass("Season"),
+                                itemFashionLM.findProperty("seasonId").getMapping(idSeasonField));
                         keys.add(seasonKey);
-                        props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("idSeason").getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
-                        props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("seasonArticle").getMapping(articleKey),
-                                object(itemFashionLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
-                        props.add(new ImportProperty(idSeasonField, itemFashionLM.findLCPByCompoundOldName("seasonItem").getMapping(itemKey),
-                                object(itemFashionLM.findClassByCompoundName("Season")).getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
+                        props.add(new ImportProperty(idSeasonField, itemFashionLM.findProperty("idSeason").getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
+                        props.add(new ImportProperty(idSeasonField, itemFashionLM.findProperty("seasonArticle").getMapping(articleKey),
+                                object(itemFashionLM.findClass("Season")).getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
+                        props.add(new ImportProperty(idSeasonField, itemFashionLM.findProperty("seasonItem").getMapping(itemKey),
+                                object(itemFashionLM.findClass("Season")).getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
                         fields.add(idSeasonField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).idSeason);
 
                         if (showField(userInvoiceDetailsList, "nameSeason")) {
-                            addDataField(props, fields, defaultColumns, itemFashionLM.findLCPByCompoundOldName("nameSeason"), "nameSeason", seasonKey);
+                            addDataField(props, fields, defaultColumns, itemFashionLM.findProperty("nameSeason"), "nameSeason", seasonKey);
                             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                                 data.get(i).add(userInvoiceDetailsList.get(i).nameSeason);
                         }
                     }
 
                     if (showField(userInvoiceDetailsList, "idCollection")) {
-                        ImportField idCollectionField = new ImportField(itemFashionLM.findLCPByCompoundOldName("idCollection"));
-                        ImportKey<?> collectionKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClassByCompoundName("Collection"),
-                                itemFashionLM.findLCPByCompoundOldName("collectionId").getMapping(idCollectionField));
+                        ImportField idCollectionField = new ImportField(itemFashionLM.findProperty("idCollection"));
+                        ImportKey<?> collectionKey = new ImportKey((ConcreteCustomClass) itemFashionLM.findClass("Collection"),
+                                itemFashionLM.findProperty("collectionId").getMapping(idCollectionField));
                         keys.add(collectionKey);
-                        props.add(new ImportProperty(idCollectionField, itemFashionLM.findLCPByCompoundOldName("idCollection").getMapping(collectionKey), getReplaceOnlyNull(defaultColumns, "idCollection")));
-                        props.add(new ImportProperty(idCollectionField, itemFashionLM.findLCPByCompoundOldName("collectionArticle").getMapping(articleKey),
-                                object(itemFashionLM.findClassByCompoundName("Collection")).getMapping(collectionKey), getReplaceOnlyNull(defaultColumns, "idCollection")));
+                        props.add(new ImportProperty(idCollectionField, itemFashionLM.findProperty("idCollection").getMapping(collectionKey), getReplaceOnlyNull(defaultColumns, "idCollection")));
+                        props.add(new ImportProperty(idCollectionField, itemFashionLM.findProperty("collectionArticle").getMapping(articleKey),
+                                object(itemFashionLM.findClass("Collection")).getMapping(collectionKey), getReplaceOnlyNull(defaultColumns, "idCollection")));
                         fields.add(idCollectionField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).idCollection);
 
                         if (showField(userInvoiceDetailsList, "nameCollection")) {
-                            addDataField(props, fields, defaultColumns, itemFashionLM.findLCPByCompoundOldName("nameCollection"), "nameCollection", collectionKey);
+                            addDataField(props, fields, defaultColumns, itemFashionLM.findProperty("nameCollection"), "nameCollection", collectionKey);
                             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                                 data.get(i).add(userInvoiceDetailsList.get(i).nameCollection);
                         }
@@ -904,24 +904,24 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             if (purchaseComplianceLM != null) {
 
                 if (showField(userInvoiceDetailsList, "numberCompliance")) {
-                    ImportField numberComplianceField = new ImportField(purchaseComplianceLM.findLCPByCompoundOldName("numberCompliance"));
-                    ImportKey<?> complianceKey = new ImportKey((ConcreteCustomClass) purchaseComplianceLM.findClassByCompoundName("Compliance"),
-                            purchaseComplianceLM.findLCPByCompoundOldName("complianceNumber").getMapping(numberComplianceField));
+                    ImportField numberComplianceField = new ImportField(purchaseComplianceLM.findProperty("numberCompliance"));
+                    ImportKey<?> complianceKey = new ImportKey((ConcreteCustomClass) purchaseComplianceLM.findClass("Compliance"),
+                            purchaseComplianceLM.findProperty("complianceNumber").getMapping(numberComplianceField));
                     keys.add(complianceKey);
-                    props.add(new ImportProperty(numberComplianceField, purchaseComplianceLM.findLCPByCompoundOldName("numberCompliance").getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
-                    props.add(new ImportProperty(numberComplianceField, purchaseComplianceLM.findLCPByCompoundOldName("complianceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
-                            object(purchaseComplianceLM.findClassByCompoundName("Compliance")).getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
+                    props.add(new ImportProperty(numberComplianceField, purchaseComplianceLM.findProperty("numberCompliance").getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
+                    props.add(new ImportProperty(numberComplianceField, purchaseComplianceLM.findProperty("complianceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                            object(purchaseComplianceLM.findClass("Compliance")).getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
                     fields.add(numberComplianceField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).numberCompliance);
 
 
                     if (showField(userInvoiceDetailsList, "dateCompliance")) {
-                        addDataField(props, fields, defaultColumns, purchaseComplianceLM.findLCPByCompoundOldName("dateCompliance"), "dateCompliance", complianceKey);
+                        addDataField(props, fields, defaultColumns, purchaseComplianceLM.findProperty("dateCompliance"), "dateCompliance", complianceKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
 
-                        addDataField(props, fields, defaultColumns, purchaseComplianceLM.findLCPByCompoundOldName("fromDateCompliance"), "dateCompliance", complianceKey);
+                        addDataField(props, fields, defaultColumns, purchaseComplianceLM.findProperty("fromDateCompliance"), "dateCompliance", complianceKey);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
                     }
@@ -933,7 +933,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 ImportColumnDetail customColumn = entry.getValue();
                 ScriptingLogicsModule customModuleLM = context.getBL().getModule(customColumn.moduleName);
                 if (customModuleLM != null) {
-                    ImportField customField = new ImportField(customModuleLM.findLCPByCompoundOldName(customColumn.property));
+                    ImportField customField = new ImportField(customModuleLM.findProperty(customColumn.property));
                     ImportKey<?> customKey = null;
                     if (customColumn.key.equals("item"))
                         customKey = itemKey;
@@ -942,12 +942,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                     else if (customColumn.key.equals("documentDetail"))
                         customKey = userInvoiceDetailKey;
                     if (customKey != null) {
-                        props.add(new ImportProperty(customField, customModuleLM.findLCPByCompoundOldName(customColumn.property).getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
+                        props.add(new ImportProperty(customField, customModuleLM.findProperty(customColumn.property).getMapping(customKey), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).customValues.get(entry.getKey()));
                     } else if(customColumn.key.equals("document")) {
-                        props.add(new ImportProperty(customField, customModuleLM.findLCPByCompoundOldName(customColumn.property).getMapping(userInvoiceObject), getReplaceOnlyNull(customColumns, entry.getKey())));
+                        props.add(new ImportProperty(customField, customModuleLM.findProperty(customColumn.property).getMapping(userInvoiceObject), getReplaceOnlyNull(customColumns, entry.getKey())));
                         fields.add(customField);
                         for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                             data.get(i).add(userInvoiceDetailsList.get(i).customValues.get(entry.getKey()));
@@ -1050,9 +1050,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 String importCountryBatch = getXLSFieldValue(sheet, i, defaultColumns.get("importCountryBatch"));
                 String idCustomerStock = getXLSFieldValue(sheet, i, defaultColumns.get("idCustomerStock"));
                 idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
-                ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
-                ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-                String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
+                ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stockId").readClasses(session, new DataObject(idCustomerStock));
+                ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
+                String idCustomer = (String) (customerObject == null ? null : findProperty("idLegalEntity").read(session, customerObject));
                 BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("quantity"));
                 BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("price"));
                 if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
@@ -1188,9 +1188,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String importCountryBatch = getCSVFieldValue(valuesList, defaultColumns.get("importCountryBatch"), count);
             String idCustomerStock = getCSVFieldValue(valuesList, defaultColumns.get("idCustomerStock"), count);
             idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
-            ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
-            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-            String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
+            ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stockId").readClasses(session, new DataObject(idCustomerStock));
+            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
+            String idCustomer = (String) (customerObject == null ? null : findProperty("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("quantity"), count);
             BigDecimal price = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("price"), count);
             if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
@@ -1320,9 +1320,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String importCountryBatch = getXLSXFieldValue(sheet, i, defaultColumns.get("importCountryBatch"));
             String idCustomerStock = getXLSXFieldValue(sheet, i, defaultColumns.get("idCustomerStock"));
             idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
-            ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
-            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-            String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
+            ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stockId").readClasses(session, new DataObject(idCustomerStock));
+            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
+            String idCustomer = (String) (customerObject == null ? null : findProperty("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("quantity"));
             BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("price"));
             if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
@@ -1462,9 +1462,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             String importCountryBatch = getDBFFieldValue(file, defaultColumns.get("importCountryBatch"), i, charset);
             String idCustomerStock = getDBFFieldValue(file, defaultColumns.get("idCustomerStock"), i, charset);
             idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
-            ObjectValue customerStockObject = idCustomerStock == null ? null : getLCP("stockId").readClasses(session, new DataObject(idCustomerStock));
-            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : getLCP("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-            String idCustomer = (String) (customerObject == null ? null : getLCP("idLegalEntity").read(session, customerObject));
+            ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stockId").readClasses(session, new DataObject(idCustomerStock));
+            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
+            String idCustomer = (String) (customerObject == null ? null : findProperty("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getDBFBigDecimalFieldValue(file, defaultColumns.get("quantity"), i, charset);
             BigDecimal price = getDBFBigDecimalFieldValue(file, defaultColumns.get("price"), i, charset);
             if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
@@ -1585,7 +1585,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
                 if (overridingArticles != null) {
                     for (Map.Entry<String, String> entry : overridingArticles.entrySet()) {
-                        moduleLM.findLCPByCompoundOldName("idArticle").change(entry.getValue(), context, (DataObject) moduleLM.findLCPByCompoundOldName("articleId").readClasses(context, new DataObject(entry.getKey())));
+                        moduleLM.findProperty("idArticle").change(entry.getValue(), context, (DataObject) moduleLM.findProperty("articleId").readClasses(context, new DataObject(entry.getKey())));
                     }
                 }
             }
@@ -1603,9 +1603,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         ImRevMap<Object, KeyExpr> articleKeys = MapFact.singletonRev((Object) "Article", articleExpr);
 
         QueryBuilder<Object, Object> articleQuery = new QueryBuilder<Object, Object>(articleKeys);
-        articleQuery.addProperty("idArticle", LM.findLCPByCompoundOldName("idArticle").getExpr(session.getModifier(), articleExpr));
-        articleQuery.addProperty(sidProperty, LM.findLCPByCompoundOldName(sidProperty).getExpr(session.getModifier(), articleExpr));
-        articleQuery.and(LM.findLCPByCompoundOldName("idArticle").getExpr(session.getModifier(), articleExpr).getWhere());
+        articleQuery.addProperty("idArticle", LM.findProperty("idArticle").getExpr(session.getModifier(), articleExpr));
+        articleQuery.addProperty(sidProperty, LM.findProperty(sidProperty).getExpr(session.getModifier(), articleExpr));
+        articleQuery.and(LM.findProperty("idArticle").getExpr(session.getModifier(), articleExpr).getWhere());
         
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> articleResult = articleQuery.execute(session);
 
@@ -1631,8 +1631,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "Purchase.Invoice", key);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-        query.addProperty("Purchase.idUserInvoice", getLCP("Purchase.idUserInvoice").getExpr(session.getModifier(), key));
-        query.and(getLCP("Purchase.idUserInvoice").getExpr(key).getWhere());
+        query.addProperty("Purchase.idUserInvoice", findProperty("Purchase.idUserInvoice").getExpr(session.getModifier(), key));
+        query.and(findProperty("Purchase.idUserInvoice").getExpr(key).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
@@ -1682,7 +1682,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
     private Date getCurrentDateDocument(DataSession session, DataObject userInvoiceObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Date defaultDate = new Date(Calendar.getInstance().getTime().getTime());
         Date currentDateDocument = userInvoiceObject == null ? defaultDate :
-                (Date) getLCP("Purchase.dateUserInvoice").read(session, userInvoiceObject);
+                (Date) findProperty("Purchase.dateUserInvoice").read(session, userInvoiceObject);
         return currentDateDocument == null ? defaultDate : currentDateDocument;
     }
 }

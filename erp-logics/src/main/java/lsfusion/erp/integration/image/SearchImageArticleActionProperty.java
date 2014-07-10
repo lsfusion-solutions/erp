@@ -15,7 +15,7 @@ public class SearchImageArticleActionProperty extends DefaultImageArticleActionP
     private final ClassPropertyInterface articleInterface;
 
     public SearchImageArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Article"));
+        super(LM, LM.findClass("Article"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         articleInterface = i.next();
@@ -39,13 +39,13 @@ public class SearchImageArticleActionProperty extends DefaultImageArticleActionP
             for (int i = 0; i < 64; i++) {
 
                 DataObject currentObject = new DataObject(i);
-                getLCP("thumbnailImage").change((Object) null, context, currentObject);
-                getLCP("urlImage").change((Object)null, context, currentObject);
-                getLCP("sizeImage").change((Object)null, context, currentObject);
+                findProperty("thumbnailImage").change((Object) null, context, currentObject);
+                findProperty("urlImage").change((Object)null, context, currentObject);
+                findProperty("sizeImage").change((Object)null, context, currentObject);
             }
 
-            getLCP("startImage").change((Object)null, context);
-            getLCP("articleImage").change((Object)null, context);
+            findProperty("startImage").change((Object)null, context);
+            findProperty("articleImage").change((Object)null, context);
 
         } catch (SQLException e) {
             throw Throwables.propagate(e);

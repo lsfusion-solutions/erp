@@ -23,7 +23,7 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
     private final ClassPropertyInterface articleInterface;
 
     public UploadImageArticleFromDirectoryActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Article"));
+        super(LM, LM.findClass("Article"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         articleInterface = i.next();
@@ -36,10 +36,10 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
 
             DataObject articleObject = context.getDataKeyValue(articleInterface);
 
-            String pathImageArticles = (String) getLCP("pathImageArticles").read(context);
+            String pathImageArticles = (String) findProperty("pathImageArticles").read(context);
             pathImageArticles = pathImageArticles == null ? "" : pathImageArticles.trim();
-            String idImageArticle = (String) getLCP("overIdImageArticle").read(context, articleObject);
-            String idArticle = (String) getLCP("idArticle").read(context, articleObject);
+            String idImageArticle = (String) findProperty("overIdImageArticle").read(context, articleObject);
+            String idArticle = (String) findProperty("idArticle").read(context, articleObject);
             String idImage = idImageArticle != null ? idImageArticle : idArticle; 
             String idLImage = (idImage == null || idImage.endsWith(".jpg")) ? idImage : (idImage + ".jpg");
             String idUImage = (idImage == null || idImage.endsWith(".JPG")) ? idImage : (idImage + ".JPG"); 
@@ -54,10 +54,10 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
                     if (!imageFile.exists())
                         imageFile = new File(pathImageArticles + "//" + idUImage);
                     if (imageFile.exists()) {
-                        Timestamp timeChangedImageArticle = (Timestamp) getLCP("timeChangedImageArticle").read(context, articleObject);
+                        Timestamp timeChangedImageArticle = (Timestamp) findProperty("timeChangedImageArticle").read(context, articleObject);
                         if (timeChangedImageArticle == null || timeChangedImageArticle.getTime() != imageFile.lastModified()) {
-                            getLCP("imageArticle").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
-                            getLCP("timeChangedImageArticle").change(new DataObject(new Timestamp(imageFile.lastModified()), DateTimeClass.instance), context, articleObject);
+                            findProperty("imageArticle").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
+                            findProperty("timeChangedImageArticle").change(new DataObject(new Timestamp(imageFile.lastModified()), DateTimeClass.instance), context, articleObject);
                         }
                     }
                 }

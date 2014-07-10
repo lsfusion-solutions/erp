@@ -21,7 +21,7 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface countryInterface;
 
     public FillDaysOffActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.getClass("Country"));
+        super(LM, LM.findClass("Country"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         countryInterface = i.next();
@@ -73,6 +73,6 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
     }
 
     private void addDayOff(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject countryObject, long timeInMillis) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-        context.getBL().getModule("Country").findLCPByCompoundOldName("isDayOffCountryDate").change(true, session, countryObject, new DataObject(new java.sql.Date(timeInMillis), DateClass.instance));
+        context.getBL().getModule("Country").findProperty("isDayOffCountryDate").change(true, session, countryObject, new DataObject(new java.sql.Date(timeInMillis), DateClass.instance));
     }
 }

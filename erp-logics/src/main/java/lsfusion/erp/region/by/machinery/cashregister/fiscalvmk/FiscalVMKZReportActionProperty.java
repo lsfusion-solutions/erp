@@ -21,21 +21,21 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            DataObject zReportObject = (DataObject) getLCP("currentZReport").readClasses(context);
+            DataObject zReportObject = (DataObject) findProperty("currentZReport").readClasses(context);
 
-            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context);
-            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context);
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
 
             if (context.checkApply()) {
                 Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(2, baudRate, comPort));
                 if (result instanceof Integer) {
                     if ((Integer) result != 0)
-                        getLCP("numberZReport").change(String.valueOf(result), context, zReportObject);
+                        findProperty("numberZReport").change(String.valueOf(result), context, zReportObject);
                 } else if (result instanceof String) {
                     context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                 }
             }
-            getLAP("closeCurrentZReport").execute(context);
+            findAction("closeCurrentZReport").execute(context);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {

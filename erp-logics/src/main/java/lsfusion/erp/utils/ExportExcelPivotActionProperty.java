@@ -53,7 +53,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
 
             if (idForm != null && idGroupObject != null) {
 
-                FormEntity formEntity = getForm(idForm);
+                FormEntity formEntity = findForm(idForm);
                 FormInstance formInstance = context.createFormInstance(formEntity, MapFact.<ObjectEntity, DataObject>EMPTY(),
                         context.getSession(), true, FormSessionScope.OLDSESSION, false, false, false, null);
 
@@ -85,7 +85,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
         List<String> result = new ArrayList<String>();
         if (fields != null) {
             for (String field : fields) {
-                LCP property = getLCP(field);
+                LCP property = findProperty(field);
                 if (property != null)
                     result.add(property.property.caption);
             }

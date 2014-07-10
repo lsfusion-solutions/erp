@@ -28,7 +28,7 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalMercuryPrintReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Receipt"));
+        super(LM, LM.findClass("Receipt"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptInterface = i.next();
@@ -41,16 +41,16 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
         ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
         try {
-            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (skipReceipt) {
                 context.apply();
-                getLAP("createCurrentReceipt").execute(context);
+                findAction("createCurrentReceipt").execute(context);
             } else {
-                String cashierName = (String) getLCP("nameUserReceipt").read(context, receiptObject);
+                String cashierName = (String) findProperty("nameUserReceipt").read(context, receiptObject);
                 cashierName = cashierName == null ? "" : cashierName.trim();
-                String holderDiscountCard = (String) getLCP("nameLegalEntityDiscountCardReceipt").read(context, receiptObject);
+                String holderDiscountCard = (String) findProperty("nameLegalEntityDiscountCardReceipt").read(context, receiptObject);
                 holderDiscountCard = holderDiscountCard == null ? "" : holderDiscountCard.trim();
-                String numberDiscountCard = (String) getLCP("numberDiscountCardReceipt").read(context, receiptObject);
+                String numberDiscountCard = (String) findProperty("numberDiscountCardReceipt").read(context, receiptObject);
                 numberDiscountCard = numberDiscountCard == null ? "" : numberDiscountCard.trim();
 
                 BigDecimal sumCard = null;
@@ -62,17 +62,17 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                 ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
                 QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
-                paymentQuery.addProperty("sumPayment", getLCP("sumPayment").getExpr(context.getModifier(), paymentExpr));
-                paymentQuery.addProperty("paymentMeansPayment", getLCP("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("sumPayment", findProperty("sumPayment").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
                 if (giftCardLM != null)
-                    paymentQuery.addProperty("seriesNumberGiftCardPaymentGiftCard", giftCardLM.findLCPByCompoundOldName("seriesNumberGiftCardPaymentGiftCard").getExpr(context.getModifier(), paymentExpr));
-                paymentQuery.and(getLCP("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                    paymentQuery.addProperty("seriesNumberGiftCardPaymentGiftCard", giftCardLM.findProperty("seriesNumberGiftCardPaymentGiftCard").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.and(findProperty("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
-                    DataObject paymentMeansCashObject = ((ConcreteCustomClass) getClass("PaymentMeans")).getDataObject("paymentMeansCash");
-                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) getClass("PaymentMeans")).getDataObject("paymentMeansCard");
-                    DataObject paymentMeansGiftCardObject = giftCardLM == null ? null : ((ConcreteCustomClass) giftCardLM.findClassByCompoundName("PaymentMeans")).getDataObject("paymentMeansGiftCard");
+                    DataObject paymentMeansCashObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCash");
+                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
+                    DataObject paymentMeansGiftCardObject = giftCardLM == null ? null : ((ConcreteCustomClass) giftCardLM.findClass("PaymentMeans")).getDataObject("paymentMeansGiftCard");
                     BigDecimal sumPayment = (BigDecimal) paymentValues.get("sumPayment");
                     String seriesNumber = giftCardLM == null ? null : (String) paymentValues.get("seriesNumberGiftCardPaymentGiftCard");
                     seriesNumber = seriesNumber == null ? null : seriesNumber.trim();
@@ -93,13 +93,13 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                 String[] rdNames = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
                         "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail"};
-                LCP[] rdProperties = getLCPs("nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
+                LCP[] rdProperties = findProperties("nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
                         "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail");
                 for (int i = 0; i < rdProperties.length; i++) {
                     receiptDetailQuery.addProperty(rdNames[i], rdProperties[i].getExpr(context.getModifier(), receiptDetailExpr));
                 }
-                receiptDetailQuery.and(getLCP("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                receiptDetailQuery.and(findProperty("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
                 List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
@@ -145,7 +145,7 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                                         isReturn ? receiptReturnItemList : receiptSaleItemList), isReturn));
                         if (result == null) {
                             context.apply();
-                            getLAP("createCurrentReceipt").execute(context);
+                            findAction("createCurrentReceipt").execute(context);
                         } else
                             context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
                     }

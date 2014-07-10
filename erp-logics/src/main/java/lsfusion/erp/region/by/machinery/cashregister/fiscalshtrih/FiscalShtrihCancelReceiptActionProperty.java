@@ -16,7 +16,7 @@ public class FiscalShtrihCancelReceiptActionProperty extends ScriptingActionProp
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalShtrihCancelReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Receipt"));
+        super(LM, LM.findClass("Receipt"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptInterface = i.next();
@@ -26,11 +26,11 @@ public class FiscalShtrihCancelReceiptActionProperty extends ScriptingActionProp
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());
-                Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context.getSession());
-                Integer pass = (Integer) getLCP("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
+                Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
                 int password = pass == null ? 30000 : pass * 1000;
 
                 String result = (String) context.requestUserInteraction(new FiscalShtrihCustomOperationClientAction(4, password, comPort, baudRate));

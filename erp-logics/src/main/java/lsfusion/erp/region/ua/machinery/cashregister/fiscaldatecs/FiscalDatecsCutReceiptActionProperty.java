@@ -19,8 +19,8 @@ public class FiscalDatecsCutReceiptActionProperty extends ScriptingActionPropert
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
 
             String result = (String) context.requestUserInteraction(new FiscalDatecsCustomOperationClientAction(4, baudRate, comPort));
             if (result == null)

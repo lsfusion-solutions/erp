@@ -19,7 +19,7 @@ public class ImportNBRBExchangeRateDateFromDateToActionProperty extends ImportNB
     private final ClassPropertyInterface currencyInterface;
 
     public ImportNBRBExchangeRateDateFromDateToActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Currency"));
+        super(LM, LM.findClass("Currency"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         currencyInterface = i.next();
@@ -32,9 +32,9 @@ public class ImportNBRBExchangeRateDateFromDateToActionProperty extends ImportNB
 
             DataObject currencyObject = context.getDataKeyValue(currencyInterface);
 
-            String shortNameCurrency = (String) getLCP("shortNameCurrency").read(context, currencyObject);
-            Date nbrbDateFrom = (Date) getLCP("importNBRBExchangeRateDateFrom").read(context);
-            Date nbrbDateTo = (Date) getLCP("importNBRBExchangeRateDateTo").read(context);
+            String shortNameCurrency = (String) findProperty("shortNameCurrency").read(context, currencyObject);
+            Date nbrbDateFrom = (Date) findProperty("importNBRBExchangeRateDateFrom").read(context);
+            Date nbrbDateTo = (Date) findProperty("importNBRBExchangeRateDateTo").read(context);
 
             if (nbrbDateFrom != null && nbrbDateTo != null && shortNameCurrency != null)
                 importExchanges(nbrbDateFrom, nbrbDateTo, shortNameCurrency, context);

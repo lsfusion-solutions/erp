@@ -21,8 +21,8 @@ public class FiscalVMKPrintCopyReceiptActionProperty extends ScriptingActionProp
 
         try {
 
-            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context);
-            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context);
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
 
             String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(baudRate, comPort));
             if (result != null) {

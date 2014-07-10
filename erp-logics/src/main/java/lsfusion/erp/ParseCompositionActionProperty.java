@@ -33,12 +33,12 @@ public class ParseCompositionActionProperty extends DefaultIntegrationActionProp
             while (compositionMatcher.find()) {
                 Integer percent = new Integer(compositionMatcher.group(1));
                 String nameMaterial = trim(upper(compositionMatcher.group(2).replace(",", "")));
-                ObjectValue materialObject = getLCP("materialName").readClasses(context, new DataObject(nameMaterial));
+                ObjectValue materialObject = findProperty("materialName").readClasses(context, new DataObject(nameMaterial));
                 if (materialObject instanceof NullValue) {
-                    materialObject = context.addObject((ConcreteCustomClass) getClass("Material"));
-                    getLCP("nameMaterial").change(nameMaterial, context, (DataObject) materialObject);
+                    materialObject = context.addObject((ConcreteCustomClass) findClass("Material"));
+                    findProperty("nameMaterial").change(nameMaterial, context, (DataObject) materialObject);
                 }
-                getLCP(isItem ? "percentMaterialItem" : "percentMaterialArticle").change(percent, context, (DataObject) materialObject, obj);
+                findProperty(isItem ? "percentMaterialItem" : "percentMaterialArticle").change(percent, context, (DataObject) materialObject, obj);
             }
         }
     }

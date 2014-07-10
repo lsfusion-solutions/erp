@@ -49,7 +49,7 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
     ScriptingLogicsModule zReportDiscountCardLM;
 
     public ImportReceiptsZReportActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("ZReport"));
+        super(LM, LM.findClass("ZReport"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         zReportInterface = i.next();
@@ -79,15 +79,15 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                     Document doc = dBuilder.parse(new ByteArrayInputStream(file));
                     doc.getDocumentElement().normalize();
 
-                    String numberZReport = (String) getLCP("numberZReport").read(session, zReportObject);
-                    String numberCashRegisterZReport = (String) getLCP("numberCashRegisterZReport").read(session, zReportObject);
+                    String numberZReport = (String) findProperty("numberZReport").read(session, zReportObject);
+                    String numberCashRegisterZReport = (String) findProperty("numberCashRegisterZReport").read(session, zReportObject);
 
                     Integer numberReceipt = 0;
                     KeyExpr receiptExpr = new KeyExpr("receipt");
                     ImRevMap<Object, KeyExpr> receiptKeys = MapFact.singletonRev((Object)"receipt", receiptExpr);
                     QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<Object, Object>(receiptKeys);
-                    receiptQuery.addProperty("numberReceipt", getLCP("numberReceipt").getExpr(context.getModifier(), receiptExpr));
-                    receiptQuery.and(getLCP("zReportReceipt").getExpr(context.getModifier(), receiptQuery.getMapExprs().get("receipt")).compare(zReportObject.getExpr(), Compare.EQUALS));
+                    receiptQuery.addProperty("numberReceipt", findProperty("numberReceipt").getExpr(context.getModifier(), receiptExpr));
+                    receiptQuery.and(findProperty("zReportReceipt").getExpr(context.getModifier(), receiptQuery.getMapExprs().get("receipt")).compare(zReportObject.getExpr(), Compare.EQUALS));
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptResult = receiptQuery.execute(session);
                     for (ImMap<Object, Object> receiptRows : receiptResult.valueIt()) {
                         Integer number = (Integer) receiptRows.get("numberReceipt");
@@ -203,50 +203,50 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 List<ImportKey<?>> returnKeys = new ArrayList<ImportKey<?>>();
                 List<ImportKey<?>> paymentKeys = new ArrayList<ImportKey<?>>();
                 
-                ImportField numberCashRegisterField = new ImportField(getLCP("nppMachinery"));
-                ImportField numberZReportField = new ImportField(getLCP("numberZReport"));
-                ImportField numberReceiptField = new ImportField(getLCP("numberReceipt"));
-                ImportField numberReceiptDetailField = new ImportField(getLCP("numberReceiptDetail"));
+                ImportField numberCashRegisterField = new ImportField(findProperty("nppMachinery"));
+                ImportField numberZReportField = new ImportField(findProperty("numberZReport"));
+                ImportField numberReceiptField = new ImportField(findProperty("numberReceipt"));
+                ImportField numberReceiptDetailField = new ImportField(findProperty("numberReceiptDetail"));
                 
-                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) getClass("CashRegister"), getLCP("cashRegisterNumber").getMapping(numberCashRegisterField));
+                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) findClass("CashRegister"), findProperty("cashRegisterNumber").getMapping(numberCashRegisterField));
                 saleKeys.add(cashRegisterKey);
                 returnKeys.add(cashRegisterKey);
                 paymentKeys.add(cashRegisterKey);
                 
-                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) getClass("ZReport"), getLCP("zReportNumberCashRegister").getMapping(numberZReportField, numberCashRegisterField));
+                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) findClass("ZReport"), findProperty("zReportNumberCashRegister").getMapping(numberZReportField, numberCashRegisterField));
                 saleKeys.add(zReportKey);
                 returnKeys.add(zReportKey);
                 
-                ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) getClass("Receipt"), getLCP("receiptZReportNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberCashRegisterField));
+                ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) findClass("Receipt"), findProperty("receiptZReportNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberCashRegisterField));
                 saleKeys.add(receiptKey);
                 returnKeys.add(receiptKey);
                 paymentKeys.add(receiptKey);
                 
-                ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) getClass("ReceiptSaleDetail"), getLCP("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
+                ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) findClass("ReceiptSaleDetail"), findProperty("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
                 saleKeys.add(receiptSaleDetailKey);
                 
-                ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) getClass("ReceiptReturnDetail"), getLCP("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
+                ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) findClass("ReceiptReturnDetail"), findProperty("receiptDetailZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberReceiptDetailField, numberCashRegisterField));
                 returnKeys.add(receiptReturnDetailKey);
                 
-                saleProperties.add(new ImportProperty(numberCashRegisterField, getLCP("cashRegisterZReport").getMapping(zReportKey),
-                        object(getClass("CashRegister")).getMapping(cashRegisterKey)));
-                saleProperties.add(new ImportProperty(numberZReportField, getLCP("numberZReport").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(numberZReportField, getLCP("zReportReceipt").getMapping(receiptKey),
-                        object(getClass("ZReport")).getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(numberReceiptField, getLCP("numberReceipt").getMapping(receiptKey)));
-                saleProperties.add(new ImportProperty(numberReceiptField, getLCP("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
-                        object(getClass("Receipt")).getMapping(receiptKey)));
-                saleProperties.add(new ImportProperty(numberReceiptDetailField, getLCP("numberReceiptDetail").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(numberCashRegisterField, findProperty("cashRegisterZReport").getMapping(zReportKey),
+                        object(findClass("CashRegister")).getMapping(cashRegisterKey)));
+                saleProperties.add(new ImportProperty(numberZReportField, findProperty("numberZReport").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(numberZReportField, findProperty("zReportReceipt").getMapping(receiptKey),
+                        object(findClass("ZReport")).getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(numberReceiptField, findProperty("numberReceipt").getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(numberReceiptField, findProperty("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
+                        object(findClass("Receipt")).getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(numberReceiptDetailField, findProperty("numberReceiptDetail").getMapping(receiptSaleDetailKey)));
                 
-                returnProperties.add(new ImportProperty(numberCashRegisterField, getLCP("cashRegisterZReport").getMapping(zReportKey),
-                        object(getClass("CashRegister")).getMapping(cashRegisterKey)));
-                returnProperties.add(new ImportProperty(numberZReportField, getLCP("numberZReport").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(numberZReportField, getLCP("zReportReceipt").getMapping(receiptKey),
-                        object(getClass("ZReport")).getMapping(zReportKey)));                
-                returnProperties.add(new ImportProperty(numberReceiptField, getLCP("numberReceipt").getMapping(receiptKey)));                
-                returnProperties.add(new ImportProperty(numberReceiptField, getLCP("receiptReceiptDetail").getMapping(receiptReturnDetailKey),
-                        object(getClass("Receipt")).getMapping(receiptKey)));               
-                returnProperties.add(new ImportProperty(numberReceiptDetailField, getLCP("numberReceiptDetail").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(numberCashRegisterField, findProperty("cashRegisterZReport").getMapping(zReportKey),
+                        object(findClass("CashRegister")).getMapping(cashRegisterKey)));
+                returnProperties.add(new ImportProperty(numberZReportField, findProperty("numberZReport").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(numberZReportField, findProperty("zReportReceipt").getMapping(receiptKey),
+                        object(findClass("ZReport")).getMapping(zReportKey)));                
+                returnProperties.add(new ImportProperty(numberReceiptField, findProperty("numberReceipt").getMapping(receiptKey)));                
+                returnProperties.add(new ImportProperty(numberReceiptField, findProperty("receiptReceiptDetail").getMapping(receiptReturnDetailKey),
+                        object(findClass("Receipt")).getMapping(receiptKey)));               
+                returnProperties.add(new ImportProperty(numberReceiptDetailField, findProperty("numberReceiptDetail").getMapping(receiptReturnDetailKey)));
                 
                 saleImportFields.add(numberCashRegisterField);
                 saleImportFields.add(numberZReportField);
@@ -262,154 +262,154 @@ public class ImportReceiptsZReportActionProperty extends ScriptingActionProperty
                 paymentImportFields.add(numberCashRegisterField);
 
                                 
-                ImportField dateField = new ImportField(getLCP("dateReceipt"));
-                ImportField idBarcodeReceiptDetailField = new ImportField(getLCP("idBarcodeReceiptDetail"));                
-                ImportKey<?> skuKey = new ImportKey((CustomClass) getClass("Sku"), getLCP("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateField));
+                ImportField dateField = new ImportField(findProperty("dateReceipt"));
+                ImportField idBarcodeReceiptDetailField = new ImportField(findProperty("idBarcodeReceiptDetail"));                
+                ImportKey<?> skuKey = new ImportKey((CustomClass) findClass("Sku"), findProperty("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateField));
                 saleKeys.add(skuKey);
                 returnKeys.add(skuKey);
                 
-                saleProperties.add(new ImportProperty(dateField, getLCP("dateZReport").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(dateField, getLCP("dateReceipt").getMapping(receiptKey)));
-                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, getLCP("idBarcodeReceiptDetail").getMapping(receiptSaleDetailKey)));
-                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, getLCP("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
-                        object(getClass("Sku")).getMapping(skuKey)));
-                returnProperties.add(new ImportProperty(dateField, getLCP("dateZReport").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(dateField, getLCP("dateReceipt").getMapping(receiptKey)));
-                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, getLCP("idBarcodeReceiptDetail").getMapping(receiptReturnDetailKey)));
-                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, getLCP("skuReceiptReturnDetail").getMapping(receiptReturnDetailKey),
-                        object(getClass("Sku")).getMapping(skuKey)));
+                saleProperties.add(new ImportProperty(dateField, findProperty("dateZReport").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(dateField, findProperty("dateReceipt").getMapping(receiptKey)));
+                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, findProperty("idBarcodeReceiptDetail").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, findProperty("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
+                        object(findClass("Sku")).getMapping(skuKey)));
+                returnProperties.add(new ImportProperty(dateField, findProperty("dateZReport").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(dateField, findProperty("dateReceipt").getMapping(receiptKey)));
+                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, findProperty("idBarcodeReceiptDetail").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, findProperty("skuReceiptReturnDetail").getMapping(receiptReturnDetailKey),
+                        object(findClass("Sku")).getMapping(skuKey)));
                 saleImportFields.add(dateField);
                 saleImportFields.add(idBarcodeReceiptDetailField);
                 returnImportFields.add(dateField);
                 returnImportFields.add(idBarcodeReceiptDetailField);
 
                 
-                ImportField timeField = new ImportField(getLCP("timeReceipt"));
-                saleProperties.add(new ImportProperty(timeField, getLCP("timeZReport").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(timeField, getLCP("timeReceipt").getMapping(receiptKey)));
-                returnProperties.add(new ImportProperty(timeField, getLCP("timeZReport").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(timeField, getLCP("timeReceipt").getMapping(receiptKey)));
+                ImportField timeField = new ImportField(findProperty("timeReceipt"));
+                saleProperties.add(new ImportProperty(timeField, findProperty("timeZReport").getMapping(zReportKey)));
+                saleProperties.add(new ImportProperty(timeField, findProperty("timeReceipt").getMapping(receiptKey)));
+                returnProperties.add(new ImportProperty(timeField, findProperty("timeZReport").getMapping(zReportKey)));
+                returnProperties.add(new ImportProperty(timeField, findProperty("timeReceipt").getMapping(receiptKey)));
                 saleImportFields.add(timeField);
                 returnImportFields.add(timeField);
 
-                ImportField quantityReceiptSaleDetailField = new ImportField(getLCP("quantityReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, getLCP("quantityReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField quantityReceiptSaleDetailField = new ImportField(findProperty("quantityReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, findProperty("quantityReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(quantityReceiptSaleDetailField);
 
-                ImportField quantityReceiptReturnDetailField = new ImportField(getLCP("quantityReceiptReturnDetail"));
-                returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, getLCP("quantityReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
+                ImportField quantityReceiptReturnDetailField = new ImportField(findProperty("quantityReceiptReturnDetail"));
+                returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, findProperty("quantityReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnImportFields.add(quantityReceiptReturnDetailField);
 
-                ImportField priceReceiptSaleDetailField = new ImportField(getLCP("priceReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, getLCP("priceReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField priceReceiptSaleDetailField = new ImportField(findProperty("priceReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, findProperty("priceReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(priceReceiptSaleDetailField);
 
-                ImportField priceReceiptReturnDetailField = new ImportField(getLCP("priceReceiptReturnDetail"));
-                returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, getLCP("priceReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
+                ImportField priceReceiptReturnDetailField = new ImportField(findProperty("priceReceiptReturnDetail"));
+                returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, findProperty("priceReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnImportFields.add(priceReceiptReturnDetailField);
                 
-                ImportField sumReceiptSaleDetailField = new ImportField(getLCP("sumReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, getLCP("sumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField sumReceiptSaleDetailField = new ImportField(findProperty("sumReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, findProperty("sumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(sumReceiptSaleDetailField);
 
-                ImportField retailSumReceiptReturnDetailField = new ImportField(getLCP("sumReceiptReturnDetail"));
-                returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, getLCP("sumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
+                ImportField retailSumReceiptReturnDetailField = new ImportField(findProperty("sumReceiptReturnDetail"));
+                returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, findProperty("sumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnImportFields.add(retailSumReceiptReturnDetailField);
                 
-                ImportField discountSumReceiptSaleDetailField = new ImportField(getLCP("discountSumReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, getLCP("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField discountSumReceiptSaleDetailField = new ImportField(findProperty("discountSumReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, findProperty("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(discountSumReceiptSaleDetailField);
 
-                ImportField discountSumReceiptReturnDetailField = new ImportField(getLCP("discountSumReceiptReturnDetail"));
-                returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, getLCP("discountSumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
+                ImportField discountSumReceiptReturnDetailField = new ImportField(findProperty("discountSumReceiptReturnDetail"));
+                returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, findProperty("discountSumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
                 returnImportFields.add(discountSumReceiptReturnDetailField);
 
-                ImportField discountPercentReceiptSaleDetailField = new ImportField(getLCP("discountPercentReceiptSaleDetail"));
-                saleProperties.add(new ImportProperty(discountPercentReceiptSaleDetailField, getLCP("discountPercentReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                ImportField discountPercentReceiptSaleDetailField = new ImportField(findProperty("discountPercentReceiptSaleDetail"));
+                saleProperties.add(new ImportProperty(discountPercentReceiptSaleDetailField, findProperty("discountPercentReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                 saleImportFields.add(discountPercentReceiptSaleDetailField);
 
-                ImportField discountSumReturnReceiptField = new ImportField(getLCP("discountSumReturnReceipt"));
-                returnProperties.add(new ImportProperty(discountSumReturnReceiptField, getLCP("discountSumReturnReceipt").getMapping(receiptKey)));
+                ImportField discountSumReturnReceiptField = new ImportField(findProperty("discountSumReturnReceipt"));
+                returnProperties.add(new ImportProperty(discountSumReturnReceiptField, findProperty("discountSumReturnReceipt").getMapping(receiptKey)));
                 returnImportFields.add(discountSumReturnReceiptField);
 
-                ImportField discountSumSaleReceiptField = new ImportField(getLCP("discountSumSaleReceipt"));
-                saleProperties.add(new ImportProperty(discountSumSaleReceiptField, getLCP("discountSumSaleReceipt").getMapping(receiptKey)));
+                ImportField discountSumSaleReceiptField = new ImportField(findProperty("discountSumSaleReceipt"));
+                saleProperties.add(new ImportProperty(discountSumSaleReceiptField, findProperty("discountSumSaleReceipt").getMapping(receiptKey)));
                 saleImportFields.add(discountSumSaleReceiptField);
 
                 if (zReportDiscountCardLM != null) {
 
-                    ImportField seriesNumberDiscountCardField = new ImportField(zReportDiscountCardLM.findLCPByCompoundOldName("seriesNumberDiscountCard"));
-                    ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) zReportDiscountCardLM.findClassByCompoundName("DiscountCard"), zReportDiscountCardLM.findLCPByCompoundOldName("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
+                    ImportField seriesNumberDiscountCardField = new ImportField(zReportDiscountCardLM.findProperty("seriesNumberDiscountCard"));
+                    ImportKey<?> discountCardKey = new ImportKey((ConcreteCustomClass) zReportDiscountCardLM.findClass("DiscountCard"), zReportDiscountCardLM.findProperty("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateField));
                     saleKeys.add(discountCardKey);
                     returnKeys.add(discountCardKey);
                     
-                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
-                            object(zReportDiscountCardLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
-                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findLCPByCompoundOldName("discountCardReceipt").getMapping(receiptKey),
-                            object(zReportDiscountCardLM.findClassByCompoundName("DiscountCard")).getMapping(discountCardKey)));
+                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("seriesNumberDiscountCard").getMapping(discountCardKey)));
+                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
+                            object(zReportDiscountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
+                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("seriesNumberDiscountCard").getMapping(discountCardKey)));
+                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
+                            object(zReportDiscountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                     saleImportFields.add(seriesNumberDiscountCardField);
                     returnImportFields.add(seriesNumberDiscountCardField);
 
                 }
                 
-                ImportField noteReceiptField = new ImportField(getLCP("noteReceipt"));
-                saleProperties.add(new ImportProperty(noteReceiptField, getLCP("noteReceipt").getMapping(receiptKey)));
-                returnProperties.add(new ImportProperty(noteReceiptField, getLCP("noteReceipt").getMapping(receiptKey)));
+                ImportField noteReceiptField = new ImportField(findProperty("noteReceipt"));
+                saleProperties.add(new ImportProperty(noteReceiptField, findProperty("noteReceipt").getMapping(receiptKey)));
+                returnProperties.add(new ImportProperty(noteReceiptField, findProperty("noteReceipt").getMapping(receiptKey)));
                 saleImportFields.add(noteReceiptField);
                 returnImportFields.add(noteReceiptField);
 
                 if (zReportRetailCRMLM != null) {
 
-                    ImportField idPromotionConditionField = new ImportField(zReportRetailCRMLM.findLCPByCompoundOldName("idPromotionCondition"));
-                    ImportKey<?> promotionConditionKey = new ImportKey((ConcreteCustomClass) zReportRetailCRMLM.findClassByCompoundName("PromotionCondition"),
-                            zReportRetailCRMLM.findLCPByCompoundOldName("promotionConditionId").getMapping(idPromotionConditionField));
+                    ImportField idPromotionConditionField = new ImportField(zReportRetailCRMLM.findProperty("idPromotionCondition"));
+                    ImportKey<?> promotionConditionKey = new ImportKey((ConcreteCustomClass) zReportRetailCRMLM.findClass("PromotionCondition"),
+                            zReportRetailCRMLM.findProperty("promotionConditionId").getMapping(idPromotionConditionField));
                     saleKeys.add(promotionConditionKey);
                     saleImportFields.add(idPromotionConditionField);
 
 
-                    ImportField quantityReceiptSaleDetailPromotionConditionField = new ImportField(zReportRetailCRMLM.findLCPByCompoundOldName("quantityReceiptSaleDetailPromotionCondition"));
-                    saleProperties.add(new ImportProperty(quantityReceiptSaleDetailPromotionConditionField, zReportRetailCRMLM.findLCPByCompoundOldName("quantityReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
+                    ImportField quantityReceiptSaleDetailPromotionConditionField = new ImportField(zReportRetailCRMLM.findProperty("quantityReceiptSaleDetailPromotionCondition"));
+                    saleProperties.add(new ImportProperty(quantityReceiptSaleDetailPromotionConditionField, zReportRetailCRMLM.findProperty("quantityReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
                     saleImportFields.add(quantityReceiptSaleDetailPromotionConditionField);
 
-                    ImportField promotionSumReceiptSaleDetailPromotionConditionField = new ImportField(zReportRetailCRMLM.findLCPByCompoundOldName("promotionSumReceiptSaleDetailPromotionCondition"));
-                    saleProperties.add(new ImportProperty(promotionSumReceiptSaleDetailPromotionConditionField, zReportRetailCRMLM.findLCPByCompoundOldName("promotionSumReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
+                    ImportField promotionSumReceiptSaleDetailPromotionConditionField = new ImportField(zReportRetailCRMLM.findProperty("promotionSumReceiptSaleDetailPromotionCondition"));
+                    saleProperties.add(new ImportProperty(promotionSumReceiptSaleDetailPromotionConditionField, zReportRetailCRMLM.findProperty("promotionSumReceiptSaleDetailPromotionCondition").getMapping(receiptSaleDetailKey, promotionConditionKey)));
                     saleImportFields.add(promotionSumReceiptSaleDetailPromotionConditionField);
 
                 }
                 
                 if(POSVostrovLM != null) {
-                    ImportField isInvoiceReceiptField = new ImportField(POSVostrovLM.findLCPByCompoundOldName("isInvoiceReceipt"));
-                    saleProperties.add(new ImportProperty(isInvoiceReceiptField, POSVostrovLM.findLCPByCompoundOldName("isInvoiceReceipt").getMapping(receiptKey)));
-                    returnProperties.add(new ImportProperty(isInvoiceReceiptField, POSVostrovLM.findLCPByCompoundOldName("isInvoiceReceipt").getMapping(receiptKey)));
+                    ImportField isInvoiceReceiptField = new ImportField(POSVostrovLM.findProperty("isInvoiceReceipt"));
+                    saleProperties.add(new ImportProperty(isInvoiceReceiptField, POSVostrovLM.findProperty("isInvoiceReceipt").getMapping(receiptKey)));
+                    returnProperties.add(new ImportProperty(isInvoiceReceiptField, POSVostrovLM.findProperty("isInvoiceReceipt").getMapping(receiptKey)));
                     saleImportFields.add(isInvoiceReceiptField);
                     returnImportFields.add(isInvoiceReceiptField);
                 }
 
-                ImportField numberPaymentField = new ImportField(getLCP("numberPayment"));
-                ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) getClass("Payment"), getLCP("paymentZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberPaymentField, numberCashRegisterField));
+                ImportField numberPaymentField = new ImportField(findProperty("numberPayment"));
+                ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) findClass("Payment"), findProperty("paymentZReportReceiptNumberCashRegister").getMapping(numberZReportField, numberReceiptField, numberPaymentField, numberCashRegisterField));
                 paymentKeys.add(paymentKey);
-                paymentProperties.add(new ImportProperty(numberPaymentField, getLCP("numberPayment").getMapping(paymentKey)));
+                paymentProperties.add(new ImportProperty(numberPaymentField, findProperty("numberPayment").getMapping(paymentKey)));
                 paymentImportFields.add(numberPaymentField);
                 
-                paymentProperties.add(new ImportProperty(numberReceiptField, getLCP("receiptPayment").getMapping(paymentKey),
-                        object(getClass("Receipt")).getMapping(receiptKey)));
+                paymentProperties.add(new ImportProperty(numberReceiptField, findProperty("receiptPayment").getMapping(paymentKey),
+                        object(findClass("Receipt")).getMapping(receiptKey)));
                 paymentImportFields.add(numberReceiptField);
                 
-                ImportField sidTypePaymentField = new ImportField(getLCP("sidPaymentType"));
-                ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) getClass("PaymentType"), getLCP("typePaymentSID").getMapping(sidTypePaymentField));
+                ImportField sidTypePaymentField = new ImportField(findProperty("sidPaymentType"));
+                ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) findClass("PaymentType"), findProperty("typePaymentSID").getMapping(sidTypePaymentField));
                 paymentKeys.add(paymentTypeKey);
-                paymentProperties.add(new ImportProperty(sidTypePaymentField, getLCP("paymentTypePayment").getMapping(paymentKey),
-                        object(getClass("PaymentType")).getMapping(paymentTypeKey)));
+                paymentProperties.add(new ImportProperty(sidTypePaymentField, findProperty("paymentTypePayment").getMapping(paymentKey),
+                        object(findClass("PaymentType")).getMapping(paymentTypeKey)));
                 paymentImportFields.add(sidTypePaymentField);
                 
-                ImportField sumPaymentField = new ImportField(getLCP("sumPayment"));
-                paymentProperties.add(new ImportProperty(sumPaymentField, getLCP("sumPayment").getMapping(paymentKey)));
+                ImportField sumPaymentField = new ImportField(findProperty("sumPayment"));
+                paymentProperties.add(new ImportProperty(sumPaymentField, findProperty("sumPayment").getMapping(paymentKey)));
                 paymentImportFields.add(sumPaymentField);
                 
-                ImportField paymentMeansPaymentField = new ImportField(getLCP("staticCaption"));
-                paymentProperties.add(new ImportProperty(paymentMeansPaymentField, getLCP("paymentMeansPayment").getMapping(paymentKey)));
+                ImportField paymentMeansPaymentField = new ImportField(findProperty("staticCaption"));
+                paymentProperties.add(new ImportProperty(paymentMeansPaymentField, findProperty("paymentMeansPayment").getMapping(paymentKey)));
                 paymentImportFields.add(paymentMeansPaymentField);
 
                 new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);

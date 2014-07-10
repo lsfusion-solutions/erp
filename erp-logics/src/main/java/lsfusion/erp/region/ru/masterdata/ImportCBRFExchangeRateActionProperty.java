@@ -34,7 +34,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
     private final ClassPropertyInterface currencyInterface;
 
     public ImportCBRFExchangeRateActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Currency"));
+        super(LM, LM.findClass("Currency"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         currencyInterface = i.next();
@@ -47,9 +47,9 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
 
             DataObject currencyObject = context.getDataKeyValue(currencyInterface);
 
-            String extraSIDCurrency = (String) getLCP("extraSIDCurrency").read(context, currencyObject);
-            Date cbrfDateFrom = (Date) getLCP("importCBRFExchangeRateDateFrom").read(context);
-            Date cbrfDateTo = (Date) getLCP("importCBRFExchangeRateDateTo").read(context);
+            String extraSIDCurrency = (String) findProperty("extraSIDCurrency").read(context, currencyObject);
+            Date cbrfDateFrom = (Date) findProperty("importCBRFExchangeRateDateFrom").read(context);
+            Date cbrfDateTo = (Date) findProperty("importCBRFExchangeRateDateTo").read(context);
 
             if (cbrfDateFrom != null && cbrfDateTo != null && extraSIDCurrency != null)
                 importExchanges(cbrfDateFrom, cbrfDateTo, extraSIDCurrency, context);
@@ -73,37 +73,37 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
 
         if (exchangesList != null) {
 
-            ImportField typeExchangeRUField = new ImportField(getLCP("nameTypeExchange"));
-            ImportField typeExchangeForeignField = new ImportField(getLCP("nameTypeExchange"));
-            ImportField currencyField = new ImportField(getLCP("shortNameCurrency"));
-            ImportField homeCurrencyField = new ImportField(getLCP("shortNameCurrency"));
-            ImportField rateField = new ImportField(getLCP("rateExchange"));
-            ImportField foreignRateField = new ImportField(getLCP("rateExchange"));
+            ImportField typeExchangeRUField = new ImportField(findProperty("nameTypeExchange"));
+            ImportField typeExchangeForeignField = new ImportField(findProperty("nameTypeExchange"));
+            ImportField currencyField = new ImportField(findProperty("shortNameCurrency"));
+            ImportField homeCurrencyField = new ImportField(findProperty("shortNameCurrency"));
+            ImportField rateField = new ImportField(findProperty("rateExchange"));
+            ImportField foreignRateField = new ImportField(findProperty("rateExchange"));
             ImportField dateField = new ImportField(DateClass.instance);
 
-            ImportKey<?> typeExchangeRUKey = new ImportKey((ConcreteCustomClass) getClass("TypeExchange"),
-                    getLCP("typeExchangeName").getMapping(typeExchangeRUField));
+            ImportKey<?> typeExchangeRUKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
+                    findProperty("typeExchangeName").getMapping(typeExchangeRUField));
 
-            ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) getClass("TypeExchange"),
-                    getLCP("typeExchangeName").getMapping(typeExchangeForeignField));
+            ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
+                    findProperty("typeExchangeName").getMapping(typeExchangeForeignField));
 
-            ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) getClass("Currency"),
-                    getLCP("currencyShortName").getMapping(currencyField));
+            ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                    findProperty("currencyShortName").getMapping(currencyField));
 
-            ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) getClass("Currency"),
-                    getLCP("currencyShortName").getMapping(homeCurrencyField));
+            ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                    findProperty("currencyShortName").getMapping(homeCurrencyField));
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
 
-            props.add(new ImportProperty(typeExchangeRUField, getLCP("nameTypeExchange").getMapping(typeExchangeRUKey)));
-            props.add(new ImportProperty(homeCurrencyField, getLCP("currencyTypeExchange").getMapping(typeExchangeRUKey),
-                    object(getClass("Currency")).getMapping(homeCurrencyKey)));
-            props.add(new ImportProperty(rateField, getLCP("rateExchange").getMapping(typeExchangeRUKey, currencyKey, dateField)));
+            props.add(new ImportProperty(typeExchangeRUField, findProperty("nameTypeExchange").getMapping(typeExchangeRUKey)));
+            props.add(new ImportProperty(homeCurrencyField, findProperty("currencyTypeExchange").getMapping(typeExchangeRUKey),
+                    object(findClass("Currency")).getMapping(homeCurrencyKey)));
+            props.add(new ImportProperty(rateField, findProperty("rateExchange").getMapping(typeExchangeRUKey, currencyKey, dateField)));
 
-            props.add(new ImportProperty(typeExchangeForeignField, getLCP("nameTypeExchange").getMapping(typeExchangeForeignKey)));
-            props.add(new ImportProperty(currencyField, getLCP("currencyTypeExchange").getMapping(typeExchangeForeignKey),
-                    object(getClass("Currency")).getMapping(currencyKey)));
-            props.add(new ImportProperty(foreignRateField, getLCP("rateExchange").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
+            props.add(new ImportProperty(typeExchangeForeignField, findProperty("nameTypeExchange").getMapping(typeExchangeForeignKey)));
+            props.add(new ImportProperty(currencyField, findProperty("currencyTypeExchange").getMapping(typeExchangeForeignKey),
+                    object(findClass("Currency")).getMapping(currencyKey)));
+            props.add(new ImportProperty(foreignRateField, findProperty("rateExchange").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
 
             List<List<Object>> data = new ArrayList<List<Object>>();
             for (Exchange e : exchangesList) {
@@ -142,7 +142,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
                 Element exchangeRootNode = exchangeDocument.getRootElement();
                 List exchangeList = exchangeRootNode.getChildren("Record");
 
-                String shortNameCurrency = (String) getLCP("shortNameCurrency").read(context, new DataObject(getLCP("currencyExtraSID").read(context, new DataObject(extraSIDCurrency)), (ConcreteClass) getClass("Currency")));
+                String shortNameCurrency = (String) findProperty("shortNameCurrency").read(context, new DataObject(findProperty("currencyExtraSID").read(context, new DataObject(extraSIDCurrency)), (ConcreteClass) findClass("Currency")));
 
                 for (int j = 0; j < exchangeList.size(); j++) {
 

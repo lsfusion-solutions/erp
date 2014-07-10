@@ -36,16 +36,16 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
 
             DataSession session = context.getSession();
 
-            LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(getClass("ImportType"));
+            LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
-            importTypeQuery.addProperty("autoImportDirectoryImportType", getLCP("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionFileExtensionImportType", getLCP("captionFileExtensionImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionFileExtensionImportType", findProperty("captionFileExtensionImportType").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(getLCP("autoImportImportType").getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(getLCP("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImportImportType").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
             ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(session);
 
             for (int i = 0, size = importTypeResult.size(); i < size; i++) {
@@ -55,7 +55,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
 
                 String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());
                 String fileExtension = trim((String) entryValue.get("captionFileExtensionImportType").getValue());
-                String staticNameImportType = (String) getLCP("staticNameImportTypeDetailImportType").read(session, importTypeObject);
+                String staticNameImportType = (String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject);
 
                 ImportDocumentSettings importDocumentSettings = readImportDocumentSettings(session, importTypeObject);
 
@@ -68,7 +68,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                             for (File f : listFiles) {
                                 if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
                                     DataSession currentSession = context.createSession();
-                                    DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) getClass("Purchase.UserInvoice"));
+                                    DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
                                     try {
 

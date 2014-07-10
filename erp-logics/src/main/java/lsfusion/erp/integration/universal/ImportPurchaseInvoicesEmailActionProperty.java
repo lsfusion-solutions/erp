@@ -38,18 +38,18 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
             DataSession session = context.getSession();
 
-            LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(getClass("ImportType"));
+            LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
-            importTypeQuery.addProperty("autoImportEmailImportType", getLCP("autoImportEmailImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportAccountImportType", getLCP("autoImportAccountImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCheckInvoiceExistenceImportType", getLCP("autoImportCheckInvoiceExistenceImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionFileExtensionImportType", getLCP("captionFileExtensionImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportEmailImportType", findProperty("autoImportEmailImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportAccountImportType", findProperty("autoImportAccountImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportCheckInvoiceExistenceImportType", findProperty("autoImportCheckInvoiceExistenceImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionFileExtensionImportType", findProperty("captionFileExtensionImportType").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(getLCP("autoImportImportType").getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(getLCP("autoImportEmailImportType").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImportImportType").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImportEmailImportType").getExpr(importTypeKey).getWhere());
             ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(session);
 
             for (int i = 0, size = importTypeResult.size(); i < size; i++) {
@@ -62,7 +62,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                 boolean checkInvoiceExistence = entryValue.get("autoImportCheckInvoiceExistenceImportType") instanceof DataObject;
                 String emailPattern = emailObject instanceof DataObject ? ((String) ((DataObject) emailObject).object).replace("*", ".*") : null;
                 String fileExtension = trim((String) entryValue.get("captionFileExtensionImportType").getValue());
-                String staticNameImportType = (String) getLCP("staticNameImportTypeDetailImportType").read(session, importTypeObject);
+                String staticNameImportType = (String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject);
 
                 ImportDocumentSettings importDocumentSettings = readImportDocumentSettings(session, importTypeObject);
 
@@ -73,14 +73,14 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                     ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap((Object) "email", emailExpr, "attachmentEmail", attachmentEmailExpr);
 
                     QueryBuilder<Object, Object> emailQuery = new QueryBuilder<Object, Object>(emailKeys);
-                    emailQuery.addProperty("fromAddressEmail", getLCP("fromAddressEmail").getExpr(session.getModifier(), emailExpr));
-                    emailQuery.addProperty("dateTimeReceivedEmail", getLCP("dateTimeReceivedEmail").getExpr(session.getModifier(), emailExpr));
-                    emailQuery.addProperty("fileAttachmentEmail", getLCP("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr));
+                    emailQuery.addProperty("fromAddressEmail", findProperty("fromAddressEmail").getExpr(session.getModifier(), emailExpr));
+                    emailQuery.addProperty("dateTimeReceivedEmail", findProperty("dateTimeReceivedEmail").getExpr(session.getModifier(), emailExpr));
+                    emailQuery.addProperty("fileAttachmentEmail", findProperty("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr));
 
-                    emailQuery.and(getLCP("emailAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
-                    emailQuery.and(getLCP("accountEmail").getExpr(session.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
-                    emailQuery.and(getLCP("notImportedAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
-                    emailQuery.and(getLCP("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
+                    emailQuery.and(findProperty("emailAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
+                    emailQuery.and(findProperty("accountEmail").getExpr(session.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
+                    emailQuery.and(findProperty("notImportedAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
+                    emailQuery.and(findProperty("fileAttachmentEmail").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> emailResult = emailQuery.executeClasses(session);
 
@@ -93,7 +93,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         if (fromAddressEmail != null && emailPattern != null && fromAddressEmail.matches(emailPattern)) {
                             byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
                             DataSession currentSession = context.createSession();
-                            DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) getClass("Purchase.UserInvoice"));
+                            DataObject invoiceObject = currentSession.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
                             try {
 
@@ -105,13 +105,13 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                 if (importResult >= IMPORT_RESULT_OK || isOld) {
                                     DataSession postImportSession = context.createSession();
-                                    getLCP("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                    findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
                                     postImportSession.apply(context);
                                 }
 
                             } catch (Exception e) {
                                 DataSession postImportSession = context.createSession();
-                                getLCP("lastErrorAttachmentEmail").change(e.toString(), postImportSession, (DataObject) attachmentEmailObject);
+                                findProperty("lastErrorAttachmentEmail").change(e.toString(), postImportSession, (DataObject) attachmentEmailObject);
                                 postImportSession.apply(context);
                                 ServerLoggers.systemLogger.error(e);
                                 

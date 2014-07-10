@@ -18,7 +18,7 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalBoardDisplayTextActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("ReceiptDetail"));
+        super(LM, LM.findClass("ReceiptDetail"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptDetailInterface = i.next();
@@ -30,19 +30,19 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = getLCP("receiptReceiptDetail").readClasses(session, receiptDetailObject);
-            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            ObjectValue receiptObject = findProperty("receiptReceiptDetail").readClasses(session, receiptDetailObject);
+            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPortBoard = (Integer) getLCP("comPortBoardCurrentCashRegister").read(context);
-                Integer baudRateBoard = (Integer) getLCP("baudRateBoardCurrentCashRegister").read(context);
+                Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister").read(context);
+                Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister").read(context);
 
-                String name = (String) getLCP("nameSkuReceiptDetail").read(session, receiptDetailObject);
+                String name = (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject);
                 name = name == null ? "" : name.trim();
-                BigDecimal quantityValue = (BigDecimal) getLCP("quantityReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal quantityValue = (BigDecimal) findProperty("quantityReceiptDetail").read(session, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
-                BigDecimal priceValue = (BigDecimal) getLCP("priceReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal priceValue = (BigDecimal) findProperty("priceReceiptDetail").read(session, receiptDetailObject);
                 long price = priceValue == null ? 0 : priceValue.longValue();
-                BigDecimal sumValue = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(session, (DataObject) receiptObject);
+                BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetailReceipt").read(session, (DataObject) receiptObject);
                 long sum = sumValue == null ? 0 : sumValue.longValue();
 
                 String[] lines = generateText(price, quantity, sum, name, 20);

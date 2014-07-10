@@ -70,7 +70,7 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
                     "nameLegalEntityGeneralLedger", "nameGLDocumentGeneralLedger", "descriptionGeneralLedger",
                     "idDebitGeneralLedger", "dimensionsDebitGeneralLedger", "idCreditGeneralLedger",
                     "dimensionsCreditGeneralLedger", "sumGeneralLedger"};
-            LCP[] generalLedgerProperties = getLCPs("isPostedGeneralLedger", "dateGeneralLedger",
+            LCP[] generalLedgerProperties = findProperties("isPostedGeneralLedger", "dateGeneralLedger",
                     "nameLegalEntityGeneralLedger", "nameGLDocumentGeneralLedger", "descriptionGeneralLedger",
                     "idDebitGeneralLedger", "dimensionsDebitGeneralLedger", "idCreditGeneralLedger",
                     "dimensionsCreditGeneralLedger", "sumGeneralLedger");
@@ -79,7 +79,7 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
                 generalLedgerQuery.addProperty(generalLedgerNames[i], generalLedgerProperties[i].getExpr(context.getModifier(), generalLedgerExpr));
             }
 
-            generalLedgerQuery.and(getLCP("sumGeneralLedger").getExpr(context.getModifier(), generalLedgerQuery.getMapExprs().get("GeneralLedger")).getWhere());
+            generalLedgerQuery.and(findProperty("sumGeneralLedger").getExpr(context.getModifier(), generalLedgerQuery.getMapExprs().get("GeneralLedger")).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> generalLedgerResult = generalLedgerQuery.execute(session);
 

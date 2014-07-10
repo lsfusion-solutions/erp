@@ -19,7 +19,7 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalVMKDisplayTextActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("ReceiptDetail"));
+        super(LM, LM.findClass("ReceiptDetail"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptDetailInterface = i.next();
@@ -31,23 +31,23 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = getLCP("receiptReceiptDetail").readClasses(session, receiptDetailObject);
-            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            ObjectValue receiptObject = findProperty("receiptReceiptDetail").readClasses(session, receiptDetailObject);
+            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
 
-                Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(session);
-                Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(session);
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(session);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(session);
 
-                String name = (String) getLCP("nameSkuReceiptDetail").read(session, receiptDetailObject);
+                String name = (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject);
                 name = name == null ? "" : name.trim();
-                String barcode = (String) getLCP("idBarcodeReceiptDetail").read(session, receiptDetailObject);
-                BigDecimal quantityValue = (BigDecimal) getLCP("quantityReceiptDetail").read(session, receiptDetailObject);
+                String barcode = (String) findProperty("idBarcodeReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal quantityValue = (BigDecimal) findProperty("quantityReceiptDetail").read(session, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
-                BigDecimal priceValue = (BigDecimal) getLCP("priceReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal priceValue = (BigDecimal) findProperty("priceReceiptDetail").read(session, receiptDetailObject);
                 long price = priceValue == null ? 0 : priceValue.longValue();
-                BigDecimal sumValue = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(session, (DataObject) receiptObject);
+                BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetailReceipt").read(session, (DataObject) receiptObject);
                 long sum = sumValue == null ? 0 : sumValue.longValue();
-                BigDecimal articleDiscSumValue = (BigDecimal) getLCP("discountSumReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal articleDiscSumValue = (BigDecimal) findProperty("discountSumReceiptDetail").read(session, receiptDetailObject);
                 long articleDiscSum = articleDiscSumValue == null ? 0 : articleDiscSumValue.longValue();
 
                 String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(baudRate, comPort, new ReceiptItem(false, price, quantity, barcode, name, sum, articleDiscSum)));

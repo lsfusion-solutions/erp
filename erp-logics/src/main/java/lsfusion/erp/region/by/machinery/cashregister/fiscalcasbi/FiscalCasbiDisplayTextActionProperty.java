@@ -19,7 +19,7 @@ public class FiscalCasbiDisplayTextActionProperty extends ScriptingActionPropert
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalCasbiDisplayTextActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("ReceiptDetail"));
+        super(LM, LM.findClass("ReceiptDetail"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptDetailInterface = i.next();
@@ -31,20 +31,20 @@ public class FiscalCasbiDisplayTextActionProperty extends ScriptingActionPropert
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = getLCP("receiptReceiptDetail").readClasses(session, receiptDetailObject);
-            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            ObjectValue receiptObject = findProperty("receiptReceiptDetail").readClasses(session, receiptDetailObject);
+            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(session);
-                Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(session);
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(session);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(session);
 
-                String name = (String) getLCP("nameSkuReceiptDetail").read(session, receiptDetailObject);
-                String barcode = (String) getLCP("idBarcodeReceiptDetail").read(session, receiptDetailObject);
-                BigDecimal quantity = (BigDecimal) getLCP("quantityReceiptDetail").read(session, receiptDetailObject);
-                BigDecimal price = (BigDecimal) getLCP("priceReceiptDetail").read(session, receiptDetailObject);
-                BigDecimal sum = (BigDecimal) getLCP("sumReceiptDetailReceipt").read(session, (DataObject) receiptObject);
-                BigDecimal articleDisc = (BigDecimal) getLCP("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
+                String name = (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject);
+                String barcode = (String) findProperty("idBarcodeReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal quantity = (BigDecimal) findProperty("quantityReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal price = (BigDecimal) findProperty("priceReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal sum = (BigDecimal) findProperty("sumReceiptDetailReceipt").read(session, (DataObject) receiptObject);
+                BigDecimal articleDisc = (BigDecimal) findProperty("discountPercentReceiptSaleDetail").read(session, receiptDetailObject);
 
-                String typeReceiptDetail = (String) getLCP("typeReceiptDetail").read(session, receiptDetailObject);
+                String typeReceiptDetail = (String) findProperty("typeReceiptDetail").read(session, receiptDetailObject);
                 Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
 
                 if (sum == null) sum = BigDecimal.ZERO;

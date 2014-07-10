@@ -39,8 +39,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            Date dateFrom = (Date) getLCP("dateFromExportGeneralLedgerDBF").read(context);
-            Date dateTo = (Date) getLCP("dateToExportGeneralLedgerDBF").read(context);
+            Date dateFrom = (Date) findProperty("dateFromExportGeneralLedgerDBF").read(context);
+            Date dateTo = (Date) findProperty("dateToExportGeneralLedgerDBF").read(context);
 
             File file = exportGeneralLedgers(context, dateFrom, dateTo);
             if (file != null) {
@@ -89,7 +89,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         String[] generalLedgerNames = new String[]{"dateGeneralLedger", "numberGLDocumentGeneralLedger",
                 "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
                 "idOperationGeneralLedger"};
-        LCP[] generalLedgerProperties = getLCPs("dateGeneralLedger", "numberGLDocumentGeneralLedger",
+        LCP[] generalLedgerProperties = findProperties("dateGeneralLedger", "numberGLDocumentGeneralLedger",
                 "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
                 "idOperationGeneralLedger");
         for (int j = 0; j < generalLedgerProperties.length; j++) {
@@ -99,19 +99,19 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
         String[] dimensionTypeNames = new String[]{"idDebitGeneralLedgerDimensionType", "orderDebitGeneralLedgerDimensionType",
                 "idCreditGeneralLedgerDimensionType", "orderCreditGeneralLedgerDimensionType"};
-        LCP[] dimensionTypeProperties = getLCPs("dateGeneralLedger", "numberGLDocumentGeneralLedger",
+        LCP[] dimensionTypeProperties = findProperties("dateGeneralLedger", "numberGLDocumentGeneralLedger",
                 "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
                 "idOperationGeneralLedger");
         for (int j = 0; j < dimensionTypeProperties.length; j++) {
             generalLedgerQuery.addProperty(dimensionTypeNames[j], dimensionTypeProperties[j].getExpr(generalLedgerExpr, dimensionTypeExpr));
         }
 
-        generalLedgerQuery.and(getLCP("sumGeneralLedger").getExpr(generalLedgerExpr).getWhere());
-        generalLedgerQuery.and(getLCP("nameDimensionType").getExpr(dimensionTypeExpr).getWhere());
+        generalLedgerQuery.and(findProperty("sumGeneralLedger").getExpr(generalLedgerExpr).getWhere());
+        generalLedgerQuery.and(findProperty("nameDimensionType").getExpr(dimensionTypeExpr).getWhere());
         if (dateFrom != null)
-            generalLedgerQuery.and(getLCP("dateGeneralLedger").getExpr(generalLedgerExpr).compare(new DataObject(dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
+            generalLedgerQuery.and(findProperty("dateGeneralLedger").getExpr(generalLedgerExpr).compare(new DataObject(dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
         if (dateTo != null)
-            generalLedgerQuery.and(getLCP("dateGeneralLedger").getExpr(generalLedgerExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
+            generalLedgerQuery.and(findProperty("dateGeneralLedger").getExpr(generalLedgerExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> generalLedgerResult = generalLedgerQuery.executeClasses(context);
 

@@ -15,7 +15,7 @@ public class ParseCompositionArticleActionProperty extends ParseCompositionActio
     private final ClassPropertyInterface articleInterface;
 
     public ParseCompositionArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Article"));
+        super(LM, LM.findClass("Article"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         articleInterface = i.next();
@@ -27,7 +27,7 @@ public class ParseCompositionArticleActionProperty extends ParseCompositionActio
         try {
 
             DataObject articleObject = context.getDataKeyValue(articleInterface);
-            String compositionArticle = trim((String) getLCP("compositionArticle").read(context, articleObject));
+            String compositionArticle = trim((String) findProperty("compositionArticle").read(context, articleObject));
             parseComposition(context, false, articleObject, compositionArticle);
             
         } catch (ScriptingErrorLog.SemanticErrorException e) {

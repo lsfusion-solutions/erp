@@ -19,7 +19,7 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
     private final ClassPropertyInterface urlInterface;
 
     public LoadImageArticleActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Article"), StringClass.get(1000));
+        super(LM, LM.findClass("Article"), StringClass.get(1000));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         articleInterface = i.next();
@@ -36,7 +36,7 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
 
             File file = readImage((String) urlObject.object);
             if (file != null) {
-                getLCP("imageArticle").change(IOUtils.getFileBytes(file), context, articleObject);
+                findProperty("imageArticle").change(IOUtils.getFileBytes(file), context, articleObject);
                 file.delete();
             }
         } catch (IOException e) {

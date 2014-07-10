@@ -17,7 +17,7 @@ public class FiscalShtrihServiceInOutActionProperty extends ScriptingActionPrope
     private final ClassPropertyInterface cashOperationInterface;
 
     public FiscalShtrihServiceInOutActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("CashOperation"));
+        super(LM, LM.findClass("CashOperation"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         cashOperationInterface = i.next();
@@ -27,18 +27,18 @@ public class FiscalShtrihServiceInOutActionProperty extends ScriptingActionPrope
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context.getSession());
-            Integer pass = (Integer) getLCP("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
+            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
             int password = pass==null ? 30000 : pass * 1000;
             
-            Boolean isDone = getLCP("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
-            BigDecimal sum = (BigDecimal) getLCP("sumCashOperation").read(context.getSession(), cashOperationObject);
+            Boolean isDone = findProperty("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
+            BigDecimal sum = (BigDecimal) findProperty("sumCashOperation").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalShtrihServiceInOutClientAction(password, comPort, baudRate, sum));
                 if (result == null) {
-                    getLCP("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
+                    findProperty("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
                 } else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }

@@ -16,7 +16,7 @@ public class FiscalDatecsCancelReceiptActionProperty extends ScriptingActionProp
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalDatecsCancelReceiptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Receipt"));
+        super(LM, LM.findClass("Receipt"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptInterface = i.next();
@@ -26,10 +26,10 @@ public class FiscalDatecsCancelReceiptActionProperty extends ScriptingActionProp
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPort = (Integer) getLCP("comPortCurrentCashRegister").read(context.getSession());
-                Integer baudRate = (Integer) getLCP("baudRateCurrentCashRegister").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
 
                 String result = (String) context.requestUserInteraction(new FiscalDatecsCustomOperationClientAction(5, baudRate, comPort));
                 if (result != null)

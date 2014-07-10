@@ -38,7 +38,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
     private final ClassPropertyInterface declarationInterface;
 
     public ImportDeclarationDBFActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Declaration"));
+        super(LM, LM.findClass("Declaration"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         declarationInterface = i.next();
@@ -91,7 +91,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
         ImRevMap<Object, KeyExpr> declarationDetailKeys = MapFact.singletonRev((Object) "declarationDetail", declarationDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(declarationDetailKeys);
         
-        query.and(getLCP("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
+        query.and(findProperty("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
         if(result.size() != data.size())
@@ -103,23 +103,23 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-            ImportField numberDeclarationDetailField = new ImportField(getLCP("numberDeclarationDetail"));
-            ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) getClass("DeclarationDetail"),
-                    getLCP("declarationDetailDeclarationNumber").getMapping(declarationObject, numberDeclarationDetailField));
+            ImportField numberDeclarationDetailField = new ImportField(findProperty("numberDeclarationDetail"));
+            ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) findClass("DeclarationDetail"),
+                    findProperty("declarationDetailDeclarationNumber").getMapping(declarationObject, numberDeclarationDetailField));
             keys.add(declarationDetailKey);
-            props.add(new ImportProperty(declarationObject, getLCP("declarationDeclarationDetail").getMapping(declarationDetailKey)));
+            props.add(new ImportProperty(declarationObject, findProperty("declarationDeclarationDetail").getMapping(declarationDetailKey)));
             fields.add(numberDeclarationDetailField);
 
-            ImportField dutySumDeclarationDetailField = new ImportField(getLCP("dutySumDeclarationDetail"));
-            props.add(new ImportProperty(dutySumDeclarationDetailField, getLCP("dutySumDeclarationDetail").getMapping(declarationDetailKey)));
+            ImportField dutySumDeclarationDetailField = new ImportField(findProperty("dutySumDeclarationDetail"));
+            props.add(new ImportProperty(dutySumDeclarationDetailField, findProperty("dutySumDeclarationDetail").getMapping(declarationDetailKey)));
             fields.add(dutySumDeclarationDetailField);
 
-            ImportField VATSumDeclarationDetailField = new ImportField(getLCP("VATSumDeclarationDetail"));
-            props.add(new ImportProperty(VATSumDeclarationDetailField, getLCP("VATSumDeclarationDetail").getMapping(declarationDetailKey)));
+            ImportField VATSumDeclarationDetailField = new ImportField(findProperty("VATSumDeclarationDetail"));
+            props.add(new ImportProperty(VATSumDeclarationDetailField, findProperty("VATSumDeclarationDetail").getMapping(declarationDetailKey)));
             fields.add(VATSumDeclarationDetailField);
 
-            ImportField homeSumDeclarationDetailField = new ImportField(getLCP("homeSumDeclarationDetail"));
-            props.add(new ImportProperty(homeSumDeclarationDetailField, getLCP("homeSumDeclarationDetail").getMapping(declarationDetailKey)));
+            ImportField homeSumDeclarationDetailField = new ImportField(findProperty("homeSumDeclarationDetail"));
+            props.add(new ImportProperty(homeSumDeclarationDetailField, findProperty("homeSumDeclarationDetail").getMapping(declarationDetailKey)));
             fields.add(homeSumDeclarationDetailField);
 
             ImportTable table = new ImportTable(fields, data);
@@ -167,7 +167,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
                     VATSum = getDBFBigDecimalFieldValue(importFile, "G474", charset);
                 } else if(g471.equals("1010")) {
                     BigDecimal g474 = getDBFBigDecimalFieldValue(importFile, "G474", charset);  //dutySum - VATSum
-                    getLCP("registrationSumDeclaration").change(g474, session, declarationObject);
+                    findProperty("registrationSumDeclaration").change(g474, session, declarationObject);
                 }
             }
         }

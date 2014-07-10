@@ -7,7 +7,6 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
-import lsfusion.server.Settings;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -35,15 +34,15 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
 
         try {
 
-            LCP<PropertyInterface> isImportUserPriceListType = (LCP<PropertyInterface>) is(getClass("ImportUserPriceListType"));
+            LCP<PropertyInterface> isImportUserPriceListType = (LCP<PropertyInterface>) is(findClass("ImportUserPriceListType"));
             ImRevMap<PropertyInterface, KeyExpr> importUserPriceListTypeKeys = isImportUserPriceListType.getMapKeys();
             KeyExpr importUserPriceListTypeKey = importUserPriceListTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importUserPriceListTypeQuery = new QueryBuilder<PropertyInterface, Object>(importUserPriceListTypeKeys);
-            importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", getLCP("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
+            importUserPriceListTypeQuery.addProperty("autoImportDirectoryImportUserPriceListType", findProperty("autoImportDirectoryImportUserPriceListType").getExpr(context.getModifier(), importUserPriceListTypeKey));
             
             importUserPriceListTypeQuery.and(isImportUserPriceListType.getExpr(importUserPriceListTypeKey).getWhere());
-            importUserPriceListTypeQuery.and(getLCP("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
-            importUserPriceListTypeQuery.and(getLCP("autoImportDirectoryImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
+            importUserPriceListTypeQuery.and(findProperty("autoImportImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
+            importUserPriceListTypeQuery.and(findProperty("autoImportDirectoryImportUserPriceListType").getExpr(importUserPriceListTypeKey).getWhere());
             ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importUserPriceListTypeResult = importUserPriceListTypeQuery.executeClasses(context);
 
             for (int i = 0, size = importUserPriceListTypeResult.size(); i < size; i++) {
@@ -62,7 +61,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
 
                         for (File f : dir.listFiles()) {
                             if (f.getName().toLowerCase().endsWith(importColumns.getFileExtension().toLowerCase())) {
-                                DataObject userPriceListObject = context.addObject((ConcreteCustomClass) getClass("UserPriceList"));
+                                DataObject userPriceListObject = context.addObject((ConcreteCustomClass) findClass("UserPriceList"));
 
                                 try {
 

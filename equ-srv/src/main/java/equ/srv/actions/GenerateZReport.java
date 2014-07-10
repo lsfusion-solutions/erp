@@ -39,16 +39,16 @@ public class GenerateZReport extends ScriptingActionProperty {
         DataSession session = context.getSession();
         List<SalesInfo> salesInfoList = new ArrayList<SalesInfo>();
         try {
-            ObjectValue priceListType = getLCP("priceListTypeGenerateZReport").readClasses(context);
+            ObjectValue priceListType = findProperty("priceListTypeGenerateZReport").readClasses(context);
             if (!(priceListType instanceof NullValue)) {
                 Random r = new Random();
-                Integer zReportCount = addDeviation((Integer) getLCP("averageZReportCountGenerateZReport").read(context), 0.25, r);
-                Integer receiptCount = (Integer) getLCP("averageReceiptCountGenerateZReport").read(context);
-                Integer receiptDetailCount = (Integer) getLCP("averageReceiptDetailCountGenerateZReport").read(context);
+                Integer zReportCount = addDeviation((Integer) findProperty("averageZReportCountGenerateZReport").read(context), 0.25, r);
+                Integer receiptCount = (Integer) findProperty("averageReceiptCountGenerateZReport").read(context);
+                Integer receiptDetailCount = (Integer) findProperty("averageReceiptDetailCountGenerateZReport").read(context);
 
-                Date dateFrom = (Date) getLCP("dateFromGenerateZReport").read(context);
+                Date dateFrom = (Date) findProperty("dateFromGenerateZReport").read(context);
                 dateFrom = dateFrom == null ? new Date(System.currentTimeMillis()) : dateFrom;
-                Date dateTo = (Date) getLCP("dateToGenerateZReport").read(context);
+                Date dateTo = (Date) findProperty("dateToGenerateZReport").read(context);
                 dateTo = dateTo == null ? new Date(System.currentTimeMillis()) : dateTo;
 
                 KeyExpr departmentStoreExpr = new KeyExpr("departmentStore");
@@ -56,11 +56,11 @@ public class GenerateZReport extends ScriptingActionProperty {
                 ImRevMap<Object, KeyExpr> newKeys = MapFact.<Object, KeyExpr>toRevMap("departmentStore", departmentStoreExpr, "item", itemExpr);
 
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(newKeys);
-                query.addProperty("currentBalanceSkuStock", getLCP("currentBalanceSkuStock").getExpr(itemExpr, departmentStoreExpr));
-                query.addProperty("priceSkuStock", getLCP("priceSkuStock").getExpr(itemExpr, departmentStoreExpr));
-                query.and(getLCP("currentBalanceSkuStock").getExpr(itemExpr, departmentStoreExpr).getWhere());
-                query.and(getLCP("priceSkuStock").getExpr(itemExpr, departmentStoreExpr).getWhere());
-                query.and(getLCP("idBarcodeSku").getExpr(itemExpr, departmentStoreExpr).getWhere());
+                query.addProperty("currentBalanceSkuStock", findProperty("currentBalanceSkuStock").getExpr(itemExpr, departmentStoreExpr));
+                query.addProperty("priceSkuStock", findProperty("priceSkuStock").getExpr(itemExpr, departmentStoreExpr));
+                query.and(findProperty("currentBalanceSkuStock").getExpr(itemExpr, departmentStoreExpr).getWhere());
+                query.and(findProperty("priceSkuStock").getExpr(itemExpr, departmentStoreExpr).getWhere());
+                query.and(findProperty("idBarcodeSku").getExpr(itemExpr, departmentStoreExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
 
                 List<ItemZReportInfo> itemZReportInfoList = new ArrayList<ItemZReportInfo>();
@@ -75,8 +75,8 @@ public class GenerateZReport extends ScriptingActionProperty {
                         if ((departmentStore != null) && (!departmentStoreList.contains(departmentStore)))
                             departmentStoreList.add(departmentStore);
                         BigDecimal priceSkuStock = (BigDecimal) resultValues.get("priceSkuStock").getValue();
-                        String barcodeItem = trim((String) getLCP("idBarcodeSku").read(session, itemObject));
-                        Boolean isWeightItem = (Boolean) getLCP("isWeightItem").read(session, itemObject);
+                        String barcodeItem = trim((String) findProperty("idBarcodeSku").read(session, itemObject));
+                        Boolean isWeightItem = (Boolean) findProperty("isWeightItem").read(session, itemObject);
                         itemZReportInfoList.add(new ItemZReportInfo(barcodeItem, currentBalanceSkuStock, priceSkuStock, isWeightItem != null, departmentStore));
                     }
                 }
@@ -84,13 +84,13 @@ public class GenerateZReport extends ScriptingActionProperty {
                 Map<DataObject, DataObject> groupCashRegisterDepartmentStoreMap = new HashMap<DataObject, DataObject>();
                 for (DataObject departmentStore : departmentStoreList) {
 
-                    LCP<PropertyInterface> isGroupCashRegister = (LCP<PropertyInterface>) is(getClass("GroupCashRegister"));
+                    LCP<PropertyInterface> isGroupCashRegister = (LCP<PropertyInterface>) is(findClass("GroupCashRegister"));
 
                     ImRevMap<PropertyInterface, KeyExpr> groupCashRegisterKeys = isGroupCashRegister.getMapKeys();
                     KeyExpr groupCashRegisterKey = groupCashRegisterKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> groupCashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(groupCashRegisterKeys);
                     groupCashRegisterQuery.and(isGroupCashRegister.property.getExpr(groupCashRegisterKeys).getWhere());
-                    groupCashRegisterQuery.and(getLCP("departmentStoreGroupCashRegister").getExpr(groupCashRegisterKey).compare(departmentStore.getExpr(), Compare.EQUALS));
+                    groupCashRegisterQuery.and(findProperty("departmentStoreGroupCashRegister").getExpr(groupCashRegisterKey).compare(departmentStore.getExpr(), Compare.EQUALS));
 
                     ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> groupCashRegisterResult = groupCashRegisterQuery.executeClasses(session);
 
@@ -104,13 +104,13 @@ public class GenerateZReport extends ScriptingActionProperty {
                 Map<DataObject, DataObject> cashRegisterDepartmentStoreMap = new HashMap<DataObject, DataObject>();
                 for (Map.Entry<DataObject, DataObject> groupCashRegisterDepartmentStore : groupCashRegisterDepartmentStoreMap.entrySet()) {
 
-                    LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) is(getClass("CashRegister"));
+                    LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) is(findClass("CashRegister"));
 
                     ImRevMap<PropertyInterface, KeyExpr> cashRegisterKeys = isCashRegister.getMapKeys();
                     KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(cashRegisterKeys);
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
-                    cashRegisterQuery.and(getLCP("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupCashRegisterDepartmentStore.getKey().getExpr(), Compare.EQUALS));
+                    cashRegisterQuery.and(findProperty("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupCashRegisterDepartmentStore.getKey().getExpr(), Compare.EQUALS));
 
                     ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> cashRegisterResult = cashRegisterQuery.executeClasses(session);
 
@@ -129,7 +129,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                         Map.Entry<DataObject, DataObject> cashRegisterDepartmentStore = (Map.Entry<DataObject, DataObject>) (cashRegisterDepartmentStoreMap.entrySet().toArray()[r.nextInt(cashRegisterDepartmentStoreMap.size())/*1*/]);
                         DataObject cashRegisterObject = cashRegisterDepartmentStore.getKey();
                         DataObject departmentStoreObject = cashRegisterDepartmentStore.getValue();
-                        Integer maxNumberZReport = (Integer) getLCP("maxNumberZReport").read(session, cashRegisterObject);                        
+                        Integer maxNumberZReport = (Integer) findProperty("maxNumberZReport").read(session, cashRegisterObject);                        
                         String numberZReport = null;
                         while (numberZReport == null || (numberZReportCashRegisterMap.containsKey(numberZReport) && numberZReportCashRegisterMap.containsValue(cashRegisterObject)))
                             numberZReport = String.valueOf((maxNumberZReport == null ? 0 : maxNumberZReport) + (zReportCount < 1 ? 0 : r.nextInt(zReportCount)) + 1);
@@ -160,8 +160,8 @@ public class GenerateZReport extends ScriptingActionProperty {
                                         numberReceiptDetail++;
                                         sumCash = safeAdd(sumCash, sumReceiptDetail);
                                         BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(r.nextDouble() > 0.8 ? (sumReceiptDetail.doubleValue() * r.nextInt(10) / 100) : 0);
-                                        Integer numberCashRegister = (Integer) getLCP("nppMachinery").read(context, cashRegisterObject);
-                                        Integer numberGroupCashRegister = (Integer) getLCP("nppGroupMachineryMachinery").read(context, cashRegisterObject);
+                                        Integer numberCashRegister = (Integer) findProperty("nppMachinery").read(context, cashRegisterObject);
+                                        Integer numberGroupCashRegister = (Integer) findProperty("nppGroupMachineryMachinery").read(context, cashRegisterObject);
                                         SalesInfo salesInfo = new SalesInfo(numberGroupCashRegister, numberCashRegister, numberZReport, receiptNumber, 
                                                 date, time, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode, null, quantityReceiptDetail, 
                                                 itemZReportInfo.price, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, null);

@@ -15,7 +15,7 @@ public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty 
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalBoardResetTextActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-        super(LM, LM.findClassByCompoundName("Receipt"));
+        super(LM, LM.findClass("Receipt"));
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         receiptInterface = i.next();
@@ -26,10 +26,10 @@ public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty 
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
         try {
-            boolean skipReceipt = getLCP("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPortBoard = (Integer) getLCP("comPortBoardCurrentCashRegister").read(context);
-                Integer baudRateBoard = (Integer) getLCP("baudRateBoardCurrentCashRegister").read(context);
+                Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister").read(context);
+                Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister").read(context);
 
                 String line = "";
                 for (int i = 0; i < 20; i++)
