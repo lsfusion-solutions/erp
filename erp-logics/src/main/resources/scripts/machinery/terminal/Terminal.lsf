@@ -216,6 +216,9 @@ nameTerminalDocumentTypeTerminalDocument 'Тип документа' (terminalDo
 groupTerminalTerminalDocument = DATA GroupTerminal (TerminalDocument);
 nameGroupTerminalTerminalDocument 'Группа ТСД' (terminalDocument) = nameGroupMachinery(groupTerminalTerminalDocument(terminalDocument));
 
+stockTerminalDocument (document) = stockGroupTerminal(groupTerminalTerminalDocument(document));
+nameStockTerminalDocument 'Склад' (document) = nameStock(stockTerminalDocument (document));
+
 idTerminalDocumentTypeTerminalDocument (terminalDocument) = idTerminalDocumentType (terminalDocumentTypeTerminalDocument (terminalDocument));
 
 usedTerminalDocument 'Использован' (terminalDocument) = DATA BOOLEAN (TerminalDocument) IN base;
@@ -243,7 +246,7 @@ terminalDocumentDetailIdTerminalDocumentId (documentDetail, document) = GROUP AG
 
 FORM terminalDocument 'Документ ТСД'
     OBJECTS td=TerminalDocument FIXED PANEL
-    PROPERTIES(td)  idTerminalDocument, nameGroupTerminalTerminalDocument, nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument,
+    PROPERTIES(td)  idTerminalDocument, nameGroupTerminalTerminalDocument, nameStockTerminalDocument, nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument,
                     idTerminalHandbookType2TerminalDocument, titleTerminalDocument, quantityTerminalDocument, usedTerminalDocument READONLY
 
     OBJECTS tdd=TerminalDocumentDetail
@@ -292,6 +295,9 @@ FORM terminalDocuments 'Документы ТСД'
     FILTERGROUP filterUse
         FILTER 'Неиспользованные' 'F10' notUsedTerminalDocument(td) DEFAULT
 ;
+
+@extendFormFilterAccessStock(TerminalDocument, td, terminalDocuments, stock, company);
+
 
 DESIGN terminalDocuments FROM DEFAULT {
     main {
