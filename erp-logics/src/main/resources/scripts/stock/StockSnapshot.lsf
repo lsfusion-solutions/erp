@@ -5,7 +5,7 @@ REQUIRE SkuLedger, Document, PriceListLedger, StockTax;
 NAMESPACE Stock;
 
 ////////////////////// Тип отчета ////////////////////////////
-CLASS SnapshotType 'Тип отчета по товарообороту';
+CLASS SnapshotType 'Тип аналитического отчета';
 TABLE snapshotType (SnapshotType);
 
 nameSnapshotType 'Наименование' = DATA STRING[100] (SnapshotType) IN documentHeader;
@@ -91,7 +91,7 @@ nameIncludeSkuGroupsSnapshotType 'Группы товаров (все)' (documen
     ORDER skuGroup
     MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-FORM snapshotType 'Тип отчета по товарообороту'
+FORM snapshotType 'Тип аналитического отчета'
     OBJECTS t = SnapshotType FIXED PANEL
     PROPERTIES(t) idSnapshotType SHOWIF showIDs(), nameSnapshotType, isBatchSnapshotType, isQuantitySnapshotType, isSumSnapshotType, isBalanceBSnapshotType,
                   isInSnapshotType, isOutSnapshotType, isBalanceASnapshotType, isCostSnapshotType, isVATSupplierSnapshotType,
@@ -176,7 +176,7 @@ DESIGN snapshotType FROM DEFAULT {
         ADD functions.box;
     }            
 }
-FORM snapshotTypes 'Типы отчета по товарообороту'
+FORM snapshotTypes 'Типы аналитических отчетов'
     OBJECTS t = SnapshotType
     PROPERTIES(t) READONLY idSnapshotType SHOWIF showIDs(), nameSnapshotType, isBatchSnapshotType, isQuantitySnapshotType, isSumSnapshotType, isBalanceBSnapshotType,
                   isInSnapshotType, isOutSnapshotType, isBalanceASnapshotType, isCostSnapshotType, isVATSupplierSnapshotType,
@@ -191,7 +191,7 @@ END
 
 //////////////////////Отчет ////////////////////////////
 
-CLASS Snapshot 'Отчет по товарообороту';
+CLASS Snapshot 'Аналитический отчет';
 TABLE snapshot (Snapshot);
 
 hintBalanceBBackground 'Лавандовый' = RGB(255,238,238) IF TRUE;     
@@ -209,8 +209,8 @@ nameSnapshotTypeSnapshot 'Тип отчета' = nameSnapshotType(snapshotTypeSn
 @defineDocumentHeaderCreated(Snapshot);
 @deriveDocumentHeaderTimePrefix(Snapshot, );
 @defineDocumentHeaderNumber(Snapshot);
-@defineNumeratedDefault(Snapshot, 'Отчет по товарообороту', 'ОО');
-@defineDocumentHeaderDescription (Snapshot, 'Отчет по товарообороту');
+@defineNumeratedDefault(Snapshot, 'Аналитический отчет', 'ОО');
+@defineDocumentHeaderDescription (Snapshot, 'Аналитический отчет');
 
 fromDateSnapshot 'Дата с' = DATA DATE (Snapshot) IN documentHeader;
 toDateSnapshot 'Дата по' = DATA DATE (Snapshot) IN documentHeader;
@@ -991,7 +991,7 @@ isCostVATSupplierBalanceADateSnapshot = isCostVATSupplierSnapshot(snapshot) AND 
 isVATSupplierBalanceBDateSnapshot = isVATSupplierSnapshot(snapshot) AND isBalanceBSnapshot(snapshot) AND isDateSnapshot(snapshot);
 isVATSupplierBalanceADateSnapshot = isVATSupplierSnapshot(snapshot) AND isBalanceASnapshot(snapshot) AND isDateSnapshot(snapshot);
 
-FORM snapshot 'Отчет по товарообороту'                                   
+FORM snapshot 'Аналитический отчет'                                   
     OBJECTS r = Snapshot FIXED PANEL
     PROPERTIES (r) nameNumeratorSnapshot, 
                    numberSnapshot, seriesSnapshot, nameSnapshotTypeSnapshot, dateSnapshot, timeSnapshot,
@@ -1399,7 +1399,7 @@ DESIGN snapshot FROM DEFAULT {
 
 @extendFormFilterLegalEntityAccess(LegalEntity, l, snapshot, supplier);
 
-FORM snapshots 'Отчеты по товарообороту'
+FORM snapshots 'Аналитические отчеты'
 
     OBJECTS r = Snapshot
     PROPERTIES (r) READONLY numberSnapshot, seriesSnapshot, dateSnapshot, timeSnapshot,
@@ -1425,8 +1425,11 @@ DESIGN snapshots FROM DEFAULT {
 }
 
 NAVIGATOR {
-    stockReports {
-        ADD snapshotTypes;
-        ADD snapshots;
+    stockNavigator {
+        NEW reports 'Аналитика' {
+            ADD snapshotTypes;
+            ADD snapshots;
+        }
     }
 }
+
