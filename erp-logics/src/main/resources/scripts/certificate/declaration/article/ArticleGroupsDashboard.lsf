@@ -54,6 +54,18 @@ changeSeasonYearArticle = ACTION (article) {
     }
 }
 
+overChangeSeasonArticle = ABSTRACT ACTION LIST (Article);
+
+changeSeasonArticle = ACTION (article) {
+    REQUEST OBJECT t
+    FORM seasonYears  DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        seasonYearArticle(article) <- requestedObject();   
+        overChangeSeasonYearArticle(article); 
+             
+    }
+}
+
 FORM articleGroupsDashboard 'Классификация'
     PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
     
@@ -67,7 +79,7 @@ FORM articleGroupsDashboard 'Классификация'
     OBJECTS a=Article
     PROPERTIES(a) READONLY nameBrandArticle, idArticle, captionArticle, nameUOMArticle
     PROPERTIES(a) BACKGROUND backgroundChildNumberItemGroupArticle(a) canonicalNameItemGroupArticle
-    PROPERTIES(a) BACKGROUND hintEditableBackground() nameSeasonYearArticle ON CHANGE changeSeasonYearArticle(a), nameSeasonArticle    
+    PROPERTIES(a) BACKGROUND hintEditableBackground() nameSeasonYearArticle ON CHANGE changeSeasonYearArticle(a), nameSeasonArticle ON CHANGE changeSeasonArticle(a)   
     PROPERTIES(a) completedGroupsArticle ON CHANGE changeCompletedGroupsArticle(a)
     PROPERTIES(a) EDITFORM
     
