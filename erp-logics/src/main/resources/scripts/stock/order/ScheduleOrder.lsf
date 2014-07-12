@@ -271,6 +271,8 @@ META defineScheduleOrder(sign, stockProp)
     tmpDate = DATA SESSION DATE();
     tmpDateP = DATA SESSION DATE();
     tmpDateS = DATA SESSION DATE();
+    
+    overCreateScheduleOrderDetail = ABSTRACT ACTION LIST (ScheduleOrderDetail); 
 
     createScheduleOrder 'Сгенерировать предварительные заказы' = ACTION (scheduleOrder) {
         LOCAL toDate = DATE ();    
@@ -347,7 +349,8 @@ META defineScheduleOrder(sign, stockProp)
                                                                                                                                                       extractDOW(tmpDate()))));
                                 dateSupplyScheduleOrderDetail(o) <- tmpDate();
                                 scheduleOrderScheduleOrderDetail(o) <- scheduleOrder;
-                                customerStockScheduleOrderDetail(o) <- stock;                                   
+                                customerStockScheduleOrderDetail(o) <- stock;   
+                                overCreateScheduleOrderDetail(o);                                                                                                                                                               
                                 // удаляем ненужны, т.е. если уже был заказ с аналогичными датами заказа, поставки и складом покупателя
                                 DELETE o WHERE countDetailsScheduleOrderDateSupplyDateOrder(scheduleOrderScheduleOrderDetail(o), dateSupplyScheduleOrderDetail(o), dateOrderScheduleOrderDetail(o), stock) > 1 ;
                             }
@@ -470,7 +473,7 @@ META defineScheduleOrder(sign, stockProp)
                         nameSupplierScheduleOrderDetail, nameSupplierStockScheduleOrderDetail,
                         nameCustomerScheduleOrderDetail, nameCustomerStockScheduleOrderDetail,
                         nameOperationScheduleOrderDetail
-        PROPERTIES (sd) createScheduleUserOrder, DELETESESSION
+        PROPERTIES (sd) createScheduleUserOrder, deletesd=DELETESESSION
         ORDER BY dateSupplyScheduleOrderDetail(sd)
         PROPERTIES createScheduleOrder(s) TODRAW sd
 

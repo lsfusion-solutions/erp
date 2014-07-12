@@ -1,0 +1,151 @@
+MODULE PurchaseScheduleOrderRamp;
+
+REQUIRE OrderRamp, PurchaseOrder, PurchaseScheduleOrder;
+
+NAMESPACE Purchase;
+
+
+//rampScheduleOrderTimeStock = DATA Ramp (ScheduleOrderTime, Stock);
+//nameRampScheduleOrderTimeStock 'Рампа' (scheduleOrderTime,stock) = nameRamp(rampScheduleOrderTimeStock(scheduleOrderTime,stock));
+//
+//inScheduleOrderTimeStockInterval 'Вкл.' = DATA BOOLEAN (ScheduleOrderTime, Stock, Interval);
+//
+//CONSTRAINT rampScheduleOrderTimeStock(scheduleOrderTime,stock) AND NOT stockRamp(rampScheduleOrderTimeStock(scheduleOrderTime,stock))==stock
+//    CHECKED BY rampScheduleOrderTimeStock MESSAGE 'Для дня недели и склада выбрана рампа, которая не относится к складу';  
+//
+//CONSTRAINT rampScheduleOrderTimeStock(d,tts) AND inScheduleOrderTimeStockInterval(d,tts,in) AND NOT inRampInterval(rampScheduleOrderTimeStock(d,tts),in)
+//    MESSAGE 'Для дня недели, склада и рампы выбраны интервалы, которае не относятся к рампе'; 
+//            
+//// todo: когда сработает CONSTRAINT не понятно где искать ошибку. Надо придумать понятное поведение (возможно сессионное событие на сброс inScheduleOrderTimeStockInterval )            
+//  
+//  
+//rampScheduleOrderDetail = DATA Ramp (ScheduleOrderDetail); 
+//nameRampScheduleOrderDetail 'Рампа' (scheduleOrderDetail) = nameRamp(rampScheduleOrderDetail(scheduleOrderDetail));
+//inScheduleOrderDetailInterval 'Вкл.' = DATA BOOLEAN (ScheduleOrderDetail, Interval);
+//  
+//CONSTRAINT rampScheduleOrderDetail(scheduleOrderdetail) AND NOT stockRamp(rampScheduleOrderDetail(scheduleOrderdetail))==customerStockScheduleOrderDetail(scheduleOrderdetail)
+//    CHECKED BY rampScheduleOrderDetail MESSAGE 'Для предварительного заказа выбрана рампа, которая не относится к складу покупателя';  
+//      
+//CONSTRAINT rampScheduleOrderDetail(scheduleOrderdetail) AND inScheduleOrderDetailInterval(scheduleOrderdetail, interval) AND NOT inRampInterval(rampScheduleOrderDetail(scheduleOrderdetail),interval)
+//    MESSAGE 'Для предварительного заказа и рампы выбраны интервалы, которые не относятся к рампе'; 
+//
+//EXTEND FORM scheduleOrder
+//    OBJECTS tts=Stock FIXED GRID       
+//    PROPERTIES (tts) SHOWIF toShowGenDayMonth(s) READONLY nameStock
+//    PROPERTIES SHOWIF toShowGenDayMonth(s) nameRampScheduleOrderTimeStock(d,tts)
+//    FILTERS inScheduleOrderStock(s,tts)
+//    
+//    OBJECTS in=Interval FIXED GRID
+//    PROPERTIES (in) SHOWIF toShowGenDayMonth(s) READONLY timeInterval            
+//    PROPERTIES SHOWIF toShowGenDayMonth(s) inScheduleOrderTimeStockInterval(d,tts,in)
+//    FILTERS inRampInterval(rampScheduleOrderTimeStock(d,tts),in)
+//    FILTERGROUP filter
+//        FILTER 'Отм.' 'F10' inScheduleOrderTimeStockInterval(d,tts,in)
+//    
+//;
+//EXTEND DESIGN scheduleOrder {
+//    days1 {
+//        type = CONTAINERH;
+//        NEW days11 {
+//            fill = 1;
+//            type = CONTAINERV;
+//            
+//            ADD d.box;
+//            NEW days111 {
+//                fill = 1;
+//                type = CONTAINERH;
+//                ADD tts.box;
+//                ADD in.box;
+//            } 
+//        }        
+//        ADD m.box;
+//    }
+//}      
+
+//-- По дням недели
+TABLE stockScheduleOrderTimeRampInterval(Stock, ScheduleOrderTime, Ramp, Interval);
+inStockScheduleOrderTimeRampInterval 'Вкл.' = DATA BOOLEAN (Stock, ScheduleOrderTime, Ramp, Interval);
+
+CONSTRAINT inStockScheduleOrderTimeRampInterval(st,o,r,i) AND NOT inRampInterval(r,i)
+    MESSAGE 'Для дня недели и склады включены рампа и интервал, у которых нет связи';  
+
+CONSTRAINT inStockScheduleOrderTimeRampInterval(st,o,r,i) AND NOT stockRamp(r)==st
+    MESSAGE 'Для дня недели и склада включена рампа, у которой нет связи со складом';   
+ 
+//-- По предварительным заказам
+TABLE scheduleOrderDetailRampInterval(ScheduleOrderDetail, Ramp, Interval);
+inScheduleOrderDetailRampInterval 'Вкл.' = DATA BOOLEAN (ScheduleOrderDetail, Ramp, Interval);
+  
+CONSTRAINT inScheduleOrderDetailRampInterval(o,r,i) AND NOT inRampInterval(r,i)
+    MESSAGE 'Для предварительного заказа и склады включены рампа и интервал, у которых нет связи';   
+     
+CONSTRAINT inScheduleOrderDetailRampInterval(o,r,i) AND NOT stockRamp(r)==customerStockScheduleOrderDetail(o)
+    MESSAGE 'Для предварительного заказа и склада включена рампа, у которой нет связи со складом';                      
+      
+overCreateScheduleOrderDetail(o) += ACTION (o) {
+    inScheduleOrderDetailRampInterval(o,ramp,interval) <- inStockScheduleOrderTimeRampInterval(
+                                                            customerStockScheduleOrderDetail(o),
+                                                            shipmentScheduleOrderTimeScheduleOrderDOW(scheduleOrderScheduleOrderDetail(o),extractDOW(dateSupplyScheduleOrderDetail(o))),
+                                                            ramp,
+                                                            interval);                                                             
+}  
+
+descriptionRampsScheduleOrderDetail 'Рампы' (o)= 
+    GROUP CONCAT (CONCAT ' ', timeInterval(i), nameRamp(r)) IF inScheduleOrderDetailRampInterval(o,r,i), ', ' 
+    BY o
+    ORDER nameRamp(r), timeInterval(i) 
+    MINCHARWIDTH 20 PREFCHARWIDTH 30; 
+      
+overCreateOrder(o) += ACTION {
+    IF o IS UserOrder THEN {
+        inOrderRampInterval(o,r,i) <-  inScheduleOrderDetailRampInterval(scheduleOrderDetailUserOrder(o),r,i); 
+    }      
+} 
+ 
+     
+EXTEND FORM scheduleOrder
+    OBJECTS tts=Stock FIXED GRID       
+    PROPERTIES (tts) SHOWIF toShowGenDayMonth(s) READONLY nameStock    
+    FILTERS inScheduleOrderStock(s,tts)
+    
+    OBJECTS r=Ramp FIXED GRID
+    PROPERTIES(r) READONLY  nameRamp 
+    FILTERS stockRamp(r) == tts 
+    
+    OBJECTS in=Interval FIXED GRID
+    PROPERTIES (in) SHOWIF toShowGenDayMonth(s) READONLY timeInterval            
+    PROPERTIES SHOWIF toShowGenDayMonth(s) inStockScheduleOrderTimeRampInterval(tts,d,r,in)
+    FILTERS inRampInterval(r,in)
+    
+    FILTERGROUP filter
+        FILTER 'Отм.' 'F10' inStockScheduleOrderTimeRampInterval(tts,d,r,in)
+        
+        
+    PROPERTIES(sd) SHOWIF toShowGenDayMonth(s) READONLY descriptionRampsScheduleOrderDetail FORCE GRID BEFORE deletesd
+    
+;
+EXTEND DESIGN scheduleOrder {
+    days1 {
+        type = SPLITH;
+        
+        NEW days11 {
+            fill = 1;
+            type = SPLITV;            
+            ADD d.box;
+            ADD m.box;
+        }     
+        NEW days12 {
+            caption = 'Выбор рамп';
+            fill = 2;
+            type = SPLITH;
+            ADD tts.box;
+            NEW reight {
+                fill = 2;
+                type = SPLITV;
+                ADD r.box;
+                ADD in.box;
+            }                
+        }      
+    
+    }
+}
