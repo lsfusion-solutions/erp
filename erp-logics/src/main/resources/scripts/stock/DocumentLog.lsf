@@ -1,0 +1,128 @@
+MODULE DocumentLog;
+
+REQUIRE StockSkuDocument, System, SystemEvents;
+
+CLASS DocumentLog 'Документ логирования';
+
+documentDocumentLog = DATA Document (DocumentLog);
+
+numberDocumenDocumentLog 'Номер документа' = DATA STRING[18] (DocumentLog) IN recognize;
+seriesDocumenDocumentLog 'Серия документа' = DATA STRING[2] (DocumentLog) IN recognize;
+dateDocumentDocumentLog 'Дата документа' = DATA DATE(DocumentLog) IN recognize;
+typeDocumentDocumentLog 'Тип документа' = DATA ISTRING[100] (DocumentLog) IN recognize; 
+
+sessionDocumentLog = DATA Session (DocumentLog); 
+hostnameComputerDocumentLog 'Имя компьютера' = hostnameComputerConnectionSession(sessionDocumentLog(l)) IN recognize;
+userLoginDocumentLog 'Логин пользователя' = userLoginConnectionSession(sessionDocumentLog(l)) IN recognize;
+dateTimeSessionDocumentLog 'Время' = dateTimeSession(sessionDocumentLog(l)) IN recognize;
+
+CLASS TypeChange 'Тип изменения' {
+    add 'Добавление',
+    delete 'Удаление',
+    addRow 'Добавление строк',
+    deleteRow 'Удаление строк',
+    changeSeriesNumber 'Изменение серии/номера',
+    changeDate 'Изменение даты'  
+}
+
+typeChangeDocumentLog= DATA TypeChange (DocumentLog);
+nameTypeChangeDocumentLog 'Тип изменения' (l) = staticCaption(typeChangeDocumentLog(l)) IN recognize;
+
+noteDocumentLog 'Примечание' = DATA TEXT (DocumentLog);
+
+WHEN SET(o IS Document) DO {
+    FOR ADDOBJ d = DocumentLog DO {
+        documentDocumentLog(d) <- o;
+        typeDocumentDocumentLog(d) <- objectClassName(o);
+        numberDocumenDocumentLog(d) <- numberDocument(o);  
+        seriesDocumenDocumentLog(d) <- seriesDocument(o); 
+        dateDocumentDocumentLog(d) <- dateDocument(o);   
+        typeChangeDocumentLog(d) <- TypeChange.add;
+        sessionDocumentLog(d) <- currentSession();
+    }
+}
+//
+WHEN (SETCHANGED(numberDocument(o)) AND PREV(numberDocument(o))) OR (SETCHANGED(seriesDocument(o)) AND PREV(seriesDocument(o))) DO {
+    FOR ADDOBJ d = DocumentLog DO {
+        documentDocumentLog(d) <- o;
+        typeDocumentDocumentLog(d) <- objectClassName(o);
+        numberDocumenDocumentLog(d) <- numberDocument(o);  
+        seriesDocumenDocumentLog(d) <- seriesDocument(o); 
+        dateDocumentDocumentLog(d) <- dateDocument(o);   
+        typeChangeDocumentLog(d) <- TypeChange.changeSeriesNumber;
+        noteDocumentLog(d) <- TEXT('Предыдущее значение серия/номер: '+(CONCAT '', PREV(seriesDocument(o)), PREV(numberDocument(o))));      
+        sessionDocumentLog(d) <- currentSession();           
+    }
+}
+WHEN (SETCHANGED(dateDocument(o)) AND PREV(dateDocument(o))) DO {
+    FOR ADDOBJ d = DocumentLog DO {
+        documentDocumentLog(d) <- o;
+        typeDocumentDocumentLog(d) <- objectClassName(o);
+        numberDocumenDocumentLog(d) <- numberDocument(o);  
+        seriesDocumenDocumentLog(d) <- seriesDocument(o); 
+        dateDocumentDocumentLog(d) <- dateDocument(o);   
+        typeChangeDocumentLog(d) <- TypeChange.changeDate;
+        noteDocumentLog(d) <- TEXT(PREV(dateDocument(o)));  
+        sessionDocumentLog(d) <- currentSession();               
+    }
+}
+
+WHEN x== [ = GROUP SUM 1 IF SET(d IS DocumentDetail) BY documentDocumentDetail(d)](o) DO {
+    FOR ADDOBJ d = DocumentLog DO {
+        documentDocumentLog(d) <- o;
+        typeDocumentDocumentLog(d) <- objectClassName(o);
+        numberDocumenDocumentLog(d) <- numberDocument(o);  
+        seriesDocumenDocumentLog(d) <- seriesDocument(o); 
+        dateDocumentDocumentLog(d) <- dateDocument(o);   
+        typeChangeDocumentLog(d) <- TypeChange.addRow;
+        noteDocumentLog(d) <- TEXT('Количество добавленных строк: '+x);  
+        sessionDocumentLog(d) <- currentSession();               
+    }
+}
+
+//WHEN x==[= GROUP SUM 1 IF DROPPED(d IS DocumentDetail) BY PREV(documentDocumentDetail(d))](o) DO {
+//    FOR ADDOBJ d = DocumentLog DO {
+//        documentDocumentLog(d) <- o;
+//        typeDocumentDocumentLog(d) <- objectClassName(o);
+//        numberDocumenDocumentLog(d) <- numberDocument(o);  
+//        seriesDocumenDocumentLog(d) <- seriesDocument(o); 
+//        dateDocumentDocumentLog(d) <- dateDocument(o);   
+//        typeChangeDocumentLog(d) <- TypeChange.deleteRow;
+//        noteDocumentLog(d) <- TEXT('Количество удаленных строк: '+x);  
+//        sessionDocumentLog(d) <- currentSession();               
+//    }
+//}
+
+FORM documentLogs 'Документы логирования'
+    OBJECTS d=DocumentLog
+    PROPERTIES(d) READONLY numberDocumenDocumentLog, seriesDocumenDocumentLog, dateDocumentDocumentLog, typeDocumentDocumentLog,
+                  hostnameComputerDocumentLog, userLoginDocumentLog, dateTimeSessionDocumentLog, nameTypeChangeDocumentLog,
+                  noteDocumentLog FORCE PANEL
+;
+
+DESIGN documentLogs FROM DEFAULT{
+    main {
+        preferredSize = (1024, 768);
+        ADD d.box {fill = 2;}
+        ADD d.panel {  
+            fill = 1;       
+            ADD PROPERTY (noteDocumentLog(d)) { fill = 1; panelLabelAbove = TRUE;}
+        }
+        ADD functions.box;
+        
+    }
+}
+
+NAVIGATOR {
+    systemEvents {
+        ADD documentLogs;
+
+    }
+}
+
+
+
+
+
+
+
