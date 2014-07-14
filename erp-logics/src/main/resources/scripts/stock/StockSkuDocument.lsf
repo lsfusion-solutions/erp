@@ -1,6 +1,6 @@
 MODULE StockSkuDocument;
 
-REQUIRE SkuLedger;
+REQUIRE SkuLedger, SystemEvents;
 
 NAMESPACE Stock;
 
@@ -1198,3 +1198,146 @@ END
 EXTEND FORM documents
     PROPERTIES(dd) nameBatchDocumentDetail AFTER nameSkuDocumentDetail(dd) 
 ;
+
+//----------------- Логирование изменений в документах ------------------- //
+
+CLASS DocumentLog 'Запись лога документов';
+
+disableDocumentLog 'Отключить запись лога документов' = DATA BOOLEAN ();
+notDisableDocumentLog = TRUE AND NOT disableDocumentLog();
+
+EXTEND FORM options
+    PROPERTIES() disableDocumentLog
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(disableDocumentLog());
+    }
+}
+
+documentDocumentLog = DATA Document (DocumentLog);
+
+numberDocumentDocumentLog 'Номер документа' = DATA STRING[18] (DocumentLog) IN recognize;
+seriesDocumentDocumentLog 'Серия документа' = DATA STRING[2] (DocumentLog) IN recognize;
+dateDocumentDocumentLog 'Дата документа' = DATA DATE(DocumentLog) IN recognize;
+typeDocumentDocumentLog 'Тип документа' = DATA ISTRING[100] (DocumentLog) IN recognize; 
+
+sessionDocumentLog = DATA Session (DocumentLog); 
+hostnameComputerDocumentLog 'Имя компьютера' = hostnameComputerConnectionSession(sessionDocumentLog(l)) IN recognize;
+userLoginDocumentLog 'Логин пользователя' = userLoginConnectionSession(sessionDocumentLog(l)) IN recognize;
+dateTimeSessionDocumentLog 'Время' = dateTimeSession(sessionDocumentLog(l)) IN recognize;
+
+CLASS TypeChange 'Тип изменения' {
+    add 'Добавление',
+    delete 'Удаление',
+    addRow 'Добавление строк',
+    deleteRow 'Удаление строк',
+    changeSeriesNumber 'Изменение серии/номера'
+}
+
+typeChangeDocumentLog= DATA TypeChange (DocumentLog);
+nameTypeChangeDocumentLog 'Тип изменения' (l) = staticCaption(typeChangeDocumentLog(l)) IN recognize;
+
+noteDocumentLog 'Примечание' = DATA VARSTRING[255] (DocumentLog) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+WHEN SET(o IS Document) IF NOT disableDocumentLog() DO {
+    FOR ADDOBJ d = DocumentLog DO {        
+        documentDocumentLog(d) <- o;
+        typeDocumentDocumentLog(d) <- objectClassName(o);
+        numberDocumentDocumentLog(d) <- numberDocument(o);  
+        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
+        dateDocumentDocumentLog(d) <- dateDocument(o);   
+        typeChangeDocumentLog(d) <- TypeChange.add;
+        sessionDocumentLog(d) <- currentSession();
+        noteDocumentLog(d) <- VARSTRING[255]('Добавлен документ');              
+    }
+}
+// todo: пока не работает DROPPED с другими свойствами и в группировке, ждем изменений...
+//WHEN DROPPED(o IS Document) IF NOT disableDocumentLog() DO {
+//    FOR ADDOBJ d = DocumentLog DO {       
+//
+//        typeDocumentDocumentLog(d) <- PREV(objectClassName(o));
+//        numberDocumentDocumentLog(d) <- PREV(numberDocument(o));  
+//        seriesDocumentDocumentLog(d) <- PREV(seriesDocument(o)); 
+//        dateDocumentDocumentLog(d) <- PREV(dateDocument(o));   
+//        typeChangeDocumentLog(d) <- TypeChange.delete;
+//        sessionDocumentLog(d) <- currentSession();
+//        noteDocumentLog(d) <- VARSTRING[255]('Удален документ');         
+//    }
+//}
+
+WHEN ((SETCHANGED(numberDocument(o)) AND PREV(numberDocument(o))) OR (SETCHANGED(seriesDocument(o)) AND PREV(seriesDocument(o))) ) IF NOT disableDocumentLog()  DO {
+    FOR ADDOBJ d = DocumentLog DO {
+        documentDocumentLog(d) <- o;
+        typeDocumentDocumentLog(d) <- objectClassName(o);
+        numberDocumentDocumentLog(d) <- numberDocument(o);  
+        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
+        dateDocumentDocumentLog(d) <- dateDocument(o);   
+        typeChangeDocumentLog(d) <- TypeChange.changeSeriesNumber;
+        noteDocumentLog(d) <- VARSTRING[255]('Предыдущее значение серия/номер: '+(CONCAT '', PREV(seriesDocument(o)), PREV(numberDocument(o))));      
+        sessionDocumentLog(d) <- currentSession();           
+    }
+}
+
+WHEN (x== [ = GROUP SUM 1 IF SET(d IS DocumentDetail) BY documentDocumentDetail(d)](o)) IF NOT disableDocumentLog() DO {
+    FOR ADDOBJ d = DocumentLog DO {
+        documentDocumentLog(d) <- o;
+        typeDocumentDocumentLog(d) <- objectClassName(o);
+        numberDocumentDocumentLog(d) <- numberDocument(o);  
+        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
+        dateDocumentDocumentLog(d) <- dateDocument(o);   
+        typeChangeDocumentLog(d) <- TypeChange.addRow;
+        noteDocumentLog(d) <- VARSTRING[255]('Количество добавленных строк: '+x);  
+        sessionDocumentLog(d) <- currentSession();               
+    }
+}
+
+//WHEN x==[= GROUP SUM 1 IF DROPPED(d IS DocumentDetail) BY PREV(documentDocumentDetail(d))](o) AND NOT disableDocumentLog() DO {
+//    FOR ADDOBJ d = DocumentLog DO {
+//        documentDocumentLog(d) <- o;
+//        typeDocumentDocumentLog(d) <- objectClassName(o);
+//        numberDocumentDocumentLog(d) <- numberDocument(o);  
+//        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
+//        dateDocumentDocumentLog(d) <- dateDocument(o);   
+//        typeChangeDocumentLog(d) <- TypeChange.deleteRow;
+//        noteDocumentLog(d) <- VARSTRING[255]('Количество удаленных строк: '+x);  
+//        sessionDocumentLog(d) <- currentSession();               
+//    }
+//}
+
+META defineDocumentLogForm(form, concrete)
+    EXTEND FORM form
+        OBJECTS dLog=DocumentLog FIXED GRID
+        PROPERTIES(dLog) SHOWIF notDisableDocumentLog() READONLY numberDocumentDocumentLog, seriesDocumentDocumentLog, dateDocumentDocumentLog, typeDocumentDocumentLog,
+                      hostnameComputerDocumentLog, userLoginDocumentLog, dateTimeSessionDocumentLog, nameTypeChangeDocumentLog,
+                      noteDocumentLog   
+        FILTERS documentDocumentLog(dLog) == concrete
+    ;
+    EXTEND DESIGN form {
+        documentHistory {
+            ADD dLog.box;
+        }    
+    }   
+END
+
+FORM documentLogs 'Журнал изменения документов'
+    OBJECTS d=DocumentLog
+    PROPERTIES(d) READONLY numberDocumentDocumentLog, seriesDocumentDocumentLog, dateDocumentDocumentLog, typeDocumentDocumentLog,
+                  hostnameComputerDocumentLog, userLoginDocumentLog, dateTimeSessionDocumentLog, nameTypeChangeDocumentLog,
+                  noteDocumentLog
+;
+
+DESIGN documentLogs FROM DEFAULT{
+    main {
+        ADD d.box;
+        ADD functions.box;        
+    }
+}
+
+NAVIGATOR {
+    systemEvents {
+        ADD documentLogs;
+
+    }
+}
