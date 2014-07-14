@@ -72,6 +72,10 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     Shipment.dateShipment (shipment) += dateShipment(shipment);
     Shipment.timeShipment (shipment) += timeShipment(shipment);
     Shipment.isUserShipment(shipment) += isUserShipment(shipment);
+    
+    createdUserShipment = ABSTRACT CustomUser (Shipment);
+    createdNameUserShipment 'Создан пользователем' (shipment) = nameContact(createdUserShipment(shipment)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+    createdUserShipment(shipment) += createdUserUserShipment(shipment) IF shipment IS UserShipment;    
 
     @defineDocumentInterfaceNumber(shipment);
     Shipment.numberShipment (shipment) += numberShipment(shipment);
@@ -433,6 +437,9 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     nameFilterShipmentSupplierStock 'Склад поставщика' = nameStock(filterShipmentSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
     filterSupplierStockShipment (s) = supplierStockShipment(s) == filterShipmentSupplierStock() OR (s IS Shipment AND NOT filterShipmentSupplierStock());      
     
+    overShowEditShipment = ABSTRACT BOOLEAN (Shipment);
+    overShowDeleteShipment = ABSTRACT BOOLEAN (Shipment);     
+    
     FORM shipments captions TITLE captions###sign
     
         PROPERTIES() filterShipmentDateFrom, filterShipmentDateTo, nameFilterShipmentSupplier, nameFilterShipmentSupplierStock, nameFilterShipmentCustomer, nameFilterShipmentCustomerStock
@@ -447,10 +454,11 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                                             postedNameUserUserShipment, postedTimeUserShipment, postedHostnameComputerUserShipment
 
         PROPERTIES ()  addUserShipment TODRAW s
-        PROPERTIES (s) editShipment SHOWIF isOpenedShipment(s), copyShipment
+        PROPERTIES (s) editShipment SHOWIF overShowEditShipment(s), //isOpenedShipment(s), 
+                       copyShipment
         PROPERTIES (s) closeUserShipment SHOWIF isOpenedUserShipment(s), openUserShipment SHOWIF isClosedUserShipment(s)
 
-        PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedShipment(s)
+        PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDeleteShipment(s) //isUserOpenedShipment(s)
 
         OBJECTS d = ShipmentDetail
         PROPERTIES (d) READONLY indexShipmentDetail, idBarcodeSkuShipmentDetail, nameSkuShipmentDetail, shortNameUOMSkuShipmentDetail

@@ -131,8 +131,12 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     @defineDocumentInterface(invoice);
     @deriveDocumentHeaderTimePrefix(UserInvoice, );
     
+    createdUserInvoice = ABSTRACT CustomUser (Invoice);
+    createdNameUserInvoice 'Создан пользователем' (invoice) = nameContact(createdUserInvoice(invoice)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+    createdUserInvoice(invoice) += createdUserUserInvoice(invoice) IF invoice IS UserInvoice;
+    
     Invoice.createdTimeInvoice (invoice) += createdTimeUserInvoice(invoice) IF invoice IS UserInvoice;
-    Invoice.createdUserInvoice (invoice) += createdUserUserInvoice(invoice) IF invoice IS UserInvoice;    
+    Invoice.createdUserInvoice (invoice) += createdUserInvoice(invoice);    
     
     @defineExternalizable(userInvoice, VARSTRING[100]);
     @defineExternalizable(userInvoiceDetail, VARSTRING[100]);
@@ -579,6 +583,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     nameFilterInvoiceSupplierStock 'Склад поставщика' = nameStock(filterInvoiceSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
     filterSupplierStockInvoice (i) = supplierStockInvoice(i) == filterInvoiceSupplierStock() OR (i IS Invoice AND NOT filterInvoiceSupplierStock());      
     
+    
+    overShowEditInvoice = ABSTRACT BOOLEAN (Invoice);
+    overShowDeleteInvoice = ABSTRACT BOOLEAN (Invoice); 
+
     FORM invoices 'Накладные' TITLE 'Накладные'###sign
     
         PROPERTIES() filterInvoiceDateFrom, filterInvoiceDateTo, nameFilterInvoiceSupplier, nameFilterInvoiceSupplierStock, nameFilterInvoiceCustomer, nameFilterInvoiceCustomerStock
@@ -597,9 +605,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
                                             postedNameUserUserInvoice, postedTimeUserInvoice, postedHostnameComputerUserInvoice 
 
         PROPERTIES ()  addUserInvoice TODRAW i
-        PROPERTIES (i) editInvoice SHOWIF isOpenedInvoice(i), copyInvoice
+        PROPERTIES (i) editInvoice SHOWIF overShowEditInvoice(i),//isOpenedInvoice(i), 
+                       copyInvoice
         PROPERTIES (i) closeUserInvoice SHOWIF isOpenedUserInvoice(i), openUserInvoice SHOWIF isClosedUserInvoice(i)
-        PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpenedInvoice(i)
+        PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF overShowDeleteInvoice(i)//isUserOpenedInvoice(i)
 
         OBJECTS d = InvoiceDetail
         PROPERTIES (d) READONLY indexInvoiceDetail, idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail

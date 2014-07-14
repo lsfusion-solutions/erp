@@ -172,6 +172,13 @@ receiveShipmentInvoice (invoice)+= ACTION (invoice)  {
 deleteCreateShipment (shipment)+= WHEN invoiceInvoiceShipment(shipment) IS UserInvoice THEN  ACTION (shipment)  {
     createShipmentInvoice(invoice) <- NULL WHERE invoice == invoiceInvoiceShipment(shipment);          
 };
+
+//-- Запрет на изменение документа другим пользователем
+@defineOperationChangesDocument(shipment, UserShipment, preventChangesDocument, created);
+
+overShowEditShipment (i) += showEditDeleteUserShipment(i) AND isOpenedShipment(i);
+overShowDeleteShipment (i) += showEditDeleteUserShipment(i) AND isUserOpenedShipment(i); 
+
 NAVIGATOR {
     saleStockNavigator {
         ADD shipments;

@@ -123,6 +123,10 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     Order.noteOrder (order) += noteOrder(order);
     Order.indexOrderDetail(d) += indexOrderDetail(d);
     
+    createdUserOrder = ABSTRACT CustomUser (Order);
+    createdNameUserOrder 'Создан пользователем' (order) = nameContact(createdUserOrder(order)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+    createdUserOrder(order) += createdUserUserOrder(order) IF order IS UserOrder;    
+    
     @deriveDocumentHeaderTimePrefix(UserOrder, );
     Order.orderOrderDetail (detail) += orderOrderDetail(detail);
     Order.dateOrder (order) += dateOrder(order);
@@ -569,6 +573,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     nameFilterOrderSupplierStock 'Склад поставщика' = nameStock(filterOrderSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
     filterSupplierStockOrder (o) = supplierStockOrder(o) == filterOrderSupplierStock() OR (o IS Order AND NOT filterOrderSupplierStock());        
 
+    overShowEditOrder = ABSTRACT BOOLEAN (Order);
+    overShowDeleteOrder = ABSTRACT BOOLEAN (Order);          
          
     FORM orders 'Заказы' TITLE 'Заказы'###sign
     
@@ -587,9 +593,10 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                                             postedNameUserUserOrder, postedTimeUserOrder, postedHostnameComputerUserOrder
 
         PROPERTIES ()  addUserOrder TODRAW o
-        PROPERTIES (o) editOrder SHOWIF isOpenedOrder(o), copyOrder
+        PROPERTIES (o) editOrder SHOWIF overShowEditOrder(o),//isOpenedOrder(o), 
+                       copyOrder
         PROPERTIES (o) closeUserOrder SHOWIF isOpenedUserOrder(o), openUserOrder SHOWIF isClosedUserOrder(o)
-        PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpenedOrder(o)
+        PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF overShowDeleteOrder(o) //isUserOpenedOrder(o)
 
         OBJECTS d=OrderDetail
         PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
