@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.text.DateFormatSymbols;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.List;
 import java.util.Locale;
 
 public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
@@ -151,6 +152,10 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
     }
     
     protected boolean notNullNorEmpty(String value) {
+        return value != null && !value.isEmpty();
+    }
+    
+    protected boolean notNullNorEmpty(List value) {
         return value != null && !value.isEmpty();
     }
 

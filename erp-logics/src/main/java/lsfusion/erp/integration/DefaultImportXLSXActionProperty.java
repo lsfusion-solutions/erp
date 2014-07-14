@@ -36,6 +36,10 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
+        return getXLSXFieldValue(sheet, row, cell, null);
+    }
+    
     protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer cell, String defaultValue) throws ParseException {
         if (cell == null) return defaultValue;
         XSSFRow xssfRow = sheet.getRow(row);
@@ -59,6 +63,10 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
         return result;
     }
 
+    protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
+        return getXLSXBigDecimalFieldValue(sheet, row, cell, null);
+    }
+    
     protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer cell, BigDecimal defaultValue) throws ParseException {
         if (cell == null) return defaultValue;
         XSSFRow xssfRow = sheet.getRow(row);
@@ -80,6 +88,10 @@ public class DefaultImportXLSXActionProperty extends DefaultImportActionProperty
         }
     }
 
+    protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
+        return getXLSXDateFieldValue(sheet, row, cell, null);
+    }
+    
     protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {
         if (cell == null) return defaultValue;
         XSSFRow xssfRow = sheet.getRow(row);

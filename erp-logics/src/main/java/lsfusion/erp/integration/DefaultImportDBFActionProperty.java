@@ -34,11 +34,15 @@ public class DefaultImportDBFActionProperty extends DefaultImportActionProperty 
     }
 
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
-        return getDBFFieldValue(importFile, fieldName, charset, null);
+        return getDBFFieldValue(importFile, fieldName, charset, (String) null);
     }
     
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
         return getDBFFieldValue(importFile, fieldName, charset, false, defaultValue);
+    }
+
+    protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull) throws UnsupportedEncodingException {
+       return getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, null); 
     }
     
     protected String getDBFFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
