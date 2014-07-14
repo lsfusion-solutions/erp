@@ -353,7 +353,15 @@ editUserWriteOff 'Редактировать'  = ACTION EDITFORM UserWriteOff;
 editWriteOff(w) += editUserWriteOff(w);
 isUserOpenedWriteOff(w)=  isOpenedWriteOff(w) AND isUserWriteOff(w);
 
+filterWriteOffDateFrom 'Дата с' = DATA SESSION DATE ();
+filterDateFromWriteOff (w) = dateWriteOff(w) >= filterWriteOffDateFrom() OR (w IS WriteOff AND NOT filterWriteOffDateFrom());      
+    
+filterWriteOffDateTo 'Дата по' = DATA SESSION DATE ();
+filterDateToWriteOff (w) = dateWriteOff(w) <= filterWriteOffDateTo() OR (w IS WriteOff AND NOT filterWriteOffDateTo());
+
 FORM writeOffs 'Списания'
+    PROPERTIES () filterWriteOffDateFrom, filterWriteOffDateTo
+   
     OBJECTS w=WriteOff
     PROPERTIES (w) READONLYIF isReadonly() isClosedWriteOff, isPostedWriteOff, numberWriteOff, seriesWriteOff, 
                    dateWriteOff, timeWriteOff, nameStockWriteOff
@@ -374,6 +382,8 @@ FORM writeOffs 'Списания'
                    quantityWriteOffDetail, priceWriteOffDetail, sumWriteOffDetail, nameStockWriteOffDetail
 
     FILTERS writeOffWriteOffDetail(d) == w
+    FILTERS filterDateFromWriteOff(w), 
+            filterDateToWriteOff(w)
 ;
 @extendFormFilterAccessStock(WriteOff, w, writeOffs, stock, company);
 
@@ -382,10 +392,18 @@ DESIGN writeOffs FROM DEFAULT {
         fill = 1;
         type = SPLITV;
 
-        ADD w.box {
-            fill = 2;
+        NEW filtersBox {                       
+            fill = 1;
+            NEW topFilters {
+                caption = 'Фильтры';
+                type = CONTAINERH;          
+                ADD PROPERTY(filterWriteOffDateFrom());
+                ADD PROPERTY(filterWriteOffDateTo());
+        } 
+            ADD w.box {
+                fill = 2;
+            }
         }
-
         NEW documentDetail {
             fill = 1;
             type = TABBED;
