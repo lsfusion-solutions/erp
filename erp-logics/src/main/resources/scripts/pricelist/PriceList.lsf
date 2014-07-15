@@ -24,10 +24,14 @@ includeVATLedgerPriceListType (priceListType) += includeVATDataPriceListType(pri
 @defineDocumentHeaderCurrency(dataPriceListType);
 currencyPriceListType(dataPriceListType) += currencyDataPriceListType(dataPriceListType);
 
+differentOrganizationsDataPriceListType 'Для разных организаций' = DATA BOOLEAN (DataPriceListType); 
+differentOrganizationsLedgerPriceListType(type) += WHEN type IS DataPriceListType THEN differentOrganizationsDataPriceListType(type);   
+
 FORM dataPriceListType 'Пользовательский вид цен'
     OBJECTS d = DataPriceListType FIXED PANEL
     PROPERTIES(d) nameDataPriceListType, idDataPriceListType SHOWIF showIDs(), includeVATPriceListType,
-                  nameCurrencyDataPriceListType, nameRoundConditionPriceListType, batchLedgerDataPriceListType
+                  nameCurrencyDataPriceListType, nameRoundConditionPriceListType, batchLedgerDataPriceListType, 
+                  differentOrganizationsDataPriceListType
 
     EDIT DataPriceListType OBJECT d
 ;
@@ -272,6 +276,8 @@ headerNameChangeDataPriceListType (dataPriceListType) =
 
 headerNameDataPriceListType (dataPriceListType) =
     namePriceListType(dataPriceListType) + ' (новая) ' MINCHARWIDTH 30 MAXCHARWIDTH 50;
+    
+headerNameCompanyDataPriceListType (dataPriceListType) = 'Организация (старая)' IF dataPriceListType IS PriceListType;    
 
 // Цвета колонок
 backgroundCurrentDataPriceListType 'Цвет' (dataPriceListType) = RGB(255,238,165) IF dataPriceListType IS DataPriceListType;
@@ -392,7 +398,10 @@ filterPriceListTypeUserPriceListBatchStock (userPriceList, batch, stock) =
     currentPriceBatchPriceListStock (batch, userPriceList, stock) OR
     (batch IS Batch AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
     
-editSkuUserPriceListDetail 'Редактировать SKU' (d) = editSku(skuUserPriceListDetail(d));    
+editSkuUserPriceListDetail 'Редактировать SKU' (d) = editSku(skuUserPriceListDetail(d));   
+   
+nameCompanyBLedgerPriceListTypeStockPriceListDetail 'Организация' (type, stock, d) = nameLegalEntity(companyBLedgerPriceListTypeSkuStockDateTime(type, skuUserPriceListDetail(d), stock ,fromDateTimePriceListDetail(d)));    
+toShowPriceListPriceListType (p, to) = showPriceListPriceListType(p, to) AND to IS LedgerPriceListType AND differentOrganizationsLedgerPriceListType(to);          
     
 FORM userPriceList 'Прайс'
     OBJECTS p = UserPriceList FIXED PANEL
@@ -460,8 +469,9 @@ FORM userPriceList 'Прайс'
         
     OBJECTS tt = Stock FIXED PANEL
     PROPERTIES SELECTOR stockName = nameStock(tt) FORCE PANEL
-    PROPERTIES(d, to, tt) currentPricePriceListDetailDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to) TODRAW d FORCE GRID
-    PROPERTIES(d, th, tt) changePricePriceListDetailDataPriceListTypeStock COLUMNS (th) HEADER headerNameChangeDataPriceListType(th) BACKGROUND backgroundChangeDataPriceListType(th) TODRAW d FORCE GRID
+    PROPERTIES(d, to, tt) READONLY currentPricePriceListDetailDataPriceListTypeStock COLUMNS 'type' (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to) TODRAW d FORCE GRID
+    PROPERTIES(to, tt, d) SHOWIF toShowPriceListPriceListType(p, to) READONLY nameCompanyBLedgerPriceListTypeStockPriceListDetail COLUMNS 'type' (to) HEADER headerNameCompanyDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to) TODRAW d FORCE GRID    
+    PROPERTIES(d, th, tt) READONLY changePricePriceListDetailDataPriceListTypeStock COLUMNS (th) HEADER headerNameChangeDataPriceListType(th) BACKGROUND backgroundChangeDataPriceListType(th) TODRAW d FORCE GRID
 
     PROPERTIES(d)        nameCompanyUserPriceListDetail
     FILTERS isCompanyStock(tt)
