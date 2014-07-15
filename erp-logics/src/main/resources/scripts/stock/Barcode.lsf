@@ -25,7 +25,20 @@ amountBarcode 'Множитель' = OVERRIDE (1.0 IF barcode IS Barcode), dataA
 
 completeBarcode = FORMULA STRING[13] PG 'completeBarcode($1)' MS 'dbo.completeBarcode($1)';
 
+allowIncorrectBarcode 'Разрешить некорректные штрих-коды' = DATA BOOLEAN();
+
+EXTEND FORM options
+    PROPERTIES() allowIncorrectBarcode
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(allowIncorrectBarcode());   
+    }
+}
+
 CONSTRAINT charLength(idBarcode(barcode)) == 13 AND completeBarcode(left(idBarcode(barcode),12)) != idBarcode(barcode) 
+    AND NOT allowIncorrectBarcode()  
     MESSAGE 'Некорректный шрих-код';
 
 // Sku
