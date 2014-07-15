@@ -285,6 +285,41 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
     @defineDocumentSkuStockExtra(blanketOrder, sku, supplierStock, customerStock);
     @extendFormDocumentSkuStockExtraCustom(blanketOrder, blanketOrder, o, supplier, supplierStock, customerStock);
     @defineDocumentSkuStockSupplier (blanketOrder, blanketOrder, o);
+    
+    overCopyBlanketOrder = ABSTRACT ACTION LIST (BlanketOrder, BlanketOrder);
+    overCopyBlanketOrderDetail = ABSTRACT ACTION LIST (BlanketOrderDetail, BlanketOrderDetail);
+    copyBlanketOrder 'Копировать' = ACTION (order) NEWSESSION {
+        FOR ADDOBJ o = BlanketOrder DO {
+            supplierBlanketOrder(o) <- supplierBlanketOrder(order);
+            supplierStockBlanketOrder(o) <- supplierStockBlanketOrder(order);
+            customerBlanketOrder(o) <- customerBlanketOrder(order);
+            
+            inBlanketOrderStock(o,stock) <- inBlanketOrderStock(order,stock) WHERE stock IS Stock;
+            agreementBlanketOrderStock(o,stock) <- agreementBlanketOrderStock(order,stock) WHERE stock IS Stock;
+            priceListTypeBlanketOrderStock(o,stock) <- priceListTypeBlanketOrderStock(order,stock) WHERE stock IS Stock;
+            
+            currencyBlanketOrder(o) <- currencyBlanketOrder(order);
+            agreementBlanketOrder(o) <- agreementBlanketOrder(order);
+            noteBlanketOrder(o) <- noteBlanketOrder(order);
+
+            EXEC overCopyBlanketOrder(o, order);
+
+            FOR blanketOrderBlanketOrderDetail(detail) == order DO {
+                FOR ADDOBJ d=BlanketOrderDetail DO {
+                    blanketOrderBlanketOrderDetail(d) <- o;
+                    skuBlanketOrderDetail(d) <- skuBlanketOrderDetail(detail);
+                    quantityBlanketOrderDetail(d) <- quantityBlanketOrderDetail(detail);
+                    
+                    dataSupplierStockBlanketOrderDetail(d) <- dataSupplierStockBlanketOrderDetail(detail);
+                    customerStockBlanketOrderDetail(d) <- customerStockBlanketOrderDetail(detail);
+                    
+                    overCopyBlanketOrderDetail(d, detail);
+                }
+            }
+
+            FORM blanketOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+        }
+    } TOOLBAR;
 
     FORM blanketOrders 'Множественные заказы' TITLE 'Множественные заказы'###sign
         OBJECTS o = BlanketOrder
@@ -298,7 +333,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
         PROPERTIES (o) READONLY FORCE PANEL createdNameUserBlanketOrder, createdTimeBlanketOrder, createdHostnameComputerBlanketOrder, 
                                             postedNameUserBlanketOrder, postedTimeBlanketOrder, postedHostnameComputerBlanketOrder
 
-        PROPERTIES (o) ADDFORM, EDITFORM SHOWIF isOpenedBlanketOrder(o)
+        PROPERTIES (o) ADDFORM, EDITFORM SHOWIF isOpenedBlanketOrder(o), copyBlanketOrder
         PROPERTIES (o) closeBlanketOrder SHOWIF isOpenedBlanketOrder(o), openBlanketOrder SHOWIF isClosedBlanketOrder(o)
         PROPERTIES (o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedBlanketOrder(o)
         
@@ -445,6 +480,9 @@ END
 // Партии приход
 META defineBlanketOrderBatch(legalEntityProp, stockProp, stockExtra)
     @defineDocumentDetailBatch(blanketOrder, batch);
+    overCopyBlanketOrderDetail(d, detail) += ACTION (d, detail) {      
+        batchBlanketOrderDetail(d) <- batchBlanketOrderDetail(detail);
+    } 
 
 //    overCopyUserOrderDetail(d, detail) += ACTION (d, detail) {      
 //        batchUserOrderDetail(d) <- batchUserOrderDetail(detail);

@@ -25,10 +25,17 @@ batchOrderDetail(detail)+= batchBlanketOrderDetail(blanketOrderDetailBlanketOrde
 operationBlanketOrder = DATA Operation (BlanketOrder);
 nameOperationBlanketOrder 'Операция' = nameOperation(operationBlanketOrder(blanketOrder));
 
+overCopyBlanketOrder(o, order) += ACTION(o, order) {
+    operationBlanketOrder(o) <- operationBlanketOrder(order);
+}
+
 dataOperationBlanketOrderStock = DATA Operation (BlanketOrder, Stock);
 operationBlanketOrderStock (blanketOrder, stock) = OVERRIDE (operationBlanketOrder(blanketOrder) IF stock IS Stock), dataOperationBlanketOrderStock(blanketOrder, stock);
 nameOperationBlanketOrderStock 'Операция' (blanketOrder, stock)= nameOperation(operationBlanketOrderStock (blanketOrder, stock));
 
+overCopyBlanketOrder(o, order) += ACTION(o, order) {
+    dataOperationBlanketOrderStock(o,stock) <- dataOperationBlanketOrderStock(order,stock) WHERE stock IS Stock;
+}
 operationBlanketOrderDetail 'Операция' (detail) = operationBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail));
 
 operationOrder(order) += operationBlanketOrderStock(blanketOrderBlanketOrderOrder(order), stockBlanketOrderOrder(order));
@@ -38,10 +45,10 @@ CONSTRAINT operationBlanketOrderDetail(blanketOrderDetail) AND priceListTypeBlan
     CHECKED BY priceListTypeBlanketOrderDetail
     MESSAGE 'Вид цены должен совпадать с отмеченными в операции';
 
-//CONSTRAINT operationBlanketOrder(blanketOrder) AND priceListTypeBlanketOrderStock(blanketOrder, stock)
-//           AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderStock(blanketOrder, stock), operationBlanketOrder(blanketOrder))
-//    CHECKED BY priceListTypeBlanketOrderStock
-//    MESSAGE 'Вид цены должен совпадать с отмеченными в операции';
+CONSTRAINT operationBlanketOrder(blanketOrder) AND priceListTypeBlanketOrderStock(blanketOrder, stock)
+           AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderStock(blanketOrder, stock), operationBlanketOrder(blanketOrder))
+    CHECKED BY priceListTypeBlanketOrderStock
+    MESSAGE 'Вид цены должен совпадать с отмеченными в операции';
 
 CONSTRAINT dataOperationBlanketOrderStock(blanketOrder, stock) AND priceListTypeBlanketOrderStock(blanketOrder, stock)
            AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderStock(blanketOrder, stock), dataOperationBlanketOrderStock(blanketOrder, stock))
