@@ -599,89 +599,102 @@ EXTEND FORM customLabelTransaction
 ;
 // ------------------------- Подключение печати ценников в документ --------------------- //
 META defineDocumentLabelTransaction (document, skuProp, stockProp)
-    create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {
-
-        LOCAL inBarcode = BOOLEAN (Barcode);
-        inBarcode(barcode) <- TRUE IF quantity###document##Detail###skuProp###document(skuBarcode(barcode), document);
-    
-        // разбивается на несколько выполнений, чтобы не тупил PostgreSQL со сложным запросом
-        inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрихкод является активным
-
-        // бежим по всем типам ценников из управленческих параметров
-        // для каждого создаем по операции печати ценников
-        FOR ([= GROUP SUM 1 IF inBarcode(barcode) AND inLabelTypeSkuDepartmentStore(labelType, skuBarcode(barcode), departmentStore) BY labelType, departmentStore](labelType, stockProp###document(document)))
-            ADDOBJ t = LabelTransaction DO {
-                departmentStoreLabelTransaction(t) <- stockProp###document(document);
-                priceTransactionDocumentLabelTransaction(t) <- document;
-                labelTypeLabelTransaction(t) <- labelType;
-                
-                FOR document###document##Detail(dd) == document AND 
-                    inBarcode(barcode) AND skuBarcode(barcode) == skuProp###document##Detail(dd) AND 
-                    inLabelTypeSkuDepartmentStore(labelType, skuBarcode(barcode), stockProp###document(document))
-                    ADDOBJ d = LabelTransactionDetail DO {
-                    labelTransactionLabelTransactionDetail(d) <- t;
-                    skuLabelTransactionDetail(d) <- skuProp###document##Detail(dd);
-                    batchLabelTransactionDetail(d) <- batch###document##Detail(dd);
-                    barcodeLabelTransactionDetail(d) <- barcode;
-
-                    nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
-                    createAttributeLabelTransactionDetail(d);
-
-                    quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
-                                                            THEN INTEGER(quantity###document##Detail(dd))
-                                                         ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
-                    IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
-                        priceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
-                    } ELSE {
-                        priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-                    }    
-                } 
-                // вызываем печатную форму для каждого из них
-                IF orientationLabelType(labelType)== PrintOrientation.portrait THEN {
-                    FORM printLabelTransactionP OBJECTS l = t PRINT;
-                } ELSE {
-                    FORM printLabelTransaction OBJECTS l = t PRINT;
-                }
+    create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION AUTOAPPLY {        
+        
+        IF isDraft###document(document) THEN {
+            CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
         }
-        printedPriceTransactionDocument(document) <- TRUE;
+        IF confirmed() OR NOT isDraft###document(document) THEN { 
+            LOCAL inBarcode = BOOLEAN (Barcode);
+            inBarcode(barcode) <- TRUE IF quantity###document##Detail###skuProp###document(skuBarcode(barcode), document);
+        
+            // разбивается на несколько выполнений, чтобы не тупил PostgreSQL со сложным запросом
+            inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрихкод является активным
+    
+            // бежим по всем типам ценников из управленческих параметров
+            // для каждого создаем по операции печати ценников
+            FOR ([= GROUP SUM 1 IF inBarcode(barcode) AND inLabelTypeSkuDepartmentStore(labelType, skuBarcode(barcode), departmentStore) BY labelType, departmentStore](labelType, stockProp###document(document)))
+                ADDOBJ t = LabelTransaction DO {
+                    departmentStoreLabelTransaction(t) <- stockProp###document(document);
+                    priceTransactionDocumentLabelTransaction(t) <- document;
+                    labelTypeLabelTransaction(t) <- labelType;
+                    
+                    FOR document###document##Detail(dd) == document AND 
+                        inBarcode(barcode) AND skuBarcode(barcode) == skuProp###document##Detail(dd) AND 
+                        inLabelTypeSkuDepartmentStore(labelType, skuBarcode(barcode), stockProp###document(document))
+                        ADDOBJ d = LabelTransactionDetail DO {
+                        labelTransactionLabelTransactionDetail(d) <- t;
+                        skuLabelTransactionDetail(d) <- skuProp###document##Detail(dd);
+                        batchLabelTransactionDetail(d) <- batch###document##Detail(dd);
+                        barcodeLabelTransactionDetail(d) <- barcode;
+    
+                        nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
+                        createAttributeLabelTransactionDetail(d);
+    
+                        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
+                                                                THEN INTEGER(quantity###document##Detail(dd))
+                                                             ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
+                        IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
+                            priceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
+                        } ELSE {
+                            priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+                        }    
+                    } 
+                    // вызываем печатную форму для каждого из них
+                    IF orientationLabelType(labelType)== PrintOrientation.portrait THEN {
+                        FORM printLabelTransactionP OBJECTS l = t PRINT;
+                    } ELSE {
+                        FORM printLabelTransaction OBJECTS l = t PRINT;
+                    }
+            }
+            printedPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
+        }                
     } TOOLBAR CONFIRM;
 
     createSnapshot###document##LabelTransaction 'Перепечатать ценники' = ACTION (document) NEWSESSION {
 
-        LOCAL inBarcode = BOOLEAN (Barcode);
-        inBarcode(barcode) <- TRUE IF quantity###document##Detail###skuProp###document(skuBarcode(barcode), document);
-    
-        // разбивается на несколько выполнений, чтобы не тупил PostgreSQL со сложным запросом
-        inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрихкод является активным
-
-        FOR ADDOBJ t = LabelTransaction DO {
-            departmentStoreLabelTransaction(t) <- stockProp###document(document);
-            priceTransactionDocumentLabelTransaction(t) <- document;
-
-            FOR document###document##Detail(dd) == document AND inBarcode(barcode) AND skuBarcode(barcode) == skuProp###document##Detail(dd) 
-                ADDOBJ d = LabelTransactionDetail DO {
-                    labelTransactionLabelTransactionDetail(d) <- t;
-                    skuLabelTransactionDetail(d) <- skuProp###document##Detail(dd);
-                    batchLabelTransactionDetail(d) <- batch###document##Detail(dd);
-                    barcodeLabelTransactionDetail(d) <- barcode;
-
-                    nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
-                    documentQuantityLabelTransactionDetail(d) <- quantity###document##Detail(dd); 
-                    
-//                    IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
-//                        documentPriceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
-//                    }                                                         
-                    createAttributeLabelTransactionDetail(d);
-            }
-            FORM customLabelTransaction OBJECTS l = t MANAGESESSION MODAL ;
-            IF formResult() == FormResult.ok THEN {
-                IF orientationLabelType(labelTypeLabelTransaction(t))== PrintOrientation.portrait THEN {
-                    FORM printLabelTransactionP OBJECTS l = t PRINT;
-                } ELSE {
-                    FORM printLabelTransaction OBJECTS l = t PRINT;
-                }                       
-            }
+        
+        IF isDraft###document(document) THEN {
+            CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
         }
+        IF (confirmed()) OR  NOT isDraft###document(document) THEN { 
+            
+            LOCAL inBarcode = BOOLEAN (Barcode);    
+            inBarcode(barcode) <- TRUE IF quantity###document##Detail###skuProp###document(skuBarcode(barcode), document);
+        
+            // разбивается на несколько выполнений, чтобы не тупил PostgreSQL со сложным запросом
+            inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрихкод является активным
+    
+            FOR ADDOBJ t = LabelTransaction DO {
+                departmentStoreLabelTransaction(t) <- stockProp###document(document);
+                priceTransactionDocumentLabelTransaction(t) <- document;
+    
+                FOR document###document##Detail(dd) == document AND inBarcode(barcode) AND skuBarcode(barcode) == skuProp###document##Detail(dd) 
+                    ADDOBJ d = LabelTransactionDetail DO {
+                        labelTransactionLabelTransactionDetail(d) <- t;
+                        skuLabelTransactionDetail(d) <- skuProp###document##Detail(dd);
+                        batchLabelTransactionDetail(d) <- batch###document##Detail(dd);
+                        barcodeLabelTransactionDetail(d) <- barcode;
+    
+                        nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
+                        documentQuantityLabelTransactionDetail(d) <- quantity###document##Detail(dd); 
+                        
+    //                    IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
+    //                        documentPriceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
+    //                    }                                                         
+                        createAttributeLabelTransactionDetail(d);
+                }
+                FORM customLabelTransaction OBJECTS l = t MANAGESESSION MODAL ;
+                IF formResult() == FormResult.ok THEN {
+                    IF orientationLabelType(labelTypeLabelTransaction(t))== PrintOrientation.portrait THEN {
+                        FORM printLabelTransactionP OBJECTS l = t PRINT;
+                    } ELSE {
+                        FORM printLabelTransaction OBJECTS l = t PRINT;
+                    }                       
+                }
+            }            
+        }            
+        
     } TOOLBAR;
 
     showPrintLabelTransaction###document 'Показывать' (document) = isPosted###document(document) AND NOT Label.skipPriceTransactionDocument(document);

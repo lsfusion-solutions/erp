@@ -449,18 +449,30 @@ END
 // Подключение свойств к документу
 META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
     create###document##MachineryPriceTransaction 'Загрузить в оборудование' = ACTION (document) NEWSESSION AUTOAPPLY {
-        ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
-        ASSIGN createMachineryPriceTransactionDocument() <- document;
-        EXEC createMachineryPriceTransaction(stockProp###document(document));
-        ASSIGN sentPriceTransactionDocument(document) <- TRUE;
+    
+        IF isDraft###document(document) THEN {
+            CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
+        }
+        IF (confirmed()) OR NOT isDraft###document(document) THEN {   
+                ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
+                ASSIGN createMachineryPriceTransactionDocument() <- document;
+                EXEC createMachineryPriceTransaction(stockProp###document(document));
+                ASSIGN sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
+            
+        } 
     } TOOLBAR CONFIRM;
 
     createSnapshot###document##MachineryPriceTransaction 'Перегрузить все позиции' = ACTION (document) NEWSESSION AUTOAPPLY {
-        ASSIGN createMachineryPriceTransactionSnapshot() <- TRUE;
-        ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF count###document##Detail###skuProp###document(sku, document);
-        ASSIGN createMachineryPriceTransactionDocument() <- document;
-        EXEC createMachineryPriceTransaction(stockProp###document(document));
-        ASSIGN sentPriceTransactionDocument(document) <- TRUE;
+        IF isDraft###document(document) THEN {
+            CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
+        }
+        IF (confirmed()) OR NOT isDraft###document(document) THEN {     
+                ASSIGN createMachineryPriceTransactionSnapshot() <- TRUE;
+                ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF count###document##Detail###skuProp###document(sku, document);
+                ASSIGN createMachineryPriceTransactionDocument() <- document;
+                EXEC createMachineryPriceTransaction(stockProp###document(document));
+                ASSIGN sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
+        }
     } CONFIRM;
 
     showCreateMachineryPriceTransaction###document 'Показывать' (document) = isPosted###document(document) AND NOT Machinery.skipPriceTransactionDocument(document)
@@ -473,8 +485,9 @@ END
 
 META extendFormDocumentMachineryPriceTransaction(form, object, document, afterProp, propContainer)
     EXTEND FORM form
-        PROPERTIES(object) statusMachineryPriceTransactionDocument ON SHORTCUT createSnapshot###document##MachineryPriceTransaction(object) BACKGROUND backgroundCreateMachineryPriceTransaction###document(object) READONLY AFTER afterProp###document(object),
-                           create###document###MachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransaction###document(object)
+        PROPERTIES(object) statusMachineryPriceTransactionDocument BACKGROUND backgroundCreateMachineryPriceTransaction###document(object) READONLY AFTER afterProp###document(object),        
+                           create###document###MachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransaction###document(object),
+                           createSnapshot###document##MachineryPriceTransaction FORCE PANEL
     ;
     EXTEND DESIGN form {
         propContainer{
@@ -483,6 +496,7 @@ META extendFormDocumentMachineryPriceTransaction(form, object, document, afterPr
                 type = CONTAINERV;    
                         
                 ADD PROPERTY (create###document###MachineryPriceTransaction(object));
+                ADD PROPERTY (createSnapshot###document##MachineryPriceTransaction(object));
             }
         }
     }
