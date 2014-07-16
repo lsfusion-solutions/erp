@@ -6,7 +6,7 @@ import java.sql.Date;
 import java.sql.Time;
 
 public class SalesInfo implements Serializable {
-    public Integer numberGroupCashRegister;
+    public Integer nppGroupMachinery;
     public Integer nppMachinery;
     public String numberZReport;
     public Integer numberReceipt;
@@ -25,11 +25,11 @@ public class SalesInfo implements Serializable {
     public Integer numberReceiptDetail;
     public String filename;
 
-    public SalesInfo(Integer numberGroupCashRegister, Integer nppMachinery, String numberZReport, Integer numberReceipt,
+    public SalesInfo(Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Integer numberReceipt,
                      Date dateReceipt, Time timeReceipt, BigDecimal sumCard, BigDecimal sumCash, String barcodeItem, Integer itemObject, 
                      BigDecimal quantityReceiptDetail, BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail, 
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename) {
-        this.numberGroupCashRegister = numberGroupCashRegister;
+        this.nppGroupMachinery = nppGroupMachinery;
         this.nppMachinery = nppMachinery;
         this.numberZReport = numberZReport;
         this.numberReceipt = numberReceipt;

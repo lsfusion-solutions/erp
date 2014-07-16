@@ -1243,11 +1243,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             barcodeMap.put(sale.itemObject, barcode);
                         }
                                                 
-                        String idZReport = sale.numberGroupCashRegister + "_" + sale.nppMachinery + "_" + sale.numberZReport; 
-                        String idReceipt = sale.numberGroupCashRegister + "_" + sale.nppMachinery + "_" + sale.numberZReport + "_" + sale.numberReceipt;
-                        String idReceiptDetail = sale.numberGroupCashRegister + "_" + sale.nppMachinery + "_"  + sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberReceiptDetail;
+                        String idZReport = sale.nppGroupMachinery + "_" + sale.nppMachinery + "_" + sale.numberZReport; 
+                        String idReceipt = sale.nppGroupMachinery + "_" + sale.nppMachinery + "_" + sale.numberZReport + "_" + sale.numberReceipt;
+                        String idReceiptDetail = sale.nppGroupMachinery + "_" + sale.nppMachinery + "_"  + sale.numberZReport + "_" + sale.numberReceipt + "_" + sale.numberReceiptDetail;
                         if (sale.quantityReceiptDetail.doubleValue() < 0) {
-                            List<Object> row = Arrays.<Object>asList(sale.numberGroupCashRegister, sale.nppMachinery, idZReport, sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, idZReport, sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
                                     idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
                                     sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail,
@@ -1256,7 +1256,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 row.add(sale.seriesNumberDiscountCard);
                             dataReturn.add(row);
                         } else {
-                            List<Object> row = Arrays.<Object>asList(sale.numberGroupCashRegister, sale.nppMachinery, idZReport, sale.numberZReport,
+                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, idZReport, sale.numberZReport,
                                     sale.dateReceipt, sale.timeReceipt, true, idReceipt, sale.numberReceipt,
                                     idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail,
@@ -1316,20 +1316,24 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             sumPaymentField, numberPaymentField);
 
                     String message = "Загружено записей: " + (dataSale.size() + dataReturn.size());
-                    List<Integer> cashRegisterNumbers = new ArrayList<Integer>();
+                    Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<Integer, Set<Integer>>();
                     List<String> fileNames = new ArrayList<String>();
                     Set<String> dates = new HashSet<String>();
                     for (SalesInfo salesInfo : data) {
-                        if (!cashRegisterNumbers.contains(salesInfo.nppMachinery))
-                            cashRegisterNumbers.add(salesInfo.nppMachinery);
+                        if(nppCashRegisterMap.containsKey(salesInfo.nppGroupMachinery))
+                            nppCashRegisterMap.get(salesInfo.nppGroupMachinery).add(salesInfo.nppMachinery);
+                        else
+                            nppCashRegisterMap.put(salesInfo.nppGroupMachinery, new HashSet<Integer>(Arrays.asList(salesInfo.nppMachinery)));
                         if ((salesInfo.filename != null) && (!fileNames.contains(salesInfo.filename.trim())))
                             fileNames.add(salesInfo.filename.trim());
                         if(salesInfo.dateReceipt != null)
                             dates.add(new SimpleDateFormat("dd.MM.yyyy").format(salesInfo.dateReceipt));
                     }
                     message += "\nИз касс: ";
-                    for (Integer cashRegisterNumber : cashRegisterNumbers)
-                        message += cashRegisterNumber + ", ";
+                    for (Map.Entry<Integer, Set<Integer>> cashRegisterEntry : nppCashRegisterMap.entrySet()) {
+                        for(Integer cashRegister : cashRegisterEntry.getValue()) 
+                            message += String.format("%s(%s), ", cashRegister, cashRegisterEntry.getKey());
+                    }
                     message = message.substring(0, message.length() - 2);
 
                     message += "\nИз файлов: ";
