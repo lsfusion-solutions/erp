@@ -303,7 +303,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
-                            dateTimeCode, date, cashRegisterItemInfoList, cashRegisterInfoList, nppGroupMachinery, nameGroupMachinery));
+                            dateTimeCode, date, cashRegisterItemInfoList, cashRegisterInfoList, snapshotTransaction, 
+                            nppGroupMachinery, nameGroupMachinery));
 
                 } else if (scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClass("ScalesPriceTransaction"))) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<ScalesInfo>();

@@ -55,11 +55,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             logger.info("Kristal: creating PLU file");
             File flagPluFile = new File(exchangeDirectory + "WAITPLU");
             if (flagPluFile.exists() || flagPluFile.createNewFile()) {
-
                 File pluFile = new File(exchangeDirectory + "plu.txt");
-                PrintWriter writer = new PrintWriter(
-                        new OutputStreamWriter(
-                                new FileOutputStream(pluFile), "windows-1251"));
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
 
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     String idItemGroup = "0|0|0|0|0";//makeIdItemGroup(item.hierarchyItemGroup);
@@ -73,106 +70,98 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 writer.close();
 
                 logger.info("Kristal: waiting for deletion of WAITPLU file");
-                if (flagPluFile.delete()) {
-                    while (pluFile.exists()) {
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            throw Throwables.propagate(e);
-                        }
-                    }
-                }
+                waitForDeletion(pluFile, flagPluFile);
             }
 
             //message.txt
-            logger.info("Kristal: creating MESSAGE file");
-            File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
-            if (flagMessageFile.exists() || flagMessageFile.createNewFile()) {
-
-                File messageFile = new File(exchangeDirectory + "message.txt");
-                PrintWriter writer = new PrintWriter(
-                        new OutputStreamWriter(
-                                new FileOutputStream(messageFile), "windows-1251"));
-
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    if (item.composition != null && !item.composition.equals("")) {
-                        String record = "+|" + item.idBarcode + "|" + item.composition + "|||";
-                        writer.println(record);
-                    }
+            boolean messageEmpty = true;            
+            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                if (item.composition != null && !item.composition.equals("")) {
+                    messageEmpty = false;
+                    break;
                 }
-                writer.close();
-                logger.info("Kristal: waiting for deletion of WAITMESSAGE file");
-                if (flagMessageFile.delete()) {
-                    while (messageFile.exists()) {
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            throw Throwables.propagate(e);
+            }
+            if(!messageEmpty) {
+                logger.info("Kristal: creating MESSAGE file");
+                File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
+                if (flagMessageFile.exists() || flagMessageFile.createNewFile()) {
+                    File messageFile = new File(exchangeDirectory + "message.txt");
+                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
+
+                    for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        if (item.composition != null && !item.composition.equals("")) {
+                            String record = "+|" + item.idBarcode + "|" + item.composition + "|||";
+                            writer.println(record);
                         }
                     }
+                    writer.close();
+                    logger.info("Kristal: waiting for deletion of WAITMESSAGE file");
+                    waitForDeletion(messageFile, flagMessageFile);
                 }
             }
 
             //scale.txt
-            logger.info("Kristal: creating SCALES file");
-            File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
-            if (flagScaleFile.exists() || flagScaleFile.createNewFile()) {
-                File scaleFile = new File(exchangeDirectory + "scales.txt");
-                PrintWriter writer = new PrintWriter(
-                        new OutputStreamWriter(
-                                new FileOutputStream(scaleFile), "windows-1251"));
-
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + "22|" + item.name + "||" +
-                            "1|0|1|"/*effectiveLife & GoodLinkToScales*/ +
-                            (item.composition != null ? item.idBarcode : "0")/*ingredientNumber*/ + "|" +
-                            item.price.intValue();
-                    writer.println(record);
+            boolean scalesEmpty = true;
+            for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                if(item.passScalesItem) {
+                    scalesEmpty = false;
+                    break;
                 }
-                writer.close();
-                logger.info("Kristal: waiting for deletion of WAITSCALES file");
-                if (flagScaleFile.delete()) {
-                    while (scaleFile.exists()) {
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            throw Throwables.propagate(e);
+            }
+            if(!scalesEmpty) {
+                logger.info("Kristal: creating SCALES file");
+                File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
+                if (flagScaleFile.exists() || flagScaleFile.createNewFile()) {
+                    File scaleFile = new File(exchangeDirectory + "scales.txt");
+                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
+
+                    for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        if(item.passScalesItem) {
+                            String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + "22|" + item.name + "||" +
+                                    "1|0|1|"/*effectiveLife & GoodLinkToScales*/ +
+                                    (item.composition != null ? item.idBarcode : "0")/*ingredientNumber*/ + "|" +
+                                    item.price.intValue();
+                            writer.println(record);
                         }
                     }
+                    writer.close();
+                    logger.info("Kristal: waiting for deletion of WAITSCALES file");
+                    waitForDeletion(scaleFile, flagScaleFile);
                 }
             }
 
             //groups.txt
-            logger.info("Kristal: creating GROUPS file");
-            File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
-            if (flagGroupsFile.exists() || flagGroupsFile.createNewFile()) {
+            if(transactionInfo.snapshot) {
+                logger.info("Kristal: creating GROUPS file");
+                File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
+                if (flagGroupsFile.exists() || flagGroupsFile.createNewFile()) {
+                    File groupsFile = new File(exchangeDirectory + "groups.txt");
+                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
 
-                File groupsFile = new File(exchangeDirectory + "groups.txt");
-
-                PrintWriter writer = new PrintWriter(
-                        new OutputStreamWriter(
-                                new FileOutputStream(groupsFile), "windows-1251"));
-
-                Set<String> numberGroupItems = new HashSet<String>();
-                for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    String idItemGroup = makeIdItemGroup(item.hierarchyItemGroup);
-                    if (!numberGroupItems.contains(idItemGroup)) {
-                        String record = "+|" + item.nameItemGroup + "|" + idItemGroup;
-                        writer.println(record);
-                        numberGroupItems.add(idItemGroup);
-                    }
-
-                }
-                writer.close();
-                logger.info("Kristal: waiting for deletion of WAITGROUPS file");
-                if (flagGroupsFile.delete()) {
-                    while (groupsFile.exists()) {
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            throw Throwables.propagate(e);
+                    Set<String> numberGroupItems = new HashSet<String>();
+                    for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        String idItemGroup = makeIdItemGroup(item.hierarchyItemGroup);
+                        if (!numberGroupItems.contains(idItemGroup)) {
+                            String record = "+|" + item.nameItemGroup + "|" + idItemGroup;
+                            writer.println(record);
+                            numberGroupItems.add(idItemGroup);
                         }
                     }
+                    writer.close();
+                    logger.info("Kristal: waiting for deletion of WAITGROUPS file");
+                    waitForDeletion(groupsFile, flagGroupsFile);
+                }
+            }
+        }
+    }
+    
+    private void waitForDeletion(File file, File flagFile) {
+        if (flagFile.delete()) {
+            while (file.exists()) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    throw Throwables.propagate(e);
                 }
             }
         }
