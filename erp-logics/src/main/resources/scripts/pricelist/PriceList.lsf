@@ -387,9 +387,6 @@ nameFilterPriceListTypeUserPriceList 'Вид цены' (userPriceList) = namePri
 //sku
 currentPriceSkuPriceListStock 'Текущая цена' (sku, userPriceList, stock) =
     currentPriceSkuPriceListDataPriceListTypeStock(sku, userPriceList, filterPriceListTypeUserPriceList(userPriceList), stock);
-filterPriceListTypeUserPriceListSkuStock (userPriceList, sku, stock) =
-    currentPriceSkuPriceListStock (sku, userPriceList, stock) OR
-    (sku IS Sku AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
 
 //batch
 currentPriceBatchPriceListStock 'Текущая цена' (batch, userPriceList, stock) =
@@ -464,7 +461,7 @@ FORM userPriceList 'Прайс'
     FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParentStockGroupStock(sg, ts),
             isCompanyStock(ts)
     FILTERGROUP filters2
-            FILTER 'Выбранные склады' 'F10' inPriceListStock(p, ts) DEFAULT
+            FILTER 'Выбранные склады' 'F10' inPriceListStock(p, ts)
     FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(ts) DEFAULT
         
     OBJECTS tt = Stock FIXED PANEL
@@ -493,7 +490,8 @@ FORM userPriceList 'Прайс'
     PROPERTIES READONLY currentPriceSkuPriceListStock(s2, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)
     PROPERTIES(s2, p, to, ts2) currentPriceSkuPriceListDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
     PROPERTIES                 addSku() TODRAW s2, editSku(s2), copySku(s2)
-    FILTERS filterPriceListTypeUserPriceListSkuStock(p, s2, ts2),
+    FILTERS currentPriceSkuPriceListStock (sku, userPriceList, stock) OR
+            NOT filterPriceListTypeUserPriceList(userPriceList),
             groupTypeUserPriceList(p) == groupTypeGroup(sk2)
     FILTERGROUP filters3
         FILTER 'С остатком' 'F10' currentBalanceSkuStock(s2, ts2)
