@@ -222,7 +222,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     overVATUserInvoiceDetail = ABSTRACT Range (UserInvoiceDetail); 
     // запись задана после объявления формы
     @deriveDocumentDetailValueVAT(userInvoice); // записываем значение ставки
-
+       
     equalSkuVATInvoices 'Запрет на различный НДС в накладных '##sign##' и SKU' = DATA BOOLEAN ();
     
     EXTEND FORM options
@@ -231,23 +231,26 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     
     EXTEND DESIGN options {
         invoices {
-            ADD PROPERTY(NS##equalSkuVATInvoices);
+            NEW invoice##NS {
+                caption = 'Накладная'##sign;
+                ADD PROPERTY(NS##equalSkuVATInvoices);
+            }            
         }
     }
-
     CONSTRAINT equalSkuVATInvoices() AND VATUserInvoiceDetail(d) AND isPostedUserInvoiceDetail(d) AND NOT VATSkuCountry(skuUserInvoiceDetail(d), countryStock(customerStockUserInvoiceDetail(d))) == VATUserInvoiceDetail(d)
         MESSAGE 'НДС в строке накладной '##sign##' не соответствует НДС для SKU';
         
         
     blankLineInvoices 'Разрешить строки без SKU в накладных '##sign = DATA BOOLEAN ();
     
+    
     EXTEND FORM options
         PROPERTIES() NS##blankLineInvoices = blankLineInvoices
     ;
     
     EXTEND DESIGN options {
-        invoices {
-            ADD PROPERTY(NS##blankLineInvoices);
+        invoice##NS {
+            ADD PROPERTY(NS##blankLineInvoices);    
         }
     }
 

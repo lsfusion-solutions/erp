@@ -67,7 +67,7 @@ statusShippedInvoice 'Статус приемки' (invoice)= IF isShippedInvoic
 
 backgroundShipInvoice 'Цвет' (invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT (shippedInvoice(invoice) OR (isPostedInvoice(invoice) AND quantityNotChargeInvoiceDetailInvoice(invoice)==0.0) OR (isPostedInvoice(invoice) AND NOT quantityNotChargeInvoiceDetailInvoice(invoice)));  
 
-META defineInvoiceShipment(sign, stockProp, filter)
+META defineInvoiceShipment(sign, stockProp, filter, NS)
 
     invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT;
     invoiceDetailUserShipmentDetail = DATA InvoiceDetail (UserShipmentDetail);
@@ -297,6 +297,21 @@ META defineInvoiceShipment(sign, stockProp, filter)
     @defineDocumentInterfaceDetailTimePrefix(invoice, InvoiceDetail, shipment,' поставки');
     @defineDocumentInterfaceDetailExpiryDate(invoice);
     @defineDocumentInterfaceDetailManufactureDate(invoice);
+
+    conformityShipmentDateInvoices 'Соответствие даты поставки с датой накладной '##sign = DATA BOOLEAN ();
+    
+    EXTEND FORM options
+        PROPERTIES() NS##conformityShipmentDateInvoices = conformityShipmentDateInvoices
+    ;
+    
+    EXTEND DESIGN options {
+        invoice##NS {
+            ADD PROPERTY(NS##conformityShipmentDateInvoices);
+        }
+    }
+
+    CONSTRAINT isPostedUserInvoice(i) AND conformityShipmentDateInvoices() AND NOT (shipmentDateUserInvoice(i)==dateUserInvoice(i))
+        MESSAGE 'Дата поставки должна быть равна дате накладной '##sign; 
     
     overCopyInvoice(s, d) += ACTION (s, d) {
         ASSIGN createShipmentUserInvoice(d) <- createShipmentUserInvoice(s);
