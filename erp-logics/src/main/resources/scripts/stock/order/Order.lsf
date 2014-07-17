@@ -107,7 +107,7 @@ EXTEND DESIGN options {
 }
 //----------------------------------------------- Заказ ---------------------------------------------------//
 
-META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, filter)
+META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, filter, NS)
 
     CLASS ABSTRACT Order 'Заказ'###sign : Order.Order;
     CLASS ABSTRACT OrderDetail 'Строка заказа'###sign : Order.OrderDetail;
@@ -231,6 +231,21 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     @defineDocumentInterfaceDetailSku(order, sku);
     Order.skuOrderDetail(detail) += skuOrderDetail(detail);
+    
+    blankLineOrders 'Разрешить строки без SKU в заказах '##sign = DATA BOOLEAN ();
+    
+    EXTEND FORM options
+        PROPERTIES() NS##blankLineOrders = blankLineOrders
+    ;
+    
+    EXTEND DESIGN options {
+        orders {
+            ADD PROPERTY(NS##blankLineOrders);
+        }
+    }
+
+    CONSTRAINT isPostedUserOrderDetail(d) AND NOT skuUserOrderDetail(d) AND NOT blankLineOrders()
+        MESSAGE 'Для строки заказа '##sign##' должен быть задан SKU';   
 
     @defineDocumentInterfaceDetailQuantity(order);
     Order.quantityOrderDetail(detail) += quantityOrderDetail(detail);

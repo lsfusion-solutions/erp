@@ -41,6 +41,14 @@ inShipmentDetail 'Приходная' (d) = inShipment(shipmentShipmentDetail(d)
 outShipment 'Расходная' (shipment) = shipment IS Shipment AND NOT inShipment(shipment);
 outShipmentDetail 'Расходная' (d) = outShipment(shipmentShipmentDetail(d)); 
 
+EXTEND DESIGN options {
+    pane {
+        NEW shipments {
+            caption = 'Поставки';
+        }
+    }
+}
+
 // ----------------------------------- Создавать поставку по умолчанию для склада ------------------------------------------ //
 
 META defineDocumentHeaderCreateShipment(object)
@@ -58,7 +66,7 @@ END
 
 //----------------------------------------------- Поставка ---------------------------------------------------//
 
-META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, filter)
+META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, filter, NS)
 
     CLASS ABSTRACT Shipment 'Поставка'###sign : Shipment.Shipment;
     CLASS ABSTRACT ShipmentDetail 'Строка поставки'###sign : Shipment.ShipmentDetail;
@@ -119,6 +127,21 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
     @defineDocumentInterfaceDetailSku(shipment, sku);
     Shipment.skuShipmentDetail(detail) += skuShipmentDetail(detail);
+    
+    blankLineShipments 'Разрешить строки без SKU в заказах '##sign = DATA BOOLEAN ();
+    
+    EXTEND FORM options
+        PROPERTIES() NS##blankLineShipments = blankLineShipments
+    ;
+    
+    EXTEND DESIGN options {
+        shipments {
+            ADD PROPERTY(NS##blankLineShipments);
+        }
+    }
+
+    CONSTRAINT isPostedUserShipmentDetail(d) AND NOT skuUserShipmentDetail(d) AND NOT blankLineShipments()
+        MESSAGE 'Для строки заказа '##sign##' должен быть задан SKU';
 
     @defineDocumentInterfaceDetailQuantity(shipment);
     Shipment.quantityShipmentDetail(detail) += quantityShipmentDetail(detail);

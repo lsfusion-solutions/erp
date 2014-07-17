@@ -237,6 +237,22 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
 
     CONSTRAINT equalSkuVATInvoices() AND VATUserInvoiceDetail(d) AND isPostedUserInvoiceDetail(d) AND NOT VATSkuCountry(skuUserInvoiceDetail(d), countryStock(customerStockUserInvoiceDetail(d))) == VATUserInvoiceDetail(d)
         MESSAGE 'НДС в строке накладной '##sign##' не соответствует НДС для SKU';
+        
+        
+    blankLineInvoices 'Разрешить строки без SKU в накладных '##sign = DATA BOOLEAN ();
+    
+    EXTEND FORM options
+        PROPERTIES() NS##blankLineInvoices = blankLineInvoices
+    ;
+    
+    EXTEND DESIGN options {
+        invoices {
+            ADD PROPERTY(NS##blankLineInvoices);
+        }
+    }
+
+    CONSTRAINT isPostedUserInvoiceDetail(d) AND NOT skuUserInvoiceDetail(d) AND NOT blankLineInvoices()
+        MESSAGE 'Для строки накладной '##sign##' должен быть задан SKU';               
 
     Invoice.VATInvoiceDetail(detail) += VATInvoiceDetail(detail);
     Invoice.valueVATInvoiceDetail(detail) += valueVATInvoiceDetail(detail);
