@@ -1109,6 +1109,39 @@ NAVIGATOR {
     }
 }
 
+//----------- Задание значения по-умолчанию ----------------//
+TABLE customGroupTypeItemGroup(CustomGroupType, ItemGroup);
+@defineItemDefaultValue(customGroup, 'Дополнительная группа (по-умолчанию)', CustomGroup, nameCustomGroup, customGroupType);
+
+
+EXTEND FORM itemGroup
+    OBJECTS dc=CustomGroupType 
+    PROPERTIES(dc)   READONLY nameCustomGroupType, idCustomGroupType
+    PROPERTIES(dc, g) nameCustomGroupCustomGroupTypeItemGroup    
+;    
+EXTEND DESIGN itemGroup {
+
+    NEW type BEFORE functions.box{
+        fill = 1;
+        NEW detail {
+            fill = 1;
+            caption = 'По-умолчанию';
+            ADD g.defaultItemGroup {
+                caption ='';
+                columns = 6;
+            }
+            NEW detail1{
+                fill = 1;
+                type = TABBED;
+                ADD dc.box { caption = 'Дополнительный классификатор';}
+            }            
+        }          
+    }
+}
+
+WHEN SESSION CHANGED(itemGroupItem(i)) AND dc IS CustomGroupType AND NOT customGroupCustomGroupTypeItem(dc, i) DO
+    customGroupCustomGroupTypeItem(dc, i) <- customGroupCustomGroupTypeItemGroup(dc, itemGroupItem(i));
+
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultItemGroup 'Добавить группы товаров' = ACTION (iname, id) {
