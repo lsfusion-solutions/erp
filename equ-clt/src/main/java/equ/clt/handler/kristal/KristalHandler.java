@@ -226,7 +226,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 for (String directory : entry.directorySet) {
 
                     String dateFrom = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(entry.dateFrom);
-                    String dateTo = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(entry.dateTo);
+
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(entry.dateTo);
+                    cal.add(Calendar.DATE, 1);
+                    String dateTo = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(cal.getTime());
 
                     String exchangeDirectory = directory + "\\export\\request\\";
 
