@@ -165,8 +165,21 @@ END
 
 // ------------------------------------ Ограничение на выбор объектов ----------------------------------- //
 
+banNotShippedCompliance 'Запретить выбирать сертификаты по партиям без прихода' = DATA BOOLEAN();
+
+EXTEND FORM options
+    PROPERTIES () banNotShippedCompliance
+;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(banNotShippedCompliance());
+    }
+}
+
 META defineDocumentCertificateConstraint(prop, document, caption)
-    CONSTRAINT prop###user###document##Detail(detail) AND NOT batchCount###prop##Sku(prop###user###document##Detail(detail), skuUser###document##Detail(detail))
+    CONSTRAINT prop###user###document##Detail(detail) AND NOT batchCount###prop##Sku(prop###user###document##Detail(detail), skuUser###document##Detail(detail)) 
+               AND banNotShippedCompliance() 
         CHECKED BY description###prop###user###document##Detail
         MESSAGE 'Выберите '##caption##', по которой есть поставка';
 END
