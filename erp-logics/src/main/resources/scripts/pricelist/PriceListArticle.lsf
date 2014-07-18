@@ -1,0 +1,90 @@
+MODULE PriceListArticle;
+
+REQUIRE PriceList, StockArticle;
+
+NAMESPACE PriceList;
+
+// Подбор по артикулу
+countDetailArticleUserPriceList(article, priceList) = GROUP SUM 1 BY articleItem(skuUserPriceListDetail(detail)), userPriceListUserPriceListDetail(detail);
+
+countDetailSkusArticleUserPriceList(article, priceList) = GROUP SUM 1 IF detailSkuUserPriceList(sku, priceList) BY articleItem(sku), priceList; 
+
+inArticleUserPriceList 'Вкл.' (article, priceList) = TRUE IF countDetailArticleUserPriceList(article, priceList);
+backgroundInArticleUserPriceList 'Цвет' (article, priceList) = RGB(213, 213, 213) IF (countItemArticle(article)!=countDetailSkusArticleUserPriceList(article, priceList));
+
+priceArticleUserPriceLisDataPriceListType 'Цена (новая)' = DATA NUMERIC[14,2] (Article, UserPriceList, DataPriceListType);
+
+
+changeInArticleUserPriceList = ACTION (article, priceList) {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        IF NOT countDetailArticleUserPriceList(article, priceList) THEN {
+            FOR article == articleItem(sku) ADDOBJ d = UserPriceListDetail DO {
+               userPriceListUserPriceListDetail(d) <- priceList;
+               skuUserPriceListDetail(d) <- sku;
+            }        
+        }        
+    } ELSE {        
+        IF countDetailArticleUserPriceList(article, priceList) THEN {
+            DELETE detail WHERE article == articleItem(skuUserPriceListDetail(detail)) AND priceList == userPriceListUserPriceListDetail(detail);
+        }
+    }
+}
+
+changePriceArticleUserPriceListDataPriceListType = ACTION (article, priceList, type) {
+    REQUEST NUMERIC[14,2] INPUT;
+    IF requestedNumeric() THEN {                       
+        IF countDetailArticleUserPriceList(article, priceList) THEN {       
+            priceArticleUserPriceLisDataPriceListType(article, priceList, type) <- requestedNumeric();        
+            priceUserPriceListDetailDataPriceListType(d,type) <- requestedNumeric() WHERE userPriceListUserPriceListDetail(d) == priceList AND articleItem(skuUserPriceListDetail(d))==article;               
+        }        
+    } ELSE {    
+        priceArticleUserPriceLisDataPriceListType(article, priceList, type) <- NULL;
+        IF countDetailArticleUserPriceList(article, priceList) THEN { 
+            priceUserPriceListDetailDataPriceListType(d,type) <- NULL WHERE userPriceListUserPriceListDetail(d) == priceList AND articleItem(skuUserPriceListDetail(d))==article;                       
+        }
+    }
+}
+
+maxCurrentPriceArticlePriceListDataPriceListTypeStock 'Макс. цена' (article, priceList, dataPriceListType, stock) = 
+    GROUP MAX currentPriceSkuPriceListDataPriceListTypeStock(sku, priceList, dataPriceListType, stock) 
+        BY articleItem(sku), priceList, dataPriceListType, stock;
+minCurrentPriceArticlePriceListDataPriceListTypeStock 'Мин. цена' (article, priceList, dataPriceListType, stock) = 
+    GROUP MIN currentPriceSkuPriceListDataPriceListTypeStock(sku, priceList, dataPriceListType, stock) 
+        BY articleItem(sku), priceList, dataPriceListType, stock;
+headerNameMaxCurrentDataPriceListType (dataPriceListType) =
+    namePriceListType(dataPriceListType) + ' (старая max)' MINCHARWIDTH 30 MAXCHARWIDTH 50;
+headerNameMinCurrentDataPriceListType (dataPriceListType) =
+    namePriceListType(dataPriceListType) + ' (старая min)' MINCHARWIDTH 30 MAXCHARWIDTH 50;    
+    
+maxCurrentPriceArticlePriceListStock 'Текущая цена (max)' (article, userPriceList, stock)= 
+    GROUP MAX currentPriceSkuPriceListStock (sku, userPriceList, stock) BY articleItem(sku), userPriceList, stock;
+ 
+    
+EXTEND FORM userPriceList
+    OBJECTS ar=Article
+    PROPERTIES inArticleUserPriceList(ar, p) ON CHANGE changeInArticleUserPriceList(ar, p) BACKGROUND backgroundInArticleUserPriceList(ar, p)
+    PROPERTIES READONLY idArticle(ar), captionArticle(ar), currentBalanceArticleStock(ar, ts2)
+                                             
+    PROPERTIES(ar, p, tc) priceArticleUserPriceLisDataPriceListType COLUMNS (tc) HEADER headerNameDataPriceListType(tc) BACKGROUND backgroundDataPriceListType(tc) ON CHANGE changePriceArticleUserPriceListDataPriceListType(ar, p, tc)
+    
+    PROPERTIES(ar, p, to, ts2) READONLY maxCurrentPriceArticlePriceListDataPriceListTypeStock COLUMNS 'arTo' (to) HEADER headerNameMaxCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
+    PROPERTIES(ar, p, to, ts2) READONLY minCurrentPriceArticlePriceListDataPriceListTypeStock COLUMNS 'arTo' (to) HEADER headerNameMinCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
+    
+    
+    FILTERS isParentGroupArticle(sk2, ar)
+    FILTERS maxCurrentPriceArticlePriceListStock (ar, p, ts2) OR
+            NOT filterPriceListTypeUserPriceList(p)
+            
+    FILTERGROUP filters5
+        FILTER 'С остатком' 'F10' currentBalanceArticleStock(ar, ts2) DEFAULT
+    FILTERGROUP filters6
+        FILTER 'Отмеченные' 'ctrl F10' inArticleUserPriceList(ar, p)       
+    ORDER BY idArticle(ar)
+;
+
+EXTEND DESIGN userPriceList {
+    tabContainer {
+        ADD ar.box BEFORE s2.box {caption = 'Артикулы';}
+    }
+}
