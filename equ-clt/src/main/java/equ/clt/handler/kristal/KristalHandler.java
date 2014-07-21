@@ -278,7 +278,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             Connection conn = null;
             try {
                 String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                        kristalSettings.sqlHost[i], kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                        kristalSettings.sqlHost[i].trim(), kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
@@ -309,7 +309,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             Connection conn = null;
             try {
                 String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                        kristalSettings.sqlHost[i], kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                        kristalSettings.sqlHost[i].trim(), kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
@@ -345,7 +345,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             Connection conn = null;
             try {
                 String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                        kristalSettings.sqlHost[i], kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                        kristalSettings.sqlHost[i].trim(), kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
