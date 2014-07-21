@@ -120,6 +120,32 @@ FORM legalEntityGroups 'Группы организаций'
     DIALOG LegalEntityGroup OBJECT lg
 ;
 
+// ----------------------------------- Лицензия ------------------------------------------ //
+GROUP license 'Лицензионная информация' : base;
+CLASS License 'Лицензия';
+TABLE license (License);
+
+numberLicense 'Номер лицензии' = DATA VARSTRING[100] (License) IN license;
+dateFromLicense 'Действует с ' = DATA DATE (License) IN license;
+dateToLicense 'Действует по ' = DATA DATE (License) IN license;
+
+descriptionLicense(license) = VARSTRING[150]( CONCAT '; ', '№ '+numberLicense(license),
+                                                           'с '+ dateFromLicense(license),
+                                                           'по '+ dateToLicense(license));
+
+countryLicense = DATA Country (License);
+nameCountryLicense 'Страна' = nameCountry(countryLicense(license));
+
+legalEntityLicense 'ЮЛ (ИД)' = DATA LegalEntity (License);
+
+licenseLegalEntityDate 'Действующая на дату' (legalEntity, date) = GROUP MAX license IF dateFromLicense(license) <= date AND NOT dateToLicense(license) < date
+                                                                         BY legalEntityLicense(license), date;
+currentLicenseLegalEntity 'Действующая' (legalEntity) = licenseLegalEntityDate(legalEntity, currentDate());
+numberCurrentLicenseLegalEntity 'Действующая лицензия' (legalEntity) = numberLicense(currentLicenseLegalEntity(legalEntity)) IN law;
+
+CONSTRAINT countryLegalEntity(legalEntityLicense(license)) != countryLicense(license)
+    CHECKED BY legalEntityLicense MESSAGE 'Страна лицензии должна совпадать со страной организации';
+
 // ------------------------------------ Собственные компании ----------------------------- //
 GROUP filterEntity 'Фильтры' : public;
 
