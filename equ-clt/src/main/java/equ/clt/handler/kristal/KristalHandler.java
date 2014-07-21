@@ -274,25 +274,25 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
         Map<String, Timestamp> result = new HashMap<String, Timestamp>();
 
-        Connection conn = null;
-        try {
-
-            String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                    kristalSettings.sqlIp, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
-
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            conn = DriverManager.getConnection(url);
-            Statement statement = conn.createStatement();
-            String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE ShipmentState='1' AND PayState='0'";
-            ResultSet rs = statement.executeQuery(queryString);
-            while (rs.next()) {
-                result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
+        for (int i = 0; i < kristalSettings.sqlHost.length; i++) {
+            Connection conn = null;
+            try {
+                String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                        kristalSettings.sqlHost[i], kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                conn = DriverManager.getConnection(url);
+                Statement statement = conn.createStatement();
+                String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE ShipmentState='1' AND PayState='0'";
+                ResultSet rs = statement.executeQuery(queryString);
+                while (rs.next()) {
+                    result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } finally {
+                if (conn != null)
+                    conn.close();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            if (conn != null)
-                conn.close();
         }
         return result;
     }
@@ -305,31 +305,31 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         
         DBSettings kristalSettings = (DBSettings) springContext.getBean("kristalSettings");
 
-        Connection conn = null;
-        try {
-
-            String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                    kristalSettings.sqlIp, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
-
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            conn = DriverManager.getConnection(url);
-            Statement statement = conn.createStatement();
-            String queryString = "SELECT GangId, OperDaySale, OperDayRet FROM OperGangDetail";
-            ResultSet rs = statement.executeQuery(queryString);
-            while (rs.next()) {
-                String zReportNumber = String.valueOf(rs.getInt(1));
-                if(zReportSumMap.containsKey(zReportNumber)) {
-                    BigDecimal fusionSum = zReportSumMap.get(zReportNumber);
-                    BigDecimal kristalSum = new BigDecimal(rs.getDouble(2) - rs.getDouble(3));
-                    if (fusionSum == null || !fusionSum.equals(kristalSum))
-                        result += String.format("ZReport %s checksum failed: %s(fusion) != %s(kristal);\n", zReportNumber, fusionSum, kristalSum);
+        for (int i = 0; i < kristalSettings.sqlHost.length; i++) {
+            Connection conn = null;
+            try {
+                String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                        kristalSettings.sqlHost[i], kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                conn = DriverManager.getConnection(url);
+                Statement statement = conn.createStatement();
+                String queryString = "SELECT GangId, OperDaySale, OperDayRet FROM OperGangDetail";
+                ResultSet rs = statement.executeQuery(queryString);
+                while (rs.next()) {
+                    String zReportNumber = String.valueOf(rs.getInt(1));
+                    if (zReportSumMap.containsKey(zReportNumber)) {
+                        BigDecimal fusionSum = zReportSumMap.get(zReportNumber);
+                        BigDecimal kristalSum = new BigDecimal(rs.getDouble(2) - rs.getDouble(3));
+                        if (fusionSum == null || !fusionSum.equals(kristalSum))
+                            result += String.format("ZReport %s checksum failed: %s(fusion) != %s(kristal);\n", zReportNumber, fusionSum, kristalSum);
+                    }
                 }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } finally {
+                if (conn != null)
+                    conn.close();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            if (conn != null)
-                conn.close();
         }
         return result.isEmpty() ? null : result;
     }
@@ -341,37 +341,35 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         
         List<CashDocument> result = new ArrayList<CashDocument>();
 
-        Connection conn = null;
-        try {
-
-            String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
-                    kristalSettings.sqlIp, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
-
-            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            conn = DriverManager.getConnection(url);
-            Statement statement = conn.createStatement();
-            String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber FROM OperGangMoney WHERE Taken='1'";
-            ResultSet rs = statement.executeQuery(queryString);
-            while (rs.next()) {
-                String number = rs.getString("Ck_Number");
-                Timestamp dateTime = rs.getTimestamp("Ck_Date");
-                Date date = new Date(dateTime.getTime());
-                Time time = new Time(dateTime.getTime());
-                BigDecimal sum = rs.getBigDecimal("Ck_Summa");
-                Integer numberCashRegister = rs.getInt("CashNumber");
-
-                if (!cashDocumentSet.contains(number))
-                    result.add(new CashDocument(number, date, time, numberCashRegister, sum));
-
-            }
-        } catch (SQLException e) {
-            logger.error(e);
-        } finally {
+        for (int i = 0; i < kristalSettings.sqlHost.length; i++) {
+            Connection conn = null;
             try {
-                if (conn != null)
-                    conn.close();
+                String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
+                        kristalSettings.sqlHost[i], kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
+                Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+                conn = DriverManager.getConnection(url);
+                Statement statement = conn.createStatement();
+                String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber FROM OperGangMoney WHERE Taken='1'";
+                ResultSet rs = statement.executeQuery(queryString);
+                while (rs.next()) {
+                    String number = rs.getString("Ck_Number");
+                    Timestamp dateTime = rs.getTimestamp("Ck_Date");
+                    Date date = new Date(dateTime.getTime());
+                    Time time = new Time(dateTime.getTime());
+                    BigDecimal sum = rs.getBigDecimal("Ck_Summa");
+                    Integer numberCashRegister = rs.getInt("CashNumber");
+                    if (!cashDocumentSet.contains(number))
+                        result.add(new CashDocument(number, date, time, numberCashRegister, sum));
+                }
             } catch (SQLException e) {
                 logger.error(e);
+            } finally {
+                try {
+                    if (conn != null)
+                        conn.close();
+                } catch (SQLException e) {
+                    logger.error(e);
+                }
             }
         }
         if (result.size() == 0)
