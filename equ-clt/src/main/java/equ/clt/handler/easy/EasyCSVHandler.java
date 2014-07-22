@@ -88,7 +88,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public String checkZReportSum(Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
+        public String checkZReportSum(Map<String, BigDecimal> zReportSumMap, String idStock) throws ClassNotFoundException, SQLException {
             return null;
         }
     }

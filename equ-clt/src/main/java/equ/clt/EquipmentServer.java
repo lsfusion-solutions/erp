@@ -192,11 +192,13 @@ public class EquipmentServer {
         Collections.sort(transactionInfoList, COMPARATOR);
         for (TransactionInfo transactionInfo : transactionInfoList) {
 
+            boolean noHandler = true;
             Map<String, List<MachineryInfo>> handlerModelMap = getHandlerModelMap(transactionInfo);
 
             logger.info("Sending transactions started");
             for (Map.Entry<String, List<MachineryInfo>> entry : handlerModelMap.entrySet()) {
-                if (entry.getKey() != null) {
+                noHandler = false;
+                if (entry.getKey() != null) {                    
                     try {
                         Object clsHandler = getHandler(entry.getValue().get(0).handlerModel.trim(), remote);
                         if (clsHandler instanceof TerminalHandler)
@@ -208,7 +210,10 @@ public class EquipmentServer {
                     }
                 }
             }
-            remote.succeedTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
+            if(noHandler)
+                remote.errorTransactionReport(transactionInfo.id, new Throwable(String.format("Transaction %s: No handler", transactionInfo.id)));
+            else
+                remote.succeedTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
             logger.info("Sending transactions finished");
         }
     }
@@ -312,7 +317,7 @@ public class EquipmentServer {
                         for(RequestExchange request : requestExchangeList) {
                             if(!request.requestSalesInfo) {
                                 Map<String, BigDecimal> zReportSumMap = remote.readRequestZReportSumMap(request);
-                                String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap);
+                                String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap, request.idStock);
                                 succeededRequestsSet.add(request.requestExchange);
                                 if (checkSumResult != null) {
                                     reportEquipmentServerError(remote, sidEquipmentServer, checkSumResult);

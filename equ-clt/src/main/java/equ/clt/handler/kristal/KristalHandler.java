@@ -298,7 +298,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
+    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap, String idStock) throws ClassNotFoundException, SQLException {
         logger.info("Kristal: checking zReports sum");
 
         String result = "";
@@ -313,13 +313,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
-                String queryString = "SELECT GangId, OperDaySale, OperDayRet FROM OperGangDetail";
+                String queryString = "SELECT GangNumber, Summa FROM OperGang WHERE CashNumber=" + idStock;
                 ResultSet rs = statement.executeQuery(queryString);
                 while (rs.next()) {
                     String zReportNumber = String.valueOf(rs.getInt(1));
                     if (zReportSumMap.containsKey(zReportNumber)) {
                         BigDecimal fusionSum = zReportSumMap.get(zReportNumber);
-                        BigDecimal kristalSum = new BigDecimal(rs.getDouble(2) - rs.getDouble(3));
+                        BigDecimal kristalSum = BigDecimal.valueOf(rs.getDouble(2));
                         if (fusionSum == null || !fusionSum.equals(kristalSum))
                             result += String.format("ZReport %s checksum failed: %s(fusion) != %s(kristal);\n", zReportNumber, fusionSum, kristalSum);
                     }

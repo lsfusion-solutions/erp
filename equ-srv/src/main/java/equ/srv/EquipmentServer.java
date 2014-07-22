@@ -1586,7 +1586,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public void errorTransactionReport(Integer transactionID, Exception e) throws RemoteException, SQLException {
+    public void errorTransactionReport(Integer transactionID, Throwable e) throws RemoteException, SQLException {
         try {
             DataSession session = getDbManager().createSession();
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("MachineryPriceTransactionError"));

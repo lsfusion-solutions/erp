@@ -47,7 +47,7 @@ public interface EquipmentServerInterface extends Remote {
 
     void succeedTransaction(Integer transactionID, Timestamp dateTime) throws RemoteException, SQLException;
 
-    void errorTransactionReport(Integer transactionID, Exception exception) throws RemoteException, SQLException;
+    void errorTransactionReport(Integer transactionID, Throwable exception) throws RemoteException, SQLException;
 
     void errorEquipmentServerReport(String equipmentServer, Throwable exception) throws RemoteException, SQLException;
 
