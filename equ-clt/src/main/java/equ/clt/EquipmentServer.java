@@ -313,11 +313,10 @@ public class EquipmentServer {
                             if(!request.requestSalesInfo) {
                                 Map<String, BigDecimal> zReportSumMap = remote.readRequestZReportSumMap(request);
                                 String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap);
-                                if (checkSumResult == null) {
-                                    succeededRequestsSet.add(request.requestExchange);
-                                } else {
+                                succeededRequestsSet.add(request.requestExchange);
+                                if (checkSumResult != null) {
                                     reportEquipmentServerError(remote, sidEquipmentServer, checkSumResult);
-                                }
+                                } 
                             }
                         }
                     }
