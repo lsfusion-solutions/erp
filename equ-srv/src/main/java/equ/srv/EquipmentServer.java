@@ -72,6 +72,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule scalesItemLM;
     private ScriptingLogicsModule terminalLM;
     private ScriptingLogicsModule zReportLM;
+    private ScriptingLogicsModule zReportDiscountCardLM;
     
     private boolean started = false;
 
@@ -126,6 +127,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         stopListLM = getBusinessLogics().getModule("StopList");
         terminalLM = getBusinessLogics().getModule("EquipmentTerminal");
         zReportLM = getBusinessLogics().getModule("ZReport");
+        zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
     }
 
     @Override
@@ -361,8 +363,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 }
                             }
                         }
-                        Integer cellScalesObject = composition == null ? null : (Integer) equLM.findProperty("cellScalesGroupScalesComposition").read(session, groupMachineryObject, new DataObject(composition, StringClass.text));
-                        Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) equLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) equLM.findClass("CellScales")));
+                        Integer cellScalesObject = composition == null ? null : (Integer) scalesLM.findProperty("cellScalesGroupScalesComposition").read(session, groupMachineryObject, new DataObject(composition, StringClass.text));
+                        Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
 
                         scalesItemInfoList.add(new ScalesItemInfo(barcode, name, price, isWeight, daysExpiry, 
                                 hoursExpiry, expiryDate, labelFormat, composition, compositionNumberCellScales, hierarchyItemGroup));
@@ -677,9 +679,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 orderQuery.addProperty(property, purchaseInvoiceAgreementLM.findProperty(property).getExpr(orderDetailExpr));
             }
             orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("numberOrder").getExpr(orderExpr).getWhere());
-            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("isOpenedOrder").getExpr(orderExpr).getWhere());
-            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
+            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.numberOrder").getExpr(orderExpr).getWhere());
+            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.isOpenedOrder").getExpr(orderExpr).getWhere());
+            orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> orderResult = orderQuery.executeClasses(session);
             for (ImMap<Object, ObjectValue> entry : orderResult.values()) {
                 Date dateOrder = (Date) entry.get("dateOrder").getValue();
@@ -1084,7 +1086,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     public String sendSalesInfoNonRemote(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
         try {
 
-            if (zReportLM != null && salesInfoList != null && !salesInfoList.isEmpty()) {
+            if (zReportLM != null && notNullNorEmpty(salesInfoList)) {
 
                 Collections.sort(salesInfoList, COMPARATOR);
 
@@ -1103,7 +1105,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     
                     List<SalesInfo> data = start < finish ? salesInfoList.subList(start, finish) : new ArrayList<SalesInfo>();
                     start = finish;
-                    if (data.isEmpty())
+                    if (!notNullNorEmpty(data))
                         return null;
 
                     logger.info(String.format("Kristal: Sending SalesInfo from %s to %s", start, finish));
@@ -1173,9 +1175,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     saleProperties.add(new ImportProperty(discountSumSaleReceiptField, zReportLM.findProperty("discountSumSaleReceipt").getMapping(receiptKey)));
                     saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReportReceipt").getMapping(receiptKey),
                             zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-                    if (discountCardLM != null) {
+                    if (discountCardLM != null && zReportDiscountCardLM != null) {
                         saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                        saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
+                        saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
                                 discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                     }
                     ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetailId").getMapping(idReceiptDetailField));
@@ -1185,8 +1187,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, zReportLM.findProperty("quantityReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                     saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, zReportLM.findProperty("priceReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                     saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, zReportLM.findProperty("sumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
-                    if (discountCardLM != null) {
-                        saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, discountCardLM.findProperty("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                    if (discountCardLM != null && zReportDiscountCardLM != null) {
+                        saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, zReportDiscountCardLM.findProperty("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                     }
                     saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
                             zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
@@ -1207,13 +1209,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     returnProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("dateReceipt").getMapping(receiptKey)));
                     returnProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("timeReceipt").getMapping(receiptKey)));
                     if (discountCardLM != null) {
-                        returnProperties.add(new ImportProperty(discountSumReturnReceiptField, discountCardLM.findProperty("discountSumReturnReceipt").getMapping(receiptKey)));
+                        returnProperties.add(new ImportProperty(discountSumReturnReceiptField, zReportLM.findProperty("discountSumReturnReceipt").getMapping(receiptKey)));
                     }
                     returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReportReceipt").getMapping(receiptKey),
                             zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-                    if (discountCardLM != null) {
+                    if (discountCardLM != null && zReportDiscountCardLM != null) {
                         returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("seriesNumberDiscountCard").getMapping(discountCardKey)));
-                        returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
+                        returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
                                 discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                     }
                     ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetailId").getMapping(idReceiptDetailField));
@@ -1238,7 +1240,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     Map<Integer, String> barcodeMap = new HashMap<Integer, String>();
                     for (SalesInfo sale : data) {
                         
-                        String barcode = (sale.barcodeItem != null && !sale.barcodeItem.isEmpty()) ? barcodeMap.get(sale.itemObject) : null;
+                        String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem : (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : null);
                         if(barcode == null && sale.itemObject != null) {
                             barcode = trim((String) itemLM.findProperty("idBarcodeSku").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
                             barcodeMap.put(sale.itemObject, barcode);
@@ -1253,8 +1255,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                     idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
                                     sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail,
                                     sale.discountSumReceipt);
-                            if (discountCardLM != null)
+                            if (discountCardLM != null) {
+                                row = new ArrayList<Object>(row);
                                 row.add(sale.seriesNumberDiscountCard);
+                            }
                             dataReturn.add(row);
                         } else {
                             List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, idZReport, sale.numberZReport,
@@ -1262,8 +1266,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                     idReceiptDetail, sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
                                     sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail,
                                     sale.discountSumReceipt);
-                            if (discountCardLM != null)
+                            if (discountCardLM != null) {
+                                row = new ArrayList<Object>(row);
                                 row.add(sale.seriesNumberDiscountCard);
+                            }
                             dataSale.add(row);
                         }
                         if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
@@ -1279,28 +1285,36 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                             quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
                             discountSumReceiptSaleDetailField, discountSumSaleReceiptField);
-                    if (discountCardLM != null)
+                    if (discountCardLM != null) {
+                        saleImportFields = new ArrayList<ImportField>(saleImportFields);
                         saleImportFields.add(seriesNumberDiscountCardField);
+                    }
 
                     List<ImportField> returnImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
                             idZReportField, numberZReportField, dateReceiptField, timeReceiptField, isPostedZReportField, idReceiptField,
                             numberReceiptField, idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                             quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
                             discountSumReceiptReturnDetailField, discountSumReturnReceiptField);
-                    if (discountCardLM != null)
+                    if (discountCardLM != null) {
+                        returnImportFields = new ArrayList<ImportField>(returnImportFields);
                         returnImportFields.add(seriesNumberDiscountCardField);
+                    }
 
 
                     List<ImportKey<?>> saleKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey);
-                    if (discountCardLM != null)
+                    if (discountCardLM != null) {
+                        saleKeys = new ArrayList<ImportKey<?>>(saleKeys);
                         saleKeys.add(discountCardKey);
+                    }
 
                     session.pushVolatileStats("ES_SI");
                     new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
 
                     List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey);
-                    if (discountCardLM != null)
+                    if (discountCardLM != null) {
+                        returnKeys = new ArrayList<ImportKey<?>>(returnKeys);
                         returnKeys.add(discountCardKey);
+                    }
                     new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), returnKeys, returnProperties).synchronize(true);
 
                     ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("ZReport.paymentId").getMapping(idPaymentField));
@@ -1342,7 +1356,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         message += filename + ", ";
                     message = message.substring(0, message.length() - 2);
                     
-                    if(!dates.isEmpty()) {
+                    if(notNullNorEmpty(dates)) {
                         message += "\nЗа даты: ";
                         for (String date : dates)
                             message += date + ", ";
@@ -1541,7 +1555,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 for (String scalesModel : scalesModelsList) {
 
-                    DataObject scalesModelObject = new DataObject(scalesLM.findProperty("scalesModelName").read(session, new DataObject(scalesModel)), (ConcreteClass) scalesLM.findClass("scalesModel"));
+                    DataObject scalesModelObject = new DataObject(scalesLM.findProperty("scalesModelName").read(session, new DataObject(scalesModel)), (ConcreteClass) scalesLM.findClass("ScalesModel"));
 
                     LCP<PropertyInterface> isLabelFormat = (LCP<PropertyInterface>) scalesLM.is(scalesLM.findClass("LabelFormat"));
 
@@ -1642,6 +1656,18 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return input == null ? null : input.trim();
     }
 
+    protected boolean notNullNorEmpty(String value) {
+        return value != null && !value.isEmpty();
+    }
+
+    protected boolean notNullNorEmpty(List value) {
+        return value != null && !value.isEmpty();
+    }
+
+    protected boolean notNullNorEmpty(Set value) {
+        return value != null && !value.isEmpty();
+    }
+    
     private List<List<Object>> initData(int size) {
         List<List<Object>> data = new ArrayList<List<Object>>();
         for (int i = 0; i < size; i++) {
