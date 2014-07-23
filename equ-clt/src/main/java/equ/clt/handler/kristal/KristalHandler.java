@@ -319,8 +319,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     String zReportNumber = String.valueOf(rs.getInt(1));
                     if (zReportSumMap.containsKey(zReportNumber)) {
                         BigDecimal fusionSum = zReportSumMap.get(zReportNumber);
-                        BigDecimal kristalSum = BigDecimal.valueOf(rs.getDouble(2));
-                        if (fusionSum == null || !fusionSum.equals(kristalSum))
+                        double kristalSum = rs.getDouble(2);
+                        if (fusionSum == null || fusionSum.doubleValue() != kristalSum)
                             result += String.format("ZReport %s checksum failed: %s(fusion) != %s(kristal);\n", zReportNumber, fusionSum, kristalSum);
                     }
                 }
