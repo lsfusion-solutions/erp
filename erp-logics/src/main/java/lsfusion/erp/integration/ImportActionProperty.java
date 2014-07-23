@@ -10,7 +10,6 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -18,13 +17,14 @@ import org.xBaseJ.xBaseJException;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class ImportActionProperty extends ScriptingActionProperty {
+public class ImportActionProperty extends DefaultImportActionProperty {
     private ExecutionContext<ClassPropertyInterface> context;
 
     // Опциональные модули
@@ -45,8 +45,10 @@ public class ImportActionProperty extends ScriptingActionProperty {
     public boolean skipExtraInvoiceParams;
     public boolean skipCertificateInvoiceParams;
 
+    DataObject defaultDate = new DataObject(new Date(2001 - 1900, 0, 01), DateClass.instance);
+
     @Override
-    protected void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         makeImport(new ImportData(), context);
     }
 
@@ -116,7 +118,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
     }
 
     private void importParentGroups(List<ItemGroup> parentGroupsList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        if (parentGroupsList != null) {
+        if (notNullNorEmpty(parentGroupsList)) {
 
             ServerLoggers.systemLogger.info("importParentGroups");
 
@@ -158,7 +160,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importItemGroups(List<ItemGroup> itemGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (itemGroupsList != null) {
+        if (notNullNorEmpty(itemGroupsList)) {
 
             ServerLoggers.systemLogger.info("importItemGroups");
 
@@ -197,11 +199,9 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importWares(List<Ware> waresList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (warePurchaseInvoiceLM != null && waresList != null) {
+        if (warePurchaseInvoiceLM != null && notNullNorEmpty(waresList)) {
 
             ServerLoggers.systemLogger.info("importWares");
-
-            DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
@@ -307,10 +307,8 @@ public class ImportActionProperty extends ScriptingActionProperty {
     }
 
 
-    private void importPackOfItems(List<Item> itemsList, 
-                                   boolean skipKeys)
-            throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        if (itemsList.size() == 0) return;
+    private void importPackOfItems(List<Item> itemsList, boolean skipKeys) throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        if (!notNullNorEmpty(itemsList)) return;
 
         ServerLoggers.systemLogger.info("importItems " + itemsList.size());
 
@@ -652,7 +650,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
                                     boolean userInvoiceCreateNewItems)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (userInvoiceDetailsList != null) {
+        if (notNullNorEmpty(userInvoiceDetailsList)) {
 
             if (numberAtATime == null)
                 numberAtATime = userInvoiceDetailsList.size();
@@ -1124,7 +1122,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
     private void importPriceListStores(List<PriceListStore> priceListStoresList, Integer numberAtATime, boolean skipKeys) 
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (priceListStoresList != null && importUserPriceListLM != null && storeLM != null) {
+        if (notNullNorEmpty(priceListStoresList) && importUserPriceListLM != null && storeLM != null) {
 
             if (numberAtATime == null)
                 numberAtATime = priceListStoresList.size();
@@ -1176,7 +1174,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
                 fields.add(idUserPriceListField);
                 for (int i = 0; i < priceListStoresList.size(); i++) {
                     data.get(i).add(priceListStoresList.get(i).idItem);
-                    data.get(i).add(priceListStoresList.get(i).idUserPriceList);
+                    data.get(i).add(priceListStoresList.get(i).idPriceList);
                 }
 
                 ImportField idLegalEntityField = new ImportField(findProperty("idLegalEntity"));
@@ -1218,13 +1216,13 @@ public class ImportActionProperty extends ScriptingActionProperty {
                 props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeObject)));
                 fields.add(inPriceListPriceListTypeField);
                 for (int i = 0; i < priceListStoresList.size(); i++)
-                    data.get(i).add(priceListStoresList.get(i).inPriceList);
+                    data.get(i).add(true);
 
                 ImportField inPriceListStockField = new ImportField(findProperty("inPriceListStock"));
                 props.add(new ImportProperty(inPriceListStockField, findProperty("inPriceListStock").getMapping(userPriceListKey, departmentStoreKey)));
                 fields.add(inPriceListStockField);
                 for (int i = 0; i < priceListStoresList.size(); i++)
-                    data.get(i).add(priceListStoresList.get(i).inPriceListStock);
+                    data.get(i).add(true);
 
                 ImportTable table = new ImportTable(fields, data);
 
@@ -1238,10 +1236,10 @@ public class ImportActionProperty extends ScriptingActionProperty {
         }
     }
 
-    private void importPriceListSuppliers(List<PriceListSupplier> priceListSuppliersList, Integer numberAtATime, boolean skipKeys) 
+    private void importPriceListSuppliers(List<PriceList> priceListSuppliersList, Integer numberAtATime, boolean skipKeys) 
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (priceListSuppliersList != null) {
+        if (notNullNorEmpty(priceListSuppliersList)) {
 
             if (numberAtATime == null)
                 numberAtATime = priceListSuppliersList.size();
@@ -1249,7 +1247,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
             for (int start = 0; true; start += numberAtATime) {
 
                 int finish = (start + numberAtATime) < priceListSuppliersList.size() ? (start + numberAtATime) : priceListSuppliersList.size();
-                List<PriceListSupplier> dataPriceListSuppliers = start < finish ? priceListSuppliersList.subList(start, finish) : new ArrayList<PriceListSupplier>();
+                List<PriceList> dataPriceListSuppliers = start < finish ? priceListSuppliersList.subList(start, finish) : new ArrayList<PriceList>();
                 if (dataPriceListSuppliers.isEmpty())
                     return;
 
@@ -1293,7 +1291,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
                 fields.add(idUserPriceListField);
                 for (int i = 0; i < priceListSuppliersList.size(); i++) {
                     data.get(i).add(priceListSuppliersList.get(i).idItem);
-                    data.get(i).add(priceListSuppliersList.get(i).idUserPriceList);
+                    data.get(i).add(priceListSuppliersList.get(i).idPriceList);
                 }
 
                 ImportField idLegalEntityField = new ImportField(findProperty("idLegalEntity"));
@@ -1327,13 +1325,13 @@ public class ImportActionProperty extends ScriptingActionProperty {
                 props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeObject)));
                 fields.add(inPriceListPriceListTypeField);
                 for (int i = 0; i < priceListSuppliersList.size(); i++)
-                    data.get(i).add(priceListSuppliersList.get(i).inPriceList);
+                    data.get(i).add(true);
 
                 ImportField allStocksUserPriceListField = new ImportField(findProperty("allStocksUserPriceList"));
                 props.add(new ImportProperty(allStocksUserPriceListField, findProperty("allStocksUserPriceList").getMapping(userPriceListKey)));
                 fields.add(allStocksUserPriceListField);
                 for (int i = 0; i < priceListSuppliersList.size(); i++)
-                    data.get(i).add(priceListSuppliersList.get(i).inPriceList);
+                    data.get(i).add(true);
 
                 ImportTable table = new ImportTable(fields, data);
 
@@ -1348,11 +1346,9 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importLegalEntities(List<LegalEntity> legalEntitiesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (legalEntitiesList != null) {
+        if (notNullNorEmpty(legalEntitiesList)) {
 
             ServerLoggers.systemLogger.info("importLegalEntities");
-
-            DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
@@ -1522,7 +1518,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importEmployees(List<Employee> employeesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (employeesList != null) {
+        if (notNullNorEmpty(employeesList)) {
 
             ServerLoggers.systemLogger.info("importEmployees");
 
@@ -1584,7 +1580,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importWarehouseGroups(List<WarehouseGroup> warehouseGroupsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (warehouseGroupsList != null) {
+        if (notNullNorEmpty(warehouseGroupsList)) {
 
             ServerLoggers.systemLogger.info("importWarehouseGroups");
 
@@ -1623,7 +1619,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importWarehouses(List<Warehouse> warehousesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (warehousesList != null) {
+        if (notNullNorEmpty(warehousesList)) {
 
             ServerLoggers.systemLogger.info("importWarehouses");
 
@@ -1689,7 +1685,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importStores(List<LegalEntity> storesList, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (storeLM != null && storesList != null) {
+        if (storeLM != null && notNullNorEmpty(storesList)) {
 
             ServerLoggers.systemLogger.info("importStores");
 
@@ -1766,7 +1762,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importDepartmentStores(List<DepartmentStore> departmentStoresList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (storeLM != null && departmentStoresList != null) {
+        if (storeLM != null && notNullNorEmpty(departmentStoresList)) {
 
             ServerLoggers.systemLogger.info("importDepartmentStores");
 
@@ -1815,11 +1811,9 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importBanks(List<Bank> banksList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (banksList != null) {
+        if (notNullNorEmpty(banksList)) {
 
             ServerLoggers.systemLogger.info("importBanks");
-
-            DataObject defaultDate = new DataObject(new java.sql.Date(2001 - 1900, 0, 01), DateClass.instance);
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
@@ -1880,7 +1874,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importRateWastes(List<RateWaste> rateWastesList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (writeOffItemLM != null && rateWastesList != null) {
+        if (writeOffItemLM != null && notNullNorEmpty(rateWastesList)) {
 
             ServerLoggers.systemLogger.info("importRateWastes");
 
@@ -1935,7 +1929,7 @@ public class ImportActionProperty extends ScriptingActionProperty {
 
     private void importContracts(List<Contract> contractsList, boolean skipKeys) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        if (contractsList != null) {
+        if (notNullNorEmpty(contractsList)) {
 
             ServerLoggers.systemLogger.info("importContacts");
 
@@ -2053,13 +2047,5 @@ public class ImportActionProperty extends ScriptingActionProperty {
             return true;
         }
         return false;
-    }
-
-    private List<List<Object>> initData(int size) {
-        List<List<Object>> data = new ArrayList<List<Object>>();
-        for (int i = 0; i < size; i++) {
-            data.add(new ArrayList<Object>());
-        }
-        return data;
     }
 }

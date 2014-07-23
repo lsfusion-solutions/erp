@@ -419,19 +419,19 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
                 Date date = priceDate == null ? null : (Date) priceDate[1];
                 pricePriceListDetail = pricePriceListDetail.equals(BigDecimal.ZERO) ? (priceDate == null ? null : (BigDecimal) priceDate[0]) : pricePriceListDetail;
                 if (pricePriceListDetail != null && (date == null || date.before(new Date(System.currentTimeMillis()))))
-                    data.add(new PriceListStore(idSupplier + idDepartmentStore, idItem, idSupplier, idDepartmentStore,
-                            shortNameCurrency, pricePriceListDetail, true, true));
+                    data.add(new PriceListStore(idSupplier + idDepartmentStore, idItem, idSupplier, shortNameCurrency, 
+                            pricePriceListDetail, idDepartmentStore));
             }
         }
         return data;
     }
 
-    private List<PriceListSupplier> importPriceListSuppliersFromDBF(String postvarPath, Integer numberOfItems) throws
+    private List<PriceList> importPriceListSuppliersFromDBF(String postvarPath, Integer numberOfItems) throws
             IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException {
 
         checkFileExistence(postvarPath);
 
-        List<PriceListSupplier> data = new ArrayList<PriceListSupplier>();
+        List<PriceList> data = new ArrayList<PriceList>();
 
         DBF importPostvarFile = new DBF(postvarPath);
         int totalRecordCount = importPostvarFile.getRecordCount();
@@ -448,7 +448,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
             String shortNameCurrency = "BLR";
             BigDecimal pricePriceListDetail = getDBFBigDecimalFieldValue(importPostvarFile, "N_CENU", charset);
 
-            data.add(new PriceListSupplier(idSupplier, idItem, idSupplier, shortNameCurrency, pricePriceListDetail, true));
+            data.add(new PriceList(idSupplier, idItem, idSupplier, shortNameCurrency, pricePriceListDetail));
         }
         return data;
     }
