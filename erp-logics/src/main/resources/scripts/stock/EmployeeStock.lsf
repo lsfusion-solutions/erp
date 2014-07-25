@@ -220,21 +220,21 @@ defaultCustomerStockEmployeeLegalEntity 'Склад по умолчанию (п�
 
 // Для документа, у которого задан склад
 META extendFormFilterAccessStock(object, concrete, form, stockProp, filter)
-    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR access###filter##EmployeeStock(currentUser(),stockProp###object(concrete));
+    EXTEND FORM form FILTERS access###filter##EmployeeStock(currentUser(),stockProp###object(concrete)) OR NOT limitAccessEmployee(currentUser());
 END
 // Когда склад идет объектом
-META extendFormFilterStockAccess(object, concrete, form, filter)
-    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR access###filter##EmployeeStock(currentUser(), concrete);
+META extendFormFilterStockAccess(concrete, form, filter)
+    EXTEND FORM form FILTERS access###filter##EmployeeStock(currentUser(), concrete) OR NOT limitAccessEmployee(currentUser());
 END
-META extendFormFilterStockAccess(object, concrete, form) // по умолчанию для компании
-    @extendFormFilterStockAccess(object, concrete, form, company);
+META extendFormFilterStockAccess(concrete, form) // по умолчанию для компании
+    @extendFormFilterStockAccess(concrete, form, company);
 END
 // Для группы складов
-META extendFormFilterStockGroupAccess(object, concrete, form, filter)
-    EXTEND FORM form FILTERS (concrete IS object AND NOT limitAccessEmployee(currentUser())) OR countAccess###filter##EmployeeStockGroup(currentUser(), concrete);
+META extendFormFilterStockGroupAccess(concrete, form, filter)
+    EXTEND FORM form FILTERS countAccess###filter##EmployeeStockGroup(currentUser(), concrete) OR NOT limitAccessEmployee(currentUser());
 END
-META extendFormFilterStockGroupAccess(object, concrete, form) // по умолчанию для компании
-    @extendFormFilterStockGroupAccess(object, concrete, form, company);
+META extendFormFilterStockGroupAccess(concrete, form) // по умолчанию для компании
+    @extendFormFilterStockGroupAccess(concrete, form, company);
 END
 
 // ----------------------------- Автоматическое проставление организаций и складов --------------------------------------- //
@@ -258,11 +258,11 @@ END
 // ----------------------------------------- Фильтруем формы, которые объявлены в Stock ----------------------- //
 // Нельзя делать в Stock, поскольку иначе будет цикличная связь по модулям
 
-@extendFormFilterStockGroupAccess(StockGroup, sg, companyStocks, company);
-@extendFormFilterStockAccess(Stock, s, companyStocks, company);
+@extendFormFilterStockGroupAccess(sg, companyStocks, company);
+@extendFormFilterStockAccess(s, companyStocks, company);
 
-@extendFormFilterStockGroupAccess(StockGroup, sg, supplierStocks, supplier);
-@extendFormFilterStockAccess(Stock, s, supplierStocks, supplier);
+@extendFormFilterStockGroupAccess(sg, supplierStocks, supplier);
+@extendFormFilterStockAccess(s, supplierStocks, supplier);
 
-@extendFormFilterStockGroupAccess(StockGroup, sg, customerStocks, customer);
-@extendFormFilterStockAccess(Stock, s, customerStocks, customer);
+@extendFormFilterStockGroupAccess(sg, customerStocks, customer);
+@extendFormFilterStockAccess(s, customerStocks, customer);

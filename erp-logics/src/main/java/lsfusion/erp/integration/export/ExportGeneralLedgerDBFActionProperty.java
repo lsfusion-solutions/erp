@@ -99,9 +99,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
         String[] dimensionTypeNames = new String[]{"idDebitGeneralLedgerDimensionType", "orderDebitGeneralLedgerDimensionType",
                 "idCreditGeneralLedgerDimensionType", "orderCreditGeneralLedgerDimensionType"};
-        LCP[] dimensionTypeProperties = findProperties("dateGeneralLedger", "numberGLDocumentGeneralLedger",
-                "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
-                "idOperationGeneralLedger");
+        LCP[] dimensionTypeProperties = findProperties("idDebitGeneralLedgerDimensionType", "orderDebitGeneralLedgerDimensionType",
+                "idCreditGeneralLedgerDimensionType", "orderCreditGeneralLedgerDimensionType");
         for (int j = 0; j < dimensionTypeProperties.length; j++) {
             generalLedgerQuery.addProperty(dimensionTypeNames[j], dimensionTypeProperties[j].getExpr(generalLedgerExpr, dimensionTypeExpr));
         }

@@ -1,0 +1,61 @@
+MODULE UpdatePriceDashboard;
+
+REQUIRE Barcode, Pricing, Label;
+
+NAMESPACE Pricing;
+
+retailPricingPriceASkuStock 'Розничная цена' (sk, st) = retailPricingPriceASkuStockDateTime(sk, st, currentDateTime()); 
+
+retailPricingPriceBarcodeStock 'Текущая цена на ценниках' (sk, st) = 
+    priceALabelTransactionDetailPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
+                                                              sk,
+                                                              st,
+                                                              currentDateTime());
+
+FORM updatePriceDashboard 'Обновление розничных цен'
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES(d) nameDepartmentStore SELECTOR
+    FILTERS isCompanyStock(d)
+    
+    TREE skuGroupTree sg=SkuGroup PARENT parentSkuGroup
+    PROPERTIES READONLY nameSkuGroup(sg)
+    ORDER BY nameSkuGroup(sg)
+    FILTERGROUP sginactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
+
+    OBJECTS sk = Sku
+    PROPERTIES(sk) selectSku
+    PROPERTIES(sk) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES(sk, d) READONLY currentBalanceSkuStock, retailPricingPriceASkuStock, retailPricingPriceBarcodeStock
+    PROPERTIES(d) TODRAW sk printSelectedSkuLabelTransactionDepartmentStore, printSelectedSkuSnapshotLabelTransactionDepartmentStore
+    FILTERS isParentSkuGroupSku(sg, sk)
+    ORDER BY nameSku(sk)
+    
+    FILTERGROUP diffPrice
+        FILTER 'Обновление ценников' 'F10' retailPricingPriceASkuStock(sk, d) AND NOT retailPricingPriceASkuStock(sk, d) == retailPricingPriceBarcodeStock(sk, d) DEFAULT; 
+;
+
+@extendFormFilterStockAccess(d, updatePriceDashboard);
+
+DESIGN updatePriceDashboard FROM DEFAULT {
+    NEW header {
+        type = CONTAINERH;
+        ADD d.box;
+    }
+    
+    NEW pane {
+        fill = 1;
+        type = SPLITH;
+        ADD skuGroupTree.tree.box;
+        ADD sk.box {
+            fill = 3;
+        }
+    }
+    
+    ADD functions.box;
+}
+
+NAVIGATOR { 
+    purchaseDashboardNavigator {
+        ADD updatePriceDashboard;
+    }
+}

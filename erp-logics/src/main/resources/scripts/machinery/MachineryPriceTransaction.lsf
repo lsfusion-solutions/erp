@@ -196,7 +196,7 @@ FORM machineryPriceTransactions 'Загрузки прайса в оборудо
     PROPERTIES(e)  FORCE PANEL  errorTraceMachineryPriceTransactionError
     FILTERS machineryPriceTransactionMachineryPriceTransactionError(e) == t
 ;
-@extendFormFilterStockAccess(Stock, s, machineryPriceTransactions);
+@extendFormFilterStockAccess(s, machineryPriceTransactions);
 
 DESIGN machineryPriceTransactions FROM DEFAULT {
     NEW header {
@@ -236,7 +236,7 @@ CLASS RequestExchangeType 'Тип запроса' {
     checkZReport 'Сверить суммы z-отчётов'
 }
 
-FORM requestExchangeTypes
+FORM requestExchangeTypes 'Типы запросов'
     OBJECTS r = RequestExchangeType
     PROPERTIES(r) READONLY staticCaption
     DIALOG RequestExchangeType OBJECT r
@@ -512,14 +512,14 @@ NAVIGATOR {
 //--
 
 createPriceTransactionDocument 'Загрузить в оборудование' = ACTION ()  {
-    IF selectSkuStockSession() THEN {
-        FOR selectSkuSessionStock(stock) DO {
-            ASSIGN createMachineryPriceTransactionSnapshot() <- NULL;
-            ASSIGN createMachineryPriceTransactionSku(sku) <- NULL;        
+    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
+        FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) DO {
+            createMachineryPriceTransactionSnapshot() <- NULL;
+            createMachineryPriceTransactionSku(sku) <- NULL;        
         
-            ASSIGN createMachineryPriceTransactionSnapshot() <- TRUE;
-            ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF selectSkuStock(sku, stock);
-            EXEC createMachineryPriceTransaction(stock);
+            createMachineryPriceTransactionSnapshot() <- TRUE;
+            createMachineryPriceTransactionSku(sku) <- TRUE IF selectSkuStock(sku, stock);
+            createMachineryPriceTransaction(stock);
         }
         apply();
         IF canceled() THEN {

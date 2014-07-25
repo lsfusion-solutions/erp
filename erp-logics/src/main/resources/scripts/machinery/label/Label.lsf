@@ -7,9 +7,9 @@ CLASS PrintOrientation 'Ориентация' {
     portrait 'Книжная',
     landscape 'Альбомная'
 }
-FORM printOrientations
+FORM printOrientations 'Ориентации'
     OBJECTS o = PrintOrientation
-    PROPERTIES(o) staticCaption
+    PROPERTIES(o) READONLY staticCaption
     DIALOG PrintOrientation OBJECT o
 ;
 
@@ -143,9 +143,9 @@ FORM labelType 'Тип ценника'
 
     EDIT LabelType OBJECT l
 ;
-@extendFormFilterStockAccess(DepartmentStore, d, labelType);
-@extendFormFilterStockGroupAccess(StoreType, st, labelType);
-@extendFormFilterStockGroupAccess(Store, s, labelType);
+@extendFormFilterStockAccess(d, labelType);
+@extendFormFilterStockGroupAccess(st, labelType);
+@extendFormFilterStockGroupAccess(s, labelType);
 
 DESIGN labelType FROM DEFAULT {
     main {
@@ -265,11 +265,11 @@ TABLE LabelTransactionDetail(LabelTransactionDetail);
 labelTransactionLabelTransactionDetail = DATA LabelTransaction (LabelTransactionDetail);
 
 labelTypeLabelTransactionDetail (d) = labelTypeLabelTransaction(labelTransactionLabelTransactionDetail(d));
-priceListTypeLabelTransactionDetail(d) = priceListTypeLabelType(labelTypeLabelTransactionDetail(d));
+priceListTypeLabelTransactionDetail(d) = priceListTypeLabelType(labelTypeLabelTransactionDetail(d)) PERSISTENT;
 
-departmentStoreLabelTransactionDetail (d) = departmentStoreLabelTransaction(labelTransactionLabelTransactionDetail(d));
+departmentStoreLabelTransactionDetail (d) = departmentStoreLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
 
-dateTimeLabelTransactionDetail(d) = dateTimeLabelTransaction(labelTransactionLabelTransactionDetail(d));
+dateTimeLabelTransactionDetail(d) = dateTimeLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
 
 skuLabelTransactionDetail = DATA Sku (LabelTransactionDetail);
 nameSkuLabelTransactionDetail 'SKU' (d) = nameSku(skuLabelTransactionDetail(d));
@@ -383,7 +383,7 @@ FORM labelTransactions 'Печать ценников'
     FILTERS labelTransactionLabelTransactionDetail(dt) == l
 ;
 
-@extendFormFilterStockAccess(DepartmentStore, d, labelTransactions);
+@extendFormFilterStockAccess(d, labelTransactions);
 
 DESIGN labelTransactions FROM DEFAULT {
     main {
@@ -750,62 +750,12 @@ NAVIGATOR {
     }
 }
 
-//--
-//selectSku = DATA SESSION BOOLEAN (Sku);
-//
-//createLabelTransactionDepartmentStore 'Распечатать ценники' = ACTION (departmentStore) {
-//
-//    // бежим по всем типам ценников из управленческих параметров
-//    // для каждого создаем по операции печати ценников
-//    FOR ([= GROUP SUM 1 IF selectSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore) BY labelType, departmentStore](labelType, departmentStore))
-//        ADDOBJ t = LabelTransaction DO {
-//            departmentStoreLabelTransaction(t) <- departmentStore;
-//            labelTypeLabelTransaction(t) <- labelType;
-//            
-//            FOR selectSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore) ADDOBJ d = LabelTransactionDetail DO {
-//                labelTransactionLabelTransactionDetail(d) <- t;
-//                skuLabelTransactionDetail(d) <- sku;
-//                barcodeLabelTransactionDetail(d) <- barcodeSku(sku);
-//
-//                nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
-//                createAttributeLabelTransactionDetail(d);
-//
-//                quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
-//                                                        THEN INTEGER(currentBalanceSkuStock(sku, departmentStore))
-//                                                     ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
-//                                                     
-//                IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
-//                    priceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
-//                } ELSE {
-//                    priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-//                }                                                                                                                                                              
-//            } 
-//            // вызываем печатную форму для каждого из них
-//            FORM printLabelTransaction OBJECTS l = t PRINT;
-//    }
-//} TOOLBAR;
-//
-//createLabelTransaction 'Распечатать ценники' = ACTION () {
-//    IF selectSkuStockSession() THEN {
-//        FOR selectSkuSessionStock(stock) AND stock IS DepartmentStore DO {
-//            selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);   
-//            EXEC createLabelTransactionDepartmentStore(stock);
-//        }
-//        apply();
-//        IF canceled() THEN {
-//            cancel();
-//        }        
-//    }
-//} TOOLBAR;
-
-selectSku = DATA SESSION BOOLEAN (Sku);
 selectSkuLabelTypeDepartmentStore = DATA SESSION BOOLEAN (Sku, LabelType, DepartmentStore);
-selectSkusLabelTypeDepartmentStore (l,d) = GROUP SUM 1 IF selectSkuLabelTypeDepartmentStore(s,l,d) BY l,d;
 
 createLabelTransactionDepartmentStore 'Распечатать ценники' = ACTION (departmentStore) {
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
-    FOR selectSkusLabelTypeDepartmentStore (labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
+    FOR [= GROUP SUM 1 IF selectSkuLabelTypeDepartmentStore(s,l,d) BY l, d](labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
         departmentStoreLabelTransaction(t) <- departmentStore;
         labelTypeLabelTransaction(t) <- labelType;
         
@@ -838,20 +788,7 @@ createLabelTransactionDepartmentStore 'Распечатать ценники' = 
     }
 } TOOLBAR;
 
-createLabelTransaction 'Распечатать ценники' = ACTION () {
-    IF selectSkuStockSession() THEN {
-        FOR selectSkuSessionStock(stock) AND stock IS DepartmentStore DO {        
-            selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- selectSkuStock(sku, stock) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
-            createLabelTransactionDepartmentStore(stock);
-        }
-        apply();
-        IF canceled() THEN {
-            cancel();
-        }        
-    }
-} TOOLBAR;
-
-createSnapshotLabelTransactionStock 'Перепечатать ценники' = ACTION (departmentStore) {
+createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
 
     FOR ADDOBJ t = LabelTransaction DO {
         departmentStoreLabelTransaction(t) <- departmentStore;
@@ -880,12 +817,45 @@ createSnapshotLabelTransactionStock 'Перепечатать ценники' = 
     }  
 } TOOLBAR ;
 
-createSessionSnapshotPricingLabel 'Перепечатать ценники' = ACTION () {
-    IF selectSkuStockSession() THEN {            
-        FOR selectSkuSessionStock(stock) AND stock IS DepartmentStore DO {  
+// --------------------------------- Печать ценников по отмеченным по sku ------------------------- //
+
+printSelectedSkuLabelTransactionDepartmentStore 'Распечатать ценники' = ACTION (departmentStore) {
+    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {
+        selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) <- selectSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);   
+        createLabelTransactionDepartmentStore(departmentStore);
+        selectSku(sku) <- NULL;
+    }
+} TOOLBAR;
+
+printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
+    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {            
+        createSnapshotLabelTransactionDepartmentStore(departmentStore);
+        selectSku(sku) <- NULL;
+    }
+} TOOLBAR;
+
+
+// --------------------------------- Печать ценников по отмеченным по складу ------------------------- //
+
+createSelectedSkuStockLabelTransaction 'Распечатать ценники' = ACTION () {
+    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
+        FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock] (stock) AND stock IS DepartmentStore DO {        
+            selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- selectSkuStock(sku, stock) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
+            createLabelTransactionDepartmentStore(stock);
+        }
+        apply();
+        IF canceled() THEN {
+            cancel();
+        }        
+    }
+} TOOLBAR;
+
+createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION () {
+    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {            
+        FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) AND stock IS DepartmentStore DO {  
             selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);   
                                
-            EXEC createSnapshotLabelTransactionStock(stock);
+            createSnapshotLabelTransactionDepartmentStore(stock);
         }
         apply();
         IF canceled() THEN {
@@ -895,7 +865,7 @@ createSessionSnapshotPricingLabel 'Перепечатать ценники' = AC
 } TOOLBAR;
 
 EXTEND  FORM currentBalanceSkuStock
-    PROPERTIES() TODRAW sts createLabelTransaction, createSessionSnapshotPricingLabel 
+    PROPERTIES() TODRAW sts createSelectedSkuStockLabelTransaction, createSelectedSkuStockSnapshotLabelTransaction 
 ;
 
 // Инкрементная загрузка
@@ -903,7 +873,7 @@ GROUP incrementMachineryLabel 'Инкрементная печать ценни�
 
 priceALabelTransactionDetailPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTimeIn) =
     GROUP LAST priceLabelTransactionDetail(ledger)
-          BY priceListTypeLabelType(labelTypeLabelTransactionDetail(ledger)), skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger), dateTimeIn
+          BY priceListTypeLabelTransactionDetail(ledger), skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger), dateTimeIn
           ORDER dateTimeLabelTransactionDetail(ledger), ledger
           WHERE priceLabelTransactionDetail(ledger) AND dateTimeLabelTransactionDetail(ledger) <= dateTimeIn COMPLEX;
 
@@ -960,8 +930,8 @@ EXTEND DESIGN currentBalanceSkuStock {
         NEW labelContainer {
             caption = 'Ценники';
             type = CONTAINERV;
-            ADD PROPERTY (createLabelTransaction());
-            ADD PROPERTY (createSessionSnapshotPricingLabel());
+            ADD PROPERTY (createSelectedSkuStockLabelTransaction());
+            ADD PROPERTY (createSelectedSkuStockSnapshotLabelTransaction());
         } 
     }
 }
