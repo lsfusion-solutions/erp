@@ -76,6 +76,7 @@ overCopyItem(s, d) += ACTION (s, d) {
     ASSIGN compositionScalesItem(d) <- compositionScalesItem(s);
 }
 
+// Установка параметра для единицы измерения
 passScalesUOM 'Передавать на весы' =  DATA BOOLEAN (UOM);
 
 EXTEND FORM UOM
@@ -86,3 +87,15 @@ EXTEND FORM UOMs
 ;
 
 passScalesItem(i) <- passScalesUOM(UOMItem(i)) WHEN CHANGED(UOMItem(i));
+
+// Генерация штрих-кодов
+@defineNumeratorItemGroup (weight, 'Нумератор штрихкодов (для весового товара)');
+weightNumeratorItem (item) = weightNumeratorItemGroup(itemGroupItem(item));
+
+overNumeratorItem(item) += WHEN passScalesItem(item) THEN weightNumeratorItem(item);
+
+EXTEND DESIGN itemGroup {
+    itemGroupHeader2 {
+        ADD PROPERTY(nameWeightNumeratorItemGroup(g));
+    }
+}

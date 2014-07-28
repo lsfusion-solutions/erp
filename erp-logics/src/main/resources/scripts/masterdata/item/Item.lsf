@@ -858,12 +858,10 @@ META defineNumeratorItemGroup (prefix, caption)
 END
 
 @defineNumeratorItemGroup (piece, 'Нумератор штрихкодов (для штучного товара)');
-@defineNumeratorItemGroup (weight, 'Нумератор штрихкодов (для весового товара)');
-
 pieceNumeratorItem (item) = pieceNumeratorItemGroup(itemGroupItem(item));
-weightNumeratorItem (item) = weightNumeratorItemGroup(itemGroupItem(item));
 
-barcodeNumeratorSku(item) += IF splitItem(item) THEN weightNumeratorItem(item) ELSE pieceNumeratorItem(item);
+overNumeratorItem = ABSTRACT CASE Numerator (Item);
+barcodeNumeratorSku(item) += OVERRIDE pieceNumeratorItem(item), overNumeratorItem(item);
 
 DESIGN itemGroup FROM DEFAULT{
     main {
@@ -880,7 +878,6 @@ DESIGN itemGroup FROM DEFAULT{
             NEW itemGroupHeader2 {
                 caption = 'Нумераторы';
                 type = CONTAINERH;
-                ADD PROPERTY(nameWeightNumeratorItemGroup(g));
                 ADD PROPERTY(namePieceNumeratorItemGroup(g));
             }
         }
