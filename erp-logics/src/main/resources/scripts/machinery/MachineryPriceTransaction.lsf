@@ -331,47 +331,47 @@ createAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (M
 createMachineryPriceTransaction 'Создать транзакцию' = ACTION (stock) {
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
-    ASSIGN message() <- TEXT('Принято к загрузке в оборудование : \n');
+    message() <- TEXT('Принято к загрузке в оборудование : \n');
 
     FOR stockGroupMachinery(groupMachinery) == stock DO {
         LOCAL inBarcode = BOOLEAN (Barcode);
 
-        ASSIGN inBarcode(barcode) <- createMachineryPriceTransactionSku(skuBarcode(barcode));
+        inBarcode(barcode) <- createMachineryPriceTransactionSku(skuBarcode(barcode));
 
         // делаем разными запросами, чтобы было проще PostgreSQL
-        ASSIGN inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если активный штрихкод
+        inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если активный штрихкод
 
-        ASSIGN inBarcode(barcode) <- inGroupMachinerySku(groupMachinery, skuBarcode(barcode)) WHERE inBarcode(barcode); // если на эту группу оборудования должна закачиваться
+        inBarcode(barcode) <- inGroupMachinerySku(groupMachinery, skuBarcode(barcode)) WHERE inBarcode(barcode); // если на эту группу оборудования должна закачиваться
 
-        ASSIGN inBarcode(barcode) <- TRUE IF priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inBarcode(barcode); // если есть цена
+        inBarcode(barcode) <- TRUE IF priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inBarcode(barcode); // если есть цена
 
         IF NOT createMachineryPriceTransactionSnapshot() THEN
-            ASSIGN inBarcode(barcode) <- TRUE IF NOT (priceBarcodeGroupMachinery(barcode, groupMachinery) == transactionPriceBarcodeGroupMachinery(barcode, groupMachinery)) WHERE inBarcode(barcode);
+            inBarcode(barcode) <- TRUE IF NOT (priceBarcodeGroupMachinery(barcode, groupMachinery) == transactionPriceBarcodeGroupMachinery(barcode, groupMachinery)) WHERE inBarcode(barcode);
 
         LOCAL countBarcode = INTEGER();
-        ASSIGN countBarcode() <- [= GROUP SUM 1 IF inBarcode(barcode)]();
+        countBarcode() <- [= GROUP SUM 1 IF inBarcode(barcode)]();
         IF countBarcode() THEN {
-            EXEC createMachineryPriceTransactionGroupMachinery(groupMachinery);
+            createMachineryPriceTransactionGroupMachinery(groupMachinery);
             FOR t == addedObject() DO {
-                ASSIGN groupMachineryMachineryPriceTransaction(t) <- groupMachinery;
-                ASSIGN priceTransactionDocumentMachineryPriceTransaction(t) <- createMachineryPriceTransactionDocument();
-                ASSIGN commentMachineryPriceTransaction(t) <- createMachineryPriceTransactionComment();
-                ASSIGN inMachineryPriceTransactionBarcode(t, barcode) <- inBarcode(barcode);
-                EXEC createAttributeMachineryPriceTransaction(t);
-                EXEC createAttributeMachineryPriceTransactionStock(t, stock);
-                EXEC createAttributeMachineryPriceTransactionGroupMachinery(t, groupMachineryMachineryPriceTransaction(t));
-                ASSIGN priceMachineryPriceTransactionBarcode(t, barcode) <- priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
+                groupMachineryMachineryPriceTransaction(t) <- groupMachinery;
+                priceTransactionDocumentMachineryPriceTransaction(t) <- createMachineryPriceTransactionDocument();
+                commentMachineryPriceTransaction(t) <- createMachineryPriceTransactionComment();
+                inMachineryPriceTransactionBarcode(t, barcode) <- inBarcode(barcode);
+                createAttributeMachineryPriceTransaction(t);
+                createAttributeMachineryPriceTransactionStock(t, stock);
+                createAttributeMachineryPriceTransactionGroupMachinery(t, groupMachineryMachineryPriceTransaction(t));
+                priceMachineryPriceTransactionBarcode(t, barcode) <- priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
             }
 
-            ASSIGN message() <- message() + nameGroupMachinery(groupMachinery) + ' - ' + countBarcode() + ' товаров.\n';
-            ASSIGN sentSomething() <- TRUE;
+            message() <- message() + nameGroupMachinery(groupMachinery) + ' - ' + countBarcode() + ' товаров.\n';
+            sentSomething() <- TRUE;
         }
     }
 
     IF sentSomething() THEN
-        MESSAGE message()
+        MESSAGE NO WAIT message()
     ELSE
-        MESSAGE 'Загрузка прайса в оборудование не требуется.';
+        MESSAGE NO WAIT 'Загрузка прайса в оборудование не требуется.';
 };
 
 createBalanceMachineryPriceTransaction 'Остатки' = ACTION (stock) NEWSESSION AUTOAPPLY {
@@ -454,10 +454,10 @@ META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
             CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
         }
         IF (confirmed()) OR NOT isDraft###document(document) THEN {   
-                ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
-                ASSIGN createMachineryPriceTransactionDocument() <- document;
-                EXEC createMachineryPriceTransaction(stockProp###document(document));
-                ASSIGN sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
+                createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
+                createMachineryPriceTransactionDocument() <- document;
+                createMachineryPriceTransaction(stockProp###document(document));
+                sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
             
         } 
     } TOOLBAR CONFIRM;
@@ -467,11 +467,11 @@ META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
             CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
         }
         IF (confirmed()) OR NOT isDraft###document(document) THEN {     
-                ASSIGN createMachineryPriceTransactionSnapshot() <- TRUE;
-                ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF count###document##Detail###skuProp###document(sku, document);
-                ASSIGN createMachineryPriceTransactionDocument() <- document;
-                EXEC createMachineryPriceTransaction(stockProp###document(document));
-                ASSIGN sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
+                createMachineryPriceTransactionSnapshot() <- TRUE;
+                createMachineryPriceTransactionSku(sku) <- TRUE IF count###document##Detail###skuProp###document(sku, document);
+                createMachineryPriceTransactionDocument() <- document;
+                createMachineryPriceTransaction(stockProp###document(document));
+                sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
         }
     } CONFIRM;
 
