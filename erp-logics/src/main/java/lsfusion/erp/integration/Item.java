@@ -15,7 +15,7 @@ public class Item {
     public String idBarcode;
     public String extIdBarcode;
     public Date date;
-    public Boolean isWeightItem;
+    public Boolean splitItem;
     public BigDecimal netWeightItem;
     public BigDecimal grossWeightItem;
     public String compositionItem;
@@ -35,7 +35,7 @@ public class Item {
     public String nameCustomsZone;
 
     public Item(String idItem, String idItemGroup, String captionItem, String idUOM, String nameBrand, String idBrand,
-                String nameCountry, String idBarcode, String extIdBarcode, Date date, Boolean isWeightItem,
+                String nameCountry, String idBarcode, String extIdBarcode, Date date, Boolean splitItem,
                 BigDecimal netWeightItem, BigDecimal grossWeightItem, String compositionItem, BigDecimal retailVAT,
                 String idWare, BigDecimal priceWare, BigDecimal vatWare, String idWriteOffRate, BigDecimal baseMarkup,
                 BigDecimal retailMarkup, String idBarcodePack, BigDecimal amountPack, String idUOMPack, 
@@ -50,7 +50,7 @@ public class Item {
         this.idBarcode = idBarcode;
         this.extIdBarcode = extIdBarcode;
         this.date = date;
-        this.isWeightItem = isWeightItem;
+        this.splitItem = splitItem;
         this.netWeightItem = netWeightItem;
         this.grossWeightItem = grossWeightItem;
         this.compositionItem = compositionItem;

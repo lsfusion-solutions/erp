@@ -128,8 +128,8 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     ARTICUL.put(item.idBarcode);
                     NAME.put(item.name.substring(0, Math.min(item.name.length(), 50)));
-                    MESURIMENT.put(item.isWeightItem ? "кг" : "1");
-                    MESPRESISI.put(item.isWeightItem ? 0.001 : 1.000);
+                    MESURIMENT.put(item.passScalesItem && item.splitItem ? "кг" : "1");
+                    MESPRESISI.put(item.splitItem ? 0.001 : 1.000);
                     SCALE.put("NOSIZE");
                     int size = item.hierarchyItemGroup.size();
                     GROOP1.put(size >= 1 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 1).idItemGroup : "0");

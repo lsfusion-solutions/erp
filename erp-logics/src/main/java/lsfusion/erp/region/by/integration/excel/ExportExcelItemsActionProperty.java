@@ -65,10 +65,10 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
             QueryBuilder<Object, Object> itemQuery = new QueryBuilder<Object, Object>(itemKeys);
             String[] itemNames = new String[]{"itemGroupItem", "nameAttributeItem", "UOMItem",
-                    "brandItem", "countryItem", "idBarcodeSku", "isWeightItem", "netWeightItem", "grossWeightItem",
+                    "brandItem", "countryItem", "idBarcodeSku", "splitItem", "netWeightItem", "grossWeightItem",
                     "compositionItem", "Purchase.amountPackSku"};
             LCP[] itemProperties = findProperties("itemGroupItem", "nameAttributeItem", "UOMItem",
-                    "brandItem", "countryItem", "idBarcodeSku", "isWeightItem", "netWeightItem", "grossWeightItem",
+                    "brandItem", "countryItem", "idBarcodeSku", "splitItem", "netWeightItem", "grossWeightItem",
                     "compositionItem", "Purchase.amountPackSku");
             for (int i = 0; i < itemProperties.length; i++) {
                 itemQuery.addProperty(itemNames[i], itemProperties[i].getExpr(context.getModifier(), itemExpr));

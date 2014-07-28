@@ -14,11 +14,11 @@ public class CashRegisterItemInfo extends ItemInfo {
     public String shortNameUOM;
     public boolean passScalesItem;
     
-    public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean isWeightItem,
+    public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem,
                                 Integer idItem, String composition, String nameItemGroup, 
                                 List<ItemGroup> hierarchyItemGroup, String idUOM, String shortNameUOM, 
                                 boolean passScalesItem) {
-        super(idBarcode, name, price, isWeightItem);
+        super(idBarcode, name, price, splitItem);
         this.idItem = idItem;
         this.composition = composition;
         this.nameItemGroup = nameItemGroup;

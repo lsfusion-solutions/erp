@@ -64,7 +64,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                         if (!itemGroups.containsKey(idItemGroup)) {
                             String nameItemGroup = item.hierarchyItemGroup.get(i).nameItemGroup;
                             String parentItemGroup = item.hierarchyItemGroup.size() <= (i + 1) ? null : item.hierarchyItemGroup.get(i + 1).idItemGroup;
-                            itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.isWeightItem ? "1" : "0"});
+                            itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.splitItem ? "1" : "0"});
                         }
                     }
                 }
@@ -80,7 +80,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     String idItemGroup = item.hierarchyItemGroup == null || item.hierarchyItemGroup.isEmpty() ? "" : item.hierarchyItemGroup.get(0).idItemGroup;
                     String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
-                            format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.isWeightItem ? "1" : "0", ";") + //8
+                            format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
                             ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
                             (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + ";";
                     goodsWriter.println(record);
@@ -509,8 +509,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 (pathname.getName().startsWith("_current") && pathname.getPath().endsWith(".txt"));
     }
 
-    private String formatFlags(String isWeightItem, String postfix) {
-        return isWeightItem + ",,,,,1" + (postfix == null ? "" : postfix);
+    private String formatFlags(String splitItem, String postfix) {
+        return splitItem + ",,,,,1" + (postfix == null ? "" : postfix);
     }
 
     private String format(Object input, String postfix) {

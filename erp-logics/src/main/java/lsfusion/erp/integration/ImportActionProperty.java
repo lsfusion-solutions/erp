@@ -407,12 +407,12 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         for (int i = 0; i < itemsList.size(); i++)
             data.get(i).add(itemsList.get(i).idUOM);
 
-        if (showItemField(itemsList, "isWeightItem")) {
-            ImportField isWeightItemField = new ImportField(findProperty("isWeightItem"));
-            props.add(new ImportProperty(isWeightItemField, findProperty("isWeightItem").getMapping(itemKey), true));
-            fields.add(isWeightItemField);
+        if (showItemField(itemsList, "splitItem")) {
+            ImportField splitItemField = new ImportField(findProperty("splitItem"));
+            props.add(new ImportProperty(splitItemField, findProperty("splitItem").getMapping(itemKey), true));
+            fields.add(splitItemField);
             for (int i = 0; i < itemsList.size(); i++)
-                data.get(i).add(itemsList.get(i).isWeightItem);
+                data.get(i).add(itemsList.get(i).splitItem);
         }
 
         if (showItemField(itemsList, "netWeightItem")) {

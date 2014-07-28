@@ -74,7 +74,7 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
             String nameCountry = parseString(sheet.getCell(6, i).getContents());
             String barcode = parseString(sheet.getCell(7, i).getContents());
             Date date = parseDate(sheet.getCell(8, i).getContents());
-            Boolean isWeight = parseBoolean(sheet.getCell(9, i).getContents());
+            Boolean split = parseBoolean(sheet.getCell(9, i).getContents());
             BigDecimal netWeightItem = parseBigDecimal(sheet.getCell(10, i).getContents());
             BigDecimal grossWeightItem = parseBigDecimal(sheet.getCell(11, i).getContents());
             String compositionItem = parseString(sheet.getCell(12, i).getContents());
@@ -89,7 +89,7 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
             amountPack = (amountPack==null || amountPack.equals(BigDecimal.ZERO)) ? null : amountPack;
 
             data.add(new Item(idItem, idGroup, nameItem, idUOM, nameBrand, idBrand, nameCountry,
-                    barcode, barcode, date, isWeight, netWeightItem, grossWeightItem, compositionItem, retailVAT, idWare,
+                    barcode, barcode, date, split, netWeightItem, grossWeightItem, compositionItem, retailVAT, idWare,
                     priceWare, wareVAT, idWriteOffRate, baseMarkup, retailMarkup, idItem, amountPack, null, null, null,
                     null, null));
         }

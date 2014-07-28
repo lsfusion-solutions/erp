@@ -607,18 +607,6 @@ WHEN SESSION CHANGED(itemGroupItem(i)) AND NOT captionItem(i) DO
 @defineItemAttributeBatch (originalCaption, 'Название (ориг.)');
 
 // Единица измерения
-
-isWeightUOM 'Весовой' = DATA BOOLEAN (UOM);
-netWeightUOM 'Вес нетто, кг' = DATA NUMERIC[11,5] (UOM) IN itemSize;
-grossWeightUOM 'Вес брутто, кг' = DATA NUMERIC[11,5] (UOM) IN itemSize;
-
-EXTEND FORM UOM
-    PROPERTIES(u) isWeightUOM, netWeightUOM, grossWeightUOM
-;
-EXTEND FORM UOMs
-    PROPERTIES(u) READONLY isWeightUOM, netWeightUOM, grossWeightUOM
-;
-
 @defineObjectItemAttribute(UOM, UOM, name, 'Единица измерения', itemBase);
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения', sku);
 
@@ -725,11 +713,10 @@ nameSkuTypeItem 'Тип' (item) = staticCaption(skuTypeItem(item)) IN itemBase;
 EXTEND FORM item PROPERTIES(i) nameSkuTypeItem;
 
 // Весовой
-isWeightItem 'Весовой товар' = DATA BOOLEAN (Item) IN itemBase;
-isWeightSku(sku) += isWeightItem(sku);
-EXTEND FORM item PROPERTIES(i) isWeightItem;
-
-isWeightItem(i) <- isWeightUOM(UOMItem(i)) WHEN CHANGED(UOMItem(i));
+splitItem 'Дробный' = DATA BOOLEAN (Item) IN itemBase;
+splitSku(sku) += splitItem(sku);
+EXTEND FORM item PROPERTIES(i) splitItem;
+splitItem(i) <- splitUOM(UOMItem(i)) WHEN CHANGED(UOMItem(i));
 
 // Фиксированная цена
 @definePrimitiveItemAttribute(fixedPrice, BOOLEAN, 'Товар с фиксированной ценой', itemBase);
@@ -876,7 +863,7 @@ END
 pieceNumeratorItem (item) = pieceNumeratorItemGroup(itemGroupItem(item));
 weightNumeratorItem (item) = weightNumeratorItemGroup(itemGroupItem(item));
 
-barcodeNumeratorSku(item) += IF isWeightItem(item) THEN weightNumeratorItem(item) ELSE pieceNumeratorItem(item);
+barcodeNumeratorSku(item) += IF splitItem(item) THEN weightNumeratorItem(item) ELSE pieceNumeratorItem(item);
 
 DESIGN itemGroup FROM DEFAULT{
     main {
@@ -933,7 +920,7 @@ copyDataItem = ACTION (item, i) {
     countryItem(i) <- countryItem(item);
     dataImageItem(i) <- dataImageItem(item);
     skuTypeItem(i) <- skuTypeItem(item);
-    isWeightItem(i) <- isWeightItem(item);
+    splitItem(i) <- splitItem(item);
     inactiveItem(i) <- inactiveItem(item);
 
     FOR skuBarcode(barcode) == item DO {
@@ -990,17 +977,17 @@ createItemBarcodeDate = ACTION (barcode, date) NEWSESSION {
 
     IF copy() THEN {
         FOR ADDOBJ i = Item DO {
-            EXEC copyDataItem(skuAddedUser(currentUser()), i);
-            ASSIGN idBarcode(b) <- barcode WHERE skuBarcode(b) == i AND primaryBarcode(b);
+            copyDataItem(skuAddedUser(currentUser()), i);
+            idBarcode(b) <- barcode WHERE skuBarcode(b) == i AND primaryBarcode(b);
             FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
         }
     } ELSE {
         FOR ADDOBJ bc = Barcode DO {
-            ASSIGN idBarcode(bc) <- barcode;
-            ASSIGN dataDateBarcode(bc) <- date;
+            idBarcode(bc) <- barcode;
+            dataDateBarcode(bc) <- date;
 
             FOR ADDOBJ s = Item DO {
-                ASSIGN skuBarcode(bc) <- s;
+                skuBarcode(bc) <- s;
                 FORM item OBJECTS i = s, b = bc MANAGESESSION DOCKEDMODAL;
             }
         }

@@ -13,10 +13,10 @@ public class ScalesItemInfo extends ItemInfo {
     public Integer compositionNumber;
     public List<String> hierarchyItemGroup;
     
-    public ScalesItemInfo(String idBarcode, String name, BigDecimal price, boolean isWeightItem, BigDecimal daysExpiry,
+    public ScalesItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, BigDecimal daysExpiry,
                           Integer hoursExpiry, Date expirationDate, Integer labelFormat, String composition, 
                           Integer compositionNumber, List<String> hierarchyItemGroup) {
-        super(idBarcode, name, price, isWeightItem);
+        super(idBarcode, name, price, splitItem);
         this.daysExpiry = daysExpiry;
         this.hoursExpiry = hoursExpiry;
         this.expirationDate = expirationDate;

@@ -76,8 +76,8 @@ public class GenerateZReport extends ScriptingActionProperty {
                             departmentStoreList.add(departmentStore);
                         BigDecimal priceSkuStock = (BigDecimal) resultValues.get("priceSkuStock").getValue();
                         String barcodeItem = trim((String) findProperty("idBarcodeSku").read(session, itemObject));
-                        Boolean isWeightItem = (Boolean) findProperty("isWeightItem").read(session, itemObject);
-                        itemZReportInfoList.add(new ItemZReportInfo(barcodeItem, currentBalanceSkuStock, priceSkuStock, isWeightItem != null, departmentStore));
+                        Boolean splitItem = (Boolean) findProperty("splitItem").read(session, itemObject);
+                        itemZReportInfoList.add(new ItemZReportInfo(barcodeItem, currentBalanceSkuStock, priceSkuStock, splitItem != null, departmentStore));
                     }
                 }
 
@@ -151,7 +151,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                                 BigDecimal currentBalanceSkuStock = itemZReportInfo.count;
                                 if ((currentBalanceSkuStock.doubleValue() > 0) && (departmentStoreObject.equals(itemZReportInfo.departmentStore))) {
                                     BigDecimal quantityReceiptDetail;
-                                    if (itemZReportInfo.isWeightItem)
+                                    if (itemZReportInfo.splitItem)
                                         quantityReceiptDetail = currentBalanceSkuStock.doubleValue() <= 0.005 ? currentBalanceSkuStock : BigDecimal.valueOf((double) Math.round(r.nextDouble() * currentBalanceSkuStock.doubleValue() / 5 * 1000) / 1000);
                                     else
                                         quantityReceiptDetail = BigDecimal.valueOf(Math.ceil(currentBalanceSkuStock.doubleValue() / 5) == 1 ? 1.0 : r.nextInt((int) Math.ceil(currentBalanceSkuStock.doubleValue() / 5)));
@@ -218,14 +218,14 @@ public class GenerateZReport extends ScriptingActionProperty {
         String barcode;
         BigDecimal count;
         BigDecimal price;
-        Boolean isWeightItem;
+        Boolean splitItem;
         DataObject departmentStore;
 
-        public ItemZReportInfo(String barcode, BigDecimal count, BigDecimal price, Boolean isWeightItem, DataObject departmentStore) {
+        public ItemZReportInfo(String barcode, BigDecimal count, BigDecimal price, Boolean splitItem, DataObject departmentStore) {
             this.barcode = barcode;
             this.count = count;
             this.price = price;
-            this.isWeightItem = isWeightItem;
+            this.splitItem = splitItem;
             this.departmentStore = departmentStore;
         }
     }

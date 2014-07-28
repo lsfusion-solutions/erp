@@ -7,12 +7,12 @@ public class ItemInfo implements Serializable {
     public String idBarcode;
     public String name;
     public BigDecimal price;
-    public boolean isWeightItem;
+    public boolean splitItem;
     
-    public ItemInfo(String idBarcode, String name, BigDecimal price, boolean isWeightItem) {
+    public ItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem) {
         this.idBarcode = idBarcode;
         this.name = name;
         this.price = price;
-        this.isWeightItem = isWeightItem;
+        this.splitItem = splitItem;
     }
 }

@@ -52,13 +52,13 @@ CONSTRAINT skuBarcode(dataBarcodeSku(item)) != item CHECKED BY dataBarcodeSku ME
 
 replaceSkuSku(s, d) += ACTION (s, d){ASSIGN skuBarcode(barcode) <- d WHERE skuBarcode(barcode) == s;}
 
-barcodeSku(sku) = OVERRIDE [= GROUP MIN barcode BY skuBarcode(barcode)](sku), dataBarcodeSku(sku) PERSISTENT;
+barcodeSku(sku) = OVERRIDE [= GROUP MIN barcode IF dataAmountBarcode(barcode) == 1.0 BY skuBarcode(barcode)](sku), dataBarcodeSku(sku) PERSISTENT;
 
 primaryBarcode 'Основной' (barcode) = barcodeSku(skuBarcode(barcode)) == barcode;
 changePrimaryBarcodeSku = ACTION (barcode, sku) {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
-        ASSIGN dataBarcodeSku(sku) <- barcode;
+        dataBarcodeSku(sku) <- barcode;
     }
 }
 
@@ -93,7 +93,7 @@ changeBarcodeSku = ACTION (sku){
 
 skuGroupBarcode (barcode) = skuGroupSku(skuBarcode(barcode));
 
-isWeightBarcode(barcode) = isWeightSku(skuBarcode(barcode));
+splitBarcode(barcode) = splitSku(skuBarcode(barcode)); 
 passScalesBarcode(barcode) = passScalesSku(skuBarcode(barcode));
 
 countryBarcode (barcode) = countrySku(skuBarcode(barcode));

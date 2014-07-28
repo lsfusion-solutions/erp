@@ -219,7 +219,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 QueryBuilder<Object, Object> skuQuery = new QueryBuilder<Object, Object>(skuKeys);
 
                 String[] skuProperties = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
-                        "expiryDateMachineryPriceTransactionBarcode", "isWeightMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
+                        "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
                         "skuGroupMachineryPriceTransactionBarcode", "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode"};
                 String[] extraSkuProperties = new String[]{"daysExpiryMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
                         "labelFormatMachineryPriceTransactionBarcode", "compositionMachineryPriceTransactionBarcode"};
@@ -274,7 +274,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String barcode = trim((String) valueRow.get("idBarcode").getValue());
                         String name = trim((String) valueRow.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) valueRow.get("priceMachineryPriceTransactionBarcode").getValue();
-                        boolean isWeight = valueRow.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
+                        boolean split = valueRow.get("splitMachineryPriceTransactionBarcode").getValue() != null;
                         boolean passScales = valueRow.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
                         String idUOM = (String) valueRow.get("idUOMMachineryPriceTransactionBarcode").getValue();
                         String shortNameUOM = (String) valueRow.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
@@ -300,7 +300,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             }
                         }
                         
-                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, isWeight, idItem,
+                        cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, idItem,
                                 composition, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM, passScales));
                     }
                     
@@ -344,7 +344,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
                         Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
-                        boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
                         BigDecimal daysExpiry = (BigDecimal) row.get("daysExpiryMachineryPriceTransactionBarcode").getValue();
                         Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
                         Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
@@ -366,7 +366,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer cellScalesObject = composition == null ? null : (Integer) scalesLM.findProperty("cellScalesGroupScalesComposition").read(session, groupMachineryObject, new DataObject(composition, StringClass.text));
                         Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
 
-                        scalesItemInfoList.add(new ScalesItemInfo(barcode, name, price, isWeight, daysExpiry, 
+                        scalesItemInfoList.add(new ScalesItemInfo(barcode, name, price, split, daysExpiry, 
                                 hoursExpiry, expiryDate, labelFormat, composition, compositionNumberCellScales, hierarchyItemGroup));
                     }
 
@@ -400,8 +400,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String barcode = trim((String) row.get("idBarcode").getValue());
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
-                        boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
-                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(barcode, name, price, isWeight));
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
+                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(barcode, name, price, split));
                     }
                     
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(),
@@ -443,9 +443,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String barcode = trim((String) row.get("idBarcode").getValue());
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode").getValue();
-                        boolean isWeight = row.get("isWeightMachineryPriceTransactionBarcode").getValue() != null;
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
 
-                        terminalItemInfoList.add(new TerminalItemInfo(barcode, name, price, isWeight, null/*quantity*/, null/*image*/));
+                        terminalItemInfoList.add(new TerminalItemInfo(barcode, name, price, split, null/*quantity*/, null/*image*/));
                     }
 
                     List<TerminalHandbookType> terminalHandbookTypeList = readTerminalHandbookTypeList(session);
