@@ -1,10 +1,11 @@
 MODULE UpdatePriceDashboard;
 
-REQUIRE Barcode, Pricing, Label;
+REQUIRE Barcode, Pricing, Label, MachineryPriceTransaction;
 
 NAMESPACE Pricing;
 
-retailPricingPriceASkuStock 'Розничная цена' (sk, st) = retailPricingPriceASkuStockDateTime(sk, st, currentDateTime()); 
+retailPricingPriceASkuStock 'Розничная цена' (sk, st) = retailPricingPriceASkuStockDateTime(sk, st, currentDateTime());
+retailPricingDescriptionASkuStock 'Описание' (sk, st) = retailPricingDescriptionASkuStockDateTime(sk, st, currentDateTime()); 
 
 retailPricingPriceBarcodeStock 'Текущая цена на ценниках' (sk, st) = 
     priceALabelTransactionDetailPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
@@ -25,13 +26,16 @@ FORM updatePriceDashboard 'Обновление розничных цен'
     OBJECTS sk = Sku
     PROPERTIES(sk) selectSku
     PROPERTIES(sk) READONLY idBarcodeSku, nameSku, shortNameUOMSku
-    PROPERTIES(sk, d) READONLY currentBalanceSkuStock, retailPricingPriceASkuStock, retailPricingPriceBarcodeStock
-    PROPERTIES(d) TODRAW sk printSelectedSkuLabelTransactionDepartmentStore, printSelectedSkuSnapshotLabelTransactionDepartmentStore
+    PROPERTIES(sk, d) READONLY currentBalanceSkuStock, retailPricingDescriptionASkuStock, retailPricingPriceASkuStock, retailPricingPriceBarcodeStock, transactionPriceSkuStock
+    PROPERTIES(d) TODRAW sk printSelectedSkuLabelTransactionDepartmentStore, printSelectedSkuSnapshotLabelTransactionDepartmentStore, createSelectedSkuPriceTransactionDocumentStock
     FILTERS isParentSkuGroupSku(sg, sk)
     ORDER BY nameSku(sk)
     
     FILTERGROUP diffPrice
-        FILTER 'Обновление ценников' 'F10' retailPricingPriceASkuStock(sk, d) AND NOT retailPricingPriceASkuStock(sk, d) == retailPricingPriceBarcodeStock(sk, d) DEFAULT; 
+        FILTER 'Обновление ценников' 'F10' retailPricingPriceASkuStock(sk, d) AND NOT retailPricingPriceASkuStock(sk, d) == retailPricingPriceBarcodeStock(sk, d) 
+        FILTER 'Обновление оборудования' 'F9' retailPricingPriceASkuStock(sk, d) AND NOT retailPricingPriceASkuStock(sk, d) == transactionPriceSkuStock(sk, d)
+        FILTER 'Обновление ценников или оборудования' 'F10' retailPricingPriceASkuStock(sk, d) AND NOT (retailPricingPriceASkuStock(sk, d) == retailPricingPriceBarcodeStock(sk, d) AND
+                                                                                                        retailPricingPriceASkuStock(sk, d) == transactionPriceSkuStock(sk, d)) DEFAULT                
 ;
 
 @extendFormFilterStockAccess(d, updatePriceDashboard);

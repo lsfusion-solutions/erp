@@ -106,6 +106,12 @@ transactionPriceBarcodeGroupMachinery 'Текущая цена в оборудо
     priceMachineryPriceTransactionBarcode(lastTransactionBarcodeGroupMachinery(barcode, groupMachinery), barcode) PERSISTENT;
 prevTransactionPriceBarcodeGroupMachinery (barcode, groupMachinery) = PREV(transactionPriceBarcodeGroupMachinery(barcode, groupMachinery));
 
+transactionPriceBarcodeStock 'Текущая цена в оборудовании' (barcode, stock) =
+    GROUP MAX transactionPriceBarcodeGroupMachinery(b, g) BY b, stockGroupMachinery(g); 
+
+transactionPriceSkuStock 'Текущая цена в оборудовании' (sku, stock) =
+    transactionPriceBarcodeStock(barcodeSku(sku), stock);
+
 //--------------------Сообщения об ошибках транзакций--------------------//
 CLASS MachineryPriceTransactionError 'Ошибка';
 TABLE machineryPriceTransactionError (MachineryPriceTransactionError);
@@ -511,12 +517,21 @@ NAVIGATOR {
 
 //--
 
-createPriceTransactionDocument 'Загрузить в оборудование' = ACTION ()  {
+createSelectedSkuPriceTransactionDocumentStock 'Загрузить в оборудование' = ACTION (stock)  {
+    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {
+        createMachineryPriceTransactionSnapshot() <- TRUE;
+        createMachineryPriceTransactionSku(sku) <- TRUE IF selectSku(sku);
+        createMachineryPriceTransaction(stock);
+        apply();
+        IF canceled() THEN {
+            cancel();
+        }
+    }
+} TOOLBAR ;
+
+createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование' = ACTION ()  {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
         FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) DO {
-            createMachineryPriceTransactionSnapshot() <- NULL;
-            createMachineryPriceTransactionSku(sku) <- NULL;        
-        
             createMachineryPriceTransactionSnapshot() <- TRUE;
             createMachineryPriceTransactionSku(sku) <- TRUE IF selectSkuStock(sku, stock);
             createMachineryPriceTransaction(stock);
@@ -529,14 +544,14 @@ createPriceTransactionDocument 'Загрузить в оборудование' 
 } TOOLBAR ;
 
 EXTEND  FORM currentBalanceSkuStock
-    PROPERTIES() createPriceTransactionDocument TODRAW sts
+    PROPERTIES() createSelectedSkuStockPriceTransactionDocument TODRAW sts
 ;
 EXTEND DESIGN currentBalanceSkuStock {
     actionContainer {
         NEW machineryContainer {
             caption = 'Загрузки';
             type = CONTAINERV;
-            ADD PROPERTY (createPriceTransactionDocument());
+            ADD PROPERTY (createSelectedSkuStockPriceTransactionDocument());
         } 
     }
 }
