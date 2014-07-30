@@ -17,3 +17,94 @@ EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressManufacturer
 EXTEND FORM printLabelTransactionP PROPERTIES(d) READONLY nameAddressManufacturerItemLabelTransactionDetail;
 EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressManufacturerItemLabelTransactionDetail;
 EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressManufacturerItemLabelTransactionDetail;
+
+createItemLabelsTransaction 'Сформировать ценники' = ACTION (item, stock) NEWSESSION {
+     LOCAL inBarcode = BOOLEAN (Barcode);
+     
+     inBarcode(barcode) <- TRUE IF skuBarcode(barcode)==item;
+     inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрихкод является активным
+     
+     FOR ([= GROUP SUM 1 IF inBarcode(barcode) AND inLabelTypeSkuDepartmentStore(labelType, skuBarcode(barcode), stock) BY labelType, stock](labelType, stock))
+         ADDOBJ t = LabelTransaction DO {
+             departmentStoreLabelTransaction(t) <- stock;
+             labelTypeLabelTransaction(t) <- labelType;
+             
+             FOR inBarcode(barcode)
+                 ADDOBJ d = LabelTransactionDetail DO {
+                 labelTransactionLabelTransactionDetail(d) <- t;
+                 skuLabelTransactionDetail(d) <- item;
+                 barcodeLabelTransactionDetail(d) <- barcode;
+ 
+                 createAttributeLabelTransactionDetail(d);
+ 
+                 IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
+                     priceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
+                 } ELSE {
+                     priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+                 }    
+             } 
+             // вызываем печатную форму для каждого из них
+             IF orientationLabelType(labelType)== PrintOrientation.portrait THEN {
+                 FORM printLabelTransactionP OBJECTS l = t PRINT;
+             } ELSE {
+                 FORM printLabelTransaction OBJECTS l = t PRINT;
+             }
+     }
+     cancel();
+ }
+
+createItemLabelTransaction 'Сформировать ценник' = ACTION (item, stock, labelType) NEWSESSION {
+    LOCAL inBarcode = BOOLEAN (Barcode);
+    
+    inBarcode(barcode) <- TRUE IF skuBarcode(barcode)==item;
+    inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрихкод является активным
+    
+    FOR inBarcode(barcode)
+        ADDOBJ t = LabelTransaction DO {
+            departmentStoreLabelTransaction(t) <- stock;
+            labelTypeLabelTransaction(t) <- labelType;
+            
+            FOR inBarcode(barcode)
+                ADDOBJ d = LabelTransactionDetail DO {
+                labelTransactionLabelTransactionDetail(d) <- t;
+                skuLabelTransactionDetail(d) <- item;
+                barcodeLabelTransactionDetail(d) <- barcode;
+
+                createAttributeLabelTransactionDetail(d);
+
+                IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
+                    priceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
+                } ELSE {
+                    priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
+                }    
+            } 
+            // вызываем печатную форму для каждого из них
+            IF orientationLabelType(labelType)== PrintOrientation.portrait THEN {
+                FORM printLabelTransactionP OBJECTS l = t PRINT;
+            } ELSE {
+                FORM printLabelTransaction OBJECTS l = t PRINT;
+            }
+    }
+    cancel();
+} IMAGE 'print.png';
+
+EXTEND FORM item
+    OBJECTS ld = DepartmentStore FIXED PANEL
+    PROPERTIES(ld) READONLY nameDepartmentStore  
+    PROPERTIES (i, ld) createItemLabelsTransaction
+        
+    OBJECTS lt = LabelType
+    PROPERTIES (lt) nameLabelType READONLY, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR 
+    PROPERTIES (lt, i) inLabelTypeSku
+    PROPERTIES (i, ld, lt) createItemLabelTransaction
+;
+
+EXTEND DESIGN item {
+   itemDetail {
+        NEW itemLabel {
+            caption = 'Ценники';
+            ADD ld.box;
+            ADD lt.box;
+        }    
+    }
+}    
