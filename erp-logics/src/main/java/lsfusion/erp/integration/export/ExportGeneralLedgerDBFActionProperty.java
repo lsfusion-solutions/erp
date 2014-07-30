@@ -12,10 +12,10 @@ import lsfusion.erp.integration.OverJDBField;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.DateClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
+import lsfusion.server.data.where.Where;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
@@ -39,10 +39,12 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            Date dateFrom = (Date) findProperty("dateFromExportGeneralLedgerDBF").read(context);
-            Date dateTo = (Date) findProperty("dateToExportGeneralLedgerDBF").read(context);
+            ObjectValue dateFrom = findProperty("dateFromExportGeneralLedgerDBF").readClasses(context);
+            ObjectValue dateTo = findProperty("dateToExportGeneralLedgerDBF").readClasses(context);
+            ObjectValue legalEntity = findProperty("legalEntityExportGeneralLedgerDBF").readClasses(context);
+            ObjectValue glAccountType = findProperty("GLAccountTypeExportGeneralLedgerDBF").readClasses(context);
 
-            File file = exportGeneralLedgers(context, dateFrom, dateTo);
+            File file = exportGeneralLedgers(context, dateFrom, dateTo, legalEntity, glAccountType);
             if (file != null) {
                 context.delayUserInterfaction(new ExportFileClientAction("export.dbf", IOUtils.getFileBytes(file)));
                 file.delete();
@@ -61,7 +63,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         }
     }
 
-    private File exportGeneralLedgers(ExecutionContext context, Date dateFrom, Date dateTo) throws JDBFException, ScriptingErrorLog.SemanticErrorException, IOException, SQLException, SQLHandledException {
+    private File exportGeneralLedgers(ExecutionContext context, ObjectValue dateFrom, ObjectValue dateTo, ObjectValue legalEntity, ObjectValue glAccountType) 
+            throws JDBFException, ScriptingErrorLog.SemanticErrorException, IOException, SQLException, SQLHandledException {
 
         OverJDBField[] fields = {
 
@@ -107,10 +110,18 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
         generalLedgerQuery.and(findProperty("sumGeneralLedger").getExpr(generalLedgerExpr).getWhere());
         generalLedgerQuery.and(findProperty("nameDimensionType").getExpr(dimensionTypeExpr).getWhere());
-        if (dateFrom != null)
-            generalLedgerQuery.and(findProperty("dateGeneralLedger").getExpr(generalLedgerExpr).compare(new DataObject(dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
-        if (dateTo != null)
-            generalLedgerQuery.and(findProperty("dateGeneralLedger").getExpr(generalLedgerExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
+        
+        if(glAccountType instanceof DataObject) {
+            Where where1 = findProperty("glAccountTypeDebitGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) glAccountType, Compare.EQUALS);
+            Where where2 = findProperty("glAccountTypeCreditGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) glAccountType, Compare.EQUALS);
+            generalLedgerQuery.and(where1.or(where2));
+        }
+        if(legalEntity instanceof DataObject)
+            generalLedgerQuery.and(findProperty("legalEntityGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) legalEntity, Compare.EQUALS));
+        if (dateFrom instanceof DataObject)
+            generalLedgerQuery.and(findProperty("dateGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) dateFrom, Compare.GREATER_EQUALS));
+        if (dateTo instanceof DataObject)
+            generalLedgerQuery.and(findProperty("dateGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) dateTo, Compare.LESS_EQUALS));
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> generalLedgerResult = generalLedgerQuery.executeClasses(context);
 
