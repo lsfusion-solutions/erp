@@ -63,7 +63,7 @@ FORM articleCustomsDashboard 'Заполнение ТНВЭД'
 
     OBJECTS a=Article
     PROPERTIES(a) READONLY nameBrandArticle, idArticle, canonicalNameItemGroupArticle FORCE PANEL, 
-                           originalCustomsGroupArticle, captionArticle, compositionArticle, nameUOMArticle, nameCountryArticle
+                           originalCustomsGroupArticle, captionArticle, compositionArticle, nameUOMArticle, nameCountryArticle, netWeightArticle, grossWeightArticle
     PROPERTIES(c, a) BACKGROUND hintEditableBackground() codeCustomsGroupCountryArticle ON CHANGE changeCodeCustomsGroupCountryArticle(c, a), nameCustomsGroupCountryArticle, nameComplianceGroupCountryArticle
     PROPERTIES                                           completedCustomsArticle(a) ON CHANGE changeCompletedCustomsArticle(a)
     PROPERTIES(a) EDITFORM
@@ -232,7 +232,7 @@ defaultCustomsGroupCountryCaptionComposition (country, caption, composition) =
         WHERE countCustomsGroupCountryCaptionComposition(customsGroup, country, caption, composition);
 
 // Артикулы
-fillDefaultCustomsGroupCountryArticle 'Заполнить ТН ВЭД' = ACTION (country, article) {
+fillDefaultCustomsGroupCountryArticle 'Заполнить ТН ВЭД по истории' = ACTION (country, article) {
     customsGroupCountryArticle(country,article) <- defaultCustomsGroupCountryCaptionComposition(
                                                             country,
                                                             captionArticle(article),
@@ -241,14 +241,26 @@ fillDefaultCustomsGroupCountryArticle 'Заполнить ТН ВЭД' = ACTION 
 
 } SHORTCUT codeCustomsGroupCountryArticle;
 
-fillDefaultCustomsGroupCountry 'Заполнить ТН ВЭД для всех' = ACTION (country) {
+fillDefaultCustomsGroupCountry 'Заполнить ТН ВЭД по истории для всех' = ACTION (country) {
    FOR [= FILTER articleCustomsDashboard.a](article) DO {
        fillDefaultCustomsGroupCountryArticle(country,article);
    }
 } SHORTCUT codeCustomsGroupCountryArticle;
 
+fillOriginalCustomsGroupCountryArticle 'Заполнить ТН ВЭД по оригиналу' = ACTION (country, article) {
+    customsGroupCountryArticle(country,article) <- customsGroupCode(rpad(originalCustomsGroupArticle(article), 10, '0'))
+        WHERE customsGroupCode(rpad(originalCustomsGroupArticle(article), 10, '0'));
+
+} SHORTCUT codeCustomsGroupCountryArticle;
+
+fillOriginalCustomsGroupCountry 'Заполнить ТН ВЭД по оригиналу для всех' = ACTION (country) {
+   FOR [= FILTER articleCustomsDashboard.a](article) DO {
+       fillOriginalCustomsGroupCountryArticle(country,article);
+   }
+} SHORTCUT codeCustomsGroupCountryArticle;
+
 // Товары
-fillDefaultCustomsGroupCountryItem 'Заполнить ТН ВЭД' = ACTION (country, item) {
+fillDefaultCustomsGroupCountryItem 'Заполнить ТН ВЭД по истории' = ACTION (country, item) {
     customsGroupCountryItem(country,item) <- defaultCustomsGroupCountryCaptionComposition(
                                                             country,
                                                             captionItem(item),
@@ -257,7 +269,7 @@ fillDefaultCustomsGroupCountryItem 'Заполнить ТН ВЭД' = ACTION (co
 
 } SHORTCUT codeCustomsGroupCountryItem;
 
-fillDefaultCustomsGroupItemCountry 'Заполнить ТН ВЭД для всех' = ACTION (country) {
+fillDefaultCustomsGroupItemCountry 'Заполнить ТН ВЭД по истории для всех' = ACTION (country) {
     FOR [= FILTER articleCustomsDashboard.i](item) DO {
         fillDefaultCustomsGroupCountryItem(country,item);
     }
