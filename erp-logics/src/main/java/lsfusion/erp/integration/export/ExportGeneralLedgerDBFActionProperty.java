@@ -66,7 +66,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         OverJDBField[] fields = {
 
                 new OverJDBField("D_VV", 'D', 8, 0), new OverJDBField("DOK", 'C', 8, 0),
-                new OverJDBField("VNDOK", 'C', 8, 0), new OverJDBField("TEXTPR", 'C', 50, 0),
+                new OverJDBField("VNDOK", 'C', 8, 0), new OverJDBField("TEXTPR", 'C', 60, 0),
                 new OverJDBField("K_OP", 'C', 3, 0), new OverJDBField("K_SCHD", 'C', 5, 0),
                 new OverJDBField("K_SCHK", 'C', 5, 0), new OverJDBField("K_ANAD1", 'C', 100, 0),
                 new OverJDBField("K_ANAD2", 'C', 100, 0), new OverJDBField("K_ANAD3", 'C', 100, 0),
@@ -134,7 +134,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             Date dateGeneralLedger = (Date) resultValues.get("dateGeneralLedger").getValue(); //D_VV
             String numberGeneralLedger = trim((String) resultValues.get("numberGLDocumentGeneralLedger").getValue(), 8); //DOK
 
-            String description = trim((String) resultValues.get("descriptionGeneralLedger").getValue(), 50); //TEXTPR
+            String description = trim((String) resultValues.get("descriptionGeneralLedger").getValue(), 60); //TEXTPR
             String idDebit = (String) resultValues.get("idDebitGeneralLedger").getValue();   //K_SCHD
             idDebit = idDebit == null ? null : trim(idDebit.replace(".", ""), 5);
             String idCredit = (String) resultValues.get("idCreditGeneralLedger").getValue(); //K_SCHK
