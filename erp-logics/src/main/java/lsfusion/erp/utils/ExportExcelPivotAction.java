@@ -90,10 +90,16 @@ public class ExportExcelPivotAction implements ClientAction {
             if(orientation != null) {
                 Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(i)).toDispatch();
                 Dispatch.put(fieldDispatch, "Orientation", new Variant(orientation));
-                if(orientation.equals(xlDataField))
-                    Dispatch.put(fieldDispatch, "Function", new Variant(xlSum));
+                if(orientation.equals(xlDataField)) {
+                    Dispatch.put(fieldDispatch, "Function", new Variant(xlSum));                    
+                    String caption = Dispatch.get(fieldDispatch, "Caption").getString().replace("Сумма по полю ", "");                    
+                    Dispatch.put(fieldDispatch, "Caption", new Variant(caption + "*"));
+                }
             }
         }
+        
+        Dispatch field = Dispatch.get(pivotTableWizard, "DataPivotField").toDispatch();
+        Dispatch.put(field, "Orientation", new Variant(xlColumnField));
 
         Dispatch.get(workbook, "Save");
         Dispatch.call(workbooks, "Close");
