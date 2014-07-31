@@ -63,7 +63,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
 
 
                 File file = ReportGenerator.exportToExcel(new FormReportManager(formInstance).getReportData(
-                        formEntity.getGroupObject(idGroupObject).getID(), false, formInstance.loadUserPreferences()));
+                        formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences()));
 
                 context.requestUserInteraction(new ExportExcelPivotAction(file,
                         readFieldCaptions(rows), readFieldCaptions(columns), readFieldCaptions(filters), readFieldCaptions(cells)));

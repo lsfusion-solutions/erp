@@ -20,6 +20,10 @@ public class ExportExcelPivotAction implements ClientAction {
     Integer xlColumnField = 2;
     Integer xlFilterField = 3;
     Integer xlDataField = 4;
+    
+    Integer xlSum = -4157;
+    Integer xlCount = -4112;
+    Integer xlAverage = -4106;
 
     File reportFile;
     List<String> rowFields;
@@ -86,6 +90,8 @@ public class ExportExcelPivotAction implements ClientAction {
             if(orientation != null) {
                 Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(i)).toDispatch();
                 Dispatch.put(fieldDispatch, "Orientation", new Variant(orientation));
+                if(orientation.equals(xlDataField))
+                    Dispatch.put(fieldDispatch, "Function", new Variant(xlSum));
             }
         }
 
@@ -103,7 +109,7 @@ public class ExportExcelPivotAction implements ClientAction {
         String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         String columnIndex = "";
         while (column > 0) {
-            columnIndex += letters.charAt(column - 1);
+            columnIndex = (column <=26 ? letters.charAt(column - 1) : letters.charAt(column % 26 - 1)) + columnIndex;
             column = column - 26;
         }
         return columnIndex + row;
