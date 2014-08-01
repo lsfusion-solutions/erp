@@ -257,7 +257,7 @@ seekSkuBarcode = ACTION (){
 editSku(sku) += [= ACTION EDITFORM Item](sku);
 addSku () += [= ACTION ADDFORM Item]();
 
-FORM items 'Товары'
+FORM items 'Товары' KEEPSESSIONPROPERTIES
 
     OBJECTS gt=GroupType FIXED PANEL
     PROPERTIES(gt) SELECTOR nameGroupType
@@ -569,6 +569,62 @@ META defineItemFilterValue(object, caption)
     }
 END
 
+// ---------------------------- Выделение атрибутов -------------------------------- //
+FORM extractAttributeItem 'Выделение атрибута'
+    OBJECTS from = VARSTRING[100] FIXED PANEL
+    PROPERTIES(from) from = OBJVALUE
+    
+    OBJECTS to = VARSTRING[100] FIXED PANEL
+    PROPERTIES(to) to = OBJVALUE
+;
+
+DESIGN extractAttributeItem FROM DEFAULT {
+    PROPERTY(from) {
+        caption = 'Последовательность символов, которую извлечь';
+        font = '32';
+        panelLabelAbove = TRUE;
+    }
+    PROPERTY(to) {
+        caption = 'Последовательность символов, на которую заменить';
+        font = '32';
+        panelLabelAbove = TRUE;
+    }
+}
+
+assignToFrom = ACTION (from) {
+    SEEK extractAttributeItem.to from; 
+} 
+EXTEND FORM extractAttributeItem
+    EVENTS 
+        ON CHANGE from assignToFrom(from);
+;
+
+skipExtractItemAttribute = ABSTRACT BOOLEAN (Item);
+META defineItemExtractAttribute(object, objectIdentity, identityObject)
+    extract###object##FromCaptionItem 'Выделить из названия' = ACTION (i) {
+        IF i IS Item THEN {
+            FORM extractAttributeItem MODAL;
+            IF formResult() == FormResult.ok THEN {
+                LOCAL object = ###object();
+                object() <- identityObject(chosenString('to'));
+                IF NOT object() THEN {
+                    FOR ADDOBJ a = ###object DO {
+                        objectIdentity(a) <- chosenString('to');
+                        object() <- a;
+                    }
+                }
+                LOCAL selected = BOOLEAN (Item);
+                selected(item) <- isSubstring(captionItem(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
+                dataIn###object##ItemGroup(a, g) <- TRUE WHERE a == object() AND [= GROUP SUM 1 IF selected(item) BY itemGroupItem(item)](g);
+                object##Item(item) <- object() WHERE selected(item);
+                // вырезаем двойные пробелы, а также ненужные символы в начале и конце
+                captionItem(item) <- rtrim(ltrim(replace(replace(captionItem(item), chosenString('from'), ''), '  ', ' '), ' ,.'), ' ,.') WHERE selected(item);
+            }
+        }
+    } SHORTCUT objectIdentity##Item;
+END
+
+
 // ---------------------------- Конкретные свойства -------------------------------- //
 
 GROUP itemBase 'Базовые свойства' : base;
@@ -627,6 +683,8 @@ TABLE brand(Brand);
 @defineExternalizable(brand, VARSTRING[100]);
 
 nameBrand 'Наименование' = DATA VARISTRING[50](Brand);
+brandName = GROUP AGGR brand BY nameBrand(brand);
+
 siteBrand 'Адрес сайта' = DATA VARISTRING[100](Brand);
 
 FORM brand 'Бренд'
@@ -649,6 +707,7 @@ DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
 
 @defineItemFilterValue(brand, 'Бренд');
+@defineItemExtractAttribute(brand, nameBrand, brandName);
 
 // Страна
 @defineObjectItemAttribute(country, Country, name, 'Страна', itemBase);
