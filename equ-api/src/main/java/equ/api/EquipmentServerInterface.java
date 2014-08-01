@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
@@ -59,5 +60,5 @@ public interface EquipmentServerInterface extends Remote {
 
     String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException;
 
-    Map<String,BigDecimal> readRequestZReportSumMap(RequestExchange request) throws RemoteException, SQLException;
+    Map<String,BigDecimal> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
 }

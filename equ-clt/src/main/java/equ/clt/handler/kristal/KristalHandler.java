@@ -1,11 +1,17 @@
 package equ.clt.handler.kristal;
 
 import com.google.common.base.Throwables;
-import equ.api.*;
+import equ.api.SalesBatch;
+import equ.api.SalesInfo;
+import equ.api.SoftCheckInfo;
+import equ.api.SoftCheckInvoice;
 import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.input.SAXBuilder;
@@ -24,6 +30,19 @@ import java.util.*;
 public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    
+    static Logger requestExchangeLogger;
+    static {
+        try {
+            requestExchangeLogger = Logger.getLogger("RequestExchangeLogger");
+            requestExchangeLogger.setLevel(Level.INFO);
+            FileAppender fileAppender = new FileAppender(new PatternLayout("%d{DATE} %5p %c{1} - %m%n"), "logs/requestExchange.log");
+            requestExchangeLogger.removeAllAppenders();
+            requestExchangeLogger.addAppender(fileAppender);
+
+        } catch (Exception ignored) {
+        }
+    }   
 
     private FileSystemXmlApplicationContext springContext;
     
@@ -299,7 +318,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     @Override
     public String checkZReportSum(Map<String, BigDecimal> zReportSumMap, String idStock) throws ClassNotFoundException, SQLException {
-        logger.info("Kristal: checking zReports sum");
+        requestExchangeLogger.info("Kristal: checking zReports sum, Stock: " + idStock);
 
         String result = "";
         
@@ -331,6 +350,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     conn.close();
             }
         }
+        if(result.isEmpty())
+            requestExchangeLogger.info("No errors");
+        else
+            requestExchangeLogger.error(result);
         return result.isEmpty() ? null : result;
     }
 

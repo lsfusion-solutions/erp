@@ -786,6 +786,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
                 for (int i = 0, size = result.size(); i < size; i++) {
 
+                    DataObject requestExchangeObject = result.getKey(i).get("requestExchange");
                     ObjectValue stockRequestExchange = result.getValue(i).get("stockRequestExchange");
                     String directoryCashRegister = trim((String) result.getValue(i).get("directoryCashRegister").getValue());
                     String idStockMachinery = trim((String) result.getValue(i).get("idStockMachinery").getValue());
@@ -794,11 +795,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String typeRequestExchange = trim((String) result.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
                     Boolean requestSalesInfo = typeRequestExchange.contains("salesInfo");
                     
+                    Set<String> extraStockSet = requestSalesInfo ? new HashSet<String>() : readExtraStockMapRequestExchange(session, requestExchangeObject);
+                    
                     if (requestExchangeMap.containsKey(stockRequestExchange))
                         requestExchangeMap.get(stockRequestExchange).directorySet.add(directoryCashRegister);
                     else
                         requestExchangeMap.put(stockRequestExchange, new RequestExchange((Integer) result.getKey(i).get("requestExchange").getValue(), 
-                                new HashSet<String>(Arrays.asList(directoryCashRegister)), idStockMachinery,
+                                new HashSet<String>(Arrays.asList(directoryCashRegister)), idStockMachinery, extraStockSet,
                                 dateFromRequestExchange, dateToRequestExchange, requestSalesInfo));
                 }
               
@@ -813,6 +816,21 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
         }
         return requestExchangeList;             
+    }
+        
+    private Set<String> readExtraStockMapRequestExchange(DataSession session, DataObject requestExchangeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Set<String> stockMap = new HashSet<String>();
+        KeyExpr stockExpr = new KeyExpr("stock");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "stock", stockExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+
+        query.addProperty("idStock", machineryPriceTransactionLM.findProperty("idStock").getExpr(stockExpr));
+        query.and(machineryPriceTransactionLM.findProperty("inStockRequestExchange").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        for (ImMap<Object, Object> entry : result.values()) {
+            stockMap.add(trim((String) entry.get("idStock")));
+        }
+        return stockMap;
     }
 
     @Override
@@ -1040,13 +1058,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public Map<String, BigDecimal> readRequestZReportSumMap(RequestExchange request) {
+    public Map<String, BigDecimal> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) {
         Map<String, BigDecimal> zReportSumMap = new HashMap<String, BigDecimal>();
         if (zReportLM != null && equipmentCashRegisterLM != null) {
             try {
                 DataSession session = getDbManager().createSession();
                       
-                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stockId").readClasses(session, new DataObject(request.idStock));
+                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stockId").readClasses(session, new DataObject(idStock));
                 
                 KeyExpr zReportExpr = new KeyExpr("zReport");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "zReport", zReportExpr);
@@ -1054,8 +1072,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 String[] properties = new String[]{"sumReceiptDetailZReport", "numberZReport"};
                 for (String property : properties)
                     query.addProperty(property, zReportLM.findProperty(property).getExpr(zReportExpr));
-                query.and(zReportLM.findProperty("dateZReport").getExpr(zReportExpr).compare(new DataObject(request.dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
-                query.and(zReportLM.findProperty("dateZReport").getExpr(zReportExpr).compare(new DataObject(request.dateTo, DateClass.instance), Compare.LESS_EQUALS));
+                query.and(zReportLM.findProperty("dateZReport").getExpr(zReportExpr).compare(new DataObject(dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
+                query.and(zReportLM.findProperty("dateZReport").getExpr(zReportExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
                 query.and(zReportLM.findProperty("departmentStoreZReport").getExpr(zReportExpr).compare(stockObject.getExpr(), Compare.EQUALS));
                 query.and(zReportLM.findProperty("numberZReport").getExpr(zReportExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> zReportResult = query.executeClasses(session);

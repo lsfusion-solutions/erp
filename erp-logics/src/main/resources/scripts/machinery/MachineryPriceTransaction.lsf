@@ -253,6 +253,9 @@ TABLE requestExchange (RequestExchange);
 
 stockRequestExchange 'Склад' = DATA Stock (RequestExchange) AUTOSET NOT NULL;
 nameStockRequestExchange 'Склад' (requestExchange) = nameStock(stockRequestExchange(requestExchange));
+inStockRequestExchange 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);  
+extraStocksRequestExchange 'Дополнительные склады' (requestExchange) = GROUP CONCAT VARSTRING[255](nameStock(stock)) IF inStockRequestExchange(stock, requestExchange), ', ' 
+    BY requestExchange MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;;                                                                          
 dateFromRequestExchange 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
 dateToRequestExchange 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
 requestExchangeTypeRequestExchange 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NOT NULL;
@@ -265,6 +268,9 @@ FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange FIXED PANEL
     PROPERTIES(r) nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
                   captionRequestExchangeTypeRequestExchange, succeededRequestExchange
+    OBJECTS s = Stock
+    PROPERTIES(s, r) inStockRequestExchange
+    PROPERTIES(s) idStock, nameStock, nameLegalEntityStock
     EDIT RequestExchange OBJECT r;
 ;
 
@@ -274,7 +280,7 @@ FORM requestExchanges 'Запросы обмена данными'
     FILTERS isCompanyStock(s)
     
     OBJECTS r = RequestExchange
-    PROPERTIES(r) READONLY nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
+    PROPERTIES(r) READONLY nameStockRequestExchange, extraStocksRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
                            captionRequestExchangeTypeRequestExchange, succeededRequestExchange
     PROPERTIES(r)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     FILTERS stockRequestExchange(r) == s

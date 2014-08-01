@@ -316,12 +316,15 @@ public class EquipmentServer {
                     if(!requestExchangeList.isEmpty()) {
                         for(RequestExchange request : requestExchangeList) {
                             if(!request.requestSalesInfo) {
-                                Map<String, BigDecimal> zReportSumMap = remote.readRequestZReportSumMap(request);
-                                String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap, request.idStock);
+                                request.extraStockSet.add(request.idStock);
+                                for(String idStock : request.extraStockSet) {
+                                    Map<String, BigDecimal> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
+                                    String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap, idStock);
+                                    if (checkSumResult != null) {
+                                        reportEquipmentServerError(remote, sidEquipmentServer, checkSumResult);
+                                    }
+                                }
                                 succeededRequestsSet.add(request.requestExchange);
-                                if (checkSumResult != null) {
-                                    reportEquipmentServerError(remote, sidEquipmentServer, checkSumResult);
-                                } 
                             }
                         }
                     }
