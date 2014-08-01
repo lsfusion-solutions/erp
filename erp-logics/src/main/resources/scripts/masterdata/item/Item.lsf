@@ -570,7 +570,11 @@ META defineItemFilterValue(object, caption)
 END
 
 // ---------------------------- Выделение атрибутов -------------------------------- //
-FORM extractAttributeItem 'Выделение атрибута'
+
+skipExtractItemAttribute = ABSTRACT BOOLEAN (Item);
+
+// -------------- Символьное --------------------- //
+FORM extractStringAttributeItem 'Выделение атрибута'
     OBJECTS from = VARSTRING[100] FIXED PANEL
     PROPERTIES(from) from = OBJVALUE
     
@@ -578,7 +582,7 @@ FORM extractAttributeItem 'Выделение атрибута'
     PROPERTIES(to) to = OBJVALUE
 ;
 
-DESIGN extractAttributeItem FROM DEFAULT {
+DESIGN extractStringAttributeItem FROM DEFAULT {
     PROPERTY(from) {
         caption = 'Последовательность символов, которую извлечь';
         font = '32';
@@ -591,19 +595,18 @@ DESIGN extractAttributeItem FROM DEFAULT {
     }
 }
 
-assignToFrom = ACTION (from) {
-    SEEK extractAttributeItem.to from; 
+assignStringToFrom = ACTION (from) {
+    SEEK extractStringAttributeItem.to from; 
 } 
-EXTEND FORM extractAttributeItem
+EXTEND FORM extractStringAttributeItem
     EVENTS 
-        ON CHANGE from assignToFrom(from);
+        ON CHANGE from assignStringToFrom(from);
 ;
 
-skipExtractItemAttribute = ABSTRACT BOOLEAN (Item);
-META defineItemExtractAttribute(object, objectIdentity, identityObject)
+META defineItemExtractStringAttribute(object, objectIdentity, identityObject)
     extract###object##FromCaptionItem 'Выделить из названия' = ACTION (i) {
         IF i IS Item THEN {
-            FORM extractAttributeItem MODAL;
+            FORM extractStringAttributeItem MODAL;
             IF formResult() == FormResult.ok THEN {
                 LOCAL object = ###object();
                 object() <- identityObject(chosenString('to'));
@@ -622,6 +625,53 @@ META defineItemExtractAttribute(object, objectIdentity, identityObject)
             }
         }
     } SHORTCUT objectIdentity##Item;
+END
+
+// -------------- Числовое --------------------- //
+FORM extractDoubleAttributeItem 'Выделение атрибута'
+    OBJECTS from = VARSTRING[100] FIXED PANEL
+    PROPERTIES(from) from = OBJVALUE
+    
+    OBJECTS to = NUMERIC[20,7] FIXED PANEL
+    PROPERTIES(to) to = OBJVALUE
+;
+
+DESIGN extractDoubleAttributeItem FROM DEFAULT {
+    PROPERTY(from) {
+        caption = 'Последовательность символов, которую извлечь';
+        font = '32';
+        panelLabelAbove = TRUE;
+    }
+    PROPERTY(to) {
+        caption = 'Число, которое использовать';
+        font = '32';
+        panelLabelAbove = TRUE;
+    }
+}
+
+assignDoubleToFrom = ACTION (from) {
+    SEEK extractDoubleAttributeItem.to toInteger(replace(from AS VARSTRING[100], '%', ''));
+} 
+EXTEND FORM extractDoubleAttributeItem
+    EVENTS 
+        ON CHANGE from assignDoubleToFrom(from);
+;
+
+META defineItemExtractDoubleAttribute(property)
+    extract###property##FromCaptionItem 'Выделить из названия' = ACTION (i) {
+        IF i IS Item THEN {
+            FORM extractDoubleAttributeItem MODAL;
+            IF formResult() == FormResult.ok THEN {
+                LOCAL property = NUMERIC[20,7]();
+                property() <- chosenNumeric('to');
+                LOCAL selected = BOOLEAN (Item);
+                selected(item) <- isSubstring(captionItem(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
+                property##Item(item) <- property() WHERE selected(item);
+                // вырезаем двойные пробелы, а также ненужные символы в начале и конце
+                captionItem(item) <- rtrim(ltrim(replace(replace(captionItem(item), chosenString('from'), ''), '  ', ' '), ' ,.'), ' ,.') WHERE selected(item);
+            }
+        }
+    } SHORTCUT property##Item;
 END
 
 
@@ -707,7 +757,7 @@ DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
 
 @defineItemFilterValue(brand, 'Бренд');
-@defineItemExtractAttribute(brand, nameBrand, brandName);
+@defineItemExtractStringAttribute(brand, nameBrand, brandName);
 
 // Страна
 @defineObjectItemAttribute(country, Country, name, 'Страна', itemBase);
