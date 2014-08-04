@@ -61,46 +61,48 @@ public class ExportExcelPivotAction implements ClientAction {
         Integer rowsCount = Dispatch.get(Dispatch.get(usedRange, "Rows").toDispatch(), "Count").getInt();
         Integer columnsCount = Dispatch.get(Dispatch.get(usedRange, "Columns").toDispatch(), "Count").getInt();
 
-        String lastCell = getCellIndex(columnsCount - 1, rowsCount == 0 ? 2 : (rowsCount + 1));
-        Dispatch sourceDataNativePeer = Dispatch.invoke(sourceSheet, "Range", Dispatch.Get, new Object[]{"B2:" + lastCell}, new int[1]).toDispatch();
-        Dispatch destinationNativePeer = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{"A1"}, new int[1]).toDispatch();
+        if (rowsCount > 2) {
+            String lastCell = getCellIndex(columnsCount - 1, rowsCount == 0 ? 2 : (rowsCount - 1));
+            Dispatch sourceDataNativePeer = Dispatch.invoke(sourceSheet, "Range", Dispatch.Get, new Object[]{"B2:" + lastCell}, new int[1]).toDispatch();
+            Dispatch destinationNativePeer = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{"A1"}, new int[1]).toDispatch();
 
-        Variant unspecified = Variant.VT_MISSING;
-        Dispatch pivotTableWizard = Dispatch.invoke(workbook, "PivotTableWizard", Dispatch.Get, new Object[]{new Variant(1),  //SourceType
-                new Variant(sourceDataNativePeer), //SourceData
-                new Variant(destinationNativePeer), //TableDestination
-                new Variant("PivotTable"), //TableName
-                new Variant(false), //RowGrand
-                new Variant(false), //ColumnGrand
-                new Variant(true), //SaveData
-                new Variant(true), //HasAutoFormat
-                unspecified, //AutoPage
-                unspecified, //Reserved
-                new Variant(false), //BackgroundQuery
-                new Variant(false), //OptimizeCache
-                new Variant(1), //PageFieldOrder
-                unspecified, //PageFieldWrapCount
-                unspecified, //ReadData
-                unspecified //Connection
-        }, new int[1]).toDispatch();
+            Variant unspecified = Variant.VT_MISSING;
+            Dispatch pivotTableWizard = Dispatch.invoke(workbook, "PivotTableWizard", Dispatch.Get, new Object[]{new Variant(1),  //SourceType
+                    new Variant(sourceDataNativePeer), //SourceData
+                    new Variant(destinationNativePeer), //TableDestination
+                    new Variant("PivotTable"), //TableName
+                    new Variant(false), //RowGrand
+                    new Variant(false), //ColumnGrand
+                    new Variant(true), //SaveData
+                    new Variant(true), //HasAutoFormat
+                    unspecified, //AutoPage
+                    unspecified, //Reserved
+                    new Variant(false), //BackgroundQuery
+                    new Variant(false), //OptimizeCache
+                    new Variant(1), //PageFieldOrder
+                    unspecified, //PageFieldWrapCount
+                    unspecified, //ReadData
+                    unspecified //Connection
+            }, new int[1]).toDispatch();
 
-        LinkedHashMap<Integer, Integer> fields = getFields(getFieldsMap(sourceSheet, columnsCount));
-        for (int i = fields.size(); i > 0; i--) {
-            Integer orientation = fields.get(i);
-            if(orientation != null) {
-                Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(i)).toDispatch();
-                Dispatch.put(fieldDispatch, "Orientation", new Variant(orientation));
-                if(orientation.equals(xlDataField)) {
-                    Dispatch.put(fieldDispatch, "Function", new Variant(xlSum));                    
-                    String caption = Dispatch.get(fieldDispatch, "Caption").getString().replace("Сумма по полю ", "");                    
-                    Dispatch.put(fieldDispatch, "Caption", new Variant(caption + "*"));
+            LinkedHashMap<Integer, Integer> fields = getFields(getFieldsMap(sourceSheet, columnsCount));
+            for (int i = fields.size(); i > 0; i--) {
+                Integer orientation = fields.get(i);
+                if (orientation != null) {
+                    Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(i)).toDispatch();
+                    Dispatch.put(fieldDispatch, "Orientation", new Variant(orientation));
+                    if (orientation.equals(xlDataField)) {
+                        Dispatch.put(fieldDispatch, "Function", new Variant(xlSum));
+                        String caption = Dispatch.get(fieldDispatch, "Caption").getString().replace("Сумма по полю ", "");
+                        Dispatch.put(fieldDispatch, "Caption", new Variant(caption + "*"));
+                    }
                 }
             }
-        }
-        
-        Dispatch field = Dispatch.get(pivotTableWizard, "DataPivotField").toDispatch();
-        Dispatch.put(field, "Orientation", new Variant(xlColumnField));
 
+            Dispatch field = Dispatch.get(pivotTableWizard, "DataPivotField").toDispatch();
+            Dispatch.put(field, "Orientation", new Variant(xlColumnField));
+        }
+            
         Dispatch.get(workbook, "Save");
         Dispatch.call(workbooks, "Close");
         excelComponent.invoke("Quit", new Variant[0]);
@@ -116,7 +118,7 @@ public class ExportExcelPivotAction implements ClientAction {
         String columnIndex = "";
         while (column > 0) {
             columnIndex = (column <=26 ? letters.charAt(column - 1) : letters.charAt(column % 26 - 1)) + columnIndex;
-            column = column - 26;
+            column /= 26;
         }
         return columnIndex + row;
     }
