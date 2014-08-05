@@ -262,16 +262,17 @@ TABLE gender (Gender);
 
 @defineExternalizable(gender, VARSTRING[100]);
 nameGender 'Наименование' = DATA VARISTRING[50](Gender);
+shortNameGender 'Краткое наименование' = DATA VARISTRING[10] (Gender);
 
 FORM gender 'Пол'
     OBJECTS t=Gender FIXED PANEL
-    PROPERTIES(t) nameGender, idGender SHOWIF showIDs()
+    PROPERTIES(t) nameGender, shortNameGender, idGender SHOWIF showIDs()
     EDIT Gender OBJECT t
 ;
 
 FORM genders 'Пол'
     OBJECTS t=Gender
-    PROPERTIES(t) nameGender READONLY, idGender SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) nameGender READONLY, shortNameGender READONLY, idGender SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
     ORDER BY nameGender(t)
     DIALOG Gender OBJECT t
@@ -280,20 +281,25 @@ DESIGN genders FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 genderBrand  = DATA Gender (Brand);
 nameGenderBrand 'Пол' (b) = nameGender(genderBrand(b)) IN itemArticle;
-EXTEND FORM brand PROPERTIES(t) nameGenderBrand;
+shortNameGenderBrand 'Пол' (b) = shortNameGender(genderBrand(b)) IN itemArticle;
+EXTEND FORM brand PROPERTIES(t) nameGenderBrand, shortNameGenderBrand;
 EXTEND FORM brands PROPERTIES(t) BEFORE deleteb READONLYIF isReadonly() nameGenderBrand;
 
 genderArticle  = DATA Gender (Article);
 nameGenderArticle 'Пол' (a) = nameGender(genderArticle(a)) IN itemArticle;
+shortNameGenderArticle 'Пол' (a) = shortNameGender(genderArticle(a)) IN itemArticle;
 
 overGenderArticle (article) = OVERRIDE genderBrand(brandArticle(article)), genderArticle(article);
 overNameGenderArticle 'Пол' (a) = nameGender(overGenderArticle(a));
+overShortNameGenderArticle 'Пол' (a) = shortNameGender(overGenderArticle(a));
 
 genderItem (i) = genderArticle(articleItem(i));
 nameGenderItem 'Пол' (i) = nameGender(genderItem(i));
+shortNameGenderItem 'Пол' (i) = shortNameGender(genderItem(i));
 
 genderBatch  (batch) = genderItem(skuBatch(batch));
 nameGenderBatch 'Пол' (batch) = nameGender(genderBatch(batch));
+shortNameGenderBatch 'Пол' (batch) = shortNameGender(genderBatch(batch));
 
 EXTEND FORM article PROPERTIES(a) nameGenderArticle;
 EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameGenderArticle;
