@@ -1505,3 +1505,21 @@ END
 META deriveDocumentDetailSkuBalance (object, skuProp, stockProp)
     @deriveDocumentDetailSkuBalanceCustom(object##Detail, skuProp, stockProp);
 END
+
+//замена товара у партии
+allowReplaceItem = DATA SESSION BOOLEAN ();
+
+setSkuBatch 'Сменить товар' = ACTION (batch) {
+    FORM skus MODAL;
+    IF formResult() == FormResult.ok THEN {  
+        allowReplaceItem() <- TRUE;
+        FOR batchSkuLedger(ledger)==batch DO {
+            replaceSkuBatch(chosenObject('s'), batch);
+        } 
+    }       
+    apply();
+} CONFIRM TOOLBAR;
+
+EXTEND FORM currentBalanceBatchStock
+	PROPERTIES(bt) setSkuBatch FORCE PANEL TOOLBAR
+;
