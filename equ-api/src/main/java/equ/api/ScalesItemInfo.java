@@ -9,20 +9,20 @@ public class ScalesItemInfo extends ItemInfo {
     public Integer hoursExpiry;
     public Date expirationDate;
     public Integer labelFormat;
-    public String composition;
-    public Integer compositionNumber;
+    public String description;
+    public Integer descriptionNumber;
     public List<String> hierarchyItemGroup;
     
     public ScalesItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, BigDecimal daysExpiry,
-                          Integer hoursExpiry, Date expirationDate, Integer labelFormat, String composition, 
-                          Integer compositionNumber, List<String> hierarchyItemGroup) {
+                          Integer hoursExpiry, Date expirationDate, Integer labelFormat, String description, 
+                          Integer descriptionNumber, List<String> hierarchyItemGroup) {
         super(idBarcode, name, price, splitItem);
         this.daysExpiry = daysExpiry;
         this.hoursExpiry = hoursExpiry;
         this.expirationDate = expirationDate;
         this.labelFormat = labelFormat;
-        this.composition = composition;
-        this.compositionNumber = compositionNumber;
+        this.description = description;
+        this.descriptionNumber = descriptionNumber;
         this.hierarchyItemGroup = hierarchyItemGroup;
     }
 }

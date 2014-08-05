@@ -222,7 +222,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
                         "skuGroupMachineryPriceTransactionBarcode", "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode"};
                 String[] extraSkuProperties = new String[]{"daysExpiryMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
-                        "labelFormatMachineryPriceTransactionBarcode", "compositionMachineryPriceTransactionBarcode"};
+                        "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode"};
                 skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
                 for (String property : skuProperties) {
                     skuQuery.addProperty(property, equLM.findProperty(property).getExpr(transactionObject.getExpr(), barcodeExpr));
@@ -279,7 +279,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String idUOM = (String) valueRow.get("idUOMMachineryPriceTransactionBarcode").getValue();
                         String shortNameUOM = (String) valueRow.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
                         Integer idItem = (Integer) itemLM.findProperty("skuBarcode").readClasses(session, keyRow.get("barcode")).getValue();
-                        String composition = scalesItemLM == null ? null : (String) valueRow.get("compositionMachineryPriceTransactionBarcode").getValue();
+                        String description = scalesItemLM == null ? null : (String) valueRow.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
                         List<ItemGroup> hierarchyItemGroup = new ArrayList<ItemGroup>();
                         String canonicalNameSkuGroup = null;
@@ -301,7 +301,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         }
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, idItem,
-                                composition, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM, passScales));
+                                description, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM, passScales));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
@@ -348,7 +348,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         BigDecimal daysExpiry = (BigDecimal) row.get("daysExpiryMachineryPriceTransactionBarcode").getValue();
                         Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
                         Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
-                        String composition = (String) row.get("compositionMachineryPriceTransactionBarcode").getValue();
+                        String description = (String) row.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
                         List<String> hierarchyItemGroup = new ArrayList<String>();
                         if (itemLM != null) {
@@ -363,11 +363,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 }
                             }
                         }
-                        Integer cellScalesObject = composition == null ? null : (Integer) scalesLM.findProperty("cellScalesGroupScalesComposition").read(session, groupMachineryObject, new DataObject(composition, StringClass.text));
-                        Integer compositionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
+                        Integer cellScalesObject = description == null ? null : (Integer) scalesLM.findProperty("cellScalesGroupScalesDescription").read(session, groupMachineryObject, new DataObject(description, StringClass.text));
+                        Integer descriptionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
 
                         scalesItemInfoList.add(new ScalesItemInfo(barcode, name, price, split, daysExpiry, 
-                                hoursExpiry, expiryDate, labelFormat, composition, compositionNumberCellScales, hierarchyItemGroup));
+                                hoursExpiry, expiryDate, labelFormat, description, descriptionNumberCellScales, hierarchyItemGroup));
                     }
 
                     transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(),

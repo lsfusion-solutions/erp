@@ -95,7 +95,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             //message.txt
             boolean messageEmpty = true;            
             for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                if (item.composition != null && !item.composition.equals("")) {
+                if (item.description != null && !item.description.equals("")) {
                     messageEmpty = false;
                     break;
                 }
@@ -108,8 +108,8 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                        if (item.composition != null && !item.composition.equals("")) {
-                            String record = "+|" + item.idBarcode + "|" + item.composition + "|||";
+                        if (item.description != null && !item.description.equals("")) {
+                            String record = "+|" + item.idBarcode + "|" + item.description + "|||";
                             writer.println(record);
                         }
                     }
@@ -138,7 +138,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         if(item.passScalesItem) {
                             String record = "+|" + item.idBarcode + "|" + item.idBarcode + "|" + "22|" + item.name + "||" +
                                     "1|0|1|"/*effectiveLife & GoodLinkToScales*/ +
-                                    (item.composition != null ? item.idBarcode : "0")/*ingredientNumber*/ + "|" +
+                                    (item.description != null ? item.idBarcode : "0")/*ingredientNumber*/ + "|" +
                                     item.price.intValue();
                             writer.println(record);
                         }

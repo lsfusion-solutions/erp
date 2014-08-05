@@ -96,10 +96,10 @@ public class DigiHandler extends ScalesHandler {
 
                 String len = addZeros(Integer.toHexString((recordNumber + statusCode + price + labelFormat + barcodeFormat +
                         barcode + daysExpiry + hoursExpiry +
-                        itemNameCompositionToASCII(item.name, item.composition) + "0C00").length() / 2 + 2), 4, false).toUpperCase();
+                        itemNameDescriptionToASCII(item.name, item.description) + "0C00").length() / 2 + 2), 4, false).toUpperCase();
 
                 row += recordNumber + len + statusCode + price + labelFormat + barcodeFormat + barcode +
-                        daysExpiry + hoursExpiry + itemNameCompositionToASCII(item.name, item.composition) + "0C00";
+                        daysExpiry + hoursExpiry + itemNameDescriptionToASCII(item.name, item.description) + "0C00";
             }
             writer.print(row);
             writer.close();
@@ -134,15 +134,15 @@ public class DigiHandler extends ScalesHandler {
         return str;
     }
 
-    private String itemNameCompositionToASCII(String itemName, String itemComposition) throws UnsupportedEncodingException {
+    private String itemNameDescriptionToASCII(String itemName, String itemDescription) throws UnsupportedEncodingException {
         String outputString = "04" + addZeros(Integer.toHexString(itemName.length()), 2, false).toUpperCase();
         for (byte b : itemName.getBytes("Cp866")) {
             int code = Integer.valueOf(b);
             outputString += Integer.toHexString(code < 0 ? code + 256 : code).toUpperCase();
         }
-        if (itemComposition != null) {
-            outputString += "0C" + "02" + addZeros(Integer.toHexString(itemComposition.length()), 2, false).toUpperCase();
-            for (byte b : itemComposition.getBytes("Cp866")) {
+        if (itemDescription != null) {
+            outputString += "0C" + "02" + addZeros(Integer.toHexString(itemDescription.length()), 2, false).toUpperCase();
+            for (byte b : itemDescription.getBytes("Cp866")) {
                 int code = Integer.valueOf(b);
                 outputString += Integer.toHexString(code < 0 ? code + 256 : code).toUpperCase();
             }

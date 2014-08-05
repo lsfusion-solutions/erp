@@ -7,7 +7,7 @@ import java.util.List;
 
 public class CashRegisterItemInfo extends ItemInfo {
     public Integer idItem;
-    public String composition;
+    public String description;
     public String nameItemGroup;
     public List<ItemGroup> hierarchyItemGroup;
     public String idUOM;
@@ -15,12 +15,12 @@ public class CashRegisterItemInfo extends ItemInfo {
     public boolean passScalesItem;
     
     public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem,
-                                Integer idItem, String composition, String nameItemGroup, 
+                                Integer idItem, String description, String nameItemGroup, 
                                 List<ItemGroup> hierarchyItemGroup, String idUOM, String shortNameUOM, 
                                 boolean passScalesItem) {
         super(idBarcode, name, price, splitItem);
         this.idItem = idItem;
-        this.composition = composition;
+        this.description = description;
         this.nameItemGroup = nameItemGroup;
         this.hierarchyItemGroup = hierarchyItemGroup;
         this.idUOM = idUOM;

@@ -1,6 +1,6 @@
 MODULE ScalesItem;
 
-REQUIRE Item, ScalesPriceTransaction;
+REQUIRE ItemDescription, ScalesPriceTransaction;
 
 NAMESPACE Item;
 
@@ -40,25 +40,24 @@ hoursExpiryBarcode 'Срок годности в часах с момента ф
 @defineMachineryPriceTransactionAttribute(hoursExpiry, 'Срок годности в часах с момента фасовки', INTEGER);
 
 // Состав товара
-compositionScalesItem 'Состав товара (ингредиенты) для весов' = DATA TEXT (Item) IN scales;
-compositionBarcode 'Состав товара' = compositionScalesItem(skuBarcode(barcode));
+descriptionBarcode 'Описание' = descriptionItem(skuBarcode(barcode));
 
-@defineMachineryPriceTransactionAttribute(composition, 'Состав товара', TEXT);
+@defineMachineryPriceTransactionAttribute(description, 'Описание', TEXT);
 
-synchronizeCompositionMachineryPriceTransactionGroupScales = ACTION (transaction, groupMachinery) {
-    FOR compositionMachineryPriceTransactionBarcode(transaction, barcode) IF groupMachinery IS GroupScales
-        AND NOT cellScalesGroupScalesComposition(groupMachinery, compositionMachineryPriceTransactionBarcode(transaction, barcode))
+synchronizeDescriptionMachineryPriceTransactionGroupScales = ACTION (transaction, groupMachinery) {
+    FOR descriptionMachineryPriceTransactionBarcode(transaction, barcode) IF groupMachinery IS GroupScales
+        AND NOT cellScalesGroupScalesDescription(groupMachinery, descriptionMachineryPriceTransactionBarcode(transaction, barcode))
         ADDOBJ c = CellScales DO {
-            ASSIGN groupScalesCellScales(c) <- groupMachinery;
-            ASSIGN compositionCellScales(c) <- compositionMachineryPriceTransactionBarcode (transaction, barcode);
+            groupScalesCellScales(c) <- groupMachinery;
+            descriptionCellScales(c) <- descriptionMachineryPriceTransactionBarcode (transaction, barcode);
         }
 }
 
-snapshotAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += synchronizeCompositionMachineryPriceTransactionGroupScales(transaction, groupMachinery);
-createAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += synchronizeCompositionMachineryPriceTransactionGroupScales(transaction, groupMachinery);
+snapshotAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += synchronizeDescriptionMachineryPriceTransactionGroupScales(transaction, groupMachinery);
+createAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += synchronizeDescriptionMachineryPriceTransactionGroupScales(transaction, groupMachinery);
 
 EXTEND FORM item
-    PROPERTIES(i) SHOWIF passScalesItem(i) idLabelFormatPackItem, daysExpiryPackItem, hoursExpiryPackItem, compositionScalesItem
+    PROPERTIES(i) SHOWIF passScalesItem(i) idLabelFormatPackItem, daysExpiryPackItem, hoursExpiryPackItem
 ;
 EXTEND DESIGN item {
     itemPrimaryColumn2 {
@@ -69,11 +68,10 @@ EXTEND DESIGN item {
 }
 
 overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN passScalesItem(d) <- passScalesItem(s);
-    ASSIGN labelFormatPackItem(d) <- labelFormatPackItem(s);
-    ASSIGN daysExpiryPackItem(d) <- daysExpiryPackItem(s);
-    ASSIGN hoursExpiryPackItem(d) <- hoursExpiryPackItem(s);
-    ASSIGN compositionScalesItem(d) <- compositionScalesItem(s);
+    passScalesItem(d) <- passScalesItem(s);
+    labelFormatPackItem(d) <- labelFormatPackItem(s);
+    daysExpiryPackItem(d) <- daysExpiryPackItem(s);
+    hoursExpiryPackItem(d) <- hoursExpiryPackItem(s);
 }
 
 // Установка параметра для единицы измерения

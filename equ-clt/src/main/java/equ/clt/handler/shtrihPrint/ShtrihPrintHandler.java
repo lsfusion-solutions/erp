@@ -52,10 +52,10 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate));
                 shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 1 : 0));
 
-                for (int i = 0; i <= item.composition.length() / 50; i++) {
-                    shtrihActiveXComponent.setProperty("MessageNumber", new Variant(item.compositionNumber));
+                for (int i = 0; i <= item.description.length() / 50; i++) {
+                    shtrihActiveXComponent.setProperty("MessageNumber", new Variant(item.descriptionNumber));
                     shtrihActiveXComponent.setProperty("StringNumber", new Variant(i+1));
-                    shtrihActiveXComponent.setProperty("MessageString", new Variant(item.composition.substring(50 * i, Math.min(50 * (i+1), item.composition.length()))));
+                    shtrihActiveXComponent.setProperty("MessageString", new Variant(item.description.substring(50 * i, Math.min(50 * (i+1), item.description.length()))));
 
                     result = Dispatch.call(shtrihDispatch, "SetMessageData");
                     if (!result.toString().equals("0")) {
