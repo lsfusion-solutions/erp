@@ -24,8 +24,6 @@ nameStoreType 'Наименование' = DATA VARISTRING[100](StoreType);
 
 nameStockGroup(group) += nameStoreType(group) IF group IS StoreType;
 
-
-
 chainStoresStoreType = DATA ChainStores (StoreType) NOT NULL DELETE;
 nameChainStoresStoreType 'Торговая сеть' (storeType) = nameChainStores(chainStoresStoreType(storeType)) IN base;
 
@@ -97,6 +95,11 @@ addressPOI (store) += addressStore(store);
 
 latitudeStore 'Координата X' = DATA NUMERIC[10,5](Store);
 longitudeStore 'Координата Y' = DATA NUMERIC[10,5](Store);
+
+chairmanStore = DATA Employee (Store);
+nameChairmanStore 'Директор магазина' (store) = nameContact(chairmanStore(store));
+
+openDateStore 'Дата открытия' = DATA DATE (Store);
 
 latitudePOI (store) += latitudeStore(store);
 longitudePOI (store) += longitudeStore(store);
@@ -202,6 +205,13 @@ inChainStoresStoreTypeDepartmentStore (chainStores, storeType, departmentStore)=
 // Неактивный
 inactiveDepartmentStore 'Неактивный' = DATA BOOLEAN (DepartmentStore);
 inactiveStock(st) += inactiveDepartmentStore(st);
+
+inStoreEmployee 'Сотрудник магазина' (store, employee) = GROUP SUM 1 IF inStockEmployee(d, employee)
+    BY storeDepartmentStore(d), employee;
+    
+CONSTRAINT chairmanStore(store) AND NOT inStoreEmployee(store, chairmanStore(store))
+    CHECKED BY chairmanStore MESSAGE 'Работник должен быть сотрудником магазина';
+
 // -------------------------------------- Формы отдела магазинов ------------------------------------------ //
 
 FORM departmentStore 'Отдел магазина'
@@ -306,7 +316,8 @@ changeStore = ACTION (store) {
 
 FORM store 'Магазин'
     OBJECTS s=Store FIXED PANEL
-    PROPERTIES(s) nameStore ON CHANGE changeStore(s), addressStore, nameStoreTypeStore, tradingSquareStore READONLY, nameLegalEntityStore, numberBankAccountStore SHOWIF isCompanyStore(s),
+    PROPERTIES(s) nameStore ON CHANGE changeStore(s), addressStore, nameStoreTypeStore, tradingSquareStore READONLY, 
+                  nameChairmanStore, openDateStore, nameLegalEntityStore, numberBankAccountStore SHOWIF isCompanyStore(s),
                   nameRegionStore, latitudeStore, longitudeStore, showOnMapPOI, idStore SHOWIF showIDs()
 
     OBJECTS d=DepartmentStore
@@ -337,17 +348,18 @@ DESIGN store FROM DEFAULT{
         NEW headerExtraParams {
             caption = 'Дополнительные параметры';
             type = COLUMNS;
-            columns = 3;
+            columns = 4;
+            ADD PROPERTY(nameChairmanStore(s));            
             ADD PROPERTY(numberBankAccountStore(s));
             ADD PROPERTY(nameRegionStore(s));
             ADD PROPERTY(tradingSquareStore(s));
+            ADD PROPERTY(openDateStore(s));
         }
     }
 
     ADD d.box;
     ADD functions.box;
 }
-
 
 // -------------------------------------- Формы магазинов ------------------------------------------ //
 

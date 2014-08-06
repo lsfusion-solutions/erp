@@ -65,6 +65,10 @@ modelMachinery(machinery) += cashRegisterModelCashRegister(machinery);
 
 departmentStoreCashRegister (cashRegister) = departmentStoreGroupCashRegister(groupCashRegisterCashRegister(cashRegister));
 
+countCashRegisterDepartmentStore 'Кол-во касс' (departmentStore) = GROUP SUM 1 BY departmentStoreCashRegister(cashRegister);
+    
+countCashRegisterStore 'Кол-во касс' (store) = GROUP SUM countCashRegisterDepartmentStore(d) BY storeDepartmentStore(d);   
+
 registrationNumberCashRegister 'Регистрационный номер кассы' = DATA VARSTRING[100] (CashRegister) IN base;
 
 dateCashRegister 'Дата фискализации кассового аппарата' = DATA DATE (CashRegister) IN base;
@@ -159,6 +163,30 @@ NAVIGATOR {
     }
 }
 
+EXTEND FORM departmentStore
+    PROPERTIES(d) READONLY countCashRegisterDepartmentStore
+;
+
+EXTEND DESIGN departmentStore{
+    headerExtraParams{
+        ADD PROPERTY(countCashRegisterDepartmentStore(d));
+    }
+}
+    
+EXTEND FORM store
+    PROPERTIES(s) READONLY countCashRegisterStore
+    PROPERTIES(d) READONLY countCashRegisterDepartmentStore BEFORE deleteD
+;
+    
+EXTEND DESIGN store{
+    headerExtraParams{
+        ADD PROPERTY(countCashRegisterStore(s));
+    }    
+}  
+
+EXTEND FORM stores
+    PROPERTIES(s) READONLY countCashRegisterStore
+;
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
