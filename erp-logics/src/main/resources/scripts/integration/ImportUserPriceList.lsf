@@ -3,6 +3,7 @@ MODULE ImportUserPriceList;
 REQUIRE System,
         Item,
         PriceList,
+        PriceListDashboard,
         PriceListOperation,
         TaxItem;
 
@@ -37,9 +38,25 @@ CLASS ImportUserPriceListTypeDetail 'Свойство (импорт прайс-�
 
 CLASS ImportUserPriceListType 'Тип импорта (импорт прайс-листов)';
 TABLE importUserPriceListType(ImportUserPriceListType);
+nameImportUserPriceListType 'Имя' =  DATA VARSTRING[100](ImportUserPriceListType);
 
 importUserPriceListAction 'Импортировать прайс-лист' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportUserPriceListActionProperty';
+importUserPriceListTypeUserPriceList = DATA ImportUserPriceListType(UserPriceList);
+nameImportUserPriceListTypeUserPriceList 'Тип импорта' (userPriceList) = nameImportUserPriceListType(importUserPriceListTypeUserPriceList(userPriceList));
+
 importUserPriceListsAction 'Импортировать прайс-листы' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportUserPriceListsActionProperty';
+importUserPriceListTypeUserPriceLists = DATA ImportUserPriceListType();
+nameImportUserPriceListTypeUserPriceLists 'Тип импорта' () = nameImportUserPriceListType(importUserPriceListTypeUserPriceLists());
+
+importUserPriceListCreateAction 'Импортировать прайс-лист' = ACTION (){
+    FOR ADDOBJ p = UserPriceList DO {
+        importUserPriceListAction(p);
+        FORM userPriceList OBJECTS p = p;
+        IF formResult() == FormResult.ok THEN
+            apply() 
+        ELSE DELETE p; 
+    }
+}
 
 userPriceListDetailIdSkuIdUserPriceList (sku, userPriceList) = GROUP AGGR userPriceListDetail BY idItem(skuUserPriceListDetail(userPriceListDetail)), idUserPriceList(userPriceListUserPriceListDetail(userPriceListDetail)) WHERE userPriceListDetail IS UserPriceListDetail;
 idUserPriceListDetail = DATA VARSTRING[100] (UserPriceListDetail);
@@ -62,10 +79,6 @@ quantityAdjustmentImportUserPriceListType 'Колонка остатка' =  DAT
  
 defaultItemGroupImportUserPriceListType =  DATA ItemGroup(ImportUserPriceListType);
 nameDefaultItemGroupImportUserPriceListType 'Группа товаров' (importUserPriceListType) =  nameItemGroup(defaultItemGroupImportUserPriceListType(importUserPriceListType));
-
-nameImportUserPriceListType 'Имя' =  DATA VARSTRING[100](ImportUserPriceListType);
-importUserPriceListTypeUserPriceList = DATA ImportUserPriceListType(UserPriceList);
-nameImportUserPriceListTypeUserPriceList 'Тип импорта' (userPriceList) = nameImportUserPriceListType(importUserPriceListTypeUserPriceList(userPriceList));
 
 startRowImportUserPriceListType 'Начинать со строки' = DATA INTEGER(ImportUserPriceListType);
 isPostedImportUserPriceListType 'Импортировать проведёнными' = DATA BOOLEAN(ImportUserPriceListType);
@@ -154,6 +167,17 @@ FORM importUserPriceListTypes 'Типы импорта'
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG ImportUserPriceListType OBJECT i
 ;
+
+EXTEND FORM priceListDashboard
+    PROPERTIES() TODRAW p FORCE PANEL nameImportUserPriceListTypeUserPriceLists, importUserPriceListCreateAction
+;
+
+EXTEND DESIGN priceListDashboard{
+    rowContainer{
+        ADD PROPERTY(nameImportUserPriceListTypeUserPriceLists());
+        ADD PROPERTY(importUserPriceListCreateAction());
+    }
+}
 
 EXTEND FORM integrationData
     OBJECTS ip=ImportUserPriceListType
