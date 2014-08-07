@@ -68,6 +68,8 @@ departmentStoreCashRegister (cashRegister) = departmentStoreGroupCashRegister(gr
 countCashRegisterDepartmentStore 'Кол-во касс' (departmentStore) = GROUP SUM 1 BY departmentStoreCashRegister(cashRegister);
     
 countCashRegisterStore 'Кол-во касс' (store) = GROUP SUM countCashRegisterDepartmentStore(d) BY storeDepartmentStore(d);   
+countDataCashRegisterStore 'Кол-во магазинов' = DATA INTEGER (Store);
+countStoreChainStoresOver 'Кол-во касс' (store) = OVERRIDE countCashRegisterStore(store), countDataCashRegisterStore(store); 
 
 registrationNumberCashRegister 'Регистрационный номер кассы' = DATA VARSTRING[100] (CashRegister) IN base;
 
@@ -174,18 +176,18 @@ EXTEND DESIGN departmentStore{
 }
     
 EXTEND FORM store
-    PROPERTIES(s) READONLY countCashRegisterStore
+    PROPERTIES(s) countStoreChainStoresOver
     PROPERTIES(d) READONLY countCashRegisterDepartmentStore BEFORE deleteD
 ;
     
 EXTEND DESIGN store{
     headerExtraParams{
-        ADD PROPERTY(countCashRegisterStore(s));
+        ADD PROPERTY(countStoreChainStoresOver(s));
     }    
 }  
 
 EXTEND FORM stores
-    PROPERTIES(s) READONLY countCashRegisterStore
+    PROPERTIES(s) READONLY countStoreChainStoresOver
 ;
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
