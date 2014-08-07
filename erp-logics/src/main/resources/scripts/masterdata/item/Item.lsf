@@ -603,7 +603,7 @@ EXTEND FORM extractStringAttributeItem
         ON CHANGE from assignStringToFrom(from);
 ;
 
-META defineItemExtractStringAttribute(object, objectIdentity, identityObject)
+META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
     extract###object##FromCaptionItem 'Выделить из названия' = ACTION (i) {
         IF i IS Item THEN {
             FORM extractStringAttributeItem MODAL;
@@ -639,6 +639,39 @@ META defineItemExtractStringAttribute(object, objectIdentity, identityObject)
     } SHORTCUT objectIdentity##Item;
 END
 
+META defineItemExtractPrimitiveAttribute(property, form, fromProp)
+    extract###property##FromCaptionItem 'Выделить из названия' = ACTION (i) {
+        IF i IS Item THEN {
+            FORM form MODAL;
+            IF formResult() == FormResult.ok THEN {
+                LOCAL selected = BOOLEAN (Item);
+                selected(item) <- isSubstring(captionItem(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
+                property##Item(item) <- fromProp('to') WHERE selected(item);
+                // вырезаем двойные пробелы, а также ненужные символы в начале и конце
+                captionItem(item) <- rtrim(
+                                        ltrim(
+                                            replace(
+                                                replace(
+                                                    replace(
+                                                        replace(
+                                                            replace(captionItem(item), chosenString('from'), ''), 
+                                                            '  ', ' '),
+                                                        '" ', '"'),
+                                                    ' "', '"'),
+                                                '""', ''),
+                                            ' ,.'), 
+                                        ' ,.') WHERE selected(item);
+            }
+        }
+    } SHORTCUT property##Item;
+END
+
+// -------------- Символьное --------------------- //
+
+META defineItemExtractStringAttribute(property)
+    @defineItemExtractPrimitiveAttribute(property, extractStringAttributeItem, chosenString);
+END
+
 // -------------- Числовое --------------------- //
 FORM extractDoubleAttributeItem 'Выделение атрибута'
     OBJECTS from = VARSTRING[100] FIXED PANEL
@@ -670,22 +703,8 @@ EXTEND FORM extractDoubleAttributeItem
 ;
 
 META defineItemExtractDoubleAttribute(property)
-    extract###property##FromCaptionItem 'Выделить из названия' = ACTION (i) {
-        IF i IS Item THEN {
-            FORM extractDoubleAttributeItem MODAL;
-            IF formResult() == FormResult.ok THEN {
-                LOCAL property = NUMERIC[20,7]();
-                property() <- chosenNumeric('to');
-                LOCAL selected = BOOLEAN (Item);
-                selected(item) <- isSubstring(captionItem(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
-                property##Item(item) <- property() WHERE selected(item);
-                // вырезаем двойные пробелы, а также ненужные символы в начале и конце
-                captionItem(item) <- rtrim(ltrim(replace(replace(captionItem(item), chosenString('from'), ''), '  ', ' '), ' ,.'), ' ,.') WHERE selected(item);
-            }
-        }
-    } SHORTCUT property##Item;
+    @defineItemExtractPrimitiveAttribute(property, extractDoubleAttributeItem, chosenNumeric);
 END
-
 
 // ---------------------------- Конкретные свойства -------------------------------- //
 
@@ -769,7 +788,7 @@ DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
 
 @defineItemFilterValue(brand, 'Бренд');
-@defineItemExtractStringAttribute(brand, nameBrand, brandName);
+@defineItemExtractObjectAttribute(brand, nameBrand, brandName);
 
 // Страна
 @defineObjectItemAttribute(country, Country, name, 'Страна', itemBase);
