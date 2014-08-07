@@ -34,16 +34,20 @@ changeNumberVATItem = ACTION (item) {
         VATItemCountry(item, country) <- NULL WHERE country == defaultCountry();
     }
 }
+changeValueVATItem = ACTION (item) {
+    REQUEST NUMERIC[10,5] INPUT;
+    VATItemCountry(item, country) <- valueCurrentVATCountryValue(country, requestedNumeric()) WHERE country == defaultCountry();
+}
 
 EXTEND FORM item
     PROPERTIES (i, c)      numberVATItemCountry 
     PROPERTIES (i, c, dtr) valueVATItemCountryDate READONLY
     PROPERTIES (i)         numberVATItem ON CHANGE changeNumberVATItem(i) 
-    PROPERTIES (i, dtr)    valueVATItemDate READONLY
+    PROPERTIES (i)         valueVATItem ON CHANGE changeValueVATItem(i)
     FILTERGROUP filters1
             FILTER 'Страны, у которых есть НДС' 'F11' countRangeTaxCountry (Tax.taxVAT, c) DEFAULT
 ;
-EXTEND DESIGN item { regionPrm  { ADD PROPERTY(numberVATItem(i));  ADD PROPERTY(valueVATItemDate(i, dtr));} }
+EXTEND DESIGN item { regionPrm  { ADD PROPERTY(numberVATItem(i));  ADD PROPERTY(valueVATItem(i));} }
 
 EXTEND FORM items
     PROPERTIES(i) READONLYIF  isReadonly() numberVATItem, valueVATItem
