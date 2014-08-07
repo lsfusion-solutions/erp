@@ -36,6 +36,36 @@ DESIGN types FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @defineItemFilterValue(type, 'Вид');
 @defineItemExtractObjectAttribute(type, nameType, typeName);
 
+// Тип
+CLASS Kind 'Тип товара';
+TABLE kind(Kind);
+
+nameKind 'Наименование' = DATA VARISTRING[50](Kind);
+kindName = GROUP AGGR kind BY nameKind(kind); 
+
+FORM kind 'Тип товара'
+    OBJECTS t=Kind FIXED PANEL
+    PROPERTIES(t) nameKind
+    EDIT Kind OBJECT t
+;
+
+FORM kinds 'Типы товара'
+    OBJECTS t=Kind
+    PROPERTIES(t) nameKind READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameKind(t)
+    DIALOG Kind OBJECT t
+;
+DESIGN kinds FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+@defineObjectItemAttribute(kind, Kind, name, 'Тип', itemDescription);
+@defineObjectItemAttributeBatch (kind, nameKind, 'Тип');
+@implementItemAttribute(nameKind, 'Тип', String, itemKind);
+
+@defineItemDefaultValue(kind, 'Тип', Kind, nameKind);
+@defineItemFilterValue(kind, 'Тип');
+@defineItemExtractObjectAttribute(kind, nameKind, kindName);
+
 // Сорт
 CLASS Sort 'Сорт товара';
 TABLE sort(Sort);
