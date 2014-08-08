@@ -1,6 +1,7 @@
 MODULE PriceListDashboard;
 
 REQUIRE PriceList,
+        ImportUserPriceList,
         Dashboard;
 
 FORM priceListDashboard 'Управление ценами'
@@ -393,9 +394,11 @@ EXTEND DESIGN priceListDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-addUserPriceListLegalEntityPriceListType 'Добавить' = ACTION (legalEntity, type) NEWSESSION {
+addUserPriceListLegalEntityPriceListTypeDateTime 'Добавить' = ACTION (legalEntity, type, dateTime) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
         companyUserPriceList(p) <- legalEntity;
+        fromDateUserPriceList(p) <- toDate(dateTime);
+        fromTimeUserPriceList(p) <- toTime(dateTime);
         inPriceListDataPriceListType(p, type) <- TRUE;
         showPriceListPriceListType(p, type) <- TRUE;
         EXEC overAddUserPriceList(p); 
@@ -417,7 +420,7 @@ EXTEND FORM priceListDashboard
     ORDER BY fromDateUserPriceList(p), fromTimeUserPriceList(p)
     FILTERS inPriceListDataPriceListType(p, pt),
             companyUserPriceList(p) == c
-    PROPERTIES(c,pt) addUserPriceListLegalEntityPriceListType FORCE PANEL TODRAW p       
+    PROPERTIES(c, pt, dt) addUserPriceListLegalEntityPriceListTypeDateTime FORCE PANEL TODRAW p       
     FILTERGROUP inactivePriceList
         FILTER 'Текущие' 'F11' isActivePriceListDateTime(p,dt)            
         FILTER 'Активные' 'F10' isActivePriceListDateTime(p,dt) OR (fromDateTimePriceList(p) > dt) DEFAULT   
@@ -434,5 +437,30 @@ EXTEND DESIGN priceListDashboard {
             }
             ADD p.box;
         }
+    }
+}
+
+// ------------------- Импорт прайсов --------------------------- //
+
+importUserPriceListLegalEntityPriceListTypeDateTime 'Импортировать' = ACTION (c, t, dt) NEWSESSION {
+    FOR ADDOBJ p = UserPriceList DO {
+        importUserPriceListTypeUserPriceList(p) <- t;
+        companyUserPriceList(p) <- c;
+        fromDateUserPriceList(p) <- toDate(dt);
+        fromTimeUserPriceList(p) <- toTime(dt);
+        importUserPriceListAction(p);
+        FORM userPriceList OBJECTS p = p MANAGESESSION;
+    }
+} TOOLBAR;
+
+EXTEND FORM priceListDashboard
+    OBJECTS t = ImportUserPriceListType FIXED PANEL
+    PROPERTIES(t) nameImportUserPriceListType SELECTOR
+    PROPERTIES(c, t, dt) importUserPriceListLegalEntityPriceListTypeDateTime FORCE PANEL TODRAW p
+;
+
+EXTEND DESIGN priceListDashboard{
+    rowContainer{
+        ADD PROPERTY(nameImportUserPriceListType(t));
     }
 }

@@ -193,13 +193,13 @@ TABLE pack(Pack);
 namePack 'Наименование' = DATA VARISTRING[50](Pack);
 packName (pack) = GROUP AGGR pack BY namePack(pack);
 
-FORM pack 'Фасовка'
+FORM pack 'Фасовка товара'
     OBJECTS t=Pack FIXED PANEL
     PROPERTIES(t) namePack
     EDIT Pack OBJECT t
 ;
 
-FORM packs 'Фасовки'
+FORM packs 'Фасовки товара'
     OBJECTS t=Pack
     PROPERTIES(t) namePack READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
@@ -228,9 +228,9 @@ DESIGN packs FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @implementItemAttribute(numberComponents, 'Кол-во компонентов', Integer, itemNumberComponents);
 
 // Код артикула
-@defineStringItemAttribute(articleCode, VARSTRING[100], 'Код артикула', itemDescription);
-@defineItemAttributeBatch (articleCode, 'Код артикула');
-@implementItemAttribute(articleCode, 'Код артикула', String, itemArticleCode);
+@defineStringItemAttribute(manufacturerCode, VARSTRING[20], 'Код производителя', itemDescription);
+@defineItemAttributeBatch (manufacturerCode, 'Код производителя');
+@implementItemAttribute(manufacturerCode, 'Код производителя', String, itemManufacturerCode);
 
 // Описание
 @defineStringItemAttribute(description, TEXT, 'Описание', itemDescription);
@@ -257,7 +257,7 @@ overCopyItem(s, d) += ACTION (s, d) {
     packItem(d) <- packItem(s);
     propertyItem(d) <- propertyItem(s);
     numberComponentsItem(d) <- numberComponentsItem(s);
-    articleCodeItem(d) <- articleCodeItem(s);
+    manufacturerCodeItem(d) <- manufacturerCodeItem(s);
     descriptionItem(d) <- descriptionItem(s);
 }
 
@@ -281,9 +281,11 @@ EXTEND DESIGN itemGroup {
 NAVIGATOR {
     itemAttributeNavigator {
         ADD types;
+        ADD kinds;
         ADD sorts;
         ADD forms;
         ADD features;
+        ADD packTypes;
         ADD packs;
     }
 }

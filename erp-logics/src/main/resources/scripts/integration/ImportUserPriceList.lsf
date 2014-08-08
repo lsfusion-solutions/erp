@@ -3,7 +3,6 @@ MODULE ImportUserPriceList;
 REQUIRE System,
         Item,
         PriceList,
-        PriceListDashboard,
         PriceListOperation,
         TaxItem;
 
@@ -45,18 +44,6 @@ importUserPriceListTypeUserPriceList = DATA ImportUserPriceListType(UserPriceLis
 nameImportUserPriceListTypeUserPriceList 'Тип импорта' (userPriceList) = nameImportUserPriceListType(importUserPriceListTypeUserPriceList(userPriceList));
 
 importUserPriceListsAction 'Импортировать прайс-листы' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportUserPriceListsActionProperty';
-importUserPriceListTypeUserPriceLists = DATA ImportUserPriceListType();
-nameImportUserPriceListTypeUserPriceLists 'Тип импорта' () = nameImportUserPriceListType(importUserPriceListTypeUserPriceLists());
-
-importUserPriceListCreateAction 'Импортировать прайс-лист' = ACTION (){
-    FOR ADDOBJ p = UserPriceList DO {
-        importUserPriceListAction(p);
-        FORM userPriceList OBJECTS p = p;
-        IF formResult() == FormResult.ok THEN
-            apply() 
-        ELSE DELETE p; 
-    }
-}
 
 userPriceListDetailIdSkuIdUserPriceList (sku, userPriceList) = GROUP AGGR userPriceListDetail BY idItem(skuUserPriceListDetail(userPriceListDetail)), idUserPriceList(userPriceListUserPriceListDetail(userPriceListDetail)) WHERE userPriceListDetail IS UserPriceListDetail;
 idUserPriceListDetail = DATA VARSTRING[100] (UserPriceListDetail);
@@ -167,17 +154,6 @@ FORM importUserPriceListTypes 'Типы импорта'
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG ImportUserPriceListType OBJECT i
 ;
-
-EXTEND FORM priceListDashboard
-    PROPERTIES() TODRAW p FORCE PANEL nameImportUserPriceListTypeUserPriceLists, importUserPriceListCreateAction
-;
-
-EXTEND DESIGN priceListDashboard{
-    rowContainer{
-        ADD PROPERTY(nameImportUserPriceListTypeUserPriceLists());
-        ADD PROPERTY(importUserPriceListCreateAction());
-    }
-}
 
 EXTEND FORM integrationData
     OBJECTS ip=ImportUserPriceListType
