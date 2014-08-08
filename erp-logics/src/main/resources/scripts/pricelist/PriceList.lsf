@@ -57,7 +57,7 @@ FORM dataPriceListTypes 'Пользовательские виды цен'
 
 addDataPriceListType 'Добавить пользовательскую цену' = ACTION ADDFORM DataPriceListType;
 editDataPriceListType 'Редактировать' = ACTION EDITFORM DataPriceListType;
-editPriceListType(priceListType) += editDataPriceListType(priceListType);
+editPriceListType(priceListType) += ACTION editDataPriceListType(priceListType);
 
 EXTEND FORM priceListTypes
     PROPERTIES() TODRAW pt FORCE PANEL addDataPriceListType
@@ -395,7 +395,7 @@ filterPriceListTypeUserPriceListBatchStock (userPriceList, batch, stock) =
     currentPriceBatchPriceListStock (batch, userPriceList, stock) OR
     (batch IS Batch AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
     
-editSkuUserPriceListDetail 'Редактировать SKU' (d) = editSku(skuUserPriceListDetail(d));   
+editSkuUserPriceListDetail 'Редактировать SKU' (d) = ACTION editSku(skuUserPriceListDetail(d));   
    
 nameCompanyBLedgerPriceListTypeStockPriceListDetail 'Организация' (type, stock, d) = nameLegalEntity(companyBLedgerPriceListTypeSkuStockDateTime(type, skuUserPriceListDetail(d), stock ,fromDateTimePriceListDetail(d)));    
 toShowPriceListPriceListType (p, to) = showPriceListPriceListType(p, to) AND to IS LedgerPriceListType AND differentOrganizationsLedgerPriceListType(to);          
@@ -669,8 +669,8 @@ DESIGN userPriceList FROM DEFAULT {
     editUserPriceListDetail(d) = ACTION (d) NEWSESSION {
         FORM userPriceList OBJECTS p = userPriceListUserPriceListDetail(d), d = d MANAGESESSION DOCKEDMODAL;
     }
-    editPriceListDetail(d) += editUserPriceListDetail(d);   
-    editPriceListLedger(d) += editPriceListDetail(d);
+    editPriceListDetail(d) += ACTION editUserPriceListDetail(d);   
+    editPriceListLedger(d) += ACTION editPriceListDetail(d);
 // -------------------------------- Изменение цен для строк ------------------------------ //
 
 CLASS TypeMarkUpSkuUserPriceList 'Метод изменения цены'{
@@ -877,7 +877,7 @@ EXTEND DESIGN userPriceList{
 addUserPriceList 'Добавить' = ACTION ADDFORM UserPriceList;
 editUserPriceList 'Редактировать' = ACTION EDITFORM UserPriceList;
 editPriceList 'Редактировать' = ABSTRACT ACTION LIST (PriceList) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-editPriceList (p) += editUserPriceList(p);
+editPriceList (p) += ACTION editUserPriceList(p);
 
 // ------------------ Копирование прайс-листов ------------------- //
 
@@ -1106,7 +1106,7 @@ FORM printPriceList 'Прайс'
 printPrintPriceList 'Распечатать' (priceList) =
     ACTION FORM printPriceList OBJECTS p = priceList PRINT  IMAGE 'print.png' IN print;
 
-printPriceList(priceList) += printPrintPriceList(priceList);
+printPriceList(priceList) += ACTION printPrintPriceList(priceList);
 
 // ------------------------- Расширяем форму LegalEntity ----------------------- //
 overAddUserPriceList= ABSTRACT ACTION LIST (UserPriceList);

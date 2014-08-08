@@ -245,7 +245,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
             EXEC fillInvoiceDetailUserShipmentDetailDimension(detail, dimension);
         }
     } IN invoices;
-    fillInvoiceDetailUserShipment 'Привязать поставку к накладным' (userShipment) = fillInvoiceDetailUserShipmentDimension(userShipment, shipmentDimensionUserShipment(userShipment)) IN invoices;
+    fillInvoiceDetailUserShipment 'Привязать поставку к накладным' (userShipment) = ACTION fillInvoiceDetailUserShipmentDimension(userShipment, shipmentDimensionUserShipment(userShipment)) IN invoices;
 
     WHEN SESSION FORMS userShipment
         (CHANGED(shipmentDimensionUserShipmentDetail(detail)) OR CHANGED(skuUserShipmentDetail(detail))) AND NOT invoiceDetailUserShipmentDetail(detail) AND s==shipmentDimensionUserShipmentDetail(detail)
@@ -437,7 +437,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     invoiceDetailShipmentDetail(shipmentDetail) += invoiceDetailInvoiceShipmentDetail(shipmentDetail);
 
     editShipment(shipment) += ACTION EXEC editInvoice(invoiceInvoiceShipment(shipment));
-    editShipmentDetail(d) += editInvoiceDetail(invoiceDetailInvoiceShipmentDetail(d));
+    editShipmentDetail(d) += ACTION editInvoiceDetail(invoiceDetailInvoiceShipmentDetail(d));
     
     createdUserShipment(shipment) += createdUserInvoice(invoiceInvoiceShipment(shipment));
     
@@ -513,7 +513,7 @@ META defineInvoiceShipmentAction (sign)
             FORM userShipment OBJECTS s = s MANAGESESSION DOCKEDMODAL;
         }
     } TOOLBAR;
-    Shipment.addUserShipmentInvoice(invoice) += WHEN invoice IS Invoice THEN addUserShipmentInvoice(invoice);
+    Shipment.addUserShipmentInvoice(invoice) += WHEN invoice IS Invoice THEN ACTION addUserShipmentInvoice(invoice);
 
     EXTEND FORM invoices
         PROPERTIES(i) addUserShipmentInvoice
