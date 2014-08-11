@@ -85,6 +85,7 @@ public class ExportExcelPivotAction implements ClientAction {
                     unspecified //Connection
             }, new int[1]).toDispatch();
 
+            int dataCount = 0;
             LinkedHashMap<Integer, Integer> fields = getFields(getFieldsMap(sourceSheet, columnsCount));
             for (int i = fields.size(); i > 0; i--) {
                 Integer orientation = fields.get(i);
@@ -92,6 +93,7 @@ public class ExportExcelPivotAction implements ClientAction {
                     Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(i)).toDispatch();
                     Dispatch.put(fieldDispatch, "Orientation", new Variant(orientation));
                     if (orientation.equals(xlDataField)) {
+                        dataCount++;
                         Dispatch.put(fieldDispatch, "Function", new Variant(xlSum));
                         String caption = Dispatch.get(fieldDispatch, "Caption").getString().replace("Сумма по полю ", "");
                         Dispatch.put(fieldDispatch, "Caption", new Variant(caption + "*"));
@@ -100,7 +102,8 @@ public class ExportExcelPivotAction implements ClientAction {
             }
 
             Dispatch field = Dispatch.get(pivotTableWizard, "DataPivotField").toDispatch();
-            Dispatch.put(field, "Orientation", new Variant(xlColumnField));
+            if (dataCount > 1)
+                Dispatch.put(field, "Orientation", new Variant(xlColumnField));
         }
             
         Dispatch.get(workbook, "Save");
