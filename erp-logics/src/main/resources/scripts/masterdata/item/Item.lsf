@@ -765,6 +765,30 @@ WHEN SESSION CHANGED(itemGroupItem(i)) AND NOT captionItem(i) DO
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(caption, 'Название', String, itemCaption);
 
+extractStringCaptionItem 'Удалить текст из названия' = ACTION (i) {
+    IF i IS Item THEN {
+        FORM dialogString MODAL;
+        IF formResult() == FormResult.ok THEN {
+            LOCAL selected = BOOLEAN (Item);
+            selected(item) <- isSubstring(captionItem(item), chosenString('s')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
+            // вырезаем двойные пробелы, а также ненужные символы в начале и конце
+            captionItem(item) <- rtrim(
+                                    ltrim(
+                                        replace(
+                                            replace(
+                                                replace(
+                                                    replace(
+                                                        replace(captionItem(item), chosenString('s'), ''), 
+                                                        '  ', ' '),
+                                                    '" ', '"'),
+                                                ' "', '"'),
+                                            '""', ''),
+                                        ' ,.'), 
+                                    ' ,.') WHERE selected(item);
+        }
+    }
+} SHORTCUT captionItem;
+
 @defineStringItemAttribute(originalCaption, VARISTRING[100], 'Название (ориг.)', itemOriginal);
 @defineItemAttributeBatch (originalCaption, 'Название (ориг.)');
 
