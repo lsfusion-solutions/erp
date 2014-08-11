@@ -63,24 +63,86 @@ DESIGN coolingDegrees FROM DEFAULT { main{ preferredSize = (600, 400); } }
 //@implementObjectShortItemAttribute(coolingDegree, 'Степень охлаждения (сокр.)');
 
 // Жирность
-@defineDoubleItemAttribute(percentFat, NUMERIC[5,1], '% жирности', itemFood);
-@defineItemAttributeBatch (percentFat, '% жирности');
-@implementItemAttribute(percentFat, '% жирности', Double, itemPercentFat);
+CLASS Fat 'Жирность';
+TABLE fat(Fat);
 
-@defineItemExtractDoubleAttribute(percentFat);
+nameFat 'Наименование' = DATA VARISTRING[20](Fat);
+fatName (name) = GROUP AGGR fat BY nameFat(fat); 
+
+FORM fat 'Жирность товара'
+    OBJECTS t=Fat FIXED PANEL
+    PROPERTIES(t) nameFat
+    EDIT Fat OBJECT t
+;
+
+FORM fats 'Жирность товара'
+    OBJECTS t=Fat
+    PROPERTIES(t) nameFat READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameFat(t)
+    DIALOG Fat OBJECT t
+;
+DESIGN fats FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+@defineObjectItemAttribute(fat, Fat, name, 'Жирность', itemFood);
+@defineObjectItemAttributeBatch (fat, nameFat, 'Жирность');
+@implementItemAttribute(nameFat, 'Жирность', String, itemFat);
+
+@defineItemDefaultValue(fat, 'Жирность', Fat, nameFat);
+@defineItemFilterValue(fat, 'Жирность');
+@defineItemExtractObjectAttribute(fat, nameFat, fatName);
+
+// % Жирности
+//@defineDoubleItemAttribute(percentFat, NUMERIC[5,1], '% жирности', itemFood);
+//@defineItemAttributeBatch (percentFat, '% жирности');
+//@implementItemAttribute(percentFat, '% жирности', Double, itemPercentFat);
+//
+//@defineItemExtractDoubleAttribute(percentFat);
 
 // Алкоголь
-@defineDoubleItemAttribute(percentAlcohol, NUMERIC[5,1], '% алкоголя', itemFood);
-@defineItemAttributeBatch (percentAlcohol, '% алкоголя');
-@implementItemAttribute(percentAlcohol, '% алкоголя', Double, itemPercentAlcohol);
+CLASS Alcohol 'Содержание алкоголя';
+TABLE alcohol(Alcohol);
 
-@defineItemExtractDoubleAttribute(percentAlcohol);
+nameAlcohol 'Наименование' = DATA VARISTRING[20](Alcohol);
+alcoholName (name) = GROUP AGGR alcohol BY nameAlcohol(alcohol); 
+
+FORM alcohol 'Содержание алкоголя'
+    OBJECTS t=Alcohol FIXED PANEL
+    PROPERTIES(t) nameAlcohol
+    EDIT Alcohol OBJECT t
+;
+
+FORM alcohols 'Содержания алкоголя'
+    OBJECTS t=Alcohol
+    PROPERTIES(t) nameAlcohol READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameAlcohol(t)
+    DIALOG Alcohol OBJECT t
+;
+DESIGN alcohols FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
+@defineObjectItemAttribute(alcohol, Alcohol, name, 'Содержание алкоголя', itemFood);
+@defineObjectItemAttributeBatch (alcohol, nameAlcohol, 'Содержание алкоголя');
+@implementItemAttribute(nameAlcohol, 'Содержание алкоголя', String, itemAlcohol);
+
+@defineItemDefaultValue(alcohol, 'Содержание алкоголя', Alcohol, nameAlcohol);
+@defineItemFilterValue(alcohol, 'Содержание алкоголя');
+@defineItemExtractObjectAttribute(alcohol, nameAlcohol, alcoholName);
+
+// Алкоголь
+//@defineDoubleItemAttribute(percentAlcohol, NUMERIC[5,1], '% алкоголя', itemFood);
+//@defineItemAttributeBatch (percentAlcohol, '% алкоголя');
+//@implementItemAttribute(percentAlcohol, '% алкоголя', Double, itemPercentAlcohol);
+//
+//@defineItemExtractDoubleAttribute(percentAlcohol);
 
 overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN tasteItem(d) <- tasteItem(s);
-    ASSIGN coolingDegreeItem(d) <- coolingDegreeItem(s);
-    ASSIGN percentFatItem(d) <- percentFatItem(s);
-    ASSIGN percentAlcoholItem(d) <- percentAlcoholItem(s);
+    tasteItem(d) <- tasteItem(s);
+    coolingDegreeItem(d) <- coolingDegreeItem(s);
+    fatItem(d) <- fatItem(s);
+//    percentFatItem(d) <- percentFatItem(s);
+    alcoholItem(d) <- alcoholItem(s);
+//    percentAlcoholItem(d) <- percentAlcoholItem(s);
 }
 
 EXTEND DESIGN item {
