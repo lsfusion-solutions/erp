@@ -588,6 +588,18 @@ FORM extractStringAttributeItem 'Выделение атрибута'
     PROPERTIES(to) to = OBJVALUE
 ;
 
+possibleStringAttributeValue = DATA SESSION BOOLEAN (VARSTRING[100]);
+changePossibleStringAttributeValue = ACTION (v) {
+    SEEK extractStringAttributeItem.to v;
+}
+ 
+EXTEND FORM extractStringAttributeItem
+    OBJECTS v = VARSTRING[100] FIXED GRID
+    PROPERTIES(v) value = OBJVALUE ON CHANGE changePossibleStringAttributeValue(v) 
+    FILTERS possibleStringAttributeValue(v)
+    ORDER BY value
+;
+
 DESIGN extractStringAttributeItem FROM DEFAULT {
     PROPERTY(from) {
         caption = 'Последовательность символов, которую извлечь';
@@ -598,6 +610,12 @@ DESIGN extractStringAttributeItem FROM DEFAULT {
         caption = 'Последовательность символов, на которую заменить';
         font = '32';
         panelLabelAbove = TRUE;
+    }
+    v.box {
+        caption = 'Возможные значения';
+        PROPERTY(value) {
+            caption = 'Значение';
+        }
     }
 }
 
@@ -612,6 +630,7 @@ EXTEND FORM extractStringAttributeItem
 META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
     extract###object##FromCaptionItem 'Выделить из названия' = ACTION (i) {
         IF i IS Item THEN {
+            possibleStringAttributeValue(s) <- TRUE IF [= GROUP SUM 1 IF in###object##ItemGroup(object, g) BY objectIdentity(object), g](s, itemGroupItem(i));
             FORM extractStringAttributeItem MODAL;
             IF formResult() == FormResult.ok THEN {
                 LOCAL object = ###object();
