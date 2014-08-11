@@ -117,8 +117,8 @@ public class ExportExcelPivotAction implements ClientAction {
         String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         String columnIndex = "";
         while (column > 0) {
-            columnIndex = (column <=26 ? letters.charAt(column - 1) : letters.charAt(column % 26 - 1)) + columnIndex;
-            column /= 26;
+            columnIndex = letters.charAt((column-1) % 26) + columnIndex;
+            column = (column - 1) / 26;
         }
         return columnIndex + row;
     }
