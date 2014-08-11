@@ -481,27 +481,27 @@ META defineDocumentInterfaceHeaderAgreement (object)
 
 END
 
-META deriveDocumentHeaderAgreement (object, supplier, customer)
+META deriveDocumentHeaderAgreement (object, supplierProp, customerProp)
 
     defaultAgreement###object = ABSTRACT Agreement (###object);
     overDefaultAgreement###object = 
-        OVERRIDE defaultAgreementSupplierCustomer(supplier(o), customer(o)) IF currency###object(o) == currencyAgreement(defaultAgreementSupplierCustomer(supplier(o), customer(o))), 
+        OVERRIDE defaultAgreementSupplierCustomer(supplierProp###object(o), customerProp###object(o)) IF currency###object(o) == currencyAgreement(defaultAgreementSupplierCustomer(supplierProp###object(o), customerProp###object(o))), 
         defaultAgreement###object(o);
     agreement###object (o) <- overDefaultAgreement###object(o)
     WHEN CHANGED(currency###object(o)) OR
-         CHANGED(customer(o)) OR
-         CHANGED(supplier(o));
+         CHANGED(customerProp###object(o)) OR
+         CHANGED(supplierProp###object(o));
 
     CONSTRAINT currency###object(o) != currencyAgreement(agreement###object(o))
                CHECKED BY agreement###object
                MESSAGE 'Валюта документа должны совпадать с валютой соглашения';
 
-    CONSTRAINT agreement###object(o) AND NOT inAgreementSupplier(agreement###object(o), supplier(o))
+    CONSTRAINT agreement###object(o) AND NOT inAgreementSupplier(agreement###object(o), supplierProp###object(o))
                CHECKED BY agreement###object
                MESSAGE 'Соглашение должно быть между заданными организациями (поставщик)';
 
     CONSTRAINT agreement###object(object)
-               AND NOT inAgreementCustomer(agreement###object(object), customer(object))
+               AND NOT inAgreementCustomer(agreement###object(object), customerProp###object(object))
                CHECKED BY agreement###object
                MESSAGE 'Соглашение должно быть между заданными организациями (покупатель)';
 END
