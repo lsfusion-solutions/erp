@@ -87,10 +87,10 @@ public class ExportExcelPivotAction implements ClientAction {
 
             int dataCount = 0;
             LinkedHashMap<Integer, Integer> fields = getFields(getFieldsMap(sourceSheet, columnsCount));
-            for (int i = fields.size(); i > 0; i--) {
-                Integer orientation = fields.get(i);
+            for (Map.Entry<Integer, Integer> entry : fields.entrySet()) {
+                Integer orientation = entry.getValue();
                 if (orientation != null) {
-                    Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(i)).toDispatch();
+                    Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(entry.getKey())).toDispatch();
                     Dispatch.put(fieldDispatch, "Orientation", new Variant(orientation));
                     if (orientation.equals(xlDataField)) {
                         dataCount++;
