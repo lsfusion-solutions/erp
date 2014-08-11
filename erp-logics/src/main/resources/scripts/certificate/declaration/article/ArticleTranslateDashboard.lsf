@@ -23,10 +23,6 @@ changeCompletedTranslateArticle (article) = ACTION (article) {
     }        
 }
 
-// Подсчет непереведенных артикулов для групп
-countNotCompletedTranslateArticlesItemGroup 'Не обработано (к-во)' (group) = GROUP SUM 1 IF notCompletedTranslateArticle(article) BY itemGroupArticle(article);
-recCountNotCompletedTranslateArticlesItemGroup 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedTranslateArticlesItemGroup(child) IF isParentItemGroupItemGroup(child, parent) BY parent;
-
 // Не заполнены атрибуты
 nullTranslateItem 'Без атрибутов' (item) = item IS Item AND NOT (captionItem(item) AND compositionItem(item)) AND NOT completedTranslateItem(item);
 nullTranslateArticle 'Без атрибутов' (article) = GROUP SUM 1 IF item IS Item AND NOT (captionItem(item) AND compositionItem(item)) AND NOT completedTranslateItem(item) BY articleItem(item);
@@ -44,6 +40,8 @@ descriptionDefaultPurchaseInvoiceSku 'Последний инвойс' (sku)= CO
 
 TABLE invoiceUser (Purchase.Invoice, User);
 inPurchaseInvoiceUser 'Вкл.' = DATA BOOLEAN  (Purchase.Invoice, User);
+inPurchaseInvoicesUser (user) = GROUP SUM 1 IF inPurchaseInvoiceUser(invoice, user) BY user;
+
 seriesNumberDateInvoice 'Номер/дата накладной' (o) = 
     CONCAT '', Purchase.seriesNumberInvoice(o), 
                ' от ' +Purchase.dateInvoice(o) 
@@ -117,6 +115,10 @@ quantityInvoiceDetailArticleUser 'Кол-во товара в документе
     GROUP SUM quantityInvoiceDetailArticleInvoice(article, invoice) IF inPurchaseInvoiceUser(invoice, user)
         BY article, user;
         
+// Подсчет непереведенных артикулов для групп
+countNotCompletedTranslateArticlesItemGroup 'Не обработано (к-во)' (group) = 
+    GROUP SUM 1 IF notCompletedTranslateArticle(article)  AND ((inPurchaseInvoicesUser(currentUser()) AND quantityInvoiceDetailArticleUser(article, currentUser())) OR NOT inPurchaseInvoicesUser(currentUser())) BY itemGroupArticle(article);
+recCountNotCompletedTranslateArticlesItemGroup 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedTranslateArticlesItemGroup(child) IF isParentItemGroupItemGroup(child, parent) BY parent;
         
 dictionaryComposition = DATA Dictionary ();   
 nameDictionaryComposition 'Словарь для состава' = nameDictionary(dictionaryComposition());

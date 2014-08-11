@@ -24,7 +24,9 @@ changeCompletedGroupsArticle (article) = ACTION (article) {
 }
 
 // Подсчет непереведенных артикулов для групп
-countNotCompletedGroupsArticlesItemGroup 'Не обработано (к-во)' (group) = GROUP SUM 1 IF completedTranslateArticle(article) AND notCompletedGroupsArticle(article) BY itemGroupArticle(article);
+countNotCompletedGroupsArticlesItemGroup 'Не обработано (к-во)' (group) = 
+    GROUP SUM 1 IF completedTranslateArticle(article) AND notCompletedGroupsArticle(article) AND ((inPurchaseInvoicesUser(currentUser()) AND quantityInvoiceDetailArticleUser(article, currentUser())) OR NOT inPurchaseInvoicesUser(currentUser())) 
+    BY itemGroupArticle(article);
 recCountNotCompletedGroupsArticlesItemGroup 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedGroupsArticlesItemGroup(child) IF isParentItemGroupItemGroup(child, parent) BY parent;
 
 
