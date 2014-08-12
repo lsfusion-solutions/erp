@@ -19,18 +19,12 @@ EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressManufacturerItemLabe
 EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressManufacturerItemLabelTransactionDetail;
 
 createItemLabelsTransaction 'Сформировать ценники' = ACTION (item, stock) NEWSESSION {
-     LOCAL inBarcode = BOOLEAN (Barcode);
-     
-     inBarcode(barcode) <- TRUE IF skuBarcode(barcode)==item;
-     inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрихкод является активным
-     
-     FOR ([= GROUP SUM 1 IF inBarcode(barcode) AND inLabelTypeSkuDepartmentStore(labelType, skuBarcode(barcode), stock) BY labelType, stock](labelType, stock))
+     FOR inLabelTypeSkuDepartmentStore(labelType, item, stock)
          ADDOBJ t = LabelTransaction DO {
              departmentStoreLabelTransaction(t) <- stock;
              labelTypeLabelTransaction(t) <- labelType;
              
-             FOR inBarcode(barcode)
-                 ADDOBJ d = LabelTransactionDetail DO {
+             FOR ADDOBJ d = LabelTransactionDetail DO {
                  labelTransactionLabelTransactionDetail(d) <- t;
                  skuLabelTransactionDetail(d) <- item;
                  nameLabelTransactionDetail(d) <- nameSku(item);
@@ -46,11 +40,9 @@ createItemLabelsTransaction 'Сформировать ценники' = ACTION (
                  FORM printLabelTransaction OBJECTS l = t PRINT;
              }
      }
-     cancel();
  }
 
 createItemLabelTransaction 'Сформировать ценник' = ACTION (item, stock, labelType) NEWSESSION {
-
     FOR ADDOBJ t = LabelTransaction DO {
             departmentStoreLabelTransaction(t) <- stock;
             labelTypeLabelTransaction(t) <- labelType;
@@ -72,7 +64,6 @@ createItemLabelTransaction 'Сформировать ценник' = ACTION (ite
                 FORM printLabelTransaction OBJECTS l = t PRINT;
             }
     }
-    cancel();
 } IMAGE 'print.png';
 
 EXTEND FORM item
