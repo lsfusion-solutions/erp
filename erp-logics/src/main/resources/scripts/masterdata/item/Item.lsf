@@ -654,9 +654,9 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
                                                         replace(
                                                             replace(captionItem(item), chosenString('from'), ''), 
                                                             '  ', ' '),
-                                                        '" ', '"'),
-                                                    ' "', '"'),
-                                                '""', ''),
+                                                        '" "', ''),
+                                                    '""', ''),
+                                                '  ', ' '),
                                             ' ,.'), 
                                         ' ,.') WHERE selected(item);
             }
@@ -681,9 +681,9 @@ META defineItemExtractPrimitiveAttribute(property, form, fromProp)
                                                         replace(
                                                             replace(captionItem(item), chosenString('from'), ''), 
                                                             '  ', ' '),
-                                                        '" ', '"'),
-                                                    ' "', '"'),
-                                                '""', ''),
+                                                        '" "', ''),
+                                                    '""', ''),
+                                                '  ', ' '),
                                             ' ,.'), 
                                         ' ,.') WHERE selected(item);
             }
@@ -765,12 +765,13 @@ WHEN SESSION CHANGED(itemGroupItem(i)) AND NOT captionItem(i) DO
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(caption, 'Название', String, itemCaption);
 
-extractStringCaptionItem 'Удалить текст из названия' = ACTION (i) {
+extractStringCaptionItem 'Заменить в названии' = ACTION (i) {
     IF i IS Item THEN {
-        FORM dialogString MODAL;
+        possibleStringAttributeValue(s) <- NULL;
+        FORM extractStringAttributeItem MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL selected = BOOLEAN (Item);
-            selected(item) <- isSubstring(captionItem(item), chosenString('s')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
+            selected(item) <- isSubstring(captionItem(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
             // вырезаем двойные пробелы, а также ненужные символы в начале и конце
             captionItem(item) <- rtrim(
                                     ltrim(
@@ -778,11 +779,11 @@ extractStringCaptionItem 'Удалить текст из названия' = ACT
                                             replace(
                                                 replace(
                                                     replace(
-                                                        replace(captionItem(item), chosenString('s'), ''), 
+                                                        replace(captionItem(item), chosenString('from'), chosenString('to')), 
                                                         '  ', ' '),
-                                                    '" ', '"'),
-                                                ' "', '"'),
-                                            '""', ''),
+                                                    '" "', ''),
+                                                '""', ''),
+                                            '  ', ' '),
                                         ' ,.'), 
                                     ' ,.') WHERE selected(item);
         }
