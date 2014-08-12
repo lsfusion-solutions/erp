@@ -4,8 +4,11 @@ import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.ComThread;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
+import jasperapi.ReportGenerator;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
+import lsfusion.interop.form.ReportGenerationData;
+import net.sf.jasperreports.engine.JRException;
 
 import java.awt.*;
 import java.io.File;
@@ -25,15 +28,15 @@ public class ExportExcelPivotAction implements ClientAction {
     Integer xlCount = -4112;
     Integer xlAverage = -4106;
 
-    File reportFile;
+    ReportGenerationData reportData;
     List<String> rowFields;
     List<String> columnFields;
     List<String> filterFields;
     List<String> cellFields;
 
-    public ExportExcelPivotAction(File reportFile, List<String> rowFields, List<String> columnFields,
+    public ExportExcelPivotAction(ReportGenerationData reportData, List<String> rowFields, List<String> columnFields,
                                   List<String> filterFields, List<String> cellFields) {
-        this.reportFile = reportFile;
+        this.reportData = reportData;
         this.rowFields = rowFields;
         this.columnFields = columnFields;
         this.filterFields = filterFields;
@@ -41,14 +44,21 @@ public class ExportExcelPivotAction implements ClientAction {
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
-        runExcelPivot();
+        try {
+            runExcelPivot();
+        } catch (JRException e) {
+            throw new RuntimeException("Ошибка при формировании сводной таблицы", e);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Ошибка при формировании сводной таблицы", e);
+        }
         return null;
     }
 
-    private void runExcelPivot() throws IOException {
+    private void runExcelPivot() throws IOException, JRException, ClassNotFoundException {
 
         ActiveXComponent excelComponent = new ActiveXComponent("Excel.Application");
 
+        File reportFile = ReportGenerator.exportToExcel(reportData);
         Dispatch workbooks = excelComponent.getProperty("Workbooks").toDispatch();
         Dispatch workbook = Dispatch.call(workbooks, "Open", reportFile.getAbsolutePath()).toDispatch();
 

@@ -3,6 +3,7 @@ package lsfusion.erp.utils;
 import com.google.common.base.Throwables;
 import jasperapi.ReportGenerator;
 import lsfusion.base.col.MapFact;
+import lsfusion.interop.form.ReportGenerationData;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
@@ -62,21 +63,15 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                         formInstance.forceChangeObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
 
 
-                File file = ReportGenerator.exportToExcel(new FormReportManager(formInstance).getReportData(
-                        formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences()));
+                ReportGenerationData reportData = new FormReportManager(formInstance).getReportData(
+                        formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences());
 
-                context.requestUserInteraction(new ExportExcelPivotAction(file,
+                context.requestUserInteraction(new ExportExcelPivotAction(reportData,
                         readFieldCaptions(rows), readFieldCaptions(columns), readFieldCaptions(filters), readFieldCaptions(cells)));
 
             }
 
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (ClassNotFoundException e) {
-            throw Throwables.propagate(e);
-        } catch (JRException e) {
-            throw Throwables.propagate(e);
-        } catch (IOException e) {
             throw Throwables.propagate(e);
         }
     }
