@@ -45,11 +45,11 @@ calcSumVATReceiptDetailPayment (detail, payment) = sumReceiptDetailPayment(detai
 
 TABLE zReportPaymentMeansRange(ZReport, PaymentMeans, Range);
 sumSkuReceiptDetailZReportPaymentMeansRange 'Сумма по товарам' (zReport, paymentMeans, range) = GROUP SUM sumReceiptDetailPayment(detail, payment) 
-    IF skuReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail);
+    IF skuReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPayment(payment), VATReceiptDetail(detail);
     
 sumVATSkuReceiptDetailZReportPaymentMeansRange 'Сумма НДС по товарам' (zReport, paymentMeans, range) = (round0(
     [= GROUP SUM calcSumVATReceiptDetailPayment(detail, payment) IF skuReceiptDetail(detail) 
-        BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment)), VATReceiptDetail(detail)](zReport, paymentMeans, range)));
+        BY zReportReceiptDetail(detail), paymentMeansPayment(payment), VATReceiptDetail(detail)](zReport, paymentMeans, range)));
 sumVATSkuReceiptDetailZReportRange 'Сумма НДС по товарам' (zReport, range)= NUMERIC[16,2]([=GROUP SUM sumVATSkuReceiptDetailZReportPaymentMeansRange(zReport, paymentMeans, range) BY zReport, range](zReport, range));
 
 sumCashSkuReceiptDetailZReportRange 'Сумма (нал.) по товарам' (zReport, range) = sumSkuReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansCash, range);
@@ -63,7 +63,7 @@ sumVATCardReceiptDetailZReportRange 'Сумма НДС (безнал.) по то
 
 // Продажи сертификатов
 sumGiftCardReceiptDetailZReportPaymentMeans 'Сумма проданных сертификатов' (zReport, paymentMeans) = GROUP SUM sumReceiptDetailPayment(detail, payment) 
-    IF NOT skuReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPaymentType(paymentTypePayment(payment));
+    IF NOT skuReceiptDetail(detail) BY zReportReceiptDetail(detail), paymentMeansPayment(payment);
 sumGiftCardReceiptDetailZReport 'Сумма проданных сертификатов' (zReport) = GROUP SUM sumGiftCardReceiptDetailZReportPaymentMeans(zReport, paymentMeans) BY zReport;    
 
 sumGiftCardCashReceiptDetailZReport 'Сумма (нал.) проданных сертификатов' (zReport) = sumGiftCardReceiptDetailZReportPaymentMeans(zReport, PaymentMeans.paymentMeansCash);
