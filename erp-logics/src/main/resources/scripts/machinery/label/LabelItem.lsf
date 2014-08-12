@@ -33,16 +33,11 @@ createItemLabelsTransaction 'Сформировать ценники' = ACTION (
                  ADDOBJ d = LabelTransactionDetail DO {
                  labelTransactionLabelTransactionDetail(d) <- t;
                  skuLabelTransactionDetail(d) <- item;
-                 barcodeLabelTransactionDetail(d) <- barcode;
                  nameLabelTransactionDetail(d) <- nameSku(item);
  
                  createAttributeLabelTransactionDetail(d);
  
-                 IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
-                     priceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
-                 } ELSE {
-                     priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-                 }    
+                 priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
              } 
              // вызываем печатную форму для каждого из них
              IF orientationLabelType(labelType)== PrintOrientation.portrait THEN {
@@ -55,31 +50,20 @@ createItemLabelsTransaction 'Сформировать ценники' = ACTION (
  }
 
 createItemLabelTransaction 'Сформировать ценник' = ACTION (item, stock, labelType) NEWSESSION {
-    LOCAL inBarcode = BOOLEAN (Barcode);
-    
-    inBarcode(barcode) <- TRUE IF skuBarcode(barcode)==item;
-    inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если штрихкод является активным
-    
-    FOR inBarcode(barcode)
-        ADDOBJ t = LabelTransaction DO {
+
+    FOR ADDOBJ t = LabelTransaction DO {
             departmentStoreLabelTransaction(t) <- stock;
             labelTypeLabelTransaction(t) <- labelType;
             
-            FOR inBarcode(barcode)
-                ADDOBJ d = LabelTransactionDetail DO {
+            FOR ADDOBJ d = LabelTransactionDetail DO {
                 labelTransactionLabelTransactionDetail(d) <- t;
                 skuLabelTransactionDetail(d) <- item;
-                barcodeLabelTransactionDetail(d) <- barcode;
                 nameLabelTransactionDetail(d) <- nameSku(item);
                 quantityLabelTransactionDetail(d) <- countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
                                                                              
                 createAttributeLabelTransactionDetail(d);
 
-                IF dataAmountBarcode(barcodeLabelTransactionDetail(d)) THEN {
-                    priceLabelTransactionDetail(d) <- roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * dataAmountBarcode(barcodeLabelTransactionDetail(d)), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d)));                         
-                } ELSE {
-                    priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-                }    
+                priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
             } 
             // вызываем печатную форму для каждого из них
             IF orientationLabelType(labelType)== PrintOrientation.portrait THEN {
