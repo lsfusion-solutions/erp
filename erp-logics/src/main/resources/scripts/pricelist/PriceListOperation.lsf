@@ -144,6 +144,11 @@ dataInUserPriceListStock(priceList, stock) <- dataInStockOperation(stock, operat
 CONSTRAINT operationUserPriceList(priceList) AND NOT inStockOperation(stock, operationUserPriceList(priceList)) AND inPriceListStock(priceList, stock)
     CHECKED BY inPriceListStock MESSAGE 'Склады прайса должна соответствовать ограничениям операции';
 
+
+showSuppliersNameSkuOperation 'Наименование у поставщика' = DATA BOOLEAN (Operation);
+showSuppliersNameSkuUserPriceList(priceList) <- showSuppliersNameSkuOperation(operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));
+
 EXTEND FORM operation
     OBJECTS pt = PriceListType
     PROPERTIES(pt, o) changeDataPriceListTypeOperation TODRAW pt FORCE GRID, showPriceListTypeOperation
@@ -154,6 +159,8 @@ EXTEND FORM operation
     PROPERTIES(c, o) isDefaultCurrencyOperation AFTER inCurrencyOperation(c,o)
     PROPERTIES(o) nameDefaultLegalEntityOperation, nameDefaultCurrencyOperation
     FILTERS isCompanyStock(st)
+    PROPERTIES(o) showSuppliersNameSkuOperation
+    
 ;
 
 EXTEND DESIGN operation {
@@ -167,6 +174,11 @@ EXTEND DESIGN operation {
     }
     tabContainer {
         ADD pt.box BEFORE legalEntityContainer;
+        NEW showContainer {
+            caption = 'Отображение свойств';
+            type = CONTAINERV;
+            ADD PROPERTY(showSuppliersNameSkuOperation(o));
+        }
     }
 }
 

@@ -879,6 +879,18 @@ editUserPriceList 'Редактировать' = ACTION EDITFORM UserPriceList;
 editPriceList 'Редактировать' = ABSTRACT ACTION LIST (PriceList) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 editPriceList (p) += ACTION editUserPriceList(p);
 
+suppliersNameSkuPriceListDetail 'Наименование у поставщика' = ABSTRACT VARISTRING[255] (PriceListDetail);
+suppliersNameSkuUserPriceListDetail 'Наименование у поставщика' = DATA VARISTRING[255] (UserPriceListDetail);
+suppliersNameSkuPriceListDetail(d) += suppliersNameSkuUserPriceListDetail(d);
+
+showSuppliersNameSkuPriceList 'Наименование у поставщика' = ABSTRACT BOOLEAN (PriceList);
+showSuppliersNameSkuUserPriceList 'Наименование у поставщика' = DATA BOOLEAN (UserPriceList) IN documentPrm;
+showSuppliersNameSkuPriceList(d) += showSuppliersNameSkuUserPriceList(d); 
+
+EXTEND FORM userPriceList
+    PROPERTIES(p) showSuppliersNameSkuUserPriceList
+    PROPERTIES(d) suppliersNameSkuUserPriceListDetail SHOWIF showSuppliersNameSkuUserPriceList(p) 
+;
 // ------------------ Копирование прайс-листов ------------------- //
 
 copyAbstractDataPriceList = ABSTRACT ACTION LIST (PriceList, UserPriceList);
@@ -978,7 +990,8 @@ FORM priceLists 'Прайсы'
     OBJECTS d = PriceListDetail
     PROPERTIES(d) READONLY BACKGROUND backgroundPriceListDetail(d) indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail,
                            shortNameUOMSkuPriceListDetail, nameBatchPriceListDetail, nameCompanyPriceListDetail
-
+    PROPERTIES(d) suppliersNameSkuPriceListDetail SHOWIF showSuppliersNameSkuPriceList(p) 
+    
     OBJECTS ts = Stock
     PROPERTIES(ts) READONLY nameStock
     PROPERTIES(p, ts) READONLY inPriceListStock
