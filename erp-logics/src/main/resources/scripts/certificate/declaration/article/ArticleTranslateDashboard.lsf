@@ -30,15 +30,6 @@ nullTranslateArticle 'Без атрибутов' (article) = GROUP SUM 1 IF item
 
 hintEditableBackground = RGB(224, 224, 255) IF TRUE;
 
-defaultPurchaseInvoiceSku (sku) =
-    GROUP LAST Purchase.invoiceInvoiceDetail(detail)
-          BY Purchase.skuInvoiceDetail(detail)
-          ORDER Purchase.dateInvoiceDetail(detail), detail
-          WHERE Purchase.isPostedInvoiceDetail(detail) AND Purchase.quantityInvoiceDetail(detail) AND NOT Purchase.isCompanySupplierInvoiceDetail(detail) COMPLEX;
-
-descriptionDefaultPurchaseInvoiceSku 'Последний инвойс' (sku)= CONCAT ' ', Purchase.seriesNumberInvoice(defaultPurchaseInvoiceSku(sku)),
-                                                                          'от ' + Purchase.dateInvoice(defaultPurchaseInvoiceSku(sku)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 30;
-
 TABLE invoiceUser (Purchase.Invoice, User);
 inPurchaseInvoiceUser 'Вкл.' = DATA BOOLEAN  (Purchase.Invoice, User);
 inPurchaseInvoicesUser (user) = GROUP SUM 1 IF inPurchaseInvoiceUser(invoice, user) BY user;
@@ -74,7 +65,7 @@ FORM purchaseInvoices 'Выбрать накладные'
                             Purchase.quantityInvoiceDetail, Purchase.priceInvoiceDetail
     FILTERS invoiceInvoiceDetail(id) == i
 
-    FILTERGROUP filtersInclude
+    FILTERGROUP filtersInvoiceInclude
         FILTER 'Только включенные' 'F10' inPurchaseInvoiceUser(i, u)
 
 ;
@@ -82,18 +73,25 @@ FORM purchaseInvoices 'Выбрать накладные'
 DESIGN purchaseInvoices FROM DEFAULT {
     main {
         preferredSize = (1024, 768);
-        NEW split {
+        REMOVE u.box;
+        NEW tabContainer{
+            type = TABBED;
             fill = 1;
-            type = SPLITV;
-            NEW header {
+            NEW invoiceContainer {
                 fill = 1;
-                ADD u.box;
-                ADD i.box;
-            }
-            NEW pane {
-                type = TABBED;
-                ADD id.box;
-            }
+                type = SPLITV;
+                caption = 'Накладные';                
+                NEW headerInvoiceContainer {
+                    fill = 1;
+                    type = SPLITV;                
+                    ADD i.box;
+                }
+                NEW paneInvoiceContainer {
+                    type = TABBED;
+                    fill = 0.5;
+                    ADD id.box;
+                }
+            }            
         }
         ADD functions.box;
     }
@@ -116,6 +114,15 @@ quantityInvoiceDetailArticleUser 'Кол-во товара в документе
     GROUP SUM quantityInvoiceDetailArticleInvoice(article, invoice) IF inPurchaseInvoiceUser(invoice, user)
         BY article, user;
         
+defaultPurchaseInvoiceSku (sku) =
+    GROUP LAST Purchase.invoiceInvoiceDetail(detail)
+          BY Purchase.skuInvoiceDetail(detail)
+          ORDER Purchase.dateInvoiceDetail(detail), detail
+          WHERE Purchase.isPostedInvoiceDetail(detail) AND Purchase.quantityInvoiceDetail(detail) AND NOT Purchase.isCompanySupplierInvoiceDetail(detail) AND 
+                ((inPurchaseInvoicesUser(currentUser()) AND quantityInvoiceDetailSkuUser(Purchase.skuInvoiceDetail(detail), currentUser())) OR NOT inPurchaseInvoicesUser(currentUser())) COMPLEX;
+
+descriptionDefaultPurchaseInvoiceSku 'Последний инвойс' (sku)= CONCAT ' ', Purchase.seriesNumberInvoice(defaultPurchaseInvoiceSku(sku)),
+                                                                          'от ' + Purchase.dateInvoice(defaultPurchaseInvoiceSku(sku)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 30;
 // Подсчет непереведенных артикулов для групп
 countNotCompletedTranslateArticlesItemGroup 'Не обработано (к-во)' (group) = 
     GROUP SUM 1 IF notCompletedTranslateArticle(article)  AND ((inPurchaseInvoicesUser(currentUser()) AND quantityInvoiceDetailArticleUser(article, currentUser())) OR NOT inPurchaseInvoicesUser(currentUser())) BY itemGroupArticle(article);
