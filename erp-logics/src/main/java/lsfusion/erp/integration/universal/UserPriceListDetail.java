@@ -19,6 +19,7 @@ public class UserPriceListDetail {
     public String packBarcode;
     public BigDecimal amountPackBarcode;
     public String articleItem;
+    public String originalName;
     public String captionItem;
     public String idUOMItem;
     public Map<DataObject, BigDecimal> prices;
@@ -33,7 +34,7 @@ public class UserPriceListDetail {
 
     public UserPriceListDetail(Boolean isPosted, String idUserPriceListDetail, String idUserPriceList, String idItem, 
                                String idItemGroup, String barcodeItem, String extraBarcodeItem, String extIdPackBarcode, 
-                               String packBarcode, BigDecimal amountPackBarcode, String articleItem, String captionItem,
+                               String packBarcode, BigDecimal amountPackBarcode, String articleItem, String originalName, String captionItem,
                                String idUOMItem, Map<DataObject, BigDecimal> prices, BigDecimal quantityAdjustment,
                                Date dateUserPriceList, Date dateFrom, Date dateTo, BigDecimal valueVAT, String countryVAT,
                                Date dateVAT) {
@@ -48,6 +49,7 @@ public class UserPriceListDetail {
         this.packBarcode = packBarcode;
         this.amountPackBarcode = amountPackBarcode;
         this.articleItem = articleItem;
+        this.originalName = originalName;
         this.captionItem = captionItem;
         this.idUOMItem = idUOMItem;
         this.prices = prices;

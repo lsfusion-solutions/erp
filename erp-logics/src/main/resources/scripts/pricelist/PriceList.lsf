@@ -439,8 +439,9 @@ FORM userPriceList 'Прайс'
                   toDateUserPriceListDetail, toTimeUserPriceListDetail, ADDOBJ, DELETESESSION
     PROPERTIES(d, tc) priceUserPriceListDetailDataPriceListType COLUMNS (tc) HEADER headerNameDataPriceListType(tc) BACKGROUND backgroundDataPriceListType(tc)
     PROPERTIES(p) TODRAW d FORCE PANEL TOOLBAR fillDocumentPriceList, addDetailInputBarcodeUserPriceListDetailUserPriceList
+    ORDER BY indexUserPriceListDetail(d)
     FILTERS userPriceListUserPriceListDetail(d) == p,
-            isParentGroupSku(sk, skuPriceListDetail(d)) OR (sk IS Group AND d IS PriceListDetail AND NOT skuPriceListDetail(d)),
+            isParentGroupSku(sk, skuPriceListDetail(d)) OR NOT groupGroupTypeSku(groupTypeGroup(sk), skuPriceListDetail(d)),
             groupTypeUserPriceList(p) == groupTypeGroup(sk)
     FILTERGROUP filters
         FILTER 'Активные' 'F10' isActivePriceListDetail(d)
@@ -879,17 +880,17 @@ editUserPriceList 'Редактировать' = ACTION EDITFORM UserPriceList;
 editPriceList 'Редактировать' = ABSTRACT ACTION LIST (PriceList) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 editPriceList (p) += ACTION editUserPriceList(p);
 
-suppliersNameSkuPriceListDetail 'Наименование у поставщика' = ABSTRACT VARISTRING[255] (PriceListDetail);
-suppliersNameSkuUserPriceListDetail 'Наименование у поставщика' = DATA VARISTRING[255] (UserPriceListDetail);
-suppliersNameSkuPriceListDetail(d) += suppliersNameSkuUserPriceListDetail(d);
+originalNameSkuPriceListDetail 'Наименование у поставщика' = ABSTRACT VARISTRING[255] (PriceListDetail);
+originalNameSkuUserPriceListDetail 'Наименование у поставщика' = DATA VARISTRING[255] (UserPriceListDetail);
+originalNameSkuPriceListDetail(d) += originalNameSkuUserPriceListDetail(d);
 
-showSuppliersNameSkuPriceList 'Наименование у поставщика' = ABSTRACT BOOLEAN (PriceList);
-showSuppliersNameSkuUserPriceList 'Наименование у поставщика' = DATA BOOLEAN (UserPriceList) IN documentPrm;
-showSuppliersNameSkuPriceList(d) += showSuppliersNameSkuUserPriceList(d); 
+showOriginalNameSkuPriceList 'Наименование у поставщика' = ABSTRACT BOOLEAN (PriceList);
+showOriginalNameSkuUserPriceList 'Наименование у поставщика' = DATA BOOLEAN (UserPriceList) IN documentPrm;
+showOriginalNameSkuPriceList(d) += showOriginalNameSkuUserPriceList(d); 
 
 EXTEND FORM userPriceList
-    PROPERTIES(p) showSuppliersNameSkuUserPriceList
-    PROPERTIES(d) suppliersNameSkuUserPriceListDetail SHOWIF showSuppliersNameSkuUserPriceList(p) 
+    PROPERTIES(p) showOriginalNameSkuUserPriceList
+    PROPERTIES(d) originalNameSkuUserPriceListDetail AFTER nameSkuUserPriceListDetail(d) SHOWIF showOriginalNameSkuUserPriceList(p) 
 ;
 // ------------------ Копирование прайс-листов ------------------- //
 
@@ -990,7 +991,8 @@ FORM priceLists 'Прайсы'
     OBJECTS d = PriceListDetail
     PROPERTIES(d) READONLY BACKGROUND backgroundPriceListDetail(d) indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail,
                            shortNameUOMSkuPriceListDetail, nameBatchPriceListDetail, nameCompanyPriceListDetail
-    PROPERTIES(d) suppliersNameSkuPriceListDetail SHOWIF showSuppliersNameSkuPriceList(p) 
+    PROPERTIES(d) originalNameSkuPriceListDetail AFTER nameSkuPriceListDetail(d) SHOWIF showOriginalNameSkuPriceList(p)
+    ORDER BY indexPriceListDetail(d)
     
     OBJECTS ts = Stock
     PROPERTIES(ts) READONLY nameStock
