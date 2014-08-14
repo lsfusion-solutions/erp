@@ -90,6 +90,8 @@ inInvoice 'Приходная' = ABSTRACT BOOLEAN (Invoice);
 inInvoiceDetail 'Приходная' (d) = inInvoice(invoiceInvoiceDetail(d)); 
 outInvoice 'Расходная' (invoice) = invoice IS Invoice AND NOT inInvoice(invoice);
 outInvoiceDetail 'Расходная' (d) = outInvoice(invoiceInvoiceDetail(d)); 
+
+@defineDocumentAbstractContract(Invoice, contractSku);
 // наш склад
 stockInvoiceDetail = ABSTRACT Stock(InvoiceDetail) PERSISTENT;   
 nameStockInvoiceDetail 'Склад' (d) = nameStock(stockInvoiceDetail(d));
@@ -194,7 +196,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, NS)
     @defineDocumentInterfaceContract(Invoice, contractSku, supplier, customer,
                                      'Организация (поставщик) договора накладной не соответствует организация (поставщик) накладной',
                                      'Организация (покупатель) договора накладной не соответствует организация (покупатель) накладной');
-
+    Invoice.contractSkuInvoice(invoice) += contractSkuInvoice(invoice);
+    Invoice.isCommissionInvoice(invoice) += isCommissionInvoice(invoice);
+     
     @defineDocumentInterfaceHeaderAgreement(invoice);
     @deriveDocumentHeaderAgreement (userInvoice, supplier, customer);
     noAgreementUserInvoice (invoice) = invoice IS UserInvoice AND NOT agreementUserInvoice(invoice);
