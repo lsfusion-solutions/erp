@@ -145,9 +145,17 @@ CONSTRAINT operationUserPriceList(priceList) AND NOT inStockOperation(stock, ope
     CHECKED BY inPriceListStock MESSAGE 'Склады прайса должна соответствовать ограничениям операции';
 
 
-showOriginalNameSkuOperation 'Наименование у поставщика' = DATA BOOLEAN (Operation);
+showOriginalNameSkuOperation 'Наименование поставщика' = DATA BOOLEAN (Operation);
 showOriginalNameSkuUserPriceList(priceList) <- showOriginalNameSkuOperation(operationUserPriceList(priceList))
     WHEN CHANGED(operationUserPriceList(priceList));
+    
+showDateTimeOperation 'Даты действия' = DATA BOOLEAN (Operation);
+showDateTimeUserPriceList(priceList) <- showDateTimeOperation(operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));  
+      
+showBatchOperation 'Партия' = DATA BOOLEAN (Operation);
+showBatchUserPriceList(priceList) <- showBatchOperation(operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));         
 
 EXTEND FORM operation
     OBJECTS pt = PriceListType
@@ -159,7 +167,7 @@ EXTEND FORM operation
     PROPERTIES(c, o) isDefaultCurrencyOperation AFTER inCurrencyOperation(c,o)
     PROPERTIES(o) nameDefaultLegalEntityOperation, nameDefaultCurrencyOperation
     FILTERS isCompanyStock(st)
-    PROPERTIES(o) showOriginalNameSkuOperation
+    PROPERTIES(o) showOriginalNameSkuOperation, showDateTimeOperation, showBatchOperation
     
 ;
 
@@ -178,6 +186,8 @@ EXTEND DESIGN operation {
             caption = 'Отображение свойств';
             type = CONTAINERV;
             ADD PROPERTY(showOriginalNameSkuOperation(o));
+            ADD PROPERTY(showDateTimeOperation(o));
+            ADD PROPERTY(showBatchOperation(o));
         }
     }
 }

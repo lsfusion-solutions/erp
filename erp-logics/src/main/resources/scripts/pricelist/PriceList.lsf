@@ -400,13 +400,30 @@ editSkuUserPriceListDetail 'Редактировать SKU' (d) = ACTION editSku
 nameCompanyBLedgerPriceListTypeStockPriceListDetail 'Организация' (type, stock, d) = nameLegalEntity(companyBLedgerPriceListTypeSkuStockDateTime(type, skuUserPriceListDetail(d), stock ,fromDateTimePriceListDetail(d)));    
 toShowPriceListPriceListType (p, to) = showPriceListPriceListType(p, to) AND to IS LedgerPriceListType AND differentOrganizationsLedgerPriceListType(to);          
     
+showBatchPriceList 'Партия' =  ABSTRACT BOOLEAN (PriceList);   
+showBatchUserPriceList 'Партия' =  DATA BOOLEAN (PriceList);  
+showBatchPriceList(p) += showBatchUserPriceList(p);
+
+showDateTimePriceList 'Даты действия' =  ABSTRACT BOOLEAN (PriceList);   
+showDateTimeUserPriceList 'Даты действия' =  DATA BOOLEAN (PriceList);  
+showDateTimePriceList(p) += showDateTimeUserPriceList(p);
+
+originalNameSkuPriceListDetail 'Наименование поставщика' = ABSTRACT VARISTRING[255] (PriceListDetail);
+originalNameSkuUserPriceListDetail 'Наименование поставщика' = DATA VARISTRING[255] (UserPriceListDetail);
+originalNameSkuPriceListDetail(d) += originalNameSkuUserPriceListDetail(d);
+
+showOriginalNameSkuPriceList 'Наименование поставщика' = ABSTRACT BOOLEAN (PriceList);
+showOriginalNameSkuUserPriceList 'Наименование поставщика' = DATA BOOLEAN (UserPriceList) IN documentPrm;
+showOriginalNameSkuPriceList(d) += showOriginalNameSkuUserPriceList(d); 
+      
 FORM userPriceList 'Прайс'
     OBJECTS p = UserPriceList FIXED PANEL
     PROPERTIES(p) isPostedUserPriceList, nameNumeratorUserPriceList, numberUserPriceList, seriesUserPriceList,
                   dateUserPriceList, timeUserPriceList,
                   fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
                   nameCurrencyUserPriceList, nameCompanyUserPriceList, noteUserPriceList,
-                  nameGroupTypeS = nameGroupTypeUserPriceList, nameGroupTypeP = nameGroupTypeUserPriceList
+                  nameGroupTypeS = nameGroupTypeUserPriceList, nameGroupTypeP = nameGroupTypeUserPriceList,
+                  showBatchUserPriceList, showDateTimeUserPriceList, showOriginalNameSkuUserPriceList
 
     OBJECTS t = PriceListType
     PROPERTIES(t) namePriceListType READONLY, includeVATLedgerPriceListType
@@ -434,9 +451,10 @@ FORM userPriceList 'Прайс'
     PROPERTIES(d) BACKGROUND backgroundPriceListDetail(d) indexUserPriceListDetail
     PROPERTIES(d) BACKGROUND backgroundPriceListDetail(d) ON EDIT editSkuUserPriceListDetail(d) idBarcodeSkuUserPriceListDetail, nameSkuUserPriceListDetail,
                   shortNameUOMSkuUserPriceListDetail
-    PROPERTIES(d) BACKGROUND backgroundPriceListDetail(d)nameBatchUserPriceListDetail ON CHANGE changePurchaseBatchUserPriceListDetail(d),
-                  valueVATUserPriceListDetail, fromDateUserPriceListDetail, fromTimeUserPriceListDetail,
-                  toDateUserPriceListDetail, toTimeUserPriceListDetail, ADDOBJ, DELETESESSION
+    PROPERTIES(d) BACKGROUND backgroundPriceListDetail(d)nameBatchUserPriceListDetail ON CHANGE changePurchaseBatchUserPriceListDetail(d) SHOWIF showBatchUserPriceList(p),
+                  valueVATUserPriceListDetail, fromDateUserPriceListDetail SHOWIF showDateTimeUserPriceList(p), 
+                  fromTimeUserPriceListDetail SHOWIF showDateTimeUserPriceList(p), toDateUserPriceListDetail SHOWIF showDateTimeUserPriceList(p), 
+                  toTimeUserPriceListDetail SHOWIF showDateTimeUserPriceList(p), ADDOBJ, DELETESESSION
     PROPERTIES(d, tc) priceUserPriceListDetailDataPriceListType COLUMNS (tc) HEADER headerNameDataPriceListType(tc) BACKGROUND backgroundDataPriceListType(tc)
     PROPERTIES(p) TODRAW d FORCE PANEL TOOLBAR fillDocumentPriceList, addDetailInputBarcodeUserPriceListDetailUserPriceList
     ORDER BY indexUserPriceListDetail(d)
@@ -519,6 +537,9 @@ FORM userPriceList 'Прайс'
 
     EDIT UserPriceList OBJECT p
 ;
+EXTEND FORM userPriceList
+    PROPERTIES(d) originalNameSkuUserPriceListDetail AFTER nameSkuUserPriceListDetail(d) SHOWIF showOriginalNameSkuUserPriceList(p)        
+;
 
 // Оптимизация с преподсчетом видов цен в сессионное свойство
 
@@ -548,40 +569,58 @@ FORM userPriceList 'Прайс'
 //
 
 DESIGN userPriceList FROM DEFAULT {
-    NEW headContainer {
-        caption = 'Шапка документа';       
-        type = CONTAINERV;
-        
-        NEW first {
-            type = CONTAINERH;
-            ADD PROPERTY(isPostedUserPriceList(p)) { preferredCharWidth = 40; }
-        }
-        NEW second { 
-            type = CONTAINERH;
-            ADD PROPERTY (nameNumeratorUserPriceList(p));
-            ADD PROPERTY (numberUserPriceList(p));
-            ADD PROPERTY (seriesUserPriceList(p));
-            ADD PROPERTY (dateUserPriceList(p));
-            ADD PROPERTY (timeUserPriceList(p));
-        }        
-
-    }
-    NEW timeContainer{
-        caption = 'Период действия';
+    NEW top {
         type = CONTAINERH;
-        ADD PROPERTY (fromDateUserPriceList(p));
-        ADD PROPERTY (fromTimeUserPriceList(p));
-        ADD PROPERTY (toDateUserPriceList(p));
-        ADD PROPERTY (toTimeUserPriceList(p));
+        NEW top1 {
+            type = CONTAINERV;
+            NEW headContainer {
+                caption = 'Шапка документа';       
+                type = CONTAINERV;
+                
+                NEW first {
+                    type = CONTAINERH;
+                    ADD PROPERTY(isPostedUserPriceList(p)) { preferredCharWidth = 40; }
+                }
+                NEW second { 
+                    type = CONTAINERH;
+                    ADD PROPERTY (nameNumeratorUserPriceList(p));
+                    ADD PROPERTY (numberUserPriceList(p));
+                    ADD PROPERTY (seriesUserPriceList(p));
+                    ADD PROPERTY (dateUserPriceList(p));
+                    ADD PROPERTY (timeUserPriceList(p));
+                }        
+        
+            }
+            NEW midContainer {
+                type = CONTAINERH;
+                NEW timeContainer{
+                    caption = 'Период действия';
+                    type = CONTAINERH;
+                    ADD PROPERTY (fromDateUserPriceList(p));
+                    ADD PROPERTY (fromTimeUserPriceList(p));
+                    ADD PROPERTY (toDateUserPriceList(p));
+                    ADD PROPERTY (toTimeUserPriceList(p));
+                }
+            }
+            ADD p.documentPrm{
+                caption = 'Параметры документа';
+                type = COLUMNS;
+                columns = 3;
+                ADD PROPERTY(nameCurrencyUserPriceList(p));
+                ADD PROPERTY(nameCompanyUserPriceList(p));
+                ADD PROPERTY(noteUserPriceList(p));
+            }             
+        }
+        NEW param {
+            caption = 'Дополнительные параметры';
+            type = COLUMNS;
+            columns = 1;
+            ADD PROPERTY(showOriginalNameSkuUserPriceList(p));
+            ADD PROPERTY(showBatchUserPriceList(p));
+            ADD PROPERTY(showDateTimeUserPriceList(p));
+        }         
     }
-    ADD p.documentPrm{
-        caption = 'Параметры документа';
-        type = COLUMNS;
-        columns = 3;
-        ADD PROPERTY(nameCurrencyUserPriceList(p));
-        ADD PROPERTY(nameCompanyUserPriceList(p));
-        ADD PROPERTY(noteUserPriceList(p));
-    }
+
     NEW detailContainer{
         fill = 1;
         type = TABBED;
@@ -666,12 +705,13 @@ DESIGN userPriceList FROM DEFAULT {
     }
 }
 
-    editPriceListDetail 'Редактировать' = ABSTRACT ACTION LIST (PriceListDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    editUserPriceListDetail(d) = ACTION (d) NEWSESSION {
-        FORM userPriceList OBJECTS p = userPriceListUserPriceListDetail(d), d = d MANAGESESSION DOCKEDMODAL;
-    }
-    editPriceListDetail(d) += ACTION editUserPriceListDetail(d);   
-    editPriceListLedger(d) += ACTION editPriceListDetail(d);
+editPriceListDetail 'Редактировать' = ABSTRACT ACTION LIST (PriceListDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+editUserPriceListDetail(d) = ACTION (d) NEWSESSION {
+    FORM userPriceList OBJECTS p = userPriceListUserPriceListDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+}
+editPriceListDetail(d) += ACTION editUserPriceListDetail(d);   
+editPriceListLedger(d) += ACTION editPriceListDetail(d);
+    
 // -------------------------------- Изменение цен для строк ------------------------------ //
 
 CLASS TypeMarkUpSkuUserPriceList 'Метод изменения цены'{
@@ -879,19 +919,6 @@ addUserPriceList 'Добавить' = ACTION ADDFORM UserPriceList;
 editUserPriceList 'Редактировать' = ACTION EDITFORM UserPriceList;
 editPriceList 'Редактировать' = ABSTRACT ACTION LIST (PriceList) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 editPriceList (p) += ACTION editUserPriceList(p);
-
-originalNameSkuPriceListDetail 'Наименование у поставщика' = ABSTRACT VARISTRING[255] (PriceListDetail);
-originalNameSkuUserPriceListDetail 'Наименование у поставщика' = DATA VARISTRING[255] (UserPriceListDetail);
-originalNameSkuPriceListDetail(d) += originalNameSkuUserPriceListDetail(d);
-
-showOriginalNameSkuPriceList 'Наименование у поставщика' = ABSTRACT BOOLEAN (PriceList);
-showOriginalNameSkuUserPriceList 'Наименование у поставщика' = DATA BOOLEAN (UserPriceList) IN documentPrm;
-showOriginalNameSkuPriceList(d) += showOriginalNameSkuUserPriceList(d); 
-
-EXTEND FORM userPriceList
-    PROPERTIES(p) showOriginalNameSkuUserPriceList
-    PROPERTIES(d) originalNameSkuUserPriceListDetail AFTER nameSkuUserPriceListDetail(d) SHOWIF showOriginalNameSkuUserPriceList(p) 
-;
 // ------------------ Копирование прайс-листов ------------------- //
 
 copyAbstractDataPriceList = ABSTRACT ACTION LIST (PriceList, UserPriceList);
