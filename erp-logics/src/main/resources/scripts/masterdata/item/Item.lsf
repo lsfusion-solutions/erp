@@ -269,7 +269,7 @@ FORM items 'Товары' KEEPSESSIONPROPERTIES
     FILTERGROUP inactive1 FILTER 'Активные' 'F5' activeGroup(g) DEFAULT
     
     OBJECTS i=Item  
-    PROPERTIES(i) READONLY idBarcodeSku, imageItem FORCE PANEL SHOWIF hasImageItem(i), idItem SHOWIF showIDs()
+    PROPERTIES(i) READONLYIF isReadonly() idBarcodeSku ON CHANGE changeBarcodeSku(i), imageItem FORCE PANEL SHOWIF hasImageItem(i), idItem SHOWIF showIDs()
     PROPERTIES(i) ADDFORM, EDITFORM, deletei=DELETE FORCE PANEL TOOLBAR
     PROPERTIES seekBarcode()
     ON CHANGE seekSkuBarcode() 
@@ -918,7 +918,10 @@ inactiveItem 'Неактивный' = DATA BOOLEAN (Item) IN itemBase;
 activeItem 'Активный' (item) = item IS Item AND NOT inactiveItem(item);
 inactiveSku(sku) += inactiveItem(sku);
 EXTEND FORM item PROPERTIES(i) inactiveItem;
-EXTEND FORM items FILTERGROUP inactive2 FILTER 'Активные' 'F10' activeItem(i) DEFAULT;
+EXTEND FORM items
+    PROPERTIES(i) READONLYIF isReadonly() inactiveItem
+    FILTERGROUP inactive2 FILTER 'Активные' 'F10' activeItem(i) DEFAULT
+;
 
 EXTEND DESIGN item {
     itemPrimaryColumn1 {
