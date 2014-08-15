@@ -814,75 +814,75 @@ META defineInvoiceBatchDialog(dumb)
     EXTEND FORM invoices PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail(d);
 END
 
-META defineInvoiceReturn(NS, NSR, stockProp)
-    invoiceDetailInvoiceDetail (invoiceDetail) = ABSTRACT NS.InvoiceDetail (NSR.InvoiceDetail) PERSISTENT;
-    invoiceDetailUserInvoiceDetail (userInvoiceDetail) = DATA NS.InvoiceDetail (NSR.UserInvoiceDetail);
+META defineInvoiceReturn(nsdir, nsret, stockProp)
+    invoiceDetailInvoiceDetail (invoiceDetail) = ABSTRACT nsdir.InvoiceDetail (nsret.InvoiceDetail) PERSISTENT;
+    invoiceDetailUserInvoiceDetail (userInvoiceDetail) = DATA nsdir.InvoiceDetail (nsret.UserInvoiceDetail);
     invoiceDetailInvoiceDetail(detail) += invoiceDetailUserInvoiceDetail(detail);
 
-    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoiceDetail)= GROUP SUM NSR.quantityInvoiceDetail(invoiceDetail) BY invoiceDetailInvoiceDetail(invoiceDetail) PERSISTENT;
-    returnQuantityInvoiceDetailInvoice 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantityInvoiceDetail(invoiceDetail) BY NS.invoiceInvoiceDetail(invoiceDetail) PERSISTENT;
+    returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoiceDetail)= GROUP SUM nsret.quantityInvoiceDetail(invoiceDetail) BY invoiceDetailInvoiceDetail(invoiceDetail) PERSISTENT;
+    returnQuantityInvoiceDetailInvoice 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantityInvoiceDetail(invoiceDetail) BY nsdir.invoiceInvoiceDetail(invoiceDetail) PERSISTENT;
 
-    CONSTRAINT returnQuantityInvoiceDetail(detail) > NS.quantityInvoiceDetail(detail)
+    CONSTRAINT returnQuantityInvoiceDetail(detail) > nsdir.quantityInvoiceDetail(detail)
         MESSAGE 'Количество строки возврата больше чем количество строки основания';
 
-    CONSTRAINT NS.skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) != NSR.skuUserInvoiceDetail(detail) CHECKED BY invoiceDetailUserInvoiceDetail
+    CONSTRAINT nsdir.skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) != nsret.skuUserInvoiceDetail(detail) CHECKED BY invoiceDetailUserInvoiceDetail
         MESSAGE 'SKU строки основания должен соответствовать SKU строки возврата';
 
-    CONSTRAINT NS.supplierInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) != NSR.supplierUserInvoiceDetail(detail) CHECKED BY invoiceDetailUserInvoiceDetail
+    CONSTRAINT nsdir.supplierInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) != nsret.supplierUserInvoiceDetail(detail) CHECKED BY invoiceDetailUserInvoiceDetail
         MESSAGE 'Поставщик строки основания должен соответствовать Поставщик строки возврата';
 
-    CONSTRAINT NS.customerInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) != NSR.customerUserInvoiceDetail(detail) CHECKED BY invoiceDetailUserInvoiceDetail
+    CONSTRAINT nsdir.customerInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) != nsret.customerUserInvoiceDetail(detail) CHECKED BY invoiceDetailUserInvoiceDetail
         MESSAGE 'Покупатель строки основания должен соответствовать Покупатель строки возврата';
 
-    descriptionInvoiceDetailInvoiceDetail 'Основание' (invoiceDetail) = NS.descriptionInvoiceDetail(invoiceDetailInvoiceDetail(invoiceDetail));
-    descriptionInvoiceDetailUserInvoiceDetail 'Основание' (userInvoiceDetail) = NS.descriptionInvoiceDetail(invoiceDetailUserInvoiceDetail(userInvoiceDetail));
+    descriptionInvoiceDetailInvoiceDetail 'Основание' (invoiceDetail) = nsdir.descriptionInvoiceDetail(invoiceDetailInvoiceDetail(invoiceDetail));
+    descriptionInvoiceDetailUserInvoiceDetail 'Основание' (userInvoiceDetail) = nsdir.descriptionInvoiceDetail(invoiceDetailUserInvoiceDetail(userInvoiceDetail));
 
-//    NSR.priceUserInvoiceDetail(detail) <- IF invoiceDetailUserInvoiceDetail(detail) THEN
-//                                                    NS.priceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
+//    nsret.priceUserInvoiceDetail(detail) <- IF invoiceDetailUserInvoiceDetail(detail) THEN
+//                                                    nsdir.priceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
 //                                                 ELSE IF batchUserInvoiceDetail(detail) THEN
-//                                                    prevPriceBPriceListTypeBatchStockDateTime(NSR.priceListTypeInvoiceDetail(detail),
-//                                                                                              NSR.batchInvoiceDetail(detail),
-//                                                                                              NSR.stockProp###invoiceDetail(detail),
-//                                                                                              NSR.dateTimeInvoiceDetail(detail))
+//                                                    prevPriceBPriceListTypeBatchStockDateTime(nsret.priceListTypeInvoiceDetail(detail),
+//                                                                                              nsret.batchInvoiceDetail(detail),
+//                                                                                              nsret.stockProp###invoiceDetail(detail),
+//                                                                                              nsret.dateTimeInvoiceDetail(detail))
 //                                                 ELSE
-//                                                    prevPriceBPriceListTypeSkuStockDateTime(NSR.priceListTypeInvoiceDetail(detail),
-//                                                                                            NSR.skuInvoiceDetail(detail),
-//                                                                                            NSR.stockProp###invoiceDetail(detail),
-//                                                                                            NSR.dateTimeInvoiceDetail(detail))
+//                                                    prevPriceBPriceListTypeSkuStockDateTime(nsret.priceListTypeInvoiceDetail(detail),
+//                                                                                            nsret.skuInvoiceDetail(detail),
+//                                                                                            nsret.stockProp###invoiceDetail(detail),
+//                                                                                            nsret.dateTimeInvoiceDetail(detail))
 //                                        WHEN CHANGED(invoiceDetailUserInvoiceDetail(detail)) OR
-//                                             CHANGED(NSR.batchInvoiceDetail(detail)) OR
-//                                             CHANGED(NSR.priceListTypeInvoiceDetail(detail)) OR
-//                                             CHANGED(NSR.skuInvoiceDetail(detail)) OR
-//                                             CHANGED(NSR.stockProp###invoiceDetail(detail)) OR
-//                                             CHANGED(NSR.dateTimeInvoiceDetail(detail));
+//                                             CHANGED(nsret.batchInvoiceDetail(detail)) OR
+//                                             CHANGED(nsret.priceListTypeInvoiceDetail(detail)) OR
+//                                             CHANGED(nsret.skuInvoiceDetail(detail)) OR
+//                                             CHANGED(nsret.stockProp###invoiceDetail(detail)) OR
+//                                             CHANGED(nsret.dateTimeInvoiceDetail(detail));
 
-    overRecalculatedPriceUserInvoiceDetail = ABSTRACT ACTION LIST (NSR.UserInvoiceDetail);
+    overRecalculatedPriceUserInvoiceDetail = ABSTRACT ACTION LIST (nsret.UserInvoiceDetail);
     recalculatedPriceUserInvoiceDetail(detail) = ACTION (detail) {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
         IF invoiceDetailUserInvoiceDetail(detail) THEN {
-            ASSIGN NSR.priceUserInvoiceDetail(detail) <-  NS.priceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
-            ASSIGN NSR.invoicePriceUserInvoiceDetail(detail) <-  NS.invoicePriceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
-            ASSIGN NSR.VATUserInvoiceDetail(detail) <- NS.VATInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+            ASSIGN nsret.priceUserInvoiceDetail(detail) <-  nsdir.priceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+            ASSIGN nsret.invoicePriceUserInvoiceDetail(detail) <-  nsdir.invoicePriceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+            ASSIGN nsret.VATUserInvoiceDetail(detail) <- nsdir.VATInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
             EXEC overRecalculatedPriceUserInvoiceDetail(detail);
         }
     }
         WHEN SESSION FORMS userInvoice
             CHANGED(invoiceDetailUserInvoiceDetail(detail)) OR
-            CHANGED(NSR.batchInvoiceDetail(detail)) OR
-            CHANGED(NSR.priceListTypeInvoiceDetail(detail)) OR
-            CHANGED(NSR.skuInvoiceDetail(detail)) OR
-            CHANGED(NSR.stockProp###invoiceDetail(detail)) OR
-            CHANGED(NSR.dateTimeInvoiceDetail(detail))
+            CHANGED(nsret.batchInvoiceDetail(detail)) OR
+            CHANGED(nsret.priceListTypeInvoiceDetail(detail)) OR
+            CHANGED(nsret.skuInvoiceDetail(detail)) OR
+            CHANGED(nsret.stockProp###invoiceDetail(detail)) OR
+            CHANGED(nsret.dateTimeInvoiceDetail(detail))
                 DO EXEC recalculatedPriceUserInvoiceDetail(detail);
 
 
     EXTEND FORM userInvoice PROPERTIES (d) descriptionInvoiceDetailUserInvoiceDetail AFTER shortNameUOMSkuUserInvoiceDetail(d);
-    EXTEND FORM NS.userInvoice PROPERTIES (d) READONLY returnQuantityInvoiceDetail BEFORE namePriceListTypeUserInvoiceDetail(d);
+    EXTEND FORM nsdir.userInvoice PROPERTIES (d) READONLY returnQuantityInvoiceDetail BEFORE namePriceListTypeUserInvoiceDetail(d);
 
     EXTEND FORM invoices PROPERTIES (d) READONLY descriptionInvoiceDetailInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail(d);
-    EXTEND FORM NS.invoices PROPERTIES (d) READONLY returnQuantityInvoiceDetail BEFORE namePriceListTypeInvoiceDetail(d);
+    EXTEND FORM nsdir.invoices PROPERTIES (d) READONLY returnQuantityInvoiceDetail BEFORE namePriceListTypeInvoiceDetail(d);
 
-    NSR.batchUserInvoiceDetail(detail) <- NS.maxBatchInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
-        WHEN CHANGED(invoiceDetailUserInvoiceDetail(detail)) AND NS.countBatchInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) == 1;
+    nsret.batchUserInvoiceDetail(detail) <- nsdir.maxBatchInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
+        WHEN CHANGED(invoiceDetailUserInvoiceDetail(detail)) AND nsdir.countBatchInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) == 1;
 
     CONSTRAINT batchUserInvoiceDetail(detail) AND invoiceDetailUserInvoiceDetail(detail) AND
                NOT inInvoiceDetailBatch(invoiceDetailUserInvoiceDetail(detail), batchUserInvoiceDetail(detail))
