@@ -322,13 +322,13 @@ DESIGN items FROM DEFAULT {
     ADD functions.box;
 }
 
-@extendFormEditable(items);
-
 NAVIGATOR {
     skuNavigator {
         ADD items BEFORE itemGroups;
     }
 }
+
+@extendFormEditable(items);
 
 // ----------------------------------- Атрибуты товаров ------------------------------------------ //
 
@@ -425,6 +425,93 @@ META defineObjectItemAttributeBatch(attribute, identity, caption, skuClass)
     identity##Batch caption (batch) = identity###skuClass(skuBatch(batch));
     @defineItemAttributeBatch(attribute, identity, caption, skuClass);
 END
+
+FORM uniteAttributeItem 'Объединение атрибутов товаров'
+;
+
+DESIGN uniteAttributeItem FROM DEFAULT {
+    NEW tabContainer {
+        fill = 1;    
+        type = TABBED;
+    }
+    ADD functions.box;
+}
+
+META defineUniteAttributeItem(object, nameProp, caption1, caption2)
+    in###object 'Отм.' = DATA BOOLEAN (###object) MAXCHARWIDTH 5;
+    allowReplace###object = DATA SESSION BOOLEAN ();
+    
+    FORM confirmReplace###object 'Объединяемые '##caption2
+        OBJECTS object = ###object FIXED PANEL 
+    
+        OBJECTS o = ###object  
+        PROPERTIES(o) READONLY nameProp
+        FILTERS o==object
+    
+        OBJECTS o2 = ###object
+        PROPERTIES(o2) in###object
+        PROPERTIES(o2) READONLY nameProp
+        FILTERS in###object(o2)
+    ;
+    
+    DESIGN confirmReplace###object FROM DEFAULT {
+        REMOVE object.box;
+        NEW splitContainer{
+            type = SPLITV;
+            fill = 1;
+            ADD o.box{
+                caption = 'Основной '##caption1;
+            }
+            ADD o2.box{
+                caption = 'Удаляемый '##caption1;
+            }           
+        }
+        ADD functions.box;
+    }
+    
+    replace###object 'Объединить' = ACTION (object) {
+        FORM confirmReplace###object OBJECTS o=object MODAL;
+        IF formResult() == FormResult.ok THEN {
+            allowReplace###object() <- TRUE;
+            FOR in###object(o) AND allowReplace###object() DO{
+                IF o != object THEN {
+                    object##Item(item) <- object WHERE object##Item(item) == o;
+                    in###object(o) <- NULL;
+                    DELETE o;            
+                } ELSE {
+                    MESSAGE 'Выделенный '##caption1##' не может совпадать с объединяемым';
+                }
+            }
+            apply();
+        } ELSE {
+            in###object(o) <- NULL WHERE in###object(o);           
+        }   
+    };
+    
+    EXTEND FORM uniteAttributeItem
+        OBJECTS object = ###object
+        PROPERTIES in###object(object)
+        PROPERTIES READONLY nameProp(object)
+        ORDER BY nameProp(object)
+        PROPERTIES replace###object(object) TODRAW object FORCE PANEL TOOLBAR
+    ;
+    
+    EXTEND DESIGN uniteAttributeItem {
+        tabContainer {
+            ADD object.box{
+                caption = ''###caption1;
+            }
+        }
+    }
+
+END
+NAVIGATOR {
+    skuNavigator {
+        NEW itemAttributeNavigator 'Атрибуты' {
+            ADD uniteAttributeItem;
+        }
+    }
+}
 
 // -------------------------------------------- Формирование наименования ----------------------------------- //
 
@@ -796,6 +883,7 @@ extractStringCaptionItem 'Заменить в названии' = ACTION (i) {
 
 // Единица измерения
 @defineObjectItemAttribute(UOM, UOM, name, 'Единица измерения', itemBase);
+@defineUniteAttributeItem(UOM, nameUOM, 'единица измерения', 'единицы измерения');
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения', sku);
 
 shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMItem(item)) IN itemBase;
@@ -835,6 +923,8 @@ FORM brands 'Бренды'
 DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(brand, Brand, name, 'Бренд', itemBase);
+@defineUniteAttributeItem(brand, nameBrand, 'бренд', 'бренды');
+
 @defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
 @implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
 
@@ -843,6 +933,7 @@ DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 // Страна
 @defineObjectItemAttribute(country, Country, name, 'Страна', itemBase);
+@defineUniteAttributeItem(country, nameCountry, 'страна', 'страны');
 @defineObjectItemAttributeBatch (country, nameCountry, 'Страна', sku);
 @implementItemAttribute(nameCountry, 'Страна', String, itemCountry);
 
@@ -882,6 +973,7 @@ FORM manufacturerDialog 'Производители товара'
 DESIGN manufacturerDialog FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(manufacturer, Manufacturer, name, 'Производитель', itemBase);
+@defineUniteAttributeItem(manufacturer, nameManufacturer, 'производитель', 'производители');
 @defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
 @implementItemAttribute(nameManufacturer, 'Производитель', String, itemManufacturer);
 
@@ -1286,7 +1378,7 @@ EXTEND FORM item
 ;
 NAVIGATOR {
     skuNavigator {
-        NEW itemAttributeNavigator 'Атрибуты' {
+        itemAttributeNavigator {
             ADD brands;
             ADD manufacturerDialog;
         }

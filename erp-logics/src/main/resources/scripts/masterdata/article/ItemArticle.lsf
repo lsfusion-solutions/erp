@@ -207,6 +207,7 @@ FORM colors 'Цвета товара'
 DESIGN colors FROM DEFAULT { main{ preferredSize = (600, 400); } }
 @extendFormEditable(colors);
 @defineObjectItemAttribute(color, Color, name, 'Цвет', itemArticle);
+@defineUniteAttributeItem(color, nameColor, 'цвет', 'цвета');
 @defineObjectItemAttributeBatch (color, nameColor, 'Цвет');
 @implementItemAttribute(nameColor, 'Цвет', String, itemColor);
 idColorItem (item) = idColor(colorItem(item));
@@ -333,6 +334,7 @@ FORM sizes 'Размеры товара'
 DESIGN sizes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(size, Size, name, 'Размер', itemArticle);
+@defineUniteAttributeItem(size, nameSize, 'размер', 'размеры');
 
 nameOriginalSizeItem 'Размер (оригинальный)' (item) = nameOriginalSize(sizeItem(item)) IN itemArticle;
 dataOriginalSizeItem 'Размер (оригинальный)' = DATA VARISTRING[50](Item);
@@ -381,29 +383,29 @@ NAVIGATOR {
     }
 }
 
-replaceSizeSize = ABSTRACT ACTION LIST (Size, Size);
-inSize 'Отм.' = DATA SESSION BOOLEAN (Size);
-
-replaceSize 'Объединить' = ACTION (size) {
-    FOR inSize(s) DO{
-        IF s != size THEN {
-            sizeItem(item) <- size WHERE sizeItem(item) == s;
-            
-            replaceSizeSize(s,size);
-            
-            inSize(s) <- NULL;
-            DELETE s;
-        } ELSE {
-            MESSAGE 'Выделенный артикул не может совпадать с объединяемым';
-        }
-    }
-    apply();
-} CONFIRM;
-
-
-EXTEND FORM sizes
-    PROPERTIES(t) inSize BEFORE nameSize(t), replaceSize FORCE PANEL TOOLBAR
-;
+//replaceSizeSize = ABSTRACT ACTION LIST (Size, Size);
+//inSize 'Отм.' = DATA SESSION BOOLEAN (Size);
+//
+//replaceSize 'Объединить' = ACTION (size) {
+//    FOR inSize(s) DO{
+//        IF s != size THEN {
+//            sizeItem(item) <- size WHERE sizeItem(item) == s;
+//            
+//            replaceSizeSize(s,size);
+//            
+//            inSize(s) <- NULL;
+//            DELETE s;
+//        } ELSE {
+//            MESSAGE 'Выделенный артикул не может совпадать с объединяемым';
+//        }
+//    }
+//    apply();
+//} CONFIRM;
+//
+//
+//EXTEND FORM sizes
+//    PROPERTIES(t) inSize BEFORE nameSize(t), replaceSize FORCE PANEL TOOLBAR
+//;
 
 //-------------------------- Размерная сетка ------------------------//
 CLASS SizeGroup 'Размерная сетка';
@@ -417,7 +419,6 @@ shortNameSizeGroup 'Краткое наименование' = DATA ISTRING[10](
 TABLE sizeGroupSize(SizeGroup, Size);
 inSizeGroupSize 'Вкл.' = DATA BOOLEAN (SizeGroup, Size);
 orderSizeGroupSize 'Порядковый номер' = DATA INTEGER (SizeGroup, Size); 
- 
 FORM sizeGroup 'Размерная сетка'
     OBJECTS t=SizeGroup FIXED PANEL
     PROPERTIES(t) nameSizeGroup, idSizeGroup SHOWIF showIDs(), shortNameSizeGroup
