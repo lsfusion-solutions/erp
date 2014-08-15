@@ -915,12 +915,16 @@ fixedPriceSku(sku) += fixedPriceItem(sku);
 
 // Неактивный
 inactiveItem 'Неактивный' = DATA BOOLEAN (Item) IN itemBase;
+prevInactiveItem (i) = PREV(inactiveItem(i));
+
 activeItem 'Активный' (item) = item IS Item AND NOT inactiveItem(item);
+prevActiveItem = i IS Item AND NOT prevInactiveItem(i);
+
 inactiveSku(sku) += inactiveItem(sku);
 EXTEND FORM item PROPERTIES(i) inactiveItem;
 EXTEND FORM items
     PROPERTIES(i) READONLYIF isReadonly() inactiveItem
-    FILTERGROUP inactive2 FILTER 'Активные' 'F10' activeItem(i) DEFAULT
+    FILTERGROUP inactive2 FILTER 'Активные' 'F10' prevActiveItem(i) DEFAULT
 ;
 
 EXTEND DESIGN item {
