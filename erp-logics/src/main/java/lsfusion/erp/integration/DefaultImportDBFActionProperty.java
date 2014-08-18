@@ -55,11 +55,15 @@ public class DefaultImportDBFActionProperty extends DefaultImportActionProperty 
     }
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
-        return getDBFBigDecimalFieldValue(importFile, fieldName, charset, null);
+        return getDBFBigDecimalFieldValue(importFile, fieldName, charset, (String) null);
     }
     
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, String defaultValue) throws UnsupportedEncodingException {
         return getDBFBigDecimalFieldValue(importFile, fieldName, charset, false, defaultValue);
+    }
+
+    protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull) throws UnsupportedEncodingException {
+        return getDBFBigDecimalFieldValue(importFile, fieldName, charset, zeroIsNull, null);
     }
     
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
@@ -69,6 +73,10 @@ public class DefaultImportDBFActionProperty extends DefaultImportActionProperty 
 
     protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
         return getDBFIntegerFieldValue(importFile, fieldName, charset, false, null);
+    }
+
+    protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull) throws UnsupportedEncodingException {
+        return getDBFIntegerFieldValue(importFile, fieldName, charset, zeroIsNull, null);
     }
     
     protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {

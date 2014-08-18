@@ -41,7 +41,8 @@ public class ImportActionProperty extends DefaultImportActionProperty {
     ScriptingLogicsModule storeLM;
     ScriptingLogicsModule warePurchaseInvoiceLM;
     ScriptingLogicsModule writeOffItemLM;
-    
+    ScriptingLogicsModule tripInvoiceLM;
+
     public boolean skipExtraInvoiceParams;
     public boolean skipCertificateInvoiceParams;
 
@@ -71,6 +72,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
             this.storeLM = context.getBL().getModule("Store");
             this.warePurchaseInvoiceLM = context.getBL().getModule("WarePurchaseInvoice");
             this.writeOffItemLM = context.getBL().getModule("WriteOffPurchaseItem");
+            this.tripInvoiceLM = context.getBL().getModule("TripInvoice");
 
             this.context = context;
 
@@ -1105,6 +1107,25 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 fields.add(valueVATUserInvoiceDetailField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
                     data.get(i).add(dataUserInvoiceDetail.get(i).retailVAT);
+
+                if (tripInvoiceLM != null && showField(dataUserInvoiceDetail, "numberTrip")) {
+                    ImportField numberTripField = new ImportField(tripInvoiceLM.findProperty("numberTrip"));
+                    ImportKey<?> tripKey = new ImportKey((ConcreteCustomClass) tripInvoiceLM.findClass("Trip"),
+                            tripInvoiceLM.findProperty("tripNumber").getMapping(numberTripField));
+                    keys.add(tripKey);
+                    props.add(new ImportProperty(numberTripField, tripInvoiceLM.findProperty("numberTrip").getMapping(tripKey)));
+                    props.add(new ImportProperty(numberTripField, tripInvoiceLM.findProperty("tripInvoice").getMapping(userInvoiceKey),
+                            object(tripInvoiceLM.findClass("Trip")).getMapping(tripKey)));
+                    fields.add(numberTripField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).numberTrip);
+
+                    ImportField dateTripField = new ImportField(tripInvoiceLM.findProperty("dateTrip"));
+                    props.add(new ImportProperty(dateTripField, tripInvoiceLM.findProperty("dateTrip").getMapping(tripKey)));
+                    fields.add(dateTripField);
+                    for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
+                        data.get(i).add(dataUserInvoiceDetail.get(i).dateTrip);
+                }
 
                 ImportTable table = new ImportTable(fields, data);
 

@@ -85,7 +85,7 @@ public class ImportExcelUserInvoicesActionProperty extends ImportExcelActionProp
                     null, true, userInvoiceDetailSID, dateUserInvoice, idItem, false, quantity, supplier,
                     customerWarehouse, supplierWarehouse, price, null, null, chargePrice, null, null, null, null,
                     retailPrice, retailMarkup, null, textCompliance, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null, null, null, null, null));
+                    null, null, null, null, null, null, null, null, null, null, null, null));
         }
 
         return data;

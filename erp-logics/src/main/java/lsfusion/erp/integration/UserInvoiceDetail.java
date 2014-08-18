@@ -2,7 +2,7 @@ package lsfusion.erp.integration;
 
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.sql.Date;
 
 public class UserInvoiceDetail {
     public String idUserInvoice;
@@ -48,6 +48,8 @@ public class UserInvoiceDetail {
     public String shortNameCurrency;
     public String codeCustomsGroup;
     public BigDecimal retailVAT;
+    public String numberTrip;
+    public Date dateTrip;
 
 
     public UserInvoiceDetail(String idUserInvoice, String series, String number, Boolean createPricing,
@@ -60,7 +62,8 @@ public class UserInvoiceDetail {
                              String numberCompliance, Date fromDateCompliance, Date toDateCompliance, Date expiryDate,
                              String idBin, BigDecimal rateExchange, BigDecimal homePrice, BigDecimal priceDuty,
                              BigDecimal priceCompliance, BigDecimal priceRegistration, BigDecimal chargeSum,
-                             Boolean isHomeCurrency, String shortNameCurrency, String codeCustomsGroup, BigDecimal retailVAT) {
+                             Boolean isHomeCurrency, String shortNameCurrency, String codeCustomsGroup, 
+                             BigDecimal retailVAT, String numberTrip, Date dateTrip) {
         this.idUserInvoice = idUserInvoice;
         this.series = series;
         this.number = number;
@@ -104,5 +107,7 @@ public class UserInvoiceDetail {
         this.shortNameCurrency = shortNameCurrency;
         this.codeCustomsGroup = codeCustomsGroup;
         this.retailVAT = retailVAT;
+        this.numberTrip = numberTrip;
+        this.dateTrip = dateTrip;
     }
 }

@@ -366,7 +366,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
                         true, true, idUserInvoiceDetail, dateShipment, idItem, false, quantityShipmentDetail, idSupplier,
                         idCustomerStock, idSupplierStock, priceShipmentDetail, null, null, null, null, null, null, null,
                         retailPriceShipmentDetail, retailMarkupShipmentDetail, null, null, idContract, null, null, null,
-                        null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+                        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
         }
         return data;
     }

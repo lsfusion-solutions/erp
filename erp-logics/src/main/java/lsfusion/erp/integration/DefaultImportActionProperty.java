@@ -48,10 +48,6 @@ public class DefaultImportActionProperty extends DefaultIntegrationActionPropert
         return data;
     }
 
-    protected String getSplittedValue(String[] splittedLine, int index, String defaultValue) {
-        return splittedLine == null || splittedLine.length <= index ? defaultValue : splittedLine[index];
-    }
-
     protected String getStringFromEntry(List<Object> entry, int index) {
         return entry == null ? null : (String) entry.get(index);
     }
