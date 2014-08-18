@@ -1126,6 +1126,32 @@ loadDefaultItemAttributes() += ACTION {
 }
 EXTEND FORM item PROPERTIES(b) BEFORE deleteb titleScalesBarcode, titleCashRegisterBarcode;
 
+
+// Сроки годности
+GROUP itemExpiry 'Сроки годности' : public;
+
+expiryDaysItem 'Срок годности в днях' = DATA INTEGER (Item) IN itemExpiry;
+expiryDaysSku(i) += expiryDaysItem(i);
+
+expiryMonthItem 'Срок годности в месяцах' = DATA INTEGER (Item) IN itemExpiry;
+expiryMonthSku(i) += expiryMonthItem(i);
+
+expiryItem 'Срок годности' = DATA BOOLEAN (Item) IN itemExpiry;
+    @defineItemAttribute(expiry, 'Срок годности', itemExpiry);
+
+EXTEND FORM itemGroup PROPERTIES(g) userShowExpiryItemGroup;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showExpiryItemGroup BACKGROUND backgroundShowExpiryItemGroup(g) BEFORE deleteg;
+EXTEND FORM item PROPERTIES(i) SHOWIF showExpiryItem(i) expiryDaysItem, expiryMonthItem;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showExpiryItemGroup(g) expiryDaysItem, expiryMonthItem;
+EXTEND DESIGN item {
+    itemPrimaryColumn2 {
+        ADD i.itemExpiry {
+            columns = 1;
+        }
+    }    
+}
+
+
 // --------------------------------------- Генерация штрихкодов --------------------------------------------- //
 
 META defineNumeratorItemGroup (prefix, caption)
@@ -1183,6 +1209,10 @@ DESIGN itemGroup FROM DEFAULT{
             ADD g.itemSize {
                 columns = 6;
             }
+            NEW itemGroupDetail1 {
+                type = CONTAINERH;
+                ADD g.itemExpiry {type = CONTAINERH;}
+            }
             ADD g.defaultItemGroup {
                 columns = 6;
             }
@@ -1210,6 +1240,8 @@ copyDataItem = ACTION (item, i) {
     skuTypeItem(i) <- skuTypeItem(item);
     splitItem(i) <- splitItem(item);
     inactiveItem(i) <- inactiveItem(item);
+    expiryDaysItem(i) <- expiryDaysItem(item);
+    expiryMonthItem(i) <- expiryMonthItem(item);
 
     FOR skuBarcode(barcode) == item DO {
         FOR ADDOBJ b = Barcode DO {

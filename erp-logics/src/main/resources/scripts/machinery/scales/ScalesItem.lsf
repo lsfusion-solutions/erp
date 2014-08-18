@@ -17,7 +17,7 @@ passScalesSku(sku) += passScalesItem(sku);
 overInGroupMachinerySku(groupMachinery, sku) += groupMachinery IS GroupScales AND sku IS Item AND NOT passScalesItem(sku);
 
 EXTEND DESIGN itemGroup {
-    itemGroupDetail {
+    itemGroupDetail1 {
         ADD g.scales;
     }
 }
@@ -30,13 +30,12 @@ labelFormatBarcode 'Формат этикетки' = idLabelFormatPackItem(skuBa
 @defineMachineryPriceTransactionAttribute(labelFormat, 'Формат этикетки', INTEGER);
 
 // Сроки годности
-daysExpiryPackItem 'Срок годности в днях с момента фасовки' = DATA NUMERIC[8,2] (Item) IN scales;
 hoursExpiryPackItem 'Срок годности в часах с момента фасовки' = DATA INTEGER (Item) IN scales;
 
-daysExpiryBarcode 'Срок годности в днях с момента фасовки' = daysExpiryPackItem(skuBarcode(barcode));
+expiryDaysBarcode 'Срок годности в днях' = expiryDaysSku(skuBarcode(barcode));
 hoursExpiryBarcode 'Срок годности в часах с момента фасовки' = hoursExpiryPackItem(skuBarcode(barcode));
 
-@defineMachineryPriceTransactionAttribute(daysExpiry, 'Срок годности в днях с момента фасовки', NUMERIC[8,2]);
+@defineMachineryPriceTransactionAttribute(expiryDays, 'Срок годности в днях', INTEGER);
 @defineMachineryPriceTransactionAttribute(hoursExpiry, 'Срок годности в часах с момента фасовки', INTEGER);
 
 // Состав товара
@@ -57,7 +56,7 @@ snapshotAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachi
 createAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += ACTION synchronizeDescriptionMachineryPriceTransactionGroupScales(transaction, groupMachinery);
 
 EXTEND FORM item
-    PROPERTIES(i) SHOWIF passScalesItem(i) idLabelFormatPackItem, daysExpiryPackItem, hoursExpiryPackItem
+    PROPERTIES(i) SHOWIF passScalesItem(i) idLabelFormatPackItem, hoursExpiryPackItem 
 ;
 EXTEND DESIGN item {
     itemPrimaryColumn2 {
@@ -70,7 +69,6 @@ EXTEND DESIGN item {
 overCopyItem(s, d) += ACTION (s, d) {
     passScalesItem(d) <- passScalesItem(s);
     labelFormatPackItem(d) <- labelFormatPackItem(s);
-    daysExpiryPackItem(d) <- daysExpiryPackItem(s);
     hoursExpiryPackItem(d) <- hoursExpiryPackItem(s);
 }
 
