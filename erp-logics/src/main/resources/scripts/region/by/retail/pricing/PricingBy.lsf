@@ -1,0 +1,69 @@
+MODULE PricingBy;
+
+REQUIRE Pricing;
+
+NAMESPACE Pricing;
+
+roundConditionMarkupPrice = DATA RoundCondition();
+nameRoundConditionMarkupPrice 'Условие округления розничной цены (надбавка руб.)' = nameRoundCondition(roundConditionMarkupPrice());
+
+EXTEND FORM options
+    PROPERTIES() nameRoundConditionMarkupPrice
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(nameRoundConditionMarkupPrice());
+
+    }
+}
+
+    // Цена надбавки   
+    @defineDocumentInterfaceDetailPriceCustomPrefix (pricingDetail, markup, ' надбавки');
+markupPriceUserPricingDetail(detail) <- retailMarkupSumUserPricingDetail(detail)/(quantityUserPricingDetail(detail) IF quantityUserPricingDetail(detail)!=0)
+                WHEN CHANGED(retailMarkupSumUserPricingDetail(detail)) OR CHANGED (quantityUserPricingDetail(detail));
+
+calcRetailMarkupPriceUserPricingDetail(userPricingDetail, markupPrice)  = roundPriceRoundCondition(NUMERIC[14,2]([= (X (+) Y)*(Z+100)/100](
+    pricingPriceUserPricingDetail(userPricingDetail),
+    markupPrice,
+    valueRetailVATUserPricingDetail(userPricingDetail))), roundConditionMarkupPrice());                    
+                
+changeMarkupPriceUserPricingDetail = ACTION (userPricingDetail) {
+    REQUEST NUMERIC[14,2] INPUT;
+
+    IF requestedNumeric() THEN {
+        retailPriceUserPricingDetail(userPricingDetail) <- calcRetailMarkupPriceUserPricingDetail(userPricingDetail, requestedNumeric());
+        retailMarkupUserPricingDetail(userPricingDetail) <- calcRetailMarkupUserPricingDetail(userPricingDetail) WHERE calcRetailMarkupUserPricingDetail(userPricingDetail);
+    } 
+}
+
+@defineDocumentInterfaceProperty (pricing, showMarkupPrice, 'Надбавка (руб.)');
+
+EXTEND FORM userPricing
+    PROPERTIES(p) showMarkupPriceUserPricing
+    PROPERTIES(d) BEFORE retailMarkupSumUserPricingDetail(d) SHOWIF showMarkupPriceUserPricing(p) BACKGROUND backgroundRetailPricing(p)
+                  markupPriceUserPricingDetail ON CHANGE changeMarkupPriceUserPricingDetail(d)         
+;
+
+EXTEND FORM pricings
+    PROPERTIES(d) READONLY BEFORE retailMarkupSumPricingDetail(d) SHOWIF showMarkupPriceUserPricing(p) BACKGROUND backgroundRetailPricing(p)
+                  markupPricePricingDetail
+;
+
+//----------------------------------------------- Операции -----------------------------------------------------//
+
+// Отображение цены надбавки в рублях
+@defineDocumentHeaderProperty (operation, showMarkupPrice, 'Надбавка (руб.)');
+
+// Записываем необходимо ли показывать надбавку в рублях по умолчанию из операции
+showMarkupPriceUserPricing (pricing) <- showMarkupPriceOperation(operationUserPricing(pricing))
+    WHEN CHANGED(operationUserPricing(pricing));
+
+EXTEND FORM Pricing.operation
+    PROPERTIES(o) showMarkupPriceOperation
+;
+
+EXTEND DESIGN Pricing.operation {
+    showContainer {
+        ADD PROPERTY(showMarkupPriceOperation(o));
+    }
+}

@@ -1,0 +1,49 @@
+MODULE PricingInvoiceBy;
+
+REQUIRE PricingInvoice, PricingBy;
+
+NAMESPACE Pricing;
+
+META defineInvoicePricingByAggregation(dumb)
+
+    // Цена надбавки   
+    @defineDocumentInterfaceDetailPriceCustomPrefix (invoiceDetail, markup, ' надбавки');
+    
+    markupPriceUserInvoiceDetail(detail) <- retailMarkupSumUserInvoiceDetail(detail)/(pricingQuantityUserInvoiceDetail(detail) IF pricingQuantityUserInvoiceDetail(detail)!=0)
+                    WHEN CHANGED(retailMarkupSumUserInvoiceDetail(detail)) OR CHANGED (pricingQuantityUserInvoiceDetail(detail));
+
+    calcRetailMarkupPriceUserInvoiceDetail(userInvoiceDetail, markupPrice)  = roundPriceRoundCondition(NUMERIC[14,2]([= (X (+) Y)*(Z+100)/100](
+        pricingPriceUserInvoiceDetail(userInvoiceDetail),
+        markupPrice,
+        valueRetailVATUserInvoiceDetail(userInvoiceDetail))), roundConditionMarkupPrice());                    
+                    
+    changeMarkupPriceUserInvoiceDetail = ACTION (userInvoiceDetail) {
+        REQUEST NUMERIC[14,2] INPUT;
+
+        IF requestedNumeric() THEN {
+            retailPriceUserInvoiceDetail(userInvoiceDetail) <- calcRetailMarkupPriceUserInvoiceDetail(userInvoiceDetail, requestedNumeric());
+            retailMarkupUserInvoiceDetail(userInvoiceDetail) <- calcRetailMarkupUserInvoiceDetail(userInvoiceDetail) WHERE calcRetailMarkupUserInvoiceDetail(userInvoiceDetail);
+        } 
+    } 
+    
+    @defineDocumentInterfaceProperty (invoice, showMarkupPrice, 'Надбавка (руб.)');    
+    
+    EXTEND FORM userInvoice
+        PROPERTIES(i) showMarkupPriceUserInvoice SHOWIF createPricingUserInvoice(i)
+        PROPERTIES(d) BEFORE retailMarkupSumUserInvoiceDetail(d) SHOWIF showMarkupPriceUserInvoice(i) BACKGROUND backgroundRetailInvoice(i)
+                      markupPriceUserInvoiceDetail ON CHANGE changeMarkupPriceUserInvoiceDetail(d)         
+    ;
+    
+    EXTEND DESIGN userInvoice {
+        headerCreatePricing {
+            ADD PROPERTY(showMarkupPriceUserInvoice(i));
+        }
+    }
+    EXTEND FORM invoices
+        PROPERTIES(d) READONLY BEFORE retailMarkupSumInvoiceDetail(d) SHOWIF showMarkupPriceInvoice(i) BACKGROUND backgroundRetailInvoice(i)
+                      markupPriceInvoiceDetail
+    ;    
+    markupPriceInvoicePricingDetail 'Цена надбавки' (detail) = markupPriceInvoiceDetail(invoiceDetailInvoicePricingDetail(detail)) PERSISTENT ;
+    markupPricePricingDetail (detail) += markupPriceInvoicePricingDetail(detail);
+    
+END
