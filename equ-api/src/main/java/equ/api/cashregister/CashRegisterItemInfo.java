@@ -13,11 +13,12 @@ public class CashRegisterItemInfo extends ItemInfo {
     public String idUOM;
     public String shortNameUOM;
     public boolean passScalesItem;
-    
+    public BigDecimal vat;
+
     public CashRegisterItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem,
                                 Integer idItem, String description, String nameItemGroup, 
                                 List<ItemGroup> hierarchyItemGroup, String idUOM, String shortNameUOM, 
-                                boolean passScalesItem) {
+                                boolean passScalesItem, BigDecimal vat) {
         super(idBarcode, name, price, splitItem);
         this.idItem = idItem;
         this.description = description;
@@ -26,5 +27,6 @@ public class CashRegisterItemInfo extends ItemInfo {
         this.idUOM = idUOM;
         this.shortNameUOM = shortNameUOM;
         this.passScalesItem = passScalesItem;
+        this.vat = vat;
     }
 }

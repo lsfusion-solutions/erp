@@ -64,6 +64,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule itemLM;
     private ScriptingLogicsModule legalEntityLM;
     private ScriptingLogicsModule machineryPriceTransactionLM;
+    private ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule priceListLedgerLM;
     private ScriptingLogicsModule purchaseInvoiceAgreementLM;
@@ -119,6 +120,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         itemLM = getBusinessLogics().getModule("Item");
         legalEntityLM = getBusinessLogics().getModule("LegalEntity");
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
+        machineryPriceTransactionStockTaxLM = getBusinessLogics().getModule("MachineryPriceTransactionStockTax");
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
         priceListLedgerLM = getBusinessLogics().getModule("PriceListLedger");
         purchaseInvoiceAgreementLM = getBusinessLogics().getModule("PurchaseInvoiceAgreement");
@@ -223,6 +225,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         "skuGroupMachineryPriceTransactionBarcode", "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode"};
                 String[] extraSkuProperties = new String[]{"daysExpiryMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
                         "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode"};
+                String[] taxProperties = new String[]{"VATMachineryPriceTransactionBarcode"};
                 skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
                 for (String property : skuProperties) {
                     skuQuery.addProperty(property, equLM.findProperty(property).getExpr(transactionObject.getExpr(), barcodeExpr));
@@ -230,6 +233,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 if (scalesItemLM != null) {
                     for (String property : extraSkuProperties) {
                         skuQuery.addProperty(property, scalesItemLM.findProperty(property).getExpr(transactionObject.getExpr(), barcodeExpr));
+                    }
+                }
+                if (machineryPriceTransactionStockTaxLM != null) {
+                    for (String property : taxProperties) {
+                        skuQuery.addProperty(property, machineryPriceTransactionStockTaxLM.findProperty(property).getExpr(transactionObject.getExpr(), barcodeExpr));
                     }
                 }
 
@@ -278,6 +286,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         boolean passScales = valueRow.get("passScalesMachineryPriceTransactionBarcode").getValue() != null;
                         String idUOM = (String) valueRow.get("idUOMMachineryPriceTransactionBarcode").getValue();
                         String shortNameUOM = (String) valueRow.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
+                        BigDecimal valueVAT = (BigDecimal) valueRow.get("VATMachineryPriceTransactionBarcode").getValue();
                         Integer idItem = (Integer) itemLM.findProperty("skuBarcode").readClasses(session, keyRow.get("barcode")).getValue();
                         String description = scalesItemLM == null ? null : (String) valueRow.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
@@ -301,7 +310,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         }
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, idItem,
-                                description, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM, passScales));
+                                description, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM, passScales, valueVAT));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
