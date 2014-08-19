@@ -18,10 +18,11 @@ public class ImportColumns {
     private String csvSeparator;
     private Integer startRow;
     private Boolean isPosted;
+    private Boolean doNotCreateItems;
 
     public ImportColumns(Map<String, ImportColumnDetail> columns, Map<DataObject, String[]> priceColumns, String quantityAdjustmentColumn,
                          DataObject operationObject, DataObject companyObject, DataObject stockObject, DataObject defaultItemGroupObject,
-                         String fileExtension, String itemKeyType, String csvSeparator, Integer startRow, Boolean isPosted) {
+                         String fileExtension, String itemKeyType, String csvSeparator, Integer startRow, Boolean isPosted, Boolean doNotCreateItems) {
         this.columns = columns;
         this.priceColumns = priceColumns;
         this.quantityAdjustmentColumn = quantityAdjustmentColumn;
@@ -34,6 +35,7 @@ public class ImportColumns {
         this.csvSeparator = csvSeparator;
         this.startRow = startRow;
         this.isPosted = isPosted;
+        this.doNotCreateItems = doNotCreateItems;
     }
 
     public Map<String, ImportColumnDetail> getColumns() {
@@ -82,5 +84,9 @@ public class ImportColumns {
     
     public Boolean getIsPosted() {
         return isPosted;
+    }
+
+    public Boolean getDoNotCreateItems() {
+        return doNotCreateItems;
     }
 }

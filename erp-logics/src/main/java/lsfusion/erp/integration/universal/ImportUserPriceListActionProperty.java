@@ -208,13 +208,22 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     data.get(i).add(userPriceListDetailsList.get(i).amountPackBarcode);
             }
 
+            boolean isItemKey = (importColumnProperties.getItemKeyType() == null || importColumnProperties.getItemKeyType().equals("item"));
+            
             ImportField idItemField = new ImportField(findProperty("idItem"));
-            LCP iGroupAggr = findProperty((importColumnProperties.getItemKeyType() == null || importColumnProperties.getItemKeyType().equals("item")) ? "itemId" : "skuIdBarcode");
-            ImportField iField = (importColumnProperties.getItemKeyType() == null || importColumnProperties.getItemKeyType().equals("item")) ? idItemField : idBarcodeSkuField;
+            
+            LCP iGroupAggr = findProperty(isItemKey ? "itemId" : "skuIdBarcode");
+            ImportField iField = isItemKey ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
+            
+            if (importColumnProperties.getDoNotCreateItems() != null && importColumnProperties.getDoNotCreateItems())
+                itemKey.skipKey = true;
             keys.add(itemKey);
-            props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
+            
+            if (isItemKey || showField(userPriceListDetailsList, "idItem"))
+                props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
+            
             if (purchasePackLM != null)
                 props.add(new ImportProperty(extIdPackBarcodeSkuField, purchasePackLM.findProperty("Purchase.packBarcodeSku").getMapping(itemKey),
                         object(findClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
@@ -270,7 +279,6 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             keys.add(userPriceListDetailKey);
             props.add(new ImportProperty(userPriceListObject, findProperty("userPriceListUserPriceListDetail").getMapping(userPriceListDetailKey)));
             props.add(new ImportProperty(idUserPriceListDetailField, findProperty("idUserPriceListDetail").getMapping(userPriceListDetailKey)));
-            props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
             props.add(new ImportProperty(iField, findProperty("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
                     object(findClass("Sku")).getMapping(itemKey)));
             props.add(new ImportProperty(iField, findProperty("skuBarcode").getMapping(barcodeKey),
@@ -750,14 +758,16 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         
         String csvSeparator = (String) findProperty("separatorImportUserPriceListType").read(context, importTypeObject);
         csvSeparator = csvSeparator == null ? ";" : csvSeparator;
-        
+
         Integer startRow = (Integer) findProperty("startRowImportUserPriceListType").read(context, importTypeObject);
         startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
         
         Boolean isPosted = (Boolean) findProperty("isPostedImportUserPriceListType").read(context, importTypeObject);
 
+        Boolean doNotCreateItems = (Boolean) findProperty("doNotCreateItemsImportUserPriceListType").read(context, importTypeObject);
+
         return new ImportColumns(columns, priceColumns, quantityAdjustmentColumn, operationObject, companyObject, stockObject, defaultItemGroupObject, 
-                fileExtension, itemKeyType, csvSeparator, startRow, isPosted);
+                fileExtension, itemKeyType, csvSeparator, startRow, isPosted, doNotCreateItems);
     }
 
     private Map<String, ImportColumnDetail> readColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
