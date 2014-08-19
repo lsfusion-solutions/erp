@@ -821,34 +821,30 @@ EXTEND DESIGN options {
 }
 createSelectedSkuStockLabelTransaction 'Распечатать ценники' = ACTION () {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
-        FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock] (stock) AND stock IS DepartmentStore DO {        
-            selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- selectSkuStock(sku, stock) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
-            createLabelTransactionDepartmentStore(stock);
+        NEWSESSION (selectSkuStock) AUTOAPPLY {
+            FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock] (stock) AND stock IS DepartmentStore DO {        
+                selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- selectSkuStock(sku, stock) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
+                createLabelTransactionDepartmentStore(stock);
+            }
         }
         IF NOT notResetLabelSelectSku() THEN {
             selectSkuStock(sku, stock) <- NULL;
         }
-        APPLY (*) {};
-        IF canceled() THEN {
-            cancel();
-        } 
     }
 } TOOLBAR;
 
 createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION () {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {            
-        FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) AND stock IS DepartmentStore DO {  
-            selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);   
-                               
-            createSnapshotLabelTransactionDepartmentStore(stock);
+        NEWSESSION (selectSkuStock) AUTOAPPLY {
+            FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) AND stock IS DepartmentStore DO {  
+                selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);   
+                                   
+                createSnapshotLabelTransactionDepartmentStore(stock);
+            }
         }
         IF NOT notResetLabelSelectSku() THEN {
             selectSkuStock(sku, stock) <- NULL;
         }
-        APPLY (*) {};
-        IF canceled() THEN {
-            cancel();
-        }                 
     }
 } TOOLBAR;
 
