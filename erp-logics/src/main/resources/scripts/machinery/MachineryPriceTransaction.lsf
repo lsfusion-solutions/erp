@@ -537,6 +537,16 @@ createSelectedSkuPriceTransactionDocumentStock 'Загрузить в обору
     }
 } TOOLBAR ;
 
+notResetMachinerySelectSku 'Не сбрасывать отмеченные товары при загрузке в оборудование' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() notResetMachinerySelectSku
+;
+EXTEND DESIGN options {
+    stock {
+        ADD PROPERTY(notResetMachinerySelectSku());
+    }
+}
+
 createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование' = ACTION ()  {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
         FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) DO {
@@ -544,7 +554,10 @@ createSelectedSkuStockPriceTransactionDocument 'Загрузить в обору
             createMachineryPriceTransactionSku(sku) <- TRUE IF selectSkuStock(sku, stock);
             createMachineryPriceTransaction(stock);
         }
-        apply();
+        IF NOT notResetMachinerySelectSku() THEN {
+            selectSkuStock(sku, stock) <- NULL;
+        }
+        APPLY (*) {};
         IF canceled() THEN {
             cancel();
         }

@@ -810,16 +810,28 @@ printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатат�
 
 // --------------------------------- Печать ценников по отмеченным по складу ------------------------- //
 
+notResetLabelSelectSku 'Не сбрасывать отмеченные товары при печати ценников' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() notResetLabelSelectSku
+;
+EXTEND DESIGN options {
+    stock {
+        ADD PROPERTY(notResetLabelSelectSku());
+    }
+}
 createSelectedSkuStockLabelTransaction 'Распечатать ценники' = ACTION () {
     IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
         FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock] (stock) AND stock IS DepartmentStore DO {        
             selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- selectSkuStock(sku, stock) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
             createLabelTransactionDepartmentStore(stock);
         }
-        apply();
+        IF NOT notResetLabelSelectSku() THEN {
+            selectSkuStock(sku, stock) <- NULL;
+        }
+        APPLY (*) {};
         IF canceled() THEN {
             cancel();
-        }        
+        } 
     }
 } TOOLBAR;
 
@@ -830,10 +842,13 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
                                
             createSnapshotLabelTransactionDepartmentStore(stock);
         }
-        apply();
+        IF NOT notResetLabelSelectSku() THEN {
+            selectSkuStock(sku, stock) <- NULL;
+        }
+        APPLY (*) {};
         IF canceled() THEN {
             cancel();
-        }                    
+        }                 
     }
 } TOOLBAR;
 
