@@ -168,7 +168,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
             prefix###price###idetail(detail) <- roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
                                                                     prefixP###price###idetail(detail),
                                                                     prefix###markup###idetail(detail),
-                                                                    value###prefix###VAT###idetail(detail)), roundConditionPriceListType(priceListType))
+                                                                    value###prefix###VAT###idetail(detail)), roundConditionCalcPriceListTypeSku(priceListType, sku###idetail(detail)))
                                                          WHERE prefix###priceListType###idetail(detail) == priceListType;
         }
 
@@ -357,10 +357,19 @@ CONSTRAINT currencyUserPricingDetail(detail) != currencyPriceListType(retailPric
 
 
 // Округление
-roundConditionUserPricingDetail(userPricingDetail) =
-    IF roundConditionPriceListType(retailPriceListTypeUserPricingDetail(userPricingDetail))
-        THEN roundConditionPriceListType(retailPriceListTypeUserPricingDetail(userPricingDetail))
-        ELSE roundConditionDepartmentStore(departmentStoreUserPricingDetail(userPricingDetail));
+//roundConditionUserPricingDetail(userPricingDetail) =
+//    IF roundConditionPriceListType(retailPriceListTypeUserPricingDetail(userPricingDetail))
+//        THEN roundConditionPriceListType(retailPriceListTypeUserPricingDetail(userPricingDetail))
+//        ELSE roundConditionDepartmentStore(departmentStoreUserPricingDetail(userPricingDetail));
+
+overRoundConditionUserPricingDetail (d) = IF retailPriceListTypeUserPricingDetail(d) IS CalcPriceListType 
+    THEN roundConditionCalcPriceListTypeSku(retailPriceListTypeUserPricingDetail(d), skuUserPricingDetail(d)) 
+    ELSE roundConditionPriceListType(retailPriceListTypeUserPricingDetail(d));
+
+roundConditionUserPricingDetail(d) =  IF overRoundConditionUserPricingDetail(d)
+        THEN overRoundConditionUserPricingDetail(d)              
+        ELSE roundConditionDepartmentStore(departmentStoreUserPricingDetail(d));
+                       
 
 // Поставщик
 @defineDocumentInterfaceLegalEntity (pricing, supplier, 'Поставщик');

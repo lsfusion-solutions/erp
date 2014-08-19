@@ -88,10 +88,20 @@ purchasePricingPriceInvoiceDetail (detail) = OVERRIDE priceInvoiceDetail(detail)
 @defineDocumentInterfaceDetailPricePrefix(invoice, purchaseRetail, ' розничная (закупка)');
 
 // Действия по измению цен и надбавок на форме
-purchaseRoundConditionUserInvoiceDetail(userInvoiceDetail) =
-    IF roundConditionPriceListType(purchaseRetailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
-        THEN roundConditionPriceListType(purchaseRetailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
-        ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(userInvoiceDetail));
+//purchaseRoundConditionUserInvoiceDetail(userInvoiceDetail) =
+//    IF roundConditionPriceListType(purchaseRetailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
+//        THEN roundConditionPriceListType(purchaseRetailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
+//        ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(userInvoiceDetail));
+
+overPurchaseRoundConditionUserInvoiceDetail (d) = IF purchaseRetailPriceListTypeUserInvoiceDetail(d) IS CalcPriceListType 
+    THEN roundConditionCalcPriceListTypeSku(purchaseRetailPriceListTypeUserInvoiceDetail(d), skuUserInvoiceDetail(d)) 
+    ELSE roundConditionPriceListType(purchaseRetailPriceListTypeUserInvoiceDetail(d));
+
+purchaseRoundConditionUserInvoiceDetail(d) =  IF overPurchaseRoundConditionUserInvoiceDetail(d)
+        THEN overPurchaseRoundConditionUserInvoiceDetail(d)              
+        ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(d));
+        
+        
 
 @changeDocumentDetailMarkupCustomPrefix(userInvoiceDetail, purchaseRetail, purchasePricing, purchaseRetail, purchaseRetail);
 @changeDocumentDetailPriceCustomPrefix(userInvoiceDetail, purchaseRetail, purchasePricing, purchaseRetail, purchaseRetail, purchase);

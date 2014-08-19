@@ -52,11 +52,19 @@ WHEN SESSION FORMS userInvoice
      retailPriceListTypeUserInvoiceDetail(detail) <- calcRetailCalcPriceListTypeUserInvoiceDetail(detail);
 
 
-// Округление розничной цен (если указан расчетный вид цены, то от него, иначе от склада)
-roundConditionUserInvoiceDetail(userInvoiceDetail) =
-    IF roundConditionPriceListType(retailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
-        THEN roundConditionPriceListType(retailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
-        ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(userInvoiceDetail));
+// Округление розничной цен (если указан расчетный вид цены, то от него, иначе от склада)                
+//roundConditionUserInvoiceDetail(userInvoiceDetail) =
+//    IF roundConditionPriceListType(retailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
+//        THEN roundConditionPriceListType(retailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
+//        ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(userInvoiceDetail));             
+
+overRoundConditionUserInvoiceDetail (d) = IF retailPriceListTypeUserInvoiceDetail(d) IS CalcPriceListType 
+    THEN roundConditionCalcPriceListTypeSku(retailPriceListTypeUserInvoiceDetail(d), skuUserInvoiceDetail(d)) 
+    ELSE roundConditionPriceListType(retailPriceListTypeUserInvoiceDetail(d));
+
+roundConditionUserInvoiceDetail(d) =  IF overRoundConditionUserInvoiceDetail(d)
+        THEN overRoundConditionUserInvoiceDetail(d)              
+        ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(d));
 
 @defineInvoicePricingAggregation(invoice, Invoice, ' (закупка)', 'Акт расценки на основе накладной', 'Проведенный акт расценки на основе накладной', customer, );
 batchPricingDetail(detail) += OVERRIDE shipmentBatchShipmentDetail(invoiceShipmentDetailInvoiceDetail(invoiceDetailInvoicePricingDetail(detail))), batchInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
