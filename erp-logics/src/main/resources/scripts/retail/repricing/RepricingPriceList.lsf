@@ -4,97 +4,66 @@ REQUIRE Repricing, PriceListOperation;
 
 NAMESPACE Repricing;
 
-FORM managementRepricing 'Управленческая переоценка'
-    OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES (d) SELECTOR nameDepartmentStore
-
-    OBJECTS o = Repricing.Operation FIXED PANEL
-    PROPERTIES (o) SELECTOR Repricing.nameOperation
-    FILTERS inUserOperation(currentUser(), o)
-
-    OBJECTS t=DATETIME FIXED PANEL
-    PROPERTIES(t) OBJVALUE
-
-;
-DESIGN managementRepricing FROM DEFAULT {
-    main {
-        type = CONTAINERV;
-
-        NEW topContainer {
-            type = CONTAINERH;
-            ADD d.box { caption = 'Выберите отдел магазина';}
-            ADD o.box { caption = 'Выберите операцию'; }
-            ADD t.box;
-        }
-        ADD functions.box;
-    }
-}
-
-overManagementRepricing = ABSTRACT ACTION LIST (RepricingDetail,Sku,Stock,DATETIME);
-
-prevPriceAPriceListCalcListSkuStockDateTime (priceList, calcList, sku, stock, time) =
-    OVERRIDE prevPriceAPriceListTypeSkuStockDateTime(calcList, sku, stock, time), prevPriceAPriceListTypeSkuStockDateTime(priceList, sku, stock, time);
-prevPriceAOperationSkuStockDateTime 'Цена (управленческая)' (operation, sku, stock, time)= prevPriceAPriceListCalcListSkuStockDateTime(
-    (OVERRIDE retailPriceListTypeDepartmentStore(stock) IF operation IS Operation, priceListTypeOperation(operation) IF stock IS Stock), 
-    (OVERRIDE retailCalcPriceListTypeDepartmentStore(stock) IF operation IS Operation, calcPriceListTypeOperation(operation) IF stock IS Stock), 
-    sku, 
-    stock, 
-    time
-    ) COMPLEX; 
-                 
-useAllItemRepricing 'Переоценивать товары без остатка' = DATA BOOLEAN ();
-
-EXTEND FORM options
-    PROPERTIES() useAllItemRepricing 
-;
-
-EXTEND DESIGN options {
-commons{
-    ADD PROPERTY(useAllItemRepricing());
-}
-}
-                
-filterQuantityOperationSkuStockDateTime(operation,sku,department,time) = IF useAllItemRepricing() 
-            THEN
-               prevPriceAOperationSkuStockDateTime(operation, sku, department, time) AND 
-               NOT prevPriceAOperationSkuStockDateTime(operation, sku, department, time) == prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time)
-            ELSE
-               currentBalanceSkuStock(sku, department) AND
-               prevPriceAOperationSkuStockDateTime(operation, sku, department, time) != 
-               prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sku, department, time)
-;
+overPriceListUserRepricingDetail = ABSTRACT ACTION LIST (RepricingDetail);
 
 skipRepricingSku = ABSTRACT BOOLEAN (Sku, Stock);
 
-overCreateManagementRepricingOperationStockDateTime 'Создать управленческую переоценку' (operation, department, time) = ACTION (operation, department, time) {
-    FOR ADDOBJ r = UserRepricing DO {
-        departmentStoreUserRepricing(r) <-  department;
-        operationUserRepricing(r) <- operation;
-        dateUserRepricing(r) <-  toDate(time);
-        timeUserRepricing(r) <- toTime(time);               
+onStockPriceListRepricing 'Переоценивать товары без остатка' = DATA BOOLEAN ();
 
-        FOR filterQuantityOperationSkuStockDateTime(operation,sku,department,time) AND NOT skipRepricingSku(sku, department) ADDOBJ rd = UserRepricingDetail DO {
-            userRepricingUserRepricingDetail(rd) <- r;
-            skuUserRepricingDetail(rd) <- sku;
-            quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, department);
-            retailPriceUserRepricingDetail(rd) <- prevPriceAOperationSkuStockDateTime(operation, sku, department, time);
-            curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBSkuStockDateTime(sku, department, time);
-            priceUserRepricingDetail(rd) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, department, time);
-            overManagementRepricing(rd, sku, department, time);
-        }
-        FORM userRepricing  OBJECTS p = r MANAGESESSION DOCKEDMODAL;
+managementRetailPriceSku 'Цена (управленческая)' = DATA SESSION NUMERIC[14,2] (Sku);
+managementPriceListPriceSku = DATA SESSION NUMERIC[14,2] (Sku); 
+inDashboardRepricingSku 'Вкл' = DATA SESSION BOOLEAN (Sku); 
+
+calculateDashboardRepricing 'Рассчитать позиции' = ACTION (d, o, dt) {
+    
+    IF onStockPriceListRepricing() THEN {
+        managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
+                                                                                  sku, d, dt);
+        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
+                                                                                     sku, d, dt);
+        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+    } ELSE {
+        managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
+                                                                                  sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0;
+        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),
+                                                                                     sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0;
+        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
     }
-};
-
-
-createManagementRepricing 'Создать управленческую переоценку' = ACTION () NEWSESSION {
-
-    FORM managementRepricing  MODAL;
-    IF formResult() == FormResult.ok THEN {
-        overCreateManagementRepricingOperationStockDateTime(chosenObject('o'), chosenObject('d'), chosenDateTime('t'));
-    }
+    
+    inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceBSkuStockDateTime(sku, d, dt);
+    
+    formRefresh();
 } TOOLBAR;
 
-EXTEND FORM repricings
-    PROPERTIES() createManagementRepricing TODRAW p
+createDashboardRepricing 'Создать переоценку' = ACTION (d, o, dt) {
+    NEWSESSION (*) {
+        FOR ADDOBJ r = UserRepricing DO {
+            departmentStoreUserRepricing(r) <- d;
+            operationUserRepricing(r) <- o;
+            dateUserRepricing(r) <- toDate(dt);
+            timeUserRepricing(r) <- toTime(dt);               
+    
+            FOR inDashboardRepricingSku(sku) AND NOT skipRepricingSku(sku, d) ADDOBJ rd = UserRepricingDetail DO {
+                userRepricingUserRepricingDetail(rd) <- r;
+                skuUserRepricingDetail(rd) <- sku;
+                quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, d);
+                retailPriceUserRepricingDetail(rd) <- managementRetailPriceSku(sku);
+                curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBSkuStockDateTime(sku, d, dt);
+                priceUserRepricingDetail(rd) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, d, dt);
+                overPriceListUserRepricingDetail(rd);
+            }
+            FORM userRepricing OBJECTS p = r MANAGESESSION DOCKEDMODAL;
+        }
+    }
+    calculateDashboardRepricing(d, o, dt);
+} TOOLBAR;
+
+EXTEND FORM options
+    PROPERTIES() onStockPriceListRepricing 
 ;
+
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(onStockPriceListRepricing());
+    }
+}

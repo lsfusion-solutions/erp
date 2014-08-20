@@ -6,11 +6,14 @@ NAMESPACE Repricing;
 
 //------------------------ Управленческая переоценка ----------------------------//
 
+clearDashboardRepricing = ACTION() {
+    inDashboardRepricingSku(sk) <- NULL;
+    managementRetailPriceSku(sk) <- NULL;
+    managementPriceListPriceSku(sk) <- NULL;
+    
+    formRefresh();
+}
 
-createManagementRepricingOperationStockDateTime 'Создать управленческую переоценку' (oper, department, time) = ACTION (oper, department, time) NEWSESSION { 
-    overCreateManagementRepricingOperationStockDateTime(oper, department, time);
-} TOOLBAR;
-                                                                                               
 FORM repricingDashboard 'Переоценка'
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES (d) SELECTOR nameDepartmentStore
@@ -24,10 +27,11 @@ FORM repricingDashboard 'Переоценка'
     PROPERTIES(t) OBJVALUE
     
     OBJECTS sk=Sku
-    PROPERTIES(sk) READONLY idBarcodeSku, nameSku, shortNameUOMSku     
-    PROPERTIES     READONLY currentBalanceSkuStock(sk,d), prevPriceAOperationSkuStockDateTime(o,sk,d,t), retailPricingPriceBSkuStockDateTime(sk,d,t) 
-    PROPERTIES (o,d,t)  createManagementRepricingOperationStockDateTime TODRAW sk FORCE PANEL
-    FILTERS filterQuantityOperationSkuStockDateTime(o,sk,d,t) 
+    PROPERTIES(sk)          inDashboardRepricingSku
+    PROPERTIES(sk) READONLY idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES     READONLY currentBalanceSkuStock(sk,d), managementRetailPriceSku(sk), retailPricingPriceBSkuStockDateTime(sk,d,t) 
+    PROPERTIES (d,o,t)  TODRAW sk FORCE PANEL calculateDashboardRepricing, createDashboardRepricing
+    FILTERS inDashboardRepricingSku(sk)
 
     OBJECTS p = Repricing
     PROPERTIES (p) READONLY isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
@@ -47,7 +51,9 @@ FORM repricingDashboard 'Переоценка'
     PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)    
                        
     FILTERGROUP filters FILTER 'Переоценки на дату' 'F5' dateRepricing(p)==toDate(t) DEFAULT                         
-
+    
+    EVENTS
+        ON CHANGE d clearDashboardRepricing()
 ;
 DESIGN repricingDashboard FROM DEFAULT {
     main {

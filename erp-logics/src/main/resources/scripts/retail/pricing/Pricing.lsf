@@ -162,13 +162,14 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
          CHANGED(stockProp###idetail(detail)) OR
          CHANGED(dateTime###idetail(detail)) OR
          CHANGED(value###prefix###VAT###idetail(detail)))
-        AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND pricingDocumentCalcPriceListType(priceListType) NOINLINE (priceListType) INLINE DO {
+        AND sku###idetail(detail) AND priceListType == prefix###priceListType###idetail(detail) AND roundCondition == roundConditionCalcPriceListTypeSku(priceListType, sku###idetail(detail)) 
+        AND pricingDocumentCalcPriceListType(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
             prefix###markup###idetail(detail) <- markupCalcPriceListTypeSku(priceListType, sku###idetail(detail))
                                                          WHERE prefix###priceListType###idetail(detail) == priceListType;
             prefix###price###idetail(detail) <- roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
                                                                     prefixP###price###idetail(detail),
                                                                     prefix###markup###idetail(detail),
-                                                                    value###prefix###VAT###idetail(detail)), roundConditionCalcPriceListTypeSku(priceListType, sku###idetail(detail)))
+                                                                    value###prefix###VAT###idetail(detail)), roundCondition)
                                                          WHERE prefix###priceListType###idetail(detail) == priceListType;
         }
 

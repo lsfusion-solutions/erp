@@ -451,7 +451,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVATItemCountryDate"));
         ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
                 findProperty("valueCurrentVATDefaultValue").getMapping(valueVATItemCountryDateField));
-        VATKey.skipKey = skipKeys;
+        VATKey.skipKey = true;
         keys.add(VATKey);
         props.add(new ImportProperty(valueVATItemCountryDateField, findProperty("VATItemCountry").getMapping(itemKey, defaultCountryObject),
                 LM.object(findClass("Range")).getMapping(VATKey)));
@@ -1100,7 +1100,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 ImportField valueVATUserInvoiceDetailField = new ImportField(findProperty("Purchase.valueVATUserInvoiceDetail"));
                 ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
                         findProperty("valueCurrentVATDefaultValue").getMapping(valueVATUserInvoiceDetailField));
-                VATKey.skipKey = skipKeys;
+                VATKey.skipKey = true;
                 keys.add(VATKey);
                 props.add(new ImportProperty(valueVATUserInvoiceDetailField, findProperty("Purchase.VATUserInvoiceDetail").getMapping(userInvoiceDetailKey),
                         LM.object(findClass("Range")).getMapping(VATKey)));
