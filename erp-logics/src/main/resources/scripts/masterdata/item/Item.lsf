@@ -387,14 +387,28 @@ END
 // Расширяем формы настройки
 EXTEND FORM options
     OBJECTS ia = ItemAttribute
-    PROPERTIES(ia) staticCaption
+    PROPERTIES staticIA= staticCaption(ia)
+    
+    TREE treeGroups tg=ItemGroup PARENT parentItemGroup
+    PROPERTIES READONLY nameItemGroup(tg)
+    ORDER BY nameItemGroup(tg)    
+    
+    OBJECTS ia1 = ItemAttribute
+    PROPERTIES staticIA1= staticCaption(ia1)    
 ;
 
 EXTEND DESIGN options {
     pane {
         NEW items {
             caption = 'Товары';
+            type = SPLITV;
             ADD ia.box;
+            NEW items1 {
+                fill = 1;
+                type = SPLITH;
+                ADD treeGroups.tree.box;
+                ADD ia1.box;
+            }
         }
     }
 }
@@ -523,13 +537,23 @@ EXTEND FORM options PROPERTIES(ia) prefixInNameItemAttribute, postfixInNameItemA
 completeNameItemAttribute (item, attribute) = CONCAT '', prefixInNameItemAttribute(attribute) IF item IS Item, valueItemAttribute(item, attribute), postfixInNameItemAttribute(attribute) IF item IS Item;
 
 META defineItemAttributeName (prefix, caption, group)
-    numberInName###prefix##ItemAttribute 'Порядковый номер в наименовании'##caption = DATA INTEGER (ItemAttribute) IN base;
-    EXTEND FORM options PROPERTIES(ia) numberInName###prefix##ItemAttribute;
+    @defineItemDefaultValueCustom(numberInName###prefix, 'Порядковый номер в наименовании'##caption, INTEGER, itemAttribute);
 
+    numberInName###prefix##ItemAttribute 'Порядковый номер в наименовании'##caption = DATA INTEGER (ItemAttribute) IN base;
+    numberInNameItemAttribute###prefix##ItemGroup (itemGroup) = GROUP SUM numberInName###prefix##ItemAttributeItemGroup(attribute, itemGroup) BY itemGroup;
+    numberInName###prefix##ItemAttributeItem 'Порядковый номер в наименовании'##caption (attribute, item) = 
+        IF numberInNameItemAttribute###prefix##ItemGroup(itemGroupItem(item))
+            THEN numberInName###prefix##ItemAttributeItemGroup(attribute, itemGroupItem(item))
+            ELSE numberInName###prefix##ItemAttribute(attribute);
+    
     name###prefix##AttributeItem 'Наименование'###caption (item) = VARISTRING[255](
                     [= GROUP CONCAT completeNameItemAttribute(item, attribute)
-                                  IF numberInName###prefix##ItemAttribute(attribute) AND valueItemAttribute(item, attribute), ' ' BY item ORDER numberInName###prefix##ItemAttribute(attribute)](item))
+                                  IF numberInName###prefix##ItemAttributeItem(attribute, item) AND valueItemAttribute(item, attribute), ' ' BY item ORDER numberInName###prefix##ItemAttributeItem(attribute, item)](item))
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+    EXTEND FORM options 
+        PROPERTIES(ia) numberInName###prefix##ItemAttribute
+        PROPERTIES(ia1, tg) numberInName###prefix##ItemAttributeItemGroup
+    ;
 END
 
 // -------------------------------------- Типы атрибутов ------------------------------- //
@@ -620,6 +644,20 @@ META defineItemDefaultValue(property, caption, type, typeIdentity, object)
                  data###property###object##ItemGroup(object, itemGroup) PERSISTENT;    
     
     typeIdentity###object##ItemGroup caption (object, itemGroup) = typeIdentity(property###object##ItemGroup(object, itemGroup)) IN defaultItemGroup;
+END 
+
+META defineItemDefaultValueCustom(property, caption, type, object)
+    data###property###object##ItemGroup caption = DATA type (###object, ItemGroup);
+    
+    levelParent###property###object##ItemGroup (object, itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF data###property###object##ItemGroup(object, parent)
+                                                                  BY object, itemGroup PERSISTENT;    
+    nearestParent###property###object##ItemGroup (object, itemGroup) = itemGroupItemGroupLevel(itemGroup, levelParent###property###object##ItemGroup(object, itemGroup));
+    nearest###property###object##ItemGroup (object, itemGroup) = data###property###object##ItemGroup(object, nearestParent###property###object##ItemGroup (object, itemGroup));
+    
+    property###object##ItemGroup caption (object, itemGroup) =
+        OVERRIDE nearest###property###object##ItemGroup (object, itemGroup), 
+                 data###property###object##ItemGroup(object, itemGroup) PERSISTENT;    
+    
 END 
 
 // Ограничения на выбор значений справочника
@@ -1080,6 +1118,26 @@ loadDefaultItemAttributes 'Загрузить стандартные атриб�
 
 // ---------------------------------------------- Формирование наименований -------------------------------------- //
 
+TABLE itemAttributeItemGroup(ItemAttribute, ItemGroup);
+
+@defineItemDefaultValueCustom(numberInNameItem, 'Порядковый номер в наименовании', INTEGER, itemAttribute); 
+
+//dataNumberInNameItemItemAttributeItemGroup 'Порядковый номер в наименовании' = DATA INTEGER (ItemAttribute, ItemGroup);
+//
+//levelParentNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF dataNumberInNameItemItemAttributeItemGroup(itemAttribute, parent)
+//                                                              BY itemAttribute, itemGroup PERSISTENT;    
+//nearestParentNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup) = itemGroupItemGroupLevel(itemGroup, levelParentNumberInNameItemItemAttributeItemGroup(itemAttribute, itemGroup));
+//nearestNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup) = dataNumberInNameItemItemAttributeItemGroup(itemAttribute, nearestParentNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup));
+//
+//numberInNameItemItemAttributeItemGroup 'Порядковый номер в наименовании' (itemAttribute, itemGroup) =
+//    OVERRIDE nearestNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup), 
+//             dataNumberInNameItemItemAttributeItemGroup(itemAttribute, itemGroup) PERSISTENT;   
+//
+//numberInNameItemAttribute 'Порядковый номер в наименовании' = DATA INTEGER (ItemAttribute) IN base;
+//numberInNameItemAttributeItem 'Порядковый номер в наименовании'= OVERRIDE numberInNameItemAttribute(attribute), numberInNameItemItemAttributeItemGroup(attribute, itemGroupItem(item));
+
+
+                    
 // Базовое наименование
 @defineItemAttributeName( , , recognize);
 
