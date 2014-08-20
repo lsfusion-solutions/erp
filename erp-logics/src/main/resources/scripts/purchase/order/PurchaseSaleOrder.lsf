@@ -1,0 +1,164 @@
+MODULE PurchaseSaleOrder;
+
+REQUIRE PurchaseOrder, SaleOrder;
+
+PRIORITY Purchase;
+
+//----------------------------------------------------------------------------//
+
+GROUP orderSale 'Информация о заказе' : public;
+
+createSaleOrder 'Создать заказ (продажа)' = ABSTRACT BOOLEAN (Order) PERSISTENT;
+createSaleUserOrder 'Создать заказ (продажа)' = DATA BOOLEAN (UserOrder) PERSISTENT;
+createSaleOrder(order) += createSaleUserOrder(order);
+
+createSaleOrderDetail 'Создать заказ (продажа)' (orderDetail) = createSaleOrder(orderOrderDetail(orderDetail))PERSISTENT;
+createSaleUserOrderDetail 'Создать заказ (продажа)' (userOrderDetail) = createSaleUserOrder(userOrderUserOrderDetail(userOrderDetail));
+backgroundSaleOrder 'Цвет' (order) = RGB(255, 214, 214) IF order IS Order;
+EXTEND FORM userOrder
+    PROPERTIES(o) BACKGROUND backgroundSaleOrder(o) createSaleUserOrder
+;
+EXTEND DESIGN userOrder {
+    headerCreateDocuments{
+        NEW headerOrder{
+            caption = 'Заказ';
+            type = CONTAINERH;
+            ADD PROPERTY(createSaleUserOrder(o));
+        }
+    }
+}
+
+CLASS SaleOrder 'Заказ на основе заказа': Sale.Order;
+CLASS SaleOrderDetail 'Строка заказа на основе заказа' : Sale.OrderDetail;
+
+@defineDocumentTables(saleOrder);
+
+@defineDocumentAggregation(order, saleOrder, createSale);
+Sale.orderOrderDetail(detail) += saleOrderSaleOrderDetail(detail);
+
+Sale.indexOrderDetail(detail) += indexSaleOrderDetail(detail);
+
+Sale.dateOrder(order) += dateSaleOrder(order);
+Sale.timeOrder(order) += timeSaleOrder(order);
+
+Sale.shipmentDateOrder(order) += shipmentDateOrder(orderSaleOrder(order));
+Sale.shipmentDataDateOrderDetail(detail) += shipmentDataDateOrderDetail(orderDetailSaleOrderDetail(detail));
+
+Sale.shipmentTimeOrder(order) += shipmentTimeOrder(orderSaleOrder(order));
+Sale.shipmentDataTimeOrderDetail(detail) += shipmentDataTimeOrderDetail(orderDetailSaleOrderDetail(detail));
+
+Sale.agreementOrder(order) += agreementOrder(orderSaleOrder(order));
+Sale.priceListTypeOrder(order) += priceListTypeOrder(orderSaleOrder(order));
+Sale.priceListTypeOrderDetail(detail) += priceListTypeOrderDetail(orderDetailSaleOrderDetail(detail));
+
+@defineDocumentAggregationStockPrefix(order, saleOrder, supplier, 'Склад поставщика', , );
+Sale.supplierStockOrder(order) += supplierStockSaleOrder(order);
+Sale.dataSupplierStockOrderDetail(orderDetail) += dataSupplierStockOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+@defineDocumentAggregationStockPrefix(order, saleOrder, customer, 'Склад покупателя', , );
+Sale.customerStockOrder(order) += customerStockSaleOrder(order);
+Sale.dataCustomerStockOrderDetail(orderDetail) += dataCustomerStockOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+
+@defineDocumentAggregationLegalEntityPrefix(order, saleOrder, supplier, 'Поставщик', , );
+Sale.supplierOrder(order) += supplierSaleOrder(order);
+@defineDocumentAggregationLegalEntityPrefix(order, saleOrder, customer, 'Покупатель', , );
+Sale.customerOrder(order) += customerSaleOrder(order);
+
+@defineDocumentAggregationPosted(order, saleOrder);
+Sale.isPostedOrder(order) += isPostedSaleOrder(order);
+
+@defineDocumentAggregationClosed(order, saleOrder);
+Sale.isClosedOrder(order) += isClosedSaleOrder(order);
+
+Sale.numberOrder(order) += numberOrder(orderSaleOrder(order));
+Sale.seriesOrder(order) += seriesOrder(orderSaleOrder(order));
+seriesNumberSaleOrder 'Серия/номер документа' (saleOrder) = seriesNumberOrder(orderSaleOrder(saleOrder));
+
+noteOrderSaleOrder 'Примечание' (saleOrder) = noteOrder(orderSaleOrder(saleOrder));
+Sale.noteOrder(order) += noteOrderSaleOrder(order);
+
+currencySaleOrder  (saleOrder) = currencyOrder(orderSaleOrder(saleOrder));
+Sale.currencyOrder (order) += currencySaleOrder(order);
+
+@defineDocumentDescription(saleOrder, SaleOrderDetail, 'Заказ (продажа) на основе заказа (продажа)');
+Sale.descriptionOrder (order) += descriptionSaleOrder(order);
+
+@defineDocumentAggregationDetailSku(order, saleOrder, sku);
+Sale.skuOrderDetail(orderDetail) +=  skuSaleOrderDetail(orderDetail);
+
+Sale.quantityOrderDetail(orderDetail) += quantityOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+Sale.priceOrderDetail(orderDetail) += priceOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+Sale.sumOrderDetail(orderDetail) += sumOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+
+Sale.VATOrderDetail(orderDetail) +=VATOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+Sale.valueVATOrderDetail(orderDetail) += valueVATOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+Sale.VATSumOrderDetail(orderDetail) += VATSumOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+Sale.invoiceSumOrderDetail(orderDetail) += invoiceSumOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+
+Sale.showPackOrder(order) +=  showPackOrder(orderSaleOrder(order));
+Sale.barcodePackOrderDetail(orderDetail) +=  barcodePackOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+Sale.amountPackOrderDetail(orderDetail) +=  amountPackOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+Sale.packQuantityOrderDetail(orderDetail) +=  packQuantityOrderDetail(orderDetailSaleOrderDetail(orderDetail));
+
+Sale.editOrder(order) += ACTION EXEC editOrder(orderSaleOrder(order));
+Sale.createdUserOrder(order) += createdUserOrder(orderSaleOrder(order));
+Sale.editOrderDetail(order) += ACTION EXEC editOrderDetail(orderDetailSaleOrderDetail(order));
+//-- Действие
+
+moveUserOrderOrder 'Заказ (продажа)' =  ACTION (order) NEWSESSION{
+    FOR ADDOBJ o = Sale.UserOrder DO {
+
+        Sale.shipmentDateUserOrder(o) <- shipmentDateOrder(order);
+        Sale.shipmentTimeUserOrder(o) <- shipmentTimeOrder(order);
+        Sale.agreementUserOrder(o) <- agreementOrder(order);
+        Sale.priceListTypeUserOrder(o) <- priceListTypeOrder(order);
+        Sale.supplierUserOrder(o) <- supplierOrder(order);
+        Sale.customerUserOrder(o) <- customerOrder(order);
+        Sale.supplierStockUserOrder(o) <- supplierStockOrder(order);
+        Sale.customerStockUserOrder(o) <- customerStockOrder(order);
+        Sale. numberUserOrder(o) <- numberOrder(order);
+        Sale. seriesUserOrder(o) <- seriesOrder(order);
+        Sale.noteUserOrder(o) <- noteOrder(order);
+        Sale.currencyUserOrder(o) <- currencyOrder(order);
+        Sale.showPackUserOrder(o) <- showPackOrder(order);
+        Sale.closeDateUserOrder(o) <- closeDateOrder(order);
+//        Sale.isClosedUserOrder(o) <- isClosedOrder(order);
+        Sale.operationUserOrder(o) <- operationOrder(order);
+
+        FOR orderOrderDetail(detail)==order ADDOBJ d = Sale.UserOrderDetail DO {
+
+            Sale.userOrderUserOrderDetail(d) <- o;
+            Sale.shipmentDataDateUserOrderDetail(d) <- shipmentDataDateOrderDetail(detail);
+            Sale.shipmentDataTimeUserOrderDetail(d) <- shipmentDataTimeOrderDetail(detail);
+            Sale.priceListTypeUserOrderDetail(d) <- priceListTypeOrderDetail(detail);
+            Sale.dataSupplierStockUserOrderDetail(d) <- dataSupplierStockOrderDetail(detail);
+            Sale.dataCustomerStockUserOrderDetail(d) <- dataCustomerStockOrderDetail(detail);
+
+            Sale.skuUserOrderDetail(d) <- skuOrderDetail(detail);
+            Sale.quantityUserOrderDetail (d) <- quantityOrderDetail(detail);
+            Sale.VATUserOrderDetail (d) <- VATOrderDetail(detail);
+            Sale.valueVATUserOrderDetail (d) <- valueVATOrderDetail(detail);
+            Sale.priceUserOrderDetail (d) <- priceOrderDetail(detail);
+            Sale.invoicePriceUserOrderDetail (d) <- invoicePriceOrderDetail(detail);
+
+            Sale.barcodePackUserOrderDetail (d) <- barcodePackOrderDetail(detail);
+            Sale.amountPackUserOrderDetail (d) <- amountPackOrderDetail(detail);
+            Sale.packQuantityUserOrderDetail (d) <- packQuantityOrderDetail(detail);
+            Sale.closeDataDateUserOrderDetail (d) <- closeDataDateOrderDetail(detail);
+//            Sale.isDataClosedUserOrderDetail (d) <- isDataClosedOrderDetail(detail);
+
+        }
+
+    FORM Sale.userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+EXTEND FORM orders
+    PROPERTIES(o) moveUserOrderOrder
+;
+EXTEND DESIGN orders {
+    createdContainer{
+        ADD PROPERTY(moveUserOrderOrder(o));
+    }
+}
+
+
