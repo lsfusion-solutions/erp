@@ -350,9 +350,11 @@ END
 
 // ------------ derive
 META deriveDocumentDetailValueVATCustom(detail, prefix)
+    overSetValue###prefix###VAT###detail (detail) = ABSTRACT NUMERIC[10,5] (###detail);   
     WHEN SESSION
         CHANGED(prefix###VAT###detail(detail)) OR CHANGED (date###detail(detail)) DO {
-            value###prefix###VAT###detail (detail) <- valueRateRangeDate(prefix###VAT###detail(detail), date###detail(detail));
+            value###prefix###VAT###detail (detail) <- OVERRIDE valueRateRangeDate(prefix###VAT###detail(detail), date###detail(detail)),
+                                                               overSetValue###prefix###VAT###detail(detail);
         }
 END
 META deriveDocumentDetailValueVAT(object, prefix)

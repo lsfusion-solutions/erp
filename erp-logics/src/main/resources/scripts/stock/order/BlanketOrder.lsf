@@ -94,9 +94,19 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter)
     @defineDocumentDetailPrice(blanketOrder); // объявляем цену без НДС
 
     @defineDocumentDetailVAT(blanketOrder, countrySupplierStock); // объявляем шкалу
-    @deriveDocumentDetailVAT(blanketOrder, , date,  sku, supplierStock); // записываем ставку
-    @deriveDocumentDetailValueVAT(blanketOrder, ); // записываем значение ставки
-
+    // записываем значение ставки
+    over1VATBlanketOrderDetail = ABSTRACT Range (BlanketOrderDetail); 
+    over2VATBlanketOrderDetail = ABSTRACT Range (BlanketOrderDetail);
+    overVATBlanketOrderDetail = OVERRIDE over2VATBlanketOrderDetail(detail), over1VATBlanketOrderDetail(detail);
+    
+    WHEN SESSION
+        (CHANGED(skuBlanketOrderDetail(detail)) OR CHANGED (supplierStockBlanketOrderDetail(detail)) OR 
+         CHANGED(overVATBlanketOrderDetail(detail))) AND NOT CHANGED(VATBlanketOrderDetail(detail)) DO {
+            VATBlanketOrderDetail(detail) <- OVERRIDE VATSkuCountry (skuBlanketOrderDetail(detail), countryStock(supplierStockBlanketOrderDetail(detail))),
+                                                   overVATBlanketOrderDetail(detail);
+        } 
+    @deriveDocumentDetailValueVAT(blanketOrder);
+    
     @defineDocumentDetailPriceCustomPrefix (blanketOrderDetail, invoice, ' с НДС'); // объявляем цену с НДС
 
     // объявляем Action'ы для ON CHANGE по изменению цен

@@ -14,16 +14,17 @@ CONSTRAINT taxRange(VATUserInvoice(userInvoice)) != Tax.taxVAT OR
            CHECKED BY VATUserInvoice
            MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС: продажа';
 
+useCountVATOperationuserInvoice = useCountVATOperation(operationUserInvoice(invoice));
+
 VATUserInvoice (userInvoice) <- rangeTaxTaxUnit(Tax.taxVAT, storeDepartmentStore(supplierStockUserInvoice(userInvoice)))
+        IF useCountVATOperationuserInvoice(userInvoice)
         WHEN CHANGED(supplierStockUserInvoice(userInvoice));
 
 //@deriveDocumentDetailVATHeader(userInvoice, VAT, supplierStock);
 
-overVATUserInvoiceDetail (d) += rangeTaxTaxUnit(Tax.taxVAT, storeDepartmentStore(supplierStockUserInvoice(userInvoiceUserInvoiceDetail(d))));
-
-isDepartmentStoreSupplierStockInvoice (invoice) = supplierStockInvoice(invoice) IS DepartmentStore;
+over2VATUserInvoiceDetail (d) += VATUserInvoice(userInvoiceUserInvoiceDetail(d));
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) numberVATUserInvoice SHOWIF isDepartmentStoreSupplierStockInvoice(i), valueVATUserInvoice SHOWIF isDepartmentStoreSupplierStockInvoice(i);
+    PROPERTIES(i) numberVATUserInvoice SHOWIF useCountVATOperationuserInvoice(i), valueVATUserInvoice SHOWIF useCountVATOperationuserInvoice(i);
 ;
 
