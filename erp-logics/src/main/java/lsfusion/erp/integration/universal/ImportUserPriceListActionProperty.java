@@ -212,7 +212,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             
             ImportField idItemField = new ImportField(findProperty("idItem"));
             
-            LCP iGroupAggr = findProperty(isItemKey ? "itemId" : "skuIdBarcode");
+            LCP iGroupAggr = findProperty(isItemKey ? "itemId" : "skuBarcodeId");
             ImportField iField = isItemKey ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
@@ -459,7 +459,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).barcodeItem);
 
-            LCP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "itemId" : "skuIdBarcode");
+            LCP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "itemId" : "skuBarcodeId");
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
