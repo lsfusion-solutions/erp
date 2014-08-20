@@ -1182,9 +1182,23 @@ titleScalesBarcode 'Наименование для весов' = OVERRIDE nameS
 loadDefaultItemAttributes() += ACTION {
     ASSIGN numberInNameScalesItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
-EXTEND FORM item PROPERTIES(b) BEFORE deleteb titleScalesBarcode, titleCashRegisterBarcode;
 
+maxCharactersNameScalesItem 'Максимальное количество знаков в наименовании для весов' = DATA INTEGER ();
+maxCharactersNameCashRegisterItem 'Максимальное количество знаков в наименовании для касс' = DATA INTEGER ();
 
+EXTEND FORM options
+    PROPERTIES() maxCharactersNameScalesItem, maxCharactersNameCashRegisterItem
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(maxCharactersNameScalesItem());
+        ADD PROPERTY(maxCharactersNameCashRegisterItem());
+    }
+}
+
+CONSTRAINT charLength(titleCashRegisterBarcode(barcodeSku(item))) > maxCharactersNameCashRegisterItem() 
+    MESSAGE 'Максимальное количество знаков в наименовании для касс больше предельного значения';
+    
 // Сроки годности
 GROUP itemExpiry 'Сроки годности' : public;
 
