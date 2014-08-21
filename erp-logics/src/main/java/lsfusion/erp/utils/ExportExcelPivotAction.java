@@ -1,5 +1,6 @@
 package lsfusion.erp.utils;
 
+import com.google.common.collect.Lists;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.ComThread;
 import com.jacob.com.Dispatch;
@@ -96,19 +97,32 @@ public class ExportExcelPivotAction implements ClientAction {
             }, new int[1]).toDispatch();
 
             int dataCount = 0;
+            int hiddenCount = 0;
+            int filterCount = 0;
+            //поля-фильтры обрабатываем в конце для сохранения заданного порядка
+            List<Dispatch> filterFields = new ArrayList<Dispatch>();
             LinkedHashMap<Integer, Integer> fields = getFields(getFieldsMap(sourceSheet, columnsCount));
             for (Map.Entry<Integer, Integer> entry : fields.entrySet()) {
                 Integer orientation = entry.getValue();
                 if (orientation != null) {
-                    Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(entry.getKey())).toDispatch();
-                    Dispatch.put(fieldDispatch, "Orientation", new Variant(orientation));
-                    if (orientation.equals(xlDataField)) {
-                        dataCount++;
-                        Dispatch.put(fieldDispatch, "Function", new Variant(xlSum));
-                        String caption = Dispatch.get(fieldDispatch, "Caption").getString().replace("Сумма по полю ", "");
-                        Dispatch.put(fieldDispatch, "Caption", new Variant(caption + "*"));
+                    Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(1 + hiddenCount + filterCount/*entry.getKey()*/)).toDispatch();
+                    if(orientation.equals(xlFilterField)) {
+                        filterCount++;    
+                        filterFields.add(fieldDispatch);
+                    } else {
+                        Dispatch.put(fieldDispatch, "Orientation", new Variant(orientation));
+                        if (orientation.equals(xlDataField)) {
+                            dataCount++;
+                            Dispatch.put(fieldDispatch, "Function", new Variant(xlSum));
+                            String caption = Dispatch.get(fieldDispatch, "Caption").getString().replace("Сумма по полю ", "");
+                            Dispatch.put(fieldDispatch, "Caption", new Variant(caption + "*"));
+                        }
                     }
-                }
+                } else hiddenCount++;
+            } 
+            
+            for(Dispatch filter : Lists.reverse(filterFields)) {
+                Dispatch.put(filter, "Orientation", new Variant(xlFilterField));
             }
 
             Dispatch field = Dispatch.get(pivotTableWizard, "DataPivotField").toDispatch();
@@ -138,7 +152,7 @@ public class ExportExcelPivotAction implements ClientAction {
 
     public LinkedHashMap<String, List<Integer>> getFieldsMap(Dispatch sheet, Integer columnsCount) {
         LinkedHashMap<String, List<Integer>> fieldsMap = new LinkedHashMap<String, List<Integer>>();
-        for (int i = columnsCount; i >= 0; i--) {
+        for (int i = 0; i <= columnsCount; i++) {
             Variant cell = Dispatch.get(Dispatch.invoke(sheet, "Range", Dispatch.Get, new Object[]{getCellIndex(i + 1, 2)}, new int[1]).toDispatch(), "Value");
             if (!cell.isNull()) {
                 String field = cell.getString();
