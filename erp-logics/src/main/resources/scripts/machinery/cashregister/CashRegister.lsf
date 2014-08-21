@@ -54,6 +54,8 @@ groupMachineryMachinery(machinery) += groupCashRegisterCashRegister(machinery);
 
 directoryGroupCashRegister 'Директория обмена с кассами' = DATA VARSTRING[100] (GroupCashRegister) IN base;
 directoryCashRegister 'Директория обмена с кассой' (cashRegister) = directoryGroupCashRegister(groupCashRegisterCashRegister(cashRegister));
+dataDirectoryCashRegister 'Директория обмена с кассой' = DATA VARSTRING[100] (CashRegister);
+overDirectoryCashRegister (cashRegister) = OVERRIDE directoryGroupCashRegister(groupCashRegisterCashRegister(cashRegister)), dataDirectoryCashRegister(cashRegister);
 
 startDateGroupCashRegister 'Дата начала продаж' = DATA DATE (GroupCashRegister) IN base;
 notDetailedGroupCashRegister 'Не детализировать по чекам' = DATA BOOLEAN (GroupCashRegister) IN base; 
@@ -106,7 +108,7 @@ maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSu
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister FIXED PANEL
     PROPERTIES(c) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, 
-                  comPortCashRegister, baudRateCashRegister, nameModelMachinery,
+                  comPortCashRegister, baudRateCashRegister, nameModelMachinery, dataDirectoryCashRegister, 
                   dateCashRegister, hostnameComputerCashRegister
     EDIT CashRegister OBJECT c
 ;
@@ -120,7 +122,7 @@ FORM groupCashRegister 'Группа касс'
 
     OBJECTS c=CashRegister
     PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery,
-                    comPortCashRegister, baudRateCashRegister, nameModelMachinery,
+                    comPortCashRegister, baudRateCashRegister, nameModelMachinery, dataDirectoryCashRegister,
                     dateCashRegister, hostnameComputerCashRegister, nameLegalEntityCashRegister, ADDOBJ, DELETESESSION
 
     OBJECTS cu=CustomUser
@@ -141,7 +143,7 @@ FORM groupsCashRegister 'Группы касс'
     PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     PROPERTIES(c) READONLY nppMachinery, descriptionMachinery, portMachinery,
-                           comPortCashRegister, baudRateCashRegister, nameModelMachinery,
+                           comPortCashRegister, baudRateCashRegister, nameModelMachinery, dataDirectoryCashRegister,
                            dateCashRegister, nameLegalEntityCashRegister
     FILTERS groupCashRegisterCashRegister(c) == grc
 ;
@@ -207,6 +209,7 @@ loadDefaultCashRegisterModels 'Загрузить стандартные мод�
     EXEC loadDefaultCashRegisterModel('Кассы Kristal 10', 'Kristal10', 'equ.clt.handler.kristal10.Kristal10Handler');
     EXEC loadDefaultCashRegisterModel('Кассы Maxishop', 'Maxishop', 'equ.clt.handler.maxishop.MaxishopHandler');
     EXEC loadDefaultCashRegisterModel('Кассы UKM4', 'Ukm4', 'equ.clt.handler.ukm4.UKM4Handler');
+    EXEC loadDefaultCashRegisterModel('Кассы HTC', 'HTC', 'equ.clt.handler.htc.HTCHandler');
     EXEC loadDefaultCashRegisterModel('Фискальный регистратор DateCS', 'DateCS', '');
     EXEC loadDefaultCashRegisterModel('Фискальный регистратор VMK', 'VMK', '');
     EXEC loadDefaultCashRegisterModel('Фискальный регистратор Casbi', 'Casbi', '');
