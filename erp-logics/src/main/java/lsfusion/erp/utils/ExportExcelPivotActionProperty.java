@@ -1,8 +1,8 @@
 package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
-import jasperapi.ReportGenerator;
 import lsfusion.base.col.MapFact;
+import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.interop.form.ReportGenerationData;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -10,19 +10,15 @@ import lsfusion.server.form.entity.FormEntity;
 import lsfusion.server.form.entity.ObjectEntity;
 import lsfusion.server.form.instance.FormInstance;
 import lsfusion.server.form.instance.FormSessionScope;
+import lsfusion.server.form.view.PropertyDrawView;
 import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.linear.LCP;
-import lsfusion.server.logics.mutables.Version;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.remote.FormReportManager;
-import net.sf.jasperreports.engine.JRException;
 
-import java.io.File;
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +53,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                 FormEntity formEntity = findForm(idForm);
                 FormInstance formInstance = context.createFormInstance(formEntity, MapFact.<ObjectEntity, DataObject>EMPTY(),
                         context.getSession(), true, FormSessionScope.OLDSESSION, false, false, false, null);
+                ImOrderSet<PropertyDrawView> properties = formEntity.getRichDesign().getPropertiesList();
 
                 if (valuesMap != null)
                     for (Map.Entry<String, DataObject> entry : valuesMap.entrySet())
@@ -67,7 +64,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                         formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences());
 
                 context.requestUserInteraction(new ExportExcelPivotAction(reportData,
-                        readFieldCaptions(rows), readFieldCaptions(columns), readFieldCaptions(filters), readFieldCaptions(cells)));
+                        readFieldCaptions(properties, rows), readFieldCaptions(properties, columns), readFieldCaptions(properties, filters), readFieldCaptions(properties, cells)));
 
             }
 
@@ -76,13 +73,16 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
         }
     }
 
-    public List<String> readFieldCaptions(List<String> fields) throws ScriptingErrorLog.SemanticErrorException {
+    public List<String> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<String> fields) throws ScriptingErrorLog.SemanticErrorException {
         List<String> result = new ArrayList<String>();
         if (fields != null) {
             for (String field : fields) {
-                LCP property = findProperty(field);
-                if (property != null)
-                    result.add(property.property.caption);
+                for(PropertyDrawView property : properties) {
+                    if (property.getSID().equals(field)) {
+                        result.add(property.getCaption());
+                        break;
+                    }
+                }
             }
         }
         return result;

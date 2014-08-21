@@ -136,29 +136,43 @@ public class ExportExcelPivotAction implements ClientAction {
         return columnIndex + row;
     }
 
-    public LinkedHashMap<String, Integer> getFieldsMap(Dispatch sheet, Integer columnsCount) {
-        LinkedHashMap<String, Integer> result = new LinkedHashMap<String, Integer>();
+    public LinkedHashMap<String, List<Integer>> getFieldsMap(Dispatch sheet, Integer columnsCount) {
+        LinkedHashMap<String, List<Integer>> fieldsMap = new LinkedHashMap<String, List<Integer>>();
         for (int i = columnsCount; i >= 0; i--) {
             Variant cell = Dispatch.get(Dispatch.invoke(sheet, "Range", Dispatch.Get, new Object[]{getCellIndex(i + 1, 2)}, new int[1]).toDispatch(), "Value");
-            if (!cell.isNull())
-                result.put(cell.getString(), i);
+            if (!cell.isNull()) {
+                String field = cell.getString();
+                List<Integer> entry = fieldsMap.containsKey(field) ? fieldsMap.get(field) : new ArrayList<Integer>();
+                entry.add(i);
+                fieldsMap.put(field, entry);
+            }
         }
-        return result;
+        return fieldsMap;
     }
 
-    public LinkedHashMap<Integer, Integer> getFields(LinkedHashMap<String, Integer> fieldsMap) {
+    public LinkedHashMap<Integer, Integer> getFields(LinkedHashMap<String, List<Integer>> fieldsMap) {
         LinkedHashMap<Integer, Integer> fields = new LinkedHashMap<Integer, Integer>();
 
-        for (Map.Entry<String, Integer> entry : fieldsMap.entrySet()) {
-            if (rowFields.contains(entry.getKey()))
-                fields.put(entry.getValue(), xlRowField);
-            else if (columnFields.contains(entry.getKey()))
-                fields.put(entry.getValue(), xlColumnField);
-            else if (filterFields.contains(entry.getKey()))
-                fields.put(entry.getValue(), xlFilterField);
-            else if (cellFields.contains(entry.getKey()))
-                fields.put(entry.getValue(), xlDataField);
-            else fields.put(entry.getValue(), null);
+        for (Map.Entry<String, List<Integer>> entry : fieldsMap.entrySet()) {
+                       
+            for(Integer field : entry.getValue()) {
+
+                if (rowFields.contains(entry.getKey())) {
+                    fields.put(field, xlRowField);
+                    rowFields.remove(entry.getKey());
+                } else if (columnFields.contains(entry.getKey())) {
+                    fields.put(field, xlColumnField);
+                    columnFields.remove(entry.getKey());
+                } else if (filterFields.contains(entry.getKey())) {
+                    fields.put(field, xlFilterField);
+                    filterFields.remove(entry.getKey());
+                } else if (cellFields.contains(entry.getKey())) {
+                    fields.put(field, xlDataField);
+                    cellFields.remove(entry.getKey());
+                } else fields.put(field, null);
+                
+            }
+            
         }
         return fields;
     }
