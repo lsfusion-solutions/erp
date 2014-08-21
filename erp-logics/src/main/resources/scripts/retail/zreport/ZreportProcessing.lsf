@@ -1,0 +1,27 @@
+MODULE ZReportProcessing;
+
+REQUIRE ZReport;
+
+FORM ZReportProcessing 'Обработка Z-отчетов'
+    OBJECTS ds = DepartmentStore FIXED PANEL
+    PROPERTIES(ds) SELECTOR nameDepartmentStore 
+
+    FILTERS isCompanyStock(ds)
+
+    OBJECTS d = ReceiptDetail FIXED GRID
+    PROPERTIES(d) READONLY FORCE GRID dateTimeReceiptDetail, typeReceiptDetail, idBarcodeReceiptDetail
+    PROPERTIES(d) FORCE GRID nameSkuReceiptDetail ON CHANGE changeDialogSkuReceiptDetail(d)
+    PROPERTIES(d) READONLY FORCE GRID descriptionSaleReceiptReturnDetail, quantityReceiptDetail, quantityReturnedReceiptSaleDetail,
+                  priceReceiptDetail, sumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceiptDetail, numberVATReceiptDetail, 
+                  valueVATReceiptDetail
+    ORDER BY dateTimeReceiptDetail(d)              
+    FILTERS departmentStoreReceiptDetail(d) == ds                  
+    
+;
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        ADD ZReportProcessing;
+    }
+}
+
