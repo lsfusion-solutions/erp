@@ -96,34 +96,64 @@ public class ExportExcelPivotAction implements ClientAction {
                     unspecified //Connection
             }, new int[1]).toDispatch();
 
-            int dataCount = 0;
-            int hiddenCount = 0;
-            int filterCount = 0;
-            //поля-фильтры обрабатываем в конце для сохранения заданного порядка
-            List<Dispatch> filterFields = new ArrayList<Dispatch>();
-            LinkedHashMap<Integer, Integer> fields = getFields(getFieldsMap(sourceSheet, columnsCount));
-            for (Map.Entry<Integer, Integer> entry : fields.entrySet()) {
+            int count = 1;
+            LinkedHashMap<Integer, String> fieldCaptionMap = getFieldCaptionMap(sourceSheet, columnsCount);
+
+            LinkedHashMap<Integer, Integer> fieldsMap = getFieldsMap(sourceSheet, columnsCount);
+
+            LinkedHashMap<String, Dispatch> rowDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+            LinkedHashMap<String, Dispatch> columnDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+            LinkedHashMap<String, Dispatch> filterDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+            LinkedHashMap<String, Dispatch> cellDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+
+            for (Map.Entry<Integer, Integer> entry : fieldsMap.entrySet()) {
                 Integer orientation = entry.getValue();
                 if (orientation != null) {
-                    Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(1 + hiddenCount + filterCount/*entry.getKey()*/)).toDispatch();
-                    if(orientation.equals(xlFilterField)) {
-                        filterCount++;    
-                        filterFields.add(fieldDispatch);
-                    } else {
-                        Dispatch.put(fieldDispatch, "Orientation", new Variant(orientation));
-                        if (orientation.equals(xlDataField)) {
-                            dataCount++;
-                            Dispatch.put(fieldDispatch, "Function", new Variant(xlSum));
-                            String caption = Dispatch.get(fieldDispatch, "Caption").getString().replace("Сумма по полю ", "");
-                            Dispatch.put(fieldDispatch, "Caption", new Variant(caption + "*"));
-                        }
+                    Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(count)).toDispatch();
+                    if(orientation.equals(xlRowField)) {
+                        rowDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
+                    } else  if(orientation.equals(xlColumnField)) {
+                        columnDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
+                    } else if(orientation.equals(xlFilterField)) {
+                        filterDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
+                    }  else if(orientation.equals(xlDataField)) {
+                        cellDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
                     }
-                } else hiddenCount++;
-            } 
-            
-            for(Dispatch filter : Lists.reverse(filterFields)) {
-                Dispatch.put(filter, "Orientation", new Variant(xlFilterField));
+                }
+                count++;
             }
+
+
+            for(String entry : rowFields) {
+                Dispatch field = rowDispatchFieldsMap.get(entry);
+                if(field != null)
+                Dispatch.put(rowDispatchFieldsMap.get(entry), "Orientation", new Variant(xlRowField));
+            }
+
+            for(String entry : columnFields) {
+                Dispatch field = columnDispatchFieldsMap.get(entry);
+                if(field != null)
+                    Dispatch.put(field, "Orientation", new Variant(xlColumnField));
+            }
+
+            //фильтры по какой-то причине требуют обратного порядка
+            for(String entry : Lists.reverse(filterFields)) {
+                Dispatch field = filterDispatchFieldsMap.get(entry);
+                if(field != null)
+                    Dispatch.put(field, "Orientation", new Variant(xlFilterField));
+            }
+            
+            int dataCount = 0;
+            for(String entry : cellFields) {
+                Dispatch field = cellDispatchFieldsMap.get(entry);
+                if(field != null) {
+                    dataCount++;
+                    Dispatch.put(field, "Orientation", new Variant(xlDataField));
+                    Dispatch.put(field, "Function", new Variant(xlSum));
+                    String caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
+                    Dispatch.put(field, "Caption", new Variant(caption + "*"));
+                }
+            }                    
 
             Dispatch field = Dispatch.get(pivotTableWizard, "DataPivotField").toDispatch();
             if (dataCount > 1)
@@ -150,44 +180,45 @@ public class ExportExcelPivotAction implements ClientAction {
         return columnIndex + row;
     }
 
-    public LinkedHashMap<String, List<Integer>> getFieldsMap(Dispatch sheet, Integer columnsCount) {
-        LinkedHashMap<String, List<Integer>> fieldsMap = new LinkedHashMap<String, List<Integer>>();
+    public LinkedHashMap<Integer, String> getFieldCaptionMap(Dispatch sheet, Integer columnsCount) {
+        LinkedHashMap<Integer, String> fieldCaptionMap = new LinkedHashMap<Integer, String>();
         for (int i = 0; i <= columnsCount; i++) {
             Variant cell = Dispatch.get(Dispatch.invoke(sheet, "Range", Dispatch.Get, new Object[]{getCellIndex(i + 1, 2)}, new int[1]).toDispatch(), "Value");
             if (!cell.isNull()) {
                 String field = cell.getString();
-                List<Integer> entry = fieldsMap.containsKey(field) ? fieldsMap.get(field) : new ArrayList<Integer>();
-                entry.add(i);
-                fieldsMap.put(field, entry);
+                fieldCaptionMap.put(i, field);
             }
         }
-        return fieldsMap;
+        return fieldCaptionMap;
     }
 
-    public LinkedHashMap<Integer, Integer> getFields(LinkedHashMap<String, List<Integer>> fieldsMap) {
-        LinkedHashMap<Integer, Integer> fields = new LinkedHashMap<Integer, Integer>();
+    public LinkedHashMap<Integer, Integer> getFieldsMap(Dispatch sheet, Integer columnsCount) {
 
-        for (Map.Entry<String, List<Integer>> entry : fieldsMap.entrySet()) {
-                       
-            for(Integer field : entry.getValue()) {
-
-                if (rowFields.contains(entry.getKey())) {
-                    fields.put(field, xlRowField);
-                    rowFields.remove(entry.getKey());
-                } else if (columnFields.contains(entry.getKey())) {
-                    fields.put(field, xlColumnField);
-                    columnFields.remove(entry.getKey());
-                } else if (filterFields.contains(entry.getKey())) {
-                    fields.put(field, xlFilterField);
-                    filterFields.remove(entry.getKey());
-                } else if (cellFields.contains(entry.getKey())) {
-                    fields.put(field, xlDataField);
-                    cellFields.remove(entry.getKey());
-                } else fields.put(field, null);
-                
+        LinkedHashMap<String, List<Integer>> captionFieldsMap = new LinkedHashMap<String, List<Integer>>();
+        for (int i = 0; i <= columnsCount; i++) {
+            Variant cell = Dispatch.get(Dispatch.invoke(sheet, "Range", Dispatch.Get, new Object[]{getCellIndex(i + 1, 2)}, new int[1]).toDispatch(), "Value");
+            if (!cell.isNull()) {
+                String field = cell.getString();
+                List<Integer> entry = captionFieldsMap.containsKey(field) ? captionFieldsMap.get(field) : new ArrayList<Integer>();
+                entry.add(i);
+                captionFieldsMap.put(field, entry);
             }
-            
         }
-        return fields;
+        
+        LinkedHashMap<Integer, Integer> fieldsMap = new LinkedHashMap<Integer, Integer>();
+        for (Map.Entry<String, List<Integer>> entry : captionFieldsMap.entrySet()) {                       
+            for(Integer field : entry.getValue()) {
+                if (rowFields.contains(entry.getKey())) {
+                    fieldsMap.put(field, xlRowField);
+                } else if (columnFields.contains(entry.getKey())) {
+                    fieldsMap.put(field, xlColumnField);
+                } else if (filterFields.contains(entry.getKey())) {
+                    fieldsMap.put(field, xlFilterField);
+                } else if (cellFields.contains(entry.getKey())) {
+                    fieldsMap.put(field, xlDataField);
+                } else fieldsMap.put(field, null);               
+            }           
+        }
+        return fieldsMap;
     }
 }
