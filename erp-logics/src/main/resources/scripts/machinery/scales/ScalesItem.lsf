@@ -47,11 +47,11 @@ descriptionBarcode 'Описание' = descriptionItem(skuBarcode(barcode));
 @defineMachineryPriceTransactionAttribute(description, 'Описание', TEXT);
 
 synchronizeDescriptionMachineryPriceTransactionGroupScales = ACTION (transaction, groupMachinery) {
-    FOR descriptionMachineryPriceTransactionBarcode(transaction, barcode) IF groupMachinery IS GroupScales
-        AND NOT cellScalesGroupScalesDescription(groupMachinery, descriptionMachineryPriceTransactionBarcode(transaction, barcode))
+    FOR [= GROUP SUM 1 BY transaction, descriptionMachineryPriceTransactionBarcode(transaction, barcode)](transaction, description) IF groupMachinery IS GroupScales
+        AND NOT cellScalesGroupScalesDescription(groupMachinery, description)
         ADDOBJ c = CellScales DO {
             groupScalesCellScales(c) <- groupMachinery;
-            descriptionCellScales(c) <- descriptionMachineryPriceTransactionBarcode (transaction, barcode);
+            descriptionCellScales(c) <- description;
         }
 }
 
