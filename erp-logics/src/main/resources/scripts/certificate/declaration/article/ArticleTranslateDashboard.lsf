@@ -118,8 +118,9 @@ defaultPurchaseInvoiceSku (sku) =
     GROUP LAST Purchase.invoiceInvoiceDetail(detail)
           BY Purchase.skuInvoiceDetail(detail)
           ORDER Purchase.dateInvoiceDetail(detail), detail
-          WHERE Purchase.isPostedInvoiceDetail(detail) AND Purchase.quantityInvoiceDetail(detail) AND NOT Purchase.isCompanySupplierInvoiceDetail(detail) AND 
-                ((inPurchaseInvoicesUser(currentUser()) AND quantityInvoiceDetailSkuUser(Purchase.skuInvoiceDetail(detail), currentUser())) OR NOT inPurchaseInvoicesUser(currentUser())) COMPLEX;
+          WHERE Purchase.isPostedInvoiceDetail(detail) AND Purchase.quantityInvoiceDetail(detail) 
+                AND inPurchaseInvoiceUser(Purchase.invoiceInvoiceDetail(detail), currentUser())
+                AND NOT Purchase.isCompanySupplierInvoiceDetail(detail) COMPLEX;
 
 descriptionDefaultPurchaseInvoiceSku 'Последний инвойс' (sku)= CONCAT ' ', Purchase.seriesNumberInvoice(defaultPurchaseInvoiceSku(sku)),
                                                                           'от ' + Purchase.dateInvoice(defaultPurchaseInvoiceSku(sku)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 30;
