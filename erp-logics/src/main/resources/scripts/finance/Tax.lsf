@@ -352,7 +352,7 @@ END
 META deriveDocumentDetailValueVATCustom(detail, prefix)
     overSetValue###prefix###VAT###detail (detail) = ABSTRACT NUMERIC[10,5] (###detail);   
     WHEN SESSION
-        CHANGED(prefix###VAT###detail(detail)) OR CHANGED (date###detail(detail)) DO {
+        (CHANGED(prefix###VAT###detail(detail)) OR CHANGED (date###detail(detail))) AND NOT CHANGED(value###prefix###VAT###detail (detail)) DO {
             value###prefix###VAT###detail (detail) <- OVERRIDE valueRateRangeDate(prefix###VAT###detail(detail), date###detail(detail)),
                                                                overSetValue###prefix###VAT###detail(detail);
         }
@@ -476,8 +476,9 @@ END
 META defineDocumentDetailValueVATOnChangeCustom (detail)
     changeValueVAT###detail (detail) = ACTION (detail) {
         REQUEST NUMERIC[10,5] INPUT;
-        ASSIGN valueVAT###detail (detail) <- requestedNumeric();
-        ASSIGN invoicePrice###detail (detail) <- price###detail (detail) * (100 + requestedNumeric())/100;
+        valueVAT###detail (detail) <- requestedNumeric();
+        VAT###detail(detail) <- valueCurrentVATCountryValue(countrySupplierStock###detail(detail), requestedNumeric());
+        invoicePrice###detail (detail) <- price###detail (detail) * (100 + requestedNumeric())/100;
     }
 END
 
