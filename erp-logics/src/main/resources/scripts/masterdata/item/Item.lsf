@@ -600,7 +600,7 @@ END
 
 GROUP defaultItemGroup 'По-умолчанию' : base;
 
-META defineItemDefaultValue(property, caption, type, typeIdentity)
+META defineItemGroupDefaultValue(property, caption, type, typeIdentity)
     data###property##ItemGroup caption = DATA type (ItemGroup);
     data###typeIdentity###property##ItemGroup caption (itemGroup) = typeIdentity(data###property##ItemGroup(itemGroup)) IN defaultItemGroup;
     
@@ -612,10 +612,13 @@ META defineItemDefaultValue(property, caption, type, typeIdentity)
         OVERRIDE nearest###property##ItemGroup (itemGroup), 
                  data###property##ItemGroup(itemGroup) PERSISTENT;    
     
-    typeIdentity##ItemGroup caption (itemGroup) = typeIdentity(property##ItemGroup(itemGroup)) IN defaultItemGroup;
+    typeIdentity##ItemGroup caption (itemGroup) = typeIdentity(property##ItemGroup(itemGroup)) IN defaultItemGroup;    
+END 
+META defineItemDefaultValue(property, caption, type, typeIdentity)
+    @defineItemGroupDefaultValue(property, caption, type, typeIdentity);
     EXTEND FORM itemGroup PROPERTIES(g) typeIdentity##ItemGroup;
-END   
-META defineItemDefaultValue(property, caption, type)
+END  
+META defineItemGroupDefaultValue(property, caption, type)
     data###property##ItemGroup caption = DATA type (ItemGroup) IN defaultItemGroup;
     
     levelParent###property##ItemGroup (itemGroup) = GROUP MIN level##ItemGroupItemGroup(child, parent) IF data###property##ItemGroup(parent)
@@ -624,8 +627,11 @@ META defineItemDefaultValue(property, caption, type)
     nearest###property##ItemGroup (itemGroup) = data###property##ItemGroup(nearestParent###property##ItemGroup (itemGroup));
     property##ItemGroup caption (itemGroup) =
         OVERRIDE nearest###property##ItemGroup (itemGroup), 
-                 data###property##ItemGroup(itemGroup) PERSISTENT IN defaultItemGroup;    
+                 data###property##ItemGroup(itemGroup) PERSISTENT IN defaultItemGroup;        
     
+END 
+META defineItemDefaultValue(property, caption, type)
+    @defineItemGroupDefaultValue(property, caption, type);        
     EXTEND FORM itemGroup PROPERTIES(g) property##ItemGroup; 
 END
   
