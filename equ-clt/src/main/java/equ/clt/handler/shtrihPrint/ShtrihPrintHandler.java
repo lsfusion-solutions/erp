@@ -31,6 +31,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
         if (result.toString().equals("0")) {
             for (ScalesItemInfo item : transactionInfo.itemsList) {
                 Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
+                Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode;
                 int deltaDaysExpiry = item.expirationDate == null ? 0 : (int) ((item.expirationDate.getTime() - System.currentTimeMillis()) / 1000 / 3600 / 24);
                 Integer shelfLife = item.daysExpiry == null ? (deltaDaysExpiry >= 0 ? deltaDaysExpiry : 0) : item.daysExpiry.intValue();
 
@@ -39,7 +40,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
 
                 shtrihActiveXComponent.setProperty("Password", pass);
-                shtrihActiveXComponent.setProperty("PLUNumber", new Variant(barcode));
+                shtrihActiveXComponent.setProperty("PLUNumber", new Variant(pluNumber));
                 shtrihActiveXComponent.setProperty("Price", new Variant(item.price));
                 shtrihActiveXComponent.setProperty("Tare", new Variant(0));
                 shtrihActiveXComponent.setProperty("ItemCode", new Variant(barcode));

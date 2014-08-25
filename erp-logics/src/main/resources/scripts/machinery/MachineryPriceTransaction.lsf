@@ -290,11 +290,13 @@ FORM requestExchanges 'Запросы обмена данными'
 
 createMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (GroupMachinery);
 
-overInGroupMachinerySku = ABSTRACT BOOLEAN (GroupMachinery, Sku);
+overInGroupMachinerySku = ABSTRACT CASE BOOLEAN (GroupMachinery, Sku);
 inGroupMachinerySku 'Вкл' (groupMachinery, sku) = groupMachinery IS GroupMachinery
                                                     AND sku IS Sku
                                                          AND NOT (filterSkuGroupMachinery(groupMachinery) AND NOT inGroupMachinerySkuGroup(groupMachinery, skuGroupSku(sku)))
                                                          AND NOT overInGroupMachinerySku(groupMachinery, sku);
+                                                         
+skipGroupMachineryBarcode = ABSTRACT CASE BOOLEAN (GroupMachinery, Barcode);
 
 // Перезагрузка целиком
 snapshotAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
@@ -357,6 +359,8 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
 
         inBarcode(barcode) <- inGroupMachinerySku(groupMachinery, skuBarcode(barcode)) WHERE inBarcode(barcode); // если на эту группу оборудования должна закачиваться
 
+        inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND skipGroupMachineryBarcode(groupMachinery, barcode); // если на эту группу оборудования должна закачиваться
+        
         inBarcode(barcode) <- TRUE IF priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inBarcode(barcode); // если есть цена
 
         IF NOT createMachineryPriceTransactionSnapshot() THEN

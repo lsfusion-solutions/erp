@@ -14,7 +14,7 @@ GROUP scales 'Весы' : public;
 // Фильтрация для передачи на весы
 @definePrimitiveItemAttribute(passScales, BOOLEAN, 'Передавать на весы', scales);
 passScalesSku(sku) += passScalesItem(sku);
-overInGroupMachinerySku(groupMachinery, sku) += groupMachinery IS GroupScales AND sku IS Item AND NOT passScalesItem(sku);
+overInGroupMachinerySku(groupMachinery, sku) += WHEN groupMachinery IS GroupScales AND sku IS Item AND NOT passScalesItem(sku) THEN TRUE;
 
 EXTEND DESIGN itemGroup {
     itemGroupDetail1 {
@@ -24,6 +24,10 @@ EXTEND DESIGN itemGroup {
 
 CONSTRAINT charLength(titleScalesBarcode(barcodeSku(item))) > maxCharactersNameScalesItem() AND passScalesItem(item) 
     MESSAGE 'Максимальное количество знаков в наименовании для весов больше предельного значения';
+
+// Номер PLU
+
+pluNumberMachineryPriceTransactionBarcode 'Номер PLU' = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode);
 
 // Формат этикетки
 labelFormatPackItem = DATA LabelFormat(Item);
