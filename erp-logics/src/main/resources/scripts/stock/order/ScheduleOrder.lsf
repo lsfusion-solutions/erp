@@ -100,7 +100,7 @@ EXTEND DESIGN options {
     }
 }
 
-META defineScheduleOrder(sign, stockProp)
+META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     CLASS ScheduleOrder 'График поставок'##sign : ScheduleOrder.ScheduleOrder;
     CLASS ScheduleOrderDetail 'Заказ по графику'##sign : ScheduleOrder.ScheduleOrderDetail;
@@ -433,10 +433,15 @@ META defineScheduleOrder(sign, stockProp)
         }
     } TOOLBAR;
     @defineDocumentDetailActions(scheduleOrder, ScheduleOrderDetail);
+    @defineDocumentDialogStock(scheduleOrder, supplierFilter, stockFilter, );
+
+    @defineDocumentDialogSupplierCustomerLegalEntity(scheduleOrder, supplierFilter, customerFilter);
        
     FORM scheduleOrder 'График поставок'
         OBJECTS s=ScheduleOrder FIXED PANEL
-        PROPERTIES (s) nameSupplierScheduleOrder, nameSupplierStockScheduleOrder, nameCustomerScheduleOrder, nameOperationScheduleOrder,
+        PROPERTIES (s) nameSupplierScheduleOrder ON CHANGE changeSupplier###supplierFilter###scheduleOrder(s), 
+                       nameSupplierStockScheduleOrder ON CHANGE changeSupplierStock###supplierFilter###scheduleOrder(s), 
+                       nameCustomerScheduleOrder ON CHANGE changeCustomer###customerFilter###scheduleOrder(s), nameOperationScheduleOrder,
                        startDateScheduleOrder, endDateScheduleOrder, nameTypeScheduleOrder, 
                        overPeriodScheduleOrder SHOWIF toShowGenDayMonth(s), inAllMonthScheduleOrder SHOWIF toShowGenDayMonth(s),
                        beforeDay = dayBeforeScheduleOrder SHOWIF toShowGenDay(s), dayLastOrderScheduleOrder SHOWIF toShowGenDay(s), dayAfterScheduleOrder SHOWIF toShowGenDay(s), 

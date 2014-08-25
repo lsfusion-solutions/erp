@@ -5,9 +5,21 @@ REQUIRE PurchaseOrder,
 
 NAMESPACE Purchase;
 
-@defineScheduleOrder(' (закупка)', purchase);
+@defineScheduleOrder(' (закупка)', supplier, company, supplier);
+
+@extendFormFilterStockAccess(ts, scheduleOrder);
+@extendFormFilterStockGroupAccess(sg, scheduleOrder);
+@defineDocumentLegalEntityStockAccess(ScheduleOrder, supplier, supplier, scheduleOrder);
 
 
+WHEN SESSION FORMS scheduleOrder CHANGED(customerScheduleOrder(o)) DO {
+    IF countAccessCompanyStockEmployeeLegalEntity (currentUser(), customerScheduleOrder(o)) == 1 THEN         
+        dataInScheduleOrderStock(o, stock) <- TRUE WHERE defaultCompanyStockEmployeeLegalEntity(currentUser(), customerScheduleOrder(o))==stock;               
+}
+@defineDocumentLegalEntityAccess(ScheduleOrder, customer, company);
+
+@defineDocumentOperationRoleOver(scheduleOrder, purchase);
+    
 countShipmentDOWStockDate 'Кол-во поставок' (DOW, stock, date)= GROUP SUM 1 IF 
     typeScheduleOrder(scheduleOrderScheduleOrderTime(scheduleOrderTime))== GenType.genDayMonth AND 
     date >=  startDateScheduleOrder(scheduleOrderScheduleOrderTime(scheduleOrderTime)) AND NOT 
