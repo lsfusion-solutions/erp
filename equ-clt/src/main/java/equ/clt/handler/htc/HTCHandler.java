@@ -119,7 +119,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         putField(dbfFile, "PRODUCT_ID", trim(item.name, 32));
                         putField(dbfFile, "TABLO_ID", trim(item.name, 20));
                         putField(dbfFile, "PRICE", String.valueOf(item.price.intValue()));
-                        putField(dbfFile, "WEIGHT", item.splitItem ? "T" : "F");                        
+                        putField(dbfFile, "WEIGHT", item.splitItem ? "T" : "F");
+                        
                         putField(dbfFile, "FLAGS", String.valueOf((item.notPromotionItem ? 0 : 248) + (item.splitItem ? 1 : 0)));
                         if (recordNumber != null)
                             dbfFile.update();
@@ -158,16 +159,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             DBF dbfFile = new DBF(discountCardFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
             dbfFile.addField(new Field[]{DISC, NAME, PERCENT, ISSTOP});
 
-            int count = 0;
             for (DiscountCard discountCard : discountCardList) {
-
-                if(count <= 10) {
-                    putField(dbfFile, "DISC", discountCard.numberDiscountCard);
-                    putField(dbfFile, "NAME", discountCard.nameDiscountCard == null ? "" : discountCard.nameDiscountCard);
-                    putField(dbfFile, "PERCENT", String.valueOf(discountCard.percentDiscountCard));
-                    dbfFile.write();
-                    count++;
-                }
+                putField(dbfFile, "DISC", discountCard.numberDiscountCard);
+                putField(dbfFile, "NAME", discountCard.nameDiscountCard == null ? "" : discountCard.nameDiscountCard);
+                putField(dbfFile, "PERCENT", String.valueOf(discountCard.percentDiscountCard));
+                dbfFile.write();
             }
             dbfFile.close();
             new File(directory + "\\Discnew.mdx").delete();
