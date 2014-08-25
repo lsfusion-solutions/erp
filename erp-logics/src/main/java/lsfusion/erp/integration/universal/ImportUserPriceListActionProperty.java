@@ -148,6 +148,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         Set<DataObject> dataPriceListTypeObjectList = importColumnProperties.getPriceColumns().keySet();
 
         if (userPriceListDetailsList != null) {
+            
+            boolean doNotCreateItems = importColumnProperties.getDoNotCreateItems() != null && importColumnProperties.getDoNotCreateItems();
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
             List<ImportField> fields = new ArrayList<ImportField>();
@@ -178,7 +180,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             ImportField idExtraBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
             ImportKey<?> extraBarcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
                     findProperty("extBarcodeId").getMapping(idExtraBarcodeSkuField));
-            if (importColumnProperties.getDoNotCreateItems() != null && importColumnProperties.getDoNotCreateItems())
+            if (doNotCreateItems)
                 extraBarcodeKey.skipKey = true;
             keys.add(extraBarcodeKey);
             props.add(new ImportProperty(idExtraBarcodeSkuField, findProperty("idBarcode").getMapping(extraBarcodeKey), getReplaceOnlyNull(importColumns, "extraBarcodeItem")));
@@ -190,7 +192,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             ImportField extIdPackBarcodeSkuField = new ImportField(findProperty("extIdBarcode"));
             ImportKey<?> packBarcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
                     findProperty("extBarcodeId").getMapping(extIdPackBarcodeSkuField));
-            if (importColumnProperties.getDoNotCreateItems() != null && importColumnProperties.getDoNotCreateItems())
+            if (doNotCreateItems)
                 packBarcodeKey.skipKey = true;
             keys.add(packBarcodeKey);
             props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("extIdBarcode").getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
@@ -223,22 +225,25 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
             
-            if (importColumnProperties.getDoNotCreateItems() != null && importColumnProperties.getDoNotCreateItems())
+            if (doNotCreateItems)
                 itemKey.skipKey = true;
             keys.add(itemKey);
             
-            if (isItemKey || showField(userPriceListDetailsList, "idItem"))
+            if (isItemKey || showField(userPriceListDetailsList, "idItem")) {
                 props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
+                fields.add(idItemField);
+                for (int i = 0; i < userPriceListDetailsList.size(); i++)
+                    data.get(i).add(userPriceListDetailsList.get(i).idItem);
+            }
             
-            if (purchasePackLM != null)
-                props.add(new ImportProperty(extIdPackBarcodeSkuField, purchasePackLM.findProperty("Purchase.packBarcodeSku").getMapping(itemKey),
-                        object(findClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
-            if (salePackLM != null)
-                props.add(new ImportProperty(extIdPackBarcodeSkuField, salePackLM.findProperty("Sale.packBarcodeSku").getMapping(itemKey),
-                        object(findClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
-            fields.add(idItemField);
-            for (int i = 0; i < userPriceListDetailsList.size(); i++)
-                data.get(i).add(userPriceListDetailsList.get(i).idItem);
+            if (!doNotCreateItems) {
+                if (purchasePackLM != null)
+                    props.add(new ImportProperty(extIdPackBarcodeSkuField, purchasePackLM.findProperty("Purchase.packBarcodeSku").getMapping(itemKey),
+                            object(findClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
+                if (salePackLM != null)
+                    props.add(new ImportProperty(extIdPackBarcodeSkuField, salePackLM.findProperty("Sale.packBarcodeSku").getMapping(itemKey),
+                            object(findClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(importColumns, "packBarcode")));
+            }
 
             if (showField(userPriceListDetailsList, "idItemGroup")) {
                 ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
