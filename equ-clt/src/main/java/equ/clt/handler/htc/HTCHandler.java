@@ -119,8 +119,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         putField(dbfFile, "PRODUCT_ID", trim(item.name, 32));
                         putField(dbfFile, "TABLO_ID", trim(item.name, 20));
                         putField(dbfFile, "PRICE", String.valueOf(item.price.intValue()));
-                        putField(dbfFile, "WEIGHT", item.splitItem ? "T" : "F");
-                        putField(dbfFile, "FLAGS", item.splitItem ? "1" : "0");
+                        putField(dbfFile, "WEIGHT", item.splitItem ? "T" : "F");                        
+                        putField(dbfFile, "FLAGS", String.valueOf((item.notPromotionItem ? 0 : 248) + (item.splitItem ? 1 : 0)));
                         if (recordNumber != null)
                             dbfFile.update();
                         else {
@@ -133,6 +133,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     if (!append)
                         new File(directory + "\\" + mdxName).delete();
 
+                    createDiscountCardFile(transactionInfo.discountCardList, directory);
+                    
                     flagPriceFile.createNewFile();
                     logger.info("HTC: waiting for deletion of price.qry file");
                     waitForDeletion(priceFile, flagPriceFile);
@@ -140,6 +142,38 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             }
         } catch (xBaseJException e) {
             throw Throwables.propagate(e);
+        }
+    }
+
+    private void createDiscountCardFile(List<DiscountCard> discountCardList, String directory) throws IOException, xBaseJException {
+
+        if(discountCardList != null) {           
+            File discountCardFile = new File(directory + "\\Discnew.dbf");
+
+            CharField DISC = new CharField("DISC", 32);
+            CharField NAME = new CharField("NAME", 40);
+            NumField PERCENT = new NumField("PERCENT", 6, 2);
+            LogicalField ISSTOP = new LogicalField("ISSTOP");
+
+            DBF dbfFile = new DBF(discountCardFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+            dbfFile.addField(new Field[]{DISC, NAME, PERCENT, ISSTOP});
+
+            int count = 0;
+            for (DiscountCard discountCard : discountCardList) {
+
+                if(count <= 10) {
+                    putField(dbfFile, "DISC", discountCard.numberDiscountCard);
+                    putField(dbfFile, "NAME", discountCard.nameDiscountCard == null ? "" : discountCard.nameDiscountCard);
+                    putField(dbfFile, "PERCENT", String.valueOf(discountCard.percentDiscountCard));
+                    dbfFile.write();
+                    count++;
+                }
+            }
+            dbfFile.close();
+            new File(directory + "\\Discnew.mdx").delete();
+            
+            File discountFlag = new File(directory + "\\TMC.dcn");
+            discountFlag.createNewFile();
         }
     }
 

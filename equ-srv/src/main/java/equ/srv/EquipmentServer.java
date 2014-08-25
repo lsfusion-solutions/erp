@@ -68,9 +68,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule priceListLedgerLM;
     private ScriptingLogicsModule purchaseInvoiceAgreementLM;
+    private ScriptingLogicsModule retailCRMLM;
     private ScriptingLogicsModule scalesLM;
-    private ScriptingLogicsModule stopListLM;
     private ScriptingLogicsModule scalesItemLM;
+    private ScriptingLogicsModule stopListLM;
+    private ScriptingLogicsModule storeSkuLedgerLM;
     private ScriptingLogicsModule terminalLM;
     private ScriptingLogicsModule zReportLM;
     private ScriptingLogicsModule zReportDiscountCardLM;
@@ -124,9 +126,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
         priceListLedgerLM = getBusinessLogics().getModule("PriceListLedger");
         purchaseInvoiceAgreementLM = getBusinessLogics().getModule("PurchaseInvoiceAgreement");
-        scalesItemLM = getBusinessLogics().getModule("ScalesItem");
+        retailCRMLM = getBusinessLogics().getModule("RetailCRM");
         scalesLM = getBusinessLogics().getModule("EquipmentScales");
+        scalesItemLM = getBusinessLogics().getModule("ScalesItem");
         stopListLM = getBusinessLogics().getModule("StopList");
+        storeSkuLedgerLM = getBusinessLogics().getModule("StoreSkuLedger");
         terminalLM = getBusinessLogics().getModule("EquipmentTerminal");
         zReportLM = getBusinessLogics().getModule("ZReport");
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
@@ -247,6 +251,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 if (cashRegisterLM != null && transactionObject.objectClass.equals(cashRegisterLM.findClass("CashRegisterPriceTransaction"))) {
                     
+                    List<DiscountCard> discountCardList = snapshotTransaction ? getDiscountCardList(session) : null;
+                    
                     java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDateGroupCashRegister").read(session, groupMachineryObject);
                     Boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailedGroupCashRegister").read(session, groupMachineryObject) != null;
 
@@ -288,7 +294,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String idUOM = (String) valueRow.get("idUOMMachineryPriceTransactionBarcode").getValue();
                         String shortNameUOM = (String) valueRow.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) valueRow.get("VATMachineryPriceTransactionBarcode").getValue();
-                        Integer idItem = (Integer) itemLM.findProperty("skuBarcode").readClasses(session, keyRow.get("barcode")).getValue();
+                        ObjectValue itemObject = itemLM.findProperty("skuBarcode").readClasses(session, keyRow.get("barcode"));
+                        Integer idItem = (Integer) itemObject.getValue();
+                        boolean notPromotionItem = storeSkuLedgerLM != null && storeSkuLedgerLM.findProperty("notPromotionSku").read(session, itemObject) != null;
                         String description = scalesItemLM == null ? null : (String) valueRow.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
                         List<ItemGroup> hierarchyItemGroup = new ArrayList<ItemGroup>();
@@ -311,12 +319,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         }
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, idItem,
-                                description, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM, passScales, valueVAT));
+                                description, canonicalNameSkuGroup, hierarchyItemGroup, idUOM, shortNameUOM, passScales, valueVAT, notPromotionItem));
                     }
                     
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(),
                             dateTimeCode, date, cashRegisterItemInfoList, cashRegisterInfoList, snapshotTransaction, 
-                            nppGroupMachinery, nameGroupMachinery));
+                            nppGroupMachinery, nameGroupMachinery, discountCardList));
 
                 } else if (scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClass("ScalesPriceTransaction"))) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<ScalesInfo>();
@@ -477,6 +485,35 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         } catch (SQLHandledException e) {
             throw Throwables.propagate(e);
         }
+    }
+    
+    private List<DiscountCard> getDiscountCardList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if(retailCRMLM == null) return null;
+        List<DiscountCard> discountCardList = new ArrayList<DiscountCard>();
+
+        KeyExpr discountCardExpr = new KeyExpr("DiscountCard");
+        ImRevMap<Object, KeyExpr> discountCardKeys = MapFact.singletonRev((Object) "discountCard", discountCardExpr);
+
+        QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<Object, Object>(discountCardKeys);
+        String[] discountCardProperties = new String[]{"numberDiscountCard", "nameDiscountCard", "percentDiscountCard"};
+        for (String property : discountCardProperties) {
+            discountCardQuery.addProperty(property, retailCRMLM.findProperty(property).getExpr(discountCardExpr));
+        }      
+        discountCardQuery.and(retailCRMLM.findProperty("numberDiscountCard").getExpr(discountCardExpr).getWhere());
+
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> discountCardResult = discountCardQuery.executeClasses(session);
+
+        for (int i = 0, size = discountCardResult.size(); i < size; i++) {
+
+            ImMap<Object, ObjectValue> discountCardValue = discountCardResult.getValue(i);
+
+            String numberDiscountCard = trim((String) discountCardValue.get("numberDiscountCard").getValue());
+            String nameDiscountCard = trim((String) discountCardValue.get("nameDiscountCard").getValue());
+            BigDecimal percentDiscountCard = (BigDecimal) discountCardValue.get("percentDiscountCard").getValue();
+
+            discountCardList.add(new DiscountCard(numberDiscountCard, nameDiscountCard, percentDiscountCard));
+        }       
+        return discountCardList;
     }
  
     @Override

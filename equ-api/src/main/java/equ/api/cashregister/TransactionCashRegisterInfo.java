@@ -10,10 +10,11 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
     public boolean snapshot;
     public Integer nppGroupCashRegister;
     public String nameGroupCashRegister;
+    public List<DiscountCard> discountCardList;
     
     public TransactionCashRegisterInfo(Integer id, String dateTimeCode, Date date, List<CashRegisterItemInfo> itemsList,
                                        List<CashRegisterInfo> machineryInfoList, boolean snapshot, Integer nppGroupCashRegister,
-                                       String nameGroupCashRegister) {
+                                       String nameGroupCashRegister, List<DiscountCard> discountCardList) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
         this.date = date;
@@ -22,6 +23,7 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
         this.snapshot = snapshot;
         this.nppGroupCashRegister = nppGroupCashRegister;
         this.nameGroupCashRegister = nameGroupCashRegister;
+        this.discountCardList = discountCardList;
     }
 
     @Override
