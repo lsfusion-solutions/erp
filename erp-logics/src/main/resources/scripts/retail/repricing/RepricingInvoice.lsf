@@ -21,8 +21,8 @@ META defineRepricingAggregation(sign, stockProp)
     overCurRepricingPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail) PERSISTENT;
     overCurRepricingPriceInvoiceDetail (detail) += overCurRepricingPriceUserInvoiceDetail(detail);
 
-    curRepricingPriceUserInvoiceDetail (detail) = OVERRIDE curPriceUserInvoiceDetail(detail), overCurRepricingPriceUserInvoiceDetail(detail) PERSISTENT;
-    curRepricingPriceInvoiceDetail (detail) = OVERRIDE curPriceInvoiceDetail(detail), overCurRepricingPriceInvoiceDetail(detail) PERSISTENT;
+    curRepricingPriceUserInvoiceDetail 'Цена поставщика до' (detail) = OVERRIDE curPriceUserInvoiceDetail(detail), overCurRepricingPriceUserInvoiceDetail(detail) PERSISTENT;
+    curRepricingPriceInvoiceDetail 'Цена поставщика до' (detail) = OVERRIDE curPriceInvoiceDetail(detail), overCurRepricingPriceInvoiceDetail(detail) PERSISTENT;
 
     @defineDocumentInterfaceDetailMarkupPrefix (invoice, cur, ' до');
 
@@ -175,26 +175,45 @@ META defineRepricingAggregation(sign, stockProp)
         PROPERTIES(i)   BACKGROUND backgroundCurInvoice(i) SHOWIF createRepricingUserInvoice(i) nameRepricingCommitteeUserInvoice, numberDisposalUserInvoice, beforeDateUserInvoice
         PROPERTIES(i)   BACKGROUND backgroundAfterInvoice(i) SHOWIF createRepricingUserInvoice(i) diffRetailSumUserInvoiceDetailUserInvoice
 
-        PROPERTIES(d)   BACKGROUND backgroundCurInvoice(i) SHOWIF createRepricingUserInvoice(i) BEFORE name###stockProp###stock###userInvoiceDetail(d)
-                        balanceBSkuUserInvoiceDetail, curPriceUserInvoiceDetail, curSumUserInvoiceDetail,
-                        curMarkupUserInvoiceDetail ON CHANGE changeCurMarkupUserInvoiceDetail(d), curMarkupSumUserInvoiceDetail,
+        OBJECTS rd = UserInvoiceDetail FIXED GRID
+        PROPERTIES (rd) SHOWIF createRepricingUserInvoice(i) indexUserInvoiceDetail
+        PROPERTIES (rd) SHOWIF createRepricingUserInvoice(i) ON EDIT editSkuUserInvoiceDetail(rd) BACKGROUND backgroundSkuUserInvoiceDetail(rd) idBarcodeSkuUserInvoiceDetail, 
+                        nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail, quantityUserInvoiceDetail
+                        
+        PROPERTIES(rd)   BACKGROUND backgroundCurInvoice(i) SHOWIF createRepricingUserInvoice(i) 
+                        balanceBSkuUserInvoiceDetail, curRepricingPriceUserInvoiceDetail, curSumUserInvoiceDetail,
+                        curMarkupUserInvoiceDetail ON CHANGE changeCurMarkupUserInvoiceDetail(rd), curMarkupSumUserInvoiceDetail,
                         numberCurVATUserInvoiceDetail, valueCurVATUserInvoiceDetail, curVATSumUserInvoiceDetail,
-                        curRetailPriceUserInvoiceDetail ON CHANGE changeCurRetailPriceUserInvoiceDetail(d), curRetailSumUserInvoiceDetail
-        PROPERTIES(d)   BACKGROUND backgroundAfterInvoice(i) SHOWIF createRepricingUserInvoice(i) BEFORE name###stockProp###stock###userInvoiceDetail(d)
+                        curRetailPriceUserInvoiceDetail ON CHANGE changeCurRetailPriceUserInvoiceDetail(rd), curRetailSumUserInvoiceDetail
+        PROPERTIES(rd)   BACKGROUND backgroundAfterInvoice(i) SHOWIF createRepricingUserInvoice(i)
                         afterSumUserInvoiceDetail, afterRetailVATSumUserInvoiceDetail, afterRetailMarkupSumUserInvoiceDetail, afterRetailSumUserInvoiceDetail
-
+        PROPERTIES(rd) SHOWIF createRepricingUserInvoice(i) deleteird=DELETESESSION                
+        ORDER BY indexUserInvoiceDetail(rd)                      
+        FILTERS userInvoiceUserInvoiceDetail(rd) == i   
     ;
     EXTEND DESIGN userInvoice {
         headerCreateDocuments {
-            NEW headerCreateRepricing {
+            NEW createHeaderRepricing {
                 caption = 'Дооценка';
                 ADD PROPERTY(createRepricingUserInvoice(i));
-                ADD PROPERTY(nameRepricingCommitteeUserInvoice(i));
-                ADD PROPERTY(numberDisposalUserInvoice(i));
-                ADD PROPERTY(beforeDateUserInvoice(i));
             }
         }
         PROPERTY(diffRetailSumUserInvoiceDetailUserInvoice(i)) { preferredCharWidth = 13;}   
+        specification.box {
+            NEW repricing {
+                fill = 1;
+                type = CONTAINERV;
+                caption = 'Дооценка';
+                NEW headerCreateRepricing {                    
+                    type = COLUMNS;
+                    columns = 3;                   
+                    ADD PROPERTY(nameRepricingCommitteeUserInvoice(i));
+                    ADD PROPERTY(numberDisposalUserInvoice(i));
+                    ADD PROPERTY(beforeDateUserInvoice(i));
+                }
+                ADD rd.box;
+            }
+        }
     }
 
     EXTEND FORM invoices

@@ -22,8 +22,8 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     overPricingPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail) PERSISTENT;
     overPricingPriceInvoiceDetail (detail) += overPricingPriceUserInvoiceDetail(detail);
 
-    pricingPriceUserInvoiceDetail (detail) = OVERRIDE priceUserInvoiceDetail(detail), overPricingPriceUserInvoiceDetail(detail) PERSISTENT;
-    pricingPriceInvoiceDetail (detail) = OVERRIDE priceInvoiceDetail(detail), overPricingPriceInvoiceDetail(detail) PERSISTENT;
+    pricingPriceUserInvoiceDetail 'Цена входная' (detail) = OVERRIDE priceUserInvoiceDetail(detail), overPricingPriceUserInvoiceDetail(detail) PERSISTENT;
+    pricingPriceInvoiceDetail 'Цена входная' (detail) = OVERRIDE priceInvoiceDetail(detail), overPricingPriceInvoiceDetail(detail) PERSISTENT;
 
     // Надбавка
     @defineDocumentInterfaceDetailMarkupPrefix (invoice, retail, );
@@ -73,24 +73,44 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
         PROPERTIES(i) SHOWIF showCreatePricingInvoice(i) BACKGROUND backgroundRetailInvoice(i) createPricingUserInvoice
         PROPERTIES(i) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) namePricingCommitteeUserInvoice,
                       retailSumUserInvoiceDetailUserInvoice
-        PROPERTIES(d) BEFORE manufactureDateUserInvoiceDetail(d) SHOWIF createPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i)
-                      retailMarkupUserInvoiceDetail ON CHANGE changeRetailMarkupUserInvoiceDetail(d), retailMarkupSumUserInvoiceDetail, numberRetailVATUserInvoiceDetail,
+          
+        OBJECTS pd = UserInvoiceDetail FIXED GRID
+        PROPERTIES (pd) SHOWIF createPricingInvoice(i) indexUserInvoiceDetail
+        PROPERTIES (pd) SHOWIF createPricingInvoice(i) ON EDIT editSkuUserInvoiceDetail(pd) BACKGROUND backgroundSkuUserInvoiceDetail(pd) idBarcodeSkuUserInvoiceDetail, 
+                        nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail
+        PROPERTIES (pd) quantityUserInvoiceDetail SHOWIF createPricingInvoice(i), pricingQuantityUserInvoiceDetail SHOWIF toShowPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i), 
+                        pricingPriceUserInvoiceDetail SHOWIF createPricingInvoice(i)              
+                       
+        PROPERTIES(pd) SHOWIF createPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i)
+                      retailMarkupUserInvoiceDetail ON CHANGE changeRetailMarkupUserInvoiceDetail(pd), retailMarkupSumUserInvoiceDetail, numberRetailVATUserInvoiceDetail,
                       valueRetailVATUserInvoiceDetail, retailVATSumUserInvoiceDetail,
-                      retailPriceUserInvoiceDetail ON CHANGE changeRetailPriceUserInvoiceDetail(d),
+                      retailPriceUserInvoiceDetail ON CHANGE changeRetailPriceUserInvoiceDetail(pd),
                       retailSumUserInvoiceDetail
-        PROPERTIES(d) pricingQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail(d) SHOWIF toShowPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i)
-
-//        HINTTABLE LIST retailMarkupUserInvoiceDetail, valueRetailVATUserInvoiceDetail, retailPriceUserInvoiceDetail
+        PROPERTIES(pd) SHOWIF createPricingInvoice(i) deleteipd=DELETESESSION
+        ORDER BY indexUserInvoiceDetail(pd)                      
+        FILTERS userInvoiceUserInvoiceDetail(pd) == i             
     ;
     EXTEND DESIGN userInvoice {
         headerCreateDocuments {
-            NEW headerCreatePricing {
+            NEW createHeaderPricing {
                 caption = 'Расценка';
-                ADD PROPERTY(createPricingUserInvoice(i));
-                ADD PROPERTY(namePricingCommitteeUserInvoice(i));
+                ADD PROPERTY(createPricingUserInvoice(i));                
             }
         }
         PROPERTY(retailSumUserInvoiceDetailUserInvoice(i)) { preferredCharWidth = 13;}   
+        specification.box {
+            NEW pricing {
+                fill = 1;
+                type = CONTAINERV;
+                caption = 'Расценка';
+                NEW headerCreatePricing {                    
+                    type = COLUMNS;
+                    columns = 4;                    
+                    ADD PROPERTY(namePricingCommitteeUserInvoice(i));
+                }
+                ADD pd.box;
+            }
+        }
     }
     EXTEND FORM invoices
         PROPERTIES(i) BACKGROUND backgroundRetailInvoice(i) retailSumInvoiceDetailInvoice READONLY BEFORE ordersInvoice(i)
