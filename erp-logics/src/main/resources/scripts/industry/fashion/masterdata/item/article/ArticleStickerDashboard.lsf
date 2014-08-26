@@ -62,16 +62,46 @@ nullStickerArticle 'Без атрибутов' (article) = GROUP SUM 1 IF item I
 filterStickerInvoice= DATA SESSION Purchase.Invoice ();
 descriptionFilterStickerInvoice 'Накладная' = Purchase.descriptionInvoice(filterStickerInvoice());
 
-FORM articleStickerDashboard 'Стикеровка'
+// отм. для групп товаров
+TABLE userItemGroup(User, ItemGroup);
+dataInUserItemGroup 'Отм' = DATA BOOLEAN (User, ItemGroup);
 
+levelParentUserItemGroup (user, itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF dataInUserItemGroup(user, parent)
+                                                               BY user, itemGroup;// PERSISTENT;
+
+inParentUserItemGroup (user, itemGroup) = TRUE IF levelParentUserItemGroup (user, itemGroup);// PERSISTENT;
+
+inUserItemGroup 'Отм' (user, itemGroup) = OVERRIDE
+    inParentUserItemGroup (user, itemGroup),
+    dataInUserItemGroup(user, itemGroup);
+
+inUserArticle 'Отм' (user, article) = inParentUserItemGroup(user, itemGroupArticle(article));
+
+itemGroupsUser (user) = GROUP SUM 1 IF inUserItemGroup(user, itemGroup) BY user;
+    
+//currentUser
+inCurrentUserItemGroup 'Отм.' (itemGroup) = inUserItemGroup(currentUser(), itemGroup);
+inCurrentUserArticle 'Отм.' (article) = inUserArticle(currentUser(), article); 
+itemGroupsCurrentUser () = itemGroupsUser(currentUser());
+
+checkInCurrentUserItemGroup = ACTION (itemGroup) {
+    REQUEST BOOLEAN INPUT;   
+    dataInUserItemGroup(user, itemGroup) <- requestedLogical() WHERE user == currentUser();    
+}
+
+FORM articleStickerDashboard 'Стикеровка'
+    OBJECTS u = User FIXED PANEL 
+    FILTERS u == currentUser()
+    
     PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
     
     TREE groupTree g=ItemGroup PARENT parentItemGroup
     PROPERTIES READONLY nameItemGroup(g), recCountNotStickerArticlesItemGroup(g)
+    PROPERTIES(u, g) inUserItemGroup, inParentUserItemGroup, dataInUserItemGroup      
     ORDER BY nameItemGroup(g)
     FILTERS activeItemGroup(g)
     FILTERGROUP notCustomsFilters
-        FILTER 'Не обработан' 'F6' recCountNotStickerArticlesItemGroup(g)
+        FILTER 'Не обработан' 'F6' recCountNotStickerArticlesItemGroup(g)          
     
     OBJECTS dep=DepartmentStore FIXED PANEL     
     PROPERTIES(dep)  SELECTOR nameDepartmentStore
@@ -93,7 +123,8 @@ FORM articleStickerDashboard 'Стикеровка'
     FILTERGROUP groupFilters
         FILTER 'Переведены' 'F10' completedTranslateArticle(a) DEFAULT
 
-    FILTERS isParentGroupArticle(g, a) 
+    FILTERS isParentGroupArticle(g, a) AND NOT itemGroupsCurrentUser() OR
+            inCurrentUserArticle(a) AND itemGroupsCurrentUser()    
 //    FILTERGROUP groupFilters
 //        FILTER 'По группам' 'F11' isParentGroupArticle(g, a) DEFAULT
 //        FILTER 'Без групп' 'ctrl F11' captionArticle(a) IF NOT itemGroupArticle(a)    
@@ -129,6 +160,7 @@ FORM articleStickerDashboard 'Стикеровка'
 ;
 
 DESIGN articleStickerDashboard FROM DEFAULT {
+    REMOVE u.box;
     NEW top {      
         type = CONTAINERH;
         NEW filter {
