@@ -464,6 +464,19 @@ END
 @defineMachineryPriceTransactionAttribute(idUOM, 'Код единицы измерения', VARSTRING[100]);
 @defineMachineryPriceTransactionAttributeStock(expiryDate, 'Срок годности (дата)', DATE);
 
+snapshotDocumentMachineryPriceTransaction 'Загружать в оборудование все позиции документа' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() snapshotDocumentMachineryPriceTransaction
+;
+EXTEND DESIGN options {
+    pane {
+        NEW machinery {
+            caption = 'Оборудование';
+            ADD PROPERTY(snapshotDocumentMachineryPriceTransaction());
+        }
+    }
+}
+
 // Подключение свойств к документу
 META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
     create###document##MachineryPriceTransaction 'Загрузить в оборудование' = ACTION (document) NEWSESSION AUTOAPPLY {
@@ -471,12 +484,13 @@ META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
         IF isDraft###document(document) THEN {
             CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
         }
-        IF (confirmed()) OR NOT isDraft###document(document) THEN {   
-                createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
-                createMachineryPriceTransactionDocument() <- document;
-                createMachineryPriceTransaction(stockProp###document(document));
-                sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
-            
+        IF (confirmed()) OR NOT isDraft###document(document) THEN {
+            IF snapshotDocumentMachineryPriceTransaction() THEN
+                createMachineryPriceTransactionSnapshot() <- TRUE;
+            createMachineryPriceTransactionSku(sku) <- TRUE IF quantity###document##Detail###skuProp###document(sku, document);
+            createMachineryPriceTransactionDocument() <- document;
+            createMachineryPriceTransaction(stockProp###document(document));
+            sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
         } 
     } TOOLBAR CONFIRM;
 
@@ -485,11 +499,11 @@ META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
             CONFIRM 'Данный документ не проведен, цены из него не будут учтены. Продолжить?';
         }
         IF (confirmed()) OR NOT isDraft###document(document) THEN {     
-                createMachineryPriceTransactionSnapshot() <- TRUE;
-                createMachineryPriceTransactionSku(sku) <- TRUE IF count###document##Detail###skuProp###document(sku, document);
-                createMachineryPriceTransactionDocument() <- document;
-                createMachineryPriceTransaction(stockProp###document(document));
-                sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
+            createMachineryPriceTransactionSnapshot() <- TRUE;
+            createMachineryPriceTransactionSku(sku) <- TRUE IF count###document##Detail###skuProp###document(sku, document);
+            createMachineryPriceTransactionDocument() <- document;
+            createMachineryPriceTransaction(stockProp###document(document));
+            sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
         }
     } CONFIRM;
 
@@ -546,7 +560,7 @@ EXTEND FORM options
     PROPERTIES() notResetMachinerySelectSku
 ;
 EXTEND DESIGN options {
-    stock {
+    machinery {
         ADD PROPERTY(notResetMachinerySelectSku());
     }
 }
