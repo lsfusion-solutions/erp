@@ -437,6 +437,29 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     @defineDocumentDialogSupplierCustomerLegalEntity(scheduleOrder, supplierFilter, customerFilter);
        
+    countShipmentScheduleOrderTimeScheduleOrderDOW (scheduleOrder, dow) = GROUP SUM 1 BY scheduleOrderScheduleOrderTime(d), shipmentDOWScheduleOrderTime(d);   
+    scheduleOrderTimeInScheduleOrderDOW 'Вкл.' (scheduleOrder, dow)= TRUE IF [ = GROUP SUM 1 BY scheduleOrderScheduleOrderTime(d), shipmentDOWScheduleOrderTime(d)](scheduleOrder, dow);   
+
+    changeScheduleOrderTimeInScheduleOrderDOW = ACTION (scheduleOrder, dow) {
+        REQUEST BOOLEAN INPUT;
+        IF requestedLogical() THEN {
+            IF NOT scheduleOrderTimeInScheduleOrderDOW(scheduleOrder, dow) THEN {
+                FOR ADDOBJ  t = ScheduleOrderTime DO {
+                    scheduleOrderScheduleOrderTime(t) <- scheduleOrder;
+                    shipmentDOWScheduleOrderTime(t) <- dow; 
+                    IF numberDOW(dow) == 0 OR numberDOW(dow) == 1 THEN {
+                        orderDOWScheduleOrderTime(t) <- DOW.friday;   
+                    } ELSE {
+                        orderDOWScheduleOrderTime(t) <- DOWNumber(numberDOW(dow)-1);      
+                    }                   
+                }
+            }
+
+        } ELSE {
+            DELETE t WHERE t IS ScheduleOrderTime AND scheduleOrderScheduleOrderTime(t) == scheduleOrder AND shipmentDOWScheduleOrderTime(t) == dow;
+        }
+    }    
+    
     FORM scheduleOrder 'График поставок'
         OBJECTS s=ScheduleOrder FIXED PANEL
         PROPERTIES (s) nameSupplierScheduleOrder ON CHANGE changeSupplier###supplierFilter###scheduleOrder(s), 
@@ -447,6 +470,10 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                        beforeDay = dayBeforeScheduleOrder SHOWIF toShowGenDay(s), dayLastOrderScheduleOrder SHOWIF toShowGenDay(s), dayAfterScheduleOrder SHOWIF toShowGenDay(s), 
                        beforeNumber = dayBeforeScheduleOrder SHOWIF toShowGenNumber(s), stringNumberScheduleOrder SHOWIF toShowGenNumber(s), nameTransferDayScheduleOrder SHOWIF toShowGenNumber(s)
 
+        OBJECTS dow=DOW FIXED GRID 
+        PROPERTIES(dow) READONLY staticCaption SHOWIF toShowGenDayMonth(s)
+        PROPERTIES      SHOWIF toShowGenDayMonth(s) scheduleOrderTimeInScheduleOrderDOW(s,dow) ON CHANGE changeScheduleOrderTimeInScheduleOrderDOW(s,dow)    
+        
         OBJECTS m=Month FIXED GRID
         PROPERTIES(m) READONLY staticCaption SHOWIF toShowGenDayMonth(s)
         PROPERTIES(s, m) inMonthScheduleOrder SHOWIF toShowGenDayMonth(s)
@@ -556,6 +583,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                     NEW days {
                         fill = 1;
                         type = CONTAINERH;
+                        ADD dow.box;
                         ADD d.box;
                         ADD m.box;
                     }
