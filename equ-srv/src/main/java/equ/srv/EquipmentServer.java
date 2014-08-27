@@ -338,7 +338,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr scalesKey = scalesKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> scalesQuery = new QueryBuilder<PropertyInterface, Object>(scalesKeys);
 
-                    String[] scalesProperties = new String[]{"portMachinery", "nppMachinery", "nameCheckModelCheck", "handlerModelMachinery"};
+                    String[] scalesProperties = new String[]{"portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
                     for (String property : scalesProperties) {
                         scalesQuery.addProperty(property, scalesLM.findProperty(property).getExpr(scalesKey));
                     }

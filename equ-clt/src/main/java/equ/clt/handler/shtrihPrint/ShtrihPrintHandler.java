@@ -47,7 +47,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 shtrihActiveXComponent.setProperty("NameFirst", new Variant(firstName));
                 shtrihActiveXComponent.setProperty("NameSecond", new Variant(secondName));
                 shtrihActiveXComponent.setProperty("ShelfLife", new Variant(shelfLife)); //срок хранения в днях
-                shtrihActiveXComponent.setProperty("GroupCode", new Variant(item.hierarchyItemGroup.get(0)));
+                String groupCode = item.hierarchyItemGroup.get(0) == null ? null : item.hierarchyItemGroup.get(0).replace("_", "");
+                shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
                 shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
                 shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
                 shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate));
@@ -64,7 +65,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                     }
                 }
 
-                result = Dispatch.call(shtrihDispatch, "SetPLUData");
+                result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
                 if (!result.toString().equals("0")) {
                     throw new RuntimeException("ShtrihPrintHandler. Item # " + item.idBarcode + " Error # " + result.toString());
                 }
@@ -74,6 +75,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 throw new RuntimeException("ShtrihPrintHandler. Disconnection error (# " + result.toString() + ")");
             }
         } else {
+            Dispatch.call(shtrihDispatch, "Disconnect");
             throw new RuntimeException("ShtrihPrintHandler. Connection error (# " + result.toString() + ")");
         }
     }
