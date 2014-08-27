@@ -2,6 +2,9 @@ package equ.clt.handler.easy;
 
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.api.scales.ScalesHandler;
+import equ.api.scales.ScalesInfo;
+import equ.api.scales.TransactionScalesInfo;
 
 import java.io.*;
 import java.math.BigDecimal;

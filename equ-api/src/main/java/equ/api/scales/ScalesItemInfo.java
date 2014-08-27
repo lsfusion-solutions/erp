@@ -1,4 +1,6 @@
-package equ.api;
+package equ.api.scales;
+
+import equ.api.ItemInfo;
 
 import java.math.BigDecimal;
 import java.util.Date;

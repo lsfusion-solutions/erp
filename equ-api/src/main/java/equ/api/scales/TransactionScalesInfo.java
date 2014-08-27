@@ -1,4 +1,6 @@
-package equ.api;
+package equ.api.scales;
+
+import equ.api.TransactionInfo;
 
 import java.io.IOException;
 import java.util.List;

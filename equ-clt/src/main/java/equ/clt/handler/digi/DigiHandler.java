@@ -1,10 +1,10 @@
 package equ.clt.handler.digi;
 
-import equ.api.ScalesHandler;
+import equ.api.scales.ScalesHandler;
 import equ.api.*;
-import equ.api.ScalesInfo;
-import equ.api.TransactionScalesInfo;
-import equ.api.ScalesItemInfo;
+import equ.api.scales.ScalesInfo;
+import equ.api.scales.TransactionScalesInfo;
+import equ.api.scales.ScalesItemInfo;
 
 import java.io.*;
 import java.sql.SQLException;

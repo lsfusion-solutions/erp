@@ -1,4 +1,6 @@
-package equ.api;
+package equ.api.scales;
+
+import equ.api.MachineryInfo;
 
 public class ScalesInfo extends MachineryInfo {
     public String directory;

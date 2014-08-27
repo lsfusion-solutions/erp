@@ -2,19 +2,21 @@ package equ.clt.handler.shtrihPrint;
 
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
+import com.jacob.com.LibraryLoader;
 import com.jacob.com.Variant;
 import equ.api.*;
-import equ.api.ScalesHandler;
-import equ.api.ScalesInfo;
-import equ.api.ScalesItemInfo;
-import equ.api.TransactionScalesInfo;
+import equ.api.scales.*;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
 import java.util.List;
 
 public class ShtrihPrintHandler extends ScalesHandler {
 
-    public ShtrihPrintHandler() {
+    private FileSystemXmlApplicationContext springContext;
+    
+    public ShtrihPrintHandler(FileSystemXmlApplicationContext springContext) {
+        this.springContext = springContext;
     }
 
     @Override
@@ -24,6 +26,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
         ActiveXComponent shtrihActiveXComponent = new ActiveXComponent("AddIn.DrvLP");
         Dispatch shtrihDispatch = shtrihActiveXComponent.getObject();
+
+        ScalesSettings shtrihSettings = (ScalesSettings) springContext.getBean("shtrihSettings");
 
         Variant pass = new Variant(30);
 
@@ -54,16 +58,21 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate));
                 shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 1 : 0));
 
-                for (int i = 0; i <= item.description.length() / 50; i++) {
-                    shtrihActiveXComponent.setProperty("MessageNumber", new Variant(item.descriptionNumber));
+                int start = 0;
+                int i = 0;
+                while(i < 9 && start < item.description.length()) {
+                    shtrihActiveXComponent.setProperty("MessageNumber", new Variant(shtrihSettings.usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
                     shtrihActiveXComponent.setProperty("StringNumber", new Variant(i+1));
-                    shtrihActiveXComponent.setProperty("MessageString", new Variant(item.description.substring(50 * i, Math.min(50 * (i+1), item.description.length()))));
-
+                    String message = item.description.substring(start, Math.min(start + 50, item.description.length())).split("\n")[0];
+                    shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
+                    start += message.length() + 1;
+                    i++;
+                    
                     result = Dispatch.call(shtrihDispatch, "SetMessageData");
                     if (!result.toString().equals("0")) {
                         throw new RuntimeException("ShtrihPrintHandler. Item # " + item.idBarcode + " Error # " + result.toString());
-                    }
-                }
+                    }                    
+                }                
 
                 result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
                 if (!result.toString().equals("0")) {
