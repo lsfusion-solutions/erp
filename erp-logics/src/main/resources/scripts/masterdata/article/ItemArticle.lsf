@@ -205,9 +205,13 @@ FORM colors 'Цвета товара'
     DIALOG Color OBJECT t
 ;
 DESIGN colors FROM DEFAULT { main{ preferredSize = (600, 400); } }
+
 @extendFormEditable(colors);
 @defineObjectItemAttribute(color, Color, name, 'Цвет', itemArticle);
-@defineUniteAttributeItem(color, nameColor, 'цвет', 'цвета');
+@defineUniteAttributeItem(color, nameColor, 'цвет товара', 'цвета товара', item);
+EXTEND FORM attributesItem
+    PROPERTIES READONLY AFTER nameColor(color) idColor(color) SHOWIF showIDs()
+;
 @defineObjectItemAttributeBatch (color, nameColor, 'Цвет');
 @implementItemAttribute(nameColor, 'Цвет', String, itemColor);
 idColorItem (item) = idColor(colorItem(item));
@@ -306,6 +310,8 @@ shortNameGenderBatch 'Пол' (batch) = shortNameGender(genderBatch(batch));
 EXTEND FORM article PROPERTIES(a) nameGenderArticle;
 EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameGenderArticle;
 
+@defineUniteAttributeItem(gender, nameGender, 'пол', 'пол', article);
+
 // Размер
 CLASS Size 'Размер товара';
 TABLE size(Size);
@@ -334,7 +340,10 @@ FORM sizes 'Размеры товара'
 DESIGN sizes FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(size, Size, name, 'Размер', itemArticle);
-@defineUniteAttributeItem(size, nameSize, 'размер', 'размеры');
+@defineUniteAttributeItem(size, nameSize, 'размер товара', 'размеры товара', item);
+EXTEND FORM attributesItem
+    PROPERTIES(size) AFTER nameSize(size) READONLY nameOriginalSize, shortNameSize, idSize SHOWIF showIDs() 
+;
 
 nameOriginalSizeItem 'Размер (оригинальный)' (item) = nameOriginalSize(sizeItem(item)) IN itemArticle;
 dataOriginalSizeItem 'Размер (оригинальный)' = DATA VARISTRING[50](Item);
@@ -458,6 +467,34 @@ EXTEND FORM articles
     PROPERTIES(a) READONLYIF isReadonly() nameSizeGroupArticle 
 ;
 
+@defineUniteAttributeItemWittoutExtendForm(sizeGroup, nameSizeGroup, 'размерная сетка', 'размерные сетки', article);
+
+EXTEND FORM attributesItem
+    OBJECTS sizeGroup=SizeGroup 
+    PROPERTIES inSizeGroup(sizeGroup)    
+    PROPERTIES(sizeGroup) READONLY nameSizeGroup, idSizeGroup SHOWIF showIDs(), shortNameSizeGroup
+    PROPERTIES(sizeGroup) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR        
+    ORDER BY nameSizeGroup(sizeGroup)
+    PROPERTIES replaceSizeGroup(sizeGroup) TODRAW sizeGroup FORCE PANEL TOOLBAR    
+    
+    OBJECTS size2=Size 
+    PROPERTIES(size2) READONLY nameSize, idSize SHOWIF showIDs(), shortNameSize, nameOriginalSize  
+    PROPERTIES(sizeGroup,size2) READONLY inSizeGroupSize, orderSizeGroupSize
+    
+    ORDER BY  nameSizeGroup(sizeGroup), orderSizeGroupSize(sizeGroup,size2)       
+    FILTERS inSizeGroupSize(sizeGroup,size2)
+;
+
+EXTEND DESIGN attributesItem{
+    tabContainer{
+        NEW sizeGroupContainer {
+            caption = 'Размерные сетки';
+            ADD sizeGroup.box;
+            ADD size2.box;
+        }
+    }
+} 
+
 // ------------------ Добавляем на форму артикулов товары в отдельную вкладку ---------------------- //
 EXTEND FORM article
 
@@ -546,12 +583,3 @@ WHEN SESSION CHANGED(customGroupCustomGroupTypeArticle(type, articleItem(i))) AN
 @defineEventChangedArticle(netWeight);
 
 @defineEventChangedArticle(grossWeight);
-
-NAVIGATOR {
-    itemAttributeNavigator {
-        ADD colors;
-        ADD sizes;
-        ADD sizeGroups;
-        ADD genders;
-    }
-}

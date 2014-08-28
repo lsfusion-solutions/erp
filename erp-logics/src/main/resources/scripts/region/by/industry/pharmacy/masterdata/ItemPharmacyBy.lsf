@@ -28,7 +28,7 @@ namePharmacyPriceGroupSku 'Тип лекарственного средства'
 groupGroupTypeSku(type, sku) += WHEN type IS PharmacyGroupType THEN pharmacyPriceGroupSku(sku);
 
 @defineObjectItemAttribute(pharmacyPriceGroup, PharmacyPriceGroup, name, 'Тип лекарственного средства', itemPharmacy);
-@defineUniteAttributeItem(pharmacyPriceGroup, namePharmacyPriceGroup, 'тип лекарственного средства', 'типы лекарственного средства');
+
 @defineObjectItemAttributeBatch (pharmacyPriceGroup, namePharmacyPriceGroup, 'Тип лекарственного средства', sku);
 pharmacyPriceGroupSku(sku) += pharmacyPriceGroupItem(sku);
 
@@ -163,6 +163,65 @@ DESIGN pharmacyPriceGroups FROM DEFAULT {
 NAVIGATOR {
     skuNavigator {
         ADD pharmacyMarkups;
+    }
+}
+
+@defineUniteAttributeItemWittoutExtendForm(pharmacyPriceGroup, namePharmacyPriceGroup, 'тип лекарственного средства', 'типы лекарственных средств', item);
+EXTEND FORM attributesItem
+    OBJECTS pharmacyPriceGroup=PharmacyPriceGroup
+    PROPERTIES inPharmacyPriceGroup(pharmacyPriceGroup)       
+    PROPERTIES (pharmacyPriceGroup) namePharmacyPriceGroup, idPharmacyPriceGroup SHOWIF showIDs(), namePharmacyTypeGroupPharmacyPriceGroup
+    PROPERTIES(pharmacyPriceGroup) ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR        
+    PROPERTIES replacePharmacyPriceGroup(pharmacyPriceGroup) TODRAW pharmacyPriceGroup FORCE PANEL TOOLBAR        
+    ORDER BY idPharmacyPriceGroup(pharmacyPriceGroup)
+
+    OBJECTS pharmacyPriceInterval=PharmacyPriceInterval
+    PROPERTIES (pharmacyPriceInterval) fromDatePharmacyInterval, toDatePharmacyInterval, pricePharmacyInterval,
+                                       wholesaleMarkupPharmacyPriceInterval, retailMarkupPharmacyPriceInterval
+    PROPERTIES(pharmacyPriceInterval) ADDOBJ, DELETESESSION
+    FILTERS    pharmacyGroupPharmacyInterval(pharmacyPriceInterval)==pharmacyPriceGroup
+    ORDER BY pricePharmacyInterval(pharmacyPriceInterval)
+
+    OBJECTS numeric=NUMERIC[14,3] FIXED PANEL
+    PROPERTIES val = OBJVALUE(numeric)
+
+    OBJECTS date=DATE FIXED PANEL
+    PROPERTIES value = OBJVALUE(date)
+    PROPERTIES(pharmacyPriceGroup, numeric, date) READONLY wholesaleMarkupPharmacyGroupPriceDate,retailMarkupPharmacyGroupPriceDate
+;
+
+EXTEND DESIGN attributesItem{
+    tabContainer{
+        NEW pharmacyPriceGroupContainer{
+            caption = 'Типы лекарственных средств';
+            ADD pharmacyPriceGroup.box;
+            ADD pharmacyPriceInterval.box;
+            NEW test {
+                caption = 'Тестовая форма';
+                type = CONTAINERH;
+                ADD PROPERTY (value) {
+                    caption = 'Выберите дату';
+                    panelLabelAbove = TRUE;
+                    font = 'bold 24';
+                }
+                ADD PROPERTY (val) {
+                    caption = 'Введите цену в рублях';
+                    panelLabelAbove = TRUE;
+                    font = 'bold 24';
+                }
+    
+                ADD PROPERTY (wholesaleMarkupPharmacyGroupPriceDate(pharmacyPriceGroup, numeric, date)) {
+                    caption = 'Результат (оптовая надбавка)';
+                    panelLabelAbove = TRUE;
+                    font = 'bold 24';
+                }
+                ADD PROPERTY (retailMarkupPharmacyGroupPriceDate(pharmacyPriceGroup, numeric, date)) {
+                    caption = 'Результат (розничная надбавка)';
+                    panelLabelAbove = TRUE;
+                    font = 'bold 24';
+                }
+            }
+        }
     }
 }
 

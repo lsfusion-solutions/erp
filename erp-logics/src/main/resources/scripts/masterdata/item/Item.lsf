@@ -450,10 +450,10 @@ META defineObjectItemAttributeBatch(attribute, identity, caption, skuClass)
     @defineItemAttributeBatch(attribute, identity, caption, skuClass);
 END
 
-FORM uniteAttributeItem 'Объединение атрибутов товаров'
+FORM attributesItem 'Атрибуты товаров'
 ;
 
-DESIGN uniteAttributeItem FROM DEFAULT {
+DESIGN attributesItem FROM DEFAULT {
     NEW tabContainer {
         fill = 1;    
         type = TABBED;
@@ -461,7 +461,7 @@ DESIGN uniteAttributeItem FROM DEFAULT {
     ADD functions.box;
 }
 
-META defineUniteAttributeItem(object, nameProp, caption1, caption2)
+META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
     in###object 'Отм.' = DATA BOOLEAN (###object) MAXCHARWIDTH 5;
     allowReplace###object = DATA SESSION BOOLEAN ();
     
@@ -499,7 +499,7 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2)
             allowReplace###object() <- TRUE;
             FOR in###object(o) AND allowReplace###object() DO{
                 IF o != object THEN {
-                    object##Item(item) <- object WHERE object##Item(item) == o;
+                    object###object2(object2) <- object WHERE object###object2(object2) == o;
                     in###object(o) <- NULL;
                     DELETE o;            
                 } ELSE {
@@ -512,28 +512,80 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2)
         }   
     };
     
-    EXTEND FORM uniteAttributeItem
+    EXTEND FORM attributesItem
         OBJECTS object = ###object
         PROPERTIES in###object(object)
         PROPERTIES READONLY nameProp(object)
+        PROPERTIES(object) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR        
         ORDER BY nameProp(object)
         PROPERTIES replace###object(object) TODRAW object FORCE PANEL TOOLBAR
     ;
     
-    EXTEND DESIGN uniteAttributeItem {
+    EXTEND DESIGN attributesItem {
         tabContainer {
             ADD object.box{
-                caption = ''###caption1;
+                caption = ''###caption2;
             }
         }
     }
 
 END
+
+META defineUniteAttributeItemWittoutExtendForm(object, nameProp, caption1, caption2, object2)
+    in###object 'Отм.' = DATA BOOLEAN (###object) MAXCHARWIDTH 5;
+    allowReplace###object = DATA SESSION BOOLEAN ();
+    
+    FORM confirmReplace###object 'Объединяемые '##caption2
+        OBJECTS object = ###object FIXED PANEL 
+    
+        OBJECTS o = ###object  
+        PROPERTIES(o) READONLY nameProp
+        FILTERS o==object
+    
+        OBJECTS o2 = ###object
+        PROPERTIES(o2) in###object
+        PROPERTIES(o2) READONLY nameProp
+        FILTERS in###object(o2)
+    ;
+    
+    DESIGN confirmReplace###object FROM DEFAULT {
+        REMOVE object.box;
+        NEW splitContainer{
+            type = SPLITV;
+            fill = 1;
+            ADD o.box{
+                caption = 'Основной '##caption1;
+            }
+            ADD o2.box{
+                caption = 'Удаляемый '##caption1;
+            }           
+        }
+        ADD functions.box;
+    }
+    
+    replace###object 'Объединить' = ACTION (object) {
+        FORM confirmReplace###object OBJECTS o=object MODAL;
+        IF formResult() == FormResult.ok THEN {
+            allowReplace###object() <- TRUE;
+            FOR in###object(o) AND allowReplace###object() DO{
+                IF o != object THEN {
+                    object###object2(object2) <- object WHERE object###object2(object2) == o;
+                    in###object(o) <- NULL;
+                    DELETE o;            
+                } ELSE {
+                    MESSAGE 'Выделенный '##caption1##' не может совпадать с объединяемым';
+                }
+            }
+            apply();
+        } ELSE {
+            in###object(o) <- NULL WHERE in###object(o);           
+        }   
+    };
+END
+
 NAVIGATOR {
     skuNavigator {
-        NEW itemAttributeNavigator 'Атрибуты' {
-            ADD uniteAttributeItem;
-        }
+        ADD attributesItem;
     }
 }
 
@@ -937,7 +989,11 @@ extractStringCaptionItem 'Заменить в названии' = ACTION (i) {
 
 // Единица измерения
 @defineObjectItemAttribute(UOM, UOM, name, 'Единица измерения', itemBase);
-@defineUniteAttributeItem(UOM, nameUOM, 'единица измерения', 'единицы измерения');
+@defineUniteAttributeItem(UOM, nameUOM, 'единица измерения', 'единицы измерения', item);
+EXTEND FORM attributesItem
+    PROPERTIES(UOM) READONLY AFTER nameUOM(UOM) grossWeightUOM, netWeightUOM, splitUOM, factorUOM, genitiveNameUOM, 
+                                                shortNameBaseUOM, shortNameUOM, idUOM SHOWIF showIDs()   
+;
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения', sku);
 
 shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMItem(item)) IN itemBase;
@@ -977,7 +1033,10 @@ FORM brands 'Бренды'
 DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(brand, Brand, name, 'Бренд', itemBase);
-@defineUniteAttributeItem(brand, nameBrand, 'бренд', 'бренды');
+@defineUniteAttributeItem(brand, nameBrand, 'бренд', 'бренды', item);
+EXTEND FORM attributesItem
+    PROPERTIES(brand) AFTER nameBrand(brand) READONLY siteBrand, idBrand SHOWIF showIDs()
+;
 
 @defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
 @implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
@@ -987,7 +1046,11 @@ DESIGN brands FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 // Страна
 @defineObjectItemAttribute(country, Country, name, 'Страна', itemBase);
-@defineUniteAttributeItem(country, nameCountry, 'страна', 'страны');
+@defineUniteAttributeItem(country, nameCountry, 'страна', 'страны', item);
+EXTEND FORM attributesItem
+    PROPERTIES(country) READONLY AFTER nameCountry(country) nameLanguageCountry, nameCurrencyCountry, residentCountry, 
+                                                            sidOrigin3Country, sidOrigin2Country, sidCountry, nameOriginCountry
+;
 @defineObjectItemAttributeBatch (country, nameCountry, 'Страна', sku);
 @implementItemAttribute(nameCountry, 'Страна', String, itemCountry);
 
@@ -1027,7 +1090,10 @@ FORM manufacturerDialog 'Производители товара'
 DESIGN manufacturerDialog FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(manufacturer, Manufacturer, name, 'Производитель', itemBase);
-@defineUniteAttributeItem(manufacturer, nameManufacturer, 'производитель', 'производители');
+@defineUniteAttributeItem(manufacturer, nameManufacturer, 'производитель', 'производители', item);
+EXTEND FORM attributesItem
+    PROPERTIES READONLY AFTER nameManufacturer(manufacturer) idManufacturer(manufacturer) SHOWIF showIDs()
+;
 @defineObjectItemAttributeBatch (manufacturer, nameManufacturer, 'Производитель');
 @implementItemAttribute(nameManufacturer, 'Производитель', String, itemManufacturer);
 
@@ -1499,14 +1565,6 @@ seekItemDate() = ACTION () {
 EXTEND FORM item
     EVENTS ON INIT seekItemDate()
 ;
-NAVIGATOR {
-    skuNavigator {
-        itemAttributeNavigator {
-            ADD brands;
-            ADD manufacturerDialog;
-        }
-    }
-}
 
 //----------- Задание значения по-умолчанию ----------------//
 TABLE customGroupTypeItemGroup(CustomGroupType, ItemGroup);

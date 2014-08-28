@@ -30,12 +30,6 @@ FORM materials 'Материалы'
 ;
 DESIGN materials FROM DEFAULT { main{ preferredSize = (600, 400); } }
 
-NAVIGATOR {
-    itemAttributeNavigator {
-        ADD materials;
-    }
-}
-
 TABLE materialItem (Material, Item);
 percentMaterialItem 'Процент' = DATA INTEGER (Material, Item);
 
@@ -67,3 +61,80 @@ createCompositionItem 'Выбрать состав' = ACTION (item) {
     FORM itemMaterial OBJECTS i = item MODAL; 
 } SHORTCUT compositionItem;  
 
+//добавление на форму атрибутов товара
+inMaterial 'Отм.' = DATA BOOLEAN (Material) MAXCHARWIDTH 5;
+allowReplaceMaterial = DATA SESSION BOOLEAN ();
+
+FORM confirmReplaceMaterial 'Объединяемые материалы'
+    OBJECTS material = Material FIXED PANEL 
+
+    OBJECTS o = Material  
+    PROPERTIES(o) READONLY nameMaterial
+    FILTERS o==material
+
+    OBJECTS o2 = Material
+    PROPERTIES(o2) inMaterial
+    PROPERTIES(o2) READONLY nameMaterial
+    FILTERS inMaterial(o2)
+;
+
+DESIGN confirmReplaceMaterial FROM DEFAULT {
+    REMOVE material.box;
+    NEW splitContainer{
+        type = SPLITV;
+        fill = 1;
+        ADD o.box{
+            caption = 'Основной материал';
+        }
+        ADD o2.box{
+            caption = 'Удаляемый материал';
+        }           
+    }
+    ADD functions.box;
+}
+
+replaceMaterial 'Объединить' = ACTION (material) {
+    FORM confirmReplaceMaterial OBJECTS o=material MODAL;
+    IF formResult() == FormResult.ok THEN {
+        allowReplaceMaterial() <- TRUE;
+        FOR inMaterial(o) AND allowReplaceMaterial() DO{
+            IF o != material THEN {
+                FOR percentMaterialItem(o, item) DO {
+                    IF percentMaterialItem(material, item) THEN {
+                        percentMaterialItem(material, item) <- percentMaterialItem(o, item) + percentMaterialItem(material, item);   
+                        percentMaterialItem(o, item) <- NULL;                        
+                    } ELSE {
+                        percentMaterialItem(material, item) <- percentMaterialItem(o, item);
+                        percentMaterialItem(o, item) <- NULL;
+                    }                    
+                    compositionItem(item) <- calcCompositionItem(item);                                                                         
+                }
+                inMaterial(o) <- NULL;
+                DELETE o;                  
+            } ELSE {
+                MESSAGE 'Выделенный материал не может совпадать с объединяемым';
+            }
+        }
+        apply();
+    } ELSE {
+        inMaterial(o) <- NULL WHERE inMaterial(o);           
+    }   
+};
+
+EXTEND FORM attributesItem
+    OBJECTS material = Material
+    PROPERTIES inMaterial(material)
+    PROPERTIES(material) READONLY nameMaterial
+    PROPERTIES(material) READONLY shortNameMaterial, idMaterial SHOWIF showIDs()
+    PROPERTIES(material) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR        
+    ORDER BY nameMaterial(material)
+    PROPERTIES replaceMaterial(material) TODRAW material FORCE PANEL TOOLBAR
+;
+
+EXTEND DESIGN attributesItem {
+    tabContainer {
+        ADD material.box{
+            caption = 'Материалы';
+        }
+    }
+}

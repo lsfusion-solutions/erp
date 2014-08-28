@@ -5,7 +5,41 @@ REQUIRE System, Item, Ware;
 NAMESPACE Item;
 
 @defineObjectItemAttribute(ware, Ware, name, 'Посуда', itemBase);
-@defineUniteAttributeItem(ware, nameWare, 'посуда', 'посуда');
+@defineUniteAttributeItemWittoutExtendForm(ware, nameWare, 'посуда', 'посуда', item);
+
+EXTEND FORM attributesItem
+    TREE treeGroups wareGroup=WareGroup PARENT parentWareGroup
+    PROPERTIES READONLY nameWareGroup(wareGroup)
+    ORDER BY nameWareGroup(wareGroup)
+
+    OBJECTS ware=Ware
+    PROPERTIES inWare(ware)    
+    PROPERTIES(ware) READONLY nameWare, idWare SHOWIF showIDs(), canonicalNameWareGroupWare, warePrice, numberRangeRangeWare, valueCurrentRateRangeWare
+    PROPERTIES(ware) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR        
+    ORDER BY nameWare(ware)
+    PROPERTIES replaceWare(ware) TODRAW ware FORCE PANEL TOOLBAR    
+    FILTERS isParentWareGroupWare(wareGroup, ware)
+
+;
+
+EXTEND DESIGN attributesItem{
+    tabContainer{
+        NEW wareContainer{
+            caption = 'Посуда';
+            fill = 1;
+            type = SPLITH;
+            ADD treeGroups.tree.box {
+                caption = 'Группы посуды';
+            }
+            ADD ware.box {
+                fill = 3;
+                ware.grid {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+    }
+}
 @defineObjectItemAttributeBatch (ware, nameWare, 'Посуда');
 
 inWareItem 'Товар в посуде' (item) = item IS Item AND wareItem(item);
