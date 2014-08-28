@@ -30,13 +30,13 @@ public class ExportExcelPivotAction implements ClientAction {
     Integer xlAverage = -4106;
 
     ReportGenerationData reportData;
-    List<String> rowFields;
-    List<String> columnFields;
-    List<String> filterFields;
-    List<String> cellFields;
+    List<List<String>> rowFields;
+    List<List<String>> columnFields;
+    List<List<String>> filterFields;
+    List<List<String>> cellFields;
 
-    public ExportExcelPivotAction(ReportGenerationData reportData, List<String> rowFields, List<String> columnFields,
-                                  List<String> filterFields, List<String> cellFields) {
+    public ExportExcelPivotAction(ReportGenerationData reportData, List<List<String>> rowFields, List<List<String>> columnFields,
+                                  List<List<String>> filterFields, List<List<String>> cellFields) {
         this.reportData = reportData;
         this.rowFields = rowFields;
         this.columnFields = columnFields;
@@ -45,6 +45,8 @@ public class ExportExcelPivotAction implements ClientAction {
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+        if(rowFields.size()!=columnFields.size() || columnFields.size()!=filterFields.size() || filterFields.size()!=cellFields.size())
+            throw new RuntimeException("Некорректное количество параметров сводных таблиц");
         try {
             runExcelPivot();
         } catch (JRException e) {
@@ -65,101 +67,117 @@ public class ExportExcelPivotAction implements ClientAction {
 
         Dispatch sourceSheet = Dispatch.get(workbook, "ActiveSheet").toDispatch();
         Dispatch sheets = Dispatch.get(workbook, "Worksheets").toDispatch();
-        Dispatch destinationSheet = Dispatch.get(sheets, "Add").toDispatch();
-        Dispatch.put(destinationSheet, "Name", "PivotTable");
 
-        Dispatch usedRange = Dispatch.get(sourceSheet, "UsedRange").toDispatch();
-        Integer rowsCount = Dispatch.get(Dispatch.get(usedRange, "Rows").toDispatch(), "Count").getInt();
-        Integer columnsCount = Dispatch.get(Dispatch.get(usedRange, "Columns").toDispatch(), "Count").getInt();
+        LinkedHashMap<Integer, Dispatch> fieldDispatchMap = null;
 
-        if (rowsCount > 2) {
-            String lastCell = getCellIndex(columnsCount - 1, rowsCount == 0 ? 2 : (rowsCount - 1));
-            Dispatch sourceDataNativePeer = Dispatch.invoke(sourceSheet, "Range", Dispatch.Get, new Object[]{"B2:" + lastCell}, new int[1]).toDispatch();
-            Dispatch destinationNativePeer = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{"A1"}, new int[1]).toDispatch();
+        int pivotTableCount = rowFields.size();
+        for (int i = pivotTableCount - 1; i >= 0; i--) {
+            
+            List<String> rowFieldsEntry = rowFields.get(i);
+            List<String> columnFieldsEntry = columnFields.get(i);
+            List<String> filterFieldsEntry = filterFields.get(i);
+            List<String> cellFieldsEntry = cellFields.get(i);
+            
+            Dispatch destinationSheet = Dispatch.get(sheets, "Add").toDispatch();
+            Dispatch.put(destinationSheet, "Name", "PivotTable" + (i + 1));
 
-            Variant unspecified = Variant.VT_MISSING;
-            Dispatch pivotTableWizard = Dispatch.invoke(workbook, "PivotTableWizard", Dispatch.Get, new Object[]{new Variant(1),  //SourceType
-                    new Variant(sourceDataNativePeer), //SourceData
-                    new Variant(destinationNativePeer), //TableDestination
-                    new Variant("PivotTable"), //TableName
-                    new Variant(false), //RowGrand
-                    new Variant(false), //ColumnGrand
-                    new Variant(true), //SaveData
-                    new Variant(true), //HasAutoFormat
-                    unspecified, //AutoPage
-                    unspecified, //Reserved
-                    new Variant(false), //BackgroundQuery
-                    new Variant(false), //OptimizeCache
-                    new Variant(1), //PageFieldOrder
-                    unspecified, //PageFieldWrapCount
-                    unspecified, //ReadData
-                    unspecified //Connection
-            }, new int[1]).toDispatch();
+            Dispatch usedRange = Dispatch.get(sourceSheet, "UsedRange").toDispatch();
+            Integer rowsCount = Dispatch.get(Dispatch.get(usedRange, "Rows").toDispatch(), "Count").getInt();
+            Integer columnsCount = Dispatch.get(Dispatch.get(usedRange, "Columns").toDispatch(), "Count").getInt();
+            
+            if (rowsCount > 2) {
+                String lastCell = getCellIndex(columnsCount - 1, rowsCount == 0 ? 2 : (rowsCount - 1));
+                Dispatch sourceDataNativePeer = Dispatch.invoke(sourceSheet, "Range", Dispatch.Get, new Object[]{"B2:" + lastCell}, new int[1]).toDispatch();
+                Dispatch destinationNativePeer = Dispatch.invoke(destinationSheet, "Range", Dispatch.Get, new Object[]{"A1"}, new int[1]).toDispatch();
 
-            int count = 1;
-            LinkedHashMap<Integer, String> fieldCaptionMap = getFieldCaptionMap(sourceSheet, columnsCount);
+                Variant unspecified = Variant.VT_MISSING;
+                Dispatch pivotTableWizard = Dispatch.invoke(workbook, "PivotTableWizard", Dispatch.Get, new Object[]{new Variant(1),  //SourceType
+                        new Variant(sourceDataNativePeer), //SourceData
+                        new Variant(destinationNativePeer), //TableDestination
+                        new Variant("PivotTable"), //TableName
+                        new Variant(false), //RowGrand
+                        new Variant(false), //ColumnGrand
+                        new Variant(true), //SaveData
+                        new Variant(true), //HasAutoFormat
+                        unspecified, //AutoPage
+                        unspecified, //Reserved
+                        new Variant(false), //BackgroundQuery
+                        new Variant(false), //OptimizeCache
+                        new Variant(1), //PageFieldOrder
+                        unspecified, //PageFieldWrapCount
+                        unspecified, //ReadData
+                        unspecified //Connection
+                }, new int[1]).toDispatch();
 
-            LinkedHashMap<Integer, Integer> fieldsMap = getFieldsMap(sourceSheet, columnsCount);
+                if (fieldDispatchMap == null)
+                    fieldDispatchMap = getFieldDispatchMap(pivotTableWizard, sourceSheet, columnsCount, i);
 
-            LinkedHashMap<String, Dispatch> rowDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
-            LinkedHashMap<String, Dispatch> columnDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
-            LinkedHashMap<String, Dispatch> filterDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
-            LinkedHashMap<String, Dispatch> cellDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+                int count = 1;
+                LinkedHashMap<Integer, String> fieldCaptionMap = getFieldCaptionMap(sourceSheet, columnsCount);
 
-            for (Map.Entry<Integer, Integer> entry : fieldsMap.entrySet()) {
-                Integer orientation = entry.getValue();
-                if (orientation != null) {
-                    Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(count)).toDispatch();
-                    if(orientation.equals(xlRowField)) {
-                        rowDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
-                    } else  if(orientation.equals(xlColumnField)) {
-                        columnDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
-                    } else if(orientation.equals(xlFilterField)) {
-                        filterDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
-                    }  else if(orientation.equals(xlDataField)) {
-                        cellDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
+                LinkedHashMap<Integer, Integer> fieldsMap = getFieldsMap(sourceSheet, columnsCount, i);
+
+                LinkedHashMap<String, Dispatch> rowDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+                LinkedHashMap<String, Dispatch> columnDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+                LinkedHashMap<String, Dispatch> filterDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+                LinkedHashMap<String, Dispatch> cellDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+
+
+                for (Map.Entry<Integer, Integer> entry : fieldsMap.entrySet()) {
+                    Integer orientation = entry.getValue();
+                    if (orientation != null) {
+                        Dispatch fieldDispatch = fieldDispatchMap.get(count);
+                        if (orientation.equals(xlRowField)) {
+                            rowDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
+                        } else if (orientation.equals(xlColumnField)) {
+                            columnDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
+                        } else if (orientation.equals(xlFilterField)) {
+                            filterDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
+                        } else if (orientation.equals(xlDataField)) {
+                            cellDispatchFieldsMap.put(fieldCaptionMap.get(count), fieldDispatch);
+                        }
+                    }
+                    count++;
+                }
+
+
+                for (String entry : rowFieldsEntry) {
+                    Dispatch field = rowDispatchFieldsMap.get(entry);
+                    if (field != null)
+                        Dispatch.put(rowDispatchFieldsMap.get(entry), "Orientation", new Variant(xlRowField));
+                }
+
+                for (String entry : columnFieldsEntry) {
+                    Dispatch field = columnDispatchFieldsMap.get(entry);
+                    if (field != null)
+                        Dispatch.put(field, "Orientation", new Variant(xlColumnField));
+                }
+
+                //фильтры по какой-то причине требуют обратного порядка
+                for (String entry : Lists.reverse(filterFieldsEntry)) {
+                    Dispatch field = filterDispatchFieldsMap.get(entry);
+                    if (field != null)
+                        Dispatch.put(field, "Orientation", new Variant(xlFilterField));
+                }
+
+                int dataCount = 0;
+                for (String entry : cellFieldsEntry) {
+                    Dispatch field = cellDispatchFieldsMap.get(entry);
+                    if (field != null) {
+                        dataCount++;
+                        Dispatch.put(field, "Orientation", new Variant(xlDataField));
+                        Dispatch.put(field, "Function", new Variant(xlSum));
+                        String caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
+                        Dispatch.put(field, "Caption", new Variant(caption + "*"));
                     }
                 }
-                count++;
-            }
 
-
-            for(String entry : rowFields) {
-                Dispatch field = rowDispatchFieldsMap.get(entry);
-                if(field != null)
-                Dispatch.put(rowDispatchFieldsMap.get(entry), "Orientation", new Variant(xlRowField));
-            }
-
-            for(String entry : columnFields) {
-                Dispatch field = columnDispatchFieldsMap.get(entry);
-                if(field != null)
+                Dispatch field = Dispatch.get(pivotTableWizard, "DataPivotField").toDispatch();
+                if (dataCount > 1)
                     Dispatch.put(field, "Orientation", new Variant(xlColumnField));
             }
-
-            //фильтры по какой-то причине требуют обратного порядка
-            for(String entry : Lists.reverse(filterFields)) {
-                Dispatch field = filterDispatchFieldsMap.get(entry);
-                if(field != null)
-                    Dispatch.put(field, "Orientation", new Variant(xlFilterField));
-            }
-            
-            int dataCount = 0;
-            for(String entry : cellFields) {
-                Dispatch field = cellDispatchFieldsMap.get(entry);
-                if(field != null) {
-                    dataCount++;
-                    Dispatch.put(field, "Orientation", new Variant(xlDataField));
-                    Dispatch.put(field, "Function", new Variant(xlSum));
-                    String caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
-                    Dispatch.put(field, "Caption", new Variant(caption + "*"));
-                }
-            }                    
-
-            Dispatch field = Dispatch.get(pivotTableWizard, "DataPivotField").toDispatch();
-            if (dataCount > 1)
-                Dispatch.put(field, "Orientation", new Variant(xlColumnField));
         }
-            
+        
         Dispatch.get(workbook, "Save");
         Dispatch.call(workbooks, "Close");
         excelComponent.invoke("Quit", new Variant[0]);
@@ -180,6 +198,24 @@ public class ExportExcelPivotAction implements ClientAction {
         return columnIndex + row;
     }
 
+    private LinkedHashMap<Integer, Dispatch> getFieldDispatchMap(Dispatch pivotTableWizard, Dispatch sourceSheet, Integer columnsCount, Integer pivotTableNumber) {
+        int count = 1;
+
+        LinkedHashMap<Integer, Integer> fieldsMap = getFieldsMap(sourceSheet, columnsCount, pivotTableNumber);
+
+        LinkedHashMap<Integer, Dispatch> fieldDispatchMap = new LinkedHashMap<Integer, Dispatch>();
+
+        for (Map.Entry<Integer, Integer> entry : fieldsMap.entrySet()) {
+            Integer orientation = entry.getValue();
+            if (orientation != null) {
+                Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(count)).toDispatch();
+                fieldDispatchMap.put(count, fieldDispatch);
+            }
+            count++;
+        }
+        return fieldDispatchMap;
+    }
+    
     public LinkedHashMap<Integer, String> getFieldCaptionMap(Dispatch sheet, Integer columnsCount) {
         LinkedHashMap<Integer, String> fieldCaptionMap = new LinkedHashMap<Integer, String>();
         for (int i = 0; i <= columnsCount; i++) {
@@ -192,7 +228,7 @@ public class ExportExcelPivotAction implements ClientAction {
         return fieldCaptionMap;
     }
 
-    public LinkedHashMap<Integer, Integer> getFieldsMap(Dispatch sheet, Integer columnsCount) {
+    public LinkedHashMap<Integer, Integer> getFieldsMap(Dispatch sheet, Integer columnsCount, Integer pivotTableNumber) {
 
         LinkedHashMap<String, List<Integer>> captionFieldsMap = new LinkedHashMap<String, List<Integer>>();
         for (int i = 0; i <= columnsCount; i++) {
@@ -208,13 +244,13 @@ public class ExportExcelPivotAction implements ClientAction {
         LinkedHashMap<Integer, Integer> fieldsMap = new LinkedHashMap<Integer, Integer>();
         for (Map.Entry<String, List<Integer>> entry : captionFieldsMap.entrySet()) {                       
             for(Integer field : entry.getValue()) {
-                if (rowFields.contains(entry.getKey())) {
+                if (rowFields.get(pivotTableNumber).contains(entry.getKey())) {
                     fieldsMap.put(field, xlRowField);
-                } else if (columnFields.contains(entry.getKey())) {
+                } else if (columnFields.get(pivotTableNumber).contains(entry.getKey())) {
                     fieldsMap.put(field, xlColumnField);
-                } else if (filterFields.contains(entry.getKey())) {
+                } else if (filterFields.get(pivotTableNumber).contains(entry.getKey())) {
                     fieldsMap.put(field, xlFilterField);
-                } else if (cellFields.contains(entry.getKey())) {
+                } else if (cellFields.get(pivotTableNumber).contains(entry.getKey())) {
                     fieldsMap.put(field, xlDataField);
                 } else fieldsMap.put(field, null);               
             }           

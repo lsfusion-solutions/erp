@@ -21,20 +21,27 @@ import lsfusion.server.remote.FormReportManager;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 public abstract class ExportExcelPivotActionProperty extends ScriptingActionProperty {
     String idForm;
     String idGroupObject;
-    List<String> rows;
-    List<String> columns;
-    List<String> filters;
-    List<String> cells;
+    List<List<String>> rows;
+    List<List<String>> columns;
+    List<List<String>> filters;
+    List<List<String>> cells;
 
     public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
                                           List<String> rows, List<String> columns, List<String> filters, List<String> cells,
                                           ValueClass... classes) {
+        this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, idGroupObject, classes);
+    }
+    
+    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, 
+                                          List<List<String>> rows, List<List<String>> columns, List<List<String>> filters, List<List<String>> cells,
+                                          String idForm, String idGroupObject, ValueClass... classes) {
         super(LM, classes);
         this.idForm = idForm;
         this.idGroupObject = idGroupObject;
@@ -73,16 +80,20 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
         }
     }
 
-    public List<String> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<String> fields) throws ScriptingErrorLog.SemanticErrorException {
-        List<String> result = new ArrayList<String>();
+    public List<List<String>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingErrorLog.SemanticErrorException {
+        List<List<String>> result = new ArrayList<List<String>>();
         if (fields != null) {
-            for (String field : fields) {
-                for(PropertyDrawView property : properties) {
-                    if (property.getSID().equals(field)) {
-                        result.add(property.getCaption());
-                        break;
+            for (List<String> fieldsEntry : fields) {
+                List<String> resultEntry = new ArrayList<String>();
+                for (String field : fieldsEntry) {
+                    for (PropertyDrawView property : properties) {
+                        if (property.getSID().equals(field)) {
+                            resultEntry.add(property.getCaption());
+                            break;
+                        }
                     }
                 }
+                result.add(resultEntry);
             }
         }
         return result;
