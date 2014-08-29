@@ -27,6 +27,6 @@ public abstract class  CashRegisterHandler<S extends SalesBatch> extends Machine
    
     public abstract Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException;
     
-    public abstract String checkZReportSum(Map<String, BigDecimal> zReportSumMap, String idStock) throws ClassNotFoundException, SQLException;
+    public abstract String checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<String> idCashRegisterList) throws ClassNotFoundException, SQLException;
 
 }

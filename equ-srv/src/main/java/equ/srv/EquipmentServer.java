@@ -1148,6 +1148,37 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
+    public List<String> readCashRegistersStock(String idStock) throws RemoteException, SQLException {
+        List<String> cashRegisterList = new ArrayList<String>();
+        if(equipmentCashRegisterLM != null)
+        try {
+            DataSession session = getDbManager().createSession();
+
+            DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stockId").readClasses(session, new DataObject(idStock));
+
+            KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
+            QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+            query.addProperty("nppMachinery", equipmentCashRegisterLM.findProperty("nppMachinery").getExpr(cashRegisterExpr));
+            query.and(equipmentCashRegisterLM.findProperty("departmentStoreCashRegister").getExpr(cashRegisterExpr).compare(stockObject.getExpr(), Compare.EQUALS));
+            query.and(equipmentCashRegisterLM.findProperty("nppMachinery").getExpr(cashRegisterExpr).getWhere());
+            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> zReportResult = query.executeClasses(session);
+            for (ImMap<Object, ObjectValue> entry : zReportResult.values()) {
+                Integer nppMachinery = (Integer) entry.get("nppMachinery").getValue();
+                cashRegisterList.add(String.valueOf(nppMachinery));
+            }
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
+        }
+
+        return cashRegisterList;
+    }
+
+    @Override
     public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
         return sendSalesInfoNonRemote(salesInfoList, sidEquipmentServer, numberAtATime);
     }

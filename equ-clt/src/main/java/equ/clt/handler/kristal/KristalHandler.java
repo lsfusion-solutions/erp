@@ -322,8 +322,12 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap, String idStock) throws ClassNotFoundException, SQLException {
-        requestExchangeLogger.info("Kristal: checking zReports sum, Stock: " + idStock);
+    public String checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<String> idCashRegisterList) throws ClassNotFoundException, SQLException {
+        String idCashRegisters = "";
+        for(String idCashRegister : idCashRegisterList)
+            idCashRegisters += idCashRegister + ",";
+        idCashRegisters = idCashRegisters.isEmpty() ? idCashRegisters : idCashRegisters.substring(0, idCashRegisters.length() - 1);
+        requestExchangeLogger.info("Kristal: checking zReports sum, CashRegisters: " + idCashRegisters);
 
         String result = "";
         
@@ -337,7 +341,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
-                String queryString = "SELECT GangNumber, Summa FROM OperGang WHERE CashNumber=" + idStock;
+                String queryString = "SELECT GangNumber, Summa FROM OperGang WHERE CashNumber IN (" + idCashRegisters + ")";
                 ResultSet rs = statement.executeQuery(queryString);
                 while (rs.next()) {
                     String zReportNumber = String.valueOf(rs.getInt(1));

@@ -319,7 +319,8 @@ public class EquipmentServer {
                                 request.extraStockSet.add(request.idStock);
                                 for(String idStock : request.extraStockSet) {
                                     Map<String, BigDecimal> zReportSumMap = remote.readRequestZReportSumMap(idStock, request.dateFrom, request.dateTo);
-                                    String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap, idStock);
+                                    List<String> idCashRegisters = remote.readCashRegistersStock(idStock);
+                                    String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap, idCashRegisters);
                                     if (checkSumResult != null) {
                                         reportEquipmentServerError(remote, sidEquipmentServer, checkSumResult);
                                     }
