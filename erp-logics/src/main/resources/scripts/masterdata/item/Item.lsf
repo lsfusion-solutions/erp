@@ -379,7 +379,9 @@ META defineItemAttribute(attribute, formProperty, caption, group)
 
     EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute##ItemGroup;
     EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() show###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
-    EXTEND FORM item PROPERTIES(i) formProperty###attribute###item SHOWIF show###attribute##Item(i);
+    
+    background###attribute###item = ABSTRACT COLOR (Item);
+    EXTEND FORM item PROPERTIES(i) formProperty###attribute###item SHOWIF show###attribute##Item(i) BACKGROUND background###attribute###item(i);
     EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty###attribute###item SHOWIF show###attribute##ItemGroup(g);
 END
 
@@ -1265,22 +1267,6 @@ loadDefaultItemAttributes() += ACTION {
     ASSIGN numberInNameScalesItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
-maxCharactersNameScalesItem 'Максимальное количество знаков в наименовании для весов' = DATA INTEGER ();
-maxCharactersNameCashRegisterItem 'Максимальное количество знаков в наименовании для касс' = DATA INTEGER ();
-
-EXTEND FORM options
-    PROPERTIES() maxCharactersNameScalesItem, maxCharactersNameCashRegisterItem
-;
-EXTEND DESIGN options {
-    commons {
-        ADD PROPERTY(maxCharactersNameScalesItem());
-        ADD PROPERTY(maxCharactersNameCashRegisterItem());
-    }
-}
-
-CONSTRAINT charLength(titleCashRegisterBarcode(barcodeSku(item))) > maxCharactersNameCashRegisterItem() 
-    MESSAGE 'Максимальное количество знаков в наименовании для касс больше предельного значения';
-    
 // Сроки годности
 GROUP itemExpiry 'Сроки годности' : public;
 

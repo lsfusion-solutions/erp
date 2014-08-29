@@ -6,3 +6,17 @@ createAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachine
     IF groupMachinery IS GroupCashRegister THEN
         nameMachineryPriceTransactionBarcode(transaction, barcode) <- titleCashRegisterBarcode(barcode) WHERE inMachineryPriceTransactionBarcode(transaction, barcode);
 }
+
+maxCharactersNameCashRegisterItem 'Максимальное количество знаков в наименовании для касс' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES() maxCharactersNameCashRegisterItem
+;
+EXTEND DESIGN options {
+    commons {
+        ADD PROPERTY(maxCharactersNameCashRegisterItem());
+    }
+}
+
+CONSTRAINT charLength(titleCashRegisterBarcode(barcodeSku(item))) > maxCharactersNameCashRegisterItem() 
+    MESSAGE 'Максимальное количество знаков в наименовании для касс больше предельного значения';
