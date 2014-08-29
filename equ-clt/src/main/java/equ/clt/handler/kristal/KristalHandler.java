@@ -83,7 +83,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             (item.passScalesItem && item.splitItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
                             (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + "|"/*section*/ +
                             item.price.intValue() + "|" + "0|"/*fixprice*/ + (item.splitItem ? "0.001|" : "1|") +
-                            idItemGroup + "|" + item.vat + "|||||1";
+                            idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|||||1";
                     writer.println(record);
                 }
                 writer.close();
