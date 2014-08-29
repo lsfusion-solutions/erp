@@ -5,8 +5,10 @@ import java.io.Serializable;
 public class ScalesSettings implements Serializable{
 
     public boolean usePLUNumberInMessage;
-    
-    public ScalesSettings(boolean usePLUNumberInMessage) {
+    public boolean newLineNoSubstring;
+
+    public ScalesSettings(boolean usePLUNumberInMessage, boolean newLineNoSubstring) {
         this.usePLUNumberInMessage = usePLUNumberInMessage;
+        this.newLineNoSubstring = newLineNoSubstring;
     }
 }

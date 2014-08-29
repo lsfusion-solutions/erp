@@ -29,7 +29,9 @@ public class ShtrihPrintHandler extends ScalesHandler {
         Dispatch shtrihDispatch = shtrihActiveXComponent.getObject();
 
         ScalesSettings shtrihSettings = (ScalesSettings) springContext.getBean("shtrihSettings");
-
+        boolean usePLUNumberInMessage = shtrihSettings == null || shtrihSettings.usePLUNumberInMessage;
+        boolean newLineNoSubstring = shtrihSettings == null || shtrihSettings.newLineNoSubstring;
+        
         Variant pass = new Variant(30);
 
         Variant result = Dispatch.call(shtrihDispatch, "Connect");
@@ -59,11 +61,17 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
                 int start = 0;
+                int total = item.description.length();
                 int i = 0;
-                while(i < 8 && start < item.description.length()) {
-                    shtrihActiveXComponent.setProperty("MessageNumber", new Variant(shtrihSettings.usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
+                while(i < 8 && start < total) {
+                    shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
                     shtrihActiveXComponent.setProperty("StringNumber", new Variant(i+1));
-                    String message = item.description.substring(start, Math.min(start + 50, item.description.length())).split("\n")[0];
+                    String message = "";
+                    if(newLineNoSubstring) {
+                        message = item.description.substring(start, total).split("\n")[0];
+                        message = message.substring(0, Math.min(message.length(), 50));
+                    } else
+                     message = item.description.substring(start, Math.min(start + 50, total)).split("\n")[0];
                     shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
                     start += message.length() + 1;
                     i++;
