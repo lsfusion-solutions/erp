@@ -367,7 +367,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode").getValue();
                         Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode").getValue();
                         boolean split = row.get("splitMachineryPriceTransactionBarcode").getValue() != null;
-                        BigDecimal expiryDays = (BigDecimal) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
+                        Integer expiryDays = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode").getValue();
                         Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode").getValue();
                         Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
                         String description = (String) row.get("descriptionMachineryPriceTransactionBarcode").getValue();

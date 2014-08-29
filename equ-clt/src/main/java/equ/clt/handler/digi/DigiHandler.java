@@ -85,7 +85,7 @@ public class DigiHandler extends ScalesHandler {
                 String price = addZeros(String.valueOf(item.price.intValue()), 8, false);
 
                 int deltaDaysExpiry = (int)((item.expirationDate.getTime() - System.currentTimeMillis())/1000/3600/24);
-                String daysExpiry = addZeros(String.valueOf(item.daysExpiry == null ? (deltaDaysExpiry>=0 ? deltaDaysExpiry : 0): item.daysExpiry.intValue()), 4, false);
+                String daysExpiry = addZeros(String.valueOf(item.daysExpiry == null ? (deltaDaysExpiry>=0 ? deltaDaysExpiry : 0): item.daysExpiry), 4, false);
                 String hoursExpiry = addZeros(addZeros(String.valueOf(item.hoursExpiry), 2, false), 4, true);
                 String labelFormat = addZeros(Integer.toHexString(item.labelFormat != null ? item.labelFormat : 0), 2, false);
 

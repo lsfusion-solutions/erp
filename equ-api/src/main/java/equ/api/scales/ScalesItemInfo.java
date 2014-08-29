@@ -8,7 +8,7 @@ import java.util.List;
 
 public class ScalesItemInfo extends ItemInfo {
     public Integer pluNumber;
-    public BigDecimal daysExpiry;
+    public Integer daysExpiry;
     public Integer hoursExpiry;
     public Date expirationDate;
     public Integer labelFormat;
@@ -16,7 +16,7 @@ public class ScalesItemInfo extends ItemInfo {
     public Integer descriptionNumber;
     public List<String> hierarchyItemGroup;
     
-    public ScalesItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, BigDecimal daysExpiry,
+    public ScalesItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, Integer daysExpiry,
                           Integer hoursExpiry, Date expirationDate, Integer labelFormat, String description, 
                           Integer descriptionNumber, List<String> hierarchyItemGroup) {
         super(idBarcode, name, price, splitItem);

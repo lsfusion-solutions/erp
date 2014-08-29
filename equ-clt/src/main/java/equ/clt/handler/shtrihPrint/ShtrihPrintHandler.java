@@ -9,6 +9,7 @@ import equ.api.scales.*;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 
 public class ShtrihPrintHandler extends ScalesHandler {
@@ -22,7 +23,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
     @Override
     public void sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
 
-        //System.setProperty(LibraryLoader.JACOB_DLL_PATH, "D:\\Projects\\platform\\equ-clt\\conf\\Shtrih\\jacob-1.15-M3.dll");
+        //System.setProperty(LibraryLoader.JACOB_DLL_PATH, "E:\\work\\Кассы-весы\\dll\\jacob-1.15-M3-x86.dll");
 
         ActiveXComponent shtrihActiveXComponent = new ActiveXComponent("AddIn.DrvLP");
         Dispatch shtrihDispatch = shtrihActiveXComponent.getObject();
@@ -36,8 +37,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
             for (ScalesItemInfo item : transactionInfo.itemsList) {
                 Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                 Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode;
-                int deltaDaysExpiry = item.expirationDate == null ? 0 : (int) ((item.expirationDate.getTime() - System.currentTimeMillis()) / 1000 / 3600 / 24);
-                Integer shelfLife = item.daysExpiry == null ? (deltaDaysExpiry >= 0 ? deltaDaysExpiry : 0) : item.daysExpiry.intValue();
+                Integer shelfLife = item.expirationDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
                 int len = item.name.length();
                 String firstName = item.name.substring(0, len < 28 ? len : 28);
@@ -55,12 +55,12 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
                 shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
                 shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
-                shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate));
-                shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 1 : 0));
+                shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate == null ? new Date(2001-1900, 0, 1) : item.expirationDate));
+                shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
                 int start = 0;
                 int i = 0;
-                while(i < 9 && start < item.description.length()) {
+                while(i < 8 && start < item.description.length()) {
                     shtrihActiveXComponent.setProperty("MessageNumber", new Variant(shtrihSettings.usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
                     shtrihActiveXComponent.setProperty("StringNumber", new Variant(i+1));
                     String message = item.description.substring(start, Math.min(start + 50, item.description.length())).split("\n")[0];
