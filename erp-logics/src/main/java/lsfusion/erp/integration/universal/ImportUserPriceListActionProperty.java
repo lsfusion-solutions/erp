@@ -121,15 +121,16 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         
         Date dateDocument = (Date) findProperty("dateUserPriceList").read(context, userPriceListObject);
         dateDocument = dateDocument == null ? new Date(Calendar.getInstance().getTime().getTime()) : dateDocument;
-        
+        boolean barcodeMaybeUPC = importColumns.getBarcodeMaybeUPC() != null && importColumns.getBarcodeMaybeUPC();
+
         if (importColumns.getFileExtension().equals("DBF"))
-            userPriceListDetailList = importUserPriceListsFromDBF(file, importColumns, dateDocument);
+            userPriceListDetailList = importUserPriceListsFromDBF(file, importColumns, dateDocument, barcodeMaybeUPC);
         else if (importColumns.getFileExtension().equals("XLS"))
-            userPriceListDetailList = importUserPriceListsFromXLS(file, importColumns, dateDocument);
+            userPriceListDetailList = importUserPriceListsFromXLS(file, importColumns, dateDocument, barcodeMaybeUPC);
         else if (importColumns.getFileExtension().equals("XLSX"))
-            userPriceListDetailList = importUserPriceListsFromXLSX(file, importColumns, dateDocument);
+            userPriceListDetailList = importUserPriceListsFromXLSX(file, importColumns, dateDocument, barcodeMaybeUPC);
         else if (importColumns.getFileExtension().equals("CSV"))
-            userPriceListDetailList = importUserPriceListsFromCSV(file, importColumns, dateDocument);
+            userPriceListDetailList = importUserPriceListsFromCSV(file, importColumns, dateDocument, barcodeMaybeUPC);
         else
             userPriceListDetailList = null;
 
@@ -537,7 +538,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return false;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromXLS(byte[] importFile, ImportColumns importColumns, Date dateDocument)
+    private List<UserPriceListDetail> importUserPriceListsFromXLS(byte[] importFile, ImportColumns importColumns, Date dateDocument, boolean barcodeMaybeUPC)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -551,9 +552,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String idUserPriceList = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idUserPriceList"));
             String idItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idItem"));
             String idItemGroup = getXLSFieldValue(sheet, i, importColumns.getColumns().get("idItemGroup"));
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")), 7);
-            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")), 7);
-            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("packBarcode")), 7);
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")), 7, barcodeMaybeUPC);
+            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")), 7, barcodeMaybeUPC);
+            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, importColumns.getColumns().get("packBarcode")), 7, barcodeMaybeUPC);
             BigDecimal amountPackBarcode = getXLSBigDecimalFieldValue(sheet, i, importColumns.getColumns().get("amountPackBarcode"));
             String articleItem = getXLSFieldValue(sheet, i, importColumns.getColumns().get("articleItem"));
             String originalName = getXLSFieldValue(sheet, i, importColumns.getColumns().get("originalName"));
@@ -584,7 +585,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, ImportColumns importColumns, Date dateDocument)
+    private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, ImportColumns importColumns, Date dateDocument, boolean barcodeMaybeUPC)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -602,9 +603,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             if (count >= importColumns.getStartRow()) {
                 
                 String idUserPriceList = getCSVFieldValue(valuesList, importColumns.getColumns().get("idUserPriceList"), count);
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("barcodeItem"), count), 7);
-                String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("extraBarcodeItem"), count), 7);
-                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("packBarcode"), count), 7);
+                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("barcodeItem"), count), 7, barcodeMaybeUPC);
+                String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("extraBarcodeItem"), count), 7, barcodeMaybeUPC);
+                String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, importColumns.getColumns().get("packBarcode"), count), 7, barcodeMaybeUPC);
                 BigDecimal amountPackBarcode = getCSVBigDecimalFieldValue(valuesList, importColumns.getColumns().get("amountPackBarcode"), count);
                 String articleItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("articleItem"), count);
                 String idItem = getCSVFieldValue(valuesList, importColumns.getColumns().get("idItem"), count);
@@ -637,7 +638,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromXLSX(byte[] importFile, ImportColumns importColumns, Date dateDocument)
+    private List<UserPriceListDetail> importUserPriceListsFromXLSX(byte[] importFile, ImportColumns importColumns, Date dateDocument, boolean barcodeMaybeUPC)
             throws BiffException, IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -650,9 +651,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String idUserPriceList = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idUserPriceList"));
             String idItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idItem"));
             String idItemGroup = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("idItemGroup"));
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")),7);
-            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")), 7);
-            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("packBarcode")), 7);
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("barcodeItem")),7, barcodeMaybeUPC);
+            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("extraBarcodeItem")), 7, barcodeMaybeUPC);
+            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, importColumns.getColumns().get("packBarcode")), 7, barcodeMaybeUPC);
             BigDecimal amountPackBarcode = getXLSXBigDecimalFieldValue(sheet, i, importColumns.getColumns().get("amountPackBarcode"));
             String articleItem = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("articleItem"));
             String originalName = getXLSXFieldValue(sheet, i, importColumns.getColumns().get("originalName"));
@@ -683,7 +684,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, ImportColumns importColumns, Date dateDocument)
+    private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, ImportColumns importColumns, Date dateDocument, boolean barcodeMaybeUPC)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, JDBFException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<UserPriceListDetail>();
@@ -708,9 +709,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             Object entry[] = dbfReader.nextRecord(Charset.forName(charset));
 
             String idUserPriceList = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idUserPriceList"), i);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("barcodeItem"), i), 7);
-            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("extraBarcodeItem"), i), 7);
-            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("packBarcode"), i), 7);
+            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("barcodeItem"), i), 7, barcodeMaybeUPC);
+            String extraBarcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("extraBarcodeItem"), i), 7, barcodeMaybeUPC);
+            String packBarcode = BarcodeUtils.appendCheckDigitToBarcode(getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("packBarcode"), i), 7, barcodeMaybeUPC);
             BigDecimal amountPackBarcode = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("amountPackBarcode"), i);
             String articleItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("articleItem"), i);
             String idItem = getJDBFFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("idItem"), i);
@@ -774,11 +775,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
         
         Boolean isPosted = (Boolean) findProperty("isPostedImportUserPriceListType").read(context, importTypeObject);
-
-        Boolean doNotCreateItems = (Boolean) findProperty("doNotCreateItemsImportUserPriceListType").read(context, importTypeObject);
+        Boolean doNotCreateItems = (Boolean) findProperty("doNotCreateItemsImportUserPriceListType").read(context, importTypeObject);        
+        Boolean barcodeMaybeUPC = (Boolean) findProperty("barcodeMaybeUPCImportUserPriceListType").read(context, importTypeObject);
 
         return new ImportColumns(columns, priceColumns, quantityAdjustmentColumn, operationObject, companyObject, stockObject, defaultItemGroupObject, 
-                fileExtension, itemKeyType, csvSeparator, startRow, isPosted, doNotCreateItems);
+                fileExtension, itemKeyType, csvSeparator, startRow, isPosted, doNotCreateItems, barcodeMaybeUPC);
     }
 
     private Map<String, ImportColumnDetail> readColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

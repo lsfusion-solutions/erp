@@ -19,10 +19,12 @@ public class ImportColumns {
     private Integer startRow;
     private Boolean isPosted;
     private Boolean doNotCreateItems;
+    private Boolean barcodeMaybeUPC;
 
     public ImportColumns(Map<String, ImportColumnDetail> columns, Map<DataObject, String[]> priceColumns, String quantityAdjustmentColumn,
                          DataObject operationObject, DataObject companyObject, DataObject stockObject, DataObject defaultItemGroupObject,
-                         String fileExtension, String itemKeyType, String csvSeparator, Integer startRow, Boolean isPosted, Boolean doNotCreateItems) {
+                         String fileExtension, String itemKeyType, String csvSeparator, Integer startRow, Boolean isPosted, 
+                         Boolean doNotCreateItems, Boolean barcodeMaybeUPC) {
         this.columns = columns;
         this.priceColumns = priceColumns;
         this.quantityAdjustmentColumn = quantityAdjustmentColumn;
@@ -36,6 +38,7 @@ public class ImportColumns {
         this.startRow = startRow;
         this.isPosted = isPosted;
         this.doNotCreateItems = doNotCreateItems;
+        this.barcodeMaybeUPC = barcodeMaybeUPC;
     }
 
     public Map<String, ImportColumnDetail> getColumns() {
@@ -88,5 +91,9 @@ public class ImportColumns {
 
     public Boolean getDoNotCreateItems() {
         return doNotCreateItems;
+    }
+
+    public Boolean getBarcodeMaybeUPC() {
+        return barcodeMaybeUPC;
     }
 }
