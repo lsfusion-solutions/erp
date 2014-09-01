@@ -82,13 +82,10 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 File folder = new File(directory.trim());
                 if (!folder.exists() && !folder.mkdir())
                     throw new RuntimeException("The folder " + folder.getAbsolutePath() + " can not be created");
-                folder = new File(directory.trim() + "/tovar");
-                if (!folder.exists() && !folder.mkdir())
-                    throw new RuntimeException("The folder " + folder.getAbsolutePath() + " can not be created");
 
                 Util.setxBaseJProperty("ignoreMissingMDX", "true");
 
-                String path = directory + "/tovar/BAR.DBF";
+                String path = directory + "/BAR.DBF";
                 fileBar = new DBF(path, DBF.DBASEIV, true, "CP866");
                 fileBar.addField(new Field[]{BARCODE, CARDARTICU, CARDSIZE, QUANTITY});
 
@@ -102,7 +99,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 }
 
 
-                path = directory + "/tovar/CLASSIF.DBF";
+                path = directory + "/CLASSIF.DBF";
                 fileClassif = new DBF(path, DBF.DBASEIV, true, "CP866");
                 fileClassif.addField(new Field[]{GROOP1, GROOP2, GROOP3, GROOP4, GROOP5, NAME});
 
@@ -118,7 +115,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     fileClassif.file.setLength(fileClassif.file.length() - 1);
                 }
 
-                path = directory + "/tovar/PLUCASH.DBF";
+                path = directory + "/PLUCASH.DBF";
                 filePlucash = new DBF(path, DBF.DBASEIV, true, "CP866");
                 filePlucash.addField(new Field[]{ARTICUL, NAME, MESURIMENT, MESPRESISI, ADD1, ADD2, ADD3, ADDNUM1,
                         ADDNUM2, ADDNUM3, SCALE, GROOP1, GROOP2, GROOP3, GROOP4, GROOP5, PRICERUB, PRICECUR,
@@ -145,7 +142,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     filePlucash.file.setLength(filePlucash.file.length() - 1);
                 }
 
-                path = directory + "/tovar/PLULIM.DBF";
+                path = directory + "/PLULIM.DBF";
                 filePlulim = new DBF(path, DBF.DBASEIV, true, "CP866");
                 filePlulim.addField(new Field[]{CARDARTICU, PERCENT});
 
