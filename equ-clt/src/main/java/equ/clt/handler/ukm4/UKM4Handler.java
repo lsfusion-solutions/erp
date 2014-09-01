@@ -145,7 +145,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 }
                 pluLimDBFWriter.close();                
                 
-                File flagFile = new File(directory + "\\cash01.upd");
+                File flagFile = new File(directory + "\\cash01." + (transactionInfo.snapshot ? "cng" : "upd"));
                 flagFile.createNewFile();
                 waitForDeletion(flagFile);
 
@@ -168,19 +168,14 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     private void waitForDeletion(File file) {
-            int count = 0;
-            while (file.exists()) {
-                try {
-                    count++;
-                    if(count>=60)
-                        throw Throwables.propagate(new RuntimeException(String.format("file %s has been created but not processed by server", file.getAbsolutePath())));
-                    else
-                        Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    throw Throwables.propagate(e);
-                }
+        while (file.exists()) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw Throwables.propagate(e);
             }
         }
+    }
 
     @Override
     public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
