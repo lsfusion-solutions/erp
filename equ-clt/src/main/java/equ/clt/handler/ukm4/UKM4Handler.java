@@ -1,14 +1,12 @@
 package equ.clt.handler.ukm4;
 
+import com.google.common.base.Throwables;
+import com.hexiong.jdbf.DBFWriter;
+import com.hexiong.jdbf.JDBFException;
 import equ.api.*;
 import equ.api.cashregister.*;
 import org.apache.commons.lang.time.DateUtils;
 import org.xBaseJ.DBF;
-import org.xBaseJ.Util;
-import org.xBaseJ.fields.CharField;
-import org.xBaseJ.fields.DateField;
-import org.xBaseJ.fields.Field;
-import org.xBaseJ.fields.NumField;
 import org.xBaseJ.xBaseJException;
 
 import java.io.File;
@@ -32,43 +30,12 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     @Override
     public void sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
-        DBF fileBar = null;
-        DBF fileClassif = null;
-        DBF filePlucash = null;
-        DBF filePlulim = null;
+        DBFWriter barDBFWriter = null;
+        DBFWriter classifDBFWriter = null;
+        DBFWriter pluCashDBFWriter = null;
+        DBFWriter pluLimDBFWriter = null;
 
         try {
-            NumField BARCODE = new NumField("BARCODE", 10, 0);
-            NumField CARDARTICU = new NumField("CARDARTICU", 14, 0);
-            CharField CARDSIZE = new CharField("CARDSIZE", 20);
-            NumField QUANTITY = new NumField("QUANTITY", 10, 0);
-
-            NumField ARTICUL = new NumField("ARTICUL", 10, 0);
-            CharField NAME = new CharField("NAME", 50);
-            CharField MESURIMENT = new CharField("MESURIMENT", 2);
-            NumField MESPRESISI = new NumField("MESPRESISI", 10, 0);
-            CharField ADD1 = new CharField("ADD1", 10);
-            CharField ADD2 = new CharField("ADD2", 10);
-            CharField ADD3 = new CharField("ADD3", 10);
-            CharField ADDNUM1 = new CharField("ADDNUM1", 10);
-            CharField ADDNUM2 = new CharField("ADDNUM2", 10);
-            CharField ADDNUM3 = new CharField("ADDNUM3", 10);
-            CharField SCALE = new CharField("SCALE", 20);
-            NumField GROOP1 = new NumField("GROOP1", 10, 0);
-            NumField GROOP2 = new NumField("GROOP2", 10, 0);
-            NumField GROOP3 = new NumField("GROOP3", 10, 0);
-            NumField GROOP4 = new NumField("GROOP4", 10, 0);
-            NumField GROOP5 = new NumField("GROOP5", 10, 0);
-            NumField PRICERUB = new NumField("PRICERUB", 10, 0);
-            CharField PRICECUR = new CharField("PRICECUR", 10);
-            NumField CLIENTINDE = new NumField("CLIENTINDE", 10, 0);
-            CharField COMMENTARY = new CharField("COMMENTARY", 50);
-            NumField DELETED = new NumField("DELETED", 1, 0);
-            DateField MODDATE = new DateField("MODDATE");
-            CharField MODTIME = new CharField("MODTIME", 20);
-            CharField MODPERSONI = new CharField("MODPERSONI", 50);
-
-            NumField PERCENT = new NumField("PERCENT", 5, 0);
 
             List<String> directoriesList = new ArrayList<String>();
             for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
@@ -79,94 +46,123 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
             }
 
             for (String directory : directoriesList) {
-                File folder = new File(directory.trim());
-                if (!folder.exists() && !folder.mkdir())
-                    throw new RuntimeException("The folder " + folder.getAbsolutePath() + " can not be created");
+                if (!new File(directory.trim()).exists())
+                    throw new RuntimeException("The folder " + directory + " doesn't exist");
 
-                Util.setxBaseJProperty("ignoreMissingMDX", "true");
-
-                String path = directory + "/BAR.DBF";
-                fileBar = new DBF(path, DBF.DBASEIV, true, "CP866");
-                fileBar.addField(new Field[]{BARCODE, CARDARTICU, CARDSIZE, QUANTITY});
-
+                //BAR.DBF
+                OverJDBField[] barFields = {
+                        new OverJDBField("BARCODE", 'F', 10, 0),
+                        new OverJDBField("CARDARTICU", 'F', 14, 0),
+                        new OverJDBField("CARDSIZE", 'C', 20, 0),
+                        new OverJDBField("QUANTITY", 'F', 10, 0)
+                };
+                barDBFWriter = new DBFWriter(directory + "/BAR.DBF", barFields, "CP866");                                
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    BARCODE.put(item.idBarcode);
-                    CARDARTICU.put(item.idBarcode); //или что туда надо писать?
-                    CARDSIZE.put("NOSIZE");
-                    QUANTITY.put(1); //без разницы, что писать в количество?
-                    fileBar.write();
-                    fileBar.file.setLength(fileBar.file.length() - 1);
+                    barDBFWriter.addRecord(new Object[]{Integer.parseInt(item.idBarcode), Integer.parseInt(item.idBarcode)/*или что туда надо писать?*/,
+                            "NOSIZE", 1/*без разницы, что писать в количество?*/});
                 }
+                barDBFWriter.close();
 
 
-                path = directory + "/CLASSIF.DBF";
-                fileClassif = new DBF(path, DBF.DBASEIV, true, "CP866");
-                fileClassif.addField(new Field[]{GROOP1, GROOP2, GROOP3, GROOP4, GROOP5, NAME});
-
+                //CLASSIF.DBF
+                OverJDBField[] classifFields = {
+                        new OverJDBField("GROOP1", 'F', 10, 0),
+                        new OverJDBField("GROOP2", 'F', 10, 0),
+                        new OverJDBField("GROOP3", 'F', 10, 0),
+                        new OverJDBField("GROOP4", 'F', 10, 0),
+                        new OverJDBField("GROOP5", 'F', 10, 0),
+                        new OverJDBField("NAME", 'C', 50, 0)
+                };
+                classifDBFWriter = new DBFWriter(directory + "/CLASSIF.DBF", classifFields, "CP866");
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    NAME.put(item.name.substring(0, Math.min(item.name.length(), 50)));
                     int size = item.hierarchyItemGroup.size();
-                    GROOP1.put(size >= 1 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 1).idItemGroup : "0");
-                    GROOP2.put(size >= 2 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 2).idItemGroup : "0");
-                    GROOP3.put(size >= 3 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 3).idItemGroup : "0");
-                    GROOP4.put(size >= 4 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 4).idItemGroup : "0");
-                    GROOP5.put(size >= 5 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 5).idItemGroup : "0");
-                    fileClassif.write();
-                    fileClassif.file.setLength(fileClassif.file.length() - 1);
+                    Integer group1 = Integer.parseInt(size >= 1 ? item.hierarchyItemGroup.get(size - 1).idItemGroup : "0");
+                    Integer group2 = Integer.parseInt(size >= 2 ? item.hierarchyItemGroup.get(size - 2).idItemGroup : "0");
+                    Integer group3 = Integer.parseInt(size >= 3 ? item.hierarchyItemGroup.get(size - 3).idItemGroup : "0");
+                    Integer group4 = Integer.parseInt(size >= 4 ? item.hierarchyItemGroup.get(size - 4).idItemGroup : "0");
+                    Integer group5 = Integer.parseInt(size >= 5 ? item.hierarchyItemGroup.get(size - 5).idItemGroup : "0");
+                    String name = item.name.substring(0, Math.min(item.name.length(), 50));
+                    classifDBFWriter.addRecord(new Object[]{group1, group2, group3, group4, group5, name});
                 }
+                classifDBFWriter.close();
 
-                path = directory + "/PLUCASH.DBF";
-                filePlucash = new DBF(path, DBF.DBASEIV, true, "CP866");
-                filePlucash.addField(new Field[]{ARTICUL, NAME, MESURIMENT, MESPRESISI, ADD1, ADD2, ADD3, ADDNUM1,
-                        ADDNUM2, ADDNUM3, SCALE, GROOP1, GROOP2, GROOP3, GROOP4, GROOP5, PRICERUB, PRICECUR,
-                        CLIENTINDE, COMMENTARY, DELETED, MODDATE, MODTIME, MODPERSONI
-                });
 
+                //PLUCASH.DBF
+                OverJDBField[] pluCashFields = {
+                        new OverJDBField("ARTICUL", 'F', 10, 0),
+                        new OverJDBField("NAME", 'C', 50, 0),
+                        new OverJDBField("MESURIMENT", 'C', 2, 0),
+                        new OverJDBField("MESPRESISI", 'F', 10, 3),
+                        new OverJDBField("ADD1", 'C', 10, 0),
+                        new OverJDBField("ADD2", 'C', 10, 0),
+                        new OverJDBField("ADD3", 'C', 10, 0),
+                        new OverJDBField("ADDNUM1", 'C', 10, 0),
+                        new OverJDBField("ADDNUM2", 'C', 10, 0),
+                        new OverJDBField("ADDNUM3", 'C', 10, 0),
+                        new OverJDBField("SCALE", 'C', 20, 0),
+                        new OverJDBField("GROOP1", 'N', 10, 0),
+                        new OverJDBField("GROOP2", 'N', 10, 0),
+                        new OverJDBField("GROOP3", 'N', 10, 0),
+                        new OverJDBField("GROOP4", 'N', 10, 0),
+                        new OverJDBField("GROOP5", 'N', 10, 0),
+                        new OverJDBField("PRICERUB", 'N', 10, 0),
+                        new OverJDBField("PRICECUR", 'C', 10, 0),
+                        new OverJDBField("CLIENTINDE", 'N', 10, 0),
+                        new OverJDBField("COMMENTARY", 'C', 50, 0),
+                        new OverJDBField("DELETED", 'N', 1, 0),
+                        new OverJDBField("MODDATE", 'D', 8, 0),
+                        new OverJDBField("MODTIME", 'C', 20, 0),
+                        new OverJDBField("MODPERSONI", 'C', 50, 0)
+                };
+                pluCashDBFWriter = new DBFWriter(directory + "/PLUCASH.DBF", pluCashFields, "CP866");
+                              
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    ARTICUL.put(item.idBarcode);
-                    NAME.put(item.name.substring(0, Math.min(item.name.length(), 50)));
-                    MESURIMENT.put(item.passScalesItem && item.splitItem ? "кг" : "1");
-                    MESPRESISI.put(item.splitItem ? 0.001 : 1.000);
-                    SCALE.put("NOSIZE");
+                    
+                    String name = item.name.substring(0, Math.min(item.name.length(), 50));
+                    String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
+                    double mespresisi = item.splitItem ? 0.001 : 1.000;
                     int size = item.hierarchyItemGroup.size();
-                    GROOP1.put(size >= 1 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 1).idItemGroup : "0");
-                    GROOP2.put(size >= 2 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 2).idItemGroup : "0");
-                    GROOP3.put(size >= 3 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 3).idItemGroup : "0");
-                    GROOP4.put(size >= 4 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 4).idItemGroup : "0");
-                    GROOP5.put(size >= 5 ? item.hierarchyItemGroup.get(item.hierarchyItemGroup.size() - 5).idItemGroup : "0");
-                    PRICERUB.put(item.price.doubleValue());
-                    CLIENTINDE.put(0);
-                    DELETED.put(1);
-                    MODDATE.put(new GregorianCalendar(transactionInfo.date.getYear() + 1900, transactionInfo.date.getMonth() + 1, transactionInfo.date.getDay()));/*transactionInfo.date*/
-                    filePlucash.write();
-                    filePlucash.file.setLength(filePlucash.file.length() - 1);
+                    Integer group1 = Integer.parseInt(size >= 1 ? item.hierarchyItemGroup.get(size - 1).idItemGroup : "0");
+                    Integer group2 = Integer.parseInt(size >= 2 ? item.hierarchyItemGroup.get(size - 2).idItemGroup : "0");
+                    Integer group3 = Integer.parseInt(size >= 3 ? item.hierarchyItemGroup.get(size - 3).idItemGroup : "0");
+                    Integer group4 = Integer.parseInt(size >= 4 ? item.hierarchyItemGroup.get(size - 4).idItemGroup : "0");
+                    Integer group5 = Integer.parseInt(size >= 5 ? item.hierarchyItemGroup.get(size - 5).idItemGroup : "0");
+
+                    pluCashDBFWriter.addRecord(new Object[]{Integer.parseInt(item.idBarcode), name, mesuriment, mespresisi, null, null, 
+                            null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5, 
+                            item.price.doubleValue(), null, 0, null, 1, transactionInfo.date, null, null});
                 }
+                pluCashDBFWriter.close();
 
-                path = directory + "/PLULIM.DBF";
-                filePlulim = new DBF(path, DBF.DBASEIV, true, "CP866");
-                filePlulim.addField(new Field[]{CARDARTICU, PERCENT});
 
+                //PLULIM.DBF
+                OverJDBField[] pluLimFields = {
+                        new OverJDBField("CARDARTICU", 'F', 14, 0),
+                        new OverJDBField("PERCENT", 'F', 5, 0)
+                };
+                pluLimDBFWriter = new DBFWriter(directory + "/PLULIM.DBF", pluLimFields, "CP866");
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    CARDARTICU.put(item.idBarcode);
-                    PERCENT.put(0); //откуда брать макс. процент скидки?
-                    filePlulim.write();
-                    filePlulim.file.setLength(filePlulim.file.length() - 1);
+                    pluLimDBFWriter.addRecord(new Object[]{Integer.parseInt(item.idBarcode), 0/*откуда брать макс. процент скидки?*/});
                 }
+                pluLimDBFWriter.close();                
                 
                 new File(directory + "\\cash01.upd").createNewFile();
 
             }
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e.toString(), e.getCause());
+        } catch (JDBFException e) {
+            throw Throwables.propagate(e);
         } finally {
-            if (fileBar != null)
-                fileBar.close();
-            if (filePlucash != null)
-                filePlucash.close();
-            if (filePlulim != null)
-                filePlulim.close();
-            if (fileClassif != null)
-                fileClassif.close();
+            try {
+                if (barDBFWriter != null)
+                    barDBFWriter.close();
+                if (pluCashDBFWriter != null)
+                    pluCashDBFWriter.close();
+                if (pluLimDBFWriter != null)
+                    pluLimDBFWriter.close();
+                if (classifDBFWriter != null)
+                    classifDBFWriter.close();
+            } catch (JDBFException ignored) {
+            }
         }
     }
 
