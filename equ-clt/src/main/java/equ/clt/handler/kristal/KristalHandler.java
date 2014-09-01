@@ -1,6 +1,7 @@
 package equ.clt.handler.kristal;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import equ.api.SoftCheckInfo;
@@ -83,7 +84,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             (item.passScalesItem && item.splitItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
                             (transactionInfo.nppGroupCashRegister == null ? "1" : transactionInfo.nppGroupCashRegister) + "|"/*section*/ +
                             item.price.intValue() + "|" + "0|"/*fixprice*/ + (item.splitItem ? "0.001|" : "1|") +
-                            idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|||||1";
+                            idItemGroup + "|" + (item.vat == null ? "0" : item.vat) + "|0";
                     writer.println(record);
                 }
                 writer.close();
@@ -166,22 +167,15 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     Set<String> numberGroupItems = new HashSet<String>();
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-
-                        for (int i = 0; i < item.hierarchyItemGroup.size(); i++) {
-                            String idItemGroup = makeIdItemGroup(item.hierarchyItemGroup.subList(i, item.hierarchyItemGroup.size()));
+                            List<ItemGroup> hierarchy = Lists.reverse(item.hierarchyItemGroup);
+                        for (int i = 0; i < hierarchy.size(); i++) {
+                            String idItemGroup = makeIdItemGroup(hierarchy.subList(0, hierarchy.size() - i));
                             if (!numberGroupItems.contains(idItemGroup)) {
-                                String record = "+|" + item.hierarchyItemGroup.get(i).nameItemGroup + "|" + idItemGroup;
+                                String record = "+|" + hierarchy.get(hierarchy.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
                                 writer.println(record);
                                 numberGroupItems.add(idItemGroup);
                             }
                         }
-
-                        //String idItemGroup = makeIdItemGroup(item.hierarchyItemGroup);
-                        //if (!numberGroupItems.contains(idItemGroup)) {
-                        //    String record = "+|" + item.nameItemGroup + "|" + idItemGroup;
-                        //    writer.println(record);
-                        //    numberGroupItems.add(idItemGroup);
-                        //}
                     }
                     writer.close();
                     logger.info("Kristal: waiting for deletion of GROUPS file");
@@ -679,9 +673,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
     private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup) {
         String idItemGroup = "";
-        //for (int i = hierarchyItemGroup.size(); i < 5; i++) {
-        //    idItemGroup += "0|";
-        //}
         for (int i = 0; i < hierarchyItemGroup.size(); i++) {
             String id = hierarchyItemGroup.get(i).idItemGroup;
             idItemGroup += (id == null ? "0" : id) + "|";
