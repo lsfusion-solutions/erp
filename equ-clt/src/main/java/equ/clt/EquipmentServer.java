@@ -324,7 +324,7 @@ public class EquipmentServer {
                                     List<String> idCashRegisters = remote.readCashRegistersStock(idStock);
                                     String checkSumResult = zReportSumMap.isEmpty() ? null : clsHandler.checkZReportSum(zReportSumMap, idCashRegisters);
                                     if (checkSumResult != null) {
-                                        reportEquipmentServerError(remote, sidEquipmentServer, checkSumResult);
+                                        reportEquipmentServerError(remote, sidEquipmentServer, String.format("Склад %s: \n%s", idStock, checkSumResult));
                                     }
                                 }
                                 succeededRequestsSet.add(request.requestExchange);

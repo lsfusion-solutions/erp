@@ -361,15 +361,18 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                 conn = DriverManager.getConnection(url);
                 Statement statement = conn.createStatement();
-                String queryString = "SELECT GangNumber, Summa FROM OperGang WHERE CashNumber IN (" + idCashRegisters + ")";
+                String queryString = "SELECT GangNumber, CashNumber, Summa, GangDateStart FROM OperGang WHERE CashNumber IN (" + idCashRegisters + ")";
                 ResultSet rs = statement.executeQuery(queryString);
                 while (rs.next()) {
-                    String zReportNumber = String.valueOf(rs.getInt(1));
-                    if (zReportSumMap.containsKey(zReportNumber)) {
-                        BigDecimal fusionSum = zReportSumMap.get(zReportNumber);
-                        double kristalSum = rs.getDouble(2);
+                    String numberZReport = String.valueOf(rs.getInt(1));
+                    if (zReportSumMap.containsKey(numberZReport)) {
+                        String numberCashRegister = String.valueOf(rs.getInt(2));
+                        BigDecimal fusionSum = zReportSumMap.get(numberZReport);
+                        double kristalSum = rs.getDouble(3);
+                        Date date = rs.getDate(4);
                         if (fusionSum == null || fusionSum.doubleValue() != kristalSum)
-                            result += String.format("ZReport %s checksum failed: %s(fusion) != %s(kristal);\n", zReportNumber, fusionSum, kristalSum);
+                            result += String.format("%s. CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n", 
+                                    date, numberCashRegister, numberZReport, fusionSum, kristalSum);
                     }
                 }
             } catch (SQLException e) {
