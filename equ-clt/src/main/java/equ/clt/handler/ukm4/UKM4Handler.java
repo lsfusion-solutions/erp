@@ -152,6 +152,8 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     filePlulim.write();
                     filePlulim.file.setLength(filePlulim.file.length() - 1);
                 }
+                
+                new File(directory + "\\cash01.upd").createNewFile();
 
             }
         } catch (xBaseJException e) {
