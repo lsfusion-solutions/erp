@@ -74,15 +74,38 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                         new OverJDBField("NAME", 'C', 80, 0)
                 };
                 classifDBFWriter = new DBFWriter(directory + "/CLASSIF.DBF", classifFields, "CP866");
+                Set<Long> idItemGroups = new HashSet<Long>();
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     int size = item.hierarchyItemGroup.size();
-                    Long group1 = Long.parseLong(size >= 1 ? trim(item.hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
-                    Long group2 = Long.parseLong(size >= 2 ? trim(item.hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
-                    Long group3 = Long.parseLong(size >= 3 ? trim(item.hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
-                    Long group4 = Long.parseLong(size >= 4 ? trim(item.hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
-                    Long group5 = Long.parseLong(size >= 5 ? trim(item.hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
-                    String name = trim(item.name, 80);
-                    classifDBFWriter.addRecord(new Object[]{group1, group2, group3, group4, group5, name});
+                    Long group1 = Long.parseLong(size >= 1 ? trim(item.hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
+                    Long group2 = Long.parseLong(size >= 2 ? trim(item.hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
+                    Long group3 = Long.parseLong(size >= 3 ? trim(item.hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
+                    Long group4 = Long.parseLong(size >= 4 ? trim(item.hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
+                    Long group5 = Long.parseLong(size >= 5 ? trim(item.hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
+                    String name = trim(item.nameItemGroup, 80);
+                    if(!idItemGroups.contains(group1)) {
+                        idItemGroups.add(group1);
+                        if (size == 5) {
+                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, group1, name});
+                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, 0, item.hierarchyItemGroup.get(1).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, 0, 0, item.hierarchyItemGroup.get(2).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group5, group4, 0, 0, 0, item.hierarchyItemGroup.get(3).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group5, 0, 0, 0, 0, item.hierarchyItemGroup.get(4).nameItemGroup});
+                        } else if (size == 4) {
+                            classifDBFWriter.addRecord(new Object[]{group4, group3, group2, group1, 0, name});
+                            classifDBFWriter.addRecord(new Object[]{group4, group3, group2, 0, 0, item.hierarchyItemGroup.get(1).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group4, group3, 0, 0, 0, item.hierarchyItemGroup.get(2).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group4, 0, 0, 0, 0, item.hierarchyItemGroup.get(3).nameItemGroup});
+                        } else if (size == 3) {
+                            classifDBFWriter.addRecord(new Object[]{group3, group2, group1, 0, 0, name});
+                            classifDBFWriter.addRecord(new Object[]{group3, group2, 0, 0, 0, item.hierarchyItemGroup.get(1).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group3, 0, 0, 0, 0, item.hierarchyItemGroup.get(2).nameItemGroup});
+                        } else if (size == 2) {
+                            classifDBFWriter.addRecord(new Object[]{group2, group1, 0, 0, 0, name});
+                            classifDBFWriter.addRecord(new Object[]{group2, 0, 0, 0, 0, item.hierarchyItemGroup.get(1).nameItemGroup});
+                        } else if (size == 1)
+                            classifDBFWriter.addRecord(new Object[]{group1, 0, 0, 0, 0, name});
+                    }
                 }
                 classifDBFWriter.close();
 
