@@ -71,10 +71,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 new File(exchangeDirectory).mkdirs();
 
             //plu.txt
-            logger.info("Kristal: creating PLU file");
             File pluFile = new File(exchangeDirectory + "plu.txt");
             File flagPluFile = new File(exchangeDirectory + "WAITPLU");
             if (!pluFile.exists() && (flagPluFile.exists() || flagPluFile.createNewFile())) {
+                logger.info("Kristal: creating PLU file");
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
 
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
@@ -103,10 +103,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
             }
             if (!messageEmpty) {
-                logger.info("Kristal: creating MESSAGE file");
                 File messageFile = new File(exchangeDirectory + "message.txt");
                 File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
                 if (!messageFile.exists() && (flagMessageFile.exists() || flagMessageFile.createNewFile())) {
+                    logger.info("Kristal: creating MESSAGE file");
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
@@ -132,10 +132,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
             }
             if (!scalesEmpty) {
-                logger.info("Kristal: creating SCALES file");
                 File scaleFile = new File(exchangeDirectory + "scales.txt");
                 File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
                 if (!scaleFile.exists() && (flagScaleFile.exists() || flagScaleFile.createNewFile())) {
+                    logger.info("Kristal: creating SCALES file");
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
 
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
@@ -158,10 +158,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
             //groups.txt
             if (transactionInfo.snapshot) {
-                logger.info("Kristal: creating GROUPS file");
                 File groupsFile = new File(exchangeDirectory + "groups.txt");
                 File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
                 if (!groupsFile.exists() && (flagGroupsFile.exists() || flagGroupsFile.createNewFile())) {
+                    logger.info("Kristal: creating GROUPS file");
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
 
                     Set<String> numberGroupItems = new HashSet<String>();
