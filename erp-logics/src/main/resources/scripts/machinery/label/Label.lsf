@@ -239,6 +239,7 @@ nameStoreLabelTransaction 'Магазин' (transaction) = nameStore(storeDepart
 addressStoreLabelTransaction 'Адрес магазина' (transaction) = addressStore(storeDepartmentStore(departmentStoreLabelTransaction(transaction)));
 
 nameLegalEntityLabelTransaction 'Компания' (transaction) = nameLegalEntityDepartmentStore(departmentStoreLabelTransaction(transaction));
+fullNameLegalEntityLabelTransaction 'Компания (полное наименование)' (transaction) = fullNameLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransaction(transaction)));
 
 labelTypeLabelTransaction 'Тип ценника' = DATA LabelType (LabelTransaction) NOT NULL;
 nameLabelTypeLabelTransaction 'Тип ценника' (transaction) = nameLabelType(labelTypeLabelTransaction(transaction));
@@ -286,7 +287,9 @@ retailPriceLabelTransactionDetail 'Цена до'  = DATA NUMERIC[14,2] (LabelTr
 FORM printLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction REPORTFILE fileTemplateLabelTransaction(l) FIXED PANEL
     PROPERTIES(l) READONLY nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, descriptionLabelTransaction,
-                  dateLabelTransaction, timeLabelTransaction, nameStoreLabelTransaction, nameLegalEntityLabelTransaction
+                  dateLabelTransaction, timeLabelTransaction, nameStoreLabelTransaction, nameLegalEntityLabelTransaction, 
+                  fullNameLegalEntityLabelTransaction, dateTimeLabelTransaction
+                  
     
     OBJECTS d = LabelTransactionDetail
     PROPERTIES(d) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
@@ -297,7 +300,8 @@ FORM printLabelTransaction 'Печать ценников'
 FORM printLabelTransactionP 'Печать ценников'
     OBJECTS l = LabelTransaction REPORTFILE fileTemplateLabelTransaction(l) FIXED PANEL
     PROPERTIES(l) READONLY nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, descriptionLabelTransaction,
-                  dateLabelTransaction, timeLabelTransaction, nameStoreLabelTransaction, nameLegalEntityLabelTransaction
+                  dateLabelTransaction, timeLabelTransaction, nameStoreLabelTransaction, nameLegalEntityLabelTransaction, 
+                  fullNameLegalEntityLabelTransaction, dateTimeLabelTransaction
     
     OBJECTS d = LabelTransactionDetail
     PROPERTIES(d) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
@@ -466,29 +470,30 @@ END
 residentCountrySkuLabelTransactionDetail 'Отечественный производитель' (d) = residentCountry(countrySku(skuLabelTransactionDetail(d)));
 supplierSkuLabelTransactionDetail = lastSupplierStockSku(departmentStoreLabelTransactionDetail(d), skuLabelTransactionDetail(d));
 nameSupplierSkuLabelTransactionDetail 'Поставщик' (d) = nameLegalEntity(supplierSkuLabelTransactionDetail(d));
+fullNameSupplierSkuLabelTransactionDetail 'Поставщик полное наименование' (d) = fullNameLegalEntity(supplierSkuLabelTransactionDetail(d));
 shortNameOwnershipSupplierSkuLabelTransactionDetail 'Форма собственности (сокр.)' (d) =shortNameOwnershipLegalEntity(supplierSkuLabelTransactionDetail(d));
 
 EXTEND FORM printLabelTransaction 
     PROPERTIES(d) READONLY residentCountrySkuLabelTransactionDetail, nameSupplierSkuLabelTransactionDetail, 
-                  shortNameOwnershipSupplierSkuLabelTransactionDetail
+                  fullNameSupplierSkuLabelTransactionDetail, shortNameOwnershipSupplierSkuLabelTransactionDetail
     PROPERTIES(l) addressStoreLabelTransaction                  
                   
 ;
 EXTEND FORM printLabelTransactionP 
     PROPERTIES(d) READONLY residentCountrySkuLabelTransactionDetail, nameSupplierSkuLabelTransactionDetail, 
-                  shortNameOwnershipSupplierSkuLabelTransactionDetail
+                  fullNameSupplierSkuLabelTransactionDetail, shortNameOwnershipSupplierSkuLabelTransactionDetail
     PROPERTIES(l) addressStoreLabelTransaction                  
                   
 ;
 
 EXTEND FORM customLabelTransaction 
     PROPERTIES(d) residentCountrySkuLabelTransactionDetail, nameSupplierSkuLabelTransactionDetail, 
-                  shortNameOwnershipSupplierSkuLabelTransactionDetail
+                  fullNameSupplierSkuLabelTransactionDetail, shortNameOwnershipSupplierSkuLabelTransactionDetail
     PROPERTIES(l) addressStoreLabelTransaction                   
 ;                  
 EXTEND FORM labelTransactions 
     PROPERTIES(dt) READONLY residentCountrySkuLabelTransactionDetail, nameSupplierSkuLabelTransactionDetail, 
-                   shortNameOwnershipSupplierSkuLabelTransactionDetail
+                   fullNameSupplierSkuLabelTransactionDetail, shortNameOwnershipSupplierSkuLabelTransactionDetail
     PROPERTIES(l) addressStoreLabelTransaction                
 ;        
 nameAddressPhoneLegalEntityLabelTransactionDetail 'Наименование/Адрес/Телефон юрлица' (d) = 
