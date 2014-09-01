@@ -58,7 +58,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 };
                 barDBFWriter = new DBFWriter(directory + "/BAR.DBF", barFields, "CP866");                                
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    barDBFWriter.addRecord(new Object[]{Integer.parseInt(item.idBarcode), Integer.parseInt(item.idBarcode)/*или что туда надо писать?*/,
+                    barDBFWriter.addRecord(new Object[]{Long.parseLong(trim(item.idBarcode, 10)), Long.parseLong(trim(item.idBarcode, 14))/*или что туда надо писать?*/,
                             "NOSIZE", 1/*без разницы, что писать в количество?*/});
                 }
                 barDBFWriter.close();
@@ -76,11 +76,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 classifDBFWriter = new DBFWriter(directory + "/CLASSIF.DBF", classifFields, "CP866");
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     int size = item.hierarchyItemGroup.size();
-                    Integer group1 = Integer.parseInt(size >= 1 ? item.hierarchyItemGroup.get(size - 1).idItemGroup : "0");
-                    Integer group2 = Integer.parseInt(size >= 2 ? item.hierarchyItemGroup.get(size - 2).idItemGroup : "0");
-                    Integer group3 = Integer.parseInt(size >= 3 ? item.hierarchyItemGroup.get(size - 3).idItemGroup : "0");
-                    Integer group4 = Integer.parseInt(size >= 4 ? item.hierarchyItemGroup.get(size - 4).idItemGroup : "0");
-                    Integer group5 = Integer.parseInt(size >= 5 ? item.hierarchyItemGroup.get(size - 5).idItemGroup : "0");
+                    Long group1 = Long.parseLong(size >= 1 ? item.hierarchyItemGroup.get(size - 1).idItemGroup : "0");
+                    Long group2 = Long.parseLong(size >= 2 ? item.hierarchyItemGroup.get(size - 2).idItemGroup : "0");
+                    Long group3 = Long.parseLong(size >= 3 ? item.hierarchyItemGroup.get(size - 3).idItemGroup : "0");
+                    Long group4 = Long.parseLong(size >= 4 ? item.hierarchyItemGroup.get(size - 4).idItemGroup : "0");
+                    Long group5 = Long.parseLong(size >= 5 ? item.hierarchyItemGroup.get(size - 5).idItemGroup : "0");
                     String name = item.name.substring(0, Math.min(item.name.length(), 50));
                     classifDBFWriter.addRecord(new Object[]{group1, group2, group3, group4, group5, name});
                 }
@@ -122,13 +122,13 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
                     double mespresisi = item.splitItem ? 0.001 : 1.000;
                     int size = item.hierarchyItemGroup.size();
-                    Integer group1 = Integer.parseInt(size >= 1 ? item.hierarchyItemGroup.get(size - 1).idItemGroup : "0");
-                    Integer group2 = Integer.parseInt(size >= 2 ? item.hierarchyItemGroup.get(size - 2).idItemGroup : "0");
-                    Integer group3 = Integer.parseInt(size >= 3 ? item.hierarchyItemGroup.get(size - 3).idItemGroup : "0");
-                    Integer group4 = Integer.parseInt(size >= 4 ? item.hierarchyItemGroup.get(size - 4).idItemGroup : "0");
-                    Integer group5 = Integer.parseInt(size >= 5 ? item.hierarchyItemGroup.get(size - 5).idItemGroup : "0");
+                    Long group1 = Long.parseLong(size >= 1 ? item.hierarchyItemGroup.get(size - 1).idItemGroup : "0");
+                    Long group2 = Long.parseLong(size >= 2 ? item.hierarchyItemGroup.get(size - 2).idItemGroup : "0");
+                    Long group3 = Long.parseLong(size >= 3 ? item.hierarchyItemGroup.get(size - 3).idItemGroup : "0");
+                    Long group4 = Long.parseLong(size >= 4 ? item.hierarchyItemGroup.get(size - 4).idItemGroup : "0");
+                    Long group5 = Long.parseLong(size >= 5 ? item.hierarchyItemGroup.get(size - 5).idItemGroup : "0");
 
-                    pluCashDBFWriter.addRecord(new Object[]{Integer.parseInt(item.idBarcode), name, mesuriment, mespresisi, null, null, 
+                    pluCashDBFWriter.addRecord(new Object[]{Long.parseLong(trim(item.idBarcode, 10)), name, mesuriment, mespresisi, null, null, 
                             null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5, 
                             item.price.doubleValue(), null, 0, null, 1, transactionInfo.date, null, null});
                 }
@@ -142,7 +142,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 };
                 pluLimDBFWriter = new DBFWriter(directory + "/PLULIM.DBF", pluLimFields, "CP866");
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    pluLimDBFWriter.addRecord(new Object[]{Integer.parseInt(item.idBarcode), 0/*откуда брать макс. процент скидки?*/});
+                    pluLimDBFWriter.addRecord(new Object[]{Long.parseLong(trim(item.idBarcode, 14)), 0/*откуда брать макс. процент скидки?*/});
                 }
                 pluLimDBFWriter.close();                
                 
@@ -331,6 +331,10 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     @Override
     public String checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<String> idCashRegisterList) throws ClassNotFoundException, SQLException {
         return null;
+    }
+
+    protected String trim(String input, Integer length) {
+        return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }
 
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
