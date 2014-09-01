@@ -51,14 +51,14 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
                 //BAR.DBF
                 OverJDBField[] barFields = {
-                        new OverJDBField("BARCODE", 'F', 10, 0),
-                        new OverJDBField("CARDARTICU", 'F', 14, 0),
-                        new OverJDBField("CARDSIZE", 'C', 20, 0),
-                        new OverJDBField("QUANTITY", 'F', 10, 0)
+                        new OverJDBField("BARCODE", 'C', 15, 0),
+                        new OverJDBField("CARDARTICU", 'C', 30, 0),
+                        new OverJDBField("CARDSIZE", 'C', 10, 0),
+                        new OverJDBField("QUANTITY", 'N', 16, 6)
                 };
                 barDBFWriter = new DBFWriter(directory + "/BAR.DBF", barFields, "CP866");                                
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    barDBFWriter.addRecord(new Object[]{Long.parseLong(trim(item.idBarcode, 10)), Long.parseLong(trim(item.idBarcode, 14))/*или что туда надо писать?*/,
+                    barDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 15), trim(item.idBarcode, 30)/*или что туда надо писать?*/,
                             "NOSIZE", 1/*без разницы, что писать в количество?*/});
                 }
                 barDBFWriter.close();
@@ -66,22 +66,22 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
                 //CLASSIF.DBF
                 OverJDBField[] classifFields = {
-                        new OverJDBField("GROOP1", 'F', 10, 0),
-                        new OverJDBField("GROOP2", 'F', 10, 0),
-                        new OverJDBField("GROOP3", 'F', 10, 0),
-                        new OverJDBField("GROOP4", 'F', 10, 0),
-                        new OverJDBField("GROOP5", 'F', 10, 0),
-                        new OverJDBField("NAME", 'C', 50, 0)
+                        new OverJDBField("GROOP1", 'N', 6, 0),
+                        new OverJDBField("GROOP2", 'N', 6, 0),
+                        new OverJDBField("GROOP3", 'N', 6, 0),
+                        new OverJDBField("GROOP4", 'N', 6, 0),
+                        new OverJDBField("GROOP5", 'N', 6, 0),
+                        new OverJDBField("NAME", 'C', 80, 0)
                 };
                 classifDBFWriter = new DBFWriter(directory + "/CLASSIF.DBF", classifFields, "CP866");
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     int size = item.hierarchyItemGroup.size();
-                    Long group1 = Long.parseLong(size >= 1 ? item.hierarchyItemGroup.get(size - 1).idItemGroup : "0");
-                    Long group2 = Long.parseLong(size >= 2 ? item.hierarchyItemGroup.get(size - 2).idItemGroup : "0");
-                    Long group3 = Long.parseLong(size >= 3 ? item.hierarchyItemGroup.get(size - 3).idItemGroup : "0");
-                    Long group4 = Long.parseLong(size >= 4 ? item.hierarchyItemGroup.get(size - 4).idItemGroup : "0");
-                    Long group5 = Long.parseLong(size >= 5 ? item.hierarchyItemGroup.get(size - 5).idItemGroup : "0");
-                    String name = item.name.substring(0, Math.min(item.name.length(), 50));
+                    Long group1 = Long.parseLong(size >= 1 ? trim(item.hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
+                    Long group2 = Long.parseLong(size >= 2 ? trim(item.hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
+                    Long group3 = Long.parseLong(size >= 3 ? trim(item.hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
+                    Long group4 = Long.parseLong(size >= 4 ? trim(item.hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
+                    Long group5 = Long.parseLong(size >= 5 ? trim(item.hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
+                    String name = trim(item.name, 80);
                     classifDBFWriter.addRecord(new Object[]{group1, group2, group3, group4, group5, name});
                 }
                 classifDBFWriter.close();
@@ -89,46 +89,45 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
                 //PLUCASH.DBF
                 OverJDBField[] pluCashFields = {
-                        new OverJDBField("ARTICUL", 'F', 10, 0),
-                        new OverJDBField("NAME", 'C', 50, 0),
-                        new OverJDBField("MESURIMENT", 'C', 2, 0),
-                        new OverJDBField("MESPRESISI", 'F', 10, 3),
-                        new OverJDBField("ADD1", 'C', 10, 0),
-                        new OverJDBField("ADD2", 'C', 10, 0),
-                        new OverJDBField("ADD3", 'C', 10, 0),
-                        new OverJDBField("ADDNUM1", 'C', 10, 0),
-                        new OverJDBField("ADDNUM2", 'C', 10, 0),
-                        new OverJDBField("ADDNUM3", 'C', 10, 0),
-                        new OverJDBField("SCALE", 'C', 20, 0),
-                        new OverJDBField("GROOP1", 'N', 10, 0),
-                        new OverJDBField("GROOP2", 'N', 10, 0),
-                        new OverJDBField("GROOP3", 'N', 10, 0),
-                        new OverJDBField("GROOP4", 'N', 10, 0),
-                        new OverJDBField("GROOP5", 'N', 10, 0),
-                        new OverJDBField("PRICERUB", 'N', 10, 0),
-                        new OverJDBField("PRICECUR", 'C', 10, 0),
-                        new OverJDBField("CLIENTINDE", 'N', 10, 0),
-                        new OverJDBField("COMMENTARY", 'C', 50, 0),
-                        new OverJDBField("DELETED", 'N', 1, 0),
+                        new OverJDBField("ARTICUL", 'C', 30, 0),
+                        new OverJDBField("NAME", 'C', 80, 0),
+                        new OverJDBField("MESURIMENT", 'C', 10, 0),
+                        new OverJDBField("MESPRESISI", 'N', 16, 6),
+                        new OverJDBField("ADD1", 'C', 20, 0),
+                        new OverJDBField("ADD2", 'C', 20, 0),
+                        new OverJDBField("ADD3", 'C', 20, 0),
+                        new OverJDBField("ADDNUM1", 'N', 16, 6),
+                        new OverJDBField("ADDNUM2", 'N', 16, 6),
+                        new OverJDBField("ADDNUM3", 'N', 16, 6),
+                        new OverJDBField("SCALE", 'C', 10, 0),
+                        new OverJDBField("GROOP1", 'N', 6, 0),
+                        new OverJDBField("GROOP2", 'N', 6, 0),
+                        new OverJDBField("GROOP3", 'N', 6, 0),
+                        new OverJDBField("GROOP4", 'N', 6, 0),
+                        new OverJDBField("GROOP5", 'N', 6, 0),
+                        new OverJDBField("PRICERUB", 'N', 16, 2),
+                        new OverJDBField("PRICECUR", 'N', 16, 2),
+                        new OverJDBField("CLIENTINDE", 'N', 6, 0),
+                        new OverJDBField("COMMENTARY", 'C', 80, 0),
+                        new OverJDBField("DELETED", 'N', 6, 0),
                         new OverJDBField("MODDATE", 'D', 8, 0),
-                        new OverJDBField("MODTIME", 'C', 20, 0),
-                        new OverJDBField("MODPERSONI", 'C', 50, 0)
+                        new OverJDBField("MODTIME", 'N', 6, 0),
+                        new OverJDBField("MODPERSONI", 'N', 6, 0)
                 };
                 pluCashDBFWriter = new DBFWriter(directory + "/PLUCASH.DBF", pluCashFields, "CP866");
                               
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     
-                    String name = item.name.substring(0, Math.min(item.name.length(), 50));
                     String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
                     double mespresisi = item.splitItem ? 0.001 : 1.000;
                     int size = item.hierarchyItemGroup.size();
-                    Long group1 = Long.parseLong(size >= 1 ? item.hierarchyItemGroup.get(size - 1).idItemGroup : "0");
-                    Long group2 = Long.parseLong(size >= 2 ? item.hierarchyItemGroup.get(size - 2).idItemGroup : "0");
-                    Long group3 = Long.parseLong(size >= 3 ? item.hierarchyItemGroup.get(size - 3).idItemGroup : "0");
-                    Long group4 = Long.parseLong(size >= 4 ? item.hierarchyItemGroup.get(size - 4).idItemGroup : "0");
-                    Long group5 = Long.parseLong(size >= 5 ? item.hierarchyItemGroup.get(size - 5).idItemGroup : "0");
+                    Long group1 = Long.parseLong(size >= 1 ? trim(item.hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
+                    Long group2 = Long.parseLong(size >= 2 ? trim(item.hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
+                    Long group3 = Long.parseLong(size >= 3 ? trim(item.hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
+                    Long group4 = Long.parseLong(size >= 4 ? trim(item.hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
+                    Long group5 = Long.parseLong(size >= 5 ? trim(item.hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
 
-                    pluCashDBFWriter.addRecord(new Object[]{Long.parseLong(trim(item.idBarcode, 10)), name, mesuriment, mespresisi, null, null, 
+                    pluCashDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), trim(item.name, 80), mesuriment, mespresisi, null, null, 
                             null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5, 
                             item.price.doubleValue(), null, 0, null, 1, transactionInfo.date, null, null});
                 }
@@ -137,16 +136,18 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
                 //PLULIM.DBF
                 OverJDBField[] pluLimFields = {
-                        new OverJDBField("CARDARTICU", 'F', 14, 0),
-                        new OverJDBField("PERCENT", 'F', 5, 0)
+                        new OverJDBField("CARDARTICU", 'C', 30, 0),
+                        new OverJDBField("PERCENT", 'N', 16, 2)
                 };
                 pluLimDBFWriter = new DBFWriter(directory + "/PLULIM.DBF", pluLimFields, "CP866");
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    pluLimDBFWriter.addRecord(new Object[]{Long.parseLong(trim(item.idBarcode, 14)), 0/*откуда брать макс. процент скидки?*/});
+                    pluLimDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), 0/*откуда брать макс. процент скидки?*/});
                 }
                 pluLimDBFWriter.close();                
                 
-                new File(directory + "\\cash01.upd").createNewFile();
+                File flagFile = new File(directory + "\\cash01.upd");
+                flagFile.createNewFile();
+                waitForDeletion(flagFile);
 
             }
         } catch (JDBFException e) {
@@ -165,6 +166,21 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
             }
         }
     }
+
+    private void waitForDeletion(File file) {
+            int count = 0;
+            while (file.exists()) {
+                try {
+                    count++;
+                    if(count>=60)
+                        throw Throwables.propagate(new RuntimeException(String.format("file %s has been created but not processed by server", file.getAbsolutePath())));
+                    else
+                        Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    throw Throwables.propagate(e);
+                }
+            }
+        }
 
     @Override
     public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
