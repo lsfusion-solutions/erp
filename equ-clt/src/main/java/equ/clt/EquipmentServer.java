@@ -193,6 +193,7 @@ public class EquipmentServer {
         for (TransactionInfo transactionInfo : transactionInfoList) {
 
             boolean noHandler = true;
+            boolean noErrors = true;
             Map<String, List<MachineryInfo>> handlerModelMap = getHandlerModelMap(transactionInfo);
 
             logger.info("Sending transactions started");
@@ -206,13 +207,14 @@ public class EquipmentServer {
                         transactionInfo.sendTransaction(clsHandler, entry.getValue());
                     } catch (Exception e) {
                         remote.errorTransactionReport(transactionInfo.id, e);
-                        return;
+                        noErrors = false;
+                        //return;
                     }
                 }
             }
             if(noHandler)
                 remote.errorTransactionReport(transactionInfo.id, new Throwable(String.format("Transaction %s: No handler", transactionInfo.id)));
-            else
+            else if(noErrors)
                 remote.succeedTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
             logger.info("Sending transactions finished");
         }
