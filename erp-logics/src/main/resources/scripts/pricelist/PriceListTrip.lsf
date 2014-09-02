@@ -1,0 +1,17 @@
+MODULE PriceListTrip;
+
+REQUIRE PriceList, TripInvoice;
+
+createPriceListTrip 'Создать прайс' = ACTION (trip) NEWSESSION {
+    FOR ADDOBJ p = UserPriceList DO {
+        FOR inTripInvoice(trip, invoiceInvoiceDetail(detail)) ADDOBJ d = UserPriceListDetail DO {
+            userPriceListUserPriceListDetail(d) <- p;
+            skuUserPriceListDetail(d) <- skuInvoiceDetail(detail);    
+        }
+        FORM userPriceList OBJECTS p = p MANAGESESSION DOCKEDMODAL;  
+    }    
+}
+
+EXTEND FORM trips
+    PROPERTIES createPriceListTrip(t) FORCE PANEL TOOLBAR 
+;
