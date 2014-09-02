@@ -1288,9 +1288,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, zReportLM.findProperty("quantityReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                     saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, zReportLM.findProperty("priceReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
                     saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, zReportLM.findProperty("sumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
-                    if (discountCardLM != null && zReportDiscountCardLM != null) {
-                        saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, zReportDiscountCardLM.findProperty("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
-                    }
+                    saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, zReportLM.findProperty("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                    
                     saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
                             zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
 
