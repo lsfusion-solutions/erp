@@ -49,7 +49,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         for (String directory : directoriesList) {
 
-            String exchangeDirectory = directory.trim() + "\\products\\source\\";
+            String exchangeDirectory = directory.trim() + "/products/source/";
             
             if(!new File(exchangeDirectory).exists())
                 new File(exchangeDirectory).mkdirs();
@@ -173,7 +173,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                     String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-                    String exchangeDirectory = directory + "\\reports\\source\\";
+                    String exchangeDirectory = directory + "/reports/source/";
 
                     if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                         Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "reports.request"), "windows-1251"));
@@ -222,7 +222,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         List<String> readFiles = new ArrayList<String>();
         for (String directory : directorySet) {
 
-            String exchangeDirectory = directory + "\\Reports\\";
+            String exchangeDirectory = directory + "/reports/";
 
             File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                 @Override
@@ -297,7 +297,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         for (String directory : directorySet) {
 
-            String exchangeDirectory = directory.trim() + "\\products\\source\\";
+            String exchangeDirectory = directory.trim() + "/products/source/";
 
             if(!new File(exchangeDirectory).exists())
                 new File(exchangeDirectory).mkdirs();
@@ -377,7 +377,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         List<String> filePathList = new ArrayList<String>();
         for (String directory : directorySet) {
 
-            String exchangeDirectory = directory + "\\Reports\\";
+            String exchangeDirectory = directory + "/reports/";
 
             File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                 @Override

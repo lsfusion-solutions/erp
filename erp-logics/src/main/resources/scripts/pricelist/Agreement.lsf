@@ -489,10 +489,11 @@ META deriveDocumentHeaderAgreement (object, supplierProp, customerProp)
     overDefaultAgreement###object = 
         OVERRIDE defaultAgreementSupplierCustomer(supplierProp###object(o), customerProp###object(o)) IF currency###object(o) == currencyAgreement(defaultAgreementSupplierCustomer(supplierProp###object(o), customerProp###object(o))), 
         defaultAgreement###object(o);
-    agreement###object (o) <- overDefaultAgreement###object(o)
-    WHEN CHANGED(currency###object(o)) OR
-         CHANGED(customerProp###object(o)) OR
-         CHANGED(supplierProp###object(o));
+    WHEN SESSION
+        CHANGED(currency###object(o)) OR
+                 CHANGED(customerProp###object(o)) OR
+                 CHANGED(supplierProp###object(o)) DO
+        agreement###object (o) <- overDefaultAgreement###object(o);
 
     CONSTRAINT currency###object(o) != currencyAgreement(agreement###object(o))
                CHECKED BY agreement###object
@@ -508,6 +509,14 @@ META deriveDocumentHeaderAgreement (object, supplierProp, customerProp)
                MESSAGE 'Соглашение должно быть между заданными организациями (покупатель)';
 END
 
+META defineDocumentDetailAgreement (object, detail)
+    agreement###detail (detail) = agreement###object(object###detail(detail));
+END
+
+META defineDocumentInterfaceAgreement (object)
+    @defineDocumentInterfaceHeaderAgreement(object);
+    @defineDocumentDetailAgreement(object, object##Detail);
+END
 
 
 META deriveDocumentDetailPriceListTypeAgreement (object, detail)
