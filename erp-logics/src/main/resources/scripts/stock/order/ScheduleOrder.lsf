@@ -837,7 +837,11 @@ lastScheduleOrderSupplierStockCustomerStock (s,ss,c,cs) =
                                                                                                                                                                                        
 //isLastScheduleOrder 'Последний график' (s)= 
 //    lastScheduleOrderSupplierStockCustomerStock(supplierScheduleOrder(s),supplierStockScheduleOrder(s),customerScheduleOrder(s),customerStockScheduleOrder(s)) ==s;
-                                                                                                                                                                            
+    isActiveScheduleOrder(scheduleOrder, date) = (startDateScheduleOrder(scheduleOrder) <= (date AS DATE) AND endDateScheduleOrder(scheduleOrder) >= date) OR
+                                                     (startDateScheduleOrder(scheduleOrder) <= (date AS DATE) AND NOT endDateScheduleOrder(scheduleOrder));   
+    backgroundScheduleOrderDate 'Цвет' (scheduleOrder, date) = CASE WHEN startDateScheduleOrder(scheduleOrder) > date THEN RGB(224,255,224)
+                                                  WHEN endDateScheduleOrder(scheduleOrder) < date THEN RGB(255,224,224);                                                                                                                                                                                                                           
+                                                                                                                                                                                                                          
     FORM scheduleOrderDashboard 'Графики заказов' TITLE 'Графики заказов'###sign
 
         OBJECTS d=DATE FIXED PANEL
@@ -860,7 +864,7 @@ lastScheduleOrderSupplierStockCustomerStock (s,ss,c,cs) =
             FILTER 'Заканчивается в течение 5 дн.' 'F9' endDateScheduleOrder(s) <= sumDate(d,4) AND endDateScheduleOrder(s) >= d 
                               
         OBJECTS ss=ScheduleOrder
-        PROPERTIES(ss) READONLY startDateScheduleOrder, endDateScheduleOrder, nameSupplierScheduleOrder, nameSupplierStockScheduleOrder,
+        PROPERTIES(ss) BACKGROUND backgroundScheduleOrderDate(ss,d) READONLY startDateScheduleOrder, endDateScheduleOrder, nameSupplierScheduleOrder, nameSupplierStockScheduleOrder,
                       nameCustomerScheduleOrder, stocksScheduleOrder, nameTypeScheduleOrder     
         PROPERTIES(ss) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR              
         ORDER BY startDateScheduleOrder(ss)
@@ -868,9 +872,11 @@ lastScheduleOrderSupplierStockCustomerStock (s,ss,c,cs) =
         FILTERS supplierScheduleOrder(ss) == supplier() OR (ss IS ScheduleOrder AND NOT supplier()),
                 supplierStockScheduleOrder(ss) == supplierStock() OR (ss IS ScheduleOrder AND NOT supplierStock()),
                 customerScheduleOrder(ss) == customer() OR (ss IS ScheduleOrder AND NOT customer())
-                                                       
-        FILTERGROUP countFilter2
-            FILTER 'Будущие графики' 'F8' startDateScheduleOrder(ss) >= d DEFAULT                                           
+ 
+    FILTERGROUP inactiveScheduleOrder
+        FILTER 'Текущие' 'F11' isActiveScheduleOrder(ss,d)            
+        FILTER 'Активные' 'F10' isActiveScheduleOrder(ss,d) OR (startDateScheduleOrder(ss) > d) DEFAULT                                                        
+                                         
     ;
 
     DESIGN scheduleOrderDashboard FROM DEFAULT{
