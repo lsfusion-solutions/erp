@@ -43,10 +43,9 @@ VATOrder (o) = VATProductOrder(o) OR VATComponentOrder(o);
 @defineDocumentHeaderDatePrefix (Order, to, ' действия по');
 
 @defineDocumentHeaderDescription(Order, 'Производственный заказ');
-@defineDocumentHeaderCurrency (order);
-@deriveDocumentCurrency (order, componentsStock, currencyStock);
 
 // ---------------- Изделия ------------------- //
+
 CLASS ProductDetail 'Строка изделия';
 TABLE productDetail (ProductDetail);
 
@@ -62,7 +61,8 @@ TABLE productDetail (ProductDetail);
 
 @defineDocumentDetailDescription(order, ProductDetail);
 
-currencyProductDetail (productDetail) = currencyOrder(orderProductDetail(productDetail));
+currencyProductOrder (o) = currencyStock(productsStockOrder(o)) PERSISTENT;
+currencyProductDetail (productDetail) = currencyProductOrder(orderProductDetail(productDetail));
 
 @defineDocumentDetailStock (order, productDetail, stock, componentsStock, 'Склад компонент');
 @defineDocumentDetailStock (order, productDetail, stock, productsStock, 'Склад изделий');
@@ -134,7 +134,8 @@ TABLE componentDetail (ComponentDetail);
 
 @defineDocumentDetailDescription(order, ComponentDetail);
 
-currencyComponentDetail (componentDetail) = currencyOrder(orderComponentDetail(componentDetail));
+currencyComponentOrder (o) = currencyStock(componentsStockOrder(o)) PERSISTENT;
+currencyComponentDetail (componentDetail) = currencyComponentOrder(orderComponentDetail(componentDetail));
 
 @defineDocumentDetailStock (order, componentDetail, stock, componentsStock, 'Склад компонент') ;
 @defineDocumentDetailStock (order, componentDetail, stock, productsStock, 'Склад изделий');
