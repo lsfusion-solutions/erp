@@ -25,21 +25,37 @@ amountBarcode 'Множитель' = OVERRIDE (1.0 IF barcode IS Barcode), dataA
 
 completeBarcode = FORMULA STRING[13] PG 'completeBarcode($1)' MS 'dbo.completeBarcode($1)';
 
-allowIncorrectBarcode 'Разрешить некорректные штрих-коды' = DATA BOOLEAN();
+allowIncorrectBarcode 'Разрешить некорректные штрихкоды' = DATA BOOLEAN();
+
+CONSTRAINT charLength(idBarcode(barcode)) == 8 AND completeBarcode(left(idBarcode(barcode),7)) != idBarcode(barcode) 
+    AND NOT allowIncorrectBarcode()  
+    MESSAGE 'Некорректный штрихкод';
+
+CONSTRAINT charLength(idBarcode(barcode)) == 13 AND completeBarcode(left(idBarcode(barcode),12)) != idBarcode(barcode) 
+    AND NOT allowIncorrectBarcode()  
+    MESSAGE 'Некорректный штрихкод';
+    
+onlyEANBarcode 'Только EAN штрихкоды' = DATA BOOLEAN ();
+
+CONSTRAINT ((charLength(idBarcode(barcode)) > 5 AND charLength(idBarcode(barcode)) < 8) 
+    OR (charLength(idBarcode(barcode)) > 8 AND charLength(idBarcode(barcode)) < 13) 
+    OR (charLength(idBarcode(barcode)) > 13)) 
+    AND onlyEANBarcode()
+    MESSAGE 'Штрихкод не соответствует требованиям длины (больше 5, не равен 8 или 13)';
+    
+setIdBarcodeSku 'Шрихкод обязателен для товара' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES() allowIncorrectBarcode
+    PROPERTIES() allowIncorrectBarcode, onlyEANBarcode, setIdBarcodeSku
 ;
 
 EXTEND DESIGN options {
     commons {
         ADD PROPERTY(allowIncorrectBarcode());   
+        ADD PROPERTY(onlyEANBarcode());   
+        ADD PROPERTY(setIdBarcodeSku());   
     }
 }
-
-CONSTRAINT charLength(idBarcode(barcode)) == 13 AND completeBarcode(left(idBarcode(barcode),12)) != idBarcode(barcode) 
-    AND NOT allowIncorrectBarcode()  
-    MESSAGE 'Некорректный шрих-код';
 
 // Sku
 skuBarcode = DATA Sku(Barcode) IN base NOT NULL DELETE;
@@ -122,6 +138,9 @@ FORM barcodeDialog 'Штрих код'
     PROPERTIES (b) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
     DIALOG Barcode OBJECT b
 ;
+
+CONSTRAINT idBarcodeSku(sku) AND NOT inactiveSku(sku) AND setIdBarcodeSku()
+    MESSAGE 'Для товара должен быть задан шрихкод';
 
 // ---------------------------------- Предобработка штрихкода --------------------------- //
 overPreprocessedBarcode = ABSTRACT CASE STRING[15] (STRING[15]);
