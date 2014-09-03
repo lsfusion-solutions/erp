@@ -292,8 +292,8 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                         Time time = new Time(DateUtils.parseDate(timeString, new String[]{"HHmm"}).getTime());
                         String barcodeReceiptDetail = getDBFFieldValue(importSailFile, "CARDARTICU", defaultCharset);
                         BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "QUANTITY", defaultCharset);
-                        BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "PRICECUR", defaultCharset);
-                        BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "TOTALCUR", defaultCharset);
+                        BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset);
+                        BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "TOTALRUB", defaultCharset);
                         BigDecimal discountSumReceiptDetail = discountMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail);
                         String discountCardNumber = discountCardMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber);
 
