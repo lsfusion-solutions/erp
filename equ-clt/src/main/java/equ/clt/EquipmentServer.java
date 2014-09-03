@@ -50,6 +50,8 @@ public class EquipmentServer {
 
     Consumer sendTerminalDocumentConsumer;
     Thread sendTerminalDocumentThread;
+    
+    boolean needReconnect = false;
 
     public EquipmentServer(final String sidEquipmentServer, final String serverHost, final int serverPort, final String serverDB) {
         
@@ -67,6 +69,12 @@ public class EquipmentServer {
                 while (true) {
 
                     try {
+                        
+                        if(needReconnect) {
+                            remote = null;
+                            needReconnect = false;
+                        }
+                        
                         if (remote == null) {
                             try {
                                 remote = RMIUtils.rmiLookup(serverHost, connectPort, serverDB, "EquipmentServer");
@@ -137,9 +145,13 @@ public class EquipmentServer {
         processTransactionConsumer = new Consumer() {
             @Override
             void runTask() throws Exception{
-                processTransactionInfo(remote, sidEquipmentServer);
+                try {
+                    processTransactionInfo(remote, sidEquipmentServer);
+                } catch (ConnectException e) {
+                    needReconnect = true;
+                }
             }
-        };
+         };
         processTransactionThread = new Thread(processTransactionConsumer);
         processTransactionThread.setDaemon(true);
         processTransactionThread.start();
@@ -147,7 +159,11 @@ public class EquipmentServer {
         processStopListConsumer = new Consumer() {
             @Override
             void runTask() throws Exception{
+                try {
                 processStopListInfo(remote, sidEquipmentServer);
+                } catch (ConnectException e) {
+                    needReconnect = true;
+                }
             }
         };
         processStopListThread = new Thread(processStopListConsumer);
@@ -157,7 +173,11 @@ public class EquipmentServer {
         sendSalesConsumer = new Consumer() {
             @Override
             void runTask() throws Exception{
+                try {
                 sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings);
+                } catch (ConnectException e) {
+                    needReconnect = true;
+                }
             }
         };
         sendSalesThread = new Thread(sendSalesConsumer);
@@ -167,7 +187,11 @@ public class EquipmentServer {
         sendSoftCheckConsumer = new Consumer() {
             @Override
             void runTask() throws Exception{
+                try {
                 sendSoftCheckInfo(remote);
+                } catch (ConnectException e) {
+                    needReconnect = true;
+                }
             }
         };
         sendSoftCheckThread = new Thread(sendSoftCheckConsumer);
@@ -177,7 +201,11 @@ public class EquipmentServer {
         sendTerminalDocumentConsumer = new Consumer() {
             @Override
             void runTask() throws Exception{
+                try {
                 sendTerminalDocumentInfo(remote, sidEquipmentServer);
+                } catch (ConnectException e) {
+                    needReconnect = true;
+                }
             }
         };
         sendTerminalDocumentThread = new Thread(sendTerminalDocumentConsumer);
