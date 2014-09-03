@@ -1,0 +1,62 @@
+MODULE ImportProductionOrder;
+
+REQUIRE System,
+        ImportDocument,
+        ProductionOrder,
+        ProductionOutput;
+
+EXTEND CLASS ImportTypeDetail {
+    componentsPrice 'Цена компонента',
+    markup 'Наценка изделия',
+    outputQuantity 'Количество произведённое',
+    idProductsStock 'Код склада изделий'
+}
+
+importProductionOrderDataAction 'Импортировать заказ' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportProductionOrderActionProperty';
+importProductionOrdersDataAction 'Импортировать заказы' = ACTION CUSTOM 'lsfusion.erp.integration.universal.ImportProductionOrdersActionProperty';
+
+importTypeOrder = DATA ImportType(Production.Order);
+nameImportTypeOrder 'Тип импорта' (order) = nameImportType(importTypeOrder(order));
+
+EXTEND FORM Production.orders
+    PROPERTIES() TODRAW pd TOOLBAR importProductionOrdersDataAction
+;
+
+EXTEND DESIGN Production.orders{
+    documentDetail {
+        NEW importUniversal {
+            caption = 'Импорт';
+            ADD PROPERTY(importProductionOrdersDataAction());
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() TOOLBAR importProductionOrdersDataAction
+;
+
+EXTEND DESIGN integrationData {
+    pane {
+        actionsContainer {
+            ADD PROPERTY(importProductionOrdersDataAction());
+        }
+    }
+}
+
+EXTEND FORM Production.order
+PROPERTIES(o) nameImportTypeOrder
+PROPERTIES(o) importProductionOrderDataAction TODRAW pd TOOLBAR
+;
+
+EXTEND DESIGN Production.order{
+    specification.box {
+        NEW headerImportContainer {
+            caption = 'Импорт';
+            ADD PROPERTY(nameImportTypeOrder(o));
+            ADD PROPERTY(importProductionOrderDataAction(o));
+        }
+    }
+}
+
+CONSTRAINT importTypeOrder(order) AND  (Production.operationOrder(order) != autoImportOperationImportType(importTypeOrder(order)))
+   CHECKED BY importTypeOrder MESSAGE 'У заказа и типа импорта не совпадают операции';  

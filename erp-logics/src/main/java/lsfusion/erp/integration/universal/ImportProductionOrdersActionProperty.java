@@ -6,7 +6,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -24,9 +23,9 @@ import java.io.File;
 import java.sql.SQLException;
 import java.util.Map;
 
-public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty {
+public class ImportProductionOrdersActionProperty extends ImportDocumentActionProperty {
 
-    public ImportSaleOrdersActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportProductionOrdersActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
@@ -49,11 +48,6 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
             importTypeQuery.addProperty("captionPrimaryKeyTypeImportType", findProperty("captionPrimaryKeyTypeImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("captionSecondaryKeyTypeImportType", findProperty("captionSecondaryKeyTypeImportType").getExpr(session.getModifier(), importTypeKey));
 
-            importTypeQuery.addProperty("autoImportSupplierImportType", findProperty("autoImportSupplierImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportSupplierStockImportType", findProperty("autoImportSupplierStockImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerImportType", findProperty("autoImportCustomerImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerStockImportType", findProperty("autoImportCustomerStockImportType").getExpr(session.getModifier(), importTypeKey));
-
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
             importTypeQuery.and(findProperty("autoImportImportType").getExpr(importTypeKey).getWhere());
             importTypeQuery.and(findProperty("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
@@ -70,16 +64,8 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                 startRow = startRow == null ? 1 : startRow;
                 Boolean isPosted = (Boolean) entryValue.get("isPostedImportType").getValue();
                 String separator = formatSeparator((String) findProperty("separatorImportType").read(session, importTypeObject));
-                String primaryKeyType = parseKeyType((String) findProperty("namePrimaryKeyTypeImportType").read(session, importTypeObject));
-                boolean checkExistence = findProperty("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
-                String secondaryKeyType = parseKeyType((String) findProperty("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-                boolean keyIsDigit = findProperty("keyIsDigitImportType").read(session, importTypeObject) != null;
                 
                 ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierObject = entryValue.get("autoImportSupplierImportType");
-                ObjectValue supplierStockObject = entryValue.get("autoImportSupplierStockImportType");
-                ObjectValue customerObject = entryValue.get("autoImportCustomerImportType");
-                ObjectValue customerStockObject = entryValue.get("autoImportCustomerStockImportType");
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(session, importTypeObject).get(0);
 
@@ -91,18 +77,15 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                         for (File f : dir.listFiles()) {
                             if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
                                 DataSession currentSession = context.createSession();
-                                DataObject orderObject = currentSession.addObject((ConcreteCustomClass) findClass("Sale.UserOrder"));
-
+                                
                                 try {
 
-                                    boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(), currentSession, orderObject,
-                                            importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, 
-                                            separator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject,
-                                            supplierStockObject, customerObject, customerStockObject);                                                                                                        
+                                    boolean importResult = new ImportProductionOrderActionProperty(LM).makeImport(context.getBL(), currentSession, null,
+                                            importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, separator, operationObject);                                                                                                        
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
-
+                                    
                                 } catch (Exception e) {
                                     ServerLoggers.systemLogger.error(e);
                                 }

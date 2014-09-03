@@ -117,9 +117,9 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         Integer startRow = (Integer) findProperty("startRowImportType").read(session, importTypeObject);
         startRow = startRow == null ? 1 : startRow;
         Boolean isPosted = (Boolean) findProperty("isPostedImportType").read(session, importTypeObject);
-        String csvSeparator = trim((String) findProperty("separatorImportType").read(session, importTypeObject), ";");
+        String separator = formatSeparator((String) findProperty("separatorImportType").read(session, importTypeObject));
         String propertyImportType = trim((String) findProperty("propertyImportTypeDetailImportType").read(session, importTypeObject));
-        return new ImportDocumentSettings(stockMapping, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, csvSeparator, propertyImportType);
+        return new ImportDocumentSettings(stockMapping, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, separator, propertyImportType);
     }
 
     public String parseKeyType(String keyType) {
@@ -165,6 +165,13 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         if(value == null) return null;
         String[] splittedValue = value.trim().split(splitPattern);
         return splittedValue.length <= index ? null : splittedValue[index];
+    }
+    
+    protected String formatSeparator(String separator) {
+        String result = trim(separator, ";");
+        if(result.equals("|"))
+            result = "\\" + result;
+        return result;
     }
 }
 

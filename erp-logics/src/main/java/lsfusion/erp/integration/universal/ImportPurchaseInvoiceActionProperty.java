@@ -986,7 +986,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             userInvoiceDetailsList = importUserInvoicesFromXLSX(context, session, file, defaultColumns, customColumns, 
                     purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
                     staticNameImportType);
-        else if (fileExtension.equals("CSV"))
+        else if (fileExtension.equals("CSV") || fileExtension.equals("TXT"))
             userInvoiceDetailsList = importUserInvoicesFromCSV(context, session, file, defaultColumns, customColumns, 
                     purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
                     staticNameImportType);
@@ -1157,7 +1157,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         List<String[]> valuesList = new ArrayList<String[]>();
         while ((line = br.readLine()) != null) {
-                valuesList.add(line.split(importSettings.getCsvSeparator()));
+                valuesList.add(line.split(importSettings.getSeparator()));
         }
 
         for (int count = importSettings.getStartRow(); count <= valuesList.size(); count++) {

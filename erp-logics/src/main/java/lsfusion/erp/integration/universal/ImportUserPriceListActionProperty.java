@@ -595,7 +595,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         List<String[]> valuesList = new ArrayList<String[]>();
         while ((line = br.readLine()) != null) {
-            valuesList.add(line.split(importColumns.getCsvSeparator()));
+            valuesList.add(line.split(importColumns.getSeparator()));
         }
 
         for (int count = importColumns.getStartRow(); count <= valuesList.size(); count++) {
@@ -768,9 +768,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         String[] parts = itemKeyType == null ? null : itemKeyType.split("\\.");
         itemKeyType = parts == null ? null : parts[parts.length - 1].trim();
         
-        String csvSeparator = (String) findProperty("separatorImportUserPriceListType").read(context, importTypeObject);
-        csvSeparator = csvSeparator == null ? ";" : csvSeparator;
-
+        String separator = trim((String) findProperty("separatorImportUserPriceListType").read(context, importTypeObject), ";");
         Integer startRow = (Integer) findProperty("startRowImportUserPriceListType").read(context, importTypeObject);
         startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
         
@@ -779,7 +777,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         Boolean barcodeMaybeUPC = (Boolean) findProperty("barcodeMaybeUPCImportUserPriceListType").read(context, importTypeObject);
 
         return new ImportColumns(columns, priceColumns, quantityAdjustmentColumn, operationObject, companyObject, stockObject, defaultItemGroupObject, 
-                fileExtension, itemKeyType, csvSeparator, startRow, isPosted, doNotCreateItems, barcodeMaybeUPC);
+                fileExtension, itemKeyType, separator, startRow, isPosted, doNotCreateItems, barcodeMaybeUPC);
     }
 
     private Map<String, ImportColumnDetail> readColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

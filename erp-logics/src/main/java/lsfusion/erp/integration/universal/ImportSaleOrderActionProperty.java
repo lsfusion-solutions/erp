@@ -66,8 +66,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 boolean checkExistence = findProperty("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
                 String secondaryKeyType = parseKeyType((String) findProperty("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
                 boolean keyIsDigit = findProperty("keyIsDigitImportType").read(session, importTypeObject) != null;
-                String csvSeparator = trim((String) findProperty("separatorImportType").read(session, importTypeObject));
-                csvSeparator = csvSeparator == null ? ";" : csvSeparator;
+                String separator = formatSeparator((String) findProperty("separatorImportType").read(session, importTypeObject));
                 Integer startRow = (Integer) findProperty("startRowImportType").read(session, importTypeObject);
                 startRow = startRow == null ? 1 : startRow;
                 Boolean isPosted = (Boolean) findProperty("isPostedImportType").read(session, importTypeObject);
@@ -89,7 +88,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                         for (byte[] file : fileList) {
 
-                            makeImport(context.getBL(), session, orderObject, importColumns, file, fileExtension, startRow, isPosted, csvSeparator,
+                            makeImport(context.getBL(), session, orderObject, importColumns, file, fileExtension, startRow, isPosted, separator,
                                     primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject, supplierStockObject,
                                     customerObject, customerStockObject);
 
@@ -117,7 +116,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     public boolean makeImport(BusinessLogics BL, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
-                              byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator, String primaryKeyType,
+                              byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator, String primaryKeyType,
                               boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
@@ -125,7 +124,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         this.saleManufacturingPriceLM = BL.getModule("SaleManufacturingPrice");
 
         List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(session, (Integer) orderObject.object,
-                importColumns, file, fileExtension, startRow, isPosted, csvSeparator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit);
+                importColumns, file, fileExtension, startRow, isPosted, separator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit);
 
         boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0),
                 BL, session, orderObject, importColumns, primaryKeyType, operationObject, supplierObject, supplierStockObject,
@@ -345,7 +344,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Integer orderObject, Map<String, ImportColumnDetail> importColumns,
-                                                            byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String csvSeparator,
+                                                            byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
@@ -357,8 +356,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             orderDetailsList = importOrdersFromXLS(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
         else if (fileExtension.equals("XLSX"))
             orderDetailsList = importOrdersFromXLSX(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
-        else if (fileExtension.equals("CSV"))
-            orderDetailsList = importOrdersFromCSV(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, csvSeparator, orderObject);
+        else if (fileExtension.equals("CSV") || fileExtension.equals("TXT"))
+            orderDetailsList = importOrdersFromCSV(session, file, importColumns, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, separator, orderObject);
         else
             orderDetailsList = null;
 
@@ -419,7 +418,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
     private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, Integer startRow, 
-                                                            Boolean isPosted, String csvSeparator, Integer orderObject)
+                                                            Boolean isPosted, String separator, Integer orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
@@ -433,7 +432,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         
         List<String[]> valuesList = new ArrayList<String[]>();
         while ((line = br.readLine()) != null) {
-            valuesList.add(line.split(csvSeparator));              
+            valuesList.add(line.split(separator));              
         }
 
         for (int count = startRow; count <= valuesList.size(); count++) {

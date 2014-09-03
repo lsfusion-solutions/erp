@@ -11,12 +11,12 @@ public class ImportDocumentSettings {
     private boolean keyIsDigit;
     private Integer startRow;
     private Boolean isPosted;
-    private String csvSeparator;
+    private String separator;
     private String propertyImportType;
 
     public ImportDocumentSettings(Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence,
                                   String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted,
-                                  String csvSeparator, String propertyImportType) {
+                                  String separator, String propertyImportType) {
         this.stockMapping = stockMapping;
         this.primaryKeyType = primaryKeyType;
         this.checkExistence = checkExistence;
@@ -24,7 +24,7 @@ public class ImportDocumentSettings {
         this.keyIsDigit = keyIsDigit;
         this.startRow = startRow;
         this.isPosted = isPosted;
-        this.csvSeparator = csvSeparator;
+        this.separator = separator;
         this.propertyImportType = propertyImportType;
     }
 
@@ -56,8 +56,8 @@ public class ImportDocumentSettings {
         return isPosted;
     }
 
-    public String getCsvSeparator() {
-        return csvSeparator;
+    public String getSeparator() {
+        return separator;
     }
 
     public String getPropertyImportType() {
