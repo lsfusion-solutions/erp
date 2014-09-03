@@ -61,7 +61,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     String splitPattern = "\\^\\(|\\)|,";
-    String substringPattern = ".*\\^\\(\\d+,(?:\\d+)?\\)";
+    //String substringPattern = ".*\\^\\(\\d+,(?:\\d+)?\\)";
+    //TODO: rename patternedSubstring to substring if everything will be ok
     String patternedSubstringPattern = ".*\\^\\((('.*')|(\\d+)),((\'.*\')|(\\d+))?\\)";
     String patternedDateTimePattern = "(.*)(~(.*))+";
     String roundedPattern = "(.*)\\[(\\-?)\\d+\\]";
@@ -70,13 +71,17 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     String currentTimestamp;
 
     protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
-        return getCSVFieldValue(valuesList, importColumnDetail, row, null);
+        return getCSVFieldValue(valuesList, importColumnDetail, row, false, false);
     }
 
     protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row, String defaultValue) throws UniversalImportException {
         return getCSVFieldValue(valuesList, importColumnDetail, row, defaultValue, false, false);
     }
 
+    protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row, boolean isNumeric, boolean ignoreException) throws UniversalImportException {
+        return getCSVFieldValue(valuesList, importColumnDetail, row, null, isNumeric, ignoreException);
+    }
+    
     protected String getCSVFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row, String defaultValue, 
                                       boolean isNumeric, boolean ignoreException) throws UniversalImportException {
         try {
@@ -92,7 +97,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedCell = cell.replace(":", "").split("_");
                     value = getCSVFieldValue(valuesList.get(parseIndex(splittedCell, 1)), parseIndex(splittedCell, 0), defaultValue);
                 } else if (isRoundedValue(cell)) {
-                    String[] splittedCell = cell.split("\\[|\\]");
+                    String[] splittedCell = splitRoundedCell(cell);
                     value = getRoundedValue(getCSVFieldValue(valuesList, importColumnDetail.clone(trim(splittedCell[0])), row), splittedCell[1]);
                 } else if (isDivisionValue(cell)) {
                     String[] splittedField = splitCell(cell, "/");
@@ -119,24 +124,24 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = "";
                     String[] splittedField = splitCell(cell, "\\|");
                     for (int i = splittedField.length - 1; i >= 0; i--) {
-                        String orValue = getCSVFieldValue(valuesList, importColumnDetail.clone(splittedField[i]), row, null, isNumeric, ignoreException);
+                        String orValue = getCSVFieldValue(valuesList, importColumnDetail.clone(splittedField[i]), row, isNumeric, ignoreException);
                         if (orValue != null) {
                             value = orValue;
                             break;
                         }
                     }
-                } else if (isSubstringValue(cell)) {
+                } /*else if (isSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
                     value = getSubstring(getCSVFieldValue(valuesList, importColumnDetail.clone(splittedCell[0]), row, null, isNumeric, ignoreException),
                             parseIndex(splittedCell, 1), parseIndex(splittedCell, 2));
-                } else if (isPatternedSubstringValue(cell)) {
+                } */else if (isPatternedSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
-                    value = getSubstring(getCSVFieldValue(valuesList, importColumnDetail.clone(splittedCell[0]), row, null, isNumeric, ignoreException), 
+                    value = getSubstring(getCSVFieldValue(valuesList, importColumnDetail.clone(splittedCell[0]), row, isNumeric, ignoreException), 
                             parsePatternedSubstring(splittedCell, 1), parsePatternedSubstring(splittedCell, 2));
                 } else if (isPatternedDateTimeValue(cell)) {
                     String[] splittedCell = cell.split("~");
                     Calendar calendar = Calendar.getInstance();
-                    Date date = parseDate(getCSVFieldValue(valuesList, importColumnDetail.clone(trim(splittedCell[0])), row, null, false, ignoreException));
+                    Date date = parseDate(getCSVFieldValue(valuesList, importColumnDetail.clone(trim(splittedCell[0])), row, false, ignoreException));
                     if (date != null)
                         calendar.setTime(date);
                     return parseDateTimePattern(splittedCell, calendar);
@@ -162,7 +167,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     protected BigDecimal getCSVBigDecimalFieldValue(List<String[]> valuesList, ImportColumnDetail importColumnDetail, int row) throws UniversalImportException {
         if (importColumnDetail == null) return null;
         try {
-            return parseBigDecimal(getCSVFieldValue(valuesList, importColumnDetail, row, null, true, false));
+            return parseBigDecimal(getCSVFieldValue(valuesList, importColumnDetail, row, true, false));
         } catch (Exception e) {
             throw new UniversalImportException(importColumnDetail, row, e);
         }
@@ -221,7 +226,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     String[] splittedCell = cell.replace(":", "").split("_");
                     value = getXLSFieldValue(sheet, importColumnDetail, parseIndex(splittedCell, 1), parseIndex(splittedCell, 0), defaultValue);
                 } else if (isRoundedValue(cell)) {
-                    String[] splittedCell = cell.split("\\[|\\]");
+                    String[] splittedCell = splitRoundedCell(cell);
                     value = getRoundedValue(getXLSFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), defaultValue, isNumeric, ignoreException), splittedCell[1]);
                 } else if (isDivisionValue(cell)) {
                     String[] splittedField = splitCell(cell, "/");
@@ -254,11 +259,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             break;
                         }
                     }
-                } else if (isSubstringValue(cell)) {
+                } /*else if (isSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
                     value = getSubstring(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]), defaultValue, isNumeric, ignoreException),
                             parseIndex(splittedCell, 1), parseIndex(splittedCell, 2));
-                } else if (isPatternedSubstringValue(cell)) {
+                } */else if (isPatternedSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);          
                     value = getSubstring(getXLSFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]), defaultValue, isNumeric, ignoreException), 
                             parsePatternedSubstring(splittedCell, 1), parsePatternedSubstring(splittedCell, 2));
@@ -298,6 +303,8 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 result = (cell.getContents().isEmpty()) ? defaultValue : trim(cell.getContents());
             }
             return result;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return defaultValue;  
         } catch (Exception e) {
             throw new UniversalImportException(importColumnDetail, row, e);
         }
@@ -362,7 +369,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                     value = getXLSXFieldValue(sheet, importColumnDetail, parseIndex(splittedCell, 1), parseIndex(splittedCell, 0), isDate, defaultValue);
                 }
                 else if (isRoundedValue(cell)) {
-                    String[] splittedCell = cell.split("\\[|\\]");
+                    String[] splittedCell = splitRoundedCell(cell);
                     value = getRoundedValue(getXLSXFieldValue(sheet, row, importColumnDetail.clone(trim(splittedCell[0])), isDate, defaultValue, isNumeric, ignoreException), splittedCell[1]);
                 } else if (isDivisionValue(cell)) {
                     String[] splittedField = splitCell(cell, "/");
@@ -395,11 +402,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             break;
                         }
                     }
-                } else if (isSubstringValue(cell)) {
+                } /*else if (isSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
                     value = getSubstring(getXLSXFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]), 
                             isDate, defaultValue, isNumeric, ignoreException), parseIndex(splittedCell, 1), parseIndex(splittedCell, 2));
-                } else if (isPatternedSubstringValue(cell)) {
+                } */else if (isPatternedSubstringValue(cell)) {
                     String[] splittedCell = splitCell(cell, splitPattern);
                     value = getSubstring(getXLSXFieldValue(sheet, row, importColumnDetail.clone(splittedCell[0]),
                             isDate, defaultValue, isNumeric, ignoreException), parsePatternedSubstring(splittedCell, 1), parsePatternedSubstring(splittedCell, 2));
@@ -507,7 +514,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 if (isConstantValue(column))
                     value = parseConstantFieldPattern(column);
                 else if (isRoundedValue(column)) {
-                    String[] splittedField = column.split("\\[|\\]");
+                    String[] splittedField = splitRoundedCell(column);
                     value = getRoundedValue(getDBFFieldValue(importFile, importColumnDetail.clone(trim(splittedField[0])), 
                             row, charset, defaultValue, isNumeric, ignoreException), splittedField[1]);
                 } else if (isDivisionValue(column)) {
@@ -542,11 +549,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             break;
                         }
                     }
-                } else if (isSubstringValue(column)) {
+                } /*else if (isSubstringValue(column)) {
                     String[] splittedField = splitCell(column, splitPattern);
                     value = getSubstring(getDBFFieldValue(importFile, importColumnDetail.clone(splittedField[0]), 
                             row, charset, null, isNumeric, ignoreException), parseIndex(splittedField, 1), parseIndex(splittedField, 2));
-                } else if (isPatternedSubstringValue(column)) {
+                } */else if (isPatternedSubstringValue(column)) {
                     String[] splittedField = splitCell(column, splitPattern);
                     value = getSubstring(getDBFFieldValue(importFile, importColumnDetail.clone(splittedField[0]),
                             row, charset, null, isNumeric, ignoreException), parsePatternedSubstring(splittedField, 1), parsePatternedSubstring(splittedField, 2));
@@ -632,7 +639,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 if (isConstantValue(column))
                     value = parseConstantFieldPattern(column);
                 else if (isRoundedValue(column)) {
-                    String[] splittedField = column.split("\\[|\\]");
+                    String[] splittedField = splitRoundedCell(column);
                     value = getRoundedValue(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(trim(splittedField[0])),
                             row, "", true, zeroIsNull, ignoreException), splittedField[1]);
                 } else if (isDivisionValue(column)) {
@@ -667,11 +674,11 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                             break;
                         }
                     }
-                } else if (isSubstringValue(column)) {
+                } /*else if (isSubstringValue(column)) {
                     String[] splittedField = splitCell(column, splitPattern);
                     value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(splittedField[0]), 
                             row, defaultValue, isNumeric, zeroIsNull, ignoreException), parseIndex(splittedField, 1), parseIndex(splittedField, 2));
-                } else if (isPatternedSubstringValue(column)) {
+                } */else if (isPatternedSubstringValue(column)) {
                     String[] splittedField = splitCell(column, splitPattern);
                     value = getSubstring(getJDBFFieldValue(entry, fieldNamesMap, importColumnDetail.clone(splittedField[0]),
                             row, defaultValue, isNumeric, zeroIsNull, ignoreException), parsePatternedSubstring(splittedField, 1), parsePatternedSubstring(splittedField, 2));
@@ -770,11 +777,15 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private String getSubstring(String value, Object fromSymbol, Object toSymbol) {
-        if(value == null) return null;
-        if(fromSymbol == null || fromSymbol instanceof Integer) {
+        if (value == null) return null;
+        if (fromSymbol == null || fromSymbol instanceof Integer) {
             Integer from = (Integer) fromSymbol;
-            String fromSubstring = (from == null || from < 0 || from > value.length()) ? value : trim(value.substring(Math.min(value.length(), from)));
-            return (fromSubstring != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, fromSubstring.indexOf((String) toSymbol)) : fromSubstring;
+            if (toSymbol == null || toSymbol instanceof Integer) {
+                return getSubstring(value, from, (Integer) toSymbol);
+            } else {
+                String fromSubstring = (from == null || from < 0 || from > value.length()) ? value : trim(value.substring(Math.min(value.length(), from)));
+                return (fromSubstring != null && fromSubstring.contains((String) toSymbol)) ? fromSubstring.substring(0, fromSubstring.indexOf((String) toSymbol)) : fromSubstring;
+            }
         } else {
             String from = (String) fromSymbol;
             String fromSubstring = trim(value.substring(Math.min(value.length(), value.indexOf(from) + from.length())));
@@ -836,7 +847,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     private boolean isConstantValue(String input) {
         return input != null && input.startsWith("=") && !isColumnRowValue(input) && !isRoundedValue(input) 
                 && !isDivisionValue(input) && !isMultiplyValue(input) && !(isSubtractValue(input)) && !isOrValue(input)
-                && !isSubstringValue(input) && !isPatternedSubstringValue(input) && !isPatternedDateTimeValue(input);
+                /*&& !isSubstringValue(input)*/ && !isPatternedSubstringValue(input) && !isPatternedDateTimeValue(input);
     }
 
     private boolean isColumnRowValue(String input) {
@@ -845,6 +856,10 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     
     private boolean isRoundedValue(String input) {
         return input != null && input.matches(roundedPattern);
+    }
+
+    private String[] splitRoundedCell(String cell) {
+        return cell.split("\\[|\\]");
     }
 
     private boolean isDivisionValue(String input) {
@@ -863,9 +878,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return input != null && input.contains("|") && !input.equals("=|");
     }
 
-    private boolean isSubstringValue(String input) {
+    /*private boolean isSubstringValue(String input) {
         return input != null && input.matches(substringPattern);
-    }
+    }*/
 
     private boolean isPatternedSubstringValue(String input) {
         return input != null && input.matches(patternedSubstringPattern);
