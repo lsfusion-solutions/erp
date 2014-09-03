@@ -110,6 +110,8 @@ multiplierCalcProductDetail (d) =
 
 // Цены изделий
 @defineDocumentDetailPriceCustomPrefix (productDetail, , ' изделия');
+costPriceProductDetail 'Себестоимость изделия' = DATA NUMERIC[14,2] (ProductDetail);
+
 
 sumProductDetail 'Сумма изделия' = DATA NUMERIC[16,2] (ProductDetail);
 sumProductDetail(productDetail) <-
@@ -169,6 +171,7 @@ CONSTRAINT bruttoSkuComponentDetail(componentDetail) != skuProduct(productCompon
 @defineDocumentDetailQuantityCustomPrefix (componentDetail, brutto, ' (брутто)');
 
 @defineDocumentDetailPriceCustomPrefix (componentDetail, , );
+costComponentDetail 'Себестоимость' = DATA NUMERIC[14,2] (ComponentDetail);
 
 // Замены
 @defineDocumentDetailSkuCustomPrefix (componentDetail, Sku, substitute, ' (замена)');
@@ -339,6 +342,7 @@ bruttoSubstituteQuantitySkuOrder (sku, order) = GROUP SUM bruttoQuantityComponen
                                                                                                                                  
 
 dataBruttoPriceSkuOrder 'Цена' = DATA NUMERIC[14,2] (Sku, Order);
+costSkuOrder 'Себестоимость' = DATA NUMERIC[14,2] (Sku, Order);
 
 dataBruttoPriceSkuOrder (sku, order) <- prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order),
                                                                                 sku,
@@ -346,7 +350,12 @@ dataBruttoPriceSkuOrder (sku, order) <- prevPriceBPriceListTypeSkuStockDateTime(
                                                                                 dateTimeOrder(order))
     WHEN CHANGED(priceListTypeOrder(order)) OR CHANGED(componentsStockOrder(order)) OR CHANGED(dateTimeOrder(order)) ;
 
+calcCostSkuStock 'Себестоимость' (sku, stock) = [= GROUP SUM costBatch(b)*currentBalanceBatchStock(b,stock) BY skuBatch(b), stock](sku, stock)/
+    (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) != 0);   
 
+costSkuOrder (sku, order) <- calcCostSkuStock(sku, componentsStockOrder(order))
+    WHEN CHANGED (quantityComponentDetailSkuOrder(sku, order)) OR CHANGED (componentsStockOrder(order));
+    
 // --- Замена --- //
 substituteSkuOrder = DATA Sku (Sku, Order);
 nameSubstituteSkuOrder 'Замена' (sku, order) = nameSku(substituteSkuOrder(sku, order));
@@ -511,7 +520,13 @@ calcComponentsPriceProductDetail'Цена расчетная с/с' (productDeta
     (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
     quantityProduct(product) IF quantityProduct(product)!= 0)  
     BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail));
-
+    
+bruttoCostSumComponentsBOMSkuOrder 'Сума' (BOM, sku, order) = GROUP SUM quantityComponentDetail(d) * costComponentDetail(d) BY BOMComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
+calcCostProductDetail'Себестоимость расчетная' (productDetail)= [ = GROUP SUM (bruttoCostSumComponentsBOMSkuOrder(BOMProduct(product), sku, order) * pricePercentProduct(product)/ 
+    (100* quantityProductsBOMOrder(BOMProduct(product), order) IF quantityProductsBOMOrder(BOMProduct(product), order)!= 0)/
+    quantityProduct(product) IF quantityProduct(product)!= 0)  
+    BY product, order](productProductDetail(productDetail), orderProductDetail(productDetail));
+    
 //-- Подсчет цены изделия с учетом замен
 recPricePercentProductSkuOrder (product, sku, order) = recPricePercentProductSkuDate (product, sku, dateOrder(order));
 
@@ -612,6 +627,7 @@ fillPriceProductsOrder 'Заполнить цены для изделий' = ACT
     FOR orderProductDetail(detail) == order DO {
         valueVATProductDetail(detail) <- IF VATProductProductDetail(detail) THEN calcValueIsVATProductDetail(detail) ELSE calcValueVATProductDetail(detail);
         componentsPriceProductDetail(detail) <- calcComponentsPriceProductDetail(detail);
+        costPriceProductDetail(detail) <- calcCostProductDetail(detail);
         IF productsPriceListTypeProductDetail(detail) AND prevPriceBPriceListTypeSkuStockDateTime(productsPriceListTypeProductDetail(detail),
                                                                                                   skuProductDetail(detail),
                                                                                                   productsStockProductDetail(detail),
@@ -677,6 +693,8 @@ deleteComponentsOrder 'Очистить' =  ACTION (order) {
 priceStockOrder = DATA Stock(Order);
 namePriceStockOrder 'Склад' = nameStock(priceStockOrder(order));
 
+calcCostSkuOrder 'Себестоимость' = calcCostSkuStock(sku, priceStockOrder(order));
+
 CONSTRAINT  priceStockOrder(o) AND NOT isCompanyStock(priceStockOrder(o)) CHECKED BY priceStockOrder    
         MESSAGE 'Склад для цен не является складом компании';
 priceStockSkuOrder 'Цена' (sku, order)= prevPriceBPriceListTypeSkuStockDateTime(priceListTypeOrder(order), sku, priceStockOrder(order), dateTimeOrder(order));                                                                                                                                                               
@@ -698,10 +716,12 @@ DESIGN multiplier FROM DEFAULT{
 fillSubstitutePriceOrderSkuFromTo 'Использовать цену' = ACTION (order, sku, skuSubstitute) {
     IF multiplierSubstituteFromToSku(sku, skuSubstitute) THEN {
         dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order));
+        costSkuOrder(sku, order) <- NUMERIC[14,2](multiplierSubstituteFromToSku(sku, skuSubstitute)*calcCostSkuStock(skuSubstitute,priceStockOrder(order)));
     } ELSE {
         FORM multiplier MODAL; 
         IF formResult() == FormResult.ok THEN {
             dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](chosenNumeric('nu')*priceStockSkuOrder(skuSubstitute,order));
+            costSkuOrder(sku, order) <- NUMERIC[14,2](chosenNumeric('nu')*calcCostSkuStock(skuSubstitute,priceStockOrder(order)));
         }
     }        
 } TOOLBAR;  
@@ -709,21 +729,39 @@ fillSubstitutePriceOrderSkuFromTo 'Использовать цену' = ACTION (
 currentBalanceSkuPriceStockOrder 'Текущий остаток' = currentBalanceSkuStock(sku, priceStockOrder(order)); 
 currentBalanceSkuPriceStockOrderSkuFromTo 'Остаток с уч. коэфф.'  (order, fromSku, toSku) = currentBalanceSkuPriceStockOrder(toSku, order) / multiplierSubstituteFromToSku(fromSku ,toSku);
 
-maxSubstitutePriceSkuOrder = GROUP MAX multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
-    currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
-    BY sku, order; 
-minSubstitutePriceSkuOrder = GROUP MIN multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
-    currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
-    BY sku, order;         
+//maxSubstitutePriceSkuOrder = GROUP MAX multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
+//    currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
+//    BY sku, order; 
+//minSubstitutePriceSkuOrder = GROUP MIN multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order) IF 
+//    currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND (multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)) 
+//    BY sku, order;    
+maxSubstituteSkuPriceSkuOrder = GROUP LAST skuSubstitute 
+    BY sku, order
+    ORDER multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)     
+    WHERE currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND multiplierSubstituteFromToSku(sku, skuSubstitute) AND priceStockSkuOrder(skuSubstitute,order) 
+;    
+minSubstituteSkuPriceSkuOrder = GROUP LAST skuSubstitute 
+    BY sku, order
+    ORDER DESC multiplierSubstituteFromToSku(sku, skuSubstitute)*priceStockSkuOrder(skuSubstitute,order)  
+    WHERE currentBalanceSkuPriceStockOrder(skuSubstitute,order) >0 AND multiplierSubstituteFromToSku(sku, skuSubstitute) AND priceStockSkuOrder(skuSubstitute,order) 
+;          
+         
 fillSubstitutePriceMaxOrderSkuFrom 'Исп. max цену' = ACTION (order, sku) {
-    IF maxSubstitutePriceSkuOrder(sku, order) THEN {
-        dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](maxSubstitutePriceSkuOrder(sku, order));     
-    }        
+    LOCAL sku = Sku ();
+    sku() <- NULL;
+    sku() <- maxSubstituteSkuPriceSkuOrder(sku, order);
+    
+    dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](multiplierSubstituteFromToSku(sku, sku())*priceStockSkuOrder(sku(),order)) WHERE sku();     
+    costSkuOrder(sku, order) <- NUMERIC[14,2](calcCostSkuStock(sku(),priceStockOrder(order))) WHERE sku();   
 };  
 fillSubstitutePriceMinOrderSkuFrom 'Исп. min цену' = ACTION (order, sku) {
-    IF minSubstitutePriceSkuOrder(sku, order) THEN {
-        dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](minSubstitutePriceSkuOrder(sku, order));     
-    }        
+    LOCAL sku = Sku ();
+    sku() <- NULL;
+    sku() <- minSubstituteSkuPriceSkuOrder(sku, order);
+
+    dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](multiplierSubstituteFromToSku(sku, sku())*priceStockSkuOrder(sku(),order)) WHERE sku();      
+    costSkuOrder(sku, order) <- NUMERIC[14,2](calcCostSkuStock(sku(),priceStockOrder(order))) WHERE sku();   
+       
 };   
 
 fillSubstitutePriceMaxOrder 'Исп. max цену' = ACTION (order) {
@@ -742,12 +780,15 @@ maxSkuBalanceSubstituteSkuOrder (sku, order) =
     GROUP LAST skuSubstitute
           BY   sku, order
           ORDER (currentBalanceSkuPriceStockOrder(skuSubstitute,order) /(multiplierSubstituteFromToSku(sku, skuSubstitute) IF multiplierSubstituteFromToSku(sku, skuSubstitute)!=0))
-          WHERE priceStockSkuOrder(skuSubstitute,order) AND (currentBalanceSkuPriceStockOrder(skuSubstitute,order) /(multiplierSubstituteFromToSku(sku, skuSubstitute) IF multiplierSubstituteFromToSku(sku, skuSubstitute)!=0));
+          WHERE priceStockSkuOrder(skuSubstitute,order) AND currentBalanceSkuPriceStockOrder(skuSubstitute,order) AND multiplierSubstituteFromToSku(sku, skuSubstitute);
 
 fillSubstitutePriceMaxBalanceOrderSkuFrom 'Исп. цену большего остатка' = ACTION (order, sku) {
-    IF maxSkuBalanceSubstituteSkuOrder(sku, order) THEN {
-        dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](priceStockSkuOrder(maxSkuBalanceSubstituteSkuOrder(sku, order),order)*multiplierSubstituteFromToSku(sku, maxSkuBalanceSubstituteSkuOrder(sku, order)));     
-    }        
+    LOCAL sku = Sku();
+    sku() <- NULL;
+    sku() <- maxSkuBalanceSubstituteSkuOrder (sku, order);
+    dataBruttoPriceSkuOrder(sku, order) <- NUMERIC[14,2](priceStockSkuOrder(sku(),order)*multiplierSubstituteFromToSku(sku, sku())) WHERE sku();     
+    costSkuOrder(sku, order) <- NUMERIC[14,2](calcCostSkuStock(sku(),priceStockOrder(order))) WHERE sku();   
+     
 }; 
 fillSubstitutePriceMaxBalanceOrder 'Исп. цену большего остатка' = ACTION (order) {
     FOR quantityComponentDetailSkuOrder(sku,order) DO {
@@ -764,7 +805,8 @@ FORM order 'Производственный заказ'
     PROPERTIES(o)  FORCE PANEL nameCalcPriceListTypeOrder, nameProductsPriceListTypeOrder, VATProductOrder
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) indexProductDetail, nameSkuProductDetail,  idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
-                   calcComponentsPriceProductDetail READONLY, componentsPriceProductDetail ON CHANGE changeComponentsPriceProductDetail(pd)
+                   calcComponentsPriceProductDetail READONLY, componentsPriceProductDetail ON CHANGE changeComponentsPriceProductDetail(pd),
+                   costPriceProductDetail
     PROPERTIES(pd) markupProductDetail ON CHANGE changeMarkupProductDetail(pd) BACKGROUND backgroundMarkupProductDetail(pd),
                    priceProductDetail ON CHANGE changeProductsPriceProductDetail(pd), sumProductDetail
     PROPERTIES(pd) BACKGROUND backgroundVATOrder(o) SHOWIF VATProductOrder(o) valueVATProductDetail
@@ -778,7 +820,7 @@ FORM order 'Производственный заказ'
                    idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,    
                    fullNameBOMComponentDetail, shortNameUOMComponentDetail, bruttoQuantityComponentDetail 
     PROPERTIES(cd) BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail ON CHANGE chooseSubstituteComponentDetail(cd), substituteQuantityComponentDetail
-    PROPERTIES(cd) priceComponentDetail
+    PROPERTIES(cd) costComponentDetail, priceComponentDetail
     PROPERTIES(cd) sumComponentDetail
 
     PROPERTIES(o) TODRAW cd createComponentsOrder, createRecComponentsOrder, aaa
@@ -810,7 +852,7 @@ FORM order 'Производственный заказ'
     OBJECTS sk = Sku
     PROPERTIES(sk) READONLY nameSku, idBarcodeSku, shortNameUOMSku
         
-    PROPERTIES(sk,o) quantityComponentDetailSkuOrder, dataBruttoPriceSkuOrder, 
+    PROPERTIES(sk,o) quantityComponentDetailSkuOrder, costSkuOrder, dataBruttoPriceSkuOrder,  
                     valueVATSkuOrder BACKGROUND backgroundVATOrder(o) SHOWIF VATOrder(o)
     FILTERS quantityComponentDetailSkuOrder(sk,o)    
         
@@ -818,7 +860,7 @@ FORM order 'Производственный заказ'
            
     OBJECTS sku = Sku
     PROPERTIES(sku) READONLY nameSku, idBarcodeSku, shortNameUOMSku
-    PROPERTIES(sku,o) READONLY currentBalanceSkuPriceStockOrder, priceStockSkuOrder
+    PROPERTIES(sku,o) READONLY currentBalanceSkuPriceStockOrder, calcCostSkuOrder, priceStockSkuOrder
     PROPERTIES(sk,sku) READONLY multiplierSubstituteFromToSku FORCE GRID 
     PROPERTIES READONLY currentBalanceSkuPriceStockOrderSkuFromTo(o,sk,sku)
     
@@ -967,6 +1009,7 @@ copyOrder 'Копировать' = ACTION (order) NEWSESSION {
         }
         FOR bruttoQuantitySkuOrder(sku,order) DO {
             dataBruttoPriceSkuOrder(sku,o) <- dataBruttoPriceSkuOrder(sku,order);
+            costSkuOrder(sku,o) <- costSkuOrder(sku,order);
             substituteSkuOrder(sku,o) <- substituteSkuOrder(sku,order);
             multiplierSkuOrder(sku,o) <- multiplierSkuOrder(sku,order);
         }
@@ -1016,7 +1059,9 @@ WHEN SESSION FORMS order DROPPED (multiplierSkuOrder(bruttoSkuComponentDetail(de
  
  
 WHEN SESSION FORMS order CHANGED(dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) DO
-    priceComponentDetail (detail) <- dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail));       
+    priceComponentDetail (detail) <- dataBruttoPriceSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail));   
+WHEN SESSION FORMS order CHANGED(costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail))) DO
+    costComponentDetail (detail) <- costSkuOrder(skuComponentDetail(detail), orderComponentDetail(detail));           
        
 WHEN SESSION FORMS order CHANGED(productProductDetail(detail)) DO
     skuProductDetail(detail) <-  skuProduct(productProductDetail(detail));                 
@@ -1057,14 +1102,14 @@ FORM orders 'Производственные заказы'
 
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) READONLY indexProductDetail, nameSkuProductDetail, idProductProductDetail SHOWIF showIDs(), nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
-                   calcComponentsPriceProductDetail, componentsPriceProductDetail, markupProductDetail, priceProductDetail, sumProductDetail
+                   calcComponentsPriceProductDetail, componentsPriceProductDetail, costPriceProductDetail, markupProductDetail, priceProductDetail, sumProductDetail
     FILTERS orderProductDetail(pd)==o
 
     OBJECTS cd = ComponentDetail
     PROPERTIES(cd) READONLY BACKGROUND backgroundComponentDetail(cd) indexComponentDetail, bruttoNameSkuComponentDetail, idComponentComponentDetail SHOWIF showIDs(), nameComponentComponentDetail,
                    shortNameUOMComponentDetail, bruttoQuantityComponentDetail 
     PROPERTIES(cd) READONLY BACKGROUND backgroundSubstitutesOrder(o) substituteNameSkuComponentDetail, substituteQuantityComponentDetail
-    PROPERTIES(cd) READONLY priceComponentDetail
+    PROPERTIES(cd) READONLY costComponentDetail, priceComponentDetail
     PROPERTIES(cd) READONLY sumComponentDetail
 
     FILTERS orderComponentDetail(cd)==o
@@ -1079,7 +1124,7 @@ FORM orders 'Производственные заказы'
     OBJECTS sk = Sku
     PROPERTIES(sk) READONLY nameSku, idBarcodeSku, shortNameUOMSku
         
-    PROPERTIES(sk,o) READONLY quantityComponentDetailSkuOrder, dataBruttoPriceSkuOrder, 
+    PROPERTIES(sk,o) READONLY quantityComponentDetailSkuOrder, costSkuOrder, dataBruttoPriceSkuOrder, 
                     valueVATSkuOrder BACKGROUND backgroundVATOrder(o) SHOWIF VATOrder(o)
     FILTERS quantityComponentDetailSkuOrder(sk,o)                
 
