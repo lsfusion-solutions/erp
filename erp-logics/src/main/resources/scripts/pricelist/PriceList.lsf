@@ -103,6 +103,11 @@ toTimePriceList(userPriceList) += toTimeUserPriceList(userPriceList);
 //@defineDocumentInterfaceLegalEntity(priceList, company, 'Организация');
 @defineDocumentInterfaceDataLegalEntity(priceList, company, 'Организация');
 userPriceListLegalEntity (legalEntity) = GROUP MAX userPriceList BY companyUserPriceList(userPriceList);
+@defineDocumentInterfaceDataStock(priceList, stock, 'Склад организации', company);
+CONSTRAINT companyUserPriceList(priceList) AND companyStockUserPriceList(priceList) AND NOT
+inLegalEntityStock(companyUserPriceList(priceList), companyStockUserPriceList(priceList))
+    CHECKED BY companyStockUserPriceList
+        MESSAGE 'Организация и склад организации для прайса не имеют связи';
 
 @defineDocumentInterfaceCurrency(priceList);
 
@@ -421,7 +426,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES(p) isPostedUserPriceList, nameNumeratorUserPriceList, numberUserPriceList, seriesUserPriceList,
                   dateUserPriceList, timeUserPriceList,
                   fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
-                  nameCurrencyUserPriceList, nameCompanyUserPriceList, noteUserPriceList,
+                  nameCurrencyUserPriceList, nameCompanyUserPriceList, nameCompanyStockUserPriceList, noteUserPriceList,
                   nameGroupTypeS = nameGroupTypeUserPriceList, nameGroupTypeP = nameGroupTypeUserPriceList,
                   showBatchUserPriceList, showDateTimeUserPriceList, showOriginalNameSkuUserPriceList
 
@@ -541,6 +546,13 @@ EXTEND FORM userPriceList
     PROPERTIES(d) originalNameSkuUserPriceListDetail AFTER nameSkuUserPriceListDetail(d) SHOWIF showOriginalNameSkuUserPriceList(p)        
 ;
 
+WHEN SESSION FORMS userPriceList CHANGED(companyUserPriceList(o)) DO {
+    IF counStocksLegalEntity (companyUserPriceList(o)) == 1 THEN
+        companyStockUserPriceList(o) <- defaultStockLegalEntity(companyUserPriceList(o));
+    IF NOT inLegalEntityStock(companyUserPriceList(o), companyStockUserPriceList(o)) THEN 
+        companyStockUserPriceList(o) <- NULL;
+}
+
 // Оптимизация с преподсчетом видов цен в сессионное свойство
 
 //viewCurrentPricePriceListDetailDataPriceListTypeStock 'Действующая цена' = DATA SESSION NUMERIC[14,2] (UserPriceListDetail, DataPriceListType, Stock);
@@ -608,6 +620,7 @@ DESIGN userPriceList FROM DEFAULT {
                 columns = 3;
                 ADD PROPERTY(nameCurrencyUserPriceList(p));
                 ADD PROPERTY(nameCompanyUserPriceList(p));
+                ADD PROPERTY(nameCompanyStockUserPriceList(p));
                 ADD PROPERTY(noteUserPriceList(p));
             }             
         }
@@ -926,6 +939,7 @@ copyAbstractDataPriceList = ABSTRACT ACTION LIST (PriceList, UserPriceList);
 copyDataPriceList = ACTION (priceList, userPriceList){
         ASSIGN currencyUserPriceList(userPriceList) <- currencyUserPriceList(priceList);
         ASSIGN companyUserPriceList(userPriceList) <- companyUserPriceList(priceList);
+        ASSIGN companyStockUserPriceList(userPriceList) <- companyStockUserPriceList(priceList);
         ASSIGN dataInUserPriceListStock(userPriceList, stock) <- dataInUserPriceListStock(priceList, stock);
         ASSIGN dataInUserPriceListStockGroup(userPriceList, stockGroup) <- dataInUserPriceListStockGroup(priceList, stockGroup);
         ASSIGN allStocksUserPriceList(userPriceList) <- allStocksUserPriceList(priceList);
@@ -1004,7 +1018,7 @@ FORM priceLists 'Прайсы'
     PROPERTIES(p) READONLY BACKGROUND backgroundPriceList(p)
            isPostedPriceList FORCE GRID, numberPriceList, seriesPriceList, datePriceList, timePriceList,
            fromDatePriceList, fromTimePriceList, toDatePriceList, toTimePriceList,
-           nameCurrencyPriceList, nameCompanyPriceList, priceListTypesPriceList, stocksPriceList,
+           nameCurrencyPriceList, nameCompanyPriceList, nameCompanyStockPriceList, priceListTypesPriceList, stocksPriceList,
            notePriceList
 
     PROPERTIES ()  addUserPriceList TODRAW p
@@ -1129,7 +1143,7 @@ FORM printPriceList 'Прайс'
     OBJECTS p = PriceList FIXED PANEL
     PROPERTIES(p) READONLY numberPriceList, seriesPriceList, datePriceList, timePriceList,
            fromDatePriceList, fromTimePriceList, toDatePriceList, toTimePriceList,
-           nameCurrencyPriceList, nameCompanyPriceList, priceListTypesPriceList, stocksPriceList,
+           nameCurrencyPriceList, nameCompanyPriceList, nameCompanyStockPriceList, priceListTypesPriceList, stocksPriceList,
            notePriceList, isPostedPriceList
 
     OBJECTS t = DataPriceListType
