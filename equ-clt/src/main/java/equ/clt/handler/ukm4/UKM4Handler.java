@@ -77,11 +77,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 Set<Long> idItemGroups = new HashSet<Long>();
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                     int size = item.hierarchyItemGroup.size();
-                    Long group1 = Long.parseLong(size >= 1 ? trim(item.hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
-                    Long group2 = Long.parseLong(size >= 2 ? trim(item.hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
-                    Long group3 = Long.parseLong(size >= 3 ? trim(item.hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
-                    Long group4 = Long.parseLong(size >= 4 ? trim(item.hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
-                    Long group5 = Long.parseLong(size >= 5 ? trim(item.hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
+                    Long group1 = parseGroup(size >= 1 ? trim(item.hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
+                    Long group2 = parseGroup(size >= 2 ? trim(item.hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
+                    Long group3 = parseGroup(size >= 3 ? trim(item.hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
+                    Long group4 = parseGroup(size >= 4 ? trim(item.hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
+                    Long group5 = parseGroup(size >= 5 ? trim(item.hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
                     String name = trim(item.nameItemGroup, 80);
                     if(!idItemGroups.contains(group1)) {
                         idItemGroups.add(group1);
@@ -144,11 +144,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
                     double mespresisi = item.splitItem ? 0.001 : 1.000;
                     int size = item.hierarchyItemGroup.size();
-                    Long group1 = Long.parseLong(size >= 1 ? trim(item.hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
-                    Long group2 = Long.parseLong(size >= 2 ? trim(item.hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
-                    Long group3 = Long.parseLong(size >= 3 ? trim(item.hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
-                    Long group4 = Long.parseLong(size >= 4 ? trim(item.hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
-                    Long group5 = Long.parseLong(size >= 5 ? trim(item.hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
+                    Long group1 = parseGroup(size >= 1 ? trim(item.hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
+                    Long group2 = parseGroup(size >= 2 ? trim(item.hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
+                    Long group3 = parseGroup(size >= 3 ? trim(item.hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
+                    Long group4 = parseGroup(size >= 4 ? trim(item.hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
+                    Long group5 = parseGroup(size >= 5 ? trim(item.hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
 
                     pluCashDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), trim(item.name, 80), mesuriment, mespresisi, null, null, 
                             null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5, 
@@ -365,6 +365,10 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
     protected String trim(String input, Integer length) {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
+    }
+    
+    protected Long parseGroup(String idItemGroup) {
+        return idItemGroup == null ? 0 : Long.parseLong(idItemGroup);
     }
 
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
