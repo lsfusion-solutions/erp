@@ -13,6 +13,7 @@ public class ProductionOrderDetail {
     public String idProductDetail;
     public Integer dataIndex;
     public String idItem;
+    public String idProduct;
     public BigDecimal outputQuantity;
     public BigDecimal price;
     public BigDecimal componentsPrice;
@@ -21,7 +22,7 @@ public class ProductionOrderDetail {
     public BigDecimal sum;
 
     public ProductionOrderDetail(Boolean isPosted, String idOrder, String numberOrder, Date dateOrder, String idProductsStock, 
-                                 String idProductDetail, Integer dataIndex, String idItem, BigDecimal outputQuantity,
+                                 String idProductDetail, Integer dataIndex, String idItem, String idProduct, BigDecimal outputQuantity,
                                  BigDecimal price, BigDecimal componentsPrice, BigDecimal valueVAT, BigDecimal markup, 
                                  BigDecimal sum) {
         this.isPosted = isPosted;
@@ -32,6 +33,7 @@ public class ProductionOrderDetail {
         this.idProductDetail = idProductDetail;
         this.dataIndex = dataIndex;
         this.idItem = idItem;
+        this.idProduct = idProduct;
         this.outputQuantity = outputQuantity;
         this.price = price;
         this.componentsPrice = componentsPrice;
