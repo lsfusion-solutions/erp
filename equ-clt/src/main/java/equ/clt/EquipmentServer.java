@@ -160,7 +160,7 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                processStopListInfo(remote, sidEquipmentServer);
+                    processStopListInfo(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 }
@@ -174,7 +174,7 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings);
+                    sendSalesInfo(remote, sidEquipmentServer, equipmentServerSettings);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 }
@@ -188,7 +188,7 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                sendSoftCheckInfo(remote);
+                    sendSoftCheckInfo(remote);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 }
@@ -202,7 +202,7 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                sendTerminalDocumentInfo(remote, sidEquipmentServer);
+                    sendTerminalDocumentInfo(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 }
