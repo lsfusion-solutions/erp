@@ -51,6 +51,11 @@ idUserPriceListDetail = DATA VARSTRING[100] (UserPriceListDetail);
 userPriceListDetailIdUserPriceList (id, userPriceList) = GROUP AGGR userPriceListDetail BY idUserPriceListDetail(userPriceListDetail), userPriceListUserPriceListDetail(userPriceListDetail) WHERE userPriceListDetail IS UserPriceListDetail;
 userPriceListDetailIdIdUserPriceList (id, idUserPriceList) = GROUP AGGR userPriceListDetail BY idUserPriceListDetail(userPriceListDetail), idUserPriceList(userPriceListUserPriceListDetail(userPriceListDetail)) WHERE userPriceListDetail IS UserPriceListDetail;
 
+originalUserPriceList 'Файл оригинала прайса'  = DATA CUSTOMFILE (UserPriceList);
+
+saveOriginalUserPriceList 'Загрузить файл оригинала прайса' (i) = ACTION LOADFILE originalUserPriceList(i);
+openOriginalUserPriceList 'Просмотреть оригинал прайса' (i) = ACTION OPENFILE originalUserPriceList(i);
+
 autoImportImportUserPriceListType 'Автоматический импорт' = DATA BOOLEAN(ImportUserPriceListType);
 autoImportDirectoryImportUserPriceListType 'Папка' =  DATA VARSTRING[100](ImportUserPriceListType);
 
@@ -182,6 +187,7 @@ EXTEND DESIGN integrationData {
 EXTEND FORM userPriceList
     PROPERTIES(p) importUserPriceListAction TODRAW d TOOLBAR
     PROPERTIES(p) nameImportUserPriceListTypeUserPriceList
+    PROPERTIES(p) saveOriginalUserPriceList, openOriginalUserPriceList 
 ;
 
 EXTEND DESIGN userPriceList{
@@ -193,6 +199,11 @@ EXTEND DESIGN userPriceList{
                 caption = 'Универсальный импорт';
                 ADD PROPERTY(nameImportUserPriceListTypeUserPriceList(p));
                 ADD PROPERTY(importUserPriceListAction(p));
+            }
+            NEW origin {
+                caption = 'Оригинал прайса';
+                ADD PROPERTY(saveOriginalUserPriceList(p));
+                ADD PROPERTY(openOriginalUserPriceList(p));
             }
         }
     }

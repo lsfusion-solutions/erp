@@ -6,16 +6,14 @@ import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
+import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.CustomClass;
-import lsfusion.server.classes.CustomStaticFormatFileClass;
-import lsfusion.server.classes.DateClass;
+import lsfusion.server.classes.*;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -134,9 +132,16 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         else
             userPriceListDetailList = null;
 
-        return importUserPriceListDetails(context, userPriceListDetailList, importColumns, userPriceListObject, apply)
+        boolean result = importUserPriceListDetails(context, userPriceListDetailList, importColumns, userPriceListObject, apply)
                 && (importColumns.getQuantityAdjustmentColumn() == null || importAdjustmentDetails(context, userPriceListDetailList, importColumns.getStockObject(), importColumns.getItemKeyType(), apply));
 
+
+        findProperty("originalUserPriceList").change(new DataObject(BaseUtils.mergeFileAndExtension(file, importColumns.getFileExtension().getBytes()), 
+                DynamicFormatFileClass.get(false, true)), context, userPriceListObject);
+        if(apply)
+            context.apply();
+        
+        return result; 
     }
 
     private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailsList,
