@@ -232,12 +232,14 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             if (operationObject instanceof DataObject)
                 props.add(new ImportProperty((DataObject) operationObject, findProperty("Production.operationOrder").getMapping(orderObject == null ? orderKey : orderObject)));
 
-            ImportField dataIndexOrderDetailField = new ImportField(findProperty("Production.dataIndexProductDetail"));
-            props.add(new ImportProperty(dataIndexOrderDetailField, findProperty("Production.dataIndexProductDetail").getMapping(productDetailKey)));
-            fields.add(dataIndexOrderDetailField);
-            for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).dataIndex);
-
+            if (showField(orderDetailsList, "dataIndex")) {
+                ImportField dataIndexOrderDetailField = new ImportField(findProperty("Production.dataIndexProductDetail"));
+                props.add(new ImportProperty(dataIndexOrderDetailField, findProperty("Production.dataIndexProductDetail").getMapping(productDetailKey)));
+                fields.add(dataIndexOrderDetailField);
+                for (int i = 0; i < orderDetailsList.size(); i++)
+                    data.get(i).add(orderDetailsList.get(i).dataIndex);
+            }
+            
             if (showField(orderDetailsList, "outputQuantity")) {
                 addDataField(props, fields, importColumns, findProperty("Production.outputQuantityProductDetail"), "outputQuantity", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
@@ -323,7 +325,8 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             Date dateOrder = getXLSDateFieldValue(sheet, i, importColumns.get("dateDocument"));
             String idProductsStock = getXLSFieldValue(sheet, i, importColumns.get("idProductsStock"));
             String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, i);
-            Integer dataIndex = Integer.parseInt(getXLSFieldValue(sheet, i, importColumns.get("dataIndex"), String.valueOf(result.size() + 1)));
+            String dataIndexString = getXLSFieldValue(sheet, i, importColumns.get("dataIndex"));
+            Integer dataIndex = dataIndexString == null ? null : Integer.parseInt(dataIndexString);
             String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
             String idProduct = getXLSFieldValue(sheet, i, importColumns.get("idProduct"));
             BigDecimal outputQuantity = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("outputQuantity"));
@@ -361,7 +364,8 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             Date dateOrder = getCSVDateFieldValue(valuesList, importColumns.get("dateDocument"), count);
             String idProductsStock = getCSVFieldValue(valuesList, importColumns.get("idProductsStock"), count);
             String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, count);
-            Integer dataIndex = Integer.parseInt(getCSVFieldValue(valuesList, importColumns.get("dataIndex"), count, String.valueOf(result.size() + 1)));
+            String dataIndexString = getCSVFieldValue(valuesList, importColumns.get("dataIndex"), count);
+            Integer dataIndex = dataIndexString == null ? null : Integer.parseInt(dataIndexString);
             String idItem = getCSVFieldValue(valuesList, importColumns.get("idItem"), count);
             String idProduct = getCSVFieldValue(valuesList, importColumns.get("idProduct"), count);
             BigDecimal outputQuantity = getCSVBigDecimalFieldValue(valuesList, importColumns.get("outputQuantity"), count);
@@ -394,7 +398,8 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             Date dateOrder = getXLSXDateFieldValue(sheet, i, importColumns.get("dateDocument"));
             String idProductsStock = getXLSXFieldValue(sheet, i, importColumns.get("idProductsStock"));
             String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, i);
-            Integer dataIndex = Integer.parseInt(getXLSXFieldValue(sheet, i, importColumns.get("dataIndex"), false, String.valueOf(result.size() + 1)));
+            String dataIndexString = getXLSXFieldValue(sheet, i, importColumns.get("dataIndex"));
+            Integer dataIndex = dataIndexString == null ? null : Integer.parseInt(dataIndexString);
             String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
             String idProduct = getXLSXFieldValue(sheet, i, importColumns.get("idProduct"));
             BigDecimal outputQuantity = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("outputQuantity"));
@@ -434,7 +439,8 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             Date dateOrder = getDBFDateFieldValue(file, importColumns.get("dateDocument"), i, charset);
             String idProductsStock = getDBFFieldValue(file, importColumns.get("idProductsStock"), i, charset);
             String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, i);
-            Integer dataIndex = getDBFBigDecimalFieldValue(file, importColumns.get("dataIndex"), i, charset, new BigDecimal(result.size() + 1)).intValue();
+            String dataIndexString = getDBFFieldValue(file, importColumns.get("dataIndex"), i, charset);
+            Integer dataIndex = dataIndexString == null ? null : Integer.parseInt(dataIndexString);
             String idItem = getDBFFieldValue(file, importColumns.get("idItem"), i, charset);
             String idProduct = getDBFFieldValue(file, importColumns.get("idProduct"), i, charset);
             BigDecimal outputQuantity = getDBFBigDecimalFieldValue(file, importColumns.get("outputQuantity"), i, charset);
