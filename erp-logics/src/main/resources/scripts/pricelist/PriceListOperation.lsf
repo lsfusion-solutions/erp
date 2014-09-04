@@ -115,14 +115,14 @@ inUserPriceListDataPriceListType(priceList, dataPriceListType) <- changeDataPric
 showUserPriceListPriceListType(priceList, priceListType) <- showPriceListTypeOperation(priceListType, operationUserPriceList(priceList))
     WHEN CHANGED(operationUserPriceList(priceList));
 
-companyUserPriceList(priceList) <- dataLegalEntityOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
+WHEN SESSION CHANGED(operationUserPriceList(priceList)) AND dataLegalEntityOperation(operationUserPriceList(priceList)) DO
+    companyUserPriceList(priceList) <- dataLegalEntityOperation(operationUserPriceList(priceList));
 
-currencyUserPriceList(priceList) <- defaultCurrencyOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
+WHEN SESSION CHANGED(operationUserPriceList(priceList)) AND defaultCurrencyOperation(operationUserPriceList(priceList)) DO
+    currencyUserPriceList(priceList) <- defaultCurrencyOperation(operationUserPriceList(priceList));
 
 copyOperationPriceList = ACTION (priceList, userPriceList){
-    ASSIGN operationUserPriceList(userPriceList) <- operationUserPriceList(priceList);
+    operationUserPriceList(userPriceList) <- operationUserPriceList(priceList);
 }
 copyAbstractDataPriceList(priceList, userPriceList) += ACTION copyOperationPriceList(priceList, userPriceList);
 
