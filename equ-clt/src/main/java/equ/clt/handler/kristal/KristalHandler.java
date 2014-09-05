@@ -17,6 +17,7 @@ import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.input.SAXBuilder;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
+import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -440,13 +441,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public SalesBatch readSalesInfo(List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
-        Set<String> directorySet = new HashSet<String>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
         Map<String, Date> directoryStartDateMap = new HashMap<String, Date>();
         Map<String, Boolean> directoryNotDetailedMap = new HashMap<String, Boolean>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.handlerModel != null && c.directory != null && c.handlerModel.endsWith("KristalHandler")) {
-                directorySet.add(c.directory);
                 directoryNotDetailedMap.put(c.directory, c.notDetailed);
                 if (c.number != null && c.numberGroup != null)
                     directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
@@ -648,6 +647,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         logger.error("File: " + file.getAbsolutePath(), e);
                     }
                     filePathList.add(file.getAbsolutePath());
+                    File successDir = new File(exchangeDirectory + "/success/");
+                    if(successDir.exists() || successDir.mkdirs())
+                        FileCopyUtils.copy(file, new File(exchangeDirectory + "/success/" + file.getName()));
                 }
             }
         }
