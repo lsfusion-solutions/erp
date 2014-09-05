@@ -1233,8 +1233,8 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 for (int i = 0; i < priceListStoresList.size(); i++)
                     data.get(i).add(priceListStoresList.get(i).pricePriceListDetail);
 
-                ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inPriceListDataPriceListType"));
-                props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeObject)));
+                ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inUserPriceListDataPriceListType"));
+                props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inUserPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeObject)));
                 fields.add(inPriceListPriceListTypeField);
                 for (int i = 0; i < priceListStoresList.size(); i++)
                     data.get(i).add(true);
@@ -1342,8 +1342,8 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 for (int i = 0; i < priceListSuppliersList.size(); i++)
                     data.get(i).add(priceListSuppliersList.get(i).pricePriceListDetail);
 
-                ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inPriceListDataPriceListType"));
-                props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeObject)));
+                ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inUserPriceListDataPriceListType[PriceList,DataPriceListType]"));
+                props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inUserPriceListDataPriceListType[PriceList,DataPriceListType]").getMapping(userPriceListKey, dataPriceListTypeObject)));
                 fields.add(inPriceListPriceListTypeField);
                 for (int i = 0; i < priceListSuppliersList.size(); i++)
                     data.get(i).add(true);

@@ -150,7 +150,9 @@ pricePriceListDetailDataPriceListType 'Цена (новая)' = ABSTRACT NUMERIC
 priceUserPriceListDetailDataPriceListType 'Цена (новая)' = DATA NUMERIC[14,2] (UserPriceListDetail, DataPriceListType);
 pricePriceListDetailDataPriceListType (priceListDetail, dataPriceListType) += priceUserPriceListDetailDataPriceListType(priceListDetail, dataPriceListType);
 
-inPriceListDetailDataPriceListType (detail, type) = inPriceListDataPriceListType(priceListPriceListDetail(detail), type) PERSISTENT;
+inPriceListDetailDataPriceListType (detail, type) = inPriceListDataPriceListType(priceListPriceListDetail(detail), type);
+inUserPriceListDetailDataPriceListType (detail, type) = inUserPriceListDataPriceListType(userPriceListUserPriceListDetail(detail), type);
+
 pricePriceListDetailDataPriceListType(detail, type) => inPriceListDetailDataPriceListType (detail, type) RESOLVE FALSE;
 
 //НДС
@@ -250,27 +252,43 @@ createdComputerPriceListLedger (d) += createdComputerPriceListDetail(d);
 
 // -------------- Текущая действующая цена --------------- //
 
-currentPricePriceListDetailDataPriceListTypeStock 'Действующая цена' (priceListDetail, dataPriceListType, stock) =
-    IF inPriceListDetailDataPriceListType(priceListDetail, dataPriceListType) THEN
-        prevPriceBPriceListTypeSkuStockDateTime(dataPriceListType, skuPriceListDetail(priceListDetail), stock, fromDateTimePriceListDetail(priceListDetail))
+currentPriceUserPriceListDetailPriceListTypeStock 'Действующая цена' (priceListDetail, priceListType, stock) =
+    IF inUserPriceListDetailDataPriceListType(priceListDetail, priceListType) THEN
+        prevPriceBPriceListTypeSkuStockDateTime(priceListType, skuUserPriceListDetail(priceListDetail), stock, fromDateTimeUserPriceListDetail(priceListDetail))
     ELSE
-        prevPriceAPriceListTypeSkuStockDateTime(dataPriceListType, skuPriceListDetail(priceListDetail), stock, fromDateTimePriceListDetail(priceListDetail));
+        prevPriceAPriceListTypeSkuStockDateTime(priceListType, skuUserPriceListDetail(priceListDetail), stock, fromDateTimeUserPriceListDetail(priceListDetail));
 
-currentPriceSkuPriceListDataPriceListTypeStock 'Действующая цена' (sku, priceList, dataPriceListType, stock) =
-    IF inPriceListDataPriceListType(priceList, dataPriceListType) THEN
-        prevPriceBPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, fromDateTimePriceList(priceList))
+// Рассчитываем цены для строк
+viewPriceUserPriceListDetailPriceListType 'Цена' = DATA SESSION NUMERIC[14,2] (UserPriceListDetail, PriceListType);
+
+updateViewPriceDetailUserPriceListDetailPriceListTypeStock(d, t, s) = ACTION {
+    viewPriceUserPriceListDetailPriceListType(d, t) <- currentPriceUserPriceListDetailPriceListTypeStock(d, t, s);
+}
+
+updateViewPriceDetailUserPriceListDetailStock (d, s) = ACTION {
+    FOR showUserPriceListPriceListType(userPriceListUserPriceListDetail(d), t) NOINLINE (t) DO
+        updateViewPriceDetailUserPriceListDetailPriceListTypeStock(d, t, s);
+}
+
+currentPriceSkuUserPriceListPriceListTypeStock 'Действующая цена' (sku, priceList, priceListType, stock) =
+    IF inUserPriceListDataPriceListType(priceList, priceListType) THEN
+        prevPriceBPriceListTypeSkuStockDateTime(priceListType, sku, stock, fromDateTimePriceList(priceList))
     ELSE
-        prevPriceAPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, fromDateTimePriceList(priceList));
+        prevPriceAPriceListTypeSkuStockDateTime(priceListType, sku, stock, fromDateTimePriceList(priceList));
 
-currentPriceBatchPriceListDataPriceListTypeStock 'Действующая цена' (batch, priceList, dataPriceListType, stock) =
-    IF inPriceListDataPriceListType(priceList, dataPriceListType) THEN
-        prevPriceBPriceListTypeSkuStockDateTime(dataPriceListType, skuBatch(batch), stock, fromDateTimePriceList(priceList))
+currentPriceBatchPriceListPriceListTypeStock 'Действующая цена' (batch, priceList, priceListType, stock) =
+    IF inUserPriceListDataPriceListType(priceList, priceListType) THEN
+        prevPriceBPriceListTypeSkuStockDateTime(priceListType, skuBatch(batch), stock, fromDateTimePriceList(priceList))
     ELSE
-        prevPriceAPriceListTypeSkuStockDateTime(dataPriceListType, skuBatch(batch), stock, fromDateTimePriceList(priceList));
+        prevPriceAPriceListTypeSkuStockDateTime(priceListType, skuBatch(batch), stock, fromDateTimePriceList(priceList));
 
-changePricePriceListDetailDataPriceListTypeStock 'Изменение, %' (priceListDetail, dataPriceListType, stock) =
-    pricePriceListDetailDataPriceListType(priceListDetail, dataPriceListType) * 100.0 /
-    (currentPricePriceListDetailDataPriceListTypeStock (priceListDetail, dataPriceListType, stock) IF currentPricePriceListDetailDataPriceListTypeStock (priceListDetail, dataPriceListType, stock) != 0) - 100.0;
+changePriceUserPriceListDetailDataPriceListType 'Изменение, %' (priceListDetail, dataPriceListType) =
+    priceUserPriceListDetailDataPriceListType(priceListDetail, dataPriceListType) * 100.0 /
+    (viewPriceUserPriceListDetailPriceListType (priceListDetail, dataPriceListType) IF viewPriceUserPriceListDetailPriceListType (priceListDetail, dataPriceListType) != 0) - 100.0;
+
+//changePriceUserPriceListDetailDataPriceListTypeStock 'Изменение, %' (priceListDetail, dataPriceListType, stock) =
+//    priceUserPriceListDetailDataPriceListType(priceListDetail, dataPriceListType) * 100.0 /
+//    (currentPriceUserPriceListDetailPriceListTypeStock (priceListDetail, dataPriceListType, stock) IF currentPriceUserPriceListDetailPriceListTypeStock (priceListDetail, dataPriceListType, stock) != 0) - 100.0;
 
 // Заголовки колонок
 headerNameCurrentDataPriceListType (dataPriceListType) =
@@ -391,11 +409,11 @@ nameFilterPriceListTypeUserPriceList 'Вид цены' (userPriceList) = namePri
 
 //sku
 currentPriceSkuPriceListStock 'Текущая цена' (sku, userPriceList, stock) =
-    currentPriceSkuPriceListDataPriceListTypeStock(sku, userPriceList, filterPriceListTypeUserPriceList(userPriceList), stock);
+    currentPriceSkuUserPriceListPriceListTypeStock(sku, userPriceList, filterPriceListTypeUserPriceList(userPriceList), stock);
 
 //batch
 currentPriceBatchPriceListStock 'Текущая цена' (batch, userPriceList, stock) =
-    currentPriceBatchPriceListDataPriceListTypeStock(batch, userPriceList, filterPriceListTypeUserPriceList(userPriceList), stock);
+    currentPriceBatchPriceListPriceListTypeStock(batch, userPriceList, filterPriceListTypeUserPriceList(userPriceList), stock);
 filterPriceListTypeUserPriceListBatchStock (userPriceList, batch, stock) =
     currentPriceBatchPriceListStock (batch, userPriceList, stock) OR
     (batch IS Batch AND stock IS Stock AND NOT filterPriceListTypeUserPriceList(userPriceList));
@@ -432,12 +450,12 @@ FORM userPriceList 'Прайс'
 
     OBJECTS t = PriceListType
     PROPERTIES(t) namePriceListType READONLY, includeVATLedgerPriceListType
-    PROPERTIES(p, t) inPriceListDataPriceListType FORCE GRID, showPriceListPriceListType
+    PROPERTIES(p, t) inUserPriceListDataPriceListType FORCE GRID, showPriceListPriceListType
     FILTERS (currencyUserPriceList(p) == currencyPriceListType(t)) OR 
             NOT currencyPriceListType(t) OR NOT currencyUserPriceList(p) 
 
     OBJECTS tc = DataPriceListType FIXED GRID
-    FILTERS inPriceListDataPriceListType(p, tc), 
+    FILTERS inUserPriceListDataPriceListType(p, tc), 
             (currencyUserPriceList(p) == currencyPriceListType(tc)) OR 
             NOT currencyPriceListType(tc) OR NOT currencyUserPriceList(p) 
 
@@ -445,7 +463,7 @@ FORM userPriceList 'Прайс'
     FILTERS showPriceListPriceListType(p, to)
 
     OBJECTS th = DataPriceListType FIXED GRID
-    FILTERS inPriceListDataPriceListType(p, th) AND showPriceListPriceListType(p, th)  
+    FILTERS inUserPriceListDataPriceListType(p, th) AND showPriceListPriceListType(p, th)  
 
     TREE skuTree sk = Group PARENT parentGroup
     PROPERTIES READONLY skuTreeName = nameGroup(sk)
@@ -480,8 +498,8 @@ FORM userPriceList 'Прайс'
     OBJECTS ts = Stock
     PROPERTIES READONLY  nameStock(ts)
     PROPERTIES(p, ts)    inPriceListStock
-    PROPERTIES(d, to, ts) currentPricePriceListDetailDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
-    PROPERTIES(d, th, ts) changePricePriceListDetailDataPriceListTypeStock COLUMNS (th) HEADER headerNameChangeDataPriceListType(th) BACKGROUND backgroundChangeDataPriceListType(th)
+//    PROPERTIES(d, to, ts) currentPriceUserPriceListDetailPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
+//    PROPERTIES(d, th, ts) changePriceUserPriceListDetailDataPriceListTypeStock COLUMNS (th) HEADER headerNameChangeDataPriceListType(th) BACKGROUND backgroundChangeDataPriceListType(th)
     FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParentStockGroupStock(sg, ts),
             isCompanyStock(ts)
     FILTERGROUP filters2
@@ -490,9 +508,10 @@ FORM userPriceList 'Прайс'
         
     OBJECTS tt = Stock FIXED PANEL
     PROPERTIES SELECTOR stockName = nameStock(tt) FORCE PANEL
-    PROPERTIES(d, to, tt) READONLY currentPricePriceListDetailDataPriceListTypeStock COLUMNS 'type' (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to) TODRAW d FORCE GRID
+    PROPERTIES(d, to) READONLY viewPriceUserPriceListDetailPriceListType COLUMNS 'type' (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to) TODRAW d FORCE GRID
+//    PROPERTIES(d, to, tt) READONLY currentPriceUserPriceListDetailPriceListTypeStock COLUMNS 'type' (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to) TODRAW d FORCE GRID
     PROPERTIES(to, tt, d) SHOWIF toShowPriceListPriceListType(p, to) READONLY nameCompanyBLedgerPriceListTypeStockPriceListDetail COLUMNS 'type' (to) HEADER headerNameCompanyDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to) TODRAW d FORCE GRID    
-    PROPERTIES(d, th, tt) READONLY changePricePriceListDetailDataPriceListTypeStock COLUMNS (th) HEADER headerNameChangeDataPriceListType(th) BACKGROUND backgroundChangeDataPriceListType(th) TODRAW d FORCE GRID
+    PROPERTIES(d, th) READONLY changePriceUserPriceListDetailDataPriceListType COLUMNS (th) HEADER headerNameChangeDataPriceListType(th) BACKGROUND backgroundChangeDataPriceListType(th) TODRAW d FORCE GRID
 
 //    PROPERTIES(d)        nameCompanyUserPriceListDetail
     FILTERS isCompanyStock(tt)
@@ -512,7 +531,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES inSkuUserPriceList(s2, p) ON CHANGE changeInSkuUserPriceList(s2, p)
     PROPERTIES READONLY inputName2 = nameSku(s2), idBarcodeSku(s2), shortNameUOMSku(s2), currentBalanceSkuStock(s2, ts2)
     PROPERTIES READONLY currentPriceSkuPriceListStock(s2, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)
-    PROPERTIES(s2, p, to, ts2) currentPriceSkuPriceListDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
+    PROPERTIES(s2, p, to, ts2) currentPriceSkuUserPriceListPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
     PROPERTIES                 addSku() TODRAW s2, editSku(s2), copySku(s2)
     FILTERS currentPriceSkuPriceListStock (s2, p, ts2) OR
             NOT filterPriceListTypeUserPriceList(p),
@@ -530,7 +549,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES READONLY QUICKFILTER nameSkuBatch(b) shortNameUOMBatch(b),
                                                  prevCurrentBalanceBatchStock(b, ts2), nameBatch(b)
     PROPERTIES READONLY currentPriceBatchPriceListStock(b, p, ts2) SHOWIF filterPriceListTypeUserPriceList(p)                                                 
-    PROPERTIES(b, p, to, ts2) currentPriceBatchPriceListDataPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
+    PROPERTIES(b, p, to, ts2) currentPriceBatchPriceListPriceListTypeStock COLUMNS (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to)
     FILTERS filterPriceListTypeUserPriceListBatchStock(p, b, ts2),
             isParentSkuGroupBatch(sk2, b)
     FILTERGROUP filters4
@@ -552,6 +571,15 @@ WHEN SESSION FORMS userPriceList CHANGED(companyUserPriceList(o)) DO {
     IF NOT inLegalEntityStock(companyUserPriceList(o), companyStockUserPriceList(o)) THEN 
         companyStockUserPriceList(o) <- NULL;
 }
+
+WHEN SESSION FORMS userPriceList (SET([= VIEW userPriceList.d](d)) OR 
+                                  ((CHANGED(skuUserPriceListDetail(d)) OR CHANGED(fromDateTimeUserPriceListDetail(d))) AND [= VIEW userPriceList.d](d)))
+                                 AND [= VIEW userPriceList.tt](s) DO
+    updateViewPriceDetailUserPriceListDetailStock(d, s);
+
+WHEN SESSION FORMS userPriceList (CHANGED(showUserPriceListPriceListType(userPriceListUserPriceListDetail(d), t)) AND [= VIEW userPriceList.d](d)) 
+                                AND [= VIEW userPriceList.tt](s) DO
+    updateViewPriceDetailUserPriceListDetailPriceListTypeStock(d, t, s);
 
 // Оптимизация с преподсчетом видов цен в сессионное свойство
 
@@ -770,7 +798,7 @@ FORM chooseMarkUpSkuUserPriceList 'Наценка'
 
     OBJECTS nt = DataPriceListType FIXED PANEL
     PROPERTIES(nt) SELECTOR nameDataPriceListType
-    FILTERS inPriceListDataPriceListType(p, nt)
+    FILTERS inUserPriceListDataPriceListType(p, nt)
 ;
 
 DESIGN chooseMarkUpSkuUserPriceList FROM DEFAULT {
@@ -803,7 +831,7 @@ changeMarkUpChosenSkuUserPriceList 'Изменить цену для отмеч�
                 prevPrice(detail) <- priceUserPriceListDetailDataPriceListType(detail, chosenObject('pt'))
                                      WHERE userPriceListUserPriceListDetail(detail) == userPriceList;
             } ELSE {
-                prevPrice(detail) <- currentPricePriceListDetailDataPriceListTypeStock(detail, chosenObject('pt'), stock)
+                prevPrice(detail) <- currentPriceUserPriceListDetailPriceListTypeStock(detail, chosenObject('pt'), stock)
                                      WHERE userPriceListUserPriceListDetail(detail) == userPriceList;
             }
             IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent AND includeVATPriceListType(chosenObject('nt')) AND NOT includeVATPriceListType(chosenObject('pt')) THEN {
@@ -870,7 +898,7 @@ changeMarkUpSkuUserPriceList 'Изменить цену для всех стро
             prevPrice(detail) <- priceUserPriceListDetailDataPriceListType(detail, chosenObject('pt'))
                                  WHERE userPriceListUserPriceListDetail(detail) == userPriceList;
         } ELSE {
-            prevPrice(detail) <- currentPricePriceListDetailDataPriceListTypeStock(detail, chosenObject('pt'), stock)
+            prevPrice(detail) <- currentPriceUserPriceListDetailPriceListTypeStock(detail, chosenObject('pt'), stock)
                                  WHERE userPriceListUserPriceListDetail(detail) == userPriceList;
         }
 
@@ -937,13 +965,13 @@ editPriceList (p) += ACTION editUserPriceList(p);
 copyAbstractDataPriceList = ABSTRACT ACTION LIST (PriceList, UserPriceList);
 
 copyDataPriceList = ACTION (priceList, userPriceList){
-        ASSIGN currencyUserPriceList(userPriceList) <- currencyUserPriceList(priceList);
-        ASSIGN companyUserPriceList(userPriceList) <- companyUserPriceList(priceList);
-        ASSIGN companyStockUserPriceList(userPriceList) <- companyStockUserPriceList(priceList);
-        ASSIGN dataInUserPriceListStock(userPriceList, stock) <- dataInUserPriceListStock(priceList, stock);
-        ASSIGN dataInUserPriceListStockGroup(userPriceList, stockGroup) <- dataInUserPriceListStockGroup(priceList, stockGroup);
-        ASSIGN allStocksUserPriceList(userPriceList) <- allStocksUserPriceList(priceList);
-        ASSIGN inUserPriceListDataPriceListType(userPriceList, priceListType) <- inPriceListDataPriceListType(priceList, priceListType);
+        currencyUserPriceList(userPriceList) <- currencyUserPriceList(priceList);
+        companyUserPriceList(userPriceList) <- companyUserPriceList(priceList);
+        companyStockUserPriceList(userPriceList) <- companyStockUserPriceList(priceList);
+        dataInUserPriceListStock(userPriceList, stock) <- dataInUserPriceListStock(priceList, stock);
+        dataInUserPriceListStockGroup(userPriceList, stockGroup) <- dataInUserPriceListStockGroup(priceList, stockGroup);
+        allStocksUserPriceList(userPriceList) <- allStocksUserPriceList(priceList);
+        inUserPriceListDataPriceListType(userPriceList, priceListType) <- inUserPriceListDataPriceListType(priceList, priceListType);
         EXEC copyAbstractDataPriceList(priceList, userPriceList);
         FOR userPriceListUserPriceListDetail(detail) == priceList DO {
             FOR ADDOBJ d = UserPriceListDetail DO {
