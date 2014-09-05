@@ -296,6 +296,15 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         logger.info("Kristal: Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
+            
+            try {
+                File successDir = new File(f.getParent() + "/success/");
+                if (successDir.exists() || successDir.mkdirs())
+                    FileCopyUtils.copy(f, new File(f.getParent() + "/success/" + f.getName()));
+            } catch (IOException e) {
+                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted", e);
+            }
+
             if (f.delete()) {
                 logger.info("Kristal: file " + readFile + " has been deleted");
             } else {
@@ -647,9 +656,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         logger.error("File: " + file.getAbsolutePath(), e);
                     }
                     filePathList.add(file.getAbsolutePath());
-                    File successDir = new File(exchangeDirectory + "/success/");
-                    if(successDir.exists() || successDir.mkdirs())
-                        FileCopyUtils.copy(file, new File(exchangeDirectory + "/success/" + file.getName()));
                 }
             }
         }
