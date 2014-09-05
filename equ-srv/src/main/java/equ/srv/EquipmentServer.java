@@ -190,10 +190,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             KeyExpr key = keys.singleValue();
             QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-            String[] mptProperties = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
+            String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
                     "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction"};
-            for (String property : mptProperties) {
-                query.addProperty(property, equLM.findProperty(property).getExpr(key));
+            LCP[] mptProperties = equLM.findProperties("dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
+                    "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction");
+            for (int i = 0; i < mptProperties.length; i++) {
+                query.addProperty(mptNames[i], mptProperties[i].getExpr(key));
             }
             query.and(equLM.findProperty("sidEquipmentServerMachineryPriceTransaction").getExpr(key).compare(new DataObject(sidEquipmentServer, StringClass.get(20)), Compare.EQUALS));
             query.and(equLM.findProperty("processMachineryPriceTransaction").getExpr(key).getWhere());
@@ -227,24 +229,30 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 QueryBuilder<Object, Object> skuQuery = new QueryBuilder<Object, Object>(skuKeys);
 
-                String[] skuProperties = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
+                String[] skuNames = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
                         "skuGroupMachineryPriceTransactionBarcode", "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode"};
-                String[] scalesSkuProperties = new String[]{"pluNumberMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
-                        "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode"};
-                String[] taxProperties = new String[]{"VATMachineryPriceTransactionBarcode"};
+                LCP[] skuProperties = equLM.findProperties("nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
+                        "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
+                        "skuGroupMachineryPriceTransactionBarcode", "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode");
                 skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
-                for (String property : skuProperties) {
-                    skuQuery.addProperty(property, equLM.findProperty(property).getExpr(transactionObject.getExpr(), barcodeExpr));
+                for (int i = 0; i < skuProperties.length; i++) {
+                    skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionObject.getExpr(), barcodeExpr));
                 }
                 if (scalesItemLM != null) {
-                    for (String property : scalesSkuProperties) {
-                        skuQuery.addProperty(property, scalesItemLM.findProperty(property).getExpr(transactionObject.getExpr(), barcodeExpr));
+                    String[] scalesSkuNames = new String[]{"pluNumberMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
+                            "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode"};
+                    LCP[] scalesSkuProperties = scalesItemLM.findProperties("pluNumberMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "hoursExpiryMachineryPriceTransactionBarcode",
+                            "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode");
+                    for (int i = 0; i < scalesSkuProperties.length; i++) {
+                        skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionObject.getExpr(), barcodeExpr));
                     }
                 }
                 if (machineryPriceTransactionStockTaxLM != null) {
-                    for (String property : taxProperties) {
-                        skuQuery.addProperty(property, machineryPriceTransactionStockTaxLM.findProperty(property).getExpr(transactionObject.getExpr(), barcodeExpr));
+                    String[] taxNames = new String[]{"VATMachineryPriceTransactionBarcode"};
+                    LCP[] taxProperties = machineryPriceTransactionStockTaxLM.findProperties("VATMachineryPriceTransactionBarcode");
+                    for (int i = 0; i < taxProperties.length; i++) {
+                        skuQuery.addProperty(taxNames[i], taxProperties[i].getExpr(transactionObject.getExpr(), barcodeExpr));
                     }
                 }
 
@@ -266,10 +274,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<PropertyInterface, Object>(cashRegisterKeys);
 
-                    String[] cashRegisterProperties = new String[]{"nppMachinery", "portMachinery", "nameModelMachinery", "handlerModelMachinery",
+                    String[] cashRegisterNames = new String[]{"nppMachinery", "portMachinery", "nameModelMachinery", "handlerModelMachinery",
                                                                    "overDirectoryCashRegister"};
-                    for (String property : cashRegisterProperties) {
-                        cashRegisterQuery.addProperty(property, cashRegisterLM.findProperty(property).getExpr(cashRegisterKey));
+                    LCP[] cashRegisterProperties = cashRegisterLM.findProperties("nppMachinery", "portMachinery", "nameModelMachinery", "handlerModelMachinery",
+                                                                   "overDirectoryCashRegister");
+                    for (int i = 0; i < cashRegisterProperties.length; i++) {
+                        cashRegisterQuery.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterKey));
                     }
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
                     cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupMachineryObject, Compare.EQUALS));
@@ -403,9 +413,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr checkKey = checkKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> checkQuery = new QueryBuilder<PropertyInterface, Object>(checkKeys);
 
-                    String[] checkProperties = new String[]{"portMachinery", "nppMachinery", "nameCheckModelCheck"};
-                    for (String property : checkProperties) {
-                        checkQuery.addProperty(property, priceCheckerLM.findProperty(property).getExpr(checkKey));
+                    String[] checkNames = new String[]{"portMachinery", "nppMachinery", "nameCheckModelCheck"};
+                    LCP[] checkProperties = priceCheckerLM.findProperties("portMachinery", "nppMachinery", "nameCheckModelCheck");
+                    for (int i = 0; i < checkProperties.length; i++) {
+                        checkQuery.addProperty(checkNames[i], checkProperties[i].getExpr(checkKey));
                     }
                     checkQuery.and(isCheck.property.getExpr(checkKeys).getWhere());
                     checkQuery.and(priceCheckerLM.findProperty("groupPriceCheckerPriceChecker").getExpr(checkKey).compare(groupMachineryObject, Compare.EQUALS));
@@ -445,9 +456,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr terminalKey = terminalKeys.singleValue();
                     QueryBuilder<PropertyInterface, Object> terminalQuery = new QueryBuilder<PropertyInterface, Object>(terminalKeys);
 
-                    String[] terminalProperties = new String[]{"portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
-                    for (String property : terminalProperties) {
-                        terminalQuery.addProperty(property, terminalLM.findProperty(property).getExpr(terminalKey));
+                    String[] terminalNames = new String[]{"portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery"};
+                    LCP[] terminalProperties = terminalLM.findProperties("portMachinery", "nppMachinery", "nameModelMachinery", "handlerModelMachinery");
+                    for (int i = 0; i < terminalProperties.length; i++) {
+                        terminalQuery.addProperty(terminalNames[i], terminalProperties[i].getExpr(terminalKey));
                     }
                     terminalQuery.and(isTerminal.property.getExpr(terminalKeys).getWhere());
                     terminalQuery.and(terminalLM.findProperty("groupTerminalTerminal").getExpr(terminalKey).compare(groupMachineryObject, Compare.EQUALS));
@@ -498,9 +510,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImRevMap<Object, KeyExpr> discountCardKeys = MapFact.singletonRev((Object) "discountCard", discountCardExpr);
 
         QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<Object, Object>(discountCardKeys);
-        String[] discountCardProperties = new String[]{"numberDiscountCard", "nameDiscountCard", "percentDiscountCard"};
-        for (String property : discountCardProperties) {
-            discountCardQuery.addProperty(property, retailCRMLM.findProperty(property).getExpr(discountCardExpr));
+        String[] discountCardNames = new String[]{"numberDiscountCard", "nameDiscountCard", "percentDiscountCard"};
+        LCP[] discountCardProperties = retailCRMLM.findProperties("numberDiscountCard", "nameDiscountCard", "percentDiscountCard");
+        for (int i = 0; i < discountCardProperties.length; i++) {
+            discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
         }      
         discountCardQuery.and(retailCRMLM.findProperty("numberDiscountCard").getExpr(discountCardExpr).getWhere());
 
@@ -536,9 +549,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 KeyExpr stopListExpr = new KeyExpr("stopList");
                 ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev((Object) "stopList", stopListExpr);
                 QueryBuilder<Object, Object> slQuery = new QueryBuilder<Object, Object>(slKeys);
-                String[] slProperties = new String[]{"numberStopList", "fromDateStopList", "fromTimeStopList", "toDateStopList", "toTimeStopList"};
-                for (String property : slProperties)
-                    slQuery.addProperty(property, stopListLM.findProperty(property).getExpr(stopListExpr));
+                String[] slNames = new String[]{"numberStopList", "fromDateStopList", "fromTimeStopList", "toDateStopList", "toTimeStopList"};
+                LCP<?>[] slProperties = stopListLM.findProperties("numberStopList", "fromDateStopList", "fromTimeStopList", "toDateStopList", "toTimeStopList");
+                for (int i = 0; i < slProperties.length; i++) {
+                    slQuery.addProperty(slNames[i], slProperties[i].getExpr(stopListExpr));
+                }
                 slQuery.and(stopListLM.findProperty("numberStopList").getExpr(stopListExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session);
                 for (int i = 0, size = slResult.size(); i < size; i++) {
@@ -673,9 +688,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        String[] properties = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
-        for (String property : properties) {
-            query.addProperty(property, terminalLM.findProperty(property).getExpr(terminalHandbookTypeExpr));
+        String[] names = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
+        LCP<?>[] properties = terminalLM.findProperties("idTerminalHandbookType", "nameTerminalHandbookType");
+        for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
+            query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
         }
         query.and(terminalLM.findProperty("idTerminalHandbookType").getExpr(terminalHandbookTypeExpr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
@@ -692,10 +708,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalDocumentType", terminalDocumentTypeExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-        String[] properties = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
+        String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
                 "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
-        for (String property : properties) {
-            query.addProperty(property, terminalLM.findProperty(property).getExpr(terminalDocumentTypeExpr));
+        LCP<?>[] properties = terminalLM.findProperties("idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
+                "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType");
+        for (int i = 0; i < properties.length; i++) {
+            query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
         }
         query.and(terminalLM.findProperty("idTerminalDocumentType").getExpr(terminalDocumentTypeExpr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
@@ -719,15 +737,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
             ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
             QueryBuilder<Object, Object> orderQuery = new QueryBuilder<Object, Object>(orderKeys);
-            String[] orderProperties = new String[]{"dateOrder", "numberOrder", "supplierOrder"};
-            for (String property : orderProperties) {
-                orderQuery.addProperty(property, purchaseInvoiceAgreementLM.findProperty(property).getExpr(orderExpr));
+            String[] orderNames = new String[]{"dateOrder", "numberOrder", "supplierOrder"};
+            LCP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.dateOrder", "Purchase.numberOrder", "Purchase.supplierOrder");
+            for (int i = 0; i < orderProperties.length; i++) {
+                orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
             }
-            String[] orderDetailProperties = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
+            String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                     "quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
                     "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail"};
-            for (String property : orderDetailProperties) {
-                orderQuery.addProperty(property, purchaseInvoiceAgreementLM.findProperty(property).getExpr(orderDetailExpr));
+            LCP<?>[] orderDetailProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.idBarcodeSkuOrderDetail", "Purchase.nameSkuOrderDetail", "Purchase.priceOrderDetail",
+                    "Purchase.quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
+                    "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail");
+            for (int i = 0; i < orderDetailProperties.length; i++) {
+                orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
             }
             orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
             orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.numberOrder").getExpr(orderExpr).getWhere());
@@ -761,9 +783,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
             ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<Object, Object>(legalEntityKeys);
-            String[] legalEntityProperties = new String[]{"idLegalEntity", "nameLegalEntity"};
-            for (String property : legalEntityProperties) {
-                legalEntityQuery.addProperty(property, legalEntityLM.findProperty(property).getExpr(legalEntityExpr));
+            String[] legalEntityNames = new String[]{"idLegalEntity", "nameLegalEntity"};
+            LCP<?>[] legalEntityProperties = legalEntityLM.findProperties("idLegalEntity", "nameLegalEntity");
+            for (int i = 0; i < legalEntityProperties.length; i++) {
+                legalEntityQuery.addProperty(legalEntityNames[i], legalEntityProperties[i].getExpr(legalEntityExpr));
             }
             legalEntityQuery.and(legalEntityLM.findProperty("idLegalEntity").getExpr(legalEntityExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session);
@@ -788,14 +811,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "Sku", skuExpr, "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-            String property = "priceALedgerPriceListTypeSkuStockCompanyDateTime";
-            query.addProperty(property, priceListLedgerLM.findProperty(property).getExpr(priceListTypeObject.getExpr(), 
+            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", priceListLedgerLM.findProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime").getExpr(priceListTypeObject.getExpr(), 
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()));
             query.addProperty("idBarcodeSku", itemLM.findProperty("idBarcodeSku").getExpr(skuExpr));
             query.addProperty("idLegalEntity", legalEntityLM.findProperty("idLegalEntity").getExpr(legalEntityExpr));
             query.and(legalEntityLM.findProperty("idLegalEntity").getExpr(legalEntityExpr).getWhere());
             query.and(itemLM.findProperty("idBarcodeSku").getExpr(skuExpr).getWhere());
-            query.and(priceListLedgerLM.findProperty(property).getExpr(priceListTypeObject.getExpr(), 
+            query.and(priceListLedgerLM.findProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime").getExpr(priceListTypeObject.getExpr(), 
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
@@ -825,9 +847,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "requestExchange", requestExchangeExpr, "cashRegister", cashRegisterExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-                String[] properties = new String[]{"stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", "nameRequestExchangeTypeRequestExchange"};
-                for (String property : properties)
-                    query.addProperty(property, machineryPriceTransactionLM.findProperty(property).getExpr(requestExchangeExpr));
+                String[] names = new String[]{"stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", "nameRequestExchangeTypeRequestExchange"};
+                LCP[] properties = machineryPriceTransactionLM.findProperties("stockRequestExchange", "dateFromRequestExchange", "dateToRequestExchange", "nameRequestExchangeTypeRequestExchange");
+                for (int i = 0; i < properties.length; i++) {
+                    query.addProperty(names[i], properties[i].getExpr(requestExchangeExpr));
+                }
                 query.addProperty("overDirectoryCashRegister", cashRegisterLM.findProperty("overDirectoryCashRegister").getExpr(cashRegisterExpr));
                 query.addProperty("idStockMachinery", cashRegisterLM.findProperty("idStockMachinery").getExpr(cashRegisterExpr));
                 query.and(machineryPriceTransactionLM.findProperty("notSucceededRequestExchange").getExpr(requestExchangeExpr).getWhere());
@@ -917,13 +941,18 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "GroupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
 
-                String[] cashRegisterProperties = new String[] {"nppMachinery", "nameModelMachinery", "handlerModelMachinery", 
+                String[] cashRegisterNames = new String[] {"nppMachinery", "nameModelMachinery", "handlerModelMachinery",
                         "portMachinery", "overDirectoryCashRegister"};
-                for(String property : cashRegisterProperties)
-                    query.addProperty(property, cashRegisterLM.findProperty(property).getExpr(cashRegisterExpr));
-                String[] groupCashRegisterProperties = new String[] {"startDateGroupCashRegister", "notDetailedGroupCashRegister", "nppGroupMachinery"};
-                for(String property : groupCashRegisterProperties) 
-                    query.addProperty(property, cashRegisterLM.findProperty(property).getExpr(groupCashRegisterExpr));
+                LCP[] cashRegisterProperties = cashRegisterLM.findProperties("nppMachinery", "nameModelMachinery", "handlerModelMachinery", 
+                        "portMachinery", "overDirectoryCashRegister");
+                for (int i = 0; i < cashRegisterProperties.length; i++) {
+                    query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
+                }
+                String[] groupCashRegisterNames = new String[] {"startDateGroupCashRegister", "notDetailedGroupCashRegister", "nppGroupMachinery"};
+                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("startDateGroupCashRegister", "notDetailedGroupCashRegister", "nppGroupMachinery");
+                for (int i = 0; i < groupCashRegisterProperties.length; i++) {
+                    query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
+                }
                 
                 query.and(cashRegisterLM.findProperty("handlerModelMachinery").getExpr(cashRegisterExpr).getWhere());
                 query.and(cashRegisterLM.findProperty("overDirectoryCashRegister").getExpr(cashRegisterExpr).getWhere());
@@ -1121,9 +1150,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 KeyExpr zReportExpr = new KeyExpr("zReport");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "zReport", zReportExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
-                String[] properties = new String[]{"sumReceiptDetailZReport", "numberZReport"};
-                for (String property : properties)
-                    query.addProperty(property, zReportLM.findProperty(property).getExpr(zReportExpr));
+                String[] names = new String[]{"sumReceiptDetailZReport", "numberZReport"};
+                LCP<?>[] properties = zReportLM.findProperties("sumReceiptDetailZReport", "numberZReport");
+                for (int i = 0; i < properties.length; i++) {
+                    query.addProperty(names[i], properties[i].getExpr(zReportExpr));
+                }
                 query.and(zReportLM.findProperty("dateZReport").getExpr(zReportExpr).compare(new DataObject(dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
                 query.and(zReportLM.findProperty("dateZReport").getExpr(zReportExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
                 query.and(zReportLM.findProperty("departmentStoreZReport").getExpr(zReportExpr).compare(stockObject.getExpr(), Compare.EQUALS));
