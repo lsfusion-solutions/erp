@@ -63,8 +63,61 @@ EXTEND FORM userOrder
 percDeviationDownPriceAgreement '% отклонения по цене вниз' = DATA NUMERIC[8,2] (Agreement) IN agreementPercPrice;
 percDeviationUpPriceAgreement '% отклонения по цене вверх' = DATA NUMERIC[8,2] (Agreement) IN agreementPercPrice;
 
+// Уточнение по группам
+//-- вниз
+dataPercDeviationDownPriceAgreementGroup '% отклонения по цене вниз' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
+levelParentPercDeviationDownPriceAgreementGroup (agreement, group) =
+    GROUP MIN levelGroupGroup(group, parent) IF dataPercDeviationDownPriceAgreementGroup(agreement, parent)
+    BY agreement, group PERSISTENT;
+nearestParentPercDeviationDownPriceAgreementGroup (agreement, group) = groupGroupLevel(group, levelParentPercDeviationDownPriceAgreementGroup (agreement, group));
+nearestPercDeviationDownPriceAgreementGroup (agreement, group) =
+   dataPercDeviationDownPriceAgreementGroup(agreement, nearestParentPercDeviationDownPriceAgreementGroup(agreement, group)) PERSISTENT;
+
+percDeviationDownPriceAgreementGroup '% отклонения по цене вниз (перегруженный)' (agreement, group) =  OVERRIDE  
+    percDeviationDownPriceAgreement(agreement) IF group IS Group,
+    nearestPercDeviationDownPriceAgreementGroup(agreement, group), 
+    dataPercDeviationDownPriceAgreementGroup(agreement, group) PERSISTENT;
+    
+//-- вверх        
+dataPercDeviationUpPriceAgreementGroup '% отклонения по цене вверх' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
+
+levelParentPercDeviationUpPriceAgreementGroup (agreement, group) =
+    GROUP MIN levelGroupGroup(group, parent) IF dataPercDeviationUpPriceAgreementGroup(agreement, parent)
+    BY agreement, group PERSISTENT;
+nearestParentPercDeviationUpPriceAgreementGroup (agreement, group) = groupGroupLevel(group, levelParentPercDeviationUpPriceAgreementGroup (agreement, group));
+nearestPercDeviationUpPriceAgreementGroup (agreement, group) =
+   dataPercDeviationUpPriceAgreementGroup(agreement, nearestParentPercDeviationUpPriceAgreementGroup(agreement, group)) PERSISTENT;
+
+percDeviationUpPriceAgreementGroup '% отклонения по цене вверх (перегруженный)' (agreement, group) =  OVERRIDE  
+    percDeviationUpPriceAgreement(agreement) IF group IS Group,
+    nearestPercDeviationUpPriceAgreementGroup(agreement, group), 
+    dataPercDeviationUpPriceAgreementGroup(agreement, group) PERSISTENT;    
+
+// Уточнение по sku
+//-- вниз
+dataPercDeviationDownPriceAgreementSku '% отклонения по цене вниз' (agreement, sku) = DATA NUMERIC[8,2] (Agreement, Sku);
+
+percDeviationDownPriceAgreementSku '% отклонения по цене вниз (перегруженный)' (agreement, sku) = OVERRIDE     
+    percDeviationDownPriceAgreementGroup(agreement, groupGroupTypeSku(groupTypeAgreement(agreement),sku)),
+    dataPercDeviationDownPriceAgreementSku(agreement, sku);
+    
+//-- вверх
+dataPercDeviationUpPriceAgreementSku '% отклонения по цене вверх' (agreement, sku) = DATA NUMERIC[8,2] (Agreement, Sku);
+
+percDeviationUpPriceAgreementSku '% отклонения по цене вверх (перегруженный)' (agreement, sku) = OVERRIDE     
+    percDeviationUpPriceAgreementGroup(agreement, groupGroupTypeSku(groupTypeAgreement(agreement),sku)),
+    dataPercDeviationUpPriceAgreementSku(agreement, sku);
+    
+    
+showPercDeviationUpPriceAgreement = GROUP SUM 1 IF percDeviationUpPriceAgreementSku(agreement, sku) BY agreement;
+showPercDeviationDownPriceAgreement = GROUP SUM 1 IF percDeviationDownPriceAgreementSku(agreement, sku) BY agreement;
 EXTEND FORM agreement 
     PROPERTIES(a) percDeviationDownPriceAgreement, percDeviationUpPriceAgreement 
+    PROPERTIES(a, g) dataPercDeviationDownPriceAgreementGroup, percDeviationDownPriceAgreementGroup,
+                     dataPercDeviationUpPriceAgreementGroup, percDeviationUpPriceAgreementGroup
+    PROPERTIES(a, s) dataPercDeviationDownPriceAgreementSku, percDeviationDownPriceAgreementSku,
+                     dataPercDeviationUpPriceAgreementSku, percDeviationUpPriceAgreementSku        
+                         
 ;
 EXTEND DESIGN agreement {
     deviation1{
@@ -77,8 +130,8 @@ agreementsPriceOrderDetail 'Цена из соглашения' (d) =
                                               skuOrderDetail(d),
                                               customerStockOrderDetail(d),
                                               dateTimeOrderDetail(d));
-percDeviationUpPriceAgreementOrderDetail '% отклонения по цене вверх' (d) = percDeviationUpPriceAgreement(agreementOrderDetail(d));
-percDeviationDownPriceAgreementOrderDetail '% отклонения по цене вниз' (d) = percDeviationDownPriceAgreement(agreementOrderDetail(d));
+percDeviationUpPriceAgreementOrderDetail '% отклонения по цене вверх' (d) = percDeviationUpPriceAgreementSku(agreementOrderDetail(d), skuOrderDetail(d));
+percDeviationDownPriceAgreementOrderDetail '% отклонения по цене вниз' (d) = percDeviationDownPriceAgreementSku(agreementOrderDetail(d), skuOrderDetail(d));
 
 maxDeviationPriceOrderDetail 'Макс. цена' (d) = (100.0 + percDeviationUpPriceAgreementOrderDetail(d)) * 
                                                         priceOrderDetail(d) /
@@ -90,8 +143,8 @@ minDeviationPriceOrderDetail 'Мин. цена' (d) = (100.0 - percDeviationDown
 CONSTRAINT isPostedOrderDetail(d) AND (priceOrderDetail(d) != agreementsPriceOrderDetail(d))    
     MESSAGE 'Для строки заказа цена не совпадает с ценой из соглашения';    
     
-percDeviationUpPriceAgreementOrder '% отклонения по цене вверх' (order) = percDeviationUpPriceAgreement(agreementOrder(order));
-percDeviationDownPriceAgreementOrder '% отклонения по цене вниз' (order) = percDeviationDownPriceAgreement(agreementOrder(order));     
+percDeviationUpPriceAgreementOrder '% отклонения по цене вверх' (order) = showPercDeviationUpPriceAgreement(agreementOrder(order));
+percDeviationDownPriceAgreementOrder '% отклонения по цене вниз' (order) = showPercDeviationDownPriceAgreement(agreementOrder(order));     
 
 EXTEND FORM orders
     PROPERTIES(d) READONLY  minDeviationPriceOrderDetail SHOWIF percDeviationDownPriceAgreementOrder(o) BEFORE priceOrderDetail(d), 
@@ -116,8 +169,8 @@ agreementsPriceInvoiceDetail 'Цена из соглашения' (d) =
                                               customerStockInvoiceDetail(d),
                                               dateTimeInvoiceDetail(d));
 
-percDeviationUpPriceAgreementInvoiceDetail '% отклонения по цене вверх' (d) = percDeviationUpPriceAgreement(agreementInvoiceDetail(d));
-percDeviationDownPriceAgreementInvoiceDetail '% отклонения по цене вниз' (d) = percDeviationDownPriceAgreement(agreementInvoiceDetail(d));
+percDeviationUpPriceAgreementInvoiceDetail '% отклонения по цене вверх' (d) = percDeviationUpPriceAgreementSku(agreementInvoiceDetail(d), skuInvoiceDetail(d));
+percDeviationDownPriceAgreementInvoiceDetail '% отклонения по цене вниз' (d) = percDeviationDownPriceAgreementSku(agreementInvoiceDetail(d), skuInvoiceDetail(d));
 maxDeviationPriceInvoiceDetail 'Макс. цена' (d) = (100.0 + percDeviationUpPriceAgreementInvoiceDetail(d)) * 
                                                         agreementsPriceInvoiceDetail(d) /
                                                         100.0;
@@ -176,8 +229,8 @@ maxDeviationQuantityOrderInvoiceDetail 'Макс. к-во' (d) = maxDeviationQua
 minDeviationQuantityOrderInvoiceDetail 'Мин. к-во' (d) = minDeviationQuantityOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d))); 
 quantityOrderInvoiceDetail 'К-во заказа' (d) =quantityOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d))); 
 
-percDeviationUpPriceOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND percDeviationUpPriceAgreement(agreementOrder(o)) BY i;  
-percDeviationDownPriceOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND percDeviationDownPriceAgreement(agreementOrder(o)) BY i;  
+percDeviationUpPriceOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND showPercDeviationUpPriceAgreement(agreementOrder(o)) BY i;  
+percDeviationDownPriceOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND showPercDeviationDownPriceAgreement(agreementOrder(o)) BY i;  
 
 percDeviationUpQuantityOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND percDeviationUpQuantityAgreement(agreementOrder(o)) BY i;  
 percDeviationDownQuantityOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND percDeviationDownQuantityAgreement(agreementOrder(o)) BY i; 
