@@ -28,7 +28,7 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
         this.idGroupObject = idGroupObject;
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap, String filePath, String separator) throws SQLException, SQLHandledException {
+    public void executeCustom(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap, String filePath, boolean printHeader, String separator) throws SQLException, SQLHandledException {
 
         try {
 
@@ -47,19 +47,18 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
 
                 FormData formData = formInstance.getFormData(0);
 
-                boolean firstLine = true;
                 for(FormRow row : formData.rows) {
-                    if(firstLine) {
-                        String titleString = "";
+                    if(printHeader) {
+                        String headerString = "";
                         for(Object property : row.values.keys())
-                            titleString +=((PropertyDrawInstance) property).propertyObject.property.caption + separator;
-                        titleString = titleString.isEmpty() ? titleString : titleString.substring(0, titleString.length() - separator.length());
-                        bw.println(titleString);
-                        firstLine = false;
+                            headerString +=((PropertyDrawInstance) property).propertyObject.property.caption + separator;
+                        headerString = headerString.isEmpty() ? headerString : headerString.substring(0, headerString.length() - separator.length());
+                        bw.println(headerString);
+                        printHeader = false;
                     }
                     String rowString = "";
                     for(Object property : row.values.values()) 
-                        rowString += (property == null ? "" : property) + separator;
+                        rowString += (property == null ? "" : (property.toString())).trim() + separator;
                     rowString = rowString.isEmpty() ? rowString : rowString.substring(0, rowString.length() - separator.length());
                     bw.println(rowString);
                 }
