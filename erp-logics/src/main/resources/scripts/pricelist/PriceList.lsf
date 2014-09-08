@@ -438,6 +438,14 @@ originalNameSkuPriceListDetail(d) += originalNameSkuUserPriceListDetail(d);
 showOriginalNameSkuPriceList 'Наименование поставщика' = ABSTRACT BOOLEAN (PriceList);
 showOriginalNameSkuUserPriceList 'Наименование поставщика' = DATA BOOLEAN (UserPriceList) IN documentPrm;
 showOriginalNameSkuPriceList(d) += showOriginalNameSkuUserPriceList(d); 
+
+originalIdBarcodeSkuPriceListDetail 'Штрихкод поставщика' = ABSTRACT STRING[15] (PriceListDetail) FIXEDCHARWIDTH 15;
+originalIdBarcodeSkuUserPriceListDetail 'Штрихкод поставщика' = DATA STRING[15] (UserPriceListDetail) FIXEDCHARWIDTH 15;
+originalIdBarcodeSkuPriceListDetail(d) += originalIdBarcodeSkuUserPriceListDetail(d);
+
+showOriginalIdBarcodeSkuPriceList 'Штрихкод поставщика' = ABSTRACT BOOLEAN (PriceList);
+showOriginalIdBarcodeSkuUserPriceList 'Штрихкод поставщика' = DATA BOOLEAN (UserPriceList) IN documentPrm;
+showOriginalIdBarcodeSkuPriceList(d) += showOriginalIdBarcodeSkuUserPriceList(d); 
       
 FORM userPriceList 'Прайс'
     OBJECTS p = UserPriceList FIXED PANEL
@@ -446,7 +454,7 @@ FORM userPriceList 'Прайс'
                   fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
                   nameCurrencyUserPriceList, nameCompanyUserPriceList, nameCompanyStockUserPriceList, noteUserPriceList,
                   nameGroupTypeS = nameGroupTypeUserPriceList, nameGroupTypeP = nameGroupTypeUserPriceList,
-                  showBatchUserPriceList, showDateTimeUserPriceList, showOriginalNameSkuUserPriceList
+                  showBatchUserPriceList, showDateTimeUserPriceList, showOriginalIdBarcodeSkuUserPriceList, showOriginalNameSkuUserPriceList
 
     OBJECTS t = PriceListType
     PROPERTIES(t) namePriceListType READONLY, includeVATLedgerPriceListType
@@ -562,7 +570,7 @@ FORM userPriceList 'Прайс'
     EDIT UserPriceList OBJECT p
 ;
 EXTEND FORM userPriceList
-    PROPERTIES(d) originalNameSkuUserPriceListDetail AFTER nameSkuUserPriceListDetail(d) SHOWIF showOriginalNameSkuUserPriceList(p)        
+    PROPERTIES(d) AFTER nameSkuUserPriceListDetail(d) originalIdBarcodeSkuUserPriceListDetail SHOWIF showOriginalIdBarcodeSkuUserPriceList(p), originalNameSkuUserPriceListDetail  SHOWIF showOriginalNameSkuUserPriceList(p)        
 ;
 
 WHEN SESSION FORMS userPriceList CHANGED(companyUserPriceList(o)) DO {
@@ -655,7 +663,8 @@ DESIGN userPriceList FROM DEFAULT {
         NEW param {
             caption = 'Дополнительные параметры';
             type = COLUMNS;
-            columns = 1;
+            columns = 1; 
+            ADD PROPERTY(showOriginalIdBarcodeSkuUserPriceList(p));
             ADD PROPERTY(showOriginalNameSkuUserPriceList(p));
             ADD PROPERTY(showBatchUserPriceList(p));
             ADD PROPERTY(showDateTimeUserPriceList(p));
@@ -1060,7 +1069,8 @@ FORM priceLists 'Прайсы'
     OBJECTS d = PriceListDetail
     PROPERTIES(d) READONLY BACKGROUND backgroundPriceListDetail(d) indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail,
                            shortNameUOMSkuPriceListDetail, nameBatchPriceListDetail, nameCompanyPriceListDetail
-    PROPERTIES(d) READONLY originalNameSkuPriceListDetail AFTER nameSkuPriceListDetail(d) SHOWIF showOriginalNameSkuPriceList(p)
+    PROPERTIES(d) READONLY AFTER nameSkuPriceListDetail(d) originalIdBarcodeSkuPriceListDetail SHOWIF showOriginalIdBarcodeSkuPriceList(p), originalNameSkuPriceListDetail SHOWIF showOriginalNameSkuPriceList(p)
+    
     ORDER BY indexPriceListDetail(d)
     
     OBJECTS ts = Stock

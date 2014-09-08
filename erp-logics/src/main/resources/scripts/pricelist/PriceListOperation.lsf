@@ -155,7 +155,11 @@ showDateTimeUserPriceList(priceList) <- showDateTimeOperation(operationUserPrice
       
 showBatchOperation 'Партия' = DATA BOOLEAN (Operation);
 showBatchUserPriceList(priceList) <- showBatchOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));         
+    WHEN CHANGED(operationUserPriceList(priceList));    
+         
+showOriginalIdBarcodeSkuOperation 'Штрихкод поставщика' = DATA BOOLEAN (Operation);
+showOriginalIdBarcodeSkuUserPriceList(priceList) <- showOriginalIdBarcodeSkuOperation(operationUserPriceList(priceList))
+    WHEN CHANGED(operationUserPriceList(priceList));
 
 EXTEND FORM operation
     OBJECTS pt = PriceListType
@@ -167,7 +171,7 @@ EXTEND FORM operation
     PROPERTIES(c, o) isDefaultCurrencyOperation AFTER inCurrencyOperation(c,o)
     PROPERTIES(o) nameDefaultLegalEntityOperation, nameDefaultCurrencyOperation
     FILTERS isCompanyStock(st)
-    PROPERTIES(o) showOriginalNameSkuOperation, showDateTimeOperation, showBatchOperation
+    PROPERTIES(o) showOriginalIdBarcodeSkuOperation, showOriginalNameSkuOperation, showDateTimeOperation, showBatchOperation
     
 ;
 
@@ -185,6 +189,7 @@ EXTEND DESIGN operation {
         NEW showContainer {
             caption = 'Отображение свойств';
             type = CONTAINERV;
+            ADD PROPERTY(showOriginalIdBarcodeSkuOperation(o));
             ADD PROPERTY(showOriginalNameSkuOperation(o));
             ADD PROPERTY(showDateTimeOperation(o));
             ADD PROPERTY(showBatchOperation(o));
