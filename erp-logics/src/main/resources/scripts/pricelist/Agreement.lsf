@@ -64,6 +64,8 @@ supplierAgreement 'Поставщики' (agreement) = GROUP CONCAT nameLegalEnt
 CONSTRAINT inAgreementSupplier(agreement, supplier) AND NOT isSellerLegalEntity(supplier)
     MESSAGE 'Для соглашения выбрано в качестве поставщика организация, не являющеяся поставщиком или компанией';
 
+defaultSupplierAgreement (agreement)= GROUP MIN legalEntity IF inAgreementSupplier(agreement, legalEntity) BY agreement; 
+countSuppliersAgreement (agreement) = GROUP SUM 1 IF inAgreementSupplier(agreement, legalEntity) BY agreement; 
 // -------------------------------------- Покупатели -------------------------------- //
 
 // Группы покупателей
@@ -114,6 +116,29 @@ nameDefaultAgreementSupplierCustomer 'Соглашение по умолчани
 isDefaultAgreementSupplierCustomer 'Соглашение по умолчанию' (agreement, supplier, customer) = defaultAgreementSupplierCustomer(supplier, customer) == agreement;
 
 // ----------------------------------------------- Виды цен --------------------------------- //
+
+purchasePriceListType = DATA PriceListType ();
+namePurchasePriceListType 'Вид цены (закупка) по умолчанию для соглашения' = namePriceListType(purchasePriceListType());
+
+salePriceListType = DATA PriceListType ();
+nameSalePriceListType 'Вид цены (продажа) по умолчанию для соглашения' = namePriceListType(salePriceListType());
+
+EXTEND FORM options PROPERTIES() namePurchasePriceListType, nameSalePriceListType;
+EXTEND DESIGN options {
+    purchase {
+        ADD PROPERTY(namePurchasePriceListType());        
+    }
+    sale {        
+        ADD PROPERTY(nameSalePriceListType());
+    }    
+}
+
+isPurchaseAgreement 'Закупка' (agreement) = GROUP SUM 1 IF inAgreementSupplier(agreement, supplier) AND isSupplierLegalEntity(supplier) AND 
+    inAgreementCustomer(agreement, customer) AND isCompanyLegalEntity(customer)
+    BY agreement;
+isSaleAgreement 'Продажа' (agreement) = GROUP SUM 1 IF inAgreementSupplier(agreement, supplier) AND isCompanyLegalEntity(supplier) AND 
+    inAgreementCustomer(agreement, customer) AND isCustomerLegalEntity(customer)
+    BY agreement;
 
 // -- Основной вид цены
 priceListTypeAgreement 'Вид цены' (agreement) = DATA PriceListType (Agreement);
@@ -309,6 +334,20 @@ NAVIGATOR {
     }
 }
 
+WHEN SESSION FORMS agreement 
+    SET(a IS Agreement) OR  SET(countSuppliersAgreement(a)) DO {
+        currencyAgreement (a) <- currencyLegalEntity(defaultSupplierAgreement(a));
+    } 
+    
+WHEN SESSION FORMS agreement 
+    SET(isPurchaseAgreement(a)) DO {
+        priceListTypeAgreement (a) <- purchasePriceListType();
+    } 
+WHEN SESSION FORMS agreement 
+    SET(isSaleAgreement(a)) DO {
+        priceListTypeAgreement (a) <- salePriceListType();
+    }     
+        
 // ---------------------------------------------- Копирование соглащений --------------------------------------- //
 
 overCopyAgreement = ABSTRACT ACTION LIST (Agreement, Agreement);
