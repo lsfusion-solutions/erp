@@ -117,22 +117,6 @@ isDefaultAgreementSupplierCustomer 'Соглашение по умолчанию
 
 // ----------------------------------------------- Виды цен --------------------------------- //
 
-purchasePriceListType = DATA PriceListType ();
-namePurchasePriceListType 'Вид цены (закупка) по умолчанию для соглашения' = namePriceListType(purchasePriceListType());
-
-salePriceListType = DATA PriceListType ();
-nameSalePriceListType 'Вид цены (продажа) по умолчанию для соглашения' = namePriceListType(salePriceListType());
-
-EXTEND FORM options PROPERTIES() namePurchasePriceListType, nameSalePriceListType;
-EXTEND DESIGN options {
-    purchase {
-        ADD PROPERTY(namePurchasePriceListType());        
-    }
-    sale {        
-        ADD PROPERTY(nameSalePriceListType());
-    }    
-}
-
 isPurchaseAgreement 'Закупка' (agreement) = GROUP SUM 1 IF inAgreementSupplier(agreement, supplier) AND isSupplierLegalEntity(supplier) AND 
     inAgreementCustomer(agreement, customer) AND isCompanyLegalEntity(customer)
     BY agreement;
@@ -337,16 +321,7 @@ NAVIGATOR {
 WHEN SESSION FORMS agreement 
     SET(a IS Agreement) OR  SET(countSuppliersAgreement(a)) DO {
         currencyAgreement (a) <- currencyLegalEntity(defaultSupplierAgreement(a));
-    } 
-    
-WHEN SESSION FORMS agreement 
-    SET(isPurchaseAgreement(a)) DO {
-        priceListTypeAgreement (a) <- purchasePriceListType();
-    } 
-WHEN SESSION FORMS agreement 
-    SET(isSaleAgreement(a)) DO {
-        priceListTypeAgreement (a) <- salePriceListType();
-    }     
+    }        
         
 // ---------------------------------------------- Копирование соглащений --------------------------------------- //
 
