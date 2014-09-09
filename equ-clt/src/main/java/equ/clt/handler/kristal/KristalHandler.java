@@ -75,7 +75,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             //plu.txt
             File pluFile = new File(exchangeDirectory + "plu.txt");
             File flagPluFile = new File(exchangeDirectory + "WAITPLU");
-            if (!pluFile.exists() && (flagPluFile.exists() || flagPluFile.createNewFile())) {
+            if (pluFile.exists() && flagPluFile.exists()) {
+                throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
+            } else if (flagPluFile.createNewFile()) {
                 logger.info("Kristal: creating PLU file");
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(pluFile), "windows-1251"));
 
@@ -93,7 +95,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 logger.info("Kristal: waiting for deletion of PLU file");
                 waitForDeletion(pluFile, flagPluFile);
             } else {
-                throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", pluFile.getAbsolutePath()));
+                throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagPluFile.getAbsolutePath()));
             }
 
             //message.txt
@@ -107,7 +109,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if (!messageEmpty) {
                 File messageFile = new File(exchangeDirectory + "message.txt");
                 File flagMessageFile = new File(exchangeDirectory + "WAITMESSAGE");
-                if (!messageFile.exists() && (flagMessageFile.exists() || flagMessageFile.createNewFile())) {
+                if (messageFile.exists() && flagMessageFile.exists()) {
+                    throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
+                } else if (flagMessageFile.createNewFile()) {
                     logger.info("Kristal: creating MESSAGE file");
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(messageFile), "windows-1251"));
 
@@ -121,7 +125,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     logger.info("Kristal: waiting for deletion of MESSAGE file");
                     waitForDeletion(messageFile, flagMessageFile);
                 } else {
-                    throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", messageFile.getAbsolutePath()));
+                    throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagMessageFile.getAbsolutePath()));
                 }
             }
 
@@ -136,7 +140,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if (!scalesEmpty) {
                 File scaleFile = new File(exchangeDirectory + "scales.txt");
                 File flagScaleFile = new File(exchangeDirectory + "WAITSCALES");
-                if (!scaleFile.exists() && (flagScaleFile.exists() || flagScaleFile.createNewFile())) {
+                if (scaleFile.exists() && flagScaleFile.exists()) {
+                    throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
+                } else if (flagScaleFile.createNewFile()) {
                     logger.info("Kristal: creating SCALES file");
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(scaleFile), "windows-1251"));
 
@@ -154,7 +160,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     waitForDeletion(scaleFile, flagScaleFile);
 
                 } else {
-                    throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", scaleFile.getAbsolutePath()));
+                    throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagScaleFile.getAbsolutePath()));
                 }
             }
 
@@ -162,7 +168,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
             if (transactionInfo.snapshot) {
                 File groupsFile = new File(exchangeDirectory + "groups.txt");
                 File flagGroupsFile = new File(exchangeDirectory + "WAITGROUPS");
-                if (!groupsFile.exists() && (flagGroupsFile.exists() || flagGroupsFile.createNewFile())) {
+                if (groupsFile.exists() && flagGroupsFile.exists()) {
+                    throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
+                } else if (flagGroupsFile.createNewFile()) {
                     logger.info("Kristal: creating GROUPS file");
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(groupsFile), "windows-1251"));
 
@@ -183,7 +191,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     waitForDeletion(groupsFile, flagGroupsFile);
 
                 } else {
-                    throw new RuntimeException(String.format("file %s already exists. Maybe there are some problems with server", groupsFile.getAbsolutePath()));
+                    throw new RuntimeException(String.format("file %s can not be created. Maybe there are some problems with server", flagGroupsFile.getAbsolutePath()));
                 }
             }
         }
