@@ -34,7 +34,7 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
 
     private List<String> getTitles() {
         return Arrays.asList("Наименование", "Полное наименование", "УНП", "Форма собственности", "Группа организаций",
-                "Юридический адрес", "Телефон/Факс", "Внешний код");
+                "Юридический адрес", "Телефон/Факс", "Код");
     }
 
     private List<List<String>> getRows(ExecutionContext<ClassPropertyInterface> context) {
