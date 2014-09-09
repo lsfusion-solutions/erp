@@ -2,10 +2,12 @@ package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.MapFact;
+import lsfusion.base.col.interfaces.immutable.ImList;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
 import lsfusion.server.form.entity.ObjectEntity;
+import lsfusion.server.form.entity.PropertyDrawEntity;
 import lsfusion.server.form.instance.*;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -50,15 +52,27 @@ public abstract class ExportCSVActionProperty extends ScriptingActionProperty {
                 for(FormRow row : formData.rows) {
                     if(printHeader) {
                         String headerString = "";
-                        for(Object property : row.values.keys())
-                            headerString +=((PropertyDrawInstance) property).propertyObject.property.caption + separator;
+                        ImList propertyDrawsList = formEntity.getPropertyDrawsList();
+                        for(int i = 0; i<propertyDrawsList.size();i++) {
+                            PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
+                            if(instance.toDraw != null) {
+                                headerString += instance.propertyObject.property.caption + separator;
+                            }
+                        }
                         headerString = headerString.isEmpty() ? headerString : headerString.substring(0, headerString.length() - separator.length());
                         bw.println(headerString);
                         printHeader = false;
                     }
                     String rowString = "";
-                    for(Object property : row.values.values()) 
-                        rowString += (property == null ? "" : (property.toString())).trim() + separator;
+                    
+                    ImList propertyDrawsList = formEntity.getPropertyDrawsList();
+                    for(int i = 0; i<propertyDrawsList.size();i++) {
+                        PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
+                        if(instance.toDraw != null) {
+                            Object value = row.values.get(instance);
+                            rowString += (value == null ? "" : value.toString()).trim() + separator;
+                        }
+                    }
                     rowString = rowString.isEmpty() ? rowString : rowString.substring(0, rowString.length() - separator.length());
                     bw.println(rowString);
                 }
