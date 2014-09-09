@@ -1257,19 +1257,18 @@ WHEN SET(o IS Document) IF NOT disableDocumentLog() DO {
         noteDocumentLog(d) <- VARSTRING[255]('Добавлен документ');              
     }
 }
-// todo: пока не работает DROPPED с другими свойствами и в группировке, ждем изменений...
-//WHEN DROPPED(o IS Document) IF NOT disableDocumentLog() DO {
-//    FOR ADDOBJ d = DocumentLog DO {       
-//
-//        typeDocumentDocumentLog(d) <- PREV(objectClassName(o));
-//        numberDocumentDocumentLog(d) <- PREV(numberDocument(o));  
-//        seriesDocumentDocumentLog(d) <- PREV(seriesDocument(o)); 
-//        dateDocumentDocumentLog(d) <- PREV(dateDocument(o));   
-//        typeChangeDocumentLog(d) <- TypeChange.delete;
-//        sessionDocumentLog(d) <- currentSession();
-//        noteDocumentLog(d) <- VARSTRING[255]('Удален документ');         
-//    }
-//}
+WHEN DROPPED(o IS Document) IF NOT disableDocumentLog() DO {
+    FOR ADDOBJ d = DocumentLog DO {       
+
+        typeDocumentDocumentLog(d) <- PREV(objectClassName(o));
+        numberDocumentDocumentLog(d) <- PREV(numberDocument(o));  
+        seriesDocumentDocumentLog(d) <- PREV(seriesDocument(o)); 
+        dateDocumentDocumentLog(d) <- PREV(dateDocument(o));   
+        typeChangeDocumentLog(d) <- TypeChange.delete;
+        sessionDocumentLog(d) <- currentSession();
+        noteDocumentLog(d) <- VARSTRING[255]('Удален документ');         
+    }
+}
 
 WHEN ((SETCHANGED(numberDocument(o)) AND PREV(numberDocument(o))) OR (SETCHANGED(seriesDocument(o)) AND PREV(seriesDocument(o))) ) IF NOT disableDocumentLog()  DO {
     FOR ADDOBJ d = DocumentLog DO {
