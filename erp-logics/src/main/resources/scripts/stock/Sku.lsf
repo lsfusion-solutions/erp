@@ -45,6 +45,7 @@ CLASS ABSTRACT Group 'Классификатор SKU';
 TABLE group(Group);
 
 nameGroup 'Наименование' = ABSTRACT VARISTRING[150](Group) PERSISTENT INDEXED;
+orderGroup 'Порядок' = ABSTRACT INTEGER (Group) PERSISTENT;
 
 TABLE groupGroup(Group, Group);
 @defineHierarchyAbstract(group);
@@ -188,8 +189,10 @@ CLASS ABSTRACT SkuGroup 'Группа SKU' : Group;
 TABLE skuGroup (SkuGroup);
 
 nameSkuGroup 'Наименование' = ABSTRACT VARISTRING[150](SkuGroup) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 40;
+orderSkuGroup 'Порядок' = ABSTRACT INTEGER (SkuGroup);
 
 nameGroup(group) += nameSkuGroup(group) IF group IS SkuGroup;
+orderGroup(group) += orderSkuGroup(group) IF group IS SkuGroup;
 
 TABLE skuGroupSkuGroup(SkuGroup, SkuGroup);
 @defineHierarchyAbstract(skuGroup);
@@ -313,9 +316,10 @@ copySku 'Копировать' = ABSTRACT ACTION LIST (Sku) EDITKEY 'F5' TOOLBAR
 // Sku
 FORM skus 'Sku'
     TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY skuGroupName = nameSkuGroup(sg)
+    PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
     FILTERGROUP inactive FILTER 'Активные' 'F5' activeSkuGroup(sg) DEFAULT
-
+    ORDER BY orderSkuGroup(sg), skuGroupName
+     
     OBJECTS s = Sku
     PROPERTIES(s) READONLY idSku SHOWIF showIDs()
     PROPERTIES(s) READONLY nameSku, shortNameUOMSku

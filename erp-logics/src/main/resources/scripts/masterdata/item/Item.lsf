@@ -10,8 +10,10 @@ TABLE itemGroup (ItemGroup);
 @defineExternalizable(itemGroup, VARSTRING[100]);
 
 nameItemGroup 'Наименование' = DATA VARISTRING[100](ItemGroup) IN base;
+orderItemGroup 'Порядок' = DATA INTEGER (ItemGroup);
 
 nameSkuGroup(group) += nameItemGroup(group) IF group IS ItemGroup;
+orderSkuGroup(group) += orderItemGroup(group) IF group IS ItemGroup;
 
 TABLE itemGroupItemGroup(ItemGroup, ItemGroup);
 @defineHierarchy(itemGroup);
@@ -36,28 +38,28 @@ moveItemGroup 'Перенести отмеченные группы в теку�
 
 FORM itemGroup 'Товарная группа'
     OBJECTS g=ItemGroup FIXED PANEL
-    PROPERTIES(g) nameItemGroup, idItemGroup SHOWIF showIDs(), nameParentItemGroup    
+    PROPERTIES(g) nameItemGroup, orderItemGroup, idItemGroup SHOWIF showIDs(), nameParentItemGroup    
     EDIT ItemGroup OBJECT g
 ;
 
 FORM itemGroups 'Товарные группы'
     TREE treeGroups g=ItemGroup PARENT parentItemGroup
     PROPERTIES inItemGroup(g), moveItemGroup(g) TODRAW g FORCE PANEL TOOLBAR
-    PROPERTIES READONLYIF isReadonly() nameItemGroup(g), idItemGroup(g) SHOWIF showIDs(),canonicalNameItemGroup (g)
+    PROPERTIES READONLYIF isReadonly() orderItemGroup(g), nameItemGroup(g), idItemGroup(g) SHOWIF showIDs(),canonicalNameItemGroup (g)
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
-    ORDER BY canonicalNameItemGroup(g)
+    ORDER BY orderItemGroup(g), canonicalNameItemGroup(g)
 ;
 @extendFormEditable(itemGroups);
 
 FORM dialogItemGroups 'Товарные группы'
     TREE treeGroups tg=ItemGroup PARENT parentItemGroup
-    PROPERTIES READONLY nameItemGroup(tg)
-    ORDER BY nameItemGroup(tg)
+    PROPERTIES READONLY orderItemGroup(tg), nameItemGroup(tg)
+    ORDER BY orderItemGroup(tg), nameItemGroup(tg)
 
     OBJECTS g=ItemGroup
-    PROPERTIES(g) nameItemGroup READONLY, canonicalNameItemGroup READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(g) orderItemGroup READONLY, nameItemGroup READONLY, canonicalNameItemGroup READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(g) ADDFORM, EDITFORM
-    ORDER BY canonicalNameItemGroup(g)
+    ORDER BY orderItemGroup(g), canonicalNameItemGroup(g)
 
     FILTERS isParentItemGroupItemGroup(g, tg)
 
@@ -263,9 +265,9 @@ FORM items 'Товары' KEEPSESSIONPROPERTIES
     PROPERTIES(gt) SELECTOR nameGroupType
 
     TREE groupTree g=Group PARENT parentGroup
-    PROPERTIES READONLY nameGroup(g)
+    PROPERTIES READONLY orderGroup(g), nameGroup(g)
     FILTERS groupTypeGroup(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
-    ORDER BY nameGroup(g)
+    ORDER BY orderGroup(g), nameGroup(g)
     FILTERGROUP inactive1 FILTER 'Активные' 'F5' activeGroup(g) DEFAULT
     
     OBJECTS i=Item  
@@ -402,8 +404,8 @@ EXTEND FORM options
     PROPERTIES staticIA= staticCaption(ia)
     
     TREE treeGroups tg=ItemGroup PARENT parentItemGroup
-    PROPERTIES READONLY nameItemGroup(tg)
-    ORDER BY nameItemGroup(tg)    
+    PROPERTIES READONLY orderItemGroup(tg), nameItemGroup(tg)
+    ORDER BY orderItemGroup(tg), nameItemGroup(tg)    
     
     OBJECTS ia1 = ItemAttribute
     PROPERTIES staticIA1= staticCaption(ia1)    
@@ -757,10 +759,10 @@ META defineItemFilterValue(object, caption)
 
     EXTEND FORM object
         TREE groupTree g=ItemGroup PARENT parentItemGroup
-        PROPERTIES READONLY nameItemGroup(g)
+        PROPERTIES READONLY orderItemGroup(g), nameItemGroup(g)
         PROPERTIES in###object##ItemGroup(t,g)
         
-        ORDER BY nameItemGroup(g)
+        ORDER BY orderItemGroup(g), nameItemGroup(g)
         FILTERS activeItemGroup(g)
     ;
     EXTEND DESIGN object {
@@ -1327,6 +1329,7 @@ DESIGN itemGroup FROM DEFAULT{
                 caption = 'Товарная группа';
                 type = CONTAINERH;
                 ADD PROPERTY(idItemGroup(g));
+                ADD PROPERTY(orderItemGroup(g));
                 ADD PROPERTY(nameItemGroup(g));
                 ADD PROPERTY(nameParentItemGroup(g));
                 ADD PROPERTY(inactiveItemGroup(g));
