@@ -670,7 +670,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
     private BigDecimal roundWeight(BigDecimal weight, boolean g315) {
         if(g315)
-            return weight.setScale(weight.compareTo(new BigDecimal(0.1)) > 0 ? 2 : 4, BigDecimal.ROUND_HALF_UP);
+            //return weight.setScale(weight.compareTo(new BigDecimal(0.1)) > 0 ? 2 : 4, BigDecimal.ROUND_HALF_UP);
+            return weight.setScale(2, BigDecimal.ROUND_HALF_UP);
         else
             return weight.setScale(3, BigDecimal.ROUND_HALF_UP);
     }
