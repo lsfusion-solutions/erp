@@ -225,6 +225,7 @@ cashRegisterCashOperation(outcomeCashOperation) += cashRegisterOutcomeCashOperat
 //------------------------------ Формы ---------------------------------------------------------------------------//
 
 sumCashForIncomeCashOperation 'Сумма внесения денег' = DATA SESSION NUMERIC[16,2] (CashRegister);
+doNotFiscalisation 'Не фискализировать' = DATA SESSION BOOLEAN (CashRegister);
 
 FORM addIncomeCashOperation 'Внесение денег'
 
@@ -239,7 +240,7 @@ FORM addIncomeCashOperation 'Внесение денег'
 
     OBJECTS c = CashRegister
     PROPERTIES(c) READONLY nppMachinery
-    PROPERTIES(c) sumCashForIncomeCashOperation
+    PROPERTIES(c) sumCashForIncomeCashOperation, doNotFiscalisation
 
     FILTERS departmentStoreCashRegister(c) == d
     FILTERGROUP filtersCashRegister
@@ -310,7 +311,9 @@ addIncomeCashOperationForm 'Внесение денег' () = ACTION () NEWSESSI
                 departmentStoreIncomeCashOperation(c) <- departmentStoreCashRegister(cashRegister);
                 sumCashIncomeCashOperation(c) <- sumCashForIncomeCashOperation(cashRegister);
                 generateSeriesNumberIncomeCashOperation(c);
-                fiscalServiceCashRegisterCashOperation(c);
+                IF NOT doNotFiscalisation(cashRegister) THEN {
+                    fiscalServiceCashRegisterCashOperation(c);                                    
+                }
                 IF cashRegisterModelCashRegister(cashRegister) AND NOT isCompleteCashOperation(c) THEN
                     fail() <- TRUE;
             }
@@ -337,7 +340,7 @@ FORM addOutcomeCashOperation 'Изъятие денег'
 
     OBJECTS c = CashRegister
     PROPERTIES(c) READONLY nppMachinery
-    PROPERTIES(c) sumCashForOutcomeCashOperation
+    PROPERTIES(c) sumCashForOutcomeCashOperation, doNotFiscalisation
 
     FILTERS departmentStoreCashRegister(c) == d
     FILTERGROUP filtersCashRegister
@@ -404,7 +407,9 @@ addOutcomeCashOperationForm 'Изъятие денег' () = ACTION () NEWSESSIO
             cashRegisterOutcomeCashOperation(c) <- cashRegister;
             sumCashOutcomeCashOperation(c) <- sumCashForOutcomeCashOperation(cashRegister);
             generateSeriesNumberOutcomeCashOperation(c);
-            fiscalServiceCashRegisterCashOperation(c);
+            IF NOT doNotFiscalisation(cashRegister) THEN {            
+                fiscalServiceCashRegisterCashOperation(c);
+            }    
             IF cashRegisterModelCashRegister(cashRegister) AND NOT isCompleteCashOperation(c) THEN
                 fail() <- TRUE;
         }
