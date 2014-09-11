@@ -296,6 +296,31 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<CashRegisterItemInfo>();
+
+                    Map<ObjectValue, List<ItemGroup>> hierarchyItemGroupMap = new HashMap<ObjectValue, List<ItemGroup>>();
+                    if (itemLM != null) {
+                        for (int i = 0; i < skuResult.size(); i++) {
+                            ImMap<Object, ObjectValue> valueRow = skuResult.getValue(i);
+
+                            List<ItemGroup> hierarchyItemGroup = new ArrayList<ItemGroup>();
+                            ObjectValue skuGroupObject = valueRow.get("skuGroupMachineryPriceTransactionBarcode");
+                            ObjectValue initSkuGroupObject = skuGroupObject;
+                            if (!hierarchyItemGroupMap.containsKey(skuGroupObject) && skuGroupObject instanceof DataObject) {
+                                String idItemGroup = (String) itemLM.findProperty("idItemGroup").read(session, skuGroupObject);
+                                String nameItemGroup = (String) itemLM.findProperty("nameItemGroup").read(session, skuGroupObject);
+                                hierarchyItemGroup.add(new ItemGroup(idItemGroup, nameItemGroup));
+                                ObjectValue parentSkuGroup;
+                                while ((parentSkuGroup = equLM.findProperty("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
+                                    String idParentGroup = (String) itemLM.findProperty("idItemGroup").read(session, parentSkuGroup);
+                                    String nameParentGroup = (String) itemLM.findProperty("nameItemGroup").read(session, parentSkuGroup);
+                                    hierarchyItemGroup.add(new ItemGroup(idParentGroup, nameParentGroup));
+                                    skuGroupObject = parentSkuGroup;
+                                }
+                                hierarchyItemGroupMap.put(initSkuGroupObject, hierarchyItemGroup);
+                            }
+                        }
+                    }
+                                       
                     for (int i = 0; i < skuResult.size(); i++) {
                         ImMap<Object, DataObject> keyRow = skuResult.getKey(i);
                         ImMap<Object, ObjectValue> valueRow = skuResult.getValue(i);
@@ -312,23 +337,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         boolean notPromotionItem = storeSkuLedgerLM != null && storeSkuLedgerLM.findProperty("notPromotionSku").read(session, itemObject) != null;
                         String description = scalesItemLM == null ? null : (String) valueRow.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
-                        List<ItemGroup> hierarchyItemGroup = new ArrayList<ItemGroup>();
+                        ObjectValue skuGroupObject = valueRow.get("skuGroupMachineryPriceTransactionBarcode");
+                        List<ItemGroup> hierarchyItemGroup = hierarchyItemGroupMap.get(skuGroupObject);
                         String canonicalNameSkuGroup = null;
                         if (itemLM != null) {
-                            ObjectValue skuGroupObject = valueRow.get("skuGroupMachineryPriceTransactionBarcode");
-                            if (skuGroupObject instanceof DataObject) {
-                                String idItemGroup = (String) itemLM.findProperty("idItemGroup").read(session, skuGroupObject);
-                                String nameItemGroup = (String) itemLM.findProperty("nameItemGroup").read(session, skuGroupObject);
-                                hierarchyItemGroup.add(new ItemGroup(idItemGroup, nameItemGroup));
-                                ObjectValue parentSkuGroup;
-                                while ((parentSkuGroup = equLM.findProperty("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
-                                    String idParentGroup = (String) itemLM.findProperty("idItemGroup").read(session, parentSkuGroup);
-                                    String nameParentGroup = (String) itemLM.findProperty("nameItemGroup").read(session, parentSkuGroup);
-                                    hierarchyItemGroup.add(new ItemGroup(idParentGroup, nameParentGroup));
-                                    skuGroupObject = parentSkuGroup;
-                                }
-                                canonicalNameSkuGroup = idItemGroup == null ? "" : trim((String) equLM.findProperty("canonicalNameSkuGroup").read(session, itemLM.findProperty("itemGroupId").readClasses(session, new DataObject(idItemGroup))));
-                            }
+                            String idItemGroup = (String) itemLM.findProperty("idItemGroup").read(session, skuGroupObject);
+                            canonicalNameSkuGroup = idItemGroup == null ? "" : trim((String) equLM.findProperty("canonicalNameSkuGroup").read(session, itemLM.findProperty("itemGroupId").readClasses(session, new DataObject(idItemGroup))));
                         }
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, idItem,
@@ -370,6 +384,26 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     }
 
                     List<ScalesItemInfo> scalesItemInfoList = new ArrayList<ScalesItemInfo>();
+
+                    Map<ObjectValue, List<String>> hierarchyItemGroupMap = new HashMap<ObjectValue, List<String>>();
+                    if (itemLM != null) {
+                        for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
+                            List<String> hierarchyItemGroup = new ArrayList<String>();
+                            ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
+                            ObjectValue initSkuGroupObject = skuGroupObject;
+                            if (!hierarchyItemGroupMap.containsKey(skuGroupObject) && skuGroupObject instanceof DataObject) {
+                                String idItemGroup = (String) itemLM.findProperty("idItemGroup").read(session, skuGroupObject);
+                                hierarchyItemGroup.add(idItemGroup);
+                                ObjectValue parentSkuGroup;
+                                while ((parentSkuGroup = equLM.findProperty("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
+                                    hierarchyItemGroup.add((String) itemLM.findProperty("idItemGroup").read(session, parentSkuGroup));
+                                    skuGroupObject = parentSkuGroup;
+                                }
+                                hierarchyItemGroupMap.put(initSkuGroupObject, hierarchyItemGroup);
+                            }
+                        }
+                    }
+                    
                     for (ImMap<Object, ObjectValue> row : skuResult.valueIt()) {
                         String barcode = trim((String) row.get("idBarcode").getValue());
                         String name = trim((String) row.get("nameMachineryPriceTransactionBarcode").getValue());
@@ -382,19 +416,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
                         String description = (String) row.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
-                        List<String> hierarchyItemGroup = new ArrayList<String>();
-                        if (itemLM != null) {
-                            ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
-                            if (skuGroupObject instanceof DataObject) {
-                                String idItemGroup = (String) itemLM.findProperty("idItemGroup").read(session, skuGroupObject);
-                                hierarchyItemGroup.add(idItemGroup);
-                                ObjectValue parentSkuGroup;
-                                while ((parentSkuGroup = equLM.findProperty("parentSkuGroup").readClasses(session, (DataObject) skuGroupObject)) instanceof DataObject) {
-                                    hierarchyItemGroup.add((String) itemLM.findProperty("idItemGroup").read(session, parentSkuGroup));
-                                    skuGroupObject = parentSkuGroup;
-                                }
-                            }
-                        }
+                        ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
+                        List<String> hierarchyItemGroup = hierarchyItemGroupMap.get(skuGroupObject);
+                       
                         Integer cellScalesObject = description == null ? null : (Integer) scalesLM.findProperty("cellScalesGroupScalesDescription").read(session, groupMachineryObject, new DataObject(description, StringClass.text));
                         Integer descriptionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
 
