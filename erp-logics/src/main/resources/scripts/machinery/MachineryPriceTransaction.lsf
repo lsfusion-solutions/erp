@@ -303,7 +303,7 @@ skipGroupMachineryBarcode = ABSTRACT CASE BOOLEAN (GroupMachinery, Barcode);
 // Перезагрузка целиком
 snapshotAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
 
-snapshotGroupMachineryDepartmentStore 'Перезагрузить прайс' = ACTION (stock) NEWSESSION {
+snapshotGroupMachineryDepartmentStore 'Ранее загруженные' = ACTION (stock) NEWSESSION {
     FORM groupMachineryInput OBJECTS s = stock MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL groupMachinery = GroupMachinery ();
@@ -335,7 +335,8 @@ priceBarcodeGroupMachinery 'Цена' (barcode, groupMachinery) = priceAPriceLis
                                                                                                   stockGroupMachinery(groupMachinery),
                                                                                                   currentDateTime());
 
-createMachineryPriceTransactionSnapshot = DATA SESSION BOOLEAN ();
+createMachineryPriceTransactionAll = DATA SESSION BOOLEAN(); // установка флага на полное удаление старых товаров из кассы
+createMachineryPriceTransactionSnapshot = DATA SESSION BOOLEAN (); // загрузка не только изменившихся цен
 
 createMachineryPriceTransactionSku = DATA SESSION BOOLEAN (Sku);
 
@@ -365,7 +366,7 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
         
         inBarcode(barcode) <- TRUE IF priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inBarcode(barcode); // если есть цена
 
-        IF NOT createMachineryPriceTransactionSnapshot() THEN
+        IF NOT createMachineryPriceTransactionAll() AND NOT createMachineryPriceTransactionSnapshot() THEN
             inBarcode(barcode) <- TRUE IF NOT (priceBarcodeGroupMachinery(barcode, groupMachinery) == transactionPriceBarcodeGroupMachinery(barcode, groupMachinery)) WHERE inBarcode(barcode);
 
         LOCAL countBarcode = INTEGER();
@@ -381,6 +382,9 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
                 createAttributeMachineryPriceTransactionStock(t, stock);
                 createAttributeMachineryPriceTransactionGroupMachinery(t, groupMachineryMachineryPriceTransaction(t));
                 priceMachineryPriceTransactionBarcode(t, barcode) <- priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
+                
+                IF createMachineryPriceTransactionAll() THEN
+                    snapshotMachineryPriceTransaction(t) <- TRUE;
             }
 
             message() <- message() + nameGroupMachinery(groupMachinery) + ' - ' + countBarcode() + ' товаров.\n';
@@ -395,19 +399,26 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
 };
 
 createBalanceMachineryPriceTransaction 'Остатки' = ACTION (stock) NEWSESSION AUTOAPPLY {
-    ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF currentBalanceSkuStock(sku, stock);
-    ASSIGN createMachineryPriceTransactionComment() <- 'Инкрементная загрузка остатков';
-    EXEC createMachineryPriceTransaction(stock);
+    createMachineryPriceTransactionSku(sku) <- TRUE IF currentBalanceSkuStock(sku, stock);
+    createMachineryPriceTransactionComment() <- 'Инкрементная загрузка остатков';
+    createMachineryPriceTransaction(stock);
 } CONFIRM IN incrementMachineryPrice;
 
 createPriceMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION AUTOAPPLY {
-    ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE;
-    ASSIGN createMachineryPriceTransactionComment() <- 'Инкрементная загрузка товаров';
-    EXEC createMachineryPriceTransaction(stock);
+    createMachineryPriceTransactionSku(sku) <- TRUE;
+    createMachineryPriceTransactionComment() <- 'Инкрементная загрузка товаров';
+    createMachineryPriceTransaction(stock);
 } CONFIRM IN incrementMachineryPrice;
 
+createSnapshotMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION AUTOAPPLY {
+    createMachineryPriceTransactionSku(sku) <- TRUE;
+    createMachineryPriceTransactionComment() <- 'Полная загрузка товаров';
+    createMachineryPriceTransactionAll() <- TRUE;
+    createMachineryPriceTransaction(stock);
+} IN snapshotMachineryPrice;
+
 EXTEND FORM machineryPriceTransactions
-    PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, snapshotGroupMachineryDepartmentStore
+    PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, createSnapshotMachineryPriceTransaction, snapshotGroupMachineryDepartmentStore
 ;
 
 EXTEND DESIGN machineryPriceTransactions {
