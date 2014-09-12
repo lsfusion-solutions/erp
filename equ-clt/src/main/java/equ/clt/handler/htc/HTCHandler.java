@@ -1,6 +1,7 @@
 package equ.clt.handler.htc;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import equ.api.SoftCheckInfo;
@@ -84,12 +85,12 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
 
                         String parent = null;
-                        for (ItemGroup itemGroup : item.hierarchyItemGroup) {
+                        for (ItemGroup itemGroup : Lists.reverse(item.hierarchyItemGroup)) {
 
                             Integer recordNumber = barcodeRecordMap.get(itemGroup.idItemGroup);
                             if (recordNumber != null)
                                 dbfFile.gotoRecord(recordNumber);
-                            String idItemGroup = itemGroup.idItemGroup == null ? null : (itemGroup.idItemGroup.equals("Все") ? "0" : itemGroup.idItemGroup.replace("_", "")); 
+                            String idItemGroup = trim(itemGroup.idItemGroup == null ? null : (itemGroup.idItemGroup.equals("Все") ? "0" : itemGroup.idItemGroup.replace("_", "")), 6); 
                             putField(dbfFile, "CODE", idItemGroup);
                             putField(dbfFile, "GROUP", parent);
                             putField(dbfFile, "ISGROUP", "T");
@@ -97,6 +98,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             putField(dbfFile, "PRODUCT_ID", trim(itemGroup.nameItemGroup, 32));
                             putField(dbfFile, "TABLO_ID", trim(itemGroup.nameItemGroup, 20));
                             putField(dbfFile, "PRICE", null);
+                            putField(dbfFile, "WEIGHT", "F");
                             putField(dbfFile, "FLAGS", "0");
                             if (recordNumber != null)
                                 dbfFile.update();
@@ -105,7 +107,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                 dbfFile.file.setLength(dbfFile.file.length() - 1);
                                 barcodeRecordMap.put(itemGroup.idItemGroup, barcodeRecordMap.size() + 1);
                             }
-                            parent = trim(itemGroup.idItemGroup, 6);
+                            parent = idItemGroup;
                         }
                         
                         Integer recordNumber = barcodeRecordMap.get(item.idBarcode);
@@ -113,7 +115,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             dbfFile.gotoRecord(recordNumber);
                         boolean isWeight = item.idBarcode != null && item.idBarcode.length()<=5;
                         putField(dbfFile, "CODE", isWeight ? item.idBarcode : "999999");
-                        putField(dbfFile, "GROUP", trim(item.hierarchyItemGroup.get(0).idItemGroup, 6));
+                        String idItemGroup = item.hierarchyItemGroup.get(0).idItemGroup;
+                        putField(dbfFile, "GROUP", idItemGroup == null ? null : trim(idItemGroup.replace("_", ""), 6));
                         putField(dbfFile, "ISGROUP", "F");
                         putField(dbfFile, "BAR_CODE", item.idBarcode);
                         putField(dbfFile, "PRODUCT_ID", trim(item.name, 32));
