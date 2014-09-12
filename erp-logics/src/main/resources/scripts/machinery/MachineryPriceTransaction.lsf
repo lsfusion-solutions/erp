@@ -131,6 +131,7 @@ nppsMachineryPriceTransaction 'Номера устройств' (transaction) =
           ORDER machinery MINCHARWIDTH 10 PREFCHARWIDTH 20 PERSISTENT;
 
 // перезагрузка прайса целиком
+selectedGroupMachinery 'Вкл' = DATA SESSION BOOLEAN (GroupMachinery);
 selectedMachinery 'Вкл' = DATA SESSION BOOLEAN (Machinery);
 
 GROUP snapshotMachineryPrice 'Перезагрузка прайса' : public;
@@ -141,6 +142,7 @@ FORM groupMachineryInput 'Выбор оборудования для перез�
     PROPERTIES(s) READONLY sname = nameStock
 
     OBJECTS g = GroupMachinery
+    PROPERTIES(g) selectedGroupMachinery
     PROPERTIES(g) READONLY nppGroupMachinery, nameGroupMachinery, nameStockGroupMachinery
     FILTERS stockGroupMachinery(g) == s
 
@@ -150,6 +152,10 @@ FORM groupMachineryInput 'Выбор оборудования для перез�
 
     FILTERS groupMachineryMachinery(m) == g
 ;
+
+WHEN SESSION FORMS groupMachineryInput CHANGED (selectedGroupMachinery(g)) DO {
+        selectedMachinery (m) <- selectedGroupMachinery(g) WHERE groupMachineryMachinery(m) == g;
+    } 
 
 DESIGN groupMachineryInput FROM DEFAULT {
     main {
