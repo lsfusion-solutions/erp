@@ -27,6 +27,9 @@ purchasePricingQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(de
 
 @defineDocumentInterfaceDetailPriceListType (invoice, priceListType, purchaseRetail, ' (розничная)');
 
+@defineDocumentInterfaceHeaderProperty (invoice, useSupplierStock, 'Использовать склад поставщика');
+
+
 CONSTRAINT currencyUserInvoice(invoice) != currencyPriceListType(calcPurchaseRetailCalcPriceListTypeUserInvoice(invoice))
            CHECKED BY calcPurchaseRetailCalcPriceListTypeUserInvoice
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
@@ -39,7 +42,9 @@ CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(purchaseRe
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
 overRetailStockUserInvoiceDetail = ABSTRACT Stock (UserInvoiceDetail);
-retailStockUserInvoiceDetail (d) = OVERRIDE customerStockUserInvoiceDetail(d), overRetailStockUserInvoiceDetail(d);
+retailStockUserInvoiceDetail (d) = OVERRIDE 
+    (IF useSupplierStockUserInvoice(userInvoiceUserInvoiceDetail(d)) THEN supplierStockUserInvoiceDetail(d) ELSE customerStockUserInvoiceDetail(d)), 
+    overRetailStockUserInvoiceDetail(d);
 
 WHEN SESSION // цены берем на начало сессии, а не этого event'а
    (CHANGED(calcPurchaseRetailPriceListTypeUserInvoiceDetail(detail)) OR
@@ -176,6 +181,9 @@ calcPurchaseRetailCalcPriceListTypeUserInvoice (invoice) <- IF pricingCalcPriceL
     THEN pricingCalcPriceListTypeOperation(purchasePricingOperationUserInvoice(invoice))
     ELSE retailCalcPriceListTypeDepartmentStore(customerStockUserInvoice(invoice))
         WHEN CHANGED(purchasePricingOperationUserInvoice(invoice)) OR CHANGED(customerStockUserInvoice(invoice));
+        
+useSupplierStockUserInvoice (invoice) <- useSupplierStockOperation(purchasePricingOperationUserInvoice(invoice))   
+        WHEN CHANGED(purchasePricingOperationUserInvoice(invoice));              
 
 EXTEND FORM operation
     PROPERTIES(o) namePurchasePricingOperationOperation
@@ -198,7 +206,8 @@ EXTEND FORM userInvoice
     PROPERTIES(i) SHOWIF showCreatePurchasePricingInvoice(i) BACKGROUND backgroundPurchaseRetailInvoice(i) createPurchasePricingUserInvoice
     PROPERTIES(i) SHOWIF createPurchasePricingUserInvoice(i) BACKGROUND backgroundPurchaseRetailInvoice(i)
                   namePurchasePricingOperationUserInvoice, namePurchasePricingCommitteeUserInvoice,
-                  nameCalcPurchaseRetailPriceListTypeInvoice, nameCalcPurchaseRetailCalcPriceListTypeInvoice,
+                  nameCalcPurchaseRetailPriceListTypeUserInvoice, nameCalcPurchaseRetailCalcPriceListTypeUserInvoice,
+                  useSupplierStockUserInvoice,
                   purchaseRetailSumUserInvoiceDetailUserInvoice BEFORE purchaseShipmentSumUserInvoiceDetailUserInvoice(i)
 
     PROPERTIES(d) BEFORE purchaseExpiryDateUserInvoiceDetail(d) SHOWIF createPurchasePricingInvoice(i) BACKGROUND backgroundPurchaseRetailInvoice(i)
@@ -218,8 +227,9 @@ EXTEND DESIGN userInvoice {
             ADD PROPERTY(createPurchasePricingUserInvoice(i));
             ADD PROPERTY(namePurchasePricingOperationUserInvoice(i));
             ADD PROPERTY(namePurchasePricingCommitteeUserInvoice(i));
-            ADD PROPERTY(nameCalcPurchaseRetailPriceListTypeInvoice(i));
-            ADD PROPERTY(nameCalcPurchaseRetailCalcPriceListTypeInvoice(i));
+            ADD PROPERTY(nameCalcPurchaseRetailPriceListTypeUserInvoice(i));
+            ADD PROPERTY(nameCalcPurchaseRetailCalcPriceListTypeUserInvoice(i));
+            ADD PROPERTY(useSupplierStockUserInvoice(i));
         }
     }
 }

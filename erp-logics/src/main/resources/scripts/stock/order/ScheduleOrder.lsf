@@ -50,34 +50,7 @@ nameSupplierStockScheduleOrder 'Склад поставщика' (scheduleOrder)
 
 // ---------------------  Склады, для которых действует график заказов
 
-allStocksScheduleOrder 'Отм' = ABSTRACT BOOLEAN (ScheduleOrder) PERSISTENT;
-
-TABLE ScheduleOrderStockGroup(ScheduleOrder, StockGroup);
-dataInScheduleOrderStockGroup 'Отм' = ABSTRACT BOOLEAN (ScheduleOrder, StockGroup) PERSISTENT;
-
-TABLE ScheduleOrderStock(ScheduleOrder, Stock);
-dataInScheduleOrderStock 'Отм' = ABSTRACT BOOLEAN (ScheduleOrder, Stock) PERSISTENT;
-
-levelParentScheduleOrderStockGroup (scheduleOrder, stockGroup) = GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataInScheduleOrderStockGroup(scheduleOrder, parent)
-                                                               BY scheduleOrder, stockGroup PERSISTENT;
-
-inParentScheduleOrderStockGroup (scheduleOrder, stockGroup) = TRUE IF levelParentScheduleOrderStockGroup (scheduleOrder, stockGroup) PERSISTENT;
-
-inScheduleOrderStockGroup 'Отм' (scheduleOrder, stockGroup) = OVERRIDE
-    allStocksScheduleOrder(scheduleOrder) AND stockGroup IS StockGroup,
-    inParentScheduleOrderStockGroup (scheduleOrder, stockGroup),
-    dataInScheduleOrderStockGroup(scheduleOrder, stockGroup);
-
-inScheduleOrderStock 'Отм' (scheduleOrder, stock) =
-    (OVERRIDE allStocksScheduleOrder(scheduleOrder) AND stock IS Stock,
-              inParentScheduleOrderStockGroup(scheduleOrder, stockGroupStock(stock)),
-              dataInScheduleOrderStock(scheduleOrder, stock))
-    AND isCompanyStock(stock);
-
-stocksScheduleOrder 'Склады' (scheduleOrder) = GROUP CONCAT nameStock(stock) IF inScheduleOrderStock(scheduleOrder, stock) , ', '
-                                       BY scheduleOrder
-                                       ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
-
+stocksScheduleOrder 'Склады' (scheduleOrder) = ABSTRACT VARSTRING[500] (ScheduleOrder) MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
 
 addScheduleOrderSupplierCustomer 'Добавить' = ABSTRACT ACTION LIST (LegalEntity, LegalEntity) IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 editScheduleOrder 'Редактировать' = ABSTRACT ACTION LIST (ScheduleOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
@@ -160,19 +133,16 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         dataInScheduleOrderStockGroup(scheduleOrder, stockGroup);
     
     inScheduleOrderStock 'Отм' (scheduleOrder, stock) =
-        (OVERRIDE allStocksScheduleOrder(scheduleOrder) AND stock IS Stock,
-                  inParentScheduleOrderStockGroup(scheduleOrder, stockGroupStock(stock)),
+        (OVERRIDE inScheduleOrderStockGroup(scheduleOrder, stockGroupStock(stock)),                  
                   dataInScheduleOrderStock(scheduleOrder, stock))
-        AND isCompanyStock(stock);
+        AND is###customerFilter###stock(stock)
+        AND inLegalEntityStock(customerScheduleOrder(scheduleOrder), stock);      
     
-    stocksScheduleOrder 'Склады' (scheduleOrder) = GROUP CONCAT nameStock(stock) IF inScheduleOrderStock(scheduleOrder, stock) , ', '
+    stocksScheduleOrder 'Склады' (scheduleOrder) = VARSTRING[500]([ = GROUP CONCAT nameStock(stock) IF inScheduleOrderStock(scheduleOrder, stock) , ', '
                                            BY scheduleOrder
-                                           ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
-                                           
-    ScheduleOrder.allStocksScheduleOrder(scheduleOrder) += allStocksScheduleOrder(scheduleOrder);                                          
-    ScheduleOrder.dataInScheduleOrderStockGroup(scheduleOrder, stockGroup) += dataInScheduleOrderStockGroup(scheduleOrder, stockGroup);                                          
-    ScheduleOrder.dataInScheduleOrderStock(scheduleOrder, stock) += dataInScheduleOrderStock(scheduleOrder, stock);                                          
-
+                                           ORDER stock](scheduleOrder)) MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
+    ScheduleOrder.stocksScheduleOrder(scheduleOrder) += stocksScheduleOrder(scheduleOrder);            
+                                                                                                           
     startDateScheduleOrder 'Дата начала' = DATA DATE (ScheduleOrder) IN base;
     endDateScheduleOrder 'Дата окончания' = DATA DATE (ScheduleOrder) IN base;
 
@@ -460,7 +430,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         }
     }    
     
-    FORM scheduleOrder 'График поставок'
+    FORM scheduleOrder 'График поставок'##sign
         OBJECTS s=ScheduleOrder FIXED PANEL
         PROPERTIES (s) nameSupplierScheduleOrder ON CHANGE changeSupplier###supplierFilter###scheduleOrder(s), 
                        nameSupplierStockScheduleOrder ON CHANGE changeSupplierStock###supplierFilter###scheduleOrder(s), 
@@ -488,13 +458,14 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES(s, sg) inScheduleOrderStockGroup
         ORDER BY sgTreeName
         FILTERS stringEqualsAll(a)
-        FILTERS countCompanyStockStockGroup(sg)
+        FILTERS count###customerFilter###stockStockGroup(sg)
     
         OBJECTS ts = Stock
         PROPERTIES READONLY  nameStock(ts)
         PROPERTIES(s, ts)    inScheduleOrderStock
         FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParentStockGroupStock(sg, ts),
-                isCompanyStock(ts)
+                inLegalEntityStock(customerScheduleOrder(s), ts),
+                is###customerFilter###stock(ts)
         FILTERGROUP filters2
                 FILTER 'Выбранные склады' 'F10' inScheduleOrderStock(s, ts) 
         FILTERGROUP inactiveStock FILTER 'Активный' 'ctrl F10' activeStock(ts) DEFAULT        
