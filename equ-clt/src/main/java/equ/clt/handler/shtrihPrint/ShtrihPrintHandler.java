@@ -2,10 +2,11 @@ package equ.clt.handler.shtrihPrint;
 
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
-import com.jacob.com.LibraryLoader;
 import com.jacob.com.Variant;
 import equ.api.*;
 import equ.api.scales.*;
+import equ.clt.EquipmentServer;
+import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.util.*;
 
 public class ShtrihPrintHandler extends ScalesHandler {
 
+    protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
     private FileSystemXmlApplicationContext springContext;
 
     public ShtrihPrintHandler(FileSystemXmlApplicationContext springContext) {
@@ -24,6 +26,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
         //System.setProperty(LibraryLoader.JACOB_DLL_PATH, "E:\\work\\Кассы-весы\\dll\\jacob-1.15-M3-x86.dll");
 
+        logger.info("Shtrih: Send Transaction # " + transactionInfo.id);
+        
         ActiveXComponent shtrihActiveXComponent = new ActiveXComponent("AddIn.DrvLP");
         Dispatch shtrihDispatch = shtrihActiveXComponent.getObject();
 
@@ -44,6 +48,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
                 throw new RuntimeException("ShtrihPrintHandler. No IP-addresses defined");
             else
                 for (String ip : ips) {
+
+                    logger.info("Shtrih: Connecting ip: " + ip);
 
                     shtrihActiveXComponent.setProperty("LDInterface", new Variant(1));
                     shtrihActiveXComponent.setProperty("LDRemoteHost", new Variant(ip));
@@ -111,6 +117,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                         Dispatch.call(shtrihDispatch, "Disconnect");
                         throw new RuntimeException("ShtrihPrintHandler. Connection error (# " + result.toString() + ")");
                     }
+                    logger.info("Shtrih: Disconnecting ip: " + ip);
                 }
         }
     }
