@@ -51,73 +51,80 @@ public class ShtrihPrintHandler extends ScalesHandler {
 
                     logger.info("Shtrih: Connecting ip: " + ip);
 
-                    shtrihActiveXComponent.setProperty("LDInterface", new Variant(1));
-                    shtrihActiveXComponent.setProperty("LDRemoteHost", new Variant(ip));
-                    Dispatch.call(shtrihDispatch, "AddLD");
-                    Dispatch.call(shtrihDispatch, "SetActiveLD");
+                    try {
 
-                    Variant result = Dispatch.call(shtrihDispatch, "Connect");
-                    if (result.toString().equals("0")) {
-                        for (ScalesItemInfo item : transactionInfo.itemsList) {
-                            Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
-                            Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode;
-                            Integer shelfLife = item.expirationDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
+                        shtrihActiveXComponent.setProperty("LDInterface", new Variant(1));
+                        shtrihActiveXComponent.setProperty("LDRemoteHost", new Variant(ip));
+                        Dispatch.call(shtrihDispatch, "AddLD");
+                        Dispatch.call(shtrihDispatch, "SetActiveLD");
 
-                            int len = item.name.length();
-                            String firstName = item.name.substring(0, len < 28 ? len : 28);
-                            String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
+                        Variant result = Dispatch.call(shtrihDispatch, "Connect");
+                        if (result.toString().equals("0")) {
+                            for (ScalesItemInfo item : transactionInfo.itemsList) {
+                                Integer barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
+                                Integer pluNumber = item.pluNumber != null ? item.pluNumber : barcode;
+                                Integer shelfLife = item.expirationDate == null ? (item.daysExpiry == null ? 0 : item.daysExpiry) : 0;
 
-                            shtrihActiveXComponent.setProperty("Password", pass);
-                            shtrihActiveXComponent.setProperty("PLUNumber", new Variant(pluNumber));
-                            shtrihActiveXComponent.setProperty("Price", new Variant(item.price));
-                            shtrihActiveXComponent.setProperty("Tare", new Variant(0));
-                            shtrihActiveXComponent.setProperty("ItemCode", new Variant(barcode));
-                            shtrihActiveXComponent.setProperty("NameFirst", new Variant(firstName));
-                            shtrihActiveXComponent.setProperty("NameSecond", new Variant(secondName));
-                            shtrihActiveXComponent.setProperty("ShelfLife", new Variant(shelfLife)); //срок хранения в днях
-                            String groupCode = item.idItemGroup == null ? null : item.idItemGroup.replace("_", "");
-                            shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
-                            shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
-                            shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
-                            shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate == null ? new Date(2001 - 1900, 0, 1) : item.expirationDate));
-                            shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
+                                int len = item.name.length();
+                                String firstName = item.name.substring(0, len < 28 ? len : 28);
+                                String secondName = len < 28 ? "" : item.name.substring(28, len < 56 ? len : 56);
 
-                            int start = 0;
-                            int total = item.description.length();
-                            int i = 0;
-                            while (i < 8 && start < total) {
-                                shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
-                                shtrihActiveXComponent.setProperty("StringNumber", new Variant(i + 1));
-                                String message = "";
-                                if (newLineNoSubstring) {
-                                    message = item.description.substring(start, total).split("\n")[0];
-                                    message = message.substring(0, Math.min(message.length(), 50));
-                                } else
-                                    message = item.description.substring(start, Math.min(start + 50, total)).split("\n")[0];
-                                shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
-                                start += message.length() + 1;
-                                i++;
+                                shtrihActiveXComponent.setProperty("Password", pass);
+                                shtrihActiveXComponent.setProperty("PLUNumber", new Variant(pluNumber));
+                                shtrihActiveXComponent.setProperty("Price", new Variant(item.price));
+                                shtrihActiveXComponent.setProperty("Tare", new Variant(0));
+                                shtrihActiveXComponent.setProperty("ItemCode", new Variant(barcode));
+                                shtrihActiveXComponent.setProperty("NameFirst", new Variant(firstName));
+                                shtrihActiveXComponent.setProperty("NameSecond", new Variant(secondName));
+                                shtrihActiveXComponent.setProperty("ShelfLife", new Variant(shelfLife)); //срок хранения в днях
+                                String groupCode = item.idItemGroup == null ? null : item.idItemGroup.replace("_", "");
+                                shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
+                                shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
+                                shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
+                                shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate == null ? new Date(2001 - 1900, 0, 1) : item.expirationDate));
+                                shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
-                                result = Dispatch.call(shtrihDispatch, "SetMessageData");
+                                if (item.description != null) {
+                                    int start = 0;
+                                    int total = item.description.length();
+                                    int i = 0;
+                                    while (i < 8 && start < total) {
+                                        shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
+                                        shtrihActiveXComponent.setProperty("StringNumber", new Variant(i + 1));
+                                        String message = "";
+                                        if (newLineNoSubstring) {
+                                            message = item.description.substring(start, total).split("\n")[0];
+                                            message = message.substring(0, Math.min(message.length(), 50));
+                                        } else
+                                            message = item.description.substring(start, Math.min(start + 50, total)).split("\n")[0];
+                                        shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
+                                        start += message.length() + 1;
+                                        i++;
+
+                                        result = Dispatch.call(shtrihDispatch, "SetMessageData");
+                                        if (!result.toString().equals("0")) {
+                                            throw new RuntimeException("ShtrihPrintHandler. Item # " + item.idBarcode + " Error # " + result.toString());
+                                        }
+                                    }
+                                }
+
+                                result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
                                 if (!result.toString().equals("0")) {
                                     throw new RuntimeException("ShtrihPrintHandler. Item # " + item.idBarcode + " Error # " + result.toString());
                                 }
                             }
-
-                            result = Dispatch.call(shtrihDispatch, "SetPLUDataEx");
+                            result = Dispatch.call(shtrihDispatch, "Disconnect");
                             if (!result.toString().equals("0")) {
-                                throw new RuntimeException("ShtrihPrintHandler. Item # " + item.idBarcode + " Error # " + result.toString());
+                                throw new RuntimeException("ShtrihPrintHandler. Disconnection error (# " + result.toString() + ")");
                             }
+                        } else {
+                            Dispatch.call(shtrihDispatch, "Disconnect");
+                            throw new RuntimeException("ShtrihPrintHandler. Connection error (# " + result.toString() + ")");
                         }
-                        result = Dispatch.call(shtrihDispatch, "Disconnect");
-                        if (!result.toString().equals("0")) {
-                            throw new RuntimeException("ShtrihPrintHandler. Disconnection error (# " + result.toString() + ")");
-                        }
-                    } else {
+                        logger.info("Shtrih: Disconnecting ip: " + ip);
+                    } finally {
                         Dispatch.call(shtrihDispatch, "Disconnect");
-                        throw new RuntimeException("ShtrihPrintHandler. Connection error (# " + result.toString() + ")");
                     }
-                    logger.info("Shtrih: Disconnecting ip: " + ip);
                 }
         }
     }
