@@ -2,6 +2,7 @@ package equ.clt.handler.htc;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import equ.api.ItemGroup;
 import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import equ.api.SoftCheckInfo;
@@ -76,68 +77,126 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     if (!append)
                         dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, CMD});
 
+                    Set<String> usedBarcodes = new HashSet<String>();
                     Map<String, Integer> barcodeRecordMap = new HashMap<String, Integer>();
                     for (int i = 1; i <= dbfFile.getRecordCount(); i++) {
                         String barcode = getDBFFieldValue(dbfFile, "BAR_CODE", charset);
                         barcodeRecordMap.put(barcode, i);
                     }
 
+                    // item groups
+                    putField(dbfFile, ISGROUP, "T", append);
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        if (item.idItemGroup != null) {
+                            String parent = null;
+                            for (ItemGroup itemGroup : Lists.reverse(transactionInfo.itemGroupMap.get(item.idItemGroup))) {
+                                String idItemGroup = (itemGroup.idItemGroup.equals("Все") ? "0" : itemGroup.idItemGroup.replace("_", ""));
+                                if(!usedBarcodes.contains(idItemGroup)) {
+                                    Integer recordNumber = null;
+                                    if(append) {
+                                        recordNumber = barcodeRecordMap.get(itemGroup.idItemGroup);
+                                        if (recordNumber != null)
+                                            dbfFile.gotoRecord(recordNumber);
+                                    }
+                                    putField(dbfFile, CODE, trim(idItemGroup, 6), append);
+                                    putField(dbfFile, GROUP, parent, append);
+                                    putField(dbfFile, BAR_CODE, trim(idItemGroup, 13), append);
+                                    putField(dbfFile, PRODUCT_ID, trim(itemGroup.nameItemGroup, 32), append);
+                                    putField(dbfFile, TABLO_ID, trim(itemGroup.nameItemGroup, 20), append);
+                                    putField(dbfFile, PRICE, null, append);
+                                    putField(dbfFile, WEIGHT, "F", append);
+                                    putField(dbfFile, FLAGS, "0", append);
+                                    if (recordNumber != null)
+                                        dbfFile.update();
+                                    else {
+                                        dbfFile.write();
+                                        dbfFile.file.setLength(dbfFile.file.length() - 1);
+                                        barcodeRecordMap.put(itemGroup.idItemGroup, barcodeRecordMap.size() + 1);
+                                    }
+                                    usedBarcodes.add(idItemGroup);
+                                }
+                                parent = trim(idItemGroup, 6);
+                            }
+                        }
+                    }
+                    
+                    //items
+                    
+                    String lastCode = null;
+                    String lastGroup = null;
+                    String lastBarcode = null;
+                    String lastName = null;
+                    BigDecimal lastPrice = null;
+                    Boolean lastSplitItem = null;
+                    Integer lastFlags = null;
+                    
+                    putField(dbfFile, ISGROUP, "F", append);
+                    for (CashRegisterItemInfo item : transactionInfo.itemsList) {
+                        if(!usedBarcodes.contains(item.idBarcode)) {
+                            Integer recordNumber = null;
+                            if(append) {
+                                recordNumber = barcodeRecordMap.get(item.idBarcode);
+                                if (recordNumber != null)
+                                    dbfFile.gotoRecord(recordNumber);
+                            }
+                                                        
+                            boolean isWeight = item.idBarcode != null && item.idBarcode.length() <= 5;                         
+                            String code = isWeight ? item.idBarcode : "999999";
+                            if(lastCode == null || !lastCode.equals(code)) {
+                                putField(dbfFile, CODE, code, append);
+                                lastCode = code;
+                            }
 
-                        String parent = null;
-                        for (ItemGroup itemGroup : Lists.reverse(item.hierarchyItemGroup)) {
+                            String group = item.idItemGroup == null ? null : trim(item.idItemGroup.replace("_", ""), 6);
+                            if (lastGroup == null || !lastGroup.equals(group)) {
+                                putField(dbfFile, GROUP, group, append);
+                                lastGroup = group;
+                            }
+                            
+                            if(lastBarcode == null || !lastBarcode.equals(item.idBarcode)) {
+                                putField(dbfFile, BAR_CODE, item.idBarcode, append);
+                                lastBarcode = item.idBarcode;
+                            }
+                            
+                            if(lastName == null || !lastName.equals(item.name)) {
+                                putField(dbfFile, PRODUCT_ID, trim(item.name, 32), append);
+                                putField(dbfFile, TABLO_ID, trim(item.name, 20), append);
+                                lastName = item.name;
+                            }
+                            
+                            if(lastPrice == null || !lastPrice.equals(item.price)) {
+                                putField(dbfFile, PRICE, String.valueOf(item.price.intValue()), append);
+                                lastPrice = item.price;
+                            }
 
-                            Integer recordNumber = barcodeRecordMap.get(itemGroup.idItemGroup);
-                            if (recordNumber != null)
-                                dbfFile.gotoRecord(recordNumber);
-                            String idItemGroup = trim(itemGroup.idItemGroup == null ? null : (itemGroup.idItemGroup.equals("Все") ? "0" : itemGroup.idItemGroup.replace("_", "")), 6); 
-                            putField(dbfFile, "CODE", idItemGroup);
-                            putField(dbfFile, "GROUP", parent);
-                            putField(dbfFile, "ISGROUP", "T");
-                            putField(dbfFile, "BAR_CODE", itemGroup.idItemGroup);
-                            putField(dbfFile, "PRODUCT_ID", trim(itemGroup.nameItemGroup, 32));
-                            putField(dbfFile, "TABLO_ID", trim(itemGroup.nameItemGroup, 20));
-                            putField(dbfFile, "PRICE", null);
-                            putField(dbfFile, "WEIGHT", "F");
-                            putField(dbfFile, "FLAGS", "0");
+                            if(lastSplitItem == null || !lastSplitItem.equals(item.splitItem)) {
+                                putField(dbfFile, WEIGHT, item.splitItem ? "T" : "F", append);
+                                lastSplitItem = item.splitItem;
+                            }
+                            
+                            Integer flags = (item.notPromotionItem ? 0 : 248) + (item.splitItem ? 1 : 0);
+                            if(lastFlags == null || !lastFlags.equals(flags)) {
+                                putField(dbfFile, FLAGS, String.valueOf(flags), append);
+                                lastFlags = flags;
+                            }
+                                                       
                             if (recordNumber != null)
                                 dbfFile.update();
                             else {
-                                dbfFile.write();
-                                dbfFile.file.setLength(dbfFile.file.length() - 1);
-                                barcodeRecordMap.put(itemGroup.idItemGroup, barcodeRecordMap.size() + 1);
+                                dbfFile.write();                                                               
+                                dbfFile.file.setLength(dbfFile.file.length() - 1);                                
+                                if(append)
+                                    barcodeRecordMap.put(item.idBarcode, barcodeRecordMap.size() + 1);
                             }
-                            parent = idItemGroup;
+                            usedBarcodes.add(item.idBarcode);
                         }
-                        
-                        Integer recordNumber = barcodeRecordMap.get(item.idBarcode);
-                        if (recordNumber != null)
-                            dbfFile.gotoRecord(recordNumber);
-                        boolean isWeight = item.idBarcode != null && item.idBarcode.length()<=5;
-                        putField(dbfFile, "CODE", isWeight ? item.idBarcode : "999999");
-                        String idItemGroup = item.hierarchyItemGroup.get(0).idItemGroup;
-                        putField(dbfFile, "GROUP", idItemGroup == null ? null : trim(idItemGroup.replace("_", ""), 6));
-                        putField(dbfFile, "ISGROUP", "F");
-                        putField(dbfFile, "BAR_CODE", item.idBarcode);
-                        putField(dbfFile, "PRODUCT_ID", trim(item.name, 32));
-                        putField(dbfFile, "TABLO_ID", trim(item.name, 20));
-                        putField(dbfFile, "PRICE", String.valueOf(item.price.intValue()));
-                        putField(dbfFile, "WEIGHT", item.splitItem ? "T" : "F");
-                        
-                        putField(dbfFile, "FLAGS", String.valueOf((item.notPromotionItem ? 0 : 248) + (item.splitItem ? 1 : 0)));
-                        if (recordNumber != null)
-                            dbfFile.update();
-                        else {
-                            dbfFile.write();
-                            dbfFile.file.setLength(dbfFile.file.length() - 1);
-                            barcodeRecordMap.put(item.idBarcode, barcodeRecordMap.size() + 1);
-                        }
-                    }
+                    }                  
                     dbfFile.close();
                     if (!append)
                         new File(directory + "\\" + mdxName).delete();
 
-                    createDiscountCardFile(transactionInfo.discountCardList, directory);
+                    if(transactionInfo.snapshot)
+                        createDiscountCardFile(transactionInfo.discountCardList, directory);
                     
                     flagPriceFile.createNewFile();
                     logger.info("HTC: waiting for deletion of price.qry file");
@@ -162,10 +221,20 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             DBF dbfFile = new DBF(discountCardFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
             dbfFile.addField(new Field[]{DISC, NAME, PERCENT, ISSTOP});
 
+            String lastName = null;
+            BigDecimal lastPercent = null;
             for (DiscountCard discountCard : discountCardList) {
-                putField(dbfFile, "DISC", discountCard.numberDiscountCard);
-                putField(dbfFile, "NAME", discountCard.nameDiscountCard == null ? "" : discountCard.nameDiscountCard);
-                putField(dbfFile, "PERCENT", String.valueOf(discountCard.percentDiscountCard));
+                putField(dbfFile, DISC, discountCard.numberDiscountCard, false);
+                
+                if(lastName == null || !lastName.equals(discountCard.nameDiscountCard)) {
+                    putField(dbfFile, NAME, discountCard.nameDiscountCard == null ? "" : discountCard.nameDiscountCard, false);
+                    lastName = discountCard.nameDiscountCard;
+                }
+                
+                if(lastPercent == null || !lastPercent.equals(discountCard.percentDiscountCard)) {
+                    putField(dbfFile, PERCENT, String.valueOf(discountCard.percentDiscountCard), false);
+                    lastPercent = discountCard.percentDiscountCard;
+                }
                 dbfFile.write();
             }
             dbfFile.close();
@@ -176,6 +245,13 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         }
     }
 
+    private void putField(DBF dbfFile, Field field, String value, boolean append) throws xBaseJException {
+        if(append)
+            dbfFile.getField(field.getName()).put(value == null ? "null" : value);
+        else
+            field.put(value == null ? "null" : value);
+    }
+    
     private void putField(DBF dbfFile, String field, String value) throws xBaseJException {
         dbfFile.getField(field).put(value == null ? "null" : value);
     }

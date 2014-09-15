@@ -59,11 +59,12 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 LinkedHashMap<String, String[]> itemGroups = new LinkedHashMap<String, String[]>();
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
 
-                    for (int i = item.hierarchyItemGroup.size() - 1; i >= 0; i--) {
-                        String idItemGroup = item.hierarchyItemGroup.get(i).idItemGroup;
+                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                    for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
+                        String idItemGroup = hierarchyItemGroup.get(i).idItemGroup;
                         if (!itemGroups.containsKey(idItemGroup)) {
-                            String nameItemGroup = item.hierarchyItemGroup.get(i).nameItemGroup;
-                            String parentItemGroup = item.hierarchyItemGroup.size() <= (i + 1) ? null : item.hierarchyItemGroup.get(i + 1).idItemGroup;
+                            String nameItemGroup = hierarchyItemGroup.get(i).nameItemGroup;
+                            String parentItemGroup = hierarchyItemGroup.size() <= (i + 1) ? null : hierarchyItemGroup.get(i + 1).idItemGroup;
                             itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.splitItem ? "1" : "0"});
                         }
                     }
@@ -78,7 +79,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                 }
 
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    String idItemGroup = item.hierarchyItemGroup == null || item.hierarchyItemGroup.isEmpty() ? "" : item.hierarchyItemGroup.get(0).idItemGroup;
+                    String idItemGroup = item.idItemGroup == null ? "" : item.idItemGroup;
                     String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
                             format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
                             ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +

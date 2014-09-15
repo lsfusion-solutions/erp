@@ -1,6 +1,7 @@
 package equ.clt.handler.kristal10;
 
 import com.google.common.base.Throwables;
+import equ.api.ItemGroup;
 import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import equ.api.SoftCheckInfo;
@@ -101,11 +102,12 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                 //parent: good
                 Element group = new Element("group");
-                setAttribute(group, "id", item.hierarchyItemGroup.get(0).idItemGroup);
-                addStringElement(group, "name", item.hierarchyItemGroup.get(0).nameItemGroup);
+                setAttribute(group, "id", item.idItemGroup);
+                addStringElement(group, "name", item.nameItemGroup);
                 good.addContent(group);
 
-                addHierarchyItemGroup(group, item.hierarchyItemGroup.subList(1, item.hierarchyItemGroup.size()));
+                List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
 
                 //parent: good
                 if (item.idUOM == null || item.shortNameUOM == null) {

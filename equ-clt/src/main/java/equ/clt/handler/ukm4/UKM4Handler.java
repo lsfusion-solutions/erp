@@ -76,33 +76,34 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 classifDBFWriter = new DBFWriter(directory + "/CLASSIF.DBF", classifFields, "CP866");
                 Set<Long> idItemGroups = new HashSet<Long>();
                 for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                    int size = item.hierarchyItemGroup.size();
-                    Long group1 = parseGroup(size >= 1 ? trim(item.hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
-                    Long group2 = parseGroup(size >= 2 ? trim(item.hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
-                    Long group3 = parseGroup(size >= 3 ? trim(item.hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
-                    Long group4 = parseGroup(size >= 4 ? trim(item.hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
-                    Long group5 = parseGroup(size >= 5 ? trim(item.hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
+                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                    int size = hierarchyItemGroup.size();
+                    Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
+                    Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
+                    Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
+                    Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
+                    Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
                     String name = trim(item.nameItemGroup, 80);
                     if(!idItemGroups.contains(group1)) {
                         idItemGroups.add(group1);
                         if (size == 5) {
                             classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, group1, name});
-                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, 0, item.hierarchyItemGroup.get(1).nameItemGroup});
-                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, 0, 0, item.hierarchyItemGroup.get(2).nameItemGroup});
-                            classifDBFWriter.addRecord(new Object[]{group5, group4, 0, 0, 0, item.hierarchyItemGroup.get(3).nameItemGroup});
-                            classifDBFWriter.addRecord(new Object[]{group5, 0, 0, 0, 0, item.hierarchyItemGroup.get(4).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group5, group4, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group5, 0, 0, 0, 0, hierarchyItemGroup.get(4).nameItemGroup});
                         } else if (size == 4) {
                             classifDBFWriter.addRecord(new Object[]{group4, group3, group2, group1, 0, name});
-                            classifDBFWriter.addRecord(new Object[]{group4, group3, group2, 0, 0, item.hierarchyItemGroup.get(1).nameItemGroup});
-                            classifDBFWriter.addRecord(new Object[]{group4, group3, 0, 0, 0, item.hierarchyItemGroup.get(2).nameItemGroup});
-                            classifDBFWriter.addRecord(new Object[]{group4, 0, 0, 0, 0, item.hierarchyItemGroup.get(3).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group4, group3, group2, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group4, group3, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group4, 0, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
                         } else if (size == 3) {
                             classifDBFWriter.addRecord(new Object[]{group3, group2, group1, 0, 0, name});
-                            classifDBFWriter.addRecord(new Object[]{group3, group2, 0, 0, 0, item.hierarchyItemGroup.get(1).nameItemGroup});
-                            classifDBFWriter.addRecord(new Object[]{group3, 0, 0, 0, 0, item.hierarchyItemGroup.get(2).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group3, group2, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group3, 0, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
                         } else if (size == 2) {
                             classifDBFWriter.addRecord(new Object[]{group2, group1, 0, 0, 0, name});
-                            classifDBFWriter.addRecord(new Object[]{group2, 0, 0, 0, 0, item.hierarchyItemGroup.get(1).nameItemGroup});
+                            classifDBFWriter.addRecord(new Object[]{group2, 0, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
                         } else if (size == 1)
                             classifDBFWriter.addRecord(new Object[]{group1, 0, 0, 0, 0, name});
                     }
@@ -143,12 +144,13 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     
                     String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
                     double mespresisi = item.splitItem ? 0.001 : 1.000;
-                    int size = item.hierarchyItemGroup.size();
-                    Long group1 = parseGroup(size >= 1 ? trim(item.hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
-                    Long group2 = parseGroup(size >= 2 ? trim(item.hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
-                    Long group3 = parseGroup(size >= 3 ? trim(item.hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
-                    Long group4 = parseGroup(size >= 4 ? trim(item.hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
-                    Long group5 = parseGroup(size >= 5 ? trim(item.hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
+                    List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                    int size = hierarchyItemGroup.size();
+                    Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
+                    Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
+                    Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
+                    Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
+                    Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
 
                     pluCashDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), trim(item.name, 80), mesuriment, mespresisi, null, null, 
                             null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5, 
@@ -368,7 +370,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
     
     protected Long parseGroup(String idItemGroup) {
-        return idItemGroup == null ? 0 : Long.parseLong(idItemGroup);
+        return idItemGroup == null ? 0 : Long.parseLong(idItemGroup.equals("Все") ? "0" : idItemGroup.replace("_", ""));
     }
 
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {

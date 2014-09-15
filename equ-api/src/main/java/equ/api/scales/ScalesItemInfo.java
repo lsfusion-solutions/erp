@@ -14,11 +14,11 @@ public class ScalesItemInfo extends ItemInfo {
     public Integer labelFormat;
     public String description;
     public Integer descriptionNumber;
-    public List<String> hierarchyItemGroup;
+    public String idItemGroup;
     
     public ScalesItemInfo(String idBarcode, String name, BigDecimal price, boolean splitItem, Integer pluNumber, Integer daysExpiry,
                           Integer hoursExpiry, Date expirationDate, Integer labelFormat, String description, 
-                          Integer descriptionNumber, List<String> hierarchyItemGroup) {
+                          Integer descriptionNumber, String idItemGroup) {
         super(idBarcode, name, price, splitItem);
         this.pluNumber = pluNumber;
         this.daysExpiry = daysExpiry;
@@ -27,6 +27,6 @@ public class ScalesItemInfo extends ItemInfo {
         this.labelFormat = labelFormat;
         this.description = description;
         this.descriptionNumber = descriptionNumber;
-        this.hierarchyItemGroup = hierarchyItemGroup;
+        this.idItemGroup = idItemGroup;
     }
 }

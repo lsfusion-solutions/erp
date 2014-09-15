@@ -2,10 +2,7 @@ package equ.clt.handler.kristal;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import equ.api.SalesBatch;
-import equ.api.SalesInfo;
-import equ.api.SoftCheckInfo;
-import equ.api.SoftCheckInvoice;
+import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
@@ -176,11 +173,12 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     Set<String> numberGroupItems = new HashSet<String>();
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
-                            List<ItemGroup> hierarchy = Lists.reverse(item.hierarchyItemGroup);
-                        for (int i = 0; i < hierarchy.size(); i++) {
-                            String idItemGroup = makeIdItemGroup(hierarchy.subList(0, hierarchy.size() - i));
+                        List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
+                        hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
+                        for (int i = 0; i < hierarchyItemGroup.size(); i++) {
+                            String idItemGroup = makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i));
                             if (!numberGroupItems.contains(idItemGroup)) {
-                                String record = "+|" + hierarchy.get(hierarchy.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
+                                String record = "+|" + hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup + "|" + idItemGroup;
                                 writer.println(record);
                                 numberGroupItems.add(idItemGroup);
                             }
