@@ -53,7 +53,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             LogicalField ISGROUP = new LogicalField("ISGROUP");
             CharField ARTICUL = new CharField("ARTICUL", 20);
             NumField BAR_CODE = new NumField("BAR_CODE", 13, 0);
-            CharField PRODUCT_ID = new CharField("PRODUCT_ID", 32);
+            CharField PRODUCT_ID = new CharField("PRODUCT_ID", 64);
             CharField TABLO_ID = new CharField("TABLO_ID", 20);
             NumField PRICE = new NumField("PRICE", 10, 0);
             NumField QUANTITY = new NumField("QUANTITY", 10, 3);
@@ -61,7 +61,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             NumField SECTION = new NumField("SECTION", 1, 0);
             NumField FLAGS = new NumField("FLAGS", 3, 0);
             NumField CMD = new NumField("CMD", 2, 0);
-
+            CharField UNIT = new CharField("UNIT", 20);
+            
             for (String directory : directorySet) {
 
                 String fileName = transactionInfo.snapshot ? "NewPrice.dbf" : "UpdPrice.dbf";
@@ -101,7 +102,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                     putField(dbfFile, CODE, trim(idItemGroup, 6), append);
                                     putField(dbfFile, GROUP, parent, append);
                                     putField(dbfFile, BAR_CODE, trim(idItemGroup, 13), append);
-                                    putField(dbfFile, PRODUCT_ID, trim(itemGroup.nameItemGroup, 32), append);
+                                    putField(dbfFile, PRODUCT_ID, trim(itemGroup.nameItemGroup, 64), append);
                                     putField(dbfFile, TABLO_ID, trim(itemGroup.nameItemGroup, 20), append);
                                     putField(dbfFile, PRICE, null, append);
                                     putField(dbfFile, WEIGHT, "F", append);
@@ -129,6 +130,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     BigDecimal lastPrice = null;
                     Boolean lastSplitItem = null;
                     Integer lastFlags = null;
+                    String lastUnit = null;
                     
                     putField(dbfFile, ISGROUP, "F", append);
                     for (CashRegisterItemInfo item : transactionInfo.itemsList) {
@@ -159,7 +161,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             }
                             
                             if(lastName == null || !lastName.equals(item.name)) {
-                                putField(dbfFile, PRODUCT_ID, trim(item.name, 32), append);
+                                putField(dbfFile, PRODUCT_ID, trim(item.name, 64), append);
                                 putField(dbfFile, TABLO_ID, trim(item.name, 20), append);
                                 lastName = item.name;
                             }
@@ -178,6 +180,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                             if(lastFlags == null || !lastFlags.equals(flags)) {
                                 putField(dbfFile, FLAGS, String.valueOf(flags), append);
                                 lastFlags = flags;
+                            }
+
+                            if(lastUnit == null || !lastUnit.equals(item.shortNameUOM)) {
+                                putField(dbfFile, UNIT, item.shortNameUOM, append);
+                                lastUnit = item.shortNameUOM;
                             }
                                                        
                             if (recordNumber != null)
