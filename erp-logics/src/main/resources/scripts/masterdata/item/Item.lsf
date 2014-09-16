@@ -14,6 +14,7 @@ orderItemGroup 'Порядок' = DATA INTEGER (ItemGroup) MINCHARWIDTH 2 PREFCH
 
 nameSkuGroup(group) += nameItemGroup(group) IF group IS ItemGroup;
 orderSkuGroup(group) += orderItemGroup(group) IF group IS ItemGroup;
+idSkuGroup(group) += idItemGroup(group) IF group IS ItemGroup;
 
 TABLE itemGroupItemGroup(ItemGroup, ItemGroup);
 @defineHierarchy(itemGroup);
@@ -47,7 +48,7 @@ FORM itemGroup 'Товарная группа'
 FORM itemGroups 'Товарные группы'
     TREE treeGroups g=ItemGroup PARENT parentItemGroup
     PROPERTIES inItemGroup(g), moveItemGroup(g) TODRAW g FORCE PANEL TOOLBAR
-    PROPERTIES READONLYIF isReadonly() orderItemGroup(g), nameItemGroup(g), idItemGroup(g) SHOWIF showIDs(),canonicalNameItemGroup (g)
+    PROPERTIES READONLYIF isReadonly() orderItemGroup(g), idItemGroup(g) SHOWIF showIDs(), nameItemGroup(g), canonicalNameItemGroup (g)
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
     ORDER BY orderItemGroup(g), canonicalNameItemGroup(g)
 ;
@@ -267,7 +268,7 @@ FORM items 'Товары' KEEPSESSIONPROPERTIES
     PROPERTIES(gt) SELECTOR nameGroupType
 
     TREE groupTree g=Group PARENT parentGroup
-    PROPERTIES READONLY orderGroup(g), nameGroup(g)
+    PROPERTIES READONLY orderGroup(g), idGroup(g), nameGroup(g)
     FILTERS groupTypeGroup(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
     ORDER BY orderGroup(g), nameGroup(g)
     FILTERGROUP inactive1 FILTER 'Активные' 'F5' activeGroup(g) DEFAULT
@@ -1242,7 +1243,7 @@ loadDefaultItemAttributes() += ACTION {
 
 EXTEND FORM items
     PROPERTIES READONLY AFTER idBarcodeSku(i) nameAttributeItem(i) // вообще надо использовать nameAttributeGroupGroupTypeItem(g, gt, i) для скорости, но тогда не будет работать отбор без групп
-    PROPERTIES READONLYIF isReadonly() canonicalNameGroupGroupTypeSku(gt,i) AFTER nameAttributeItem(i)
+    PROPERTIES READONLYIF isReadonly() AFTER nameAttributeItem(i) idItemGroupItem(i) , canonicalNameGroupGroupTypeSku(gt,i) 
 
     FILTERGROUP groupFilters
         FILTER 'С группами' 'F9' isParentGroupSku(g, i) DEFAULT

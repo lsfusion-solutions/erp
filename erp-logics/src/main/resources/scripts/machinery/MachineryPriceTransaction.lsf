@@ -353,6 +353,8 @@ createAttributeMachineryPriceTransaction = ABSTRACT ACTION LIST (MachineryPriceT
 createAttributeMachineryPriceTransactionStock = ABSTRACT ACTION LIST (MachineryPriceTransaction, Stock);
 createAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
 
+skipMachineryPriceTransactionSkuStockDateTime 'Запретить загрузку в оборудование' = ABSTRACT BOOLEAN (Sku, Stock, DATETIME);
+
 createMachineryPriceTransaction 'Создать транзакцию' = ACTION (stock) {
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
@@ -374,7 +376,9 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
 
         IF NOT createMachineryPriceTransactionAll() AND NOT createMachineryPriceTransactionSnapshot() THEN
             inBarcode(barcode) <- TRUE IF NOT (priceBarcodeGroupMachinery(barcode, groupMachinery) == transactionPriceBarcodeGroupMachinery(barcode, groupMachinery)) WHERE inBarcode(barcode);
-
+            
+        inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND skipMachineryPriceTransactionSkuStockDateTime(skuBarcode(barcode), stock, currentDateTime()); // если есть запрет на загрузку
+        
         LOCAL countBarcode = INTEGER();
         countBarcode() <- [= GROUP SUM 1 IF inBarcode(barcode)]();
         IF countBarcode() THEN {

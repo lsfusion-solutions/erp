@@ -4,7 +4,8 @@ REQUIRE System,
         Stock,
         Machinery,
         Numerator,        
-        Utils      
+        Utils,
+        MachineryPriceTransaction
         ;
 
 NAMESPACE StopList;
@@ -18,6 +19,8 @@ CLASS StopListDetail 'Строка запрета продаж по кассе';
 @deriveDocumentHeaderTimePrefix(StopList, );
 
 @defineDocumentTimePrefix (stopList, from, ' с');
+@deriveDocumentHeaderTimePrefix(StopList, from);
+
 @defineDocumentTimePrefix (stopList, to, ' по');
 
 @defineDocumentHeaderNumber(StopList);
@@ -25,6 +28,8 @@ CLASS StopListDetail 'Строка запрета продаж по кассе';
 
 @defineDocumentHeaderLegalEntity(stopList, company, 'Компания');
 TABLE stockStopList (Stock ,StopList);
+TABLE stockStopListDetail (Stock ,StopListDetail);
+
 inStockStopList 'Вкл.' = DATA BOOLEAN (Stock ,StopList);
 stocksStopList 'Склады' (stopList) = GROUP CONCAT nameStock(stock) IF inStockStopList(stock, stopList) , ', '
                                          BY stopList
@@ -80,6 +85,16 @@ changeValueSkuStopList = ACTION (sku, stopList) {
         }
     }
 }
+
+
+inStockStopListDetail (stock, detail) = inStockStopList(stock, stopListStopListDetail(detail)) PERSISTENT;
+
+calcSkipMachineryPriceTransactionSkuStockDateTime 'Запретить загрузку в оборудование' (sku, stock, dateTime) =  GROUP SUM 1 IF inStockStopListDetail(stock, detail)
+    AND isPostedStopListDetail(detail) AND (dateTimeIn AS DATETIME) >=  fromDateTimeStopListDetail(detail) 
+    AND (((dateTimeIn AS DATETIME)  <=  toDateTimeStopListDetail(detail)) OR NOT toDateTimeStopListDetail(detail))
+    BY skuStopListDetail(detail), stock, dateTimeIn;   
+
+skipMachineryPriceTransactionSkuStockDateTime(sku, stock, dateTime) += TRUE IF calcSkipMachineryPriceTransactionSkuStockDateTime(sku, stock, dateTime);
 
 FORM stopList 'Запрет продаж по кассе'
 
