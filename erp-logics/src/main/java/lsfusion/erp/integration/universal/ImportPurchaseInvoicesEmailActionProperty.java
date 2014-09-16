@@ -105,17 +105,21 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
                         if (fromAddressEmail != null && emailPattern != null && fromAddressEmail.matches(emailPattern)) {
                             byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
-                            String nameAttachmentEmail = (String) emailEntryValue.get("nameAttachmentEmail").getValue();
+                            String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                             List<byte[]> files = new ArrayList<byte[]>();
                             if (nameAttachmentEmail != null) {
                                 if (nameAttachmentEmail.toLowerCase().endsWith(".rar")) {
                                     files = unpackRARFile(fileAttachment, fileExtension);
                                 } else if (nameAttachmentEmail.toLowerCase().endsWith(".zip")) {
                                     files = unpackZIPFile(fileAttachment, fileExtension);
+                                } else if(nameAttachmentEmail.toLowerCase().endsWith(fileExtension.toLowerCase()))
+                                    files.add(fileAttachment);
+                                else {
+                                    DataSession postImportSession = context.createSession();
+                                    findProperty("importedAttachmentEmail").change(true, postImportSession, (DataObject) attachmentEmailObject);
+                                    postImportSession.apply(context);
                                 }
-                            } else {
-                                files.add(fileAttachment);
-                            }
+                            } 
                             
                             for(byte[] file : files) {
                                 DataSession currentSession = context.createSession();
