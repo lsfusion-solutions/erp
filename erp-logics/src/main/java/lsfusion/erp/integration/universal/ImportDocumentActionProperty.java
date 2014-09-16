@@ -6,6 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.Compare;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -22,6 +23,7 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
+import java.io.File;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -110,6 +112,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
 
     public ImportDocumentSettings readImportDocumentSettings(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, String> stockMapping = readStockMapping(session, importTypeObject);
+        String fileExtension = trim((String) findProperty("captionFileExtensionImportType").read(session, importTypeObject));
         String primaryKeyType = parseKeyType((String) findProperty("namePrimaryKeyTypeImportType").read(session, importTypeObject));
         boolean checkExistence = findProperty("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
         String secondaryKeyType = parseKeyType((String) findProperty("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
@@ -119,7 +122,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         Boolean isPosted = (Boolean) findProperty("isPostedImportType").read(session, importTypeObject);
         String separator = formatSeparator((String) findProperty("separatorImportType").read(session, importTypeObject));
         String propertyImportType = trim((String) findProperty("propertyImportTypeDetailImportType").read(session, importTypeObject));
-        return new ImportDocumentSettings(stockMapping, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, separator, propertyImportType);
+        return new ImportDocumentSettings(stockMapping, fileExtension, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, separator, propertyImportType);
     }
 
     public String parseKeyType(String keyType) {
@@ -172,6 +175,18 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         if(result.equals("|"))
             result = "\\" + result;
         return result;
+    }
+
+    protected void renameImportedFile(ExecutionContext context, String oldPath, String extension) {
+        File importedFile = new File(oldPath);
+        String newExtensionUpCase = extension.substring(0, extension.length() - 1) + "E";
+        String newExtensionLowCase = extension.toLowerCase().substring(0, extension.length() - 1) + "e";
+        if (importedFile.isFile()) {
+            File renamedFile = oldPath.endsWith(extension) ? new File(oldPath.replace(extension, newExtensionUpCase)) :
+                    (oldPath.endsWith(extension.toLowerCase()) ? new File(oldPath.replace(extension.toLowerCase(), newExtensionLowCase)) : null);
+            if (renamedFile != null && !importedFile.renameTo(renamedFile))
+                context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
+        }
     }
 }
 

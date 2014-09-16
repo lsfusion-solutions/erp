@@ -41,7 +41,6 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
             importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionFileExtensionImportType", findProperty("captionFileExtensionImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("startRowImportType", findProperty("startRowImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("isPostedImportType", findProperty("isPostedImportType").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("separatorImportType", findProperty("separatorImportType").getExpr(session.getModifier(), importTypeKey));
@@ -59,16 +58,13 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
                 DataObject importTypeObject = importTypeResult.getKey(i).valueIt().iterator().next();
 
                 String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());
-                String fileExtension = trim((String) entryValue.get("captionFileExtensionImportType").getValue());
-                Integer startRow = (Integer) entryValue.get("startRowImportType").getValue();
-                startRow = startRow == null ? 1 : startRow;
-                Boolean isPosted = (Boolean) entryValue.get("isPostedImportType").getValue();
-                String separator = formatSeparator((String) findProperty("separatorImportType").read(session, importTypeObject));
                 
                 ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(session, importTypeObject).get(0);
-
+                ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
+                String fileExtension = settings.getFileExtension();
+                
                 if (directory != null && fileExtension != null) {
                     File dir = new File(directory);
 
@@ -81,7 +77,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
                                 try {
 
                                     boolean importResult = new ImportProductionOrderActionProperty(LM).makeImport(context.getBL(), currentSession, null,
-                                            importColumns, IOUtils.getFileBytes(f), fileExtension, startRow, isPosted, separator, operationObject);                                                                                                        
+                                            importColumns, IOUtils.getFileBytes(f), settings, fileExtension, operationObject);                                                                                                        
 
                                     if (importResult)
                                         renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
@@ -96,18 +92,6 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    protected void renameImportedFile(ExecutionContext context, String oldPath, String extension) {
-        File importedFile = new File(oldPath);
-        String newExtensionUpCase = extension.substring(0, extension.length() - 1) + "E";
-        String newExtensionLowCase = extension.toLowerCase().substring(0, extension.length() - 1) + "e";
-        if (importedFile.isFile()) {
-            File renamedFile = oldPath.endsWith(extension) ? new File(oldPath.replace(extension, newExtensionUpCase)) :
-                    (oldPath.endsWith(extension.toLowerCase()) ? new File(oldPath.replace(extension.toLowerCase(), newExtensionLowCase)) : null);
-            if (renamedFile != null && !importedFile.renameTo(renamedFile))
-                context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
         }
     }
 }

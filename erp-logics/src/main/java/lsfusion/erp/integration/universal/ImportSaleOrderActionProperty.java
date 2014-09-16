@@ -61,16 +61,6 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                String fileExtension = trim((String) findProperty("captionFileExtensionImportType").read(session, importTypeObject));
-                String primaryKeyType = parseKeyType((String) findProperty("namePrimaryKeyTypeImportType").read(session, importTypeObject));
-                boolean checkExistence = findProperty("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
-                String secondaryKeyType = parseKeyType((String) findProperty("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-                boolean keyIsDigit = findProperty("keyIsDigitImportType").read(session, importTypeObject) != null;
-                String separator = formatSeparator((String) findProperty("separatorImportType").read(session, importTypeObject));
-                Integer startRow = (Integer) findProperty("startRowImportType").read(session, importTypeObject);
-                startRow = startRow == null ? 1 : startRow;
-                Boolean isPosted = (Boolean) findProperty("isPostedImportType").read(session, importTypeObject);
-
                 ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierObject = findProperty("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierStockObject = findProperty("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
@@ -78,6 +68,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 ObjectValue customerStockObject = findProperty("autoImportCustomerStockImportType").readClasses(session, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(session, importTypeObject).get(0);
+                ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
+                String fileExtension = settings.getFileExtension();
 
                 if (importColumns != null && fileExtension != null) {
 
@@ -88,9 +80,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                         for (byte[] file : fileList) {
 
-                            makeImport(context.getBL(), session, orderObject, importColumns, file, fileExtension, startRow, isPosted, separator,
-                                    primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, operationObject, supplierObject, supplierStockObject,
-                                    customerObject, customerStockObject);
+                            makeImport(context.getBL(), session, orderObject, importColumns, file, settings, fileExtension, 
+                                    operationObject, supplierObject, supplierStockObject, customerObject, customerStockObject);
 
                             session.apply(context);
                             
@@ -116,22 +107,22 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     public boolean makeImport(BusinessLogics BL, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
-                              byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator, String primaryKeyType,
-                              boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, ObjectValue operationObject, ObjectValue supplierObject,
+                              byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         this.saleManufacturingPriceLM = BL.getModule("SaleManufacturingPrice");
 
         List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(session, (Integer) orderObject.object,
-                importColumns, file, fileExtension, startRow, isPosted, separator, primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit);
+                importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator(),
+                settings.getPrimaryKeyType(), settings.isCheckExistence(), settings.getSecondaryKeyType(), settings.isKeyIsDigit());
 
         boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0),
-                BL, session, orderObject, importColumns, primaryKeyType, operationObject, supplierObject, supplierStockObject,
+                BL, session, orderObject, importColumns, settings.getPrimaryKeyType(), operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
         boolean importResult2 = (orderDetailsList != null && orderDetailsList.size() >= 2) && importOrders(orderDetailsList.get(1),
-                BL, session, orderObject, importColumns, secondaryKeyType, operationObject, supplierObject, supplierStockObject,
+                BL, session, orderObject, importColumns, settings.getSecondaryKeyType(), operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
         findAction("formRefresh").execute(session);

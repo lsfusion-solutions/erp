@@ -82,8 +82,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                String fileExtension = trim((String) findProperty("captionFileExtensionImportType").read(session, importTypeObject));
-
                 ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierObject = findProperty("autoImportSupplierImportType").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierStockObject = findProperty("autoImportSupplierStockImportType").readClasses(session, (DataObject) importTypeObject);
@@ -98,7 +96,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
                 Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, false);
 
                 ImportDocumentSettings importSettings = readImportDocumentSettings(session, importTypeObject);
-
+                String fileExtension = importSettings.getFileExtension();
+                
                 if (importColumns != null && fileExtension != null) {
 
                     CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
@@ -976,20 +975,16 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
         if (fileExtension.equals("DBF"))
             userInvoiceDetailsList = importUserInvoicesFromDBF(context, session, file, defaultColumns, customColumns, 
-                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
-                    staticNameImportType);
+                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType);
         else if (fileExtension.equals("XLS"))
             userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, defaultColumns, customColumns,
-                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
-                    staticNameImportType);
+                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType);
         else if (fileExtension.equals("XLSX"))
             userInvoiceDetailsList = importUserInvoicesFromXLSX(context, session, file, defaultColumns, customColumns, 
-                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
-                    staticNameImportType);
+                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType);
         else if (fileExtension.equals("CSV") || fileExtension.equals("TXT"))
             userInvoiceDetailsList = importUserInvoicesFromCSV(context, session, file, defaultColumns, customColumns, 
-                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject,
-                    staticNameImportType);
+                    purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType);
         else
             userInvoiceDetailsList = null;
 
@@ -1021,7 +1016,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
             Sheet sheet = wb.getSheet(0);
 
             Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
-            currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+            currentTimestamp = getCurrentTimestamp();
 
             for (int i = importSettings.getStartRow() - 1; i < sheet.getRows(); i++) {
                 String numberDocument = getXLSFieldValue(sheet, i, defaultColumns.get("numberDocument"));
@@ -1153,7 +1148,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
 
         Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
-        currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+        currentTimestamp = getCurrentTimestamp();
 
         List<String[]> valuesList = new ArrayList<String[]>();
         while ((line = br.readLine()) != null) {
@@ -1290,7 +1285,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
-        currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+        currentTimestamp = getCurrentTimestamp();
 
         for (int i = importSettings.getStartRow() - 1; i <= sheet.getLastRowNum(); i++) {
 
@@ -1427,7 +1422,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
         int totalRecordCount = file.getRecordCount();
 
         Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);        
-        currentTimestamp = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
+        currentTimestamp = getCurrentTimestamp();
         for (int i = 0; i < importSettings.getStartRow() - 1; i++) {
             file.read();
         }
@@ -1677,6 +1672,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDocumentActionPro
 
     private String modifyNameCountry(String nameCountry) {
         return nameCountry == null ? null : trim(nameCountry.replace("*", "")).toUpperCase();
+    }
+    
+    private String getCurrentTimestamp() {
+        return new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
     }
     
     private Date getCurrentDateDocument(DataSession session, DataObject userInvoiceObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

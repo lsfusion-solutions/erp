@@ -56,17 +56,11 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                String fileExtension = trim((String) findProperty("captionFileExtensionImportType").read(session, importTypeObject));
-                String separator = formatSeparator((String) findProperty("separatorImportType").read(session, importTypeObject));
-                if(separator.equals("|"))
-                    separator += "\\";
-                Integer startRow = (Integer) findProperty("startRowImportType").read(session, importTypeObject);
-                startRow = startRow == null ? 1 : startRow;
-                Boolean isPosted = (Boolean) findProperty("isPostedImportType").read(session, importTypeObject);
-
                 ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(session, importTypeObject).get(0);
+                ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
+                String fileExtension = settings.getFileExtension();
 
                 if (importColumns != null && fileExtension != null) {
 
@@ -77,7 +71,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
                         for (byte[] file : fileList) {
 
-                            makeImport(context.getBL(), session, orderObject, importColumns, file, fileExtension, startRow, isPosted, separator, operationObject);
+                            makeImport(context.getBL(), session, orderObject, importColumns, file, settings, fileExtension, operationObject);
 
                             session.apply(context);
                             
@@ -103,10 +97,10 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
     }
 
     public boolean makeImport(BusinessLogics BL, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
-                              byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator, ObjectValue operationObject)
+                              byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
-        List<ProductionOrderDetail> orderDetailsList = importOrdersFromFile(orderObject, importColumns, file, fileExtension, startRow, isPosted, separator);
+        List<ProductionOrderDetail> orderDetailsList = importOrdersFromFile(orderObject, importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator());
 
         boolean importResult = importOrders(orderDetailsList, BL, session, orderObject, importColumns, operationObject);
 

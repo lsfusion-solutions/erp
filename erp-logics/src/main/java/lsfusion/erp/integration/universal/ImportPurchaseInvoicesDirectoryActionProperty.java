@@ -41,7 +41,6 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
             importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionFileExtensionImportType", findProperty("captionFileExtensionImportType").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
             importTypeQuery.and(findProperty("autoImportImportType").getExpr(importTypeKey).getWhere());
@@ -54,10 +53,10 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                 DataObject importTypeObject = importTypeResult.getKey(i).valueIt().iterator().next();
 
                 String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());
-                String fileExtension = trim((String) entryValue.get("captionFileExtensionImportType").getValue());
                 String staticNameImportType = (String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject);
 
                 ImportDocumentSettings importDocumentSettings = readImportDocumentSettings(session, importTypeObject);
+                String fileExtension = importDocumentSettings.getFileExtension();
 
                 if (directory != null && fileExtension != null) {
                     File dir = new File(directory);
@@ -91,18 +90,6 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    protected void renameImportedFile(ExecutionContext context, String oldPath, String extension) {
-        File importedFile = new File(oldPath);
-        String newExtensionUpCase = extension.substring(0, extension.length() - 1) + "E";
-        String newExtensionLowCase = extension.toLowerCase().substring(0, extension.length() - 1) + "e";
-        if (importedFile.isFile()) {
-            File renamedFile = oldPath.endsWith(extension) ? new File(oldPath.replace(extension, newExtensionUpCase)) :
-                    (oldPath.endsWith(extension.toLowerCase()) ? new File(oldPath.replace(extension.toLowerCase(), newExtensionLowCase)) : null);
-            if (renamedFile != null && !importedFile.renameTo(renamedFile))
-                context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
         }
     }
 }

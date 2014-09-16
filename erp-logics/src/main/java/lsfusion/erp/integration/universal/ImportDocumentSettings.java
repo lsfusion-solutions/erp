@@ -5,6 +5,7 @@ import java.util.Map;
 public class ImportDocumentSettings {
 
     private Map<String, String> stockMapping;
+    private String fileExtension;
     private String primaryKeyType;
     private boolean checkExistence;
     private String secondaryKeyType;
@@ -14,10 +15,11 @@ public class ImportDocumentSettings {
     private String separator;
     private String propertyImportType;
 
-    public ImportDocumentSettings(Map<String, String> stockMapping, String primaryKeyType, boolean checkExistence,
-                                  String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted,
-                                  String separator, String propertyImportType) {
+    public ImportDocumentSettings(Map<String, String> stockMapping, String fileExtension, String primaryKeyType, 
+                                  boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, Integer startRow, 
+                                  Boolean isPosted, String separator, String propertyImportType) {
         this.stockMapping = stockMapping;
+        this.fileExtension = fileExtension;
         this.primaryKeyType = primaryKeyType;
         this.checkExistence = checkExistence;
         this.secondaryKeyType = secondaryKeyType;
@@ -32,6 +34,10 @@ public class ImportDocumentSettings {
         return stockMapping;
     }
 
+    public String getFileExtension() {
+        return fileExtension;
+    }
+    
     public String getPrimaryKeyType() {
         return primaryKeyType;
     }

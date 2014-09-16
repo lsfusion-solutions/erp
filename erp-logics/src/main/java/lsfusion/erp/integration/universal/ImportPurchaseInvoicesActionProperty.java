@@ -31,12 +31,11 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
         try {
 
             ObjectValue importTypeObject = findProperty("importTypeUserInvoices").readClasses(context);
-
-            String fileExtension = trim((String) findProperty("captionFileExtensionImportType").read(context, importTypeObject));
             String staticNameImportType = (String) findProperty("staticNameImportTypeDetailImportType").read(context, importTypeObject);
 
             ImportDocumentSettings importDocumentSettings = readImportDocumentSettings(context.getSession(), importTypeObject);
-
+            String fileExtension = importDocumentSettings.getFileExtension();
+            
             if (fileExtension != null) {
 
                 CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
