@@ -76,7 +76,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 if (!transactionInfo.itemsList.isEmpty()) {
                     DBF dbfFile = append ? new DBF(priceFile.getAbsolutePath(), charset) : new DBF(priceFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
                     if (!append)
-                        dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, CMD});
+                        dbfFile.addField(new Field[]{CODE, GROUP, ISGROUP, ARTICUL, BAR_CODE, PRODUCT_ID, TABLO_ID, PRICE, QUANTITY, WEIGHT, SECTION, FLAGS, CMD, UNIT});
 
                     Set<String> usedBarcodes = new HashSet<String>();
                     Map<String, Integer> barcodeRecordMap = new HashMap<String, Integer>();
