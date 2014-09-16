@@ -125,16 +125,34 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
             }
 
+            String filePath = exchangeDirectory + "//" + makeGoodsFilePath() + ".xml";
             XMLOutputter xmlOutput = new XMLOutputter();
             xmlOutput.setFormat(Format.getPrettyFormat().setEncoding("windows-1251"));
             PrintWriter fw = new PrintWriter(
                                 new OutputStreamWriter(
-                                    new FileOutputStream(exchangeDirectory + "//" + makeGoodsFilePath() + ".xml"), "windows-1251"));
+                                    new FileOutputStream(filePath), "windows-1251"));
             xmlOutput.output(doc, fw);
             fw.close();
+            
+            waitForDeletion(new File(filePath));
         }
     }
 
+    private void waitForDeletion(File file) {
+        int count = 0;
+        while (file.exists()) {
+            try {
+                count++;
+                if (count >= 60)
+                    throw Throwables.propagate(new RuntimeException(String.format("file %s has been created but not processed by server", file.getAbsolutePath())));
+                else
+                    Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+    
     private String makeGoodsFilePath() {
         DateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy'T'HH-mm-ss");
         Calendar cal = Calendar.getInstance();
