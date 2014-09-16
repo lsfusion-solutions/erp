@@ -84,27 +84,28 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                 shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expirationDate == null ? new Date(2001 - 1900, 0, 1) : item.expirationDate));
                                 shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
-                                if (item.description != null) {
-                                    int start = 0;
-                                    int total = item.description.length();
-                                    int i = 0;
-                                    while (i < 8 && start < total) {
-                                        shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
-                                        shtrihActiveXComponent.setProperty("StringNumber", new Variant(i + 1));
-                                        String message = "";
+                                String description = item.description == null ? "" : item.description;
+                                int start = 0;
+                                int total = description.length();
+                                int i = 0;
+                                while (i < 8) {
+                                    shtrihActiveXComponent.setProperty("MessageNumber", new Variant(usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber));
+                                    shtrihActiveXComponent.setProperty("StringNumber", new Variant(i + 1));
+                                    String message = "";
+                                    if (!description.isEmpty() && start < total) {
                                         if (newLineNoSubstring) {
-                                            message = item.description.substring(start, total).split("\n")[0];
+                                            message = description.substring(start, total).split("\n")[0];
                                             message = message.substring(0, Math.min(message.length(), 50));
                                         } else
-                                            message = item.description.substring(start, Math.min(start + 50, total)).split("\n")[0];
-                                        shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
-                                        start += message.length() + 1;
-                                        i++;
+                                            message = description.substring(start, Math.min(start + 50, total)).split("\n")[0];
+                                    }
+                                    shtrihActiveXComponent.setProperty("MessageString", new Variant(message));
+                                    start += message.length() + 1;
+                                    i++;
 
-                                        result = Dispatch.call(shtrihDispatch, "SetMessageData");
-                                        if (!result.toString().equals("0")) {
-                                            throw new RuntimeException("ShtrihPrintHandler. Item # " + item.idBarcode + " Error # " + result.toString());
-                                        }
+                                    result = Dispatch.call(shtrihDispatch, "SetMessageData");
+                                    if (!result.toString().equals("0")) {
+                                        throw new RuntimeException("ShtrihPrintHandler. Item # " + item.idBarcode + " Error # " + result.toString());
                                     }
                                 }
 
