@@ -320,7 +320,7 @@ snapshotGroupMachineryDepartmentStore 'Ранее загруженные' = ACTI
             commentMachineryPriceTransaction(t) <- 'Перезагрузка прайса целиком';
             snapshotMachineryPriceTransaction(t) <- TRUE;
             inMachineryPriceTransactionMachinery(t, machinery) <- selectedMachinery(machinery);
-            inMachineryPriceTransactionBarcode(t, barcode) <- activeBarcode(barcode) AND
+            inMachineryPriceTransactionBarcode(t, barcode) <- activeBarcode(barcode) AND activeSku(skuBarcode(barcode)) AND
                                                                   prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery()) AND
                                                                   inGroupMachinerySku(groupMachinery(), skuBarcode(barcode)); // важно, что товар должен быть активным на текущий момент
             nameMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery());
@@ -377,7 +377,7 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
         IF NOT createMachineryPriceTransactionAll() AND NOT createMachineryPriceTransactionSnapshot() THEN
             inBarcode(barcode) <- TRUE IF NOT (priceBarcodeGroupMachinery(barcode, groupMachinery) == transactionPriceBarcodeGroupMachinery(barcode, groupMachinery)) WHERE inBarcode(barcode);
             
-        inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND skipMachineryPriceTransactionSkuStockDateTime(skuBarcode(barcode), stock, currentDateTime()); // если есть запрет на загрузку
+        inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND (skipMachineryPriceTransactionSkuStockDateTime(skuBarcode(barcode), stock, currentDateTime()) OR inactiveSku(skuBarcode(barcode))); // если есть запрет на загрузку
         
         LOCAL countBarcode = INTEGER();
         countBarcode() <- [= GROUP SUM 1 IF inBarcode(barcode)]();
