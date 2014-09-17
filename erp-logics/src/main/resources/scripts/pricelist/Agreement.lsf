@@ -138,7 +138,7 @@ nameGroupTypeAgreement 'Тип классификатора' (agreement) = nameG
 
 TABLE agreementGroup(Agreement, Group);
 dataPriceListTypeAgreementGroup (agreement, group) = DATA PriceListType (Agreement, Group);
-nameDataPriceListTypeAgreementGroup 'Вид цены (перегруженный)' (agreement, group) = namePriceListType(dataPriceListTypeAgreementGroup(agreement, group));
+nameDataPriceListTypeAgreementGroup 'Вид цены' (agreement, group) = namePriceListType(dataPriceListTypeAgreementGroup(agreement, group));
 
 CONSTRAINT currencyAgreement(agreement) != currencyPriceListType(dataPriceListTypeAgreementGroup(agreement, group))
            CHECKED BY dataPriceListTypeAgreementGroup
@@ -151,24 +151,25 @@ nearestParentGroup (agreement, group) = groupGroupLevel(group, levelParentPriceL
 nearestPriceListTypeAgreementGroup (agreement, group) =
    dataPriceListTypeAgreementGroup(agreement, nearestParentGroup(agreement, group)) PERSISTENT;
 
-priceListTypeAgreementGroup 'Вид цены' (agreement, group) =  OVERRIDE nearestPriceListTypeAgreementGroup(agreement, group), dataPriceListTypeAgreementGroup(agreement, group) PERSISTENT;
-namePriceListTypeAgreementGroup 'Вид цены' (agreement, group) =
-    namePriceListType(priceListTypeAgreementGroup (agreement, group));
+priceListTypeAgreementGroup (agreement, group) =  OVERRIDE priceListTypeAgreement(agreement) IF group IS Group,
+                                                           nearestPriceListTypeAgreementGroup(agreement, group), 
+                                                           dataPriceListTypeAgreementGroup(agreement, group) PERSISTENT;
+    
+namePriceListTypeAgreementGroup 'Вид цены (перегруженный)' (agreement, group) = namePriceListType(priceListTypeAgreementGroup (agreement, group));
 
 // Уточнение по sku
 TABLE agreementSku(Agreement, Sku);
 dataPriceListTypeAgreementSku (agreement, sku) = DATA PriceListType (Agreement, Sku);
-nameDataPriceListTypeAgreementSku 'Вид цены (перегруженный)' (agreement, sku) = namePriceListType(dataPriceListTypeAgreementSku(agreement, sku));
+nameDataPriceListTypeAgreementSku 'Вид цены' (agreement, sku) = namePriceListType(dataPriceListTypeAgreementSku(agreement, sku));
 
 CONSTRAINT currencyAgreement(agreement) != currencyPriceListType(dataPriceListTypeAgreementSku(agreement, sku))
            CHECKED BY dataPriceListTypeAgreementSku
            MESSAGE 'Валюта соглашения должна совпадать с валютой вида цены';
 
-priceListTypeAgreementSku (agreement, sku) = OVERRIDE priceListTypeAgreement(agreement) IF sku IS Sku,
-                                                      priceListTypeAgreementGroup(agreement, groupGroupTypeSku(groupTypeAgreement(agreement),sku)),
-                                                      dataPriceListTypeAgreementSku(agreement, sku);
+priceListTypeAgreementSku  (agreement, sku) = OVERRIDE priceListTypeAgreementGroup(agreement, groupGroupTypeSku(groupTypeAgreement(agreement),sku)),
+                                                       dataPriceListTypeAgreementSku(agreement, sku);
 
-namePriceListTypeAgreementSku 'Вид цены' = namePriceListType(priceListTypeAgreementSku(agreement, sku));
+namePriceListTypeAgreementSku 'Вид цены (перегруженный)' = namePriceListType(priceListTypeAgreementSku(agreement, sku));
 
 // ------------------------------------------- Условия оплаты ------------------------------------- //
 
