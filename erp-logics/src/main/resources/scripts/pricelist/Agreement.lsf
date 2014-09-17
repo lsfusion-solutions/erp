@@ -501,13 +501,15 @@ END
 META deriveDocumentHeaderAgreement (object, supplierProp, customerProp)
 
     defaultAgreement###object = ABSTRACT Agreement (###object);
+    changedDefaultAgreement###object = ABSTRACT Object (###object);
     overDefaultAgreement###object = 
         OVERRIDE defaultAgreementSupplierCustomer(supplierProp###object(o), customerProp###object(o)) IF currency###object(o) == currencyAgreement(defaultAgreementSupplierCustomer(supplierProp###object(o), customerProp###object(o))), 
         defaultAgreement###object(o);
     WHEN SESSION
         CHANGED(currency###object(o)) OR
                  CHANGED(customerProp###object(o)) OR
-                 CHANGED(supplierProp###object(o)) DO
+                 CHANGED(supplierProp###object(o)) OR 
+                 CHANGED(changedDefaultAgreement###object(o)) DO
         agreement###object (o) <- overDefaultAgreement###object(o);
 
     CONSTRAINT currency###object(o) != currencyAgreement(agreement###object(o))
