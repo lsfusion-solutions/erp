@@ -1,0 +1,38 @@
+MODULE PurchaseOrderLimit;
+
+REQUIRE PurchaseOrder, Item;
+
+NAMESPACE Purchase;
+
+quantityLimitItemSupplier 'Минимальный количество заказа' = DATA NUMERIC[14,3] (Item, LegalEntity);
+
+EXTEND FORM item 
+
+    OBJECTS sup = LegalEntity FIXED GRID
+    PROPERTIES nameLegalEntity(sup) READONLY , quantityLimitItemSupplier(i,sup)
+    FILTERS isSupplierLegalEntity(sup)
+    
+    FILTERGROUP filterLimit
+        FILTER 'С поступлением' 'F8' inSupplierSku(sup, i)
+    
+;
+EXTEND DESIGN item {
+    itemDetail {
+        NEW itemLimit {
+            caption = 'Минамальный заказ';
+            fill = 1;
+            ADD sup.box {
+                caption = 'Поставщики';
+            }
+        }
+    }
+}
+
+quantityLimitSkuUserOrder 'Min к-во заказа' (sku, order) = quantityLimitItemSupplier(sku, supplierUserOrder(order));
+
+backgroundQuantityLimitSkuUserOrder 'Цвет' = RGB(255,0,0) IF quantityUserOrderDetailSkuUserOrder(sku, userOrder) < quantityLimitSkuUserOrder(sku, userOrder);
+
+EXTEND FORM userOrder
+    PROPERTIES (ks,o) FORCE GRID quantityLimitSkuUserOrder READONLY AFTER quantitySkuUserOrderCustomerStock(ks,o,st) BACKGROUND backgroundQuantityLimitSkuUserOrder(ks,o)
+
+;
