@@ -56,6 +56,12 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
         return result;
     }
 
+    protected Integer getXLSIntegerFieldValue(Sheet sheet, Integer row, Integer column) {
+        BigDecimal value = getXLSBigDecimalFieldValue(sheet, row, column, null);
+        return value == null ? null : value.intValue();
+    }
+
+
     protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, Integer row, Integer column) {
         return getXLSBigDecimalFieldValue(sheet, row, column, null);
     }
@@ -66,9 +72,9 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
         if (cell == null) return defaultValue;
         CellType cellType = cell.getType();
         if (cellType.equals(CellType.NUMBER))
-            return new BigDecimal(((NumberCell) cell).getValue());
+            return BigDecimal.valueOf(((NumberCell) cell).getValue());
         else if (cellType.equals(CellType.NUMBER_FORMULA))
-            return new BigDecimal(((NumberFormulaCell) cell).getValue());
+            return BigDecimal.valueOf(((NumberFormulaCell) cell).getValue());
         else {
             String result = cell.getContents().trim();
             return result.isEmpty() ? defaultValue : new BigDecimal(result);
