@@ -9,13 +9,14 @@ NAMESPACE Purchase;
 @Label.implementPriceTransactionDocument(Invoice);
 @defineDocumentLabelTransaction(invoice, sku, customerStock);
 
-showToPrintLabelTransactionInvoice 'Показывать' (invoice) = isPostedInvoice(invoice) AND NOT 
+showToPrintLabelTransactionInvoice 'Показывать' (invoice) = isPostedInvoice(invoice) AND isOpenedInvoice(invoice) AND NOT 
                                                             Label.skipPriceTransactionDocument(invoice) AND // OR printedPriceTransactionDocument(invoice)
                                                             customerStockInvoice(invoice) IS DepartmentStore;
 
 EXTEND FORM invoices
 PROPERTIES(i) statusLabelPriceTransactionDocument  BACKGROUND backgroundPrintLabelTransactionInvoice(i) READONLY AFTER isCommissionInvoice(i),
-              createInvoiceLabelTransaction FORCE PANEL SHOWIF showToPrintLabelTransactionInvoice(i), createSnapshotInvoiceLabelTransaction
+              createInvoiceLabelTransaction FORCE PANEL SHOWIF showToPrintLabelTransactionInvoice(i), 
+              createSnapshotInvoiceLabelTransaction SHOWIF isOpenedInvoice(i)
 ;
 EXTEND DESIGN invoices {
     machineryContainer{

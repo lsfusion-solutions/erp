@@ -683,7 +683,7 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
         
     } TOOLBAR;
 
-    showPrintLabelTransaction###document 'Показывать' (document) = isPosted###document(document) AND NOT Label.skipPriceTransactionDocument(document);
+    showPrintLabelTransaction###document 'Показывать' (document) = isPosted###document(document) AND isOpened###document(document) AND NOT Label.skipPriceTransactionDocument(document);
                                                                                                //AND NOT printedPriceTransactionDocument(document);
     backgroundPrintLabelTransaction###document 'Цвет' (document) = RGB(212,255,212) IF showPrintLabelTransaction###document(document) AND NOT printedPriceTransactionDocument(document);
 END
@@ -692,7 +692,7 @@ META extendFormDocumentLabelTransaction(form, object, document, afterProp, propC
     EXTEND FORM form
         PROPERTIES(object) statusLabelPriceTransactionDocument BACKGROUND backgroundPrintLabelTransaction###document(object) READONLY AFTER afterProp(object),
                            create###document##LabelTransaction FORCE PANEL SHOWIF showPrintLabelTransaction###document(object), 
-                           createSnapshot###document##LabelTransaction FORCE PANEL
+                           createSnapshot###document##LabelTransaction FORCE PANEL SHOWIF isOpened###document(object)
     ;
 
     EXTEND DESIGN form {
