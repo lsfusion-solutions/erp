@@ -27,6 +27,11 @@ CLASS StopListDetail 'Строка запрета продаж по кассе';
 @defineNumeratedDefault(StopList, 'Запрет продаж по кассе', 'ЗП');
 
 @defineDocumentHeaderLegalEntity(stopList, company, 'Компания');
+
+excludeStopList 'Исключить из запрета'  = DATA BOOLEAN (StopList) IN documentPrm;
+excludeStopListDetail 'Исключить из запрета' (d) = excludeStopList(stopListStopListDetail(d)) PERSISTENT; 
+
+
 TABLE stockStopList (Stock ,StopList);
 TABLE stockStopListDetail (Stock ,StopListDetail);
 
@@ -86,13 +91,16 @@ changeValueSkuStopList = ACTION (sku, stopList) {
 
 
 inStockStopListDetail (stock, detail) = inStockStopList(stock, stopListStopListDetail(detail)) PERSISTENT;
+   
+lastStopListDetailSkuStockDateTime (sku, stock, dateTime) =
+    GROUP LAST detail IF NOT excludeStopListDetail(detail)
+          BY   skuStopListDetail(detail), stock, dateTimeIn
+          ORDER fromDateTimeStopListDetail(detail) , detail 
+          WHERE inStockStopListDetail(stock, detail)
+                AND isPostedStopListDetail(detail) AND dateTimeIn >= fromDateTimeStopListDetail(detail) 
+                AND NOT dateTimeIn >  toDateTimeStopListDetail(detail) COMPLEX;        
 
-calcSkipMachineryPriceTransactionSkuStockDateTime 'Запретить загрузку в оборудование' (sku, stock, dateTime) =  GROUP SUM 1 IF inStockStopListDetail(stock, detail)
-    AND isPostedStopListDetail(detail) AND (dateTimeIn AS DATETIME) >=  fromDateTimeStopListDetail(detail) 
-    AND (((dateTimeIn AS DATETIME)  <=  toDateTimeStopListDetail(detail)) OR NOT toDateTimeStopListDetail(detail))
-    BY skuStopListDetail(detail), stock, dateTimeIn;   
-
-skipMachineryPriceTransactionSkuStockDateTime(sku, stock, dateTime) += TRUE IF calcSkipMachineryPriceTransactionSkuStockDateTime(sku, stock, dateTime);
+skipMachineryPriceTransactionSkuStockDateTime(sku, stock, dateTime) += TRUE IF lastStopListDetailSkuStockDateTime(sku, stock, dateTime); 
 
 FORM stopList 'Запрет продаж по кассе'
 
@@ -100,7 +108,7 @@ FORM stopList 'Запрет продаж по кассе'
 
     PROPERTIES(sl) isPostedStopList, nameNumeratorStopList, numberStopList, seriesStopList, dateStopList, timeStopList,
                    countStopListDetailStopList, noteStopList,
-                   fromDateStopList, fromTimeStopList, toDateStopList, toTimeStopList
+                   fromDateStopList, fromTimeStopList, toDateStopList, toTimeStopList, excludeStopList
                    
     TREE stockTree sg = StockGroup PARENT parentStockGroup
     PROPERTIES READONLY nameStockGroup(sg)
@@ -208,7 +216,7 @@ DESIGN stopList FROM DEFAULT {
 FORM stopLists 'Запреты продаж по кассе'
 
     OBJECTS sl=StopList
-    PROPERTIES (sl) READONLYIF isReadonly() isClosedStopList, isPostedStopList, numberStopList, seriesStopList, dateStopList, timeStopList
+    PROPERTIES (sl) READONLYIF isReadonly() isClosedStopList, isPostedStopList, excludeStopList, numberStopList, seriesStopList, dateStopList, timeStopList
     PROPERTIES(sl)  READONLY fromDateStopList, fromTimeStopList, toDateStopList, toTimeStopList, countStopListDetailStopList
     PROPERTIES (sl) READONLYIF isReadonly() noteStopList
     PROPERTIES (sl) READONLY quantityStopListErrorStopList

@@ -43,7 +43,7 @@ quantityPurchaseSkuStockDateFrom 'Закуплено за интервал (ко
         quantityPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom 
         BY sku, stock, dateFrom;
         
-notPurchaseStockDateFromDateTime (stock, dateFrom, dateTime)= GROUP SUM 1 IF NOT (quantityPurchaseSkuStockDateFrom(sku, stock, dateFrom) OR currentBalanceSkuStock(sku, stock) OR calcSkipMachineryPriceTransactionSkuStockDateTime(sku, stock, dateTime)) 
+notPurchaseStockDateFromDateTime (stock, dateFrom, dateTime)= GROUP SUM 1 IF NOT (quantityPurchaseSkuStockDateFrom(sku, stock, dateFrom) OR currentBalanceSkuStock(sku, stock) OR lastStopListDetailSkuStockDateTime(sku, stock, dateTime)) 
     AND sku IS Sku AND stock IS Stock AND dateFrom IS DATE AND dateTime IS DATETIME 
         BY stock, dateFrom, dateTime; 
      
@@ -57,7 +57,7 @@ createStopList 'Создать по товарам без прихода и ос
                 inStockStopList(st, sl) <- TRUE WHERE st == chosenObject('s');  
                
                 
-                FOR sku IS Sku IF NOT (quantityPurchaseSkuStockDateFrom(sku, chosenObject('s'), subtractDate(currentDate(), chosenInteger('i'))) OR currentBalanceSkuStock(sku, chosenObject('s')) OR calcSkipMachineryPriceTransactionSkuStockDateTime(sku, chosenObject('s'), currentDateTime()))   
+                FOR sku IS Sku IF NOT (quantityPurchaseSkuStockDateFrom(sku, chosenObject('s'), subtractDate(currentDate(), chosenInteger('i'))) OR currentBalanceSkuStock(sku, chosenObject('s')) OR lastStopListDetailSkuStockDateTime(sku, chosenObject('s'), currentDateTime()))   
                     ADDOBJ d = StopListDetail DO {
                     
                     stopListStopListDetail(d) <- sl;

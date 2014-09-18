@@ -1,0 +1,12 @@
+MODULE UpdatePricePurchaseInvoice;
+
+REQUIRE UpdatePriceDashboard, PricingPurchase;
+
+NAMESPACE Pricing;
+
+quantityPurchasePriceListLedgerSkuStock 'Кол-во' (sk,st) = quantityInvoiceDetail(invoiceDetailInvoicePricingDetail(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sk, st, currentDateTime())));
+quantityBeforePurchasePriceListLedgerSkuStock 'Остаток до' (sk,st)= currentBalanceSkuStock(sk,st) (-) quantityPurchasePriceListLedgerSkuStock(sk,st);
+
+EXTEND FORM updatePriceDashboard 
+    PROPERTIES(sk,d) READONLY  AFTER currentBalanceSkuStock(sk,d) quantityBeforePurchasePriceListLedgerSkuStock
+;
