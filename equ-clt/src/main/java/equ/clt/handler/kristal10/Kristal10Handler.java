@@ -97,7 +97,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 //parent: priceEntry
                 Element department = new Element("department");
                 setAttribute(department, "number", transactionInfo.nppGroupCashRegister);
-                addStringElement(department, "name", "Отдел");
+                addStringElement(department, "name", transactionInfo.nameGroupCashRegister == null ? "Отдел" : transactionInfo.nameGroupCashRegister);
                 priceEntry.addContent(department);
 
                 //parent: good
