@@ -42,7 +42,7 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
 
     protected String getXLSFieldValue(Sheet sheet, Integer row, Integer column, String defaultValue) {
         if (row == null || column == null) return defaultValue;
-        jxl.Cell cell = sheet.getCell(column, row);
+        Cell cell = sheet.getCell(column, row);
         if (cell == null) return defaultValue;
         String result;
         CellType cellType = cell.getType();
@@ -68,7 +68,7 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
 
     protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, Integer row, Integer column, BigDecimal defaultValue) {
         if (column == null || row == null) return defaultValue;
-        jxl.Cell cell = sheet.getCell(column, row);
+        Cell cell = sheet.getCell(column, row);
         if (cell == null) return defaultValue;
         CellType cellType = cell.getType();
         if (cellType.equals(CellType.NUMBER))
