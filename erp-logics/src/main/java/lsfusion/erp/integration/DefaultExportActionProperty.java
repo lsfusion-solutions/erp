@@ -18,7 +18,11 @@ public class DefaultExportActionProperty extends DefaultIntegrationActionPropert
     public DefaultExportActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
     }
-
+    
+    public DefaultExportActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+        super(LM, classes);
+    }
+    
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
