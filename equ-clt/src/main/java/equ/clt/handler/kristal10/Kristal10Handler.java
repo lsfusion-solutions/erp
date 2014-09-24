@@ -31,6 +31,7 @@ import java.util.*;
 public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
+    String weightPrefix = "21";
 
     public Kristal10Handler() {
     }
@@ -66,14 +67,16 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                 //parent: rootElement
                 Element good = new Element("good");
-                setAttribute(good, "marking-of-the-good", item.idBarcode);
+                //временное решение для весовых товаров
+                String barcodeItem = item.splitItem ? (weightPrefix + item.idBarcode) : item.idBarcode;
+                setAttribute(good, "marking-of-the-good", barcodeItem);
                 rootElement.addContent(good);
 
                 addStringElement(good, "name", item.name);
 
                 //parent: good
                 Element barcode = new Element("bar-code");
-                setAttribute(barcode, "code", item.idBarcode);
+                setAttribute(barcode, "code", barcodeItem);
                 addStringElement(barcode, "default-code", "true");
                 good.addContent(barcode);
 
@@ -111,7 +114,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                 //parent: good
                 if (item.idUOM == null || item.shortNameUOM == null) {
-                    String error = "Kristal: Error! UOM not specified for item with barcode " + item.idBarcode;
+                    String error = "Kristal: Error! UOM not specified for item with barcode " + barcodeItem;
                     logger.error(error);
                     throw Throwables.propagate(new RuntimeException(error));
                 }
@@ -308,6 +311,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+        //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
         logger.info("Kristal: Send StopList # " + stopListInfo.number);
 
         for (String directory : directorySet) {
@@ -463,6 +467,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     for (Object positionEntryNode : positionEntryList) {
 
                                         String barcode = readStringXMLAttribute(positionEntryNode, "barCode");
+                                        //временное решение для весовых товаров
+                                        if(barcode != null && barcode.startsWith(weightPrefix))
+                                            barcode = barcode.substring(2);
                                         BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
                                         BigDecimal price = readBigDecimalXMLAttribute(positionEntryNode, "cost");
                                         BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "amount");
