@@ -35,11 +35,6 @@ public class DefaultImportActionProperty extends DefaultIntegrationActionPropert
         return VAT == null || !allowedVAT.contains(VAT.doubleValue()) ? null : VAT;
     }
 
-    protected void checkFileExistence(String filePath) {
-        if (!(new File(filePath).exists()))
-            throw new RuntimeException("Запрашиваемый файл " + filePath + " не найден");
-    }
-
     protected List<List<Object>> initData(int size) {
         List<List<Object>> data = new ArrayList<List<Object>>();
         for (int i = 0; i < size; i++) {

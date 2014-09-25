@@ -9,6 +9,7 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.lang.time.DateUtils;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
@@ -165,5 +166,10 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
 
     protected String upper(String value) {
         return value == null ? null : value.toUpperCase();
+    }
+
+    protected void checkFileExistence(String filePath) {
+        if (!(new File(filePath).exists()))
+            throw new RuntimeException("Запрашиваемый файл " + filePath + " не найден");
     }
 }
