@@ -69,7 +69,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 Element good = new Element("good");
                 //временное решение для весовых товаров
                 String barcodeItem = item.splitItem ? (weightPrefix + item.idBarcode) : item.idBarcode;
-                setAttribute(good, "marking-of-the-good", barcodeItem);
+                setAttribute(good, "marking-of-the-good", item.idBarcode);
                 rootElement.addContent(good);
 
                 addStringElement(good, "name", item.name);
