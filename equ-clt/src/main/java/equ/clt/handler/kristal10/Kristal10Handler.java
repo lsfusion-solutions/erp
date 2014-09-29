@@ -14,6 +14,7 @@ import org.jdom.Element;
 import org.jdom.input.SAXBuilder;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
+import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -210,6 +211,15 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         logger.info("Kristal: Finish Reading started");
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile);
+
+            try {
+                File successDir = new File(f.getParent() + "/success/");
+                if (successDir.exists() || successDir.mkdirs())
+                    FileCopyUtils.copy(f, new File(f.getParent() + "/success/" + f.getName()));
+            } catch (IOException e) {
+                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
+            }
+            
             if (f.delete()) {
                 logger.info("Kristal: file " + readFile + " has been deleted");
             } else {
