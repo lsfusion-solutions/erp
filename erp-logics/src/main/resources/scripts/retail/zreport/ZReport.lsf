@@ -33,6 +33,8 @@ TABLE zReport (ZReport);
 
 @defineDocumentHeaderNumber(ZReport);
 
+idDepartmentStoreZReport 'Код' (zReport) = idDepartmentStore(departmentStoreZReport(zReport));
+
 cashRegisterZReport (zReport) = DATA CashRegister(ZReport);
 numberCashRegisterZReport 'Касса Z-отчета' (zReport) = nppMachinery(cashRegisterZReport(zReport)) IN documentPrm;
 
@@ -108,6 +110,7 @@ receiptReceiptDetail(detail) += receiptReceiptSaleDetail(detail);
 zReportReceiptSaleDetail(d) = zReportReceipt(receiptReceiptSaleDetail(d)); 
 zReportReceiptReturnDetail(d) = zReportReceipt(receiptReceiptReturnDetail(d)); 
 zReportReceiptDetail (d) = zReportReceipt(receiptReceiptDetail(d));
+numberZReportReceiptDetail(d) = numberZReport(zReportReceiptDetail(d));
 sidCashRegisterModelReceiptDetail 'Код модели' (receiptDetail) = sidCashRegisterModelReceipt(receiptReceiptDetail(receiptDetail));
 
 typeReceiptDetail 'Тип' = ABSTRACT STRING[10] (ReceiptDetail) MINCHARWIDTH 10 PREFCHARWIDTH 12 PERSISTENT;
@@ -165,6 +168,8 @@ departmentStoreReceiptDetail (d) += departmentStoreReceiptReturnDetail(d);
 @defineDocumentDetailSku(receiptSale, sku);
 @defineDocumentDetailSku(receiptReturn, sku);
 skuReceiptDetail (receiptDetail) = MULTI skuReceiptReturnDetail(receiptDetail), skuReceiptSaleDetail(receiptDetail);
+idSkuReceiptDetail 'Код' (receiptDetail) = idSku(skuReceiptDetail(receiptDetail));
+idSkuGroupReceiptDetail 'Код' (receiptDetail) = idSkuGroup(skuGroupSku(skuReceiptDetail(receiptDetail)));
 shortNameUOMSkuReceiptDetail 'Ед. изм.' (receiptDetail) = shortNameUOMSku(skuReceiptDetail(receiptDetail));
 
 changeDialogSkuReceiptDetail  = ACTION (detail) {
@@ -488,7 +493,9 @@ sumNegativeCardPaymentZReport 'Сумма возврата (карточка)' (
 
 CONSTRAINT receipt IS Receipt AND NOT sumPaymentReceipt(receipt) MESSAGE 'По чеку не указаны платежи';
 CONSTRAINT sumReceiptDetailReceipt(receipt) > sumPaymentReceipt(receipt) MESSAGE 'Сумма платежей по чеку меньше суммы чека';
-CONSTRAINT sumReceiptDetailReceipt(receipt) < sumCardPaymentReceipt(receipt) MESSAGE 'Сумма платежей по безналичному расчету больше суммы чека';
+CONSTRAINT (sumReceiptDetailReceipt(receipt) > 0 AND sumReceiptDetailReceipt(receipt) < sumCardPaymentReceipt(receipt)) 
+           OR (sumReceiptDetailReceipt(receipt) <0 AND sumReceiptDetailReceipt(receipt) > sumCardPaymentReceipt(receipt)) 
+           MESSAGE 'Сумма платежей по безналичному расчету больше суммы чека';
 
 // Итоги по Z-отчету
 
