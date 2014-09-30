@@ -4,6 +4,46 @@ REQUIRE StockArticleDocument, OrderLedger;
 
 NAMESPACE OrderLedger;
 
+FORM orderArticleLedgerNotDate 'Резерв по артикулам'
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES  SELECTOR nameStock(st)
+
+    OBJECTS ar = Article FIXED PANEL
+    PROPERTIES SELECTOR idArticle(ar)
+
+    OBJECTS s = OrderLedger
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger     
+    PROPERTIES(s) READONLY  dateOrderLedger, 
+                  dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
+                  toShipQuantityOrderLedger, quantityOrderLedger
+    ORDER BY statusReserveOrderLedger(s), dateTimeOrderLedger(s)
+                  
+    FILTERS stockOrderLedger(s)==st,
+            articleItem(skuOrderLedger(s))==ar
+
+    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERGROUP toShipQuantityFilters
+        FILTER 'Не выполнено' 'F7' toShipQuantityOrderLedger(s) DEFAULT   
+
+    FILTERGROUP stockTimesFilters
+        FILTER 'Резерв (закупки) всего' 'F11' isPurchaseOrderLedger(s)
+        FILTER 'Резерв (продажи) всего' 'F10' TRUE AND NOT isPurchaseOrderLedger(s)
+;
+
+DESIGN orderArticleLedgerNotDate FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+        NEW row{
+            type = CONTAINERH;
+            ADD st.box;
+            ADD ar.box;
+        }
+        ADD s.box;
+    }
+    ADD functions.box;
+}
+
 FORM orderArticleLedger 'Резерв по артикулам'
 
     OBJECTS t = DATETIME FIXED PANEL
@@ -54,9 +94,23 @@ DESIGN orderArticleLedger FROM DEFAULT {
 }
 //-- Для просмотра резерва несколько складов
 META extendFormDocumentArticleStockOrderLedger(object)
-    reviewReserveArticleStock###object 'Резерв' (article, stock, object) = ACTION FORM orderArticleLedger OBJECTS t=shipmentDateTime###object(object), st=stock, ar = article MODAL;
+    reviewReserveArticleStock###object 'Резерв' (article, stock, object) = ACTION {
+        IF shipmentDateTime###object(object) THEN {
+            FORM orderArticleLedger OBJECTS t=shipmentDateTime###object(object), st=stock, ar = article MODAL;
+        } ELSE {
+            FORM orderArticleLedgerNotDate OBJECTS st=stock, ar = article MODAL;    
+        }
+    }
+    
 END
 //-- Для просмотра резерва один склад
 META extendFormDocumentArticleOrderLedger(object, stockProp)
-    reviewReserveArticle###object 'Резерв' (article, object) = ACTION FORM orderArticleLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), ar = article MODAL;
+    reviewReserveArticle###object 'Резерв' (article, object) = ACTION {
+        IF dateTime###object(object) THEN {
+            FORM orderArticleLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), ar = article MODAL;
+        } ELSE {
+            FORM orderArticleLedgerNotDate OBJECTS st=stockProp###object(object), ar = article MODAL;
+        }
+    }
+    
 END

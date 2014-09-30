@@ -189,6 +189,45 @@ prevAvailableQuantitySkuStockDateTime 'Доступное к-во' (sku, stock, 
 prevAvailableQuantityBatchStockDateTime 'Доступное к-во' (batch, stock, dateTime) = (prevCurrentBalanceBatchStock(batch, stock) IF dateTime IS DATETIME) (+) prevReserveBBatchStockDateTime(batch, stock, dateTime);
 
 //---------------------------------------------- Формы продаж -------------------------------------//
+FORM orderSkuLedgerNotDate 'Резерв по позициям'
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES  SELECTOR nameStock(st)
+
+    OBJECTS sk = Sku FIXED PANEL
+    PROPERTIES  SELECTOR nameSku(sk)
+
+    OBJECTS s = OrderLedger
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger
+    PROPERTIES(s) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
+                  toShipQuantityOrderLedger, quantityOrderLedger
+    PROPERTIES(s) editOrderLedger       
+    ORDER BY statusReserveOrderLedger(s), dateTimeOrderLedger(s)
+    FILTERS stockOrderLedger(s)==st,
+            skuOrderLedger(s)==sk
+
+    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERGROUP toShipQuantityFilters
+        FILTER 'Не выполнено' 'F7' toShipQuantityOrderLedger(s) DEFAULT
+
+    FILTERGROUP stockTimesFilters
+        FILTER 'Резерв (закупки) всего' 'F11' isPurchaseOrderLedger(s)
+        FILTER 'Резерв (продажи) всего' 'F10' TRUE AND NOT isPurchaseOrderLedger(s)
+;
+
+DESIGN orderSkuLedgerNotDate FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+        NEW row{
+            type = CONTAINERH;
+            ADD st.box;
+            ADD sk.box;
+        }
+        ADD s.box;
+    }
+    ADD functions.box;
+}
+
 FORM orderSkuLedger 'Резерв по позициям'
 
     OBJECTS t = DATETIME FIXED PANEL
@@ -232,6 +271,46 @@ DESIGN orderSkuLedger FROM DEFAULT {
             ADD t.box;
             ADD st.box;
             ADD sk.box;
+        }
+        ADD s.box;
+    }
+    ADD functions.box;
+}
+
+FORM orderBatchLedgerNotDate 'Резерв по партиям'
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES  SELECTOR nameStock(st)
+
+    OBJECTS bt = Batch FIXED PANEL
+    PROPERTIES SELECTOR nameBatch(bt)
+
+    OBJECTS s = OrderLedger
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger     
+    PROPERTIES(s) READONLY dateOrderLedger, 
+                  dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
+                  toShipQuantityOrderLedger, quantityOrderLedger
+    PROPERTIES(s) editOrderLedger                     
+    ORDER BY statusReserveOrderLedger(s), dateTimeOrderLedger(s)
+    FILTERS stockOrderLedger(s)==st,
+            batchOrderLedger(s)==bt
+
+    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERGROUP toShipQuantityFilters
+        FILTER 'Не выполнено' 'F7' toShipQuantityOrderLedger(s) DEFAULT
+        
+    FILTERGROUP stockTimesFilters
+        FILTER 'Резерв (закупки) всего' 'F11' isPurchaseOrderLedger(s)
+        FILTER 'Резерв (продажи) всего' 'F10' TRUE AND NOT isPurchaseOrderLedger(s)
+;
+
+DESIGN orderBatchLedgerNotDate FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+        NEW row{
+            type = CONTAINERH;          
+            ADD st.box;
+            ADD bt.box;
         }
         ADD s.box;
     }
@@ -512,8 +591,14 @@ META extendFormDocumentSkuOrderLedger(object, form, concrete, stockProp)
     prevReserveBSaleSku###object 'Резерв продажа' (sku, object) = prevReserveBSaleSkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
     prevCurrentReserveSaleSku###object 'Резерв продажа (всего)' (sku, object) = prevCurrentReserveSaleSkuStock(sku, stockProp###object(object));
 
-    reviewReserveSku###object 'Резерв' (sku, object) = ACTION FORM orderSkuLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), sk = sku MODAL;
-
+    reviewReserveSku###object 'Резерв' (sku, object) = ACTION {
+        IF dateTime###object(object) THEN {
+            FORM orderSkuLedger OBJECTS t=dateTime###object(object), st = stockProp###object(object), sk = sku MODAL;
+        } ELSE {
+            FORM orderSkuLedgerNotDate OBJECTS st=stockProp###object(object), sk = sku MODAL;
+        }
+    }
+    
     EXTEND FORM form
         PROPERTIES BEFORE prevCurrentBalanceSku###object(ks, concrete) 
                    prevAvailableQuantitySku###object(ks, concrete) ON CHANGE reviewReserveSku###object(ks,concrete)
@@ -567,7 +652,13 @@ META extendFormDocumentBatchOrderLedger(object, form, concrete, stockProp)
     prevReserveBSaleBatch###object 'Резерв продажа' (batch, object) = prevReserveBSaleBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
     prevCurrentReserveSaleBatch###object 'Резерв продажа (всего)' (batch, object) = prevCurrentReserveSaleBatchStock(batch, stockProp###object(object));
 
-    reviewReserveBatch###object 'Резерв' (batch, object) = ACTION FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
+    reviewReserveBatch###object 'Резерв' (batch, object) = ACTION  {
+        IF dateTime###object(object) THEN {
+            FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
+        } ELSE {
+            FORM orderBatchLedgerNotDate OBJECTS st=stockProp###object(object), bt = batch MODAL;
+        }
+    }         
 
     EXTEND FORM form
         PROPERTIES BEFORE prevCurrentBalanceBatch###object(b, concrete) 
@@ -619,7 +710,14 @@ META extendFormDocumentSkuStockOrderLedger(object, form, concrete)
     prevReserveBPurchaseSkuStock###object 'Резерв закупка' (sku, stock, object) = prevReserveBPurchaseSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
     prevReserveBSaleSkuStock###object 'Резерв продажа' (sku, stock, object) = prevReserveBSaleSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
 
-    reviewReserveSkuStock###object 'Резерв' (sku,stock, object) = ACTION FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
+    reviewReserveSkuStock###object 'Резерв' (sku,stock, object) = ACTION {
+        IF shipmentDateTime###object(object) THEN {
+            FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
+        } ELSE {
+            FORM orderSkuLedgerNotDate OBJECTS st=stock, sk = sku MODAL;
+        }
+        
+    }
 
     EXTEND FORM form
         PROPERTIES BEFORE prevCurrentBalanceSkuStock(ks, st) 
@@ -672,7 +770,13 @@ META extendFormDocumentBatchStockOrderLedger(object, form, concrete)
     prevReserveBPurchaseBatchStock###object 'Резерв закупка' (batch, stock, object) = prevReserveBPurchaseBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
     prevReserveBSaleBatchStock###object 'Резерв продажа' (batch, stock, object) = prevReserveBSaleBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
 
-    reviewReserveBatchStock###object 'Резерв' (batch, stock, object) = ACTION FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
+    reviewReserveBatchStock###object 'Резерв' (batch, stock, object) = ACTION {
+        IF shipmentDateTime###object(object) THEN {
+            FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
+        } ELSE {
+            FORM orderBatchLedgerNotDate OBJECTS st=stock, bt = batch MODAL;                                                         
+        }
+    }    
 
     EXTEND FORM form
         PROPERTIES BEFORE prevCurrentBalanceBatchStock(b, sto) 
