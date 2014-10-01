@@ -443,13 +443,18 @@ EXTEND DESIGN priceListDashboard {
 }
 
 // ------------------- Импорт прайсов --------------------------- //
-
+importTimeUserPriceList = ABSTRACT BOOLEAN (UserPriceList);
 importUserPriceListLegalEntityPriceListTypeDateTime 'Импортировать' = ACTION (c, t, dt) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
         importUserPriceListTypeUserPriceList(p) <- t;
         companyUserPriceList(p) <- c;
         fromDateUserPriceList(p) <- toDate(dt);
-        fromTimeUserPriceList(p) <- toTime(dt);
+        IF NOT importTimeUserPriceList(p) THEN {
+            fromTimeUserPriceList(p) <- toTime(dt);
+        } ELSE {
+            fromTimeUserPriceList(p) <- 00:00;
+        }
+        
         importUserPriceListAction(p);
         FORM userPriceList OBJECTS p = p MANAGESESSION DOCKEDMODAL;
     }
