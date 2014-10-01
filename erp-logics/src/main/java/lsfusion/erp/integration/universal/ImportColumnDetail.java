@@ -6,9 +6,9 @@ public class ImportColumnDetail {
     private String fullIndex;
     String[] indexes;
     boolean replaceOnlyNull;
-    String moduleName;
-    String property;
-    String key;
+    public String moduleName;
+    public String property;
+    public String key;
 
     public ImportColumnDetail(String field, String singleIndex, boolean replaceOnlyNull) {
         this(field, null, new String[] {singleIndex}, replaceOnlyNull);

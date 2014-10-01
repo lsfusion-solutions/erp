@@ -1,7 +1,10 @@
-package lsfusion.erp.integration.universal;
+package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
+import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentSettings;
+import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;

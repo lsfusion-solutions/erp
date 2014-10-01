@@ -1,4 +1,4 @@
-package lsfusion.erp.integration.universal;
+package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import com.github.junrar.Archive;
 import com.github.junrar.exception.RarException;
@@ -11,6 +11,8 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.interop.Compare;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
