@@ -194,29 +194,35 @@ nameStocksCommittee 'Подразделения' (committee) =
 
 // ---------------------------------- Доступ к складам --------------------------------------------------- //
 
-countAccessSupplierStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 IF inLegalEntityStock(legalEntity, stock) AND accessSupplierEmployeeStock(employee, stock)
-                                                               BY employee, legalEntity;
+countAccessSupplierStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 
+    IF inLegalEntityStock(legalEntity, stock) AND activeStock(stock) AND accessSupplierEmployeeStock(employee, stock)
+        BY employee, legalEntity;
 
-defaultSupplierStockEmployeeLegalEntity 'Склад по умолчанию (поставщик)' (employee, legalEntity)= GROUP MIN stock IF inLegalEntityStock(legalEntity, stock) AND accessSupplierEmployeeStock(employee, stock)
-                                                                                    BY employee, legalEntity;
+defaultSupplierStockEmployeeLegalEntity 'Склад по умолчанию (поставщик)' (employee, legalEntity)= GROUP MIN stock 
+    IF inLegalEntityStock(legalEntity, stock) AND activeStock(stock) AND accessSupplierEmployeeStock(employee, stock)
+        BY employee, legalEntity;
 
-countAccessCompanyStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 IF inLegalEntityStock(legalEntity, stock) AND accessCompanyEmployeeStock(employee, stock)
-                                                               BY employee, legalEntity;
+countAccessCompanyStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 
+    IF inLegalEntityStock(legalEntity, stock) AND activeStock(stock) AND accessCompanyEmployeeStock(employee, stock)
+        BY employee, legalEntity;
 
 dataDefaultCompanyStockLegalEntity = GROUP AGGR stock BY legalEntityStock(stock) IF dataDefaultCompanyStock(stock);
  
-minDefaultCompanyStockEmployeeLegalEntity 'Склад по умолчанию (компания)' (employee, legalEntity)= GROUP MIN stock IF inLegalEntityStock(legalEntity, stock) AND accessCompanyEmployeeStock(employee, stock)
-                                                                                    BY employee, legalEntity;
+minDefaultCompanyStockEmployeeLegalEntity 'Склад по умолчанию (компания)' (employee, legalEntity)= GROUP MIN stock 
+    IF inLegalEntityStock(legalEntity, stock) AND activeStock(stock) AND accessCompanyEmployeeStock(employee, stock)
+        BY employee, legalEntity;
                                                                                     
 defaultCompanyStockEmployeeLegalEntity 'Склад по умолчанию (компания)'(employee, legalEntity) = 
     OVERRIDE minDefaultCompanyStockEmployeeLegalEntity(employee, legalEntity), 
     dataDefaultCompanyStockLegalEntity(legalEntity);                                                                                  
 
-countAccessCustomerStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 IF inLegalEntityStock(legalEntity, stock) AND accessCustomerEmployeeStock(employee, stock)
-                                                               BY employee, legalEntity;
+countAccessCustomerStockEmployeeLegalEntity (employee, legalEntity) = GROUP SUM 1 
+    IF inLegalEntityStock(legalEntity, stock) AND activeStock(stock) AND accessCustomerEmployeeStock(employee, stock)
+        BY employee, legalEntity;
 
-defaultCustomerStockEmployeeLegalEntity 'Склад по умолчанию (покупатель)' (employee, legalEntity)= GROUP MIN stock IF inLegalEntityStock(legalEntity, stock) AND accessCustomerEmployeeStock(employee, stock)
-                                                                                    BY employee, legalEntity;
+defaultCustomerStockEmployeeLegalEntity 'Склад по умолчанию (покупатель)' (employee, legalEntity)= GROUP MIN stock 
+    IF inLegalEntityStock(legalEntity, stock) AND activeStock(stock) AND accessCustomerEmployeeStock(employee, stock)
+        BY employee, legalEntity;
 
 // Для документа, у которого задан склад
 META extendFormFilterAccessStock(object, concrete, form, stockProp, filter)
