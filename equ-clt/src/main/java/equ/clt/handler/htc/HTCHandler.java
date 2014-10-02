@@ -2,10 +2,7 @@ package equ.clt.handler.htc;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import equ.api.ItemGroup;
-import equ.api.SalesBatch;
-import equ.api.SalesInfo;
-import equ.api.SoftCheckInfo;
+import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
 import org.apache.commons.lang.time.DateUtils;
@@ -37,17 +34,26 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public void sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
+        List<MachineryInfo> succeededMachineryInfoList = new ArrayList<MachineryInfo>();
+        
         if (transactionInfo.itemsList.isEmpty()) {
             logger.info(String.format("HTC: Transaction # %s has no items", transactionInfo.id));
         } else {
             logger.info(String.format("HTC: Send Transaction # %s", transactionInfo.id));
 
-            Set<String> directorySet = new HashSet<String>();
+            Map<String, List<CashRegisterInfo>> directoryMap = new HashMap<String, List<CashRegisterInfo>>();
             for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
-                if (cashRegisterInfo.directory != null)
-                    directorySet.add(cashRegisterInfo.directory.trim());
+                if (cashRegisterInfo.succeeded)
+                    succeededMachineryInfoList.add(cashRegisterInfo);
+                else if (cashRegisterInfo.directory != null) {
+                    String directory = cashRegisterInfo.directory.trim();
+                    List<CashRegisterInfo> cashRegisterInfoEntry = directoryMap.containsKey(directory) ? directoryMap.get(directory) : new ArrayList<CashRegisterInfo>();
+                    cashRegisterInfoEntry.add(cashRegisterInfo);
+                    directoryMap.put(directory, cashRegisterInfoEntry);
+                }
+
             }
 
             try {
@@ -71,15 +77,15 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 File cachedPriceMdxFile = null;
                 File cachedDiscFile = null;
 
-                for (String directory : directorySet) {
-
+                for (Map.Entry<String, List<CashRegisterInfo>> entry : directoryMap.entrySet()) {
+                    
+                    String directory = entry.getKey();
                     String fileName = transactionInfo.snapshot ? "NewPrice.dbf" : "UpdPrice.dbf";
                     logger.info(String.format("HTC: creating %s file", fileName));
                     File priceFile = new File(directory + "\\" + fileName);
                     File flagPriceFile = new File(directory + "\\price.qry");
 
                     boolean append = priceFile.exists();
-
 
                     if (append || cachedPriceFile == null) {
 
@@ -240,7 +246,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         FileCopyUtils.copy(cachedPriceFile, priceFile);
                     flagPriceFile.createNewFile();
                     logger.info("HTC: waiting for deletion of price.qry file");
-                    waitForDeletion(priceFile, flagPriceFile);
+                    if(waitForDeletion(priceFile, flagPriceFile))                 
+                        succeededMachineryInfoList.addAll(entry.getValue());
                 }
                 
                 if(cachedPriceFile != null)
@@ -252,6 +259,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 throw Throwables.propagate(e);
             }
         }
+        return succeededMachineryInfoList;
     }
 
     private File createDiscountCardFile(List<DiscountCard> discountCardList, String directory, File cachedDiscFile) throws IOException, xBaseJException {
@@ -303,7 +311,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         dbfFile.getField(field).put(value == null ? "null" : value);
     }
 
-    private void waitForDeletion(File file, File flagFile) {
+    private boolean waitForDeletion(File file, File flagFile) {
         int count = 0;
         while ((flagFile.exists() || file.exists()) && count < 10) {
             try {
@@ -313,6 +321,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 throw Throwables.propagate(e);
             }
         }
+        return count < 10;
     }
 
     @Override

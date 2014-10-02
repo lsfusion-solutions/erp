@@ -61,6 +61,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     //Опциональные модули
     private ScriptingLogicsModule cashRegisterLM;
+    private ScriptingLogicsModule cashRegisterItemLM;
+    private ScriptingLogicsModule cashRegisterPriceTransactionLM;
     private ScriptingLogicsModule collectionLM;
     private ScriptingLogicsModule discountCardLM;
     private ScriptingLogicsModule equipmentCashRegisterLM;
@@ -75,7 +77,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule scalesLM;
     private ScriptingLogicsModule scalesItemLM;
     private ScriptingLogicsModule stopListLM;
-    private ScriptingLogicsModule storeSkuLedgerLM;
+    private ScriptingLogicsModule storeItemLM;
     private ScriptingLogicsModule terminalLM;
     private ScriptingLogicsModule zReportLM;
     private ScriptingLogicsModule zReportDiscountCardLM;
@@ -119,6 +121,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         equLM = getBusinessLogics().getModule("Equipment");
         Assert.notNull(equLM, "can't find Equipment module");
         cashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
+        cashRegisterItemLM = getBusinessLogics().getModule("CashRegisterItem");
+        cashRegisterPriceTransactionLM = getBusinessLogics().getModule("CashRegisterPriceTransaction");
         collectionLM = getBusinessLogics().getModule("Collection");
         discountCardLM = getBusinessLogics().getModule("DiscountCard");
         equipmentCashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
@@ -133,7 +137,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         scalesLM = getBusinessLogics().getModule("EquipmentScales");
         scalesItemLM = getBusinessLogics().getModule("ScalesItem");
         stopListLM = getBusinessLogics().getModule("StopList");
-        storeSkuLedgerLM = getBusinessLogics().getModule("StoreSkuLedger");
+        storeItemLM = getBusinessLogics().getModule("StoreItem");
         terminalLM = getBusinessLogics().getModule("EquipmentTerminal");
         zReportLM = getBusinessLogics().getModule("ZReport");
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
@@ -233,11 +237,24 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 String[] skuNames = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
-                        "skuGroupMachineryPriceTransactionBarcode", "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode"};
+                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode"};
                 LCP[] skuProperties = equLM.findProperties("nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
                         "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
-                        "skuGroupMachineryPriceTransactionBarcode", "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode");
+                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode");
                 skuQuery.addProperty("idBarcode", equLM.findProperty("idBarcode").getExpr(barcodeExpr));
+                skuQuery.addProperty("skuBarcode", equLM.findProperty("skuBarcode").getExpr(barcodeExpr));
+                if(storeItemLM != null)
+                    skuQuery.addProperty("notPromotionSkuBarcode", storeItemLM.findProperty("notPromotionSkuBarcode").getExpr(barcodeExpr));
+                if(cashRegisterItemLM != null) {
+                    skuQuery.addProperty("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode", 
+                            cashRegisterItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                    skuQuery.addProperty("canonicalNameSkuGroupMachineryPriceTransactionBarcode", 
+                            cashRegisterItemLM.findProperty("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                }
+                if(scalesItemLM != null) {
+                    skuQuery.addProperty("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode", 
+                            cashRegisterItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionObject.getExpr(), barcodeExpr));
+                }
                 for (int i = 0; i < skuProperties.length; i++) {
                     skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionObject.getExpr(), barcodeExpr));
                 }
@@ -283,6 +300,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     for (int i = 0; i < cashRegisterProperties.length; i++) {
                         cashRegisterQuery.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterKey));
                     }
+                    if(cashRegisterPriceTransactionLM != null)
+                        cashRegisterQuery.addProperty("succeededCashRegisterMachineryPriceTransaction", 
+                            cashRegisterPriceTransactionLM.findProperty("succeededCashRegisterMachineryPriceTransaction").getExpr(cashRegisterKey, transactionObject.getExpr()));
                     cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
                     cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegisterCashRegister").getExpr(cashRegisterKey).compare(groupMachineryObject, Compare.EQUALS));
 
@@ -294,13 +314,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String handlerModel = (String) row.get("handlerModelMachinery");
                         String portMachinery = (String) row.get("portMachinery");
                         String directoryCashRegister = (String) row.get("overDirectoryCashRegister");
-                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, nameModel, handlerModel, portMachinery, directoryCashRegister, startDateGroupCashRegister, notDetailedGroupCashRegister));
+                        Boolean succeededCashRegister = cashRegisterPriceTransactionLM != null && row.get("succeededCashRegisterMachineryPriceTransaction") != null;
+                        cashRegisterInfoList.add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, nameModel, handlerModel,
+                                portMachinery, directoryCashRegister, startDateGroupCashRegister, notDetailedGroupCashRegister, succeededCashRegister));
                     }
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<CashRegisterItemInfo>();                   
                                        
                     for (int i = 0; i < skuResult.size(); i++) {
-                        ImMap<Object, DataObject> keyRow = skuResult.getKey(i);
                         ImMap<Object, ObjectValue> valueRow = skuResult.getValue(i);
                         String barcode = trim((String) valueRow.get("idBarcode").getValue());
                         String name = trim((String) valueRow.get("nameMachineryPriceTransactionBarcode").getValue());
@@ -310,14 +331,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String idUOM = (String) valueRow.get("idUOMMachineryPriceTransactionBarcode").getValue();
                         String shortNameUOM = (String) valueRow.get("shortNameUOMMachineryPriceTransactionBarcode").getValue();
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) valueRow.get("VATMachineryPriceTransactionBarcode").getValue();
-                        ObjectValue itemObject = itemLM.findProperty("skuBarcode").readClasses(session, keyRow.get("barcode"));
+                        ObjectValue itemObject = valueRow.get("skuBarcode");
                         Integer idItem = (Integer) itemObject.getValue();
-                        boolean notPromotionItem = storeSkuLedgerLM != null && storeSkuLedgerLM.findProperty("notPromotionSku").read(session, itemObject) != null;
+                        boolean notPromotionItem = storeItemLM != null && valueRow.get("notPromotionSkuBarcode").getValue() != null;
                         String description = scalesItemLM == null ? null : (String) valueRow.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
-                        ObjectValue skuGroupObject = valueRow.get("skuGroupMachineryPriceTransactionBarcode");
-                        String idItemGroup = itemLM == null ? null : (String) itemLM.findProperty("idItemGroup").read(session, skuGroupObject);
-                        String canonicalNameSkuGroup = itemLM == null ? null : (String) itemLM.findProperty("canonicalNameSkuGroup").read(session, skuGroupObject);
+                        String idItemGroup = cashRegisterItemLM == null ? null : (String) valueRow.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode").getValue();
+                        String canonicalNameSkuGroup = cashRegisterItemLM == null ? null : (String) valueRow.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode").getValue();
                         
                         cashRegisterItemInfoList.add(new CashRegisterItemInfo(barcode, name, price, split, idItem,
                                 description, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, passScales, valueVAT, notPromotionItem));
@@ -371,8 +391,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Integer labelFormat = (Integer) row.get("labelFormatMachineryPriceTransactionBarcode").getValue();
                         String description = (String) row.get("descriptionMachineryPriceTransactionBarcode").getValue();
 
-                        ObjectValue skuGroupObject = row.get("skuGroupMachineryPriceTransactionBarcode");
-                        String idItemGroup = itemLM == null ? null : (String) itemLM.findProperty("idItemGroup").read(session, skuGroupObject);
+                        String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode").getValue();
                         
                         Integer cellScalesObject = description == null ? null : (Integer) scalesLM.findProperty("cellScalesGroupScalesDescription").read(session, groupMachineryObject, new DataObject(description, StringClass.text));
                         Integer descriptionNumberCellScales = cellScalesObject == null ? null : (Integer) scalesLM.findProperty("numberCellScales").read(session, new DataObject(cellScalesObject, (ConcreteClass) scalesLM.findClass("CellScales")));
@@ -983,7 +1002,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelMachinery"), (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("overDirectoryCashRegister"), (java.sql.Date) row.get("startDateGroupCashRegister"), row.get("notDetailedGroupCashRegister") != null));
+                            (String) row.get("overDirectoryCashRegister"), (java.sql.Date) row.get("startDateGroupCashRegister"), 
+                            row.get("notDetailedGroupCashRegister") != null, null));
                 }
             }
             return cashRegisterInfoList;
@@ -1681,14 +1701,35 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
-    public void succeedTransaction(Integer transactionID, Timestamp dateTime) throws RemoteException, SQLException {
+    public void succeedTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException {
         try {
             DataSession session = getDbManager().createSession();
             equLM.findProperty("succeededMachineryPriceTransaction").change(true, session,
-                    session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionID));
+                    session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId));
             equLM.findProperty("dateTimeSucceededMachineryPriceTransaction").change(dateTime, session,
-                    session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionID));
+                    session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId));
             session.apply(getBusinessLogics());
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public void succeedCashRegisterTransaction(Integer transactionId, List<MachineryInfo> cashRegisterInfoList, Timestamp dateTime) throws RemoteException, SQLException {
+        try {
+            if(cashRegisterPriceTransactionLM != null) {
+                DataSession session = getDbManager().createSession();
+                DataObject machineryPriceTransactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                for(MachineryInfo cashRegisterInfo : cashRegisterInfoList) {
+                    ObjectValue cashRegisterObject = cashRegisterPriceTransactionLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, 
+                            new DataObject(cashRegisterInfo.numberGroup), new DataObject(cashRegisterInfo.number));
+                    cashRegisterPriceTransactionLM.findProperty("succeededCashRegisterMachineryPriceTransaction").change(true, session,
+                            (DataObject) cashRegisterObject, machineryPriceTransactionObject);
+                    cashRegisterPriceTransactionLM.findProperty("dateTimeSucceededCashRegisterMachineryPriceTransaction").change(dateTime, session,
+                            (DataObject) cashRegisterObject, machineryPriceTransactionObject);
+                }
+                session.apply(getBusinessLogics());
+            }
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }

@@ -22,7 +22,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
     }
 
     @Override
-    public void sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
 
         //System.setProperty(LibraryLoader.JACOB_DLL_PATH, "E:\\work\\Кассы-весы\\dll\\jacob-1.15-M3-x86.dll");
 
@@ -128,6 +128,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                     }
                 }
         }
+        return null;
     }
 
     @Override

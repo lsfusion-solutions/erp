@@ -1,6 +1,7 @@
 package equ.clt.handler.lsterminal;
 
 import com.google.common.base.Throwables;
+import equ.api.MachineryInfo;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
@@ -25,7 +26,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
-    public void sendTransaction(TransactionInfo transactionInfo, List machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionInfo transactionInfo, List machineryInfoList) throws IOException {
         try {
             Integer nppGroupTerminal = ((TransactionTerminalInfo) transactionInfo).nppGroupTerminal;
             String directory = ((TransactionTerminalInfo) transactionInfo).directoryGroupTerminal;
@@ -50,6 +51,7 @@ public class LSTerminalHandler extends TerminalHandler {
             logger.error(e);
             throw Throwables.propagate(e);
         }
+        return null;
     }
 
     @Override

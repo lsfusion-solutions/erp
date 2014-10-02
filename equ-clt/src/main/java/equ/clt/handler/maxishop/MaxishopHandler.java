@@ -1,9 +1,6 @@
 package equ.clt.handler.maxishop;
 
-import equ.api.ItemInfo;
-import equ.api.SalesBatch;
-import equ.api.SalesInfo;
-import equ.api.SoftCheckInfo;
+import equ.api.*;
 import equ.api.cashregister.*;
 import org.xBaseJ.DBF;
 import org.xBaseJ.Util;
@@ -26,7 +23,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public void sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
         DBF file = null;
 
@@ -108,6 +105,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
             if (file != null)
                 file.close();
         }
+        return null;
     }
 
     @Override

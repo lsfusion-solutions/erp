@@ -50,7 +50,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public void sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
         logger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
@@ -193,6 +193,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 }
             }
         }
+        return null;
     }
     
     private void waitForDeletion(File file, File flagFile) {
@@ -308,7 +309,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 if (successDir.exists() || successDir.mkdirs())
                     FileCopyUtils.copy(f, new File(f.getParent() + "/success/" + f.getName()));
             } catch (IOException e) {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted", e);
+                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
             }
 
             if (f.delete()) {

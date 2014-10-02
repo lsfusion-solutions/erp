@@ -19,3 +19,22 @@ createMachineryPriceTransactionGroupMachinery (groupMachinery) += ACTION (groupM
         ADDOBJ CashRegisterPriceTransaction;
 }
 
+succeededCashRegisterMachineryPriceTransaction 'Загружена' = DATA BOOLEAN(CashRegister, MachineryPriceTransaction);
+dateTimeSucceededCashRegisterMachineryPriceTransaction 'Время загрузки' = DATA DATETIME(CashRegister, MachineryPriceTransaction);
+showCashRegister(t) = t IS CashRegisterPriceTransaction;
+
+EXTEND FORM machineryPriceTransactions
+    OBJECTS c = CashRegister FIXED GRID
+    PROPERTIES(c) SHOWIF showCashRegister(t) nppMachinery, descriptionMachinery, dataDirectoryCashRegister 
+    PROPERTIES(c, t) SHOWIF showCashRegister(t) succeededCashRegisterMachineryPriceTransaction, dateTimeSucceededCashRegisterMachineryPriceTransaction 
+;
+
+EXTEND DESIGN machineryPriceTransactions {
+    specContainer {
+        NEW cashRegisterContainer {
+            fill = 1;
+            caption = 'Кассы';
+            ADD c.box;
+        }     
+    }
+}

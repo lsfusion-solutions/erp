@@ -232,7 +232,11 @@ public class EquipmentServer {
                         Object clsHandler = getHandler(entry.getValue().get(0).handlerModel.trim(), remote);
                         if (clsHandler instanceof TerminalHandler)
                             ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
-                        transactionInfo.sendTransaction(clsHandler, entry.getValue());
+                        List<MachineryInfo> succeededMachineryInfoList = transactionInfo.sendTransaction(clsHandler, entry.getValue());
+                        if(succeededMachineryInfoList != null && succeededMachineryInfoList.size() != entry.getValue().size())
+                            noErrors = false;
+                        if(clsHandler instanceof CashRegisterHandler && succeededMachineryInfoList != null)
+                            remote.succeedCashRegisterTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));    
                     } catch (Exception e) {
                         remote.errorTransactionReport(transactionInfo.id, e);
                         noErrors = false;

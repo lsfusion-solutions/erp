@@ -1,10 +1,7 @@
 package equ.clt.handler.kristal10;
 
 import com.google.common.base.Throwables;
-import equ.api.ItemGroup;
-import equ.api.SalesBatch;
-import equ.api.SalesInfo;
-import equ.api.SoftCheckInfo;
+import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
 import org.apache.log4j.Logger;
@@ -38,7 +35,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public void sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
         logger.info("Kristal: Send Transaction # " + transactionInfo.id);
 
@@ -140,11 +137,18 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             
             waitForDeletion(new File(filePath));
         }
+        return null;
     }
 
     private void waitForDeletion(File file) {
+        int count = 0;
         while (file.exists()) {
             try {
+                count++;
+                if(count>=60) {
+                    logger.info(String.format("Kristal: still waiting for deletion of file %s", file.getAbsolutePath()));
+                    count = 0;
+                }
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);

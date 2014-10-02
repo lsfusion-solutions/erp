@@ -7,7 +7,7 @@ public abstract class MachineryHandler<T extends TransactionInfo, M extends Mach
 
     public EquipmentServerInterface remote;
 
-    public abstract void sendTransaction(T transactionInfo, List<M> machineryInfoList) throws IOException;
+    public abstract List<MachineryInfo> sendTransaction(T transactionInfo, List<M> machineryInfoList) throws IOException;
 
     public abstract void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException;
 

@@ -1,5 +1,6 @@
 package equ.api.scales;
 
+import equ.api.MachineryInfo;
 import equ.api.TransactionInfo;
 
 import java.io.IOException;
@@ -17,7 +18,7 @@ public class TransactionScalesInfo extends TransactionInfo<ScalesInfo, ScalesIte
     }
 
     @Override
-    public void sendTransaction(Object handler, List<ScalesInfo> machineryInfoList) throws IOException {
-        ((ScalesHandler)handler).sendTransaction(this, machineryInfoList);
+    public List<MachineryInfo> sendTransaction(Object handler, List<ScalesInfo> machineryInfoList) throws IOException {
+        return ((ScalesHandler)handler).sendTransaction(this, machineryInfoList);
     }
 }

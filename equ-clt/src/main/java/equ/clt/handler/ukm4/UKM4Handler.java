@@ -28,7 +28,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public void sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
         DBFWriter barDBFWriter = null;
         DBFWriter classifDBFWriter = null;
@@ -190,6 +190,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
             } catch (JDBFException ignored) {
             }
         }
+        return null;
     }
 
     private void waitForDeletion(File file) {

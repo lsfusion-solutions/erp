@@ -14,7 +14,7 @@ public class TransactionPriceCheckerInfo extends TransactionInfo<PriceCheckerInf
     }
 
     @Override
-    public void sendTransaction(Object handler, List<PriceCheckerInfo> machineryInfoList) throws IOException {
-        ((PriceCheckerHandler)handler).sendTransaction(this, machineryInfoList);
+    public List<MachineryInfo> sendTransaction(Object handler, List<PriceCheckerInfo> machineryInfoList) throws IOException {
+        return ((PriceCheckerHandler)handler).sendTransaction(this, machineryInfoList);
     }
 }

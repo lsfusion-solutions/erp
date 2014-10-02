@@ -19,7 +19,7 @@ public class DigiHandler extends ScalesHandler {
     }
 
     @Override
-    public void sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
 
         List<String> scalesModelsList = new ArrayList<String>();
         Map<String, ScalesInfo> directoriesScalesInfoMap = new HashMap<String, ScalesInfo>();
@@ -114,7 +114,7 @@ public class DigiHandler extends ScalesHandler {
 
             checkErrorFiles(directory);
         }
-
+        return null;
     }
 
     @Override

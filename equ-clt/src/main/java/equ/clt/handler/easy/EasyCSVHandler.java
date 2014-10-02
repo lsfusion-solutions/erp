@@ -28,7 +28,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public void sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+        public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
             List<String> directoriesList = new ArrayList<String>();
             for (CashRegisterInfo cashRegisterInfo : machineryInfoList) {
@@ -51,6 +51,7 @@ public class EasyCSVHandler {
                 }
                 writer.close();
             }
+            return null;
         }
 
         @Override
@@ -102,7 +103,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public void sendTransaction(TransactionPriceCheckerInfo transactionInfo, List<PriceCheckerInfo> machineryInfoList) throws IOException {
+        public List<MachineryInfo> sendTransaction(TransactionPriceCheckerInfo transactionInfo, List<PriceCheckerInfo> machineryInfoList) throws IOException {
 
             List<String> directoriesList = new ArrayList<String>();
             for (PriceCheckerInfo priceCheckerInfo : machineryInfoList) {
@@ -123,6 +124,7 @@ public class EasyCSVHandler {
                 }
                 writer.close();
             }
+            return null;
         }
 
         @Override
@@ -137,7 +139,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public void sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
+        public List<MachineryInfo> sendTransaction(TransactionScalesInfo transactionInfo, List<ScalesInfo> machineryInfoList) throws IOException {
 
             List<String> directoriesList = new ArrayList<String>();
             for (ScalesInfo scalesInfo : machineryInfoList) {
@@ -160,6 +162,7 @@ public class EasyCSVHandler {
                 }
                 writer.close();
             }
+            return null;
         }
 
         @Override

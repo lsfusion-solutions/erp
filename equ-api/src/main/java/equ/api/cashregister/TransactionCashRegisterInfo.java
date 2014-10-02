@@ -1,6 +1,7 @@
 package equ.api.cashregister;
 
 import equ.api.ItemGroup;
+import equ.api.MachineryInfo;
 import equ.api.TransactionInfo;
 
 import java.io.IOException;
@@ -31,7 +32,7 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
     }
 
     @Override
-    public void sendTransaction(Object handler, List<CashRegisterInfo> machineryInfoList) throws IOException {
-        ((CashRegisterHandler)handler).sendTransaction(this, machineryInfoList);
+    public List<MachineryInfo> sendTransaction(Object handler, List<CashRegisterInfo> machineryInfoList) throws IOException {
+        return ((CashRegisterHandler)handler).sendTransaction(this, machineryInfoList);
     }
 }

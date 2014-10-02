@@ -14,5 +14,5 @@ public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemIn
     public List<I> itemsList;
     public List<M> machineryInfoList;
 
-    public abstract void sendTransaction(Object handler, List<M> machineryInfoList) throws IOException;
+    public abstract List<MachineryInfo> sendTransaction(Object handler, List<M> machineryInfoList) throws IOException;
 }

@@ -1,5 +1,6 @@
 package equ.api.terminal;
 
+import equ.api.MachineryInfo;
 import equ.api.TransactionInfo;
 
 import java.io.IOException;
@@ -35,7 +36,7 @@ public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, Termi
     }
 
     @Override
-    public void sendTransaction(Object handler, List<TerminalInfo> machineryInfoList) throws IOException {
-        ((TerminalHandler)handler).sendTransaction(this, machineryInfoList);
+    public List<MachineryInfo> sendTransaction(Object handler, List<TerminalInfo> machineryInfoList) throws IOException {
+        return ((TerminalHandler)handler).sendTransaction(this, machineryInfoList);
     }
 }

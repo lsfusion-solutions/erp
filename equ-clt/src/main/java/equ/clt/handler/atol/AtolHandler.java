@@ -26,7 +26,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public void sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
+    public List<MachineryInfo> sendTransaction(TransactionCashRegisterInfo transactionInfo, List<CashRegisterInfo> machineryInfoList) throws IOException {
 
         logger.info("Atol: Send Transaction # " + transactionInfo.id);
 
@@ -91,6 +91,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
             processGoodsFlagFile(goodsFile, goodsFlagFile);
         }
+        return null;
     }
 
     private boolean checkGoodsFile(String path) throws FileNotFoundException {

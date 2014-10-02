@@ -46,8 +46,10 @@ public interface EquipmentServerInterface extends Remote {
 
     String sendCashDocumentInfo(List<CashDocument> cashDocumentList, String sidEquipmentServer) throws IOException, SQLException;
 
-    void succeedTransaction(Integer transactionID, Timestamp dateTime) throws RemoteException, SQLException;
+    void succeedTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException;
 
+    void succeedCashRegisterTransaction(Integer transactionId, List<MachineryInfo> cashRegisterInfoList, Timestamp dateTime) throws RemoteException, SQLException;
+    
     void errorTransactionReport(Integer transactionID, Throwable exception) throws RemoteException, SQLException;
 
     void errorEquipmentServerReport(String equipmentServer, Throwable exception) throws RemoteException, SQLException;
