@@ -15,30 +15,30 @@ import java.util.List;
 
 public class ImportPurchaseInvoiceTaxItem extends ImportDefaultPurchaseInvoiceActionProperty {
 
+    String defaultCountry = "БЕЛАРУСЬ";
+
     public ImportPurchaseInvoiceTaxItem(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM);
     }
 
     public void makeImport(ExecutionContext context, List<ImportField> fields, List<ImportKey<?>> keys, List<ImportProperty<?>> props, LinkedHashMap<String, ImportColumnDetail> defaultColumns,
-                           List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportField valueVATUserInvoiceDetailField, ImportKey<?> itemKey, ImportKey<?> VATKey) 
+                           List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportField valueVATUserInvoiceDetailField, ImportKey<?> itemKey, ImportKey<?> VATKey)
             throws ScriptingErrorLog.SemanticErrorException {
         ScriptingLogicsModule LM = context.getBL().getModule("TaxItem");
 
         if (LM != null && valueVATUserInvoiceDetailField != null && itemKey != null && VATKey != null) {
 
-            if (showField(userInvoiceDetailsList, "countryVAT")) {
-                ImportField countryVATField = new ImportField(LM.findProperty("nameCountry"));
-                ImportKey<?> countryVATKey = new ImportKey((ConcreteCustomClass) LM.findClass("Country"),
-                        LM.findProperty("countryName").getMapping(countryVATField));
-                keys.add(countryVATKey);
-                props.add(new ImportProperty(valueVATUserInvoiceDetailField, LM.findProperty("VATItemCountry").getMapping(itemKey, countryVATKey),
-                        object(LM.findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
-                fields.add(countryVATField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).countryVAT);
-            }
+            ImportField countryVATField = new ImportField(LM.findProperty("nameCountry"));
+            ImportKey<?> countryVATKey = new ImportKey((ConcreteCustomClass) LM.findClass("Country"),
+                    LM.findProperty("countryName").getMapping(countryVATField));
+            keys.add(countryVATKey);
+            props.add(new ImportProperty(valueVATUserInvoiceDetailField, LM.findProperty("VATItemCountry").getMapping(itemKey, countryVATKey),
+                    object(LM.findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
+            fields.add(countryVATField);
+            for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                data.get(i).add(defaultCountry);
 
         }
-        
+
     }
 }

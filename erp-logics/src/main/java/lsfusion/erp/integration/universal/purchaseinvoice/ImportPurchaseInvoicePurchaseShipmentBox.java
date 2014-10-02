@@ -35,12 +35,12 @@ public class ImportPurchaseInvoicePurchaseShipmentBox extends ImportDefaultPurch
                         LM.object(LM.findClass("Box")).getMapping(boxKey), getReplaceOnlyNull(defaultColumns, "idBox")));
                 fields.add(idBoxField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idBox);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idBox"));
 
                 if (showField(userInvoiceDetailsList, "nameBox")) {
                     addDataField(props, fields, defaultColumns, LM.findProperty("nameBox"), "nameBox", boxKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameBox);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameBox"));
                 }
             }
             

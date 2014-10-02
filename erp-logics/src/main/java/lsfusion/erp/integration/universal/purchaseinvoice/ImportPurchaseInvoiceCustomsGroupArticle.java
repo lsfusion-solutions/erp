@@ -31,7 +31,7 @@ public class ImportPurchaseInvoiceCustomsGroupArticle extends ImportDefaultPurch
                 props.add(new ImportProperty(originalCustomsGroupItemField, LM.findProperty("originalCustomsGroupArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "originalCustomsGroupItem")));
                 fields.add(originalCustomsGroupItemField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).originalCustomsGroupItem);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("originalCustomsGroupItem"));
             }
 
         }

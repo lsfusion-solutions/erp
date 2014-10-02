@@ -25,7 +25,7 @@ public class ImportPurchaseInvoiceItemPharmacyBy extends ImportDefaultPurchaseIn
 
         if (LM != null && itemKey != null) {
 
-            if (showField(userInvoiceDetailsList, "idPharmacyPriceGroup")) {
+            if (showField(userInvoiceDetailsList, "pharmacyPriceGroupItem")) {
                 ImportField idPharmacyPriceGroupField = new ImportField(LM.findProperty("idPharmacyPriceGroup"));
                 ImportKey<?> pharmacyPriceGroupKey = new ImportKey((ConcreteCustomClass) LM.findClass("PharmacyPriceGroup"),
                         LM.findProperty("pharmacyPriceGroupId").getMapping(idPharmacyPriceGroupField));
@@ -36,7 +36,7 @@ public class ImportPurchaseInvoiceItemPharmacyBy extends ImportDefaultPurchaseIn
                         object(LM.findClass("PharmacyPriceGroup")).getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
                 fields.add(idPharmacyPriceGroupField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idPharmacyPriceGroup);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("pharmacyPriceGroupItem"));
             }
 
         }

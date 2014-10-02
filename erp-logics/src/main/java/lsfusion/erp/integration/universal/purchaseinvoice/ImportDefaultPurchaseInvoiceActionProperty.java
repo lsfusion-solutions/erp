@@ -8,6 +8,7 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 
 public class ImportDefaultPurchaseInvoiceActionProperty extends ImportDocumentActionProperty {
 
@@ -21,11 +22,28 @@ public class ImportDefaultPurchaseInvoiceActionProperty extends ImportDocumentAc
 
     protected Boolean showField(List<PurchaseInvoiceDetail> data, String fieldName) {
         try {
-            Field field = PurchaseInvoiceDetail.class.getField(fieldName);
-
-            for (int i = 0; i < data.size(); i++) {
-                if (field.get(data.get(i)) != null)
+            
+            boolean found = false;
+            Field fieldValues = PurchaseInvoiceDetail.class.getField("fieldValues");
+            for (PurchaseInvoiceDetail entry : data) {
+                Map<String, Object> values = (Map<String, Object>) fieldValues.get(entry);
+                if(!found) {
+                    if (values.containsKey(fieldName))
+                        found = true;
+                    else
+                        break;
+                }
+                if (values.get(fieldName) != null)
                     return true;
+            }
+            
+            if(!found) {
+                Field field = PurchaseInvoiceDetail.class.getField(fieldName);
+
+                for (PurchaseInvoiceDetail entry : data) {
+                    if (field.get(entry) != null)
+                        return true;
+                }
             }
         } catch (NoSuchFieldException e) {
             return true;

@@ -35,19 +35,19 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
                         LM.object(LM.findClass("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
                 fields.add(idItemGroupField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idItemGroup);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idItemGroup"));
             }
 
             if (showField(userInvoiceDetailsList, "captionArticle")) {
                 addDataField(props, fields, defaultColumns, LM.findProperty("captionArticle"), "captionArticle", articleKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).captionArticle);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("captionArticle"));
             }
 
             if (showField(userInvoiceDetailsList, "originalCaptionArticle")) {
                 addDataField(props, fields, defaultColumns, LM.findProperty("originalCaptionArticle"), "originalCaptionArticle", articleKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).originalCaptionArticle);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("originalCaptionArticle"));
             }
 
             if (showField(userInvoiceDetailsList, "netWeight")) {
@@ -74,7 +74,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
                 props.add(new ImportProperty(compositionField, LM.findProperty("compositionArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "composition")));
                 fields.add(compositionField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).composition);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("composition"));
             }
 
             if (showField(userInvoiceDetailsList, "originalComposition")) {
@@ -83,7 +83,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
                 props.add(new ImportProperty(originalCompositionField, LM.findProperty("originalCompositionArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "originalComposition")));
                 fields.add(originalCompositionField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).originalComposition);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("originalComposition"));
             }
 
             if (showField(userInvoiceDetailsList, "idColor")) {
@@ -98,12 +98,12 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
                         object(LM.findClass("Color")).getMapping(colorKey), getReplaceOnlyNull(defaultColumns, "idColor")));
                 fields.add(idColorField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idColor);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idColor"));
 
                 if (showField(userInvoiceDetailsList, "nameColor")) {
                     addDataField(props, fields, defaultColumns, LM.findProperty("nameColor"), "nameColor", colorKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameColor);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameColor"));
                 }
             }
 
@@ -117,22 +117,22 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
                         object(LM.findClass("Size")).getMapping(sizeKey), getReplaceOnlyNull(defaultColumns, "idSize")));
                 fields.add(idSizeField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idSize);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idSize"));
 
                 if (showField(userInvoiceDetailsList, "nameSize")) {
                     addDataField(props, fields, defaultColumns, LM.findProperty("nameSize"), "nameSize", sizeKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameSize"));
 
                     addDataField(props, fields, defaultColumns, LM.findProperty("shortNameSize"), "nameSize", sizeKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameSize);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameSize"));
                 }
 
                 if (showField(userInvoiceDetailsList, "nameOriginalSize")) {
                     addDataField(props, fields, defaultColumns, LM.findProperty("nameOriginalSize"), "nameOriginalSize", sizeKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameOriginalSize);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameOriginalSize"));
                 }
             }
 
@@ -148,12 +148,12 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
                         object(LM.findClass("Brand")).getMapping(brandKey), getReplaceOnlyNull(defaultColumns, "idBrand")));
                 fields.add(idBrandField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idBrand);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idBrand"));
 
                 if (showField(userInvoiceDetailsList, "nameBrand")) {
                     addDataField(props, fields, defaultColumns, LM.findProperty("nameBrand"), "nameBrand", brandKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameBrand);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameBrand"));
                 }
             }
 

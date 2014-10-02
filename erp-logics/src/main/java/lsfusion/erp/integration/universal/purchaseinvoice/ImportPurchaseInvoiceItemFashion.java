@@ -37,12 +37,12 @@ public class ImportPurchaseInvoiceItemFashion extends ImportDefaultPurchaseInvoi
                         object(LM.findClass("Season")).getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
                 fields.add(idSeasonField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idSeason);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idSeason"));
 
                 if (showField(userInvoiceDetailsList, "nameSeason")) {
                     addDataField(props, fields, defaultColumns, LM.findProperty("nameSeason"), "nameSeason", seasonKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameSeason);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameSeason"));
                 }
             }
 
@@ -56,12 +56,12 @@ public class ImportPurchaseInvoiceItemFashion extends ImportDefaultPurchaseInvoi
                         object(LM.findClass("Collection")).getMapping(collectionKey), getReplaceOnlyNull(defaultColumns, "idCollection")));
                 fields.add(idCollectionField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idCollection);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idCollection"));
 
                 if (showField(userInvoiceDetailsList, "nameCollection")) {
                     addDataField(props, fields, defaultColumns, LM.findProperty("nameCollection"), "nameCollection", collectionKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameCollection);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameCollection"));
                 }
             }
 
@@ -78,7 +78,7 @@ public class ImportPurchaseInvoiceItemFashion extends ImportDefaultPurchaseInvoi
                         object(LM.findClass("SeasonYear")).getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
                 fields.add(idSeasonYearField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idSeasonYear);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idSeasonYear"));
             }
 
         }

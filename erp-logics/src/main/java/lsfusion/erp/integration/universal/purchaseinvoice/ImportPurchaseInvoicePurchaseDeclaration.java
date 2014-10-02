@@ -25,7 +25,7 @@ public class ImportPurchaseInvoicePurchaseDeclaration extends ImportDefaultPurch
         
         if(LM != null && userInvoiceDetailKey != null) {
             
-            if (showField(userInvoiceDetailsList, "numberDeclaration")) {
+            if (showField(userInvoiceDetailsList, "declaration")) {
                 ImportField numberDeclarationField = new ImportField(LM.findProperty("numberDeclaration"));
                 ImportKey<?> declarationKey = new ImportKey((ConcreteCustomClass) LM.findClass("Declaration"),
                         LM.findProperty("declarationId").getMapping(numberDeclarationField));
@@ -36,7 +36,7 @@ public class ImportPurchaseInvoicePurchaseDeclaration extends ImportDefaultPurch
                         object(LM.findClass("Declaration")).getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
                 fields.add(numberDeclarationField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).numberDeclaration);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("declaration"));
             }
             
         }

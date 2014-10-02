@@ -37,15 +37,12 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Time;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseInvoiceActionProperty {
     private final ClassPropertyInterface userInvoiceInterface;
-
-    String defaultCountry = "БЕЛАРУСЬ";
 
     public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, LM.findClass("Purchase.UserInvoice"));
@@ -183,48 +180,48 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             if (showField(userInvoiceDetailsList, "idUserInvoice")) {
                 ImportField idUserInvoiceField = new ImportField(findProperty("idUserInvoice"));
-                props.add(new ImportProperty(idUserInvoiceField, findProperty("idUserInvoice").getMapping(userInvoiceObject), getReplaceOnlyNull(defaultColumns, "idUserInvoice")));
+                props.add(new ImportProperty(idUserInvoiceField, findProperty("idUserInvoice").getMapping(userInvoiceObject)));
                 fields.add(idUserInvoiceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).idUserInvoice);
             }
 
             if (showField(userInvoiceDetailsList, "numberUserInvoice")) {
-                    addDataField(props, fields, defaultColumns, findProperty("numberUserInvoice"), "numberUserInvoice", userInvoiceObject);
+                    addDataField(props, fields, defaultColumns, findProperty("numberUserInvoice"), "numberDocument", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).numberUserInvoice);
             }
 
-            if (showField(userInvoiceDetailsList, "dateUserInvoice")) {
-                addDataField(props, fields, defaultColumns, findProperty("dateUserInvoice"), "dateUserInvoice", userInvoiceObject);
+            if (showField(userInvoiceDetailsList, "dateDocument")) {
+                addDataField(props, fields, defaultColumns, findProperty("dateUserInvoice"), "dateDocument", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).dateUserInvoice);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("dateDocument"));
             }
 
-            if (showField(userInvoiceDetailsList, "timeUserInvoice")) {
-                addDataField(props, fields, defaultColumns, findProperty("timeUserInvoice"), "timeUserInvoice", userInvoiceObject);
+            if (showField(userInvoiceDetailsList, "timeDocument")) {
+                addDataField(props, fields, defaultColumns, findProperty("timeUserInvoice"), "timeDocument", userInvoiceObject);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).timeUserInvoice);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("timeDocument"));
             }
 
-            if (showField(userInvoiceDetailsList, "currencyUserInvoice")) {
+            if (showField(userInvoiceDetailsList, "currencyDocument")) {
                 ImportField shortNameCurrencyField = new ImportField(findProperty("shortNameCurrency"));
                 ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
                         findProperty("currencyShortName").getMapping(shortNameCurrencyField));
                 keys.add(currencyKey);
                 props.add(new ImportProperty(shortNameCurrencyField, findProperty("currencyUserInvoice").getMapping(userInvoiceObject),
-                            object(findClass("Currency")).getMapping(currencyKey), getReplaceOnlyNull(defaultColumns, "currencyUserInvoice")));
+                            object(findClass("Currency")).getMapping(currencyKey), getReplaceOnlyNull(defaultColumns, "currencyDocument")));
                 fields.add(shortNameCurrencyField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).currencyUserInvoice);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("currencyDocument"));
             }
 
             ImportField idUserInvoiceDetailField = new ImportField(findProperty("idUserInvoiceDetail"));
             ImportKey<?> userInvoiceDetailKey = new ImportKey((ConcreteCustomClass) findClass("Purchase.UserInvoiceDetail"),
                     findProperty("userInvoiceDetailId").getMapping(idUserInvoiceDetailField));
             keys.add(userInvoiceDetailKey);
-            props.add(new ImportProperty(idUserInvoiceDetailField, findProperty("idUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idUserInvoiceDetail")));
-            props.add(new ImportProperty(userInvoiceObject, findProperty("Purchase.userInvoiceUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idUserInvoiceDetail")));
+            props.add(new ImportProperty(idUserInvoiceDetailField, findProperty("idUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+            props.add(new ImportProperty(userInvoiceObject, findProperty("Purchase.userInvoiceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
             fields.add(idUserInvoiceDetailField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).idUserInvoiceDetail);
@@ -250,7 +247,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                             object(findClass("LegalEntity")).getMapping(supplierKey), getReplaceOnlyNull(defaultColumns, "idSupplier")));
                 fields.add(idSupplierField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idSupplier);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idSupplier"));
 
             }
 
@@ -266,7 +263,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                             object(findClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
                 fields.add(idSupplierStockField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idSupplierStock);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idSupplierStock"));
 
             }
 
@@ -293,16 +290,16 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             props.add(new ImportProperty(idBarcodeSkuField, findProperty("extIdBarcode").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
             fields.add(idBarcodeSkuField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                data.get(i).add(userInvoiceDetailsList.get(i).idBarcodeSku);
+                data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("barcodeItem"));
 
             ImportField idBatchField = new ImportField(findProperty("idBatch"));
             ImportKey<?> batchKey = new ImportKey((CustomClass) findClass("Batch"),
                     findProperty("batchId").getMapping(idBatchField));
-            props.add(new ImportProperty(idBatchField, findProperty("idBatch").getMapping(batchKey), getReplaceOnlyNull(defaultColumns, "idBatch")));
-            props.add(new ImportProperty(idBatchField, findProperty("idBatchUserInvoiceDetail").getMapping(userInvoiceDetailKey), getReplaceOnlyNull(defaultColumns, "idBatch")));
+            props.add(new ImportProperty(idBatchField, findProperty("idBatch").getMapping(batchKey)));
+            props.add(new ImportProperty(idBatchField, findProperty("idBatchUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
             fields.add(idBatchField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                data.get(i).add(userInvoiceDetailsList.get(i).idBatch);
+                data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idBatch"));
 
             new ImportPurchaseInvoicePurchaseShipmentBox(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
 
@@ -310,12 +307,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             props.add(new ImportProperty(dataIndexUserInvoiceDetailField, findProperty("dataIndexUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
             fields.add(dataIndexUserInvoiceDetailField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                data.get(i).add(userInvoiceDetailsList.get(i).dataIndex);
+                data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("dataIndex"));
 
             ImportField idItemField = new ImportField(findProperty("idItem"));
             fields.add(idItemField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                data.get(i).add(userInvoiceDetailsList.get(i).idItem);
+                data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idItem"));
 
             String replaceField = (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
             LCP iGroupAggr = getItemKeyGroupAggr(keyType);
@@ -332,16 +329,16 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             if (showField(userInvoiceDetailsList, "captionItem")) {
                 addDataField(props, fields, defaultColumns, findProperty("captionItem"), "captionItem", itemKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).captionItem);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("captionItem"));
             }
 
             if (showField(userInvoiceDetailsList, "originalCaptionItem")) {
                 addDataField(props, fields, defaultColumns, findProperty("originalCaptionItem"), "originalCaptionItem", itemKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).originalCaptionItem);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("originalCaptionItem"));
             }
 
-            if (showField(userInvoiceDetailsList, "idUOM")) {
+            if (showField(userInvoiceDetailsList, "UOMItem")) {
                 ImportField idUOMField = new ImportField(findProperty("idUOM"));
                 ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
                         findProperty("UOMId").getMapping(idUOMField));
@@ -353,7 +350,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         object(findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
                 fields.add(idUOMField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idUOM);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("UOMItem"));
             }
 
             if (showField(userInvoiceDetailsList, "idManufacturer")) {
@@ -366,12 +363,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         object(findClass("Manufacturer")).getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
                 fields.add(idManufacturerField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idManufacturer);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idManufacturer"));
 
                 if (showField(userInvoiceDetailsList, "nameManufacturer")) {
                     addDataField(props, fields, defaultColumns, findProperty("nameManufacturer"), "nameManufacturer", manufacturerKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameManufacturer);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameManufacturer"));
                 }
             }
 
@@ -402,19 +399,19 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     props.add(new ImportProperty(sidOrigin2CountryField, findProperty("sidOrigin2Country").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "sidOrigin2Country")));
                     fields.add(sidOrigin2CountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).sidOrigin2Country);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("sidOrigin2Country"));
                 }
                 if (showNameCountry) {
                     props.add(new ImportProperty(nameCountryField, findProperty("nameCountry").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameCountry")));
                     fields.add(nameCountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameCountry);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameCountry"));
                 }
                 if (showNameOriginCountry) {
                     props.add(new ImportProperty(nameOriginCountryField, findProperty("nameOriginCountry").getMapping(countryKey), getReplaceOnlyNull(defaultColumns, "nameOriginCountry")));
                     fields.add(nameOriginCountryField);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).nameOriginCountry);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameOriginCountry"));
                 }
             }
 
@@ -427,7 +424,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                             object(findClass("LegalEntity")).getMapping(customerKey), getReplaceOnlyNull(defaultColumns, "idBCustomer")));
                 fields.add(idCustomerField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idCustomer);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idCustomer"));
             }
 
             if (showField(userInvoiceDetailsList, "idCustomerStock")) {
@@ -439,7 +436,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                             object(findClass("Stock")).getMapping(customerStockKey), getReplaceOnlyNull(defaultColumns, "idCustomerStock")));
                 fields.add(idCustomerStockField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idCustomerStock);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idCustomerStock"));
             }
 
             if (showField(userInvoiceDetailsList, "quantity")) {
@@ -451,13 +448,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             if (showField(userInvoiceDetailsList, "price")) {
                 addDataField(props, fields, defaultColumns, findProperty("Purchase.priceUserInvoiceDetail"), "price", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).price);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("price"));
             }
 
             if (showField(userInvoiceDetailsList, "sum")) {
                 addDataField(props, fields, defaultColumns, findProperty("Purchase.sumUserInvoiceDetail"), "sum", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).sum);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("sum"));
             }
 
             if (showField(userInvoiceDetailsList, "valueVAT")) {
@@ -469,13 +466,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         object(findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
                 fields.add(valueVATUserInvoiceDetailField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).valueVAT);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("valueVAT"));
 
                 ImportField dateField = new ImportField(DateClass.instance);
                 props.add(new ImportProperty(dateField, findProperty("dataDateBarcode").getMapping(barcodeKey), true));
                 fields.add(dateField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).dateVAT);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("dateVAT"));
 
                 new ImportPurchaseInvoiceTaxItem(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, valueVATUserInvoiceDetailField, itemKey, VATKey);
                 
@@ -484,13 +481,13 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             if (showField(userInvoiceDetailsList, "sumVAT")) {
                 addDataField(props, fields, defaultColumns, findProperty("Purchase.VATSumUserInvoiceDetail"), "sumVAT", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).sumVAT);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("sumVAT"));
             }
 
             if (showField(userInvoiceDetailsList, "invoiceSum")) {
                 addDataField(props, fields, defaultColumns, findProperty("Purchase.invoiceSumUserInvoiceDetail"), "invoiceSum", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).invoiceSum);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("invoiceSum"));
             }
 
             new ImportPurchaseInvoicePurchaseDeclaration(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
@@ -506,7 +503,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             if (showField(userInvoiceDetailsList, "rateExchange")) {
                 addDataField(props, fields, defaultColumns, findProperty("rateExchangeUserInvoiceDetail"), "rateExchange", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).rateExchange);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("rateExchange"));
             }
 
             new ImportPurchaseInvoicePurchaseDeclarationDetail(LM).makeImport(context, fields, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);            
@@ -528,7 +525,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         object(findClass("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
                 fields.add(idItemGroupField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idItemGroup);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idItemGroup"));
             }
             
             ScriptingLogicsModule itemArticleLM = context.getBL().getModule("ItemArticle");
@@ -544,7 +541,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         object(itemArticleLM.findClass("Article")).getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "idArticle")));
                 fields.add(idArticleField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).idArticle);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idArticle"));
 
                 new ImportPurchaseInvoiceItemArticle(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, itemKey, articleKey);                               
 
@@ -601,17 +598,37 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
 
+        //as in ImportDocument.lsf, CLASS ImportTypeDetail
+        List<String> stringFields = Arrays.asList("idSupplier", "idSupplierStock", "currencyDocument", "idItem", "idItemGroup",
+                "barcodeItem", "originalCustomsGroupItem", "idBatch", "idBox", "nameBox", "captionItem", "originalCaptionItem", 
+                "UOMItem", "idManufacturer", "nameManufacturer", "sidOrigin2Country", "nameCountry", "nameOriginCountry", 
+                "importCountryBatch", "idCustomerStock", "pharmacyPriceGroupItem", "valueVAT", "seriesPharmacy", 
+                "numberCompliance", "declaration", "idArticle", "captionArticle", "originalCaptionArticle", "idColor",
+                "nameColor", "idTheme", "nameTheme", "composition", "originalComposition", "idSize", "nameSize", "nameOriginalSize",
+                "idCollection", "nameCollection", "idSeasonYear", "idSeason", "nameSeason", "idBrand", "nameBrand");
+        
+        List<String> bigDecimalFields = Arrays.asList("dataIndex", "price", "manufacturingPrice", "contractPrice", "shipmentPrice", 
+                "shipmentSum", "rateExchange", "sum",  "sumVAT", "invoiceSum");
+
+        List<String> dateFields = Arrays.asList("dateDocument", "manufactureDate", "dateCompliance", "expiryDate");
+
+        List<String> timeFields = Arrays.asList("timeDocument");
+        
         if (fileExtension.equals("DBF"))
             userInvoiceDetailsList = importUserInvoicesFromDBF(context, session, file, defaultColumns, customColumns, 
+                    stringFields, bigDecimalFields, dateFields, timeFields,
                     purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType);
         else if (fileExtension.equals("XLS"))
             userInvoiceDetailsList = importUserInvoicesFromXLS(context, session, file, defaultColumns, customColumns,
+                    stringFields, bigDecimalFields, dateFields, timeFields,
                     purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType);
         else if (fileExtension.equals("XLSX"))
-            userInvoiceDetailsList = importUserInvoicesFromXLSX(context, session, file, defaultColumns, customColumns, 
+            userInvoiceDetailsList = importUserInvoicesFromXLSX(context, session, file, defaultColumns, customColumns,
+                    stringFields, bigDecimalFields, dateFields, timeFields, 
                     purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType);
         else if (fileExtension.equals("CSV") || fileExtension.equals("TXT"))
-            userInvoiceDetailsList = importUserInvoicesFromCSV(context, session, file, defaultColumns, customColumns, 
+            userInvoiceDetailsList = importUserInvoicesFromCSV(context, session, file, defaultColumns, customColumns,
+                    stringFields, bigDecimalFields, dateFields, timeFields,
                     purchaseInvoiceSet, checkInvoiceExistence, importSettings, userInvoiceObject, staticNameImportType);
         else
             userInvoiceDetailsList = null;
@@ -621,8 +638,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, DataSession session, byte[] importFile, 
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
-                                                                        Set<String> purchaseInvoiceSet, boolean checkInvoiceExistence,
-                                                                        ImportDocumentSettings importSettings, DataObject userInvoiceObject,
+                                                                        List<String> stringFields, List<String> bigDecimalFields,  List<String> dateFields, List<String> timeFields,
+                                                                        Set<String> purchaseInvoiceSet, 
+                                                                        boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -647,83 +665,60 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             currentTimestamp = getCurrentTimestamp();
 
             for (int i = importSettings.getStartRow() - 1; i < sheet.getRows(); i++) {
+
+                Map<String, Object> fieldValues = new HashMap<String, Object>();
+                for (String field : stringFields) {
+                    String value = getXLSFieldValue(sheet, i, defaultColumns.get(field));
+                    if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
+                        fieldValues.put(field, modifyNameCountry(value));
+                    else if (field.equals("valueVAT"))
+                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                    else if (field.equals("barcodeItem"))
+                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                    else if (field.equals("idCustomerStock")) {
+                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                        fieldValues.put("idCustomerStock", value);
+                        fieldValues.put("idCustomer", readIdCustomer(session, value));
+                    } else
+                        fieldValues.put(field, value);
+                }
+
+                for (String field : bigDecimalFields) {
+                    BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get(field));
+                    if (field.equals("dataIndex")) {
+                        fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                    } else if (field.equals("price"))
+                        fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                    else
+                        fieldValues.put(field, value);
+                }
+
+                for (String field : dateFields) {
+                    if (field.equals("dateDocument")) {
+                        Date dateDocument = getXLSDateFieldValue(sheet, i, defaultColumns.get(field));
+                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                        fieldValues.put(field, dateDocument);
+                        fieldValues.put("dateVAT", dateVAT);
+                    } else if (field.equals("expiryDate"))
+                        fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field), true));
+                    else
+                        fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field)));
+                }
+
+                for(String field : timeFields) {
+                    fieldValues.put(field, getXLSTimeFieldValue(sheet, i, defaultColumns.get(field)));
+                }
+                
                 String numberDocument = getXLSFieldValue(sheet, i, defaultColumns.get("numberDocument"));
                 String idDocument = getXLSFieldValue(sheet, i, defaultColumns.get("idDocument"), numberDocument);
-                Date dateDocument = getXLSDateFieldValue(sheet, i, defaultColumns.get("dateDocument"));
-                Time timeDocument = getXLSTimeFieldValue(sheet, i, defaultColumns.get("timeDocument"));
-                String idSupplier = getXLSFieldValue(sheet, i, defaultColumns.get("idSupplier"));
-                String idSupplierStock = getXLSFieldValue(sheet, i, defaultColumns.get("idSupplierStock"));
-                String currencyDocument = getXLSFieldValue(sheet, i, defaultColumns.get("currencyDocument"));
                 String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
-                String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSFieldValue(sheet, i, defaultColumns.get("barcodeItem")), 7);
-                String originalCustomsGroupItem = getXLSFieldValue(sheet, i, defaultColumns.get("originalCustomsGroupItem"));
-                String idBatch = getXLSFieldValue(sheet, i, defaultColumns.get("idBatch"));
-                BigDecimal dataIndexValue = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("dataIndex"));
-                Integer dataIndex = dataIndexValue == null ? (primaryList.size() + secondaryList.size() + 1) : dataIndexValue.intValue();
-                String idItem = getXLSFieldValue(sheet, i, defaultColumns.get("idItem"));
-                String idItemGroup = getXLSFieldValue(sheet, i, defaultColumns.get("idItemGroup"));
-                String captionItem = getXLSFieldValue(sheet, i, defaultColumns.get("captionItem"));
-                String originalCaptionItem = getXLSFieldValue(sheet, i, defaultColumns.get("originalCaptionItem"));
-                String UOMItem = getXLSFieldValue(sheet, i, defaultColumns.get("UOMItem"));
-                String idManufacturer = getXLSFieldValue(sheet, i, defaultColumns.get("idManufacturer"));
-                String nameManufacturer = getXLSFieldValue(sheet, i, defaultColumns.get("nameManufacturer"));
-                String sidOrigin2Country = getXLSFieldValue(sheet, i, defaultColumns.get("sidOrigin2Country"));
-                String nameCountry = modifyNameCountry(getXLSFieldValue(sheet, i, defaultColumns.get("nameCountry")));
-                String nameOriginCountry = modifyNameCountry(getXLSFieldValue(sheet, i, defaultColumns.get("nameOriginCountry")));
-                String importCountryBatch = getXLSFieldValue(sheet, i, defaultColumns.get("importCountryBatch"));
-                String idCustomerStock = getXLSFieldValue(sheet, i, defaultColumns.get("idCustomerStock"));
-                idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
-                ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stockId").readClasses(session, new DataObject(idCustomerStock));
-                ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-                String idCustomer = (String) (customerObject == null ? null : findProperty("idLegalEntity").read(session, customerObject));
                 BigDecimal quantity = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("quantity"));
-                BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("price"));
-                if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
-                    price = null;
-                BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("sum"));
-                BigDecimal valueVAT = parseVAT(getXLSFieldValue(sheet, i, defaultColumns.get("valueVAT")));
-                BigDecimal sumVAT = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("sumVAT"));
-                Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-                BigDecimal invoiceSum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("invoiceSum"));
-                BigDecimal manufacturingPrice = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("manufacturingPrice"));
-                String contractPrice = getXLSFieldValue(sheet, i, defaultColumns.get("contractPrice"));
-                BigDecimal shipmentPrice = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("shipmentPrice"));
-                BigDecimal shipmentSum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("shipmentSum"));
-                BigDecimal rateExchange = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("rateExchange"));
-                String numberCompliance = getXLSFieldValue(sheet, i, defaultColumns.get("numberCompliance"));
-                Date dateCompliance = getXLSDateFieldValue(sheet, i, defaultColumns.get("dateCompliance"));
-                String declaration = getXLSFieldValue(sheet, i, defaultColumns.get("declaration"));
-                Date expiryDate = getXLSDateFieldValue(sheet, i, defaultColumns.get("expiryDate"), true);
-                Date manufactureDate = getXLSDateFieldValue(sheet, i, defaultColumns.get("manufactureDate"));
-                String pharmacyPriceGroupItem = getXLSFieldValue(sheet, i, defaultColumns.get("pharmacyPriceGroupItem"));
-                String seriesPharmacy = getXLSFieldValue(sheet, i, defaultColumns.get("seriesPharmacy"));
-                String idArticle = getXLSFieldValue(sheet, i, defaultColumns.get("idArticle"));
-                String captionArticle = getXLSFieldValue(sheet, i, defaultColumns.get("captionArticle"));
-                String originalCaptionArticle = getXLSFieldValue(sheet, i, defaultColumns.get("originalCaptionArticle"));
-                String idColor = getXLSFieldValue(sheet, i, defaultColumns.get("idColor"));
-                String nameColor = getXLSFieldValue(sheet, i, defaultColumns.get("nameColor"));
-                String idCollection = getXLSFieldValue(sheet, i, defaultColumns.get("idCollection"));
-                String nameCollection = getXLSFieldValue(sheet, i, defaultColumns.get("nameCollection"));
-                String idSize = getXLSFieldValue(sheet, i, defaultColumns.get("idSize"));
-                String nameSize = getXLSFieldValue(sheet, i, defaultColumns.get("nameSize"));
-                String nameOriginalSize = getXLSFieldValue(sheet, i, defaultColumns.get("nameOriginalSize"));
-                String idSeasonYear = getXLSFieldValue(sheet, i, defaultColumns.get("idSeasonYear"));
-                String idSeason = getXLSFieldValue(sheet, i, defaultColumns.get("idSeason"));
-                String nameSeason = getXLSFieldValue(sheet, i, defaultColumns.get("nameSeason"));
-                String idBrand = getXLSFieldValue(sheet, i, defaultColumns.get("idBrand"));
-                String nameBrand = getXLSFieldValue(sheet, i, defaultColumns.get("nameBrand"));
-                String idBox = getXLSFieldValue(sheet, i, defaultColumns.get("idBox"));
-                String nameBox = getXLSFieldValue(sheet, i, defaultColumns.get("nameBox"));
-                String idTheme = getXLSFieldValue(sheet, i, defaultColumns.get("idTheme"));
-                String nameTheme = getXLSFieldValue(sheet, i, defaultColumns.get("nameTheme"));
                 BigDecimal netWeight = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeight"));
                 BigDecimal netWeightSum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeightSum"));
                 netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
                 BigDecimal grossWeight = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeight"));
                 BigDecimal grossWeightSum = getXLSBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeightSum"));
                 grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
-                String composition = getXLSFieldValue(sheet, i, defaultColumns.get("composition"));
-                String originalComposition = getXLSFieldValue(sheet, i, defaultColumns.get("originalComposition"));
 
                 LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
                 for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
@@ -731,18 +726,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 }
 
                 if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
-                    PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, importSettings.isPosted(),
-                            idDocument, numberDocument, dateDocument, timeDocument, idSupplier, idSupplierStock, 
-                            currencyDocument, idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup,
-                            originalCustomsGroupItem, captionItem, originalCaptionItem, UOMItem, idManufacturer,
-                            nameManufacturer, sidOrigin2Country, nameCountry, nameOriginCountry, importCountryBatch,
-                            idCustomer, idCustomerStock, quantity, price, sum, VATifAllowed(valueVAT), sumVAT, dateVAT,
-                            defaultCountry, invoiceSum, manufacturingPrice, contractPrice, shipmentPrice, shipmentSum,
-                            rateExchange, numberCompliance, dateCompliance, declaration, expiryDate, manufactureDate,
-                            pharmacyPriceGroupItem, seriesPharmacy, idArticle, captionArticle, originalCaptionArticle,
-                            idColor, nameColor, idCollection, nameCollection, idSize, nameSize, nameOriginalSize,
-                            idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox, idTheme, nameTheme,
-                            netWeight, netWeightSum, grossWeight, grossWeightSum, composition, originalComposition);
+                    PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(),
+                            idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum,
+                            grossWeight, grossWeightSum);
 
                     String primaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
                     String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
@@ -761,8 +747,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext context, DataSession session, byte[] importFile, 
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
-                                                                        Set<String> purchaseInvoiceSet, boolean checkInvoiceExistence,
-                                                                        ImportDocumentSettings importSettings, DataObject userInvoiceObject, String staticNameImportType)
+                                                                        List<String> stringFields, List<String> bigDecimalFields,  List<String> dateFields, List<String> timeFields,
+                                                                        Set<String> purchaseInvoiceSet, 
+                                                                        boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject, 
+                                                                        String staticNameImportType)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<PurchaseInvoiceDetail> primaryList = new ArrayList<PurchaseInvoiceDetail>();
@@ -784,84 +772,60 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         }
 
         for (int count = importSettings.getStartRow(); count <= valuesList.size(); count++) {
+
+            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            for (String field : stringFields) {
+                String value = getCSVFieldValue(valuesList, defaultColumns.get(field), count);
+                if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
+                    fieldValues.put(field, modifyNameCountry(value));
+                else if (field.equals("valueVAT"))
+                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                else if (field.equals("barcodeItem"))
+                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value));
+                else if (field.equals("idCustomerStock")) {
+                    value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                    fieldValues.put("idCustomerStock", value);
+                    fieldValues.put("idCustomer", readIdCustomer(session, value));
+                } else
+                    fieldValues.put(field, value);
+            }
+
+            for (String field : bigDecimalFields) {
+                BigDecimal value = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get(field), count);
+                if (field.equals("dataIndex")) {
+                    fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                } else if (field.equals("price"))
+                    fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                else
+                    fieldValues.put(field, value);
+            }
+
+            for(String field : dateFields) {
+                if(field.equals("dateDocument")) {
+                    Date dateDocument = getCSVDateFieldValue(valuesList, defaultColumns.get(field), count);
+                    Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                    fieldValues.put(field, dateDocument);
+                    fieldValues.put("dateVAT", dateVAT);
+                } else if(field.equals("expiryDate"))
+                    fieldValues.put(field, getCSVDateFieldValue(valuesList, defaultColumns.get(field), count, true));
+                else
+                    fieldValues.put(field, getCSVDateFieldValue(valuesList, defaultColumns.get(field), count));
+            }
+
+            for(String field : timeFields) {
+                fieldValues.put(field, getCSVTimeFieldValue(valuesList, defaultColumns.get(field), count));
+            }
             
             String numberDocument = getCSVFieldValue(valuesList, defaultColumns.get("numberDocument"), count);
             String idDocument = getCSVFieldValue(valuesList, defaultColumns.get("idDocument"), count, numberDocument);
-            Date dateDocument = getCSVDateFieldValue(valuesList, defaultColumns.get("dateDocument"), count);
-            Time timeDocument = getCSVTimeFieldValue(valuesList, defaultColumns.get("timeDocument"), count);
-            String idSupplier = getCSVFieldValue(valuesList, defaultColumns.get("idSupplier"), count);
-            String idSupplierStock = getCSVFieldValue(valuesList, defaultColumns.get("idSupplierStock"), count);
-            String currencyDocument = getCSVFieldValue(valuesList, defaultColumns.get("currencyDocument"), count);
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, count);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getCSVFieldValue(valuesList, defaultColumns.get("barcodeItem"), count), 7);
-            String idBatch = getCSVFieldValue(valuesList, defaultColumns.get("idBatch"), count);
-            BigDecimal dataIndexValue = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("dataIndex"), count);
-            Integer dataIndex = dataIndexValue == null ? (primaryList.size() + secondaryList.size() + 1) : dataIndexValue.intValue();
-            String idItem = getCSVFieldValue(valuesList, defaultColumns.get("idItem"), count);
-            String idItemGroup = getCSVFieldValue(valuesList, defaultColumns.get("idItemGroup"), count);
-            String originalCustomsGroupItem = getCSVFieldValue(valuesList, defaultColumns.get("originalCustomsGroupItem"), count);
-            String captionItem = getCSVFieldValue(valuesList, defaultColumns.get("captionItem"), count);
-            String originalCaptionItem = getCSVFieldValue(valuesList, defaultColumns.get("originalCaptionItem"), count);
-            String UOMItem = getCSVFieldValue(valuesList, defaultColumns.get("UOMItem"), count);
-            String idManufacturer = getCSVFieldValue(valuesList, defaultColumns.get("idManufacturer"), count);
-            String nameManufacturer = getCSVFieldValue(valuesList, defaultColumns.get("nameManufacturer"), count);
-            String sidOrigin2Country = getCSVFieldValue(valuesList, defaultColumns.get("sidOrigin2Country"), count);
-            String nameCountry = modifyNameCountry(getCSVFieldValue(valuesList, defaultColumns.get("nameCountry"), count));
-            String nameOriginCountry = modifyNameCountry(getCSVFieldValue(valuesList, defaultColumns.get("nameOriginCountry"), count));
-            String importCountryBatch = getCSVFieldValue(valuesList, defaultColumns.get("importCountryBatch"), count);
-            String idCustomerStock = getCSVFieldValue(valuesList, defaultColumns.get("idCustomerStock"), count);
-            idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
-            ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stockId").readClasses(session, new DataObject(idCustomerStock));
-            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-            String idCustomer = (String) (customerObject == null ? null : findProperty("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("quantity"), count);
-            BigDecimal price = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("price"), count);
-            if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
-                price = null;
-            BigDecimal sum = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("sum"), count);
-            BigDecimal valueVAT = parseVAT(getCSVFieldValue(valuesList, defaultColumns.get("valueVAT"), count));
-            BigDecimal sumVAT = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("sumVAT"), count);
-            Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-            BigDecimal invoiceSum = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("invoiceSum"), count);
-            BigDecimal manufacturingPrice = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("manufacturingPrice"), count);
-            String contractPrice = getCSVFieldValue(valuesList, defaultColumns.get("contractPrice"), count);
-            BigDecimal shipmentPrice = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("shipmentPrice"), count);
-            BigDecimal shipmentSum = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("shipmentSum"), count);
-            BigDecimal rateExchange = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("rateExchange"), count);
-            String numberCompliance = getCSVFieldValue(valuesList, defaultColumns.get("numberCompliance"), count);
-            Date dateCompliance = getCSVDateFieldValue(valuesList, defaultColumns.get("dateCompliance"), count);
-            String declaration = getCSVFieldValue(valuesList, defaultColumns.get("declaration"), count);
-            Date expiryDate = getCSVDateFieldValue(valuesList, defaultColumns.get("expiryDate"), count, true);
-            Date manufactureDate = getCSVDateFieldValue(valuesList, defaultColumns.get("manufactureDate"), count);
-            String pharmacyPriceGroupItem = getCSVFieldValue(valuesList, defaultColumns.get("pharmacyPriceGroupItem"), count);
-            String seriesPharmacy = getCSVFieldValue(valuesList, defaultColumns.get("seriesPharmacy"), count);
-            String idArticle = getCSVFieldValue(valuesList, defaultColumns.get("idArticle"), count);
-            String captionArticle = getCSVFieldValue(valuesList, defaultColumns.get("captionArticle"), count);
-            String originalCaptionArticle = getCSVFieldValue(valuesList, defaultColumns.get("originalCaptionArticle"), count);
-            String idColor = getCSVFieldValue(valuesList, defaultColumns.get("idColor"), count);
-            String nameColor = getCSVFieldValue(valuesList, defaultColumns.get("nameColor"), count);
-            String idCollection = getCSVFieldValue(valuesList, defaultColumns.get("idCollection"), count);
-            String nameCollection = getCSVFieldValue(valuesList, defaultColumns.get("nameCollection"), count);
-            String idSize = getCSVFieldValue(valuesList, defaultColumns.get("idSize"), count);
-            String nameSize = getCSVFieldValue(valuesList, defaultColumns.get("nameSize"), count);
-            String nameOriginalSize = getCSVFieldValue(valuesList, defaultColumns.get("nameOriginalSize"), count);
-            String idSeasonYear = getCSVFieldValue(valuesList, defaultColumns.get("idSeasonYear"), count);
-            String idSeason = getCSVFieldValue(valuesList, defaultColumns.get("idSeason"), count);
-            String nameSeason = getCSVFieldValue(valuesList, defaultColumns.get("nameSeason"), count);
-            String idBrand = getCSVFieldValue(valuesList, defaultColumns.get("idBrand"), count);
-            String nameBrand = getCSVFieldValue(valuesList, defaultColumns.get("nameBrand"), count);
-            String idBox = getCSVFieldValue(valuesList, defaultColumns.get("idBox"), count);
-            String nameBox = getCSVFieldValue(valuesList, defaultColumns.get("nameBox"), count);
-            String idTheme = getCSVFieldValue(valuesList, defaultColumns.get("idTheme"), count);
-            String nameTheme = getCSVFieldValue(valuesList, defaultColumns.get("nameTheme"), count);
             BigDecimal netWeight = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("netWeight"), count);
             BigDecimal netWeightSum = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("netWeightSum"), count);
             netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
             BigDecimal grossWeight = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("grossWeight"), count);
             BigDecimal grossWeightSum = getCSVBigDecimalFieldValue(valuesList, defaultColumns.get("grossWeight"), count);
             grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
-            String composition = getCSVFieldValue(valuesList, defaultColumns.get("composition"), count);
-            String originalComposition = getCSVFieldValue(valuesList, defaultColumns.get("originalComposition"), count);
 
             LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
             for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
@@ -869,18 +833,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             }
 
             if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
-                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, importSettings.isPosted(), idDocument,
-                        numberDocument, dateDocument, timeDocument, idSupplier, idSupplierStock, currencyDocument, 
-                        idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem,
-                        captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, 
-                        nameCountry, nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock, quantity, price,
-                        sum, VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry, invoiceSum, manufacturingPrice,
-                        contractPrice, shipmentPrice, shipmentSum, rateExchange, numberCompliance, dateCompliance,
-                        declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle,
-                        captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize,
-                        nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox,
-                        idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition,
-                        originalComposition);
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(), 
+                        idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
 
                 String primaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(primaryKeyColumn), count);
                 String secondaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(secondaryKeyColumn), count);
@@ -898,8 +852,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(ExecutionContext context, DataSession session, byte[] importFile, 
                                                                          Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, 
-                                                                         Set<String> purchaseInvoiceSet, boolean checkInvoiceExistence,
-                                                                         ImportDocumentSettings importSettings, DataObject userInvoiceObject,
+                                                                         List<String> stringFields, List<String> bigDecimalFields,  List<String> dateFields, List<String> timeFields,
+                                                                         Set<String> purchaseInvoiceSet, 
+                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                          String staticNameImportType)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -917,83 +872,59 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
         for (int i = importSettings.getStartRow() - 1; i <= sheet.getLastRowNum(); i++) {
 
+            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            for (String field : stringFields) {
+                String value = getXLSXFieldValue(sheet, i, defaultColumns.get(field));
+                if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
+                    fieldValues.put(field, modifyNameCountry(value));
+                else if (field.equals("valueVAT"))
+                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                else if (field.equals("barcodeItem"))
+                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                else if (field.equals("idCustomerStock")) {
+                    value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                    fieldValues.put("idCustomerStock", value);
+                    fieldValues.put("idCustomer", readIdCustomer(session, value));
+                } else
+                    fieldValues.put(field, value);
+            }
+
+            for (String field : bigDecimalFields) {
+                BigDecimal value = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get(field));
+                if (field.equals("dataIndex")) {
+                    fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                } else if (field.equals("price"))
+                    fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                else
+                    fieldValues.put(field, value);
+            }
+
+            for (String field : dateFields) {
+                if (field.equals("dateDocument")) {
+                    Date dateDocument = getXLSXDateFieldValue(sheet, i, defaultColumns.get(field));
+                    Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                    fieldValues.put(field, dateDocument);
+                    fieldValues.put("dateVAT", dateVAT);
+                } else if (field.equals("expiryDate"))
+                    fieldValues.put(field, getXLSXDateFieldValue(sheet, i, defaultColumns.get(field), true));
+                else
+                    fieldValues.put(field, getXLSXDateFieldValue(sheet, i, defaultColumns.get(field)));
+            }
+
+            for(String field : timeFields) {
+                fieldValues.put(field, getXLSXTimeFieldValue(sheet, i, defaultColumns.get(field)));
+            }
+            
             String numberDocument = getXLSXFieldValue(sheet, i, defaultColumns.get("numberDocument"));
             String idDocument = getXLSXFieldValue(sheet, i, defaultColumns.get("idDocument"), numberDocument);
-            Date dateDocument = getXLSXDateFieldValue(sheet, i, defaultColumns.get("dateDocument"));
-            Time timeDocument = getXLSXTimeFieldValue(sheet, i, defaultColumns.get("timeDocument"));
-            String idSupplier = getXLSXFieldValue(sheet, i, defaultColumns.get("idSupplier"));
-            String idSupplierStock = getXLSXFieldValue(sheet, i, defaultColumns.get("idSupplierStock"));
-            String currencyDocument = getXLSXFieldValue(sheet, i, defaultColumns.get("currencyDocument"));
             String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getXLSXFieldValue(sheet, i, defaultColumns.get("barcodeItem")), 7);
-            String idBatch = getXLSXFieldValue(sheet, i, defaultColumns.get("idBatch"));
-            BigDecimal dataIndexValue = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("dataIndex"));
-            Integer dataIndex = dataIndexValue == null ? (primaryList.size() + secondaryList.size() + 1) : dataIndexValue.intValue();
-            String idItem = getXLSXFieldValue(sheet, i, defaultColumns.get("idItem"));
-            String idItemGroup = getXLSXFieldValue(sheet, i, defaultColumns.get("idItemGroup"));
-            String originalCustomsGroupItem = getXLSXFieldValue(sheet, i, defaultColumns.get("originalCustomsGroupItem"));
-            String captionItem = getXLSXFieldValue(sheet, i, defaultColumns.get("captionItem"));
-            String originalCaptionItem = getXLSXFieldValue(sheet, i, defaultColumns.get("originalCaptionItem"));
-            String UOMItem = getXLSXFieldValue(sheet, i, defaultColumns.get("UOMItem"));
-            String idManufacturer = getXLSXFieldValue(sheet, i, defaultColumns.get("idManufacturer"));
-            String nameManufacturer = getXLSXFieldValue(sheet, i, defaultColumns.get("nameManufacturer"));
-            String sidOrigin2Country = getXLSXFieldValue(sheet, i, defaultColumns.get("sidOrigin2Country"));
-            String nameCountry = modifyNameCountry(getXLSXFieldValue(sheet, i, defaultColumns.get("nameCountry")));
-            String nameOriginCountry = modifyNameCountry(getXLSXFieldValue(sheet, i, defaultColumns.get("nameOriginCountry")));
-            String importCountryBatch = getXLSXFieldValue(sheet, i, defaultColumns.get("importCountryBatch"));
-            String idCustomerStock = getXLSXFieldValue(sheet, i, defaultColumns.get("idCustomerStock"));
-            idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
-            ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stockId").readClasses(session, new DataObject(idCustomerStock));
-            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-            String idCustomer = (String) (customerObject == null ? null : findProperty("idLegalEntity").read(session, customerObject));
             BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("quantity"));
-            BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("price"));
-            if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
-                price = null;
-            BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("sum"));
-            BigDecimal valueVAT = parseVAT(getXLSXFieldValue(sheet, i, defaultColumns.get("valueVAT")));
-            BigDecimal sumVAT = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("sumVAT"));
-            Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-            BigDecimal invoiceSum = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("invoiceSum"));
-            BigDecimal manufacturingPrice = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("manufacturingPrice"));
-            String contractPrice = getXLSXFieldValue(sheet, i, defaultColumns.get("contractPrice"));
-            BigDecimal shipmentPrice = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("shipmentPrice"));
-            BigDecimal shipmentSum = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("shipmentSum"));
-            BigDecimal rateExchange = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("rateExchange"));
-            String numberCompliance = getXLSXFieldValue(sheet, i, defaultColumns.get("numberCompliance"));
-            Date dateCompliance = getXLSXDateFieldValue(sheet, i, defaultColumns.get("dateCompliance"));
-            String declaration = getXLSXFieldValue(sheet, i, defaultColumns.get("declaration"));
-            Date expiryDate = getXLSXDateFieldValue(sheet, i, defaultColumns.get("expiryDate"), true);
-            Date manufactureDate = getXLSXDateFieldValue(sheet, i, defaultColumns.get("manufactureDate"));
-            String pharmacyPriceGroupItem = getXLSXFieldValue(sheet, i, defaultColumns.get("pharmacyPriceGroupItem"));
-            String seriesPharmacy = getXLSXFieldValue(sheet, i, defaultColumns.get("seriesPharmacy"));
-            String idArticle = getXLSXFieldValue(sheet, i, defaultColumns.get("idArticle"));
-            String captionArticle = getXLSXFieldValue(sheet, i, defaultColumns.get("captionArticle"));
-            String originalCaptionArticle = getXLSXFieldValue(sheet, i, defaultColumns.get("originalCaptionArticle"));
-            String idColor = getXLSXFieldValue(sheet, i, defaultColumns.get("idColor"));
-            String nameColor = getXLSXFieldValue(sheet, i, defaultColumns.get("nameColor"));
-            String idCollection = getXLSXFieldValue(sheet, i, defaultColumns.get("idCollection"));
-            String nameCollection = getXLSXFieldValue(sheet, i, defaultColumns.get("nameCollection"));
-            String idSize = getXLSXFieldValue(sheet, i, defaultColumns.get("idSize"));
-            String nameSize = getXLSXFieldValue(sheet, i, defaultColumns.get("nameSize"));
-            String nameOriginalSize = getXLSXFieldValue(sheet, i, defaultColumns.get("nameOriginalSize"));
-            String idSeasonYear = getXLSXFieldValue(sheet, i, defaultColumns.get("idSeasonYear"));
-            String idSeason = getXLSXFieldValue(sheet, i, defaultColumns.get("idSeason"));
-            String nameSeason = getXLSXFieldValue(sheet, i, defaultColumns.get("nameSeason"));
-            String idBrand = getXLSXFieldValue(sheet, i, defaultColumns.get("idBrand"));
-            String nameBrand = getXLSXFieldValue(sheet, i, defaultColumns.get("nameBrand"));
-            String idBox = getXLSXFieldValue(sheet, i, defaultColumns.get("idBox"));
-            String nameBox = getXLSXFieldValue(sheet, i, defaultColumns.get("nameBox"));
-            String idTheme = getXLSXFieldValue(sheet, i, defaultColumns.get("idTheme"));
-            String nameTheme = getXLSXFieldValue(sheet, i, defaultColumns.get("nameTheme"));
             BigDecimal netWeight = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeight"));
             BigDecimal netWeightSum = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("netWeightSum"));
             netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
             BigDecimal grossWeight = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeight"));
             BigDecimal grossWeightSum = getXLSXBigDecimalFieldValue(sheet, i, defaultColumns.get("grossWeightSum"));
             grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
-            String composition = getXLSXFieldValue(sheet, i, defaultColumns.get("composition"));
-            String originalComposition = getXLSXFieldValue(sheet, i, defaultColumns.get("originalComposition"));
 
             LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
             for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
@@ -1001,18 +932,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             }
 
             if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
-                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, importSettings.isPosted(), idDocument,
-                        numberDocument, dateDocument, timeDocument, idSupplier, idSupplierStock, currencyDocument, 
-                        idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem,
-                        captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country, 
-                        nameCountry, nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock, quantity, price, 
-                        sum, VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry, invoiceSum, manufacturingPrice,
-                        contractPrice, shipmentPrice, shipmentSum, rateExchange, numberCompliance, dateCompliance,
-                        declaration, expiryDate, manufactureDate, pharmacyPriceGroupItem, seriesPharmacy, idArticle,
-                        captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize,
-                        nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox,
-                        idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition,
-                        originalComposition);
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(), 
+                        idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
 
                 String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
@@ -1030,8 +951,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
     private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(ExecutionContext context, DataSession session, byte[] importFile, 
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
-                                                                        Set<String> purchaseInvoiceSet, boolean checkInvoiceExistence,
-                                                                        ImportDocumentSettings importSettings, DataObject userInvoiceObject,
+                                                                        List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
+                                                                        Set<String> purchaseInvoiceSet, 
+                                                                        boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType)
             throws IOException, xBaseJException, UniversalImportException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -1059,83 +981,62 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             file.read();
 
+            Map<String, Object> fieldValues = new HashMap<String, Object>();
+
+            for (String field : stringFields) {
+
+                String value = getDBFFieldValue(file, defaultColumns.get(field), i, charset);
+                if (field.equals("nameCountry") || field.equals("nameOriginCountry"))
+                    fieldValues.put(field, modifyNameCountry(value));
+                else if (field.equals("valueVAT"))
+                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                else if (field.equals("barcodeItem"))
+                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                else if (field.equals("idCustomerStock")) {
+                    value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
+                    fieldValues.put("idCustomerStock", value);
+                    fieldValues.put("idCustomer", readIdCustomer(session, value));
+                } else
+                    fieldValues.put(field, value);
+
+            }
+
+            for (String field : bigDecimalFields) {
+                BigDecimal value = getDBFBigDecimalFieldValue(file, defaultColumns.get(field), i, charset);
+                if (field.equals("dataIndex")) {
+                    fieldValues.put(field, value == null ? (primaryList.size() + secondaryList.size() + 1) : value.intValue());
+                } else if (field.equals("price"))
+                    fieldValues.put(field, value != null && value.compareTo(new BigDecimal("100000000000")) > 0 ? null : value);
+                else
+                    fieldValues.put(field, value);
+            }
+
+            for (String field : dateFields) {
+                if (field.equals("dateDocument")) {
+                    Date dateDocument = getDBFDateFieldValue(file, defaultColumns.get(field), i, charset);
+                    Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
+                    fieldValues.put(field, dateDocument);
+                    fieldValues.put("dateVAT", dateVAT);
+                } else if (field.equals("expiryDate"))
+                    fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset, true));
+                else
+                    fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset));
+            }
+
+            for(String field : timeFields) {
+                fieldValues.put(field, getDBFTimeFieldValue(file, defaultColumns.get(field), i, charset));
+            }
+            
             String numberDocument = getDBFFieldValue(file, defaultColumns.get("numberDocument"), i, charset);
             String idDocument = getDBFFieldValue(file, defaultColumns.get("idDocument"), i, charset, numberDocument);
-            Date dateDocument = getDBFDateFieldValue(file, defaultColumns.get("dateDocument"), i, charset);
-            Time timeDocument = getDBFTimeFieldValue(file, defaultColumns.get("timeDocument"), i, charset);
-            String idSupplier = getDBFFieldValue(file, defaultColumns.get("idSupplier"), i, charset);
-            String idSupplierStock = getDBFFieldValue(file, defaultColumns.get("idSupplierStock"), i, charset);
-            String currencyDocument = getDBFFieldValue(file, defaultColumns.get("currencyDocument"), i, charset);
-            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);
-            String barcodeItem = BarcodeUtils.appendCheckDigitToBarcode(getDBFFieldValue(file, defaultColumns.get("barcodeItem"), i, charset), 7);
-            String idBatch = getDBFFieldValue(file, defaultColumns.get("idBatch"), i, charset);
-            BigDecimal dataIndexValue = getDBFBigDecimalFieldValue(file, defaultColumns.get("dataIndex"), i, charset, new BigDecimal(primaryList.size() + secondaryList.size() + 1));
-            Integer dataIndex = dataIndexValue == null ? null : dataIndexValue.intValue();
-            String idItem = getDBFFieldValue(file, defaultColumns.get("idItem"), i, charset);
-            String idItemGroup = getDBFFieldValue(file, defaultColumns.get("idItemGroup"), i, charset);
-            String originalCustomsGroupItem = getDBFFieldValue(file, defaultColumns.get("originalCustomsGroupItem"), i, charset);
-            String captionItem = getDBFFieldValue(file, defaultColumns.get("captionItem"), i, charset);
-            String originalCaptionItem = getDBFFieldValue(file, defaultColumns.get("originalCaptionItem"), i, charset);
-            String UOMItem = getDBFFieldValue(file, defaultColumns.get("UOMItem"), i, charset);
-            String idManufacturer = getDBFFieldValue(file, defaultColumns.get("idManufacturer"), i, charset);
-            String nameManufacturer = getDBFFieldValue(file, defaultColumns.get("nameManufacturer"), i, charset);
-            String sidOrigin2Country = getDBFFieldValue(file, defaultColumns.get("sidOrigin2Country"), i, charset);
-            String nameCountry = modifyNameCountry(getDBFFieldValue(file, defaultColumns.get("nameCountry"), i, charset));
-            String nameOriginCountry = modifyNameCountry(getDBFFieldValue(file, defaultColumns.get("nameOriginCountry"), i, charset));
-            String importCountryBatch = getDBFFieldValue(file, defaultColumns.get("importCountryBatch"), i, charset);
-            String idCustomerStock = getDBFFieldValue(file, defaultColumns.get("idCustomerStock"), i, charset);
-            idCustomerStock = importSettings.getStockMapping().containsKey(idCustomerStock) ? importSettings.getStockMapping().get(idCustomerStock) : idCustomerStock;
-            ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stockId").readClasses(session, new DataObject(idCustomerStock));
-            ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
-            String idCustomer = (String) (customerObject == null ? null : findProperty("idLegalEntity").read(session, customerObject));
+            String idUserInvoiceDetail = makeIdUserInvoiceDetail(idDocument, userInvoiceObject, i);    
             BigDecimal quantity = getDBFBigDecimalFieldValue(file, defaultColumns.get("quantity"), i, charset);
-            BigDecimal price = getDBFBigDecimalFieldValue(file, defaultColumns.get("price"), i, charset);
-            if (price != null && price.compareTo(new BigDecimal("100000000000")) > 0)
-                price = null;
-            BigDecimal sum = getDBFBigDecimalFieldValue(file, defaultColumns.get("sum"), i, charset);
-            BigDecimal valueVAT = parseVAT(getDBFFieldValue(file, defaultColumns.get("valueVAT"), i, charset));
-            BigDecimal sumVAT = getDBFBigDecimalFieldValue(file, defaultColumns.get("sumVAT"), i, charset);
-            Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
-            BigDecimal invoiceSum = getDBFBigDecimalFieldValue(file, defaultColumns.get("invoiceSum"), i, charset);
-            BigDecimal manufacturingPrice = getDBFBigDecimalFieldValue(file, defaultColumns.get("manufacturingPrice"), i, charset);
-            String numberCompliance = getDBFFieldValue(file, defaultColumns.get("numberCompliance"), i, charset);
-            String contractPrice = getDBFFieldValue(file, defaultColumns.get("contractPrice"), i, charset);
-            BigDecimal shipmentPrice = getDBFBigDecimalFieldValue(file, defaultColumns.get("shipmentPrice"), i, charset);
-            BigDecimal shipmentSum = getDBFBigDecimalFieldValue(file, defaultColumns.get("shipmentSum"), i, charset);
-            BigDecimal rateExchange = getDBFBigDecimalFieldValue(file, defaultColumns.get("rateExchange"), i, charset);
-            Date dateCompliance = getDBFDateFieldValue(file, defaultColumns.get("dateCompliance"), i, charset);
-            String declaration = getDBFFieldValue(file, defaultColumns.get("declaration"), i, charset);
-            Date expiryDate = getDBFDateFieldValue(file, defaultColumns.get("expiryDate"), i, charset, true);
-            Date manufactureDate = getDBFDateFieldValue(file, defaultColumns.get("manufactureDate"), i, charset);
-            String pharmacyPriceGroup = getDBFFieldValue(file, defaultColumns.get("pharmacyPriceGroupItem"), i, charset);
-            String seriesPharmacy = getDBFFieldValue(file, defaultColumns.get("seriesPharmacy"), i, charset);
-            String idArticle = getDBFFieldValue(file, defaultColumns.get("idArticle"), i, charset);
-            String captionArticle = getDBFFieldValue(file, defaultColumns.get("captionArticle"), i, charset);
-            String originalCaptionArticle = getDBFFieldValue(file, defaultColumns.get("originalCaptionArticle"), i, charset);
-            String idColor = getDBFFieldValue(file, defaultColumns.get("idColor"), i, charset);
-            String nameColor = getDBFFieldValue(file, defaultColumns.get("nameColor"), i, charset);
-            String idCollection = getDBFFieldValue(file, defaultColumns.get("idCollection"), i, charset);
-            String nameCollection = getDBFFieldValue(file, defaultColumns.get("nameCollection"), i, charset);
-            String idSize = getDBFFieldValue(file, defaultColumns.get("idSize"), i, charset);
-            String nameSize = getDBFFieldValue(file, defaultColumns.get("nameSize"), i, charset);
-            String nameOriginalSize = getDBFFieldValue(file, defaultColumns.get("nameOriginalSize"), i, charset);
-            String idSeasonYear = getDBFFieldValue(file, defaultColumns.get("idSeasonYear"), i, charset);
-            String idSeason = getDBFFieldValue(file, defaultColumns.get("idSeason"), i, charset);
-            String nameSeason = getDBFFieldValue(file, defaultColumns.get("nameSeason"), i, charset);
-            String idBrand = getDBFFieldValue(file, defaultColumns.get("idBrand"), i, charset);
-            String nameBrand = getDBFFieldValue(file, defaultColumns.get("nameBrand"), i, charset);
-            String idBox = getDBFFieldValue(file, defaultColumns.get("idBox"), i, charset);
-            String nameBox = getDBFFieldValue(file, defaultColumns.get("nameBox"), i, charset);
-            String idTheme = getDBFFieldValue(file, defaultColumns.get("idTheme"), i, charset);
-            String nameTheme = getDBFFieldValue(file, defaultColumns.get("nameTheme"), i, charset);
             BigDecimal netWeight = getDBFBigDecimalFieldValue(file, defaultColumns.get("netWeight"), i, charset);
             BigDecimal netWeightSum = getDBFBigDecimalFieldValue(file, defaultColumns.get("netWeightSum"), i, charset);
             netWeight = netWeight == null ? safeDivide(netWeightSum, quantity) : netWeight;
             BigDecimal grossWeight = getDBFBigDecimalFieldValue(file, defaultColumns.get("grossWeight"), i, charset);
             BigDecimal grossWeightSum = getDBFBigDecimalFieldValue(file, defaultColumns.get("grossWeightSum"), i, charset);
             grossWeight = grossWeight == null ? safeDivide(grossWeightSum, quantity) : grossWeight;
-            String composition = getDBFFieldValue(file, defaultColumns.get("composition"), i, charset);
-            String originalComposition = getDBFFieldValue(file, defaultColumns.get("originalComposition"), i, charset);
 
             LinkedHashMap<String, String> customValues = new LinkedHashMap<String, String>();
             for(Map.Entry<String, ImportColumnDetail> column : customColumns.entrySet()) {
@@ -1143,18 +1044,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             }
 
             if(checkInvoice(purchaseInvoiceSet, idDocument, checkInvoiceExistence)) {
-                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, importSettings.isPosted(), idDocument,
-                        numberDocument, dateDocument, timeDocument, idSupplier, idSupplierStock, currencyDocument, 
-                        idUserInvoiceDetail, barcodeItem, idBatch, dataIndex, idItem, idItemGroup, originalCustomsGroupItem,
-                        captionItem, originalCaptionItem, UOMItem, idManufacturer, nameManufacturer, sidOrigin2Country,
-                        nameCountry, nameOriginCountry, importCountryBatch, idCustomer, idCustomerStock, quantity, price,
-                        sum, VATifAllowed(valueVAT), sumVAT, dateVAT, defaultCountry, invoiceSum, manufacturingPrice,
-                        contractPrice, shipmentPrice, shipmentSum, rateExchange, numberCompliance, dateCompliance,
-                        declaration, expiryDate, manufactureDate, pharmacyPriceGroup, seriesPharmacy, idArticle,
-                        captionArticle, originalCaptionArticle, idColor, nameColor, idCollection, nameCollection, idSize,
-                        nameSize, nameOriginalSize, idSeasonYear, idSeason, nameSeason, idBrand, nameBrand, idBox, nameBox,
-                        idTheme, nameTheme, netWeight, netWeightSum, grossWeight, grossWeightSum, composition,
-                        originalComposition);
+                PurchaseInvoiceDetail purchaseInvoiceDetail = new PurchaseInvoiceDetail(customValues, fieldValues, importSettings.isPosted(), 
+                        idDocument, numberDocument, idUserInvoiceDetail, quantity, netWeight, netWeightSum, grossWeight, grossWeightSum);
 
                 String primaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(primaryKeyColumn), i, charset);
                 String secondaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(secondaryKeyColumn), i, charset);
@@ -1191,11 +1082,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 Map<String, Object[]> duplicateArticles = new HashMap<String, Object[]>();
                 primaryList.addAll(secondaryList);
                 for (PurchaseInvoiceDetail invoiceDetail : primaryList) {
-                    String oldPropertyArticle = articlePropertyMap.get(invoiceDetail.idArticle);
+                    String oldPropertyArticle = articlePropertyMap.get(invoiceDetail.getFieldValue("idArticle"));
                     Object propertyValue = getField(invoiceDetail, staticNameImportType);
                     if (propertyValue != null && oldPropertyArticle != null && !oldPropertyArticle.equals(propertyValue) 
-                            && !(propertyValue.toString().contains(oldPropertyArticle)) && !duplicateArticles.containsKey(invoiceDetail.idArticle)) {
-                        duplicateArticles.put(invoiceDetail.idArticle, new Object[]{oldPropertyArticle, propertyValue});
+                            && !(propertyValue.toString().contains(oldPropertyArticle)) && !duplicateArticles.containsKey(invoiceDetail.getFieldValue("idArticle"))) {
+                        duplicateArticles.put((String) invoiceDetail.getFieldValue("idArticle"), new Object[]{oldPropertyArticle, propertyValue});
                     }
                 }
 
@@ -1295,6 +1186,12 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         Date currentDateDocument = userInvoiceObject == null ? defaultDate :
                 (Date) findProperty("Purchase.dateUserInvoice").read(session, userInvoiceObject);
         return currentDateDocument == null ? defaultDate : currentDateDocument;
+    }
+    
+    private String readIdCustomer(DataSession session, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stockId").readClasses(session, new DataObject(idCustomerStock));
+        ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntityStock").readClasses(session, (DataObject) customerStockObject));
+        return (String) (customerObject == null ? null : findProperty("idLegalEntity").read(session, customerObject));
     }
 }
 

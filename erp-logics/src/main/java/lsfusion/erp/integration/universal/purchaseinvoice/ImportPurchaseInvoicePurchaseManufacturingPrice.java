@@ -27,7 +27,7 @@ public class ImportPurchaseInvoicePurchaseManufacturingPrice extends ImportDefau
             if (showField(userInvoiceDetailsList, "manufacturingPrice")) {
                 addDataField(props, fields, defaultColumns, LM.findProperty("Purchase.manufacturingPriceUserInvoiceDetail"), "manufacturingPrice", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).manufacturingPrice);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("manufacturingPrice"));
             }
 
         }

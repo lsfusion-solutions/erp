@@ -35,17 +35,17 @@ public class ImportPurchaseInvoicePurchaseCompliance extends ImportDefaultPurcha
                         object(LM.findClass("Compliance")).getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
                 fields.add(numberComplianceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).numberCompliance);
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("numberCompliance"));
 
 
                 if (showField(userInvoiceDetailsList, "dateCompliance")) {
                     addDataField(props, fields, defaultColumns, LM.findProperty("dateCompliance"), "dateCompliance", complianceKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("dateCompliance"));
 
                     addDataField(props, fields, defaultColumns, LM.findProperty("fromDateCompliance"), "dateCompliance", complianceKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(userInvoiceDetailsList.get(i).dateCompliance);
+                        data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("dateCompliance"));
                 }
             }
             
