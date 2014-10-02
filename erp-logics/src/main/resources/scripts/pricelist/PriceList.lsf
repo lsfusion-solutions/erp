@@ -389,9 +389,15 @@ isActivePriceListDetail(priceListDetail) = (fromDateTimePriceListDetail(priceLis
 //        THEN RGB(255, 226, 226) IF priceList IS PriceList
 //    ELSE
 //        RGB(226, 255, 226) IF fromDateTimePriceList(priceList) > currentDateTime();
+
+isOverBackgroundPriceList (priceList) =  ABSTRACT BOOLEAN (PriceList);  
+overBackgroundPriceList (priceList) =  ABSTRACT CASE COLOR (PriceList);  
         
-backgroundPriceList 'Цвет' (priceList) = CASE WHEN fromDateTimePriceList(priceList) > currentDateTime() THEN RGB(224,255,224)
-                                              WHEN toDateTimePriceList(priceList) < currentDateTime() THEN RGB(255,224,224);        
+defaultBackgroundPriceList 'Цвет' (priceList) = CASE WHEN fromDateTimePriceList(priceList) > currentDateTime() THEN RGB(224,255,224)
+                                              WHEN toDateTimePriceList(priceList) < currentDateTime() THEN RGB(255,224,224);      
+                                                
+backgroundPriceList 'Цвет' (priceList) = IF isOverBackgroundPriceList (priceList) THEN overBackgroundPriceList (priceList)
+                                                                                ELSE defaultBackgroundPriceList(priceList);
 
 backgroundPriceListDetail 'Цвет' (priceListDetail) =  ABSTRACT CASE COLOR (PriceListDetail);
 //    IF currentDateTime() > toDateTimePriceListDetail(priceListDetail)
