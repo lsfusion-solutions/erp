@@ -1,9 +1,6 @@
 package equ.api;
 
-import equ.api.cashregister.CashDocument;
-import equ.api.cashregister.CashRegisterInfo;
-import equ.api.cashregister.RequestExchange;
-import equ.api.cashregister.StopListInfo;
+import equ.api.cashregister.*;
 import equ.api.terminal.TerminalDocumentDetail;
 import equ.api.terminal.TerminalInfo;
 
@@ -39,6 +36,10 @@ public interface EquipmentServerInterface extends Remote {
     List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException;
 
     void finishRequestExchange(Set<Integer> succeededRequestsSet) throws RemoteException, SQLException;
+
+    Map<String, BigDecimal> readZReportSumMap() throws RemoteException, SQLException;
+    
+    void succeedExtraCheckZReport(List<String> idZReportList) throws RemoteException, SQLException;
 
     String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException;
 

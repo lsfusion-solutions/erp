@@ -339,6 +339,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
+    public ExtraCheckZReportBatch extraCheckZReportSum(List<CashRegisterInfo> cashRegisterInfoList, Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
+        return null;
+    }
+
+    @Override
     public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
     }
 

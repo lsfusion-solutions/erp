@@ -529,6 +529,80 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 new Kristal10SalesBatch(salesInfoList, filePathList);
     }
 
+    @Override
+    public ExtraCheckZReportBatch extraCheckZReportSum(List<CashRegisterInfo> cashRegisterInfoList, Map<String, BigDecimal> zReportSumMap) {
+
+        String message = "";
+        List<String> idZReportList = new ArrayList<String>();
+        
+        Set<String> directorySet = new HashSet<String>();
+        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<String, Integer>();
+        for (CashRegisterInfo c : cashRegisterInfoList) {
+            if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler"))
+                directorySet.add(c.directory);
+            if (c.directory != null && c.number != null && c.numberGroup != null)
+                directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
+        }
+
+        for (String directory : directorySet) {
+
+            String exchangeDirectory = directory + "/reports/";
+
+            File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
+                @Override
+                public boolean accept(File pathname) {
+                    return pathname.getName().startsWith("zreports") && pathname.getPath().endsWith(".xml");
+                }
+            });
+
+            if (filesList != null && filesList.length > 0) {
+                logger.info("Kristal: found " + filesList.length + " z-report(s) in " + exchangeDirectory);
+
+                for (File file : filesList) {
+                    try {
+                        String fileName = file.getName();
+                        logger.info("Kristal: reading " + fileName);
+                        if (isFileLocked(file)) {
+                            logger.info("Kristal: " + fileName + " is locked");
+                        } else {
+                            SAXBuilder builder = new SAXBuilder();
+
+                            Document document = builder.build(file);
+                            Element rootNode = document.getRootElement();
+                            List zReportsList = rootNode.getChildren("zreport");
+
+                            for (Object zReportNode : zReportsList) {
+
+                                Integer numberCashRegister = readIntegerXMLValue(zReportNode, "cashNumber");
+                                Integer numberGroupCashRegister = directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister);
+                                String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
+                                String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport;
+
+                                BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
+                                BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
+                                BigDecimal kristalSum = safeSubtract(sumSale, sumReturn);
+                                BigDecimal fusionSum = zReportSumMap.get(idZReport);
+                                
+                                if(fusionSum == null || kristalSum == null || fusionSum.doubleValue() != kristalSum.doubleValue())
+                                    message += String.format("CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n",
+                                            numberCashRegister, numberZReport, fusionSum, kristalSum);
+                                else 
+                                    idZReportList.add(idZReport);
+                            }
+                            File successDir = new File(file.getParent() + "/success/");
+                            if (successDir.exists() || successDir.mkdirs())
+                                FileCopyUtils.copy(file, new File(file.getParent() + "/success/" + file.getName()));
+                            file.delete();
+                        }
+                    } catch (Throwable e) {
+                        logger.error("File: " + file.getAbsolutePath(), e);
+                    }                
+                }
+            }
+        }
+        return idZReportList.isEmpty() && message.isEmpty() ? null : new ExtraCheckZReportBatch(idZReportList, message);
+    }
+
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
         if (operand1 == null && operand2 == null)
             return null;
@@ -542,6 +616,17 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
     }
 
+    private String readStringXMLValue(Object element, String field) {
+        if (element == null || !(element instanceof Element))
+            return null;
+        String value = ((Element) element).getChildText(field);
+        if (value == null || value.isEmpty()) {
+            logger.error("Attribute " + field + " is empty");
+            return null;
+        }
+        return value;
+    }
+    
     private String readStringXMLAttribute(Object element, String field) {
         if (element == null || !(element instanceof Element))
             return null;
@@ -553,6 +638,22 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         return value;
     }
 
+    private BigDecimal readBigDecimalXMLValue(Object element, String field) {
+        if (element == null || !(element instanceof Element))
+            return null;
+        String value = ((Element) element).getChildText(field);
+        if (value == null || value.isEmpty()) {
+            logger.error("Attribute " + field + " is empty");
+            return null;
+        }
+        try {
+            return new BigDecimal(value);
+        } catch (Exception e) {
+            logger.error(e);
+            return null;
+        }
+    }
+    
     private BigDecimal readBigDecimalXMLAttribute(Object element, String field) {
         if (element == null || !(element instanceof Element))
             return null;
@@ -569,6 +670,22 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
     }
 
+    private Integer readIntegerXMLValue(Object element, String field) {
+        if (element == null || !(element instanceof Element))
+            return null;
+        String value = ((Element) element).getChildText(field);
+        if (value == null || value.isEmpty()) {
+            logger.error("Attribute " + field + " is empty");
+            return null;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (Exception e) {
+            logger.error(e);
+            return null;
+        }
+    }
+    
     private Integer readIntegerXMLAttribute(Object element, String field) {
         if (element == null || !(element instanceof Element))
             return null;

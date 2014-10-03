@@ -347,6 +347,15 @@ public class EquipmentServer {
                         }
                     }
 
+                    ExtraCheckZReportBatch extraCheckResult = clsHandler.extraCheckZReportSum(cashRegisterInfoList, remote.readZReportSumMap());
+                    if (extraCheckResult != null) {
+                        if(extraCheckResult.message.isEmpty()) {
+                            remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
+                        } else {
+                            reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message);
+                        }
+                    }
+
                     if(!requestExchangeList.isEmpty()) {
                         for(RequestExchange request : requestExchangeList) {
                             if(!request.requestSalesInfo) {

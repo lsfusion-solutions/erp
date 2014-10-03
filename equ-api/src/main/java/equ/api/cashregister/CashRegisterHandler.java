@@ -29,4 +29,5 @@ public abstract class  CashRegisterHandler<S extends SalesBatch> extends Machine
     
     public abstract String checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<String> idCashRegisterList) throws ClassNotFoundException, SQLException;
 
+    public abstract ExtraCheckZReportBatch extraCheckZReportSum(List<CashRegisterInfo> cashRegisterInfoList, Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException;
 }

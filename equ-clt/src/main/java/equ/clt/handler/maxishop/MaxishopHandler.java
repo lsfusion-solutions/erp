@@ -215,6 +215,11 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
         return null;
     }
 
+    @Override
+    public ExtraCheckZReportBatch extraCheckZReportSum(List<CashRegisterInfo> cashRegisterInfoList, Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
+        return null;
+    }
+
     class DBFFilter implements FilenameFilter {
         public boolean accept(File dir, String name) {
             return (name.toLowerCase().endsWith(".dbf") && new File(dir + "/" + name.substring(0, name.length() - 3) + "OUT").exists());

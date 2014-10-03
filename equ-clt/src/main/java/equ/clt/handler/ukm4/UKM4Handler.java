@@ -366,6 +366,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
         return null;
     }
 
+    @Override
+    public ExtraCheckZReportBatch extraCheckZReportSum(List<CashRegisterInfo> cashRegisterInfoList, Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
+        return null;
+    }
+
     protected String trim(String input, Integer length) {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }

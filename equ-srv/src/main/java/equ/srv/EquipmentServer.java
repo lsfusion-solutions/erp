@@ -964,6 +964,57 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     }
 
     @Override
+    public Map<String, BigDecimal> readZReportSumMap() throws RemoteException, SQLException {
+        try {
+
+            Map<String, BigDecimal> zReportSumMap = new HashMap<String, BigDecimal>();
+
+            if (zReportLM != null) {
+
+                DataSession session = getDbManager().createSession();
+
+                KeyExpr zReportExpr = new KeyExpr("zReport");
+
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "ZReport", zReportExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+
+                query.addProperty("idZReport", zReportLM.findProperty("idZReport").getExpr(zReportExpr));
+                query.addProperty("sumReceiptDetailZReport", zReportLM.findProperty("sumReceiptDetailZReport").getExpr(zReportExpr));
+
+                query.and(zReportLM.findProperty("idZReport").getExpr(zReportExpr).getWhere());
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+
+                for (ImMap<Object, Object> row : result.values()) {
+                    zReportSumMap.put((String) row.get("idZReport"), (BigDecimal) row.get("sumReceiptDetailZReport"));
+                }
+            }
+            return zReportSumMap;
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+    
+    @Override
+    public void succeedExtraCheckZReport(List<String> idZReportList) throws RemoteException, SQLException {
+        try {
+            if (zReportLM != null) {
+                for (String idZReport : idZReportList) {
+                    DataSession session = getDbManager().createSession();
+                    zReportLM.findProperty("succeededExtraCheckZReport").change(true, session, (DataObject) zReportLM.findProperty("zReportId").readClasses(session, new DataObject(idZReport)));
+                    session.apply(getBusinessLogics());
+                }
+            }
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
+        } catch (SQLHandledException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
     public List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException {
         try {
 

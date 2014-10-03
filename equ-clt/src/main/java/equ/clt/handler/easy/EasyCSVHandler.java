@@ -95,6 +95,11 @@ public class EasyCSVHandler {
         public String checkZReportSum(Map<String, BigDecimal> zReportSumMap, List<String> idCashRegisterList) throws ClassNotFoundException, SQLException {
             return null;
         }
+
+        @Override
+        public ExtraCheckZReportBatch extraCheckZReportSum(List<CashRegisterInfo> cashRegisterInfoList, Map<String, BigDecimal> zReportSumMap) throws ClassNotFoundException, SQLException {
+            return null;
+        }
     }
 
     public class EasyPriceCheckerCSVHandler extends PriceCheckerHandler {
