@@ -301,8 +301,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idBatch"));
 
-            new ImportPurchaseInvoicePurchaseShipmentBox(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
-
             ImportField dataIndexUserInvoiceDetailField = new ImportField(findProperty("dataIndexUserInvoiceDetail"));
             props.add(new ImportProperty(dataIndexUserInvoiceDetailField, findProperty("dataIndexUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
             fields.add(dataIndexUserInvoiceDetailField);
@@ -490,6 +488,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("invoiceSum"));
             }
 
+            new ImportPurchaseInvoicePurchaseShipmentBox(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
+
             new ImportPurchaseInvoicePurchaseDeclaration(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
 
             new ImportPurchaseInvoicePurchaseShipment(LM).makeImport(context, fields, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
@@ -499,14 +499,16 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             new ImportPurchaseInvoiceItemPharmacyBy(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, itemKey);
             
             new ImportPurchaseInvoicePurchaseInvoicePharmacy(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
+
+            new ImportPurchaseInvoicePurchaseDeclarationDetail(LM).makeImport(context, fields, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
+
+            new ImportPurchaseInvoicePurchaseCompliance(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
             
             if (showField(userInvoiceDetailsList, "rateExchange")) {
                 addDataField(props, fields, defaultColumns, findProperty("rateExchangeUserInvoiceDetail"), "rateExchange", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("rateExchange"));
             }
-
-            new ImportPurchaseInvoicePurchaseDeclarationDetail(LM).makeImport(context, fields, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);            
             
             if (showField(userInvoiceDetailsList, "isPosted")) {
                     addDataField(props, fields, defaultColumns, findProperty("isPostedUserInvoice"), "isPosted", userInvoiceObject);
@@ -550,8 +552,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 new ImportPurchaseInvoiceItemFashion(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, itemKey, articleKey);
                 
             }
-            
-            new ImportPurchaseInvoicePurchaseCompliance(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
 
             for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                 ImportColumnDetail customColumn = entry.getValue();
