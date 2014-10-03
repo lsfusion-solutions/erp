@@ -1096,6 +1096,17 @@ EXTEND DESIGN operationCashRegister{
 }
 
 //-- 
+changeUserPromotionReceiptSaleDetailPromotionCondition= ACTION (d, pcu) {
+    REQUEST BOOLEAN INPUT;   
+    IF requestedLogical() THEN {
+        setUserPromotionReceiptSaleDetailPromotionCondition(d, pcu) <- TRUE;
+        quantityReceiptSaleDetailPromotionCondition(d, pcu) <- quantityReceiptSaleDetail(d);
+    } ELSE {
+        setUserPromotionReceiptSaleDetailPromotionCondition(d, pcu) <- NULL;
+        quantityReceiptSaleDetailPromotionCondition(d, pcu) <- NULL;    
+    }
+}
+
 EXTEND FORM zReport
 
     OBJECTS pcu = PromotionCondition FIXED GRID
@@ -1103,7 +1114,7 @@ EXTEND FORM zReport
                     dateToPromotionCondition, percentPromotionCondition
     PROPERTIES(d, pcu) FORCE GRID quantityReceiptSaleDetailPromotionCondition,
                     promotionSumReceiptSaleDetailPromotionCondition, 
-                    setUserPromotionReceiptSaleDetailPromotionCondition
+                    setUserPromotionReceiptSaleDetailPromotionCondition ON CHANGE changeUserPromotionReceiptSaleDetailPromotionCondition(d, pcu)
     FILTERS userSetPromotionCondition(pcu) AND inReceiptSaleDetailPromotionCondition(d, pcu)
 ;
 
@@ -1113,7 +1124,10 @@ EXTEND DESIGN zReport {
             fill = 1;
             type = TABBED;
             ADD p.box;
-            ADD pcu.box;
+            ADD pcu.box {
+                PROPERTY (namePromotionPromotionCondition(pcu)) { minimumCharWidth = 15; preferredCharWidth = 30;}
+                PROPERTY (namePromotionCondition(pcu)) { minimumCharWidth = 15; preferredCharWidth = 30;}
+            }
         }
     }
 }
@@ -1132,7 +1146,11 @@ EXTEND DESIGN zReports {
             fill = 1;
             type = TABBED;
             ADD p.box;
-            ADD pcu.box {caption = 'Условия акции, задаваемые кассиром';};
+            ADD pcu.box {
+                caption = 'Условия акции, задаваемые кассиром';
+                PROPERTY (namePromotionPromotionCondition(pcu)) { minimumCharWidth = 15; preferredCharWidth = 30;}
+                PROPERTY (namePromotionCondition(pcu)) { minimumCharWidth = 15; preferredCharWidth = 30;}                
+            }
         }
     }
 }
