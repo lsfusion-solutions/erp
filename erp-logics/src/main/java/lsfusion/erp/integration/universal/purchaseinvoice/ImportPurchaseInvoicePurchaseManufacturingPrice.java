@@ -1,7 +1,6 @@
 package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import lsfusion.erp.integration.universal.ImportColumnDetail;
-import lsfusion.erp.integration.universal.PurchaseInvoiceDetail;
 import lsfusion.server.integration.ImportField;
 import lsfusion.server.integration.ImportKey;
 import lsfusion.server.integration.ImportProperty;

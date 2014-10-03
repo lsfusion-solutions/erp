@@ -1,4 +1,4 @@
-package lsfusion.erp.integration.universal;
+package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -6,9 +6,7 @@ import java.util.Map;
 
 public class PurchaseInvoiceDetail {
     public LinkedHashMap<String, String> customValues;
-    
     public Map<String, Object> fieldValues;
-    
     public Boolean isPosted;
     public String idUserInvoice;
     public String numberUserInvoice;

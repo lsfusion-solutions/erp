@@ -1,7 +1,6 @@
 package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
-import lsfusion.erp.integration.universal.PurchaseInvoiceDetail;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
