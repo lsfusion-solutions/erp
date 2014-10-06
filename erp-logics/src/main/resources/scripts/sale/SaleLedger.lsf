@@ -64,6 +64,8 @@ sumVATSaleLedger 'Сумма НДС' (ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
 
 markupSumSaleLedger 'Надбавка' (ledger) = sumSaleLedger(ledger) (-) sumVATSaleLedger(ledger) (-) costSumSaleLedger(ledger);
 
+editSaleLedger 'Редактировать' = ABSTRACT ACTION LIST (SaleLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+
 //по складу и SKU
 quantitySoldSkuStockDate (sku, stock, date) = GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger)
     BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
@@ -273,7 +275,9 @@ FORM saleLedger 'Регистр продаж'
                            canonicalNameSkuGroupSaleLedger, nameSkuSaleLedger, descriptionSaleLedger, numberDocumentSaleLedger,
                            quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
                            sumVATSaleLedger, sumSaleLedger, averagePriceSaleLedger
-    PROPERTIES    READONLY sumSoldTypeExchangeSaleLedger (te, s)
+    PROPERTIES    READONLY sumSoldTypeExchangeSaleLedger (te, s)    
+    PROPERTIES(s) editSaleLedger
+    
     FILTERS activeSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s)
     FILTERS dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo
 ;

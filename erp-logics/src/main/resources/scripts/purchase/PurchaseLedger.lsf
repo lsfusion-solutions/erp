@@ -61,6 +61,8 @@ prevInSupplierSku 'Были поставки (пред.)' (legalEntity, sku) = P
 sumPurchaseTypeExchangePurchaseLedger 'Сумма покупки валюта' (typeExchange, purchaseLedger)= roundPriceCurrency((sumPurchaseLedger (purchaseLedger)/
     rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stockPurchaseLedger(purchaseLedger)), datePurchaseLedger(purchaseLedger))), currencyTypeExchange(typeExchange));
 
+editPurchaseLedger 'Редактировать' = ABSTRACT ACTION LIST (PurchaseLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+
 TABLE purchaseLedgerBatch(PurchaseLedger, Batch);
 
 costPurchaseLedgerBatch 'Расписано из партии' = ABSTRACT NUMERIC[14,3] (PurchaseLedger, Batch) PERSISTENT;
@@ -213,8 +215,9 @@ FORM purchaseLedger 'Регистр поступлений'
                            nameSkuPurchaseLedger, descriptionPurchaseLedger,
                            quantityPurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger
     PROPERTIES    READONLY sumPurchaseTypeExchangePurchaseLedger (te, s)
+    PROPERTIES(s) editPurchaseLedger
+    
     FILTERS activePurchaseLedger(s), filterPurchaseOperationSaleLedger(s), filterPurchaseCustomerSaleLedger(s)  
-
     FILTERS datePurchaseLedger(s) >= dFrom, datePurchaseLedger(s) <= dTo
 ;
 @extendFormFilterAccessStock(PurchaseLedger, s, purchaseLedger, stock, company);
@@ -269,6 +272,7 @@ META implementPurchaseLedgerCustom(concrete, skuProp, stockProp)
     stockPurchaseLedger (ledger) += stockProp###concrete##Detail(ledger);
     operationPurchaseLedger (ledger) += operation###concrete##Detail(ledger);
     descriptionPurchaseLedger (ledger) += description###concrete##Detail(ledger);
+    editPurchaseLedger (ledger) += ACTION edit###concrete##Detail(ledger);
 END
 META implementPurchaseLedger(concrete, skuProp, stockProp)
     EXTEND CLASS concrete##Detail : PurchaseLedger;
