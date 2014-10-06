@@ -1,10 +1,11 @@
-package lsfusion.erp.integration.universal;
+package lsfusion.erp.integration.universal.userpricelist;
 
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.erp.integration.universal.ImportColumns;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
