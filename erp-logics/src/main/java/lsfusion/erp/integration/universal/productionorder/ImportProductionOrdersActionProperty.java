@@ -1,10 +1,12 @@
-package lsfusion.erp.integration.universal;
+package lsfusion.erp.integration.universal.productionorder;
 
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.universal.ImportColumnDetail;
+import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;

@@ -1,10 +1,14 @@
-package lsfusion.erp.integration.universal;
+package lsfusion.erp.integration.universal.productionorder;
 
 import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
 import lsfusion.base.IOUtils;
+import lsfusion.erp.integration.universal.ImportColumnDetail;
+import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentSettings;
+import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
@@ -28,7 +32,6 @@ import org.xBaseJ.xBaseJException;
 import java.io.*;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
@@ -152,13 +155,13 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                     data.get(i).add(orderDetailsList.get(i).numberOrder);
             }
 
-            if (showField(orderDetailsList, "dateOrder")) {
+            if (showField(orderDetailsList, "dateDocument")) {
                 if(orderObject == null)
-                    addDataField(props, fields, importColumns, findProperty("Production.dateOrder"), "dateOrder", orderKey);
+                    addDataField(props, fields, importColumns, findProperty("Production.dateOrder"), "dateDocument", orderKey);
                 else
-                    addDataField(props, fields, importColumns, findProperty("Production.dateOrder"), "dateOrder", orderObject);
+                    addDataField(props, fields, importColumns, findProperty("Production.dateOrder"), "dateDocument", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).dateOrder);
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("dateDocument"));
             }
 
             if (showField(orderDetailsList, "idProductsStock")) {
@@ -171,7 +174,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                         object(findClass("Stock")).getMapping(productsStockOrderKey)));
                 fields.add(idProductsStockOrderField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).idProductsStock);
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("idProductsStock"));
             }
 
             ImportField idSkuField = new ImportField(findProperty("idSku"));
@@ -180,7 +183,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             keys.add(skuKey);
             fields.add(idSkuField);
             for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).idItem);
+                data.get(i).add(orderDetailsList.get(i).getFieldValue("idItem"));
 
             ImportField idBOMField = new ImportField(findProperty("idBOM"));
             ImportKey<?> BOMKey = new ImportKey((ConcreteCustomClass) findClass("BOM"),
@@ -190,7 +193,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             props.add(new ImportProperty(idBOMField, findProperty("numberBOM").getMapping(BOMKey)));
             fields.add(idBOMField);
             for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).idItem);
+                data.get(i).add(orderDetailsList.get(i).getFieldValue("idItem"));
             
             ImportField extIdProductField = new ImportField(findProperty("extIdProduct"));
             ImportKey<?> productKey = new ImportKey((CustomClass) findClass("Product"),
@@ -203,7 +206,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                     object(findClass("Sku")).getMapping(skuKey)));
             fields.add(extIdProductField);
             for (int i = 0; i < orderDetailsList.size(); i++)
-                data.get(i).add(orderDetailsList.get(i).idProduct);
+                data.get(i).add(orderDetailsList.get(i).getFieldValue("idProduct"));
 
             ImportField idProductDetailField = new ImportField(findProperty("Production.idProductDetail"));
             ImportKey<?> productDetailKey = new ImportKey((CustomClass) findClass("Production.ProductDetail"),
@@ -231,43 +234,43 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                 props.add(new ImportProperty(dataIndexOrderDetailField, findProperty("Production.dataIndexProductDetail").getMapping(productDetailKey)));
                 fields.add(dataIndexOrderDetailField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).dataIndex);
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("dataIndex"));
             }
             
             if (showField(orderDetailsList, "outputQuantity")) {
                 addDataField(props, fields, importColumns, findProperty("Production.outputQuantityProductDetail"), "outputQuantity", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).outputQuantity);
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("outputQuantity"));
             }
 
             if (showField(orderDetailsList, "price")) {
                 addDataField(props, fields, importColumns, findProperty("Production.priceProductDetail"), "price", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).price);
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("price"));
             }
             
             if (showField(orderDetailsList, "componentsPrice")) {
                 addDataField(props, fields, importColumns, findProperty("Production.componentsPriceProductDetail"), "componentsPrice", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).componentsPrice);
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("componentsPrice"));
             }
 
             if (showField(orderDetailsList, "valueVAT")) {
                 addDataField(props, fields, importColumns, findProperty("Production.valueVATProductDetail"), "valueVAT", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).valueVAT);
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("valueVAT"));
             }
 
             if (showField(orderDetailsList, "markup")) {
                 addDataField(props, fields, importColumns, findProperty("Production.markupProductDetail"), "markup", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).markup);
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("markup"));
             }
 
             if (showField(orderDetailsList, "sum")) {
                 addDataField(props, fields, importColumns, findProperty("Production.sumProductDetail"), "sum", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).sum);
+                    data.get(i).add(orderDetailsList.get(i).getFieldValue("sum"));
             }
 
             ImportTable table = new ImportTable(fields, data);
@@ -289,21 +292,29 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
         List<ProductionOrderDetail> orderDetailsList;
 
+        List<String> stringFields = Arrays.asList("idProduct", "idProductsStock", "idItem");
+        
+        List<String> bigDecimalFields = Arrays.asList("price", "componentsPrice", "valueVAT", "markup", "sum", "outputQuantity", "dataIndex");
+
+        List<String> dateFields = Arrays.asList("dateDocument");
+        
         if (fileExtension.equals("DBF"))
-            orderDetailsList = importOrdersFromDBF(file, importColumns, startRow, isPosted, orderObject);
+            orderDetailsList = importOrdersFromDBF(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, orderObject);
         else if (fileExtension.equals("XLS"))
-            orderDetailsList = importOrdersFromXLS(file, importColumns, startRow, isPosted, orderObject);
+            orderDetailsList = importOrdersFromXLS(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, orderObject);
         else if (fileExtension.equals("XLSX"))
-            orderDetailsList = importOrdersFromXLSX(file, importColumns, startRow, isPosted, orderObject);
+            orderDetailsList = importOrdersFromXLSX(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, orderObject);
         else if (fileExtension.equals("CSV") || fileExtension.equals("TXT"))
-            orderDetailsList = importOrdersFromCSV(file, importColumns, startRow, isPosted, separator, orderObject);
+            orderDetailsList = importOrdersFromCSV(file, importColumns, stringFields, bigDecimalFields, dateFields, startRow, isPosted, separator, orderObject);
         else
             orderDetailsList = null;
 
         return orderDetailsList;
     }
 
-    private List<ProductionOrderDetail> importOrdersFromXLS(byte[] importFile, Map<String, ImportColumnDetail> importColumns, Integer startRow, Boolean isPosted, DataObject orderObject)
+    private List<ProductionOrderDetail> importOrdersFromXLS(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
+                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
+                                                            Integer startRow, Boolean isPosted, DataObject orderObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<ProductionOrderDetail>();
@@ -314,31 +325,34 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         Sheet sheet = wb.getSheet(0);
 
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
+            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            for(String field : stringFields) {
+                fieldValues.put(field, getXLSFieldValue(sheet, i, importColumns.get(field)));
+            }
+            for(String field : bigDecimalFields) {
+                BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, importColumns.get(field));
+                if(field.equals("dataIndex"))
+                    fieldValues.put(field, value == null ? null : value.intValue());
+                else
+                    fieldValues.put(field, value);
+            }
+            for(String field : dateFields) {
+                fieldValues.put(field, getXLSDateFieldValue(sheet, i, importColumns.get(field)));
+            }
+            
             String numberOrder = getXLSFieldValue(sheet, i, importColumns.get("numberDocument"));
             String idOrder = getXLSFieldValue(sheet, i, importColumns.get("idDocument"), numberOrder);
-            Date dateOrder = getXLSDateFieldValue(sheet, i, importColumns.get("dateDocument"));
-            String idProductsStock = getXLSFieldValue(sheet, i, importColumns.get("idProductsStock"));
             String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, i);
-            String dataIndexString = getXLSFieldValue(sheet, i, importColumns.get("dataIndex"));
-            Integer dataIndex = dataIndexString == null ? null : Integer.parseInt(dataIndexString);
-            String idItem = getXLSFieldValue(sheet, i, importColumns.get("idItem"));
-            String idProduct = getXLSFieldValue(sheet, i, importColumns.get("idProduct"));
-            BigDecimal outputQuantity = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("outputQuantity"));
-            BigDecimal price = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("price"));
-            BigDecimal componentsPrice = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("componentsPrice"));
-            BigDecimal valueVAT = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("valueVAT"));
-            BigDecimal markup = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("markup"));
-            BigDecimal sum = getXLSBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
             
-            result.add(new ProductionOrderDetail(isPosted, idOrder, numberOrder, dateOrder,
-                    idProductsStock, idOrderDetail, dataIndex, idItem, idProduct, outputQuantity, price, componentsPrice,
-                    valueVAT, markup, sum));
+            result.add(new ProductionOrderDetail(fieldValues, isPosted, idOrder, numberOrder, idOrderDetail));
         }
 
         return result;
     }
 
-    private List<ProductionOrderDetail> importOrdersFromCSV(byte[] importFile, Map<String, ImportColumnDetail> importColumns, Integer startRow, Boolean isPosted, String separator, DataObject orderObject)
+    private List<ProductionOrderDetail> importOrdersFromCSV(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
+                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
+                                                            Integer startRow, Boolean isPosted, String separator, DataObject orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<ProductionOrderDetail>();
@@ -352,32 +366,34 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         }
 
         for (int count = startRow; count <= valuesList.size(); count++) {
+            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            for(String field : stringFields) {
+                fieldValues.put(field, getCSVFieldValue(valuesList, importColumns.get(field), count));
+            }
+            for(String field : bigDecimalFields) {
+                BigDecimal value = getCSVBigDecimalFieldValue(valuesList, importColumns.get(field), count);
+                if(field.equals("dataIndex"))
+                    fieldValues.put(field, value == null ? null : value.intValue());
+                else
+                    fieldValues.put(field, value);
+            }
+            for(String field : dateFields) {
+                fieldValues.put(field, getCSVDateFieldValue(valuesList, importColumns.get(field), count));
+            }
 
             String numberOrder = getCSVFieldValue(valuesList, importColumns.get("numberDocument"), count);
             String idOrder = getCSVFieldValue(valuesList, importColumns.get("idDocument"), count, numberOrder);
-            Date dateOrder = getCSVDateFieldValue(valuesList, importColumns.get("dateDocument"), count);
-            String idProductsStock = getCSVFieldValue(valuesList, importColumns.get("idProductsStock"), count);
             String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, count);
-            String dataIndexString = getCSVFieldValue(valuesList, importColumns.get("dataIndex"), count);
-            Integer dataIndex = dataIndexString == null ? null : Integer.parseInt(dataIndexString);
-            String idItem = getCSVFieldValue(valuesList, importColumns.get("idItem"), count);
-            String idProduct = getCSVFieldValue(valuesList, importColumns.get("idProduct"), count);
-            BigDecimal outputQuantity = getCSVBigDecimalFieldValue(valuesList, importColumns.get("outputQuantity"), count);
-            BigDecimal price = getCSVBigDecimalFieldValue(valuesList, importColumns.get("price"), count);
-            BigDecimal componentsPrice = getCSVBigDecimalFieldValue(valuesList, importColumns.get("componentsPrice"), count);
-            BigDecimal valueVAT = getCSVBigDecimalFieldValue(valuesList, importColumns.get("valueVAT"), count);
-            BigDecimal markup = getCSVBigDecimalFieldValue(valuesList, importColumns.get("markup"), count);
-            BigDecimal sum = getCSVBigDecimalFieldValue(valuesList, importColumns.get("sum"), count);
            
-            result.add(new ProductionOrderDetail(isPosted, idOrder, numberOrder, dateOrder,
-                    idProductsStock, idOrderDetail, dataIndex, idItem, idProduct, outputQuantity, price, componentsPrice,
-                    valueVAT, markup, sum));
+            result.add(new ProductionOrderDetail(fieldValues, isPosted, idOrder, numberOrder, idOrderDetail));
         }
 
         return result;
     }
 
-    private List<ProductionOrderDetail> importOrdersFromXLSX(byte[] importFile, Map<String, ImportColumnDetail> importColumns, Integer startRow, Boolean isPosted, DataObject orderObject)
+    private List<ProductionOrderDetail> importOrdersFromXLSX(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
+                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
+                                                             Integer startRow, Boolean isPosted, DataObject orderObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<ProductionOrderDetail>();
@@ -386,32 +402,34 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
-
+            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            for(String field : stringFields) {
+                fieldValues.put(field, getXLSXFieldValue(sheet, i, importColumns.get(field)));
+            }
+            for(String field : bigDecimalFields) {
+                BigDecimal value = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get(field));
+                if(field.equals("dataIndex"))
+                    fieldValues.put(field, value == null ? null : value.intValue());
+                else               
+                    fieldValues.put(field, value);
+            }
+            for(String field : dateFields) {
+                fieldValues.put(field, getXLSXDateFieldValue(sheet, i, importColumns.get(field)));
+            }
+            
             String numberOrder = getXLSXFieldValue(sheet, i, importColumns.get("numberDocument"));
             String idOrder = getXLSXFieldValue(sheet, i, importColumns.get("idDocument"), numberOrder);
-            Date dateOrder = getXLSXDateFieldValue(sheet, i, importColumns.get("dateDocument"));
-            String idProductsStock = getXLSXFieldValue(sheet, i, importColumns.get("idProductsStock"));
             String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, i);
-            String dataIndexString = getXLSXFieldValue(sheet, i, importColumns.get("dataIndex"));
-            Integer dataIndex = dataIndexString == null ? null : Integer.parseInt(dataIndexString);
-            String idItem = getXLSXFieldValue(sheet, i, importColumns.get("idItem"));
-            String idProduct = getXLSXFieldValue(sheet, i, importColumns.get("idProduct"));
-            BigDecimal outputQuantity = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("outputQuantity"));
-            BigDecimal price = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("price"));
-            BigDecimal componentsPrice = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("componentsPrice"));
-            BigDecimal valueVAT = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("valueVAT"));
-            BigDecimal markup = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("markup"));
-            BigDecimal sum = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get("sum"));
             
-            result.add(new ProductionOrderDetail(isPosted, idOrder, numberOrder, dateOrder,
-                    idProductsStock, idOrderDetail, dataIndex, idItem, idProduct, outputQuantity, price, componentsPrice,
-                    valueVAT, markup, sum));
+            result.add(new ProductionOrderDetail(fieldValues, isPosted, idOrder, numberOrder, idOrderDetail));
         }
 
         return result;
     }
 
-    private List<ProductionOrderDetail> importOrdersFromDBF(byte[] importFile, Map<String, ImportColumnDetail> importColumns, Integer startRow, Boolean isPosted, DataObject orderObject)
+    private List<ProductionOrderDetail> importOrdersFromDBF(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
+                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
+                                                            Integer startRow, Boolean isPosted, DataObject orderObject)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<ProductionOrderDetail>();
@@ -424,29 +442,35 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
         int totalRecordCount = file.getRecordCount();
 
+        for (int i = 0; i < startRow - 1; i++) {
+            file.read();
+        }
+        
         for (int i = startRow - 1; i < totalRecordCount; i++) {
 
             file.read();
 
+            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            for (String field : stringFields) {
+                String value = getDBFFieldValue(file, importColumns.get(field), i, charset);
+                fieldValues.put(field, value);
+            }
+            for (String field : bigDecimalFields) {
+                BigDecimal value = getDBFBigDecimalFieldValue(file, importColumns.get(field), i, charset);
+                if(field.equals("dataIndex"))
+                    fieldValues.put(field, value == null ? null : value.intValue());
+                else
+                    fieldValues.put(field, value);
+            }
+            for (String field : dateFields) {
+                fieldValues.put(field, getDBFDateFieldValue(file, importColumns.get(field), i, charset));
+            }
+            
             String numberOrder = getDBFFieldValue(file, importColumns.get("numberDocument"), i, charset);
             String idOrder = getDBFFieldValue(file, importColumns.get("idDocument"), i, charset, numberOrder);
-            Date dateOrder = getDBFDateFieldValue(file, importColumns.get("dateDocument"), i, charset);
-            String idProductsStock = getDBFFieldValue(file, importColumns.get("idProductsStock"), i, charset);
             String idOrderDetail = makeIdOrderDetail(orderObject, numberOrder, i);
-            String dataIndexString = getDBFFieldValue(file, importColumns.get("dataIndex"), i, charset);
-            Integer dataIndex = dataIndexString == null ? null : Integer.parseInt(dataIndexString);
-            String idItem = getDBFFieldValue(file, importColumns.get("idItem"), i, charset);
-            String idProduct = getDBFFieldValue(file, importColumns.get("idProduct"), i, charset);
-            BigDecimal outputQuantity = getDBFBigDecimalFieldValue(file, importColumns.get("outputQuantity"), i, charset);
-            BigDecimal price = getDBFBigDecimalFieldValue(file, importColumns.get("price"), i, charset);
-            BigDecimal componentsPrice = getDBFBigDecimalFieldValue(file, importColumns.get("componentsPrice"), i, charset);
-            BigDecimal valueVAT = getDBFBigDecimalFieldValue(file, importColumns.get("valueVAT"), i, charset);
-            BigDecimal markup = getDBFBigDecimalFieldValue(file, importColumns.get("markup"), i, charset);
-            BigDecimal sum = getDBFBigDecimalFieldValue(file, importColumns.get("sum"), i, charset);
             
-            result.add(new ProductionOrderDetail(isPosted, idOrder, numberOrder, dateOrder,
-                    idProductsStock, idOrderDetail, dataIndex, idItem, idProduct, outputQuantity, price, componentsPrice,
-                    valueVAT, markup, sum));
+            result.add(new ProductionOrderDetail(fieldValues, isPosted, idOrder, numberOrder, idOrderDetail));
         }
         file.close();
         tempFile.delete();
@@ -459,13 +483,30 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         return (order == null ? numberOrder : String.valueOf(order)) + i;
     }
 
-    private Boolean showField(List<ProductionOrderDetail> data, String fieldName) {
+    protected Boolean showField(List<ProductionOrderDetail> data, String fieldName) {
         try {
-            Field field = ProductionOrderDetail.class.getField(fieldName);
 
-            for (ProductionOrderDetail aData : data) {
-                if (field.get(aData) != null)
+            boolean found = false;
+            Field fieldValues = ProductionOrderDetail.class.getField("fieldValues");
+            for (ProductionOrderDetail entry : data) {
+                Map<String, Object> values = (Map<String, Object>) fieldValues.get(entry);
+                if(!found) {
+                    if (values.containsKey(fieldName))
+                        found = true;
+                    else
+                        break;
+                }
+                if (values.get(fieldName) != null)
                     return true;
+            }
+
+            if(!found) {
+                Field field = ProductionOrderDetail.class.getField(fieldName);
+
+                for (ProductionOrderDetail entry : data) {
+                    if (field.get(entry) != null)
+                        return true;
+                }
             }
         } catch (NoSuchFieldException e) {
             return true;
