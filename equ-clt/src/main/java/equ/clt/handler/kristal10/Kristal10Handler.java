@@ -445,7 +445,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 String numberZReport = readStringXMLAttribute(purchaseNode, "shift");
                                 Integer numberReceipt = readIntegerXMLAttribute(purchaseNode, "number");
                                 BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(purchaseNode, "discountAmount");
-                                discountSumReceipt = (discountSumReceipt != null && !isSale) ? discountSumReceipt.negate() : discountSumReceipt;
+                                //discountSumReceipt = (discountSumReceipt != null && !isSale) ? discountSumReceipt.negate() : discountSumReceipt;
 
                                 long dateTimeReceipt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX").parse(readStringXMLAttribute(purchaseNode, "saletime")).getTime();
                                 Date dateReceipt = new Date(dateTimeReceipt);
@@ -495,7 +495,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         sumReceiptDetail = (sumReceiptDetail != null && !isSale) ? sumReceiptDetail.negate() : sumReceiptDetail;
                                         currentPaymentSum = safeAdd(currentPaymentSum, sumReceiptDetail);
                                         BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "discountValue");
-                                        discountSumReceiptDetail = (discountSumReceiptDetail != null && !isSale) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail; 
+                                        //discountSumReceiptDetail = (discountSumReceiptDetail != null && !isSale) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail; 
                                         Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
 
                                         Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
