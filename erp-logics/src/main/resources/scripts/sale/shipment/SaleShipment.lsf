@@ -135,7 +135,22 @@ EXTEND FORM userShipment
 
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //
 
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, shipment, , sku, supplierStock);
+disableUpdateShipmentPriceUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
+WHEN SESSION (CHANGED(skuUserInvoiceDetail(detail)) OR
+              CHANGED(supplierStockUserInvoiceDetail(detail)) OR
+              CHANGED(dateTimeUserInvoiceDetail(detail)) OR
+              CHANGED(batchUserInvoiceDetail(detail))) AND NOT CHANGED(shipmentPriceUserInvoiceDetail(detail)) AND NOT disableUpdateShipmentPriceUserInvoiceDetail(detail) DO 
+    shipmentPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail)
+
+                                                    THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                                   batchUserInvoiceDetail(detail),
+                                                                                                   supplierStockUserInvoiceDetail(detail),
+                                                                                                   dateTimeUserInvoiceDetail(detail))
+                                                    ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
+                                                                                                 skuUserInvoiceDetail(detail),
+                                                                                                 supplierStockUserInvoiceDetail(detail),
+                                                                                                 dateTimeUserInvoiceDetail(detail));
+
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userShipment, accountPriceListType, , , sku, supplierStock);
 
 // ------------------------------- Проведение по товарному отчету ------------------------ //

@@ -73,25 +73,26 @@ includeVATUserInvoiceDetail(detail) <-  fixedPriceSku(skuUserInvoiceDetail(detai
 updateManufacturingPriceUserInvoice 'Изменить цену изготовителя' = DATA BOOLEAN (UserInvoice);
 updateManufacturingPriceUserInvoiceDetail = updateManufacturingPriceUserInvoice(userInvoiceUserInvoiceDetail(d));
 
-manufacturingPriceUserInvoiceDetail (detail)  <-
-                                        IF updateManufacturingPriceUserInvoiceDetail(detail) THEN
-                                            priceUserInvoiceDetail(detail)
-                                        ELSE
-                                            IF batchUserInvoiceDetail(detail) THEN 
-                                                prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                          batchUserInvoiceDetail(detail),
-                                                                                          supplierStockUserInvoiceDetail(detail),
-                                                                                          dateTimeUserInvoiceDetail(detail))
-                                            ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                          skuUserInvoiceDetail(detail),
-                                                                                          supplierStockUserInvoiceDetail(detail),
-                                                                                          dateTimeUserInvoiceDetail(detail))
-                                            WHEN CHANGED(skuUserInvoiceDetail(detail)) OR
-                                                CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-                                                CHANGED(dateTimeUserInvoiceDetail(detail)) OR
-                                                CHANGED(batchUserInvoiceDetail(detail)) OR
-                                                CHANGED(updateManufacturingPriceUserInvoiceDetail(detail));
-
+disableUpdateManufacturingPriceUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
+WHEN SESSION CHANGED(skuUserInvoiceDetail(detail)) OR
+             CHANGED(supplierStockUserInvoiceDetail(detail)) OR
+             CHANGED(dateTimeUserInvoiceDetail(detail)) OR
+             CHANGED(batchUserInvoiceDetail(detail)) OR
+             CHANGED(updateManufacturingPriceUserInvoiceDetail(detail)) AND NOT CHANGED(manufacturingPriceUserInvoiceDetail (detail)) AND NOT disableUpdateManufacturingPriceUserInvoiceDetail(detail) DO 
+    manufacturingPriceUserInvoiceDetail (detail)  <-
+                                            IF updateManufacturingPriceUserInvoiceDetail(detail) THEN
+                                                priceUserInvoiceDetail(detail)
+                                            ELSE
+                                                IF batchUserInvoiceDetail(detail) THEN 
+                                                    prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                              batchUserInvoiceDetail(detail),
+                                                                                              supplierStockUserInvoiceDetail(detail),
+                                                                                              dateTimeUserInvoiceDetail(detail))
+                                                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                              skuUserInvoiceDetail(detail),
+                                                                                              supplierStockUserInvoiceDetail(detail),
+                                                                                              dateTimeUserInvoiceDetail(detail));
+                                                                                          
 @defineOperationProperty(updateManufacturingPrice, 'Изменять цену изготовителя', showContainer);
 @deriveDocumentOperationProperty(UserInvoice, updateManufacturingPrice);
 
