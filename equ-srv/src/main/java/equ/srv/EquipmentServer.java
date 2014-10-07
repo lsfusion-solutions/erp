@@ -1528,7 +1528,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         saleKeys.add(discountCardKey);
                     }
 
-                    session.pushVolatileStats("ES_SI");
+//                    session.pushVolatileStats("ES_SI");
                     new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
 
                     List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey);
