@@ -188,6 +188,23 @@ numberDocumentSaleLedger (ledger) += numberInvoiceDetail(ledger);
 overShowEditInvoice (i) += showEditDeleteUserInvoice(i) AND isOpenedInvoice(i);
 overShowDeleteInvoice (i) += showEditDeleteUserInvoice(i) AND isUserOpenedInvoice(i); 
 
+//--
+
+orderBatchSkuStockDateTime (sku, stock, dateTime) = GROUP MIN orderBatch(batch) IF countLedgerBatchStock(batch, stock) AND balanceBBatchStockDateTime(batch, stock, dateTime)
+                                                   BY skuBatch(batch), stock, dateTime;
+firstOrderBatchSkuStockDateTime(sku, stock, dateTime) = orderBatchSkuStockDateTime(sku, stock, dateTime)[2];
+
+fillBatchUserInvoiceDetail 'Проставить партию'  = ACTION (d) {    
+    batchUserInvoiceDetail(d) <- firstOrderBatchSkuStockDateTime(skuUserInvoiceDetail(d), supplierStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d)) 
+        WHERE NOT batchUserInvoiceDetail(d)  AND
+        balanceBBatchStockDateTime(firstOrderBatchSkuStockDateTime(skuUserInvoiceDetail(d), supplierStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d)), supplierStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d)) >= quantityUserInvoiceDetail(d);
+} SHORTCUT nameBatchUserInvoiceDetail;
+
+fillAllBatchUserInvoiceDetail 'Проставить партии для всех' = ACTION (detail) {
+   FOR userInvoiceUserInvoiceDetail(detail) == userInvoiceUserInvoiceDetail(d) DO
+       fillBatchUserInvoiceDetail(d);
+} SHORTCUT nameBatchUserInvoiceDetail;
+
 NAVIGATOR {
     saleSaleNavigator {
         ADD invoices;
