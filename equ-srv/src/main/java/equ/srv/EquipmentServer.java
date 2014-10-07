@@ -1594,7 +1594,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             paymentProperties).synchronize(true);
 
                     String result = session.applyMessage(getBusinessLogics());
-                    session.popVolatileStats();
+//                    session.popVolatileStats();
                     if(result != null)
                         return result;
                 }
