@@ -210,7 +210,7 @@ quantityOutFIFOSkuLedgerBatch (ledger, batch) =
                   BY ledger
                   ORDER orderOutFIFOSkuLedgerBatch(ledger, batch), orderBatch(batch);
 
-quantityDataSkuLedgerBatch (ledger, batch) = MULTI quantityInLIFOSkuLedgerBatch(ledger, batch),
+quantityDataSkuLedgerBatch (ledger, batch) = MULTI quantityInLIFOSkuLedgerBatch(ledger, batch) (+) 0, // (+) 0 делается, чтобы все 0 стали NULL 
                                                    quantityOutFIFOSkuLedgerBatch(ledger, batch);
 
 // Свойства для расчета себестоимости
@@ -431,7 +431,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     lastOrderBatch##postfix##Sku (sku) = GROUP MIN lastOrderBatch##postfix##SkuStock(sku, stock) BY sku;
 
     currentBalance##postfix##Batch 'Остаток (всего)'###caption (batch) = GROUP SUM currentBalance##postfix##BatchStock(batch, stock) BY batch PERSISTENT;
-    outcome##postfix##Batch 'Расходовано'###caption (batch) = shippedQuantityBatch(batch) (-) currentBalance##postfix##Batch(batch);
+    outcome##postfix##Batch 'Расходовано'###caption (batch) = MAX shippedQuantityBatch(batch) (-) currentBalance##postfix##Batch(batch), 0;
 
     balanceASkuLedger 'Остаток (после)' (ledger) = balanceASkuStockDateTime(skuSkuLedger(ledger), stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
 
