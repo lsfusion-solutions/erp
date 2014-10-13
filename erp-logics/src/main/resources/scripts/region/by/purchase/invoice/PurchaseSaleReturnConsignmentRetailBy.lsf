@@ -1,0 +1,55 @@
+MODULE PurchaseSaleReturnConsignmentRetailBy;
+
+REQUIRE PricingPurchaseReturn, PurchaseSaleReturnInvoice, ConsignmentBy;
+
+NAMESPACE PurchaseReturn;
+
+useRetailPriceOperation 'Использовать розничные цены в ТТН (возврат из магазина)' = DATA BOOLEAN (Purchase.Operation);
+useVATOperation 'Печатать НДС в ТТН (возврат из магазина)' = DATA BOOLEAN (Purchase.Operation);
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) useRetailPriceOperation
+    PROPERTIES(o) SHOWIF useRetailPriceOperation(o) useVATOperation
+;
+EXTEND DESIGN Purchase.operation {
+    saleReturnContainer {
+        ADD PROPERTY(useRetailPriceOperation(o)) AFTER PROPERTY(nameSaleReturnOperationOperation(o));
+        ADD PROPERTY(useVATOperation(o)) AFTER PROPERTY(useRetailPriceOperation(o));
+    }
+}
+@defineDocumentInterfaceProperty (invoice, useRetailPrice, 'Использовать розн. цены в ТТН');
+@deriveDocumentOperationProperty(UserInvoice, useRetailPrice);
+@defineDocumentInterfaceProperty (invoice, useVAT, 'Печатать НДС в ТТН');
+@deriveDocumentOperationProperty(UserInvoice, useVAT);
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i)
+                  useRetailPriceUserInvoice
+    PROPERTIES(i) SHOWIF useRetailPriceUserInvoice(i) BACKGROUND backgroundRetailInvoice(i)
+                  useVATUserInvoice                 
+;
+EXTEND DESIGN userInvoice {
+    headerCreatePricing  {
+        ADD PROPERTY(useRetailPriceUserInvoice(i));
+        ADD PROPERTY(useVATUserInvoice(i));
+    }
+}
+
+overPriceConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d) 
+    THEN    
+        IF useVATInvoiceDetail(d) THEN NUMERIC[14,2](round0((retailPriceInvoiceDetail(d) (-) retailVATSumInvoiceDetail(d)/quantityConsignmentDetail(d)))) 
+        ELSE retailPriceInvoiceDetail(d);         
+overSumConsignmentDetail(d) += WHEN  useRetailPriceInvoiceDetail(d)
+    THEN 
+        IF useVATInvoiceDetail(d) THEN NUMERIC[16,2](round0(overPriceConsignmentDetail(d))*pricingQuantityInvoiceDetail(d))
+        ELSE retailSumInvoiceDetail(d);          
+overVatConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d) 
+    THEN 
+        IF useVATInvoiceDetail(d) THEN valueRetailVATInvoiceDetail(d)
+        ELSE  0.0 IF d IS InvoiceDetail;
+overSumVATConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d) 
+    THEN 
+        IF useVATInvoiceDetail(d) THEN retailSumInvoiceDetail(d) (-) overSumConsignmentDetail(d)  
+        ELSE 0.0 IF d IS InvoiceDetail; 
+overSumInvoiceConsignmentDetail(d) += WHEN useRetailPriceInvoiceDetail(d) 
+    THEN retailSumInvoiceDetail(d);
