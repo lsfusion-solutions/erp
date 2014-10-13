@@ -253,6 +253,21 @@ priceALedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, date
 prevPriceBLedgerPriceListTypeSkuStockDateTime 'Цена (пред.)' (type, sku, stock, dateTime) = PREV(priceBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
 prevPriceALedgerPriceListTypeSkuStockDateTime 'Цена (пред.)' (type, sku, stock, dateTime) = PREV(priceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
 
+//-- Только от партии
+priceBBatchLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
+    GROUP LAST pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch)
+        BY type, batch, stock, dateTimeIn
+        ORDER fromDateTimePriceListLedger(ledger), ledger
+        WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND
+            fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+
+priceABatchLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
+    GROUP LAST pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch)
+        BY type, batch, stock, dateTimeIn
+        ORDER fromDateTimePriceListLedger(ledger), ledger
+        WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND
+            fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+
 META defineLastLedgerPriceListTypeBatchStock(property, caption)
     property##BLedgerPriceListTypeBatchStockDateTime caption (type, batch, stock, dateTime) =
         IF batchLedgerPriceListTypeStock(type, stock) THEN

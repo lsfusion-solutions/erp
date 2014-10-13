@@ -1,0 +1,100 @@
+MODULE BatchRepricing;
+
+REQUIRE RepricingDashboard;
+
+NAMESPACE Repricing;
+
+//----------------- 
+
+// По партиям
+
+priceBBatchStockDateTime 'Цена партии' (batch, stock, dateTime)= priceBBatchLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batch, stock, dateTime);
+priceBBatchSkuStockDateTime 'Цена по товару' (batch, stock, dateTime)= priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuBatch(batch), stock, dateTime);
+
+toRepricingBatchStockDateTime (batch, stock, dateTime) =  balanceBBatchStockDateTime(batch, stock, dateTime) 
+    IF NOT (priceBBatchStockDateTime(batch, stock, dateTime) == priceBBatchSkuStockDateTime(batch, stock, dateTime));
+toRepricingStockDateTime (stock, dateTime) = GROUP SUM 1 IF toRepricingBatchStockDateTime (batch, stock, dateTime) BY stock, dateTime;     
+
+setUserRepricingStockDateTimeOperation 'Создать акт переоценки по партиям'  = ACTION (stock, dateTime, operation) NEWSESSION {
+    IF toRepricingStockDateTime (stock, dateTime) AND stock IS DepartmentStore THEN {
+    
+        FOR ADDOBJ p = UserRepricing DO {
+            departmentStoreUserRepricing(p) <- stock;
+            dateUserRepricing(p) <- toDate(dateTime);
+            timeUserRepricing(p) <- toTime(dateTime);
+            operationUserRepricing(p) <- operation;
+            
+            FOR toRepricingBatchStockDateTime(batch, stock, dateTime) ADDOBJ d = UserRepricingDetail DO {
+                userRepricingUserRepricingDetail(d) <- p;    
+                skuUserRepricingDetail(d) <- skuBatch(batch);
+                batchUserRepricingDetail(d) <- batch;
+                quantityUserRepricingDetail(d) <- balanceBBatchStockDateTime(batch, stock, dateTime);
+                curRetailPriceUserRepricingDetail(d) <- priceBBatchStockDateTime(batch, stock, dateTime);
+                retailPriceUserRepricingDetail(d) <- priceBBatchSkuStockDateTime(batch, stock, dateTime);
+            }  
+            FORM userRepricing OBJECTS p = p MANAGESESSION DOCKEDMODAL;
+        }
+    }     
+} TOOLBAR;
+
+FORM repricingBatchDashboard 'Дооценка по партиям'
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES (d) SELECTOR nameDepartmentStore
+    FILTERS isCompanyStock(d)
+        
+    OBJECTS o = Repricing.Operation FIXED PANEL
+    PROPERTIES (o) SELECTOR Repricing.nameOperation
+    FILTERS inUserOperation(currentUser(), o)
+
+    OBJECTS t=DATETIME FIXED PANEL
+    PROPERTIES(t) OBJVALUE        
+     
+    OBJECTS bt = Batch
+    PROPERTIES (bt) READONLY dateBatch, nameBatch, nameSkuBatch 
+    PROPERTIES (bt,d,t) READONLY balanceBBatchStockDateTime, priceBBatchStockDateTime, priceBBatchSkuStockDateTime
+    
+    FILTERS toRepricingBatchStockDateTime(bt,d,t)       
+    PROPERTIES (d,t,o)  TODRAW bt FORCE PANEL setUserRepricingStockDateTimeOperation
+                  
+    OBJECTS p = Repricing
+    PROPERTIES (p) READONLY isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
+                   nameDepartmentStoreRepricing, countRepricingDetailRepricing, diffSumRepricingDetailRepricing,
+                   diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
+                   diffRetailSumRepricingDetailRepricing, numberDisposalRepricing, skipChangeLedgerRepricing,
+                   statusLabelPriceTransactionDocument BACKGROUND backgroundPrintLabelTransactionRepricing(p),
+                   statusMachineryPriceTransactionDocument ON SHORTCUT createSnapshotRepricingMachineryPriceTransaction(p) BACKGROUND backgroundCreateMachineryPriceTransactionRepricing(p), 
+                   noteRepricing                      
+               
+    PROPERTIES (p) createRepricingLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransactionRepricing(p), 
+                   createSnapshotRepricingLabelTransaction FORCE PANEL
+                   
+    PROPERTIES(p)  createRepricingMachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransactionRepricing(p)
+    PROPERTIES (p) printRepricing FORCE PANEL TOOLBAR                                           
+    PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p), ADDFORM
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)    
+                       
+    FILTERGROUP filters FILTER 'Переоценки на дату' 'F5' dateRepricing(p)==toDate(t) DEFAULT                
+                                               
+;
+DESIGN repricingBatchDashboard FROM DEFAULT {
+    main {
+        type = CONTAINERV;
+
+        NEW topContainer {
+            type = CONTAINERH;
+            ADD d.box;
+            ADD o.box;
+            ADD t.box { caption = 'Время с';}
+        }
+        ADD bt.box;
+        ADD p.box;
+        ADD functions.box;
+    }
+}
+NAVIGATOR {
+    retailDashboardNavigator {
+        ADD repricingBatchDashboard;
+    }
+}
+
+
