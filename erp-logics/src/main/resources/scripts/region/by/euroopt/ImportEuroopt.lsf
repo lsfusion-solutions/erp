@@ -1,0 +1,25 @@
+MODULE ImportEuroopt;
+
+REQUIRE System, Item, ItemDescription, ItemNutrition, ImportUserPriceList;
+
+importEurooptAction 'Импортировать' = ACTION CUSTOM 'lsfusion.erp.region.by.euroopt.ImportEurooptActionProperty';
+importEurooptSkipKeys 'Не создавать новые товары' = DATA BOOLEAN();
+importEurooptItems 'Импортировать товары' = DATA BOOLEAN();
+importEurooptUserPriceLists 'Импортировать прайс-листы' = DATA BOOLEAN();
+
+idItemGroupBarcode 'Код группы товаров' (barcode) = idSkuGroup(skuGroupSku(skuBarcode(barcode)));
+
+EXTEND FORM integrationData
+    PROPERTIES() importEurooptAction, importEurooptSkipKeys, importEurooptItems, importEurooptUserPriceLists
+;
+EXTEND DESIGN integrationData {
+    pane {
+        NEW euroopt {
+            caption = 'Евроопт';
+            ADD PROPERTY(importEurooptAction());
+            ADD PROPERTY(importEurooptSkipKeys());
+            ADD PROPERTY(importEurooptItems());
+            ADD PROPERTY(importEurooptUserPriceLists());
+        }
+    }
+}
