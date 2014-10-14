@@ -67,17 +67,21 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
     }
 
     protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, Integer row, Integer column, BigDecimal defaultValue) {
-        if (column == null || row == null) return defaultValue;
-        Cell cell = sheet.getCell(column, row);
-        if (cell == null) return defaultValue;
-        CellType cellType = cell.getType();
-        if (cellType.equals(CellType.NUMBER))
-            return BigDecimal.valueOf(((NumberCell) cell).getValue());
-        else if (cellType.equals(CellType.NUMBER_FORMULA))
-            return BigDecimal.valueOf(((NumberFormulaCell) cell).getValue());
-        else {
-            String result = cell.getContents().trim();
-            return result.isEmpty() ? defaultValue : new BigDecimal(result);
+        try {
+            if (column == null || row == null) return defaultValue;
+            Cell cell = sheet.getCell(column, row);
+            if (cell == null) return defaultValue;
+            CellType cellType = cell.getType();
+            if (cellType.equals(CellType.NUMBER))
+                return BigDecimal.valueOf(((NumberCell) cell).getValue());
+            else if (cellType.equals(CellType.NUMBER_FORMULA))
+                return BigDecimal.valueOf(((NumberFormulaCell) cell).getValue());
+            else {
+                String result = cell.getContents().trim();
+                return result.isEmpty() ? defaultValue : new BigDecimal(result);
+            }
+        } catch (NumberFormatException e) {
+            throw new RuntimeException(String.format("Error parsing cell value: row %s, column %s", row, column), e);
         }
     }
 
