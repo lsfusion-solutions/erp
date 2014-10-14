@@ -81,7 +81,7 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
                 return result.isEmpty() ? defaultValue : new BigDecimal(result);
             }
         } catch (NumberFormatException e) {
-            throw new RuntimeException(String.format("Error parsing cell value: row %s, column %s", row, column), e);
+            throw new RuntimeException(String.format("Error parsing cell value: row %s, column %s", row + 1, column + 1), e);
         }
     }
 
