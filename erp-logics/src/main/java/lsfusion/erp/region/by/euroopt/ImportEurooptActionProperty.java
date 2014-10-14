@@ -208,24 +208,24 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 object(findClass("Item")).getMapping(itemKey)));
         fields.add(idBarcodeSkuField);
 
-        ImportField retailIdDataPriceListTypeField = new ImportField(findProperty("idDataPriceListType"));
-        ImportKey<?> retailDataPriceListTypeKey = new ImportKey((CustomClass) findClass("DataPriceListType"),
-                findProperty("dataPriceListTypeId").getMapping(retailIdDataPriceListTypeField));
-        keys.add(retailDataPriceListTypeKey);
-        props.add(new ImportProperty(retailIdDataPriceListTypeField, findProperty("idPriceListType").getMapping(retailDataPriceListTypeKey)));
-        fields.add(retailIdDataPriceListTypeField);
+        ImportField idDataPriceListTypeField = new ImportField(findProperty("idDataPriceListType"));
+        ImportKey<?> dataPriceListTypeKey = new ImportKey((CustomClass) findClass("DataPriceListType"),
+                findProperty("dataPriceListTypeId").getMapping(idDataPriceListTypeField));
+        keys.add(dataPriceListTypeKey);
+        props.add(new ImportProperty(idDataPriceListTypeField, findProperty("idPriceListType").getMapping(dataPriceListTypeKey)));
+        fields.add(idDataPriceListTypeField);
 
-        ImportField retailNamePriceListTypeField = new ImportField(findProperty("namePriceListType"));
-        props.add(new ImportProperty(retailNamePriceListTypeField, findProperty("namePriceListType").getMapping(retailDataPriceListTypeKey), true));
-        fields.add(retailNamePriceListTypeField);
+        ImportField namePriceListTypeField = new ImportField(findProperty("namePriceListType"));
+        props.add(new ImportProperty(namePriceListTypeField, findProperty("namePriceListType").getMapping(dataPriceListTypeKey), true));
+        fields.add(namePriceListTypeField);
         
-        ImportField retailPricePriceListDetailField = new ImportField(findProperty("pricePriceListDetailDataPriceListType"));
-        props.add(new ImportProperty(retailPricePriceListDetailField, findProperty("priceUserPriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, retailDataPriceListTypeKey)));
-        fields.add(retailPricePriceListDetailField);
+        ImportField pricePriceListDetailField = new ImportField(findProperty("pricePriceListDetailDataPriceListType"));
+        props.add(new ImportProperty(pricePriceListDetailField, findProperty("priceUserPriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeKey)));
+        fields.add(pricePriceListDetailField);
 
-        ImportField retailInPriceListPriceListTypeField = new ImportField(findProperty("inUserPriceListDataPriceListType"));
-        props.add(new ImportProperty(retailInPriceListPriceListTypeField, findProperty("inUserPriceListDataPriceListType").getMapping(userPriceListKey, retailDataPriceListTypeKey), true));
-        fields.add(retailInPriceListPriceListTypeField);
+        ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inUserPriceListDataPriceListType"));
+        props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inUserPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeKey), true));
+        fields.add(inPriceListPriceListTypeField);
 
         ImportTable table = new ImportTable(fields, data);
 
@@ -311,7 +311,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
                                     fatsItem, carbohydratesItem, energyItem, IOUtils.getFileBytes(imageItem), manufacturerItem, UOMItem, brandItem));
                         if (importUserPriceLists) {
-                            userPriceListsList.add(Arrays.asList((Object) idPriceList, String.valueOf(idPriceListDetail), idBarcode, "retail", "Цена (Евроопт)", price, true));
+                            userPriceListsList.add(Arrays.asList((Object) idPriceList, String.valueOf(idPriceListDetail), idBarcode, "euroopt", "Цена (Евроопт)", price, true));
                             idPriceListDetail++;
                         }
                         //to avoid duplicates
