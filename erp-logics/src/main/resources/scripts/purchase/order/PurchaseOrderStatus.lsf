@@ -1,0 +1,135 @@
+MODULE PurchaseOrderStatus;
+
+REQUIRE PurchaseOrder;
+
+NAMESPACE Purchase;
+
+//--------------- Статус заказа ---------------//
+
+@defineDocumentInterfaceDetailQuantityPrefix (order, original, ' (предзаказ)');
+//-- Отправлен
+
+isSentOrder 'Отправлен' (o) = ABSTRACT BOOLEAN(Order) PERSISTENT;
+isSentUserOrder 'Отправлен' (o) = DATA BOOLEAN (UserOrder);
+
+notSentOrder 'Не отправлен' (o) = o IS Order AND NOT isSentOrder(o) PERSISTENT;
+notSentUserOrder 'Не отправлен' (o) = o IS UserOrder AND NOT isSentUserOrder(o) PERSISTENT;
+
+isSentOrder(o) += isSentUserOrder(o);  
+
+isSentOrderDetail 'Отправлен' (d) = isSentOrder(orderOrderDetail(d)) PERSISTENT;
+notSentOrderDetail 'Не отправлен' (d) = d IS OrderDetail AND NOT isSentOrderDetail(d);
+
+isSentUserOrderDetail 'Отправлен' (d) = isSentUserOrder(userOrderUserOrderDetail(d)) PERSISTENT;
+notSentUserOrderDetail 'Не отправлен' (d) = d IS UserOrderDetail AND NOT isSentUserOrderDetail(d);  
+
+//-- Подтвержден
+isConfirmedOrder 'Подтвержден' (o) = ABSTRACT BOOLEAN(Order) PERSISTENT;
+isConfirmedUserOrder 'Подтвержден' (o) = DATA BOOLEAN (UserOrder);
+
+notConfirmedOrder 'Не подтвержден' (o) = o IS Order AND NOT isConfirmedOrder(o) PERSISTENT;
+notConfirmedUserOrder 'Не подтвержден' (o) = o IS UserOrder AND NOT isConfirmedUserOrder(o) PERSISTENT;
+
+isConfirmedOrder(o) += isConfirmedUserOrder(o);  
+
+isConfirmedOrderDetail 'Подтвержден' (d) = isConfirmedOrder(orderOrderDetail(d)) PERSISTENT;
+notConfirmedOrderDetail 'Не подтвержден' (d) = d IS OrderDetail AND NOT isConfirmedOrderDetail(d);
+
+isConfirmedUserOrderDetail 'Подтвержден' (d) = isConfirmedUserOrder(userOrderUserOrderDetail(d)) PERSISTENT;
+notConfirmedUserOrderDetail 'Не подтвержден' (d) = d IS UserOrderDetail AND NOT isConfirmedUserOrderDetail(d);  
+
+statusOrder 'Статус заказа' = CASE 
+    WHEN isClosedOrder(o) THEN 'Закрыт'
+    WHEN isPostedOrder(o) THEN 'В работе'
+    WHEN isConfirmedOrder(o) THEN 'Подтвержден'
+    WHEN isSentOrder(o) THEN 'Отправлен'
+    WHEN o IS Order THEN 'Создан' //MINCHARWIDTH 15 PREFCHARWIDTH 20
+;
+
+originalQuantityUserOrderDetail(d) <- quantityUserOrderDetail(d)
+    WHEN CHANGED (quantityUserOrderDetail(d)) IF NOT (isPostedUserOrderDetail(d) OR isConfirmedUserOrderDetail(d) OR isSentUserOrderDetail(d));
+
+backgroundOriginalQuantityOrderDetail 'Цвет' (d) = RGB(255,0,0) IF quantityOrderDetail(d) != originalQuantityOrderDetail(d);      
+
+EXTEND FORM userOrder
+    PROPERTIES (o) isSentUserOrder, isConfirmedUserOrder
+    PROPERTIES (d) BACKGROUND backgroundOriginalQuantityOrderDetail(d) originalQuantityUserOrderDetail BEFORE quantityUserOrderDetail(d) SHOWIF isConfirmedUserOrder(o)
+;
+EXTEND DESIGN userOrder {
+    first {
+        ADD PROPERTY (isConfirmedUserOrder(o)) BEFORE PROPERTY(isPostedUserOrder(o));
+        ADD PROPERTY (isSentUserOrder(o)) BEFORE PROPERTY(isConfirmedUserOrder(o));    
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES (o) READONLY  BEFORE isPostedOrder(o) isSentOrder, isConfirmedOrder
+    PROPERTIES (o) READONLY  AFTER isPostedOrder(o) statusOrder
+    PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantityOrderDetail(d) originalQuantityOrderDetail BEFORE quantityOrderDetail(d) SHOWIF isConfirmedOrder(o)
+;
+
+emailNameSkuOrderDetail = ABSTRACT VARISTRING[255] (OrderDetail) PERSISTENT;
+
+FORM emailOrder 'Заказ'
+    OBJECTS o = Order FIXED PANEL
+    PROPERTIES (o) numberOrder, seriesOrder, nameSupplierOrder, nameCustomerOrder, nameSupplierStockOrder, nameCustomerStockOrder,
+                   dateOrder, timeOrder, nameCurrencyOrder, noteOrder,
+                   countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
+                   VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, shipmentDateOrder
+
+    OBJECTS d = OrderDetail
+    PROPERTIES (d) indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, emailNameSkuOrderDetail, shortNameUOMSkuOrderDetail,
+                   quantityOrderDetail, priceOrderDetail,  sumOrderDetail, valueVATOrderDetail,
+                   VATSumOrderDetail, invoiceSumOrderDetail
+
+    FILTERS orderOrderDetail(d) == o
+;
+
+calcEmailCustomerOrder 'Выслать заказ поставщику' (order) = ACTION EMAIL
+    FROM emailLegalEntity(customerOrder(order))
+    SUBJECT 'Заказа №' + seriesNumberOrder(order) + ' от '  + dateOrder(order)
+    TO emailLegalEntity(supplierOrder(order))
+    INLINE emailOrder OBJECTS o=order
+    ATTACH PDF
+           NAME 'Заказ №' + seriesNumberOrder(order) + ' от ' + dateOrder(order)
+           emailOrder OBJECTS o=order
+;
+
+emailCustomerOrder 'Выслать заказ поставщику' (order)= ACTION (order) {
+    IF emailLegalEntity(supplierOrder(order)) THEN {
+        NEWSESSION AUTOAPPLY {
+            isSentOrder(o) <- TRUE;
+            
+            calcEmailCustomerOrder(order);        
+        }
+
+    } ELSE {
+        MESSAGE 'У поставщика не задан e-mail';
+    }
+} TOOLBAR;
+
+EXTEND FORM orders 
+    PROPERTIES(o) emailCustomerOrder  
+; 
+
+EXTEND DESIGN orders {
+    actionContainer {
+        NEW emailContainer {
+            caption = 'Почта';
+                ADD PROPERTY (emailCustomerOrder(o));
+        }
+    }
+}
+
+orderConfirmationAgreement 'Пожтверждение заказа поставщиком'  = DATA BOOLEAN (Agreement);
+
+EXTEND FORM agreement 
+    PROPERTIES(a) orderConfirmationAgreement 
+;
+EXTEND DESIGN agreement {
+    orderContainer1 {
+        ADD PROPERTY (orderConfirmationAgreement(a));
+    }    
+}
+
+disablePostedUserOrder (o) += orderConfirmationAgreement(agreementUserOrder(o)) IF NOT isConfirmedUserOrder(o);

@@ -343,6 +343,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     
     backgroundParamOrderDetail = RGB(212,255,212) IF orderDetail IS OrderDetail; 
     backgroundQuantityParamOrderDetail = OVERRIDE backgroundParamOrderDetail(d), backgroundQuantityUserOrderDetail(d);
+    disablePostedUserOrder 'Запретить проведение' = ABSTRACT BOOLEAN (UserOrder); 
+    overPrePostUserOrder 'Провести' (o) = ACTION (o) {
+        IF NOT disablePostedUserOrder(o) THEN {
+            isPostedUserOrder(o) <- TRUE;
+        } 
+    }
     
     FORM userOrder 'Заказ'###sign
         OBJECTS o = UserOrder FIXED PANEL
@@ -376,7 +382,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         FILTERS userOrderUserOrderDetail(d) == o
 
         EVENTS
-            ON OK prePostUserOrder(o)
+            ON OK overPrePostUserOrder(o)
 
 //        HINTTABLE LIST dateTimeUserOrderDetail, skuUserOrderDetail, supplierStockUserOrderDetail, customerStockUserOrderDetail,
 //                       priceListTypeUserOrderDetail, currencyUserOrderDetail,
