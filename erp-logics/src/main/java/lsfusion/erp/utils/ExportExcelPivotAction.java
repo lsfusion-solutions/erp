@@ -16,6 +16,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 public class ExportExcelPivotAction implements ClientAction {
@@ -161,13 +163,43 @@ public class ExportExcelPivotAction implements ClientAction {
 
                 int dataCount = 0;
                 for (String entry : cellFieldsEntry) {
-                    Dispatch field = cellDispatchFieldsMap.get(entry);
-                    if (field != null) {
-                        dataCount++;
+
+                    if (entry != null && entry.matches(".*=.*")) {
+                        String[] splittedEntry = entry.split("=");
+                        String formula = splittedEntry[0];
+                        String caption = splittedEntry[1];
+
+                        String resultFormula = "";
+                        Pattern pattern = Pattern.compile("(\\$?[\\d%]+)(\\+|\\-|\\*|\\/)?");
+                        Matcher matcher = pattern.matcher(formula);
+                        while(matcher.find()) {
+                            resultFormula += getFormulaCell(cellFieldsEntry, matcher.group(1)) + (matcher.group(2) == null ? "" : matcher.group(2));
+                        } 
+                        if(resultFormula.isEmpty()) {
+                            throw new RuntimeException("Error Formula: " + formula);
+                        } 
+                        boolean percent = false;
+                        if(resultFormula.endsWith("%")) {
+                            resultFormula = resultFormula.substring(0, resultFormula.length() - 1);
+                            percent = true;
+                        }
+                        Dispatch calculatedFields = Dispatch.call(pivotTableWizard, "CalculatedFields").toDispatch();
+                        Dispatch field = Dispatch.call(calculatedFields, "Add", caption, resultFormula, true).toDispatch();
                         Dispatch.put(field, "Orientation", new Variant(xlDataField));
-                        Dispatch.put(field, "Function", new Variant(xlSum));
-                        String caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
+                        caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
                         Dispatch.put(field, "Caption", new Variant(caption + "*"));
+                        if(percent)
+                            Dispatch.put(field, "NumberFormat", new Variant("0.00%"));
+                    } else {
+
+                        Dispatch field = cellDispatchFieldsMap.get(entry);
+                        if (field != null) {
+                            dataCount++;
+                            Dispatch.put(field, "Orientation", new Variant(xlDataField));
+                            Dispatch.put(field, "Function", new Variant(xlSum));
+                            String caption = Dispatch.get(field, "Caption").getString().replace("Сумма по полю ", "");
+                            Dispatch.put(field, "Caption", new Variant(caption + "*"));
+                        }
                     }
                 }
 
@@ -251,5 +283,9 @@ public class ExportExcelPivotAction implements ClientAction {
             }           
         }
         return fieldsMap;
+    }
+    
+    private String getFormulaCell(List<String> cellFieldsEntry, String field) {
+        return field.startsWith("$") ? ("'" + cellFieldsEntry.get(Integer.parseInt(field.replace("$", "")) - 1) + "'") : field;
     }
 }

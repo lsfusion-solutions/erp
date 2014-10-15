@@ -86,12 +86,15 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
             for (List<String> fieldsEntry : fields) {
                 List<String> resultEntry = new ArrayList<String>();
                 for (String field : fieldsEntry) {
-                    for (PropertyDrawView property : properties) {
-                        if (property.getSID().equals(field)) {
-                            resultEntry.add(property.getCaption());
-                            break;
+                    if (field.matches(".*=.*"))
+                        resultEntry.add(field);
+                    else
+                        for (PropertyDrawView property : properties) {
+                            if (property.getSID().equals(field)) {
+                                resultEntry.add(property.getCaption());
+                                break;
+                            }
                         }
-                    }
                 }
                 result.add(resultEntry);
             }
