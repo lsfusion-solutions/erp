@@ -208,6 +208,9 @@ public class ExportExcelPivotAction implements ClientAction {
                     if (dataCount > 1)
                         Dispatch.put(field, "Orientation", new Variant(xlColumnField));
                 }
+
+                //По какой-то причине ColumnGrand и RowGrand работают ровно наоборот
+                Dispatch.put(pivotTableWizard, "ColumnGrand", new Variant(true));
             }
         }
         
@@ -286,6 +289,6 @@ public class ExportExcelPivotAction implements ClientAction {
     }
     
     private String getFormulaCell(List<String> cellFieldsEntry, String field) {
-        return field.startsWith("$") ? ("'" + cellFieldsEntry.get(Integer.parseInt(field.replace("$", "")) - 1) + "'") : field;
+        return field.startsWith("$") ? ("'" + cellFieldsEntry.get(Integer.parseInt(field.replace("$", "").replace("%", "")) - 1) + "'") : field;
     }
 }
