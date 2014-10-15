@@ -444,9 +444,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     
                     Integer nppGroupTerminal = (Integer) terminalLM.findProperty("nppGroupMachinery").read(session, groupMachineryObject);
                     String directoryGroupTerminal = (String) terminalLM.findProperty("directoryGroupTerminal").read(session, groupMachineryObject);
-                    ObjectValue priceListTypeGroupTerminal = terminalLM.findProperty("priceListTypeGroupTerminal").readClasses(session, groupMachineryObject);
+                    ObjectValue priceListTypeGroupMachinery = terminalLM.findProperty("priceListTypeGroupMachinery").readClasses(session, groupMachineryObject);
                     ObjectValue stockGroupTerminal = terminalLM.findProperty("stockGroupTerminal").readClasses(session, groupMachineryObject);
-                    String idPriceListType = (String) terminalLM.findProperty("idPriceListType").read(session, priceListTypeGroupTerminal);
+                    String idPriceListType = (String) terminalLM.findProperty("idPriceListType").read(session, priceListTypeGroupMachinery);
                     
                     LCP<PropertyInterface> isTerminal = (LCP<PropertyInterface>) terminalLM.is(terminalLM.findClass("Terminal"));
 
@@ -484,7 +484,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeList(session);                   
                     List<TerminalOrder> terminalOrderList = readTerminalOrderList(session);
                     List<TerminalLegalEntity> terminalLegalEntityList = readTerminalLegalEntityList(session);
-                    List<TerminalAssortment> terminalAssortmentList = readTerminalAssortmentList(session, priceListTypeGroupTerminal, stockGroupTerminal);
+                    List<TerminalAssortment> terminalAssortmentList = readTerminalAssortmentList(session, priceListTypeGroupMachinery, stockGroupTerminal);
                     
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(),
                             dateTimeCode, terminalItemInfoList, terminalInfoList, terminalHandbookTypeList,
@@ -1086,7 +1086,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.addProperty("handlerModelMachinery", terminalLM.findProperty("handlerModelMachinery").getExpr(terminalExpr));
                 query.addProperty("portMachinery", terminalLM.findProperty("portMachinery").getExpr(terminalExpr));
                 query.addProperty("directoryGroupTerminal", terminalLM.findProperty("directoryGroupTerminal").getExpr(groupTerminalExpr));
-                query.addProperty("priceListTypeGroupTerminal", terminalLM.findProperty("priceListTypeGroupTerminal").getExpr(groupTerminalExpr));
+                query.addProperty("priceListTypeGroupMachinery", terminalLM.findProperty("priceListTypeGroupMachinery").getExpr(groupTerminalExpr));
                 
                 query.and(terminalLM.findProperty("handlerModelMachinery").getExpr(terminalExpr).getWhere());
                 query.and(terminalLM.findProperty("directoryGroupTerminal").getExpr(groupTerminalExpr).getWhere());
@@ -1096,7 +1096,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
-                    Integer priceListType = (Integer) row.get("priceListTypeGroupTerminal");
+                    Integer priceListType = (Integer) row.get("priceListTypeGroupMachinery");
                     String idPriceListType = priceListType == null ? null : (String) terminalLM.findProperty("idPriceListType").read(session, new DataObject(priceListType));
                     terminalInfoList.add(new TerminalInfo((Integer) row.get("nppMachinery"), (String) row.get("nameModelMachinery"), 
                             (String) row.get("handlerModelMachinery"), (String) row.get("portMachinery"), idPriceListType, (String) row.get("directoryGroupTerminal")));
