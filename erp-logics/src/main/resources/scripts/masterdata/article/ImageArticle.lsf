@@ -16,6 +16,9 @@ loadImageArticle 'Загрузить изображение в артикул' =
 uploadImageArticleFromDirectory 'Загрузить изображение из папки' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleFromDirectoryActionProperty';
 uploadImageArticleFromURL 'Загрузить изображение по ссылке' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleFromURLActionProperty';
 
+patternImageBrand 'Шаблон поиска изображений' = DATA VARSTRING[100] (Brand);
+patternImageArticle 'Шаблон поиска изображений' (article) = patternImageBrand(brandArticle(article));
+
 urlImageArticle 'Ссылка' = DATA VARSTRING[1000] (Article) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 WHEN SESSION CHANGED(urlImageArticle(a)) DO uploadImageArticleFromURL(a); 
 
@@ -31,7 +34,7 @@ uploadAllImagesArticle 'Загрузить все изображения' () = A
 
 EXTEND FORM article 
 PROPERTIES(a) idImageArticle, searchImageArticle, uploadImageArticleFromDirectory, 
-              urlImageArticle;
+              urlImageArticle, patternImageArticle;
 
 EXTEND DESIGN article {
     imageBox {
@@ -41,9 +44,13 @@ EXTEND DESIGN article {
             ADD PROPERTY(searchImageArticle(a));
             ADD PROPERTY(uploadImageArticleFromDirectory(a));
             ADD PROPERTY(urlImageArticle(a));
+            ADD PROPERTY(patternImageArticle(a));
         }
     }
 }
+
+EXTEND FORM brand PROPERTIES(t) patternImageBrand;
+EXTEND FORM brands PROPERTIES(t) patternImageBrand;
 
 EXTEND FORM options PROPERTIES() pathImageArticles, uploadAllImagesArticle;
 EXTEND DESIGN options {
