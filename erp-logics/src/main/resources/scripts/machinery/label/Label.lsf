@@ -7,11 +7,25 @@ CLASS PrintOrientation 'Ориентация' {
     portrait 'Книжная',
     landscape 'Альбомная'
 }
+fileTemplatePrintOrientation 'Файл шаблона' = DATA VARSTRING[200] (PrintOrientation);
+
+FORM printOrientation 'Ориентация'
+    OBJECTS o = PrintOrientation FIXED PANEL 
+    PROPERTIES(o) staticCaption, fileTemplatePrintOrientation  
+    EDIT PrintOrientation OBJECT o
+;
+
 FORM printOrientations 'Ориентации'
     OBJECTS o = PrintOrientation
-    PROPERTIES(o) READONLY staticCaption
+    PROPERTIES(o) READONLY staticCaption, fileTemplatePrintOrientation  
+    PROPERTIES(o) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG PrintOrientation OBJECT o
 ;
+
+onStarted() += ACTION (){
+    fileTemplatePrintOrientation(o) <- 'Label_printLabelTransaction.jrxml' WHERE o == PrintOrientation.landscape; 
+    fileTemplatePrintOrientation(o) <- 'Label_printLabelTransactionP.jrxml' WHERE o == PrintOrientation.portrait; 
+}
 
 // типы ценников
 CLASS LabelType 'Тип ценника';
@@ -249,6 +263,8 @@ CONSTRAINT labelTypeLabelTransaction(transaction) AND NOT inLabelTypeDepartmentS
 
 fileTemplateLabelTransaction 'Файл шаблона' (transaction) = fileTemplateLabelType(labelTypeLabelTransaction(transaction));
 
+topFileTemplateLabelTransaction 'Файл шаблона (верхний)' = fileTemplatePrintOrientation(orientationLabelType(labelTypeLabelTransaction(transaction)));
+
 priceTransactionDocumentLabelTransaction = DATA PriceTransactionDocument (LabelTransaction);
 descriptionLabelTransaction 'Основание загрузки' (transaction) =
     descriptionPriceTransactionDocument(priceTransactionDocumentLabelTransaction(transaction));
@@ -295,20 +311,7 @@ FORM printLabelTransaction 'Печать ценников'
     PROPERTIES(d) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
                            quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail
     FILTERS labelTransactionLabelTransactionDetail(d) == l
-    REPORTFILES l fileTemplateLabelTransaction(l)
-;
-
-FORM printLabelTransactionP 'Печать ценников'
-    OBJECTS l = LabelTransaction FIXED PANEL
-    PROPERTIES(l) READONLY nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, descriptionLabelTransaction,
-                  dateLabelTransaction, timeLabelTransaction, nameStoreLabelTransaction, nameLegalEntityLabelTransaction, 
-                  fullNameLegalEntityLabelTransaction, dateTimeLabelTransaction
-    
-    OBJECTS d = LabelTransactionDetail
-    PROPERTIES(d) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
-                           quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail
-    FILTERS labelTransactionLabelTransactionDetail(d) == l
-    REPORTFILES l fileTemplateLabelTransaction(l)
+    REPORTFILES l fileTemplateLabelTransaction(l), TOP topFileTemplateLabelTransaction(l)
 ;
 
 selectedLabelTransactionDetail 'Отм.' = DATA SESSION BOOLEAN (LabelTransactionDetail);
@@ -350,22 +353,14 @@ addLabelTransactionDepartmentStore 'Добавить' = ACTION (dep) NEWSESSION 
         ASSIGN departmentStoreLabelTransaction(l) <- dep;
         FORM customLabelTransaction OBJECTS l=l DOCKEDMODAL;
         IF formResult() == FormResult.ok THEN { 
-            IF orientationLabelType(labelTypeLabelTransaction(l))== PrintOrientation.portrait THEN {
-                FORM printLabelTransactionP OBJECTS l = l PRINT;
-            } ELSE {
                 FORM printLabelTransaction OBJECTS l = l PRINT;
-            }                                     
             apply();
         }            
     }
 } TOOLBAR IMAGE 'add.png';
 
 printToLabelTransaction 'Печать ценников' (labelTransaction) = ACTION (labelTransaction) {
-    IF orientationLabelType(labelTypeLabelTransaction(labelTransaction))== PrintOrientation.portrait THEN {
-        FORM printLabelTransactionP OBJECTS l = labelTransaction PRINT;
-    } ELSE {
         FORM printLabelTransaction OBJECTS l = labelTransaction PRINT;
-    }
 } IMAGE 'print.png' IN print;
 
 FORM labelTransactions 'Печать ценников'
@@ -454,7 +449,6 @@ META defineLabelTransactionAttributeAction(object, skuClass, skuProp)
         ACTION object##LabelTransactionDetail(d) <- skuProp##skuClass(skuLabelTransactionDetail(d));
 
     EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY object##LabelTransactionDetail;
-    EXTEND FORM printLabelTransactionP PROPERTIES(d) READONLY object##LabelTransactionDetail;
     EXTEND FORM customLabelTransaction PROPERTIES(d) object##LabelTransactionDetail;
     EXTEND FORM labelTransactions PROPERTIES(dt) READONLY object##LabelTransactionDetail;
 END
@@ -481,12 +475,6 @@ EXTEND FORM printLabelTransaction
     PROPERTIES(l) addressStoreLabelTransaction                  
                   
 ;
-EXTEND FORM printLabelTransactionP 
-    PROPERTIES(d) READONLY residentCountrySkuLabelTransactionDetail, nameSupplierSkuLabelTransactionDetail, 
-                  fullNameSupplierSkuLabelTransactionDetail, shortNameOwnershipSupplierSkuLabelTransactionDetail
-    PROPERTIES(l) addressStoreLabelTransaction                  
-                  
-;
 
 EXTEND FORM customLabelTransaction 
     PROPERTIES(d) residentCountrySkuLabelTransactionDetail, nameSupplierSkuLabelTransactionDetail, 
@@ -504,7 +492,6 @@ nameAddressPhoneLegalEntityLabelTransactionDetail 'Наименование/Ад
            addressLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransactionDetail(d))),
            'Тел. ' + phoneLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransactionDetail(d)));
 EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressPhoneLegalEntityLabelTransactionDetail;
-EXTEND FORM printLabelTransactionP PROPERTIES(d) READONLY nameAddressPhoneLegalEntityLabelTransactionDetail;
 EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressPhoneLegalEntityLabelTransactionDetail;
 EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressPhoneLegalEntityLabelTransactionDetail;
 
@@ -635,12 +622,7 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
 
                         priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
                     } 
-                    // вызываем печатную форму для каждого из них
-                    IF orientationLabelType(labelType)== PrintOrientation.portrait THEN {
-                        FORM printLabelTransactionP OBJECTS l = t PRINT;
-                    } ELSE {
-                        FORM printLabelTransaction OBJECTS l = t PRINT;
-                    }
+                    FORM printLabelTransaction OBJECTS l = t PRINT;
             }
             printedPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
         }                
@@ -674,11 +656,7 @@ META defineDocumentLabelTransaction (document, skuProp, stockProp)
                 }
                 FORM customLabelTransaction OBJECTS l = t MANAGESESSION MODAL ;
                 IF formResult() == FormResult.ok THEN {
-                    IF orientationLabelType(labelTypeLabelTransaction(t))== PrintOrientation.portrait THEN {
-                        FORM printLabelTransactionP OBJECTS l = t PRINT;
-                    } ELSE {
-                        FORM printLabelTransaction OBJECTS l = t PRINT;
-                    }                       
+                        FORM printLabelTransaction OBJECTS l = t PRINT;                
                 }
             }            
         }            
@@ -762,12 +740,7 @@ createLabelTransactionDepartmentStore 'Распечатать ценники' = 
             priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
         } 
         // вызываем печатную форму для каждого из них        
-
-        IF orientationLabelType(labelTypeLabelTransaction(t))== PrintOrientation.portrait THEN {
-            FORM printLabelTransactionP OBJECTS l = t PRINT;
-        } ELSE {
-            FORM printLabelTransaction OBJECTS l = t PRINT;
-        }                   
+        FORM printLabelTransaction OBJECTS l = t PRINT;                 
     }
 } TOOLBAR;
 
@@ -787,12 +760,8 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         }
         
         FORM customLabelTransaction OBJECTS l = t MODAL;
-        IF formResult() == FormResult.ok THEN {      
-            IF orientationLabelType(labelTypeLabelTransaction(t))== PrintOrientation.portrait THEN {
-                FORM printLabelTransactionP OBJECTS l = t PRINT;
-            } ELSE {
-                FORM printLabelTransaction OBJECTS l = t PRINT;
-            }
+        IF formResult() == FormResult.ok THEN {    
+            FORM printLabelTransaction OBJECTS l = t PRINT;
         }        
     }  
 } TOOLBAR ;
