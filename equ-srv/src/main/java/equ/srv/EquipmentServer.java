@@ -768,9 +768,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     private List<TerminalOrder> readTerminalOrderList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
+        List<TerminalOrder> terminalOrderList = new ArrayList<TerminalOrder>();
         if (purchaseInvoiceAgreementLM != null) {
-
-            List<TerminalOrder> terminalOrderList = new ArrayList<TerminalOrder>();
             KeyExpr orderExpr = new KeyExpr("order");
             KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
             ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
@@ -806,18 +805,16 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail").getValue();
                 BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail").getValue();
                 BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail").getValue();
-                terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price, 
+                terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price,
                         quantity, minQuantity, maxQuantity, minPrice, maxPrice));
             }
-            return terminalOrderList;
-        } else return null;
+        }
+        return terminalOrderList;
     }
 
     private List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
+        List<TerminalLegalEntity> terminalLegalEntityList = new ArrayList<TerminalLegalEntity>();
         if (legalEntityLM != null) {
-
-            List<TerminalLegalEntity> terminalLegalEntityList = new ArrayList<TerminalLegalEntity>();
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
             ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<Object, Object>(legalEntityKeys);
@@ -833,18 +830,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 String nameLegalEntity = trim((String) entry.get("nameLegalEntity"));
                 terminalLegalEntityList.add(new TerminalLegalEntity(idLegalEntity, nameLegalEntity));
             }
-            return terminalLegalEntityList;
-        } else return null;
+        }
+        return terminalLegalEntityList;
     }
 
     private List<TerminalAssortment> readTerminalAssortmentList(DataSession session, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
+        List<TerminalAssortment> terminalAssortmentList = new ArrayList<TerminalAssortment>();
         if (legalEntityLM != null && priceListLedgerLM != null && itemLM != null) {
             
             DataObject currentDateTimeObject = new DataObject(new Timestamp(Calendar.getInstance().getTime().getTime()), DateTimeClass.instance);
             
-            List<TerminalAssortment> terminalAssortmentList = new ArrayList<TerminalAssortment>();
             KeyExpr skuExpr = new KeyExpr("Sku");
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "Sku", skuExpr, "LegalEntity", legalEntityExpr);
@@ -863,8 +859,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 String idLegalEntity = trim((String) entry.get("idLegalEntity"));
                 terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idLegalEntity));
             }
-            return terminalAssortmentList;
-        } else return null;
+        } 
+        return terminalAssortmentList;
     }
 
     @Override

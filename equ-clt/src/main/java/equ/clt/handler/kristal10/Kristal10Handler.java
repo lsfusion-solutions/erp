@@ -108,7 +108,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 good.addContent(group);
 
                 List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
+                if(hierarchyItemGroup != null)
+                    addHierarchyItemGroup(group, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
 
                 //parent: good
                 if (item.idUOM == null || item.shortNameUOM == null) {
