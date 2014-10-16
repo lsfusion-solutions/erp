@@ -50,7 +50,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
                 Pattern p = Pattern.compile(patternImageArticle);
                 Matcher m = p.matcher(idArticle);
                 if (m.find()) {
-                    idArticle = m.group(0);
+                    idArticle = m.groupCount() > 0 ? m.group(1) : m.group(0);
                 }
             } 
             idArticle = idArticle.replace("/", "+");
