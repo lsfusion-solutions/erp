@@ -1,6 +1,5 @@
-package lsfusion.erp.integration.universal;
+package lsfusion.erp.integration;
 
-import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
