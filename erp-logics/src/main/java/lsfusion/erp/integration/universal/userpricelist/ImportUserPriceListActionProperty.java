@@ -602,7 +602,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             Date dateFrom = getXLSDateFieldValue(sheet, i, importColumns.getColumns().get("dateFrom"), dateDocument);
             Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
             BigDecimal quantityAdjustment = getXLSBigDecimalFieldValue(sheet, i, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false));
-            String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
+            String idUserPriceListDetail = makeIdUserPriceListDetail(idItem, barcodeItem);
             String extIdPackBarcode = packBarcode == null ? ((importColumns.getItemKeyType().equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
             if (!idUserPriceListDetail.equals("_")) {
                 Map<DataObject, BigDecimal> prices = new HashMap<DataObject, BigDecimal>();
@@ -665,7 +665,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 Date dateFrom = getCSVDateFieldValue(valuesList, importColumns.getColumns().get("dateFrom"), count, dateDocument);
                 Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
                 BigDecimal quantityAdjustment = getCSVBigDecimalFieldValue(valuesList, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), count);
-                String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
+                String idUserPriceListDetail = makeIdUserPriceListDetail(idItem, barcodeItem);
                 String extIdPackBarcode = packBarcode == null ? ((importColumns.getItemKeyType().equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
                 if (!idUserPriceListDetail.equals("_")) {
                     Map<DataObject, BigDecimal> prices = new HashMap<DataObject, BigDecimal>();
@@ -722,7 +722,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             Date dateFrom = getXLSXDateFieldValue(sheet, i, importColumns.getColumns().get("dateFrom"), dateDocument);
             Date dateVAT = dateUserPriceList == null ? dateFrom : dateUserPriceList;
 
-            String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
+            String idUserPriceListDetail = makeIdUserPriceListDetail(idItem, barcodeItem);
             String extIdPackBarcode = packBarcode == null ? ((importColumns.getItemKeyType().equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
             if (!idUserPriceListDetail.equals("_")) {
                 Map<DataObject, BigDecimal> prices = new HashMap<DataObject, BigDecimal>();
@@ -790,7 +790,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             BigDecimal quantityAdjustment = getJDBFBigDecimalFieldValue(entry, fieldNamesMap, new ImportColumnDetail("quantityAdjustment", importColumns.getQuantityAdjustmentColumn(), false), i);
             Date dateUserPriceList = getJDBFDateFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("dateUserPriceList"), i);
             Date dateFrom = getJDBFDateFieldValue(entry, fieldNamesMap, importColumns.getColumns().get("dateFrom"), i, dateDocument);
-            String idUserPriceListDetail = (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
+            String idUserPriceListDetail = makeIdUserPriceListDetail(idItem, barcodeItem);
             String extIdPackBarcode = packBarcode == null ? ((importColumns.getItemKeyType().equals("barcode") ? barcodeItem : idItem) + "_pack") : packBarcode;
             if (!idUserPriceListDetail.equals("_")) {
                 Map<DataObject, BigDecimal> prices = new HashMap<DataObject, BigDecimal>();
@@ -902,6 +902,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             }
         }
         return importColumns;
+    }
+    
+    private String makeIdUserPriceListDetail(String idItem, String barcodeItem) {
+        return (idItem == null ? "" : idItem) + "_" + (barcodeItem == null ? "" : barcodeItem);
     }
 
     protected Boolean showField(List<UserPriceListDetail> data, String fieldName) {
