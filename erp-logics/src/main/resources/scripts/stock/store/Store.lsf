@@ -131,6 +131,10 @@ inChainStoresStoreTypeStore (chainStores, storeType, store) =
     (storeTypeStore(store) == storeType AND chainStores IS ChainStores) OR
     (chainStoresStore(store) == chainStores AND NOT storeType) OR
     (store IS Store AND NOT storeType AND NOT chainStores);
+    
+// Неактивный
+inactiveStore 'Неактивный' = DATA BOOLEAN (Store);
+activeStore 'Активный' (s) = s IS Store AND NOT inactiveStore(s);
 
 // -------------------------------------- Отдел магазина ------------------------------- //
 
@@ -318,7 +322,7 @@ FORM store 'Магазин'
     OBJECTS s=Store FIXED PANEL
     PROPERTIES(s) nameStore ON CHANGE changeStore(s), addressStore, nameStoreTypeStore, tradingSquareStore READONLY, 
                   nameChairmanStore, openDateStore, nameLegalEntityStore, numberBankAccountStore SHOWIF isCompanyStore(s),
-                  nameRegionStore, latitudeStore, longitudeStore, showOnMapPOI, idStore SHOWIF showIDs()
+                  nameRegionStore, latitudeStore, longitudeStore, showOnMapPOI, idStore SHOWIF showIDs(), inactiveStore
 
     OBJECTS d=DepartmentStore
     PROPERTIES(d) READONLY nameDepartmentStore, idDepartmentStore SHOWIF showIDs(), tradingSquareDepartmentStore
@@ -336,6 +340,7 @@ DESIGN store FROM DEFAULT{
             ADD PROPERTY(idStore(s));
             ADD PROPERTY(nameStoreTypeStore(s));
             ADD PROPERTY(nameLegalEntityStore(s));
+            ADD PROPERTY(inactiveStore(s));
         }
         NEW headerLocationParams {
             caption = 'Координаты';
