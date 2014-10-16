@@ -41,27 +41,8 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
     }
 
     public void loadImages(ExecutionContext context, DataObject articleObject, Integer start, Integer pageSize) {
-
-        try {
-
-            String patternImageArticle = trim((String) findProperty("patternImageArticle").read(context, articleObject));
-            String idArticle = trim((String) findProperty("idArticle").read(context, articleObject), "");
-            if (patternImageArticle != null && idArticle.matches(patternImageArticle + ".*")) {
-                Pattern p = Pattern.compile(patternImageArticle);
-                Matcher m = p.matcher(idArticle);
-                if (m.find()) {
-                    idArticle = m.groupCount() > 0 ? m.group(1) : m.group(0);
-                }
-            } 
-            idArticle = idArticle.replace("/", "+");
-            
-            String idBrandArticle = trim((String) findProperty("idBrandArticle").read(context, articleObject), "");
-            String siteBrandArticle = trim((String) findProperty("siteBrandArticle").read(context, articleObject));
-            String url = "https://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" + 
-                    idBrandArticle + "%20" + idArticle + "&rsz=" + pageSize + "&start=" + start * pageSize + 
-                    (siteBrandArticle==null ? "" : "&as_sitesearch=" + siteBrandArticle);
-            url = url.replace(" ", "+");
-
+        try {         
+            String url = formatURL(context, articleObject, pageSize, start);
             JSONObject response;
             try {
                 response = JsonReader.read(url);
@@ -102,6 +83,35 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
         }
     }
 
+    public void loadFirstImage(ExecutionContext context, DataObject articleObject) {
+        try {
+            String url = formatURL(context, articleObject, 8, 0);
+            JSONObject response;
+            try {
+                response = JsonReader.read(url);
+            } catch (IOException e) {
+                response = null;
+            }
+            if (response != null) {
+                //может вернуть response status 503
+                if (response.get("responseStatus").equals(200)) {
+                    JSONArray objectCollection = response.getJSONObject("responseData").getJSONArray("results");
+                    for (int i = 0; i < 8; i++) {
+                        JSONObject jsonObject = objectCollection.getJSONObject(i);
+                        File file = readImage(jsonObject.getString("url"));
+                        if (file != null) {
+                            findProperty("imageArticle").change(IOUtils.getFileBytes(file), context, articleObject);
+                            file.delete();
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
     protected File readImage(String url) {
         if(url == null) return null;
         File file;
@@ -120,5 +130,24 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
             file = null;
         }
         return file;
+    }
+
+    private String formatURL(ExecutionContext context, DataObject articleObject, int pageSize, int start) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String patternImageArticle = trim((String) findProperty("patternImageArticle").read(context, articleObject));
+        String idArticle = trim((String) findProperty("idArticle").read(context, articleObject), "");
+        String idBrandArticle = trim((String) findProperty("idBrandArticle").read(context, articleObject), "");
+        String siteBrandArticle = trim((String) findProperty("siteBrandArticle").read(context, articleObject));
+        if (patternImageArticle != null && idArticle.matches(patternImageArticle + ".*")) {
+            Pattern p = Pattern.compile(patternImageArticle);
+            Matcher m = p.matcher(idArticle);
+            if (m.find()) {
+                idArticle = m.groupCount() > 0 ? m.group(1) : m.group(0);
+            }
+        }
+        idArticle = idArticle.replace("/", "+");
+        String url = "https://ajax.googleapis.com/ajax/services/search/images?v=1.0&q=" +
+                idBrandArticle + "%20" + idArticle + "&rsz=" + pageSize + "&start=" + start * pageSize +
+                (siteBrandArticle == null ? "" : "&as_sitesearch=" + siteBrandArticle);
+        return url.replace(" ", "+");
     }
 }
